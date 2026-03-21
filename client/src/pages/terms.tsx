@@ -9,7 +9,7 @@ export default function TermsOfService() {
         Last updated: March 20, 2026 · Effective immediately upon account creation
       </p>
 
-      {/* — 1. WHAT OXSTEED IS ————————————————————— */}
+      {/* ── 1. WHAT OXSTEED IS ──────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           1. What OxSteed Is — And Is Not
@@ -38,7 +38,7 @@ export default function TermsOfService() {
           or outcome of any service performed.
         </p>
         <p className="text-xs bg-yellow-50 border border-yellow-200
-                      rounded-lg p-3 text-yellow-800">
+                       rounded-lg p-3 text-yellow-800">
           <strong>Important:</strong> OxSteed operates under the
           Communications Decency Act, 47 U.S.C. § 230. OxSteed is not
           the publisher or speaker of any content created by its users
@@ -47,7 +47,7 @@ export default function TermsOfService() {
         </p>
       </section>
 
-      {/* — 2. PLATFORM TIERS ————————————————————— */}
+      {/* ── 2. PLATFORM TIERS ───────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           2. Platform Tiers and Services
@@ -63,7 +63,7 @@ export default function TermsOfService() {
             <h3 className="font-bold text-gray-800 mb-1">
               Tier 1 — Free Directory Listing
             </h3>
-            <p className="mb-2">
+            <p>
               Helpers may create a free profile. Customers may browse
               profiles and post job listings. OxSteed facilitates
               introductions only. <strong>No money passes through
@@ -110,45 +110,46 @@ export default function TermsOfService() {
               <strong>Platform fees for Tier 3 transactions:</strong>
             </p>
             <ul className="list-disc ml-5 space-y-1 mb-2">
-              <li>
+              >
                 Platform service fee: 10% of the agreed job value,
                 minimum $5.00
               </li>
-              <li>
+              >
                 Payment protection fee: 2% of the agreed job value
                 (covers Stripe processing and escrow administration)
               </li>
-              <li>
+              >
                 Broker mediation fee (if applicable): 5% of job value,
                 applied only when a Tier 3 Broker Helper mediates the
                 transaction
               </li>
-              <li>
+              >
                 Total maximum platform take: up to 17% of agreed
                 job value for brokered Tier 3 transactions
               </li>
             </ul>
             <p>
               Tier 3 does not make OxSteed a party to the service
-              agreement. OxSteed's role is limited to holding and
-              releasing funds per the escrow terms.
+              agreement. OxSteed acts solely as a payment intermediary
+              and neutral escrow agent. Stripe, Inc. processes all
+              payments as a licensed money transmitter.
             </p>
           </div>
         </div>
       </section>
 
-      {/* — 3. USER ROLES AND DEFINITIONS ————————————— */}
+      {/* ── 3. ROLE DEFINITIONS ─────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           3. User Roles and Definitions
         </h2>
         <ul className="space-y-3">
-          <li>
+          >
             <strong>Customer:</strong> Any individual or entity that
             creates an OxSteed account for the purpose of posting job
             listings or contacting Helpers to arrange services.
           </li>
-          <li>
+          >
             <strong>Helper (Tier 1 — Free):</strong> An independent
             individual who creates a free OxSteed profile to advertise
             their skills and availability. Helpers are not employees,
@@ -156,7 +157,7 @@ export default function TermsOfService() {
             rates, hours, and service areas entirely at their own
             discretion.
           </li>
-          <li>
+          >
             <strong>Helper (Tier 2 — Pro Subscriber):</strong> A Helper
             who maintains an active Pro subscription, has completed
             optional identity and background verification, and may
@@ -164,7 +165,7 @@ export default function TermsOfService() {
             independent contractors with no employment relationship
             with OxSteed.
           </li>
-          <li>
+          >
             <strong>Helper (Tier 3 — Broker):</strong> A Helper with an
             active Broker subscription who has connected a Stripe Express
             account, enabling protected payment transactions. Brokers may
@@ -172,7 +173,7 @@ export default function TermsOfService() {
             Helpers. Broker Helpers are independent contractors with no
             employment relationship with OxSteed.
           </li>
-          <li>
+          >
             <strong>Independent Contractor Status:</strong> All Helpers,
             regardless of tier, are independent contractors. OxSteed
             does not: set their work hours, require minimum availability,
@@ -184,10 +185,10 @@ export default function TermsOfService() {
         </ul>
       </section>
 
-      {/* — 4. FEES AND PAYMENTS ——————————————————— */}
+      {/* ── 4. FEES AND PAYMENTS ────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
-          4. Fees, Payments, and Taxes
+          4. Fees and Payment Terms
         </h2>
         <p className="mb-3">
           <strong>Subscription Fees.</strong> Tier 2 (Pro) and Tier 3
@@ -223,7 +224,7 @@ export default function TermsOfService() {
         </p>
       </section>
 
-      {/* — 5. BACKGROUND CHECKS ——————————————————— */}
+      {/* ── 5. BACKGROUND CHECKS ────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           5. Background Checks and Verification
@@ -242,9 +243,19 @@ export default function TermsOfService() {
           Customers are solely responsible for conducting their own due
           diligence before engaging any Helper.
         </p>
+        <p className="mb-3">
+          Background check results are governed by the Fair Credit
+          Reporting Act (FCRA). Helpers who dispute a background check
+          result must contact Checkr directly. OxSteed cannot modify,
+          interpret, or override Checkr's results.
+        </p>
+        <p className="mb-3">
+          Background check badges expire after 12 months and must be
+          renewed. OxSteed will notify Helpers 30 days before expiry.
+        </p>
       </section>
 
-      {/* — 6. INDEPENDENT CONTRACTOR / WORKER CLASSIFICATION — */}
+      {/* ── 6. INDEPENDENT CONTRACTOR / WORKER CLASSIFICATION ── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           6. Independent Contractor Status
@@ -258,25 +269,25 @@ export default function TermsOfService() {
           Helpers expressly acknowledge that:
         </p>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li>They are operating an independent business</li>
-          <li>
+          >They are operating an independent business</li>
+          >
             They are solely responsible for all federal, state, and local
             taxes on income earned through the platform
           </li>
-          <li>
+          >
             They must carry any insurance required by law for their
             services, including general liability insurance
           </li>
-          <li>
+          >
             They are solely responsible for obtaining any licenses or
             permits required by Ohio law or applicable local ordinances
             to perform their services
           </li>
-          <li>
+          >
             OxSteed does not provide workers' compensation, unemployment
             insurance, health benefits, or any other employment benefits
           </li>
-          <li>
+          >
             They may work for any other platform, client, or employer
             at any time without restriction
           </li>
@@ -288,31 +299,18 @@ export default function TermsOfService() {
         </p>
       </section>
 
-      {/* — 7. LIMITATION OF LIABILITY ——————————————— */}
+      {/* ── 7. LIABILITY AND INSURANCE ──────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
-          7. Limitation of Liability and Insurance
+          7. Liability Limitations and Insurance
         </h2>
         <p className="mb-3">
-          <strong>No warranty.</strong> THE OXSTEED PLATFORM IS PROVIDED
-          "AS IS" AND "AS AVAILABLE." OXSTEED MAKES NO WARRANTIES,
-          EXPRESS OR IMPLIED, REGARDING THE PLATFORM, INCLUDING BUT NOT
-          LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-          PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
-        </p>
-        <p className="mb-3">
-          <strong>No liability for Helper services.</strong> OxSteed does
-          not perform, supervise, or inspect any work performed by
-          Helpers. OxSteed is not responsible for the quality, safety,
-          timeliness, or legality of any services. Customers engage
-          Helpers at their own risk.
-        </p>
-        <p className="mb-3">
-          <strong>Insurance.</strong> OxSteed does not provide insurance
-          coverage of any kind. Helpers are solely responsible for
-          maintaining their own general liability insurance, professional
-          liability insurance, workers' compensation, automobile
-          insurance, and property damage coverage.
+          <strong>No Insurance Provided.</strong> OxSteed does not
+          provide, and is not responsible for, any insurance coverage for
+          any Helper, Customer, or third party. This includes but is not
+          limited to: general liability insurance, professional liability
+          insurance, workers' compensation, automobile insurance, and
+          property damage coverage.
         </p>
         <p className="mb-3">
           <strong>Limitation of Liability.</strong> TO THE MAXIMUM
@@ -336,23 +334,24 @@ export default function TermsOfService() {
           insurance carrier.
         </p>
         <p className="mb-3">
-          <strong>Personal Injury.</strong> OxSteed is not liable for any
+          <strong
+                      >Personal Injury.</strong> OxSteed is not liable for any
           personal injury, death, or bodily harm arising from services
           arranged through the platform. Customers and Helpers
           assume all risk of injury associated with any services
           performed or received.
         </p>
         <p className="text-xs bg-red-50 border border-red-200
-                      rounded-lg p-3 text-red-800">
+                       rounded-lg p-3 text-red-800">
           <strong>Ohio-Specific Notice:</strong> Ohio Revised Code
-          § 2305.09 provides a general statute of limitations of four (4)
-          years for written contracts. Any claim arising from these Terms
-          must be filed within two (2) years of the event giving rise to
-          the claim, or the shorter period permitted by Ohio law.
+          § 4113.15 et seq. governs wage payment disputes between
+          independent contractors and engaging parties. OxSteed is
+          not an "employer" as defined under Ohio law and has no
+          wage payment obligations to any Helper.
         </p>
       </section>
 
-      {/* — 8. PROHIBITED CONDUCT —————————————————— */}
+      {/* ── 8. PROHIBITED CONDUCT ───────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           8. Prohibited Conduct
@@ -361,47 +360,52 @@ export default function TermsOfService() {
           The following are strictly prohibited on OxSteed:
         </p>
         <ul className="list-disc ml-5 space-y-2">
-          <li>
+          >
             <strong>Off-platform solicitation after Tier 3 election:</strong>{' '}
             Once both parties have elected Tier 3 payment protection for
             a specific job, attempting to redirect payment outside the
             platform for that job is a material breach of these Terms
             and may result in immediate account termination.
           </li>
-          <li>
+          >
             <strong>False identity or credentials:</strong> Creating a
             profile with false identity information, fabricated
             credentials, or fake reviews.
           </li>
-          <li>
+          >
             <strong>Unlicensed regulated work:</strong> Advertising or
             performing work that requires a state or local license
             (electrical, plumbing, HVAC, structural) without holding
             the required license.
           </li>
-          <li>
+          >
             <strong>Harassment or discrimination:</strong> Any conduct
             that harasses, discriminates against, or threatens another
             user on the basis of any protected characteristic.
           </li>
-          <li>
+          >
             <strong>Manipulation of reviews:</strong> Submitting false,
             incentivized, or coerced reviews.
           </li>
-          <li>
+          >
             <strong>Circumventing background check requirements:</strong>{' '}
             Misrepresenting background check status or assisting
             another person in doing so.
           </li>
-          <li>
+          >
             <strong>Unauthorized data collection:</strong> Scraping,
             harvesting, or collecting user data from the platform
-            without OxSteed's written consent.
+            by any automated means.
           </li>
         </ul>
+        <p className="mt-3">
+          OxSteed reserves the right to suspend or permanently terminate
+          any account found in violation of these prohibitions, without
+          notice and without refund of any subscription fees.
+        </p>
       </section>
 
-      {/* — 9. DISPUTE RESOLUTION —————————————————— */}
+      {/* ── 9. DISPUTE RESOLUTION ───────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           9. Dispute Resolution
@@ -421,10 +425,10 @@ export default function TermsOfService() {
           72 hours of the job's scheduled completion date. OxSteed will:
         </p>
         <ol className="list-decimal ml-5 space-y-1 mb-3">
-          <li>Acknowledge the dispute within 24 hours</li>
-          <li>Request documentation from both parties within 48 hours</li>
-          <li>Issue a resolution decision within 5 business days</li>
-          <li>Release or refund escrowed funds per the decision</li>
+          >Acknowledge the dispute within 24 hours</li>
+          >Request documentation from both parties within 48 hours</li>
+          >Issue a resolution decision within 5 business days</li>
+          >Release or refund escrowed funds per the decision</li>
         </ol>
         <p className="mb-3">
           OxSteed's dispute resolution decisions are final with respect
@@ -444,13 +448,18 @@ export default function TermsOfService() {
         </p>
         <p className="mb-3">
           <strong>Small Claims Exception.</strong> Either party may
-          bring an individual action in small claims court in Clark
-          County, Ohio, if the claim falls within the court's
-          jurisdictional limit.
+          bring an individual claim in small claims court in Clark
+          County, Ohio, if the claim qualifies under that court's
+          jurisdictional limits.
+        </p>
+        <p className="mb-3">
+          <strong>Governing Law.</strong> These Terms are governed by
+          the laws of the State of Ohio, without regard to its conflict
+          of law principles.
         </p>
       </section>
 
-      {/* — 10. PRIVACY AND DATA ——————————————————— */}
+      {/* ── 10. PRIVACY AND DATA ────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           10. Privacy and Address Masking
@@ -460,24 +469,24 @@ export default function TermsOfService() {
           following protections are built into the platform by default:
         </p>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li>
+          >
             <strong>Address masking:</strong> When a Customer posts a
             job, their full address is never shown publicly. Helpers
             browsing jobs see only the Customer's last name and an
             approximate location within a 2-mile radius.
           </li>
-          <li>
+          >
             <strong>Address reveal:</strong> A Helper receives the
             Customer's full name and address only after: (a) the Helper
             has accepted the job and confirmed their attendance, and
             (b) the scheduled job start time is within 12 hours.
           </li>
-          <li>
+          >
             <strong>Data minimization:</strong> OxSteed collects only
             the data necessary to operate the platform. We do not sell
             user data to third parties for advertising purposes.
           </li>
-          <li>
+          >
             <strong>Data retention:</strong> Account data is retained
             for 3 years after account closure for tax compliance
             purposes, then permanently deleted.
@@ -492,16 +501,19 @@ export default function TermsOfService() {
         </p>
       </section>
 
-      {/* — 11. CLICKWRAP CONSENT —————————————————— */}
+      {/* ── 11. CLICKWRAP CONSENT ───────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
-          11. Acceptance of Terms (Clickwrap)
+          11. Consent and Acceptance
         </h2>
         <p className="mb-3">
-          By creating an account, clicking "I Agree," or using OxSteed
-          in any capacity, you acknowledge that you have read,
-          understood, and agree to be bound by these Terms of Service
-          and our Privacy Policy.
+          By creating an OxSteed account, you confirm that you have read,
+          understood, and agree to be bound by these Terms of Service,
+          our Privacy Policy, and any additional agreements applicable
+          to your chosen tier. Your click of "Create Account" or
+          "Continue" constitutes a legally binding electronic signature
+          under the Electronic Signatures in Global and National Commerce
+          Act (E-SIGN Act), 15 U.S.C. § 7001 et seq.
         </p>
         <p className="mb-3">
           If you do not agree to these Terms, do not create an account
@@ -514,7 +526,7 @@ export default function TermsOfService() {
         </p>
       </section>
 
-      {/* — 12. MODIFICATIONS ————————————————————— */}
+      {/* ── 12. MODIFICATIONS ───────────────────────────────── */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-gray-900 mb-3">
           12. Modifications to These Terms
