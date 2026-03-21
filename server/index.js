@@ -1,4 +1,4 @@
-// OxSteed v2 — Express server entry point
+// OxSteed v2 - Express server entry point
 require('dotenv').config();
 
 const express = require('express');
@@ -11,6 +11,10 @@ const pool = require('./db');
 const authRoutes = require('./routes/auth');
 const subscriptionRoutes = require('./routes/subscription');
 const webhookRoutes = require('./routes/webhook');
+const jobRoutes = require('./routes/jobs');
+const bidRoutes = require('./routes/bids');
+const paymentRoutes = require('./routes/payments');
+const disputeRoutes = require('./routes/disputes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,44 +30,41 @@ app.use(cors({
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
-// Webhook routes (must be before body parsing for Stripe raw body)
+// Webhook routes MUST come before body parsing (Stripe needs raw body)
 app.use('/api/webhooks', webhookRoutes);
 
 // Body parsing
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check
-app.get('/api/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  } catch (err) {
-    res.status(500).json({ status: 'error', error: err.message });
-  }
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/bids', bidRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/disputes', disputeRoutes);
 
-// Serve static client build in production
+// Production static serving
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  app.use(express.static(path.join(__dirname, '../client/dist')));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
 }
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong' });
 });
 
 app.listen(PORT, () => {
