@@ -1,57 +1,55 @@
-const express = require('express');
-const router = express.Router();
-const { authenticate } = require('../middleware/auth');
-const adminController = require('../controllers/adminController');
-const feeCtrl = require('../controllers/feeConfigController');
+const router         = require('express').Router();
+const { requireAdmin, requireSuperAdmin } = require('../middleware/adminAuth');
+const superCtrl      = require('../controllers/superAdminController');
+const adminCtrl      = require('../controllers/adminController');
 
-// Middleware: require admin or superadmin role
-const requireAdmin = (req, res, next) => {
-  if (!req.user || !['admin', 'superadmin'].includes(req.user.admin_role)) {
-    return res.status(403).json({ error: 'Admin access required.' });
-  }
-  next();
-};
-
-// Middleware: require superadmin role
-const requireSuperAdmin = (req, res, next) => {
-  if (!req.user || req.user.admin_role !== 'superadmin') {
-    return res.status(403).json({ error: 'Super admin access required.' });
-  }
-  next();
-};
-
-// All admin routes require authentication + admin role
-router.use(authenticate, requireAdmin);
+// ══════════════════════════════════════════════════════════════
+// REGULAR ADMIN — both admin and super_admin can access
+// ══════════════════════════════════════════════════════════════
 
 // Dashboard
-router.get('/dashboard', adminController.getDashboardStats);
+router.get('/dashboard',         requireAdmin, adminCtrl.getDashboardStats);
 
-// User management
-router.get('/users', adminController.getUsers);
-router.put('/users/:id/deactivate', adminController.deactivateUser);
-router.put('/users/:id/reactivate', adminController.reactivateUser);
+// Content moderation
+router.get('/reports',           requireAdmin, adminCtrl.getReports);
+router.put('/reports/:reportId', requireAdmin, adminCtrl.reviewReport);
+router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
 
-// Moderation queue
-router.get('/moderation', adminController.getModerationQueue);
-router.put('/moderation/:id/resolve', adminController.resolveModerationItem);
-router.put('/moderation/:id/dismiss', adminController.dismissModerationItem);
+// Jobs (read + moderate)
+router.get('/jobs',              requireAdmin, superCtrl.getJobs);
+router.post('/jobs/:jobId/action', requireAdmin, superCtrl.forceJobAction);
 
-// Market management
-router.get('/markets', adminController.getMarkets);
-router.post('/markets', requireSuperAdmin, adminController.createMarket);
+// Users (read-only for regular admin)
+router.get('/users',             requireAdmin, superCtrl.getUsers);
+router.get('/users/:userId',     requireAdmin, superCtrl.getUserDetail);
 
-// Activity log
-router.get('/activity-log', adminController.getActivityLog);
+// ══════════════════════════════════════════════════════════════
+// SUPER ADMIN ONLY
+// ══════════════════════════════════════════════════════════════
 
-// Platform settings (super admin only)
-router.get('/settings', requireSuperAdmin, adminController.getPlatformSettings);
-router.put('/settings/:key', requireSuperAdmin, adminController.updatePlatformSetting);
+// Full dashboard + charts
+router.get('/super/dashboard',   requireSuperAdmin, superCtrl.getDashboardStats);
+router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart);
 
-// Fee config - super admin only
-router.get('/fees', requireSuperAdmin, feeCtrl.getFeeConfig);
-router.get('/fees/history', requireSuperAdmin, feeCtrl.getFeeHistory);
-router.put('/fees/:key', requireSuperAdmin, feeCtrl.updateFeeConfig);
-router.post('/fees/preview', requireSuperAdmin, feeCtrl.previewFees);
-router.post('/fees/reset', requireSuperAdmin, feeCtrl.resetToDefaults);
+// User management (write)
+router.post('/users/:userId/ban',    requireSuperAdmin, superCtrl.toggleUserBan);
+router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
+router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
+
+// Financials
+router.get('/financials',              requireSuperAdmin, superCtrl.getFinancials);
+router.get('/payouts',                 requireSuperAdmin, superCtrl.getPayouts);
+router.post('/jobs/:jobId/refund',     requireSuperAdmin, superCtrl.issueManualRefund);
+
+// Platform settings
+router.get('/settings',               requireSuperAdmin, superCtrl.getSettings);
+router.put('/settings/:key',          requireSuperAdmin, superCtrl.updateSetting);
+router.put('/feature-flags/:key',     requireSuperAdmin, superCtrl.updateFeatureFlag);
+
+// Audit log
+router.get('/audit-log',              requireSuperAdmin, superCtrl.getAuditLog);
+
+// Data export
+router.get('/export/:type',           requireSuperAdmin, superCtrl.exportData);
 
 module.exports = router;
