@@ -15,6 +15,9 @@ const jobRoutes = require('./routes/jobs');
 const bidRoutes = require('./routes/bids');
 const paymentRoutes = require('./routes/payments');
 const disputeRoutes = require('./routes/disputes');
+const reviewRoutes = require('./routes/reviews');
+const notificationRoutes = require('./routes/notifications');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -52,6 +55,9 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/bids', bidRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/disputes', disputeRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Production static serving
 if (process.env.NODE_ENV === 'production') {
