@@ -10,6 +10,7 @@ import HelperDashboard from './pages/HelperDashboard';
 import JobListPage from './pages/JobListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import PostJobPage from './pages/PostJobPage';
+import AdminDashboard from './pages/AdminDashboard';
 
 export default function App() {
   return (
@@ -64,6 +65,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <PostJobPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminDashboard />
               </ProtectedRoute>
             }
           />
