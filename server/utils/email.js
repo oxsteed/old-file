@@ -3,12 +3,22 @@
 
 const sgMail = require('@sendgrid/mail');
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+let emailConfigured = false;
+if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  emailConfigured = true;
+} else {
+  console.warn('SendGrid API key not set or invalid. Email features disabled.');
+}
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@oxsteed.com';
 const FROM_NAME = process.env.FROM_NAME || 'OxSteed';
 
 async function sendEmail({ to, subject, text, html, templateId, dynamicData }) {
+    if (!emailConfigured) {
+    console.warn('Email not sent - SendGrid not configured');
+    return { success: false, error: 'SendGrid not configured' };
+  }
   const msg = {
     to,
     from: { email: FROM_EMAIL, name: FROM_NAME },
