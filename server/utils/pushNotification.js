@@ -4,13 +4,23 @@
 const webpush = require('web-push');
 const pool = require('../db');
 
-webpush.setVapidDetails(
-  'mailto:' + (process.env.VAPID_EMAIL || 'admin@oxsteed.com'),
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+let pushConfigured = false;
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:' + (process.env.VAPID_EMAIL || 'admin@oxsteed.com'),
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+  pushConfigured = true;
+} else {
+  console.warn('VAPID keys not set. Push notification features disabled.');
+}
 
 async function sendPushToUser(userId, payload) {
+    if (!pushConfigured) {
+    console.warn('Push not sent - VAPID not configured');
+    return [];
+  }
   const { rows: subs } = await pool.query(
     'SELECT id, endpoint, p256dh_key, auth_key FROM push_subscriptions WHERE user_id = $1 AND active = true',
     [userId]
@@ -43,6 +53,10 @@ async function sendPushToUser(userId, payload) {
 }
 
 async function sendPushToAll(payload) {
+    if (!pushConfigured) {
+    console.warn('Push not sent - VAPID not configured');
+    return [];
+  }
   const { rows: subs } = await pool.query(
     'SELECT DISTINCT user_id FROM push_subscriptions WHERE active = true'
   );
