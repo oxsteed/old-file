@@ -4,6 +4,7 @@ import useSubscription from '../hooks/useSubscription';
 import BadgeDisplay from '../components/BadgeDisplay';
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
+import '../styles/HelperDashboard.css';
 
 export default function HelperDashboard() {
   const { user } = useAuth();
