@@ -1,0 +1,279 @@
+.admin-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #1a1a2e;
+  min-height: 100vh;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.admin-header h1 {
+  color: #fff;
+  font-size: 1.8rem;
+}
+
+.admin-badge {
+  background: #F97316;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #333;
+  margin-bottom: 24px;
+}
+
+.admin-tab {
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 0.95rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.admin-tab:hover {
+  color: #fff;
+}
+
+.admin-tab.active {
+  color: #F97316;
+  border-bottom-color: #F97316;
+}
+
+.badge-count {
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+
+.admin-content {
+  min-height: 400px;
+}
+
+.admin-loading {
+  text-align: center;
+  color: #999;
+  padding: 60px;
+  font-size: 1.1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: #16213e;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #333;
+}
+
+.stat-card.alert {
+  border-color: #F97316;
+}
+
+.stat-card h3 {
+  color: #999;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.stat-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stat-details span {
+  color: #777;
+  font-size: 0.8rem;
+}
+
+.user-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.user-filters input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.user-filters select {
+  padding: 8px 12px;
+  background: #16213e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.user-filters button {
+  padding: 8px 16px;
+  background: #F97316;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #16213e;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-table th {
+  background: #0f3460;
+  color: #ccc;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.admin-table td {
+  padding: 10px 12px;
+  color: #ddd;
+  border-bottom: 1px solid #2a2a4a;
+  font-size: 0.9rem;
+}
+
+.admin-table tr:hover {
+  background: #1a2744;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #F97316;
+  color: #fff;
+}
+
+.btn-sm.btn-danger {
+  background: #ef4444;
+}
+
+.mod-card {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 4px solid #333;
+}
+
+.mod-card.priority-urgent {
+  border-left-color: #ef4444;
+}
+
+.mod-card.priority-high {
+  border-left-color: #F97316;
+}
+
+.mod-card.priority-normal {
+  border-left-color: #3b82f6;
+}
+
+.mod-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mod-type {
+  background: #0f3460;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.mod-priority {
+  font-size: 0.75rem;
+  color: #F97316;
+  text-transform: uppercase;
+}
+
+.mod-date {
+  color: #666;
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+.mod-reason {
+  color: #ddd;
+  margin-bottom: 8px;
+}
+
+.mod-reporter {
+  color: #777;
+  font-size: 0.8rem;
+  margin-bottom: 12px;
+}
+
+.mod-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mod-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  background: #F97316;
+  color: #fff;
+}
+
+.mod-actions .btn-secondary {
+  background: #333;
+  color: #aaa;
+}
+
+.empty-state {
+  text-align: center;
+  color: #777;
+  padding: 40px;
+}
