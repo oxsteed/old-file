@@ -76,3 +76,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`OxSteed v2 server running on port ${PORT}`);
 });
+
+// Start cron jobs
+const { startWeeklySummaryJob } = require('./jobs/weeklySummary');
+startWeeklySummaryJob();
