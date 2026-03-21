@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
+const feeCtrl = require('../controllers/feeConfigController');
 
 // Middleware: require admin or superadmin role
 const requireAdmin = (req, res, next) => {
@@ -45,5 +46,12 @@ router.get('/activity-log', adminController.getActivityLog);
 // Platform settings (super admin only)
 router.get('/settings', requireSuperAdmin, adminController.getPlatformSettings);
 router.put('/settings/:key', requireSuperAdmin, adminController.updatePlatformSetting);
+
+// Fee config - super admin only
+router.get('/fees', requireSuperAdmin, feeCtrl.getFeeConfig);
+router.get('/fees/history', requireSuperAdmin, feeCtrl.getFeeHistory);
+router.put('/fees/:key', requireSuperAdmin, feeCtrl.updateFeeConfig);
+router.post('/fees/preview', requireSuperAdmin, feeCtrl.previewFees);
+router.post('/fees/reset', requireSuperAdmin, feeCtrl.resetToDefaults);
 
 module.exports = router;
