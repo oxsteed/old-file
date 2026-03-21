@@ -1,0 +1,36 @@
+.badge-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.badge-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 2px solid;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+}
+
+.badge-small .badge-item {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.badge-large .badge-item {
+  padding: 6px 14px;
+  font-size: 1rem;
+}
+
+.badge-icon {
+  font-size: 1em;
+}
+
+.badge-label {
+  font-weight: 500;
+  color: #e0e0e0;
+}
