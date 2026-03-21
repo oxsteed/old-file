@@ -1,113 +1,308 @@
-const pool = require('../db');
+const db                   = require('../db');
+const { sendNotification } = require('../services/notificationService');
 
-// Create a review for a job
-exports.createReview = async (req, res) => {
+// ─── SUBMIT REVIEW ────────────────────────────────────────────
+exports.submitReview = async (req, res) => {
+  const dbClient = await db.connect();
   try {
-    const { job_id, reviewed_id, rating, body } = req.body;
+    await dbClient.query('BEGIN');
+
+    const reviewerId  = req.user.id;
+    const { jobId }   = req.params;
+    const { rating, title, body } = req.body;
+
+    // Validate rating
     if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+      return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
     }
-    const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
-    if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });
-    if (job.rows[0].status !== 'completed') {
-      return res.status(400).json({ error: 'Can only review completed jobs' });
+
+    // Get job — verify reviewer was involved
+    const { rows: jobRows } = await dbClient.query(`
+      SELECT j.*,
+        u_c.first_name AS client_first,
+        u_h.first_name AS helper_first
+      FROM jobs j
+      JOIN users u_c ON j.client_id = u_c.id
+      LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id
+      WHERE j.id = $1
+        AND j.status = 'closed'
+        AND (j.client_id = $2 OR j.assigned_helper_id = $2)
+    `, [jobId, reviewerId]);
+
+    if (!jobRows.length) {
+      return res.status(403).json({
+        error: 'Can only review completed and closed jobs you were part of.'
+      });
     }
-    const existing = await pool.query(
-      'SELECT id FROM reviews WHERE reviewer_id = $1 AND job_id = $2',
-      [req.user.id, job_id]
-    );
-    if (existing.rows[0]) {
-      return res.status(400).json({ error: 'You already reviewed this job' });
+
+    const job = jobRows[0];
+
+    // Determine reviewer role and reviewee
+    const isClient     = job.client_id === reviewerId;
+    const reviewerRole = isClient ? 'client' : 'helper';
+    const revieweeId   = isClient ? job.assigned_helper_id : job.client_id;
+
+    if (!revieweeId) {
+      return res.status(400).json({ error: 'No reviewee found for this job.' });
     }
-    const result = await pool.query(
-      `INSERT INTO reviews (reviewer_id, reviewed_id, job_id, rating, body, job_completed)
-       VALUES ($1, $2, $3, $4, $5, true) RETURNING *`,
-      [req.user.id, reviewed_id, job_id, rating, body]
-    );
-    res.status(201).json(result.rows[0]);
+
+    // Insert review
+    const { rows } = await dbClient.query(`
+      INSERT INTO reviews
+        (job_id, reviewer_id, reviewee_id, reviewer_role, rating, title, body)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING *
+    `, [jobId, reviewerId, revieweeId, reviewerRole, rating, title, body]);
+
+    const review = rows[0];
+
+    // Update helper's average_rating if helper was reviewed
+    if (reviewerRole === 'client') {
+      await dbClient.query(`
+        UPDATE helper_profiles
+        SET average_rating = (
+          SELECT ROUND(AVG(rating)::numeric, 2)
+          FROM reviews
+          WHERE reviewee_id = $1
+            AND is_visible  = true
+        ),
+        total_reviews = (
+          SELECT COUNT(*)
+          FROM reviews
+          WHERE reviewee_id = $1
+            AND is_visible  = true
+        ),
+        updated_at = now()
+        WHERE user_id = $1
+      `, [revieweeId]);
+    }
+
+    await dbClient.query('COMMIT');
+
+    // Notify reviewee
+    const reviewerName = isClient
+      ? job.client_first
+      : job.helper_first;
+
+    await sendNotification({
+      userId:     revieweeId,
+      type:       'new_review',
+      title:      'You received a new review',
+      body:       `${reviewerName} left you a ${rating}-star review.`,
+      data:       { jobId, reviewId: review.id },
+      action_url: `/profile#reviews`
+    });
+
+    res.status(201).json({ review });
   } catch (err) {
-    console.error('Create review error:', err);
-    res.status(500).json({ error: 'Failed to create review' });
+    await dbClient.query('ROLLBACK');
+    if (err.code === '23505') {
+      return res.status(409).json({
+        error: 'You have already reviewed this job.'
+      });
+    }
+    console.error('submitReview error:', err);
+    res.status(500).json({ error: 'Failed to submit review.' });
+  } finally {
+    dbClient.release();
   }
 };
 
-// Get reviews for a user
+// ─── GET REVIEWS FOR A USER ───────────────────────────────────
 exports.getUserReviews = async (req, res) => {
   try {
-    const { user_id } = req.params;
-    const result = await pool.query(
-      `SELECT r.*, u.first_name, u.last_name, j.title as job_title
-       FROM reviews r
-       JOIN users u ON r.reviewer_id = u.id
-       LEFT JOIN jobs j ON r.job_id = j.id
-       WHERE r.reviewed_id = $1 AND r.removed = false
-       ORDER BY r.created_at DESC`,
-      [user_id]
-    );
-    const stats = await pool.query(
-      `SELECT COUNT(*) as total, ROUND(AVG(rating), 1) as average
-       FROM reviews WHERE reviewed_id = $1 AND removed = false`,
-      [user_id]
-    );
-    res.json({ reviews: result.rows, stats: stats.rows[0] });
+    const { userId }         = req.params;
+    const { page = 1, limit = 10, role } = req.query;
+    const offset             = (page - 1) * limit;
+
+    let condition = `WHERE r.reviewee_id = $1 AND r.is_visible = true`;
+    const params  = [userId];
+    let paramIdx  = 2;
+
+        if (role) {
+      condition += ` AND r.reviewer_role = $${paramIdx++}`;
+      params.push(role);
+    }
+
+    const { rows } = await db.query(`
+      SELECT
+        r.*,
+        u.first_name || ' ' || u.last_name AS reviewer_name,
+        u.avatar_url                        AS reviewer_avatar,
+        j.title                             AS job_title
+      FROM reviews r
+      JOIN users u ON r.reviewer_id = u.id
+      JOIN jobs  j ON r.job_id = j.id
+      ${condition}
+      ORDER BY r.created_at DESC
+      LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+    `, [...params, limit, offset]);
+
+    const { rows: statsRows } = await db.query(`
+      SELECT
+        COUNT(*)                          AS total_reviews,
+        ROUND(AVG(rating)::numeric, 2)    AS average_rating,
+        COUNT(*) FILTER (WHERE rating = 5) AS five_star,
+        COUNT(*) FILTER (WHERE rating = 4) AS four_star,
+        COUNT(*) FILTER (WHERE rating = 3) AS three_star,
+        COUNT(*) FILTER (WHERE rating = 2) AS two_star,
+        COUNT(*) FILTER (WHERE rating = 1) AS one_star
+      FROM reviews
+      WHERE reviewee_id = $1
+        AND is_visible  = true
+    `, [userId]);
+
+    res.json({
+      reviews: rows,
+      stats:   statsRows[0],
+      page:    parseInt(page),
+      limit:   parseInt(limit)
+    });
   } catch (err) {
-    console.error('Get user reviews error:', err);
-    res.status(500).json({ error: 'Failed to fetch reviews' });
+    console.error('getUserReviews error:', err);
+    res.status(500).json({ error: 'Failed to fetch reviews.' });
   }
 };
 
-// Get reviews for a job
-exports.getJobReviews = async (req, res) => {
+// ─── RESPOND TO REVIEW ────────────────────────────────────────
+exports.respondToReview = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT r.*, u.first_name, u.last_name
-       FROM reviews r
-       JOIN users u ON r.reviewer_id = u.id
-       WHERE r.job_id = $1 AND r.removed = false
-       ORDER BY r.created_at DESC`,
-      [req.params.job_id]
-    );
-    res.json(result.rows);
+    const userId    = req.user.id;
+    const { id }    = req.params;
+    const { response } = req.body;
+
+    if (!response?.trim()) {
+      return res.status(400).json({ error: 'Response text required.' });
+    }
+
+    if (response.length > 600) {
+      return res.status(400).json({ error: 'Response cannot exceed 600 characters.' });
+    }
+
+    // Only reviewee can respond
+    const { rows } = await db.query(`
+      UPDATE reviews
+      SET response     = $1,
+          responded_at = now(),
+          updated_at   = now()
+      WHERE id = $2
+        AND reviewee_id = $3
+        AND response IS NULL
+      RETURNING *
+    `, [response.trim(), id, userId]);
+
+    if (!rows.length) {
+      return res.status(403).json({
+        error: 'Review not found, not yours, or already responded to.'
+      });
+    }
+
+    // Notify reviewer their response was received
+    await sendNotification({
+      userId:     rows[0].reviewer_id,
+      type:       'review_response',
+      title:      'Your review received a response',
+      body:       'The person you reviewed has responded to your feedback.',
+      data:       { reviewId: id },
+      action_url: `/profile/${userId}#reviews`
+    });
+
+    res.json({ review: rows[0] });
   } catch (err) {
-    console.error('Get job reviews error:', err);
-    res.status(500).json({ error: 'Failed to fetch reviews' });
+    console.error('respondToReview error:', err);
+    res.status(500).json({ error: 'Failed to submit response.' });
   }
 };
 
-// Get my reviews (given and received)
-exports.getMyReviews = async (req, res) => {
+// ─── CHECK REVIEW ELIGIBILITY ─────────────────────────────────
+exports.getReviewEligibility = async (req, res) => {
   try {
-    const { type = 'received' } = req.query;
-    const field = type === 'given' ? 'reviewer_id' : 'reviewed_id';
-    const joinField = type === 'given' ? 'reviewed_id' : 'reviewer_id';
-    const result = await pool.query(
-      `SELECT r.*, u.first_name, u.last_name, j.title as job_title
-       FROM reviews r
-       JOIN users u ON r.${joinField} = u.id
-       LEFT JOIN jobs j ON r.job_id = j.id
-       WHERE r.${field} = $1 AND r.removed = false
-       ORDER BY r.created_at DESC`,
-      [req.user.id]
-    );
-    res.json(result.rows);
+    const userId  = req.user.id;
+    const { jobId } = req.params;
+
+    const { rows } = await db.query(`
+      SELECT
+        j.status,
+        j.client_id,
+        j.assigned_helper_id,
+        EXISTS (
+          SELECT 1 FROM reviews
+          WHERE job_id    = j.id
+            AND reviewer_id = $2
+        ) AS already_reviewed
+      FROM jobs j
+      WHERE j.id = $1
+        AND (j.client_id = $2 OR j.assigned_helper_id = $2)
+    `, [jobId, userId]);
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Job not found.' });
+    }
+
+    const { status, already_reviewed } = rows[0];
+    const eligible = status === 'closed' && !already_reviewed;
+
+    res.json({ eligible, already_reviewed, job_status: status });
   } catch (err) {
-    console.error('Get my reviews error:', err);
-    res.status(500).json({ error: 'Failed to fetch reviews' });
+    console.error('getReviewEligibility error:', err);
+    res.status(500).json({ error: 'Failed to check eligibility.' });
   }
 };
 
-// Flag a review
-exports.flagReview = async (req, res) => {
+// ─── ADMIN: HIDE REVIEW ───────────────────────────────────────
+exports.adminHideReview = async (req, res) => {
   try {
+    const adminId    = req.user.id;
+    const { id }     = req.params;
     const { reason } = req.body;
-    const result = await pool.query(
-      'UPDATE reviews SET flagged = true, flagged_reason = $1 WHERE id = $2 RETURNING *',
-      [reason, req.params.id]
-    );
-    if (!result.rows[0]) return res.status(404).json({ error: 'Review not found' });
-    res.json(result.rows[0]);
+
+    if (!reason?.trim()) {
+      return res.status(400).json({ error: 'Hide reason required.' });
+    }
+
+    const { rows } = await db.query(`
+      UPDATE reviews
+      SET is_visible   = false,
+          hidden_reason = $1,
+          hidden_by     = $2,
+          updated_at    = now()
+      WHERE id = $3
+      RETURNING *
+    `, [reason, adminId, id]);
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Review not found.' });
+    }
+
+    // Recalculate helper rating after hiding
+    await db.query(`
+      UPDATE helper_profiles
+      SET average_rating = (
+        SELECT ROUND(AVG(rating)::numeric, 2)
+        FROM reviews
+        WHERE reviewee_id = $1 AND is_visible = true
+      ),
+      total_reviews = (
+        SELECT COUNT(*) FROM reviews
+        WHERE reviewee_id = $1 AND is_visible = true
+      ),
+      updated_at = now()
+      WHERE user_id = $1
+    `, [rows[0].reviewee_id]);
+
+    const { logAdminAction } = require('../services/auditService');
+    await logAdminAction({
+      adminId,
+      action:     'review_hidden',
+      targetType: 'review',
+      targetId:   id,
+      description: reason,
+      req
+    });
+
+    res.json({ message: 'Review hidden successfully.' });
   } catch (err) {
-    console.error('Flag review error:', err);
-    res.status(500).json({ error: 'Failed to flag review' });
+    console.error('adminHideReview error:', err);
+    res.status(500).json({ error: 'Failed to hide review.' });
   }
 };
