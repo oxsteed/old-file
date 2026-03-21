@@ -7,6 +7,9 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import UpgradePage from './pages/UpgradePage';
 import HelperDashboard from './pages/HelperDashboard';
+import JobListPage from './pages/JobListPage';
+import JobDetailPage from './pages/JobDetailPage';
+import PostJobPage from './pages/PostJobPage';
 
 export default function App() {
   return (
@@ -37,6 +40,30 @@ export default function App() {
             element={
               <ProtectedRoute requiredRole="helper">
                 <HelperDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/jobs"
+            element={
+              <ProtectedRoute>
+                <JobListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/jobs/:id"
+            element={
+              <ProtectedRoute>
+                <JobDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/post-job"
+            element={
+              <ProtectedRoute>
+                <PostJobPage />
               </ProtectedRoute>
             }
           />
