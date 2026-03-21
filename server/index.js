@@ -9,6 +9,8 @@ const path = require('path');
 
 const pool = require('./db');
 const authRoutes = require('./routes/auth');
+const subscriptionRoutes = require('./routes/subscription');
+const webhookRoutes = require('./routes/webhook');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +31,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// Webhook routes (must be before body parsing for Stripe raw body)
+app.use('/api/webhooks', webhookRoutes);
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -45,6 +50,7 @@ app.get('/api/health', async (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 
 // Serve static client build in production
 if (process.env.NODE_ENV === 'production') {
