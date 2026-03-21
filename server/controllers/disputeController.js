@@ -1,99 +1,428 @@
-const pool = require('../db');
+const db                   = require('../db');
+const { sendNotification } = require('../services/notificationService');
+const { logAdminAction }   = require('../services/auditService');
+const { issueRefund }      = require('../services/stripeService');
+const upload               = require('../middleware/upload');
 
-// Create a dispute
-exports.createDispute = async (req, res) => {
+const DISPUTE_REASONS = [
+  'work_not_completed',
+  'poor_quality',
+  'no_show',
+  'overcharged',
+  'property_damage',
+  'safety_concern',
+  'fraud',
+  'other'
+];
+
+// ─── OPEN DISPUTE ─────────────────────────────────────────────
+exports.openDispute = async (req, res) => {
+  const dbClient = await db.connect();
   try {
-    const { job_id, reason, description, evidence } = req.body;
-    const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
-    if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });
-    const isPoster = job.rows[0].poster_id === req.user.id;
-    const isHelper = job.rows[0].helper_id === req.user.id;
-    if (!isPoster && !isHelper) return res.status(403).json({ error: 'Not authorized' });
-    const against = isPoster ? job.rows[0].helper_id : job.rows[0].poster_id;
-    // Check for existing open dispute
-    const existing = await pool.query('SELECT * FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'under_review']);
-    if (existing.rows[0]) return res.status(400).json({ error: 'An active dispute already exists for this job' });
-    // Get payment if exists
-    const payment = await pool.query('SELECT id FROM payments WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1', [job_id]);
-    const result = await pool.query(
-      `INSERT INTO disputes (job_id, payment_id, raised_by, against_user, reason, description, evidence)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [job_id, payment.rows[0]?.id || null, req.user.id, against, reason, description, JSON.stringify(evidence || [])]
-    );
-    // Update job status
-    await pool.query(`UPDATE jobs SET status = 'disputed', updated_at = NOW() WHERE id = $1`, [job_id]);
-    res.status(201).json(result.rows[0]);
+    await dbClient.query('BEGIN');
+
+    const userId           = req.user.id;
+    const { jobId }        = req.params;
+    const { reason, description } = req.body;
+
+    if (!DISPUTE_REASONS.includes(reason)) {
+      return res.status(400).json({
+        error: `Invalid reason. Must be one of: ${DISPUTE_REASONS.join(', ')}`
+      });
+    }
+
+    if (!description || description.trim().length < 20) {
+      return res.status(400).json({
+        error: 'Please provide at least 20 characters of description.'
+      });
+    }
+
+    // Verify user was part of this job and job is completed
+    const { rows: jobRows } = await dbClient.query(`
+      SELECT j.*,
+        u_c.email AS client_email,
+        u_h.email AS helper_email,
+        u_c.first_name AS client_name,
+        u_h.first_name AS helper_name
+      FROM jobs j
+      JOIN users u_c ON j.client_id = u_c.id
+      LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id
+      WHERE j.id = $1
+        AND (j.client_id = $2 OR j.assigned_helper_id = $2)
+        AND j.status IN ('completed','closed')
+    `, [jobId, userId]);
+
+    if (!jobRows.length) {
+      return res.status(403).json({
+        error: 'Can only dispute completed jobs you were part of.'
+      });
+    }
+
+    const job = jobRows[0];
+
+    // Check no existing open dispute
+    const { rows: existRows } = await dbClient.query(`
+      SELECT id FROM disputes
+      WHERE job_id = $1 AND status NOT IN ('resolved','closed')
+    `, [jobId]);
+
+    if (existRows.length) {
+      return res.status(409).json({
+        error: 'A dispute is already open for this job.'
+      });
+    }
+
+    // Determine roles
+    const isClient      = job.client_id === userId;
+    const openedByRole  = isClient ? 'client' : 'helper';
+    const againstUserId = isClient ? job.assigned_helper_id : job.client_id;
+    const evidenceDeadline = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+    // Create dispute
+    const { rows: disputeRows } = await dbClient.query(`
+      INSERT INTO disputes (
+        job_id, opened_by, opened_by_role,
+        against_user_id, reason, description,
+        status, evidence_deadline
+      ) VALUES ($1,$2,$3,$4,$5,$6,'open',$7)
+      RETURNING *
+    `, [
+      jobId, userId, openedByRole,
+      againstUserId, reason, description.trim(),
+      evidenceDeadline
+    ]);
+
+    const dispute = disputeRows[0];
+
+    // Freeze escrow
+    await dbClient.query(`
+      UPDATE escrow_holds
+      SET status = 'disputed', updated_at = now()
+      WHERE job_id = $1
+    `, [jobId]);
+
+    // Set job status to disputed
+    await dbClient.query(`
+      UPDATE jobs
+      SET status = 'disputed', updated_at = now()
+      WHERE id = $1
+    `, [jobId]);
+
+    await dbClient.query('COMMIT');
+
+    // Notify other party
+    const otherName  = isClient ? job.client_name : job.helper_name;
+    await sendNotification({
+      userId:     againstUserId,
+      type:       'dispute_update',
+      title:      'A dispute has been opened',
+      body:       `A dispute was filed regarding "${job.title}". Please submit your evidence within 72 hours.`,
+      data:       { jobId, disputeId: dispute.id },
+      action_url: `/disputes/${dispute.id}`
+    });
+
+    // Notify opening party
+    await sendNotification({
+      userId,
+      type:       'dispute_update',
+      title:      'Dispute opened',
+      body:       `Your dispute for "${job.title}" is now under review. Submit evidence within 72 hours.`,
+      data:       { jobId, disputeId: dispute.id },
+      action_url: `/disputes/${dispute.id}`
+    });
+
+    res.status(201).json({
+      dispute,
+      message: 'Dispute opened. Both parties have 72 hours to submit evidence.'
+    });
   } catch (err) {
-    console.error('Create dispute error:', err);
-    res.status(500).json({ error: 'Failed to create dispute' });
+    await dbClient.query('ROLLBACK');
+    console.error('openDispute error:', err);
+    res.status(500).json({ error: 'Failed to open dispute.' });
+  } finally {
+    dbClient.release();
   }
 };
 
-// Get dispute by ID
+// ─── SUBMIT EVIDENCE ──────────────────────────────────────────
+exports.submitEvidence = async (req, res) => {
+  try {
+    const userId      = req.user.id;
+    const { disputeId } = req.params;
+    const { content } = req.body;
+    const files       = req.files || [];
+
+    // Verify user is party to this dispute
+    const { rows: disputeRows } = await db.query(`
+      SELECT d.*, j.client_id, j.assigned_helper_id
+      FROM disputes d
+      JOIN jobs j ON d.job_id = j.id
+      WHERE d.id = $1
+        AND (j.client_id = $2 OR j.assigned_helper_id = $2)
+        AND d.status = 'open'
+        AND d.evidence_deadline > now()
+    `, [disputeId, userId]);
+
+    if (!disputeRows.length) {
+      return res.status(403).json({
+        error: 'Dispute not found, not authorized, or evidence window closed.'
+      });
+    }
+
+    const dispute    = disputeRows[0];
+    const isClient   = dispute.client_id === userId;
+    const submitterRole = isClient ? 'client' : 'helper';
+
+    const evidenceRecords = [];
+
+    // Text evidence
+    if (content?.trim()) {
+      const { rows } = await db.query(`
+        INSERT INTO dispute_evidence
+          (dispute_id, submitted_by, submitter_role, type, content)
+        VALUES ($1,$2,$3,'text',$4)
+        RETURNING *
+      `, [disputeId, userId, submitterRole, content.trim()]);
+      evidenceRecords.push(rows[0]);
+    }
+
+    // File evidence
+    for (const file of files) {
+      const fileType = file.mimetype.startsWith('image') ? 'image'
+                     : file.mimetype.startsWith('video') ? 'video'
+                     : 'document';
+
+      const { rows } = await db.query(`
+        INSERT INTO dispute_evidence
+          (dispute_id, submitted_by, submitter_role,
+           type, file_url, file_name)
+        VALUES ($1,$2,$3,$4,$5,$6)
+        RETURNING *
+      `, [
+        disputeId, userId, submitterRole,
+        fileType, file.location, file.originalname
+      ]);
+      evidenceRecords.push(rows[0]);
+    }
+
+    if (!evidenceRecords.length) {
+      return res.status(400).json({ error: 'No evidence provided.' });
+    }
+
+    // Notify admin team
+    await sendNotification({
+      userId:     process.env.ADMIN_NOTIFICATION_USER_ID,
+      type:       'dispute_update',
+      title:      'New dispute evidence submitted',
+      body:       `Evidence submitted for dispute ${disputeId}`,
+      data:       { disputeId },
+      action_url: `/admin/disputes/${disputeId}`
+    });
+
+    res.status(201).json({
+      evidence: evidenceRecords,
+      message:  `${evidenceRecords.length} evidence item(s) submitted.`
+    });
+  } catch (err) {
+    console.error('submitEvidence error:', err);
+    res.status(500).json({ error: 'Failed to submit evidence.' });
+  }
+};
+
+// ─── GET DISPUTE DETAIL ───────────────────────────────────────
 exports.getDispute = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT d.*, j.title as job_title, u1.first_name as raised_by_name, u2.first_name as against_name,
-       (SELECT json_agg(row_to_json(dm)) FROM (SELECT dm.*, su.first_name as sender_name FROM dispute_messages dm JOIN users su ON dm.sender_id = su.id WHERE dm.dispute_id = d.id ORDER BY dm.created_at ASC) dm) as messages
-       FROM disputes d JOIN jobs j ON d.job_id = j.id JOIN users u1 ON d.raised_by = u1.id JOIN users u2 ON d.against_user = u2.id WHERE d.id = $1`,
-      [req.params.id]
-    );
-    if (!result.rows[0]) return res.status(404).json({ error: 'Dispute not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Get dispute error:', err);
-    res.status(500).json({ error: 'Failed to fetch dispute' });
-  }
-};
+    const userId      = req.user.id;
+    const { disputeId } = req.params;
+    const isAdmin     = ['admin','super_admin'].includes(req.user.role);
 
-// Add message to dispute
-exports.addMessage = async (req, res) => {
-  try {
-    const { message, attachments } = req.body;
-    const dispute = await pool.query('SELECT * FROM disputes WHERE id = $1', [req.params.id]);
-    if (!dispute.rows[0]) return res.status(404).json({ error: 'Dispute not found' });
-    if (!['open', 'under_review'].includes(dispute.rows[0].status)) {
-      return res.status(400).json({ error: 'Dispute is closed' });
+    // Build access condition — admins see all, users see their own
+    const accessCondition = isAdmin
+      ? ''
+      : `AND (j.client_id = $2 OR j.assigned_helper_id = $2)`;
+
+    const params = isAdmin ? [disputeId] : [disputeId, userId];
+
+    const { rows: disputeRows } = await db.query(`
+      SELECT
+        d.*,
+        j.title         AS job_title,
+        j.final_price   AS job_amount,
+        j.client_id,
+        j.assigned_helper_id,
+        u_op.first_name || ' ' || u_op.last_name AS opened_by_name,
+        u_op.avatar_url                            AS opened_by_avatar,
+        u_ag.first_name || ' ' || u_ag.last_name  AS against_user_name,
+        u_ag.avatar_url                            AS against_user_avatar,
+        u_res.first_name || ' ' || u_res.last_name AS resolved_by_name,
+        e.gross_amount  AS escrow_amount,
+        e.status        AS escrow_status
+      FROM disputes d
+      JOIN jobs j           ON d.job_id = j.id
+      JOIN users u_op       ON d.opened_by = u_op.id
+      JOIN users u_ag       ON d.against_user_id = u_ag.id
+      LEFT JOIN users u_res ON d.resolved_by = u_res.id
+      LEFT JOIN escrow_holds e ON e.job_id = j.id
+      WHERE d.id = $1 ${accessCondition}
+    `, params);
+
+    if (!disputeRows.length) {
+      return res.status(404).json({ error: 'Dispute not found.' });
     }
-    const result = await pool.query(
-      'INSERT INTO dispute_messages (dispute_id, sender_id, message, attachments, is_admin) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.params.id, req.user.id, message, JSON.stringify(attachments || []), req.user.role === 'admin']
-    );
-    res.status(201).json(result.rows[0]);
+
+    const dispute = disputeRows[0];
+
+    // Evidence — admins see all, parties see only their own + other's
+    const { rows: evidence } = await db.query(`
+      SELECT
+        de.*,
+        u.first_name || ' ' || u.last_name AS submitted_by_name,
+        u.avatar_url                        AS submitted_by_avatar
+      FROM dispute_evidence de
+      JOIN users u ON de.submitted_by = u.id
+      WHERE de.dispute_id = $1
+      ORDER BY de.created_at ASC
+    `, [disputeId]);
+
+    // Messages — filter admin-only for non-admins
+    const msgCondition = isAdmin ? '' : 'AND dm.is_admin_only = false';
+    const { rows: messages } = await db.query(`
+      SELECT
+        dm.*,
+        u.first_name || ' ' || u.last_name AS sender_name,
+        u.avatar_url                        AS sender_avatar
+      FROM dispute_messages dm
+      JOIN users u ON dm.sender_id = u.id
+      WHERE dm.dispute_id = $1 ${msgCondition}
+      ORDER BY dm.created_at ASC
+    `, [disputeId]);
+
+    res.json({ dispute, evidence, messages });
   } catch (err) {
-    console.error('Add dispute message error:', err);
-    res.status(500).json({ error: 'Failed to add message' });
+    console.error('getDispute error:', err);
+    res.status(500).json({ error: 'Failed to fetch dispute.' });
   }
 };
 
-// Get my disputes
+// ─── SEND DISPUTE MESSAGE ─────────────────────────────────────
+exports.sendDisputeMessage = async (req, res) => {
+  try {
+    const userId      = req.user.id;
+    const { disputeId } = req.params;
+    const { message, is_admin_only = false } = req.body;
+    const isAdmin     = ['admin','super_admin'].includes(req.user.role);
+
+    if (!message?.trim()) {
+      return res.status(400).json({ error: 'Message cannot be empty.' });
+    }
+
+    if (message.length > 1000) {
+      return res.status(400).json({ error: 'Message too long (max 1000 chars).' });
+    }
+
+    // Verify access
+    const { rows: disputeRows } = await db.query(`
+      SELECT d.*, j.client_id, j.assigned_helper_id,
+             j.title AS job_title
+      FROM disputes d
+      JOIN jobs j ON d.job_id = j.id
+      WHERE d.id = $1
+        AND d.status IN ('open','under_review')
+    `, [disputeId]);
+
+    if (!disputeRows.length) {
+      return res.status(404).json({
+        error: 'Dispute not found or not accepting messages.'
+      });
+    }
+
+    const dispute = disputeRows[0];
+
+    if (!isAdmin && dispute.client_id !== userId
+        && dispute.assigned_helper_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized.' });
+    }
+
+    // Determine sender role
+    const senderRole = isAdmin
+      ? 'admin'
+      : dispute.client_id === userId ? 'client' : 'helper';
+
+    // Admin-only flag only valid for admins
+    const adminOnly = isAdmin && Boolean(is_admin_only);
+
+    const { rows } = await db.query(`
+      INSERT INTO dispute_messages
+        (dispute_id, sender_id, sender_role, message, is_admin_only)
+      VALUES ($1,$2,$3,$4,$5)
+      RETURNING *
+    `, [disputeId, userId, senderRole, message.trim(), adminOnly]);
+
+    const newMsg = rows[0];
+
+    // Notify the other party (not admin-only messages)
+    if (!adminOnly) {
+      const notifyUserId = senderRole === 'client'
+        ? dispute.assigned_helper_id
+        : senderRole === 'helper'
+        ? dispute.client_id
+        : null; // Admin message notifies both
+
+      const usersToNotify = senderRole === 'admin'
+        ? [dispute.client_id, dispute.assigned_helper_id].filter(Boolean)
+        : [notifyUserId].filter(Boolean);
+
+      for (const uid of usersToNotify) {
+        await sendNotification({
+          userId:     uid,
+          type:       'dispute_update',
+          title:      'New message in your dispute',
+          body:       `${senderRole === 'admin' ? 'Support' : 'The other party'} sent a message regarding "${dispute.job_title}"`,
+          data:       { disputeId },
+          action_url: `/disputes/${disputeId}`
+        });
+
+        // Real-time via socket
+        const { broadcastToUser } = require('../services/socketService');
+        broadcastToUser(uid, 'dispute:message', {
+          disputeId,
+          message: newMsg
+        });
+      }
+    }
+
+    res.status(201).json({ message: newMsg });
+  } catch (err) {
+    console.error('sendDisputeMessage error:', err);
+    res.status(500).json({ error: 'Failed to send message.' });
+  }
+};
+
+// ─── GET MY DISPUTES ──────────────────────────────────────────
 exports.getMyDisputes = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT d.*, j.title as job_title FROM disputes d JOIN jobs j ON d.job_id = j.id
-       WHERE d.raised_by = $1 OR d.against_user = $1 ORDER BY d.created_at DESC`,
-      [req.user.id]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Get my disputes error:', err);
-    res.status(500).json({ error: 'Failed to fetch disputes' });
-  }
-};
+    const userId = req.user.id;
 
-// Resolve dispute (admin only)
-exports.resolveDispute = async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-    const { resolution, resolution_type, refund_amount, admin_notes } = req.body;
-    const result = await pool.query(
-      `UPDATE disputes SET status = $1, resolution = $2, resolution_type = $3, resolved_by = $4, refund_amount = $5, admin_notes = $6, resolved_at = NOW(), updated_at = NOW() WHERE id = $7 RETURNING *`,
-      [resolution_type === 'refund_full' || resolution_type === 'refund_partial' ? 'resolved_poster' : 'resolved_helper', resolution, resolution_type, req.user.id, refund_amount, admin_notes, req.params.id]
-    );
-    if (!result.rows[0]) return res.status(404).json({ error: 'Dispute not found' });
-    res.json(result.rows[0]);
+    const { rows } = await db.query(`
+      SELECT
+        d.id, d.status, d.reason, d.resolution,
+        d.created_at, d.evidence_deadline,
+        d.opened_by_role,
+        j.title       AS job_title,
+        j.id          AS job_id,
+        j.final_price AS job_amount,
+        u_ag.first_name || ' ' || u_ag.last_name AS against_user_name
+      FROM disputes d
+      JOIN jobs j       ON d.job_id = j.id
+      JOIN users u_ag   ON d.against_user_id = u_ag.id
+      WHERE d.opened_by = $1
+         OR d.against_user_id = $1
+      ORDER BY d.created_at DESC
+    `, [userId]);
+
+    res.json({ disputes: rows });
   } catch (err) {
-    console.error('Resolve dispute error:', err);
-    res.status(500).json({ error: 'Failed to resolve dispute' });
+    console.error('getMyDisputes error:', err);
+    res.status(500).json({ error: 'Failed to fetch disputes.' });
   }
 };
