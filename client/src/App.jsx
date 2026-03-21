@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import UpgradePage from './pages/UpgradePage';
+import HelperDashboard from './pages/HelperDashboard';
 
 export default function App() {
   return (
@@ -19,6 +21,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/upgrade"
+            element={
+              <ProtectedRoute>
+                <UpgradePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/helper-dashboard"
+            element={
+              <ProtectedRoute requiredRole="helper">
+                <HelperDashboard />
               </ProtectedRoute>
             }
           />
