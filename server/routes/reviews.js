@@ -1,11 +1,32 @@
-const router = require('express').Router();
-const authenticate = require('../middleware/authenticate');
-const { createReview, getUserReviews, getJobReviews, getMyReviews, flagReview } = require('../controllers/reviewController');
+const router      = require('express').Router();
+const { authenticate, requireRole } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
+const reviewCtrl  = require('../controllers/reviewController');
 
-router.post('/', authenticate, createReview);
-router.get('/me', authenticate, getMyReviews);
-router.get('/user/:user_id', getUserReviews);
-router.get('/job/:job_id', getJobReviews);
-router.post('/:id/flag', authenticate, flagReview);
+// Public
+router.get('/users/:userId',          reviewCtrl.getUserReviews);
+
+// Authenticated
+router.post('/jobs/:jobId',
+  authenticate,
+  reviewCtrl.submitReview
+);
+
+router.get('/jobs/:jobId/eligibility',
+  authenticate,
+  reviewCtrl.getReviewEligibility
+);
+
+router.put('/:id/respond',
+  authenticate,
+  reviewCtrl.respondToReview
+);
+
+// Admin only
+router.put('/:id/hide',
+  authenticate,
+  requireAdmin,
+  reviewCtrl.adminHideReview
+);
 
 module.exports = router;
