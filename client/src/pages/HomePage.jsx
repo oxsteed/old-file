@@ -146,8 +146,8 @@ export default function HomePage() {
                 <MapPin className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <h3 className="font-semibold">Springfield Community Board</h3>
-                <p className="text-sm text-gray-400 mt-1">A local listing board built by and for Springfield, OH. Your address stays private until a helper confirms and the job is within 12 hours of starting.</p>
+                <h3 className="font-semibold">Available Nationwide</h3>
+                <p className="text-sm text-gray-400 mt-1">A local listing board for communities across the US. Your address stays private until a helper confirms and the job is within 12 hours of starting.</p>
               </div>
             </div>
           </div>
@@ -159,7 +159,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold">Post your skills. Run your own business.</h2>
           <p className="mt-4 text-gray-400 text-lg">
-            List your services for free on Springfield's local help board, or subscribe to Pro for priority visibility and a verified badge.
+            List your services for free on your local help board, or subscribe to Pro for priority visibility and a verified badge.
             You set your own rates, hours, and service area. OxSteed is the board — you're the business owner.
           </p>
           <Link
@@ -176,7 +176,7 @@ export default function HomePage() {
       <footer className="border-t border-gray-800 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-500">© 2026 OxSteed LLC · Springfield, OH</p>
+            <p className="text-sm text-gray-500">© 2026 OxSteed LLC</p>
             <div className="flex gap-6 text-sm text-gray-500">
               <Link to="/login" className="hover:text-white transition">Sign In</Link>
               <Link to="/register/customer" className="hover:text-white transition">Find Help</Link>
