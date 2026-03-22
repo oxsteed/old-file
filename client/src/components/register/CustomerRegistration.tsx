@@ -2,79 +2,36 @@ import React, { useState } from 'react';
 import Step1BasicInfo from './Step1BasicInfo';
 import Step2Terms from './Step2Terms';
 import Step5Confirmation from './Step5Confirmation';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import api from '../../api/axios';
 
 const steps = ['Basic Info', 'Terms & OTP', 'Done'];
 
 export default function CustomerRegistration() {
   const [currentStep, setCurrentStep] = useState(1);
   const [registrationToken, setRegistrationToken] = useState('');
-  const [formData, setFormData] = useState<any>({
-    fullName: '',
-    email: '',
-    phone: '',
-    zipCode: '',
-    password: '',
-    ageConfirmed: false,
-  });
+  const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
   const [error, setError] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
 
-  // Step 1: Basic info -> call /register/start
-  const handleStep1Next = async (step1Data: any) => {
-    setFormData((prev: any) => ({ ...prev, ...step1Data }));
-    setError('');
-    try {
-      const nameParts = step1Data.fullName.trim().split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ') || firstName;
-
-      const res = await fetch(`${API_BASE}/api/auth/register/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: step1Data.email,
-          password: step1Data.password,
-          firstName,
-          lastName,
-          phone: step1Data.phone,
-          zip: step1Data.zipCode,
-          ageConfirmed: step1Data.ageConfirmed,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Registration failed');
-        return;
-      }
-      setRegistrationToken(data.token);
-      setCurrentStep(2);
-    } catch (err) {
-      setError('Network error. Please try again.');
-    }
+  // Step 1 completed: Step1BasicInfo calls /register/start internally
+  // and returns the token via onSuccess
+  const handleStep1Success = (token: string) => {
+    setRegistrationToken(token);
+    setCurrentStep(2);
   };
 
   // Step 2: Terms accepted -> call /register/accept-terms (sends OTP)
   const handleStep2Next = async () => {
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register/accept-terms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: registrationToken }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Failed to accept terms');
-        return;
-      }
+      const res = await api.post('/auth/register/accept-terms', { token: registrationToken });
       setOtpSent(true);
-    } catch (err) {
-      setError('Network error. Please try again.');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to accept terms');
     }
   };
 
@@ -83,24 +40,21 @@ export default function CustomerRegistration() {
     setOtpLoading(true);
     setOtpError('');
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: registrationToken, otp }),
+      const res = await api.post('/auth/register/verify-otp', {
+        token: registrationToken,
+        otp,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setOtpError(data.error || 'Invalid OTP');
-        return;
-      }
       // Store tokens
-      if (data.accessToken) {
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+      if (res.data.accessToken) {
+        localStorage.setItem('accessToken', res.data.accessToken);
+        localStorage.setItem('refreshToken', res.data.refreshToken);
+      }
+      if (res.data.user) {
+        setUserEmail(res.data.user.email);
       }
       setCurrentStep(3);
-    } catch (err) {
-      setOtpError('Network error. Please try again.');
+    } catch (err: any) {
+      setOtpError(err.response?.data?.error || 'Invalid OTP');
     } finally {
       setOtpLoading(false);
     }
@@ -108,11 +62,7 @@ export default function CustomerRegistration() {
 
   const handleResendOTP = async () => {
     try {
-      await fetch(`${API_BASE}/api/auth/register/resend-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: registrationToken }),
-      });
+      await api.post('/auth/register/resend-otp', { token: registrationToken });
       setOtpError('New OTP sent to your email.');
     } catch {
       setOtpError('Failed to resend OTP.');
@@ -169,7 +119,7 @@ export default function CustomerRegistration() {
 
         {/* Step content */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
-          {currentStep === 1 && <Step1BasicInfo onNext={handleStep1Next} />}
+          {currentStep === 1 && <Step1BasicInfo onSuccess={handleStep1Success} />}
 
           {currentStep === 2 && !otpSent && (
             <Step2Terms onNext={handleStep2Next} onBack={goBack} />
@@ -179,7 +129,7 @@ export default function CustomerRegistration() {
             <div className="max-w-md mx-auto text-center">
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Verify Your Email</h2>
               <p className="text-gray-600 mb-6 text-sm">
-                We sent a 6-digit code to <strong>{formData.email}</strong>. Enter it below.
+                We sent a 6-digit code to your email. Enter it below.
               </p>
               <input
                 type="text"
@@ -216,8 +166,8 @@ export default function CustomerRegistration() {
           {currentStep === 3 && (
             <Step5Confirmation
               registrationData={{
-                fullName: formData.fullName,
-                email: formData.email,
+                fullName: userName || 'Customer',
+                email: userEmail,
                 accountType: 'customer',
               }}
             />
