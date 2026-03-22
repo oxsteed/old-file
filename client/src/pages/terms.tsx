@@ -163,8 +163,8 @@ export default function TermsOfService() {
     OxSteed complies with the Fair Credit Reporting Act, 15 U.S.C. § 1681 et seq. ("FCRA"). Before initiating a background check, OxSteed will provide you with:
   </p>
   <ul>
-    >A <strong>standalone written FCRA disclosure</strong> informing you that a consumer report may be obtained for platform access purposes; and</li>
-    >A request for your <strong>written authorization</strong> to obtain the report.</li>
+    <li>A <strong>standalone written FCRA disclosure</strong> informing you that a consumer report may be obtained for platform access purposes; and</li>
+    <li>A request for your <strong>written authorization</strong> to obtain the report.</li>
   </ul>
   <p>
     You must affirmatively consent before any background check is initiated. Your consent is separate from acceptance of these Terms.
@@ -175,9 +175,9 @@ export default function TermsOfService() {
     If OxSteed takes an adverse action based in whole or in part on information in a consumer report — for example, denying or revoking your verified badge — OxSteed will:
   </p>
   <ol>
-    >Provide you with a <strong>pre-adverse action notice</strong> and a copy of the consumer report and a summary of your FCRA rights before the action is finalized;</li>
-    >Allow you a reasonable period (typically 5 business days) to dispute any inaccuracies directly with Checkr;</li>
-    >Provide a final <strong>adverse action notice</strong> if the decision is upheld, including contact information for Checkr and information on your right to obtain a free copy of the report.</li>
+    <li>Provide you with a <strong>pre-adverse action notice</strong> and a copy of the consumer report and a summary of your FCRA rights before the action is finalized;</li>
+    <li>Allow you a reasonable period (typically 5 business days) to dispute any inaccuracies directly with Checkr;</li>
+    <li>Provide a final <strong>adverse action notice</strong> if the decision is upheld, including contact information for Checkr and information on your right to obtain a free copy of the report.</li>
   </ol>
 
   <h3>5.4 Accuracy Disclaimer</h3>
@@ -195,10 +195,10 @@ export default function TermsOfService() {
     The verified badge indicates only that a background check was completed at a specific point in time through Checkr. It does not:
   </p>
   <ul>
-    >Constitute OxSteed's endorsement of any Helper's skills, quality of work, or character;</li>
-    >Guarantee that a Helper holds any required professional license or insurance;</li>
-    >Reflect criminal activity, license changes, or other events occurring after the check date;</li>
-    >Create any warranty or guarantee by OxSteed regarding the Helper's fitness for any particular job.</li>
+    <li>Constitute OxSteed's endorsement of any Helper's skills, quality of work, or character;</li>
+    <li>Guarantee that a Helper holds any required professional license or insurance;</li>
+    <li>Reflect criminal activity, license changes, or other events occurring after the check date;</li>
+    <li>Create any warranty or guarantee by OxSteed regarding the Helper's fitness for any particular job.</li>
   </ul>
   <p>
     <strong>Do not rely solely on the verified badge when hiring a Helper.</strong> Always independently verify licenses, insurance, and references for any regulated trade or high-value job.
