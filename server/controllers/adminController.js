@@ -195,3 +195,97 @@ exports.getModerationQueue = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch moderation queue.' });
   }
 };
+
+// —— Market Zip Code Management ————————————————————————————
+exports.getMarkets = async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT id, name, state, zipcodes, active, launched_at FROM markets ORDER BY name'
+    );
+    res.json({ markets: rows });
+  } catch (err) {
+    console.error('getMarkets error:', err);
+    res.status(500).json({ error: 'Failed to fetch markets.' });
+  }
+};
+
+exports.addZipCodes = async (req, res) => {
+  try {
+    const { marketId } = req.params;
+    const { zipCodes } = req.body;
+
+    if (!Array.isArray(zipCodes) || zipCodes.length === 0) {
+      return res.status(400).json({ error: 'zipCodes must be a non-empty array.' });
+    }
+
+    // Validate each zip code is 5 digits
+    const invalidZips = zipCodes.filter(z => !/^\d{5}$/.test(z));
+    if (invalidZips.length > 0) {
+      return res.status(400).json({ error: `Invalid zip codes: ${invalidZips.join(', ')}` });
+    }
+
+    // Add new zip codes (merge with existing, no duplicates)
+    const { rows } = await db.query(
+      `UPDATE markets
+       SET zipcodes = (
+         SELECT ARRAY(SELECT DISTINCT unnest(zipcodes || $1::text[]))
+       ),
+       updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, name, state, zipcodes, active`,
+      [zipCodes, marketId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Market not found.' });
+    }
+
+    await logAdminAction(req.user.id, 'add_zip_codes', {
+      marketId,
+      addedZips: zipCodes,
+      totalZips: rows[0].zipcodes.length
+    });
+
+    res.json({ market: rows[0] });
+  } catch (err) {
+    console.error('addZipCodes error:', err);
+    res.status(500).json({ error: 'Failed to add zip codes.' });
+  }
+};
+
+exports.removeZipCodes = async (req, res) => {
+  try {
+    const { marketId } = req.params;
+    const { zipCodes } = req.body;
+
+    if (!Array.isArray(zipCodes) || zipCodes.length === 0) {
+      return res.status(400).json({ error: 'zipCodes must be a non-empty array.' });
+    }
+
+    const { rows } = await db.query(
+      `UPDATE markets
+       SET zipcodes = (
+         SELECT ARRAY(SELECT unnest(zipcodes) EXCEPT SELECT unnest($1::text[]))
+       ),
+       updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, name, state, zipcodes, active`,
+      [zipCodes, marketId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Market not found.' });
+    }
+
+    await logAdminAction(req.user.id, 'remove_zip_codes', {
+      marketId,
+      removedZips: zipCodes,
+      totalZips: rows[0].zipcodes.length
+    });
+
+    res.json({ market: rows[0] });
+  } catch (err) {
+    console.error('removeZipCodes error:', err);
+    res.status(500).json({ error: 'Failed to remove zip codes.' });
+  }
+};
