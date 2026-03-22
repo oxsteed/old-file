@@ -17,6 +17,8 @@ import TermsPage from './pages/terms';
 import PrivacyPage from './pages/privacy';
 import DoNotSellPage from './pages/donotsell';
 import SecurityPage from './pages/security';
+import CookiePolicyPage from './pages/cookiepolicy';
+import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 
 export default function App() {
@@ -32,6 +34,7 @@ export default function App() {
                       <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/do-not-sell" element={<DoNotSellPage />} />
             <Route path="/security" element={<SecurityPage />} />
+                      <Route path="/cookie-policy" element={<CookiePolicyPage />} />
           <Route path="/register/customer" element={<CustomerRegister />} />
           <Route path="/register/helper" element={<HelperRegister />} />
           <Route
@@ -93,6 +96,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
                               </TermsGate>
+                  <CookieConsent />
       </AuthProvider>
     </Router>
   );
