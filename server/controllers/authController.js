@@ -1,14 +1,12 @@
 // Phase 2 — Auth controller (register, login, OTP, refresh, logout)
 // + Customer Registration Flow (3-step)
 // OxSteed v2
-
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
 const { generateTokens } = require('../middleware/auth');
 const { sendOTPEmail } = require('../utils/email');
 const { sendOTPSMS } = require('../utils/sms');
-
 const SALT_ROUNDS = 12;
 
 async function register(req, res) {
@@ -40,6 +38,7 @@ async function register(req, res) {
     res.status(500).json({ error: 'Registration failed' });
   }
 }
+
 async function login(req, res) {
   try {
     const { email, password } = req.body;
@@ -151,15 +150,16 @@ async function checkEmail(req, res) {
   }
 }
 
+// Zip is for location matching only — no restriction, all US zips accepted
 async function checkZip(req, res) {
   try {
     const { zip } = req.body;
     if (!zip) return res.status(400).json({ error: 'Zip code required' });
-    const { rows } = await pool.query(
-      'SELECT id, name FROM markets WHERE $1 = ANY(zip_codes) AND is_active = true', [zip]
-    );
-    if (rows.length === 0) return res.json({ inMarket: false });
-    res.json({ inMarket: true, market: rows[0] });
+    if (!/^\d{5}$/.test(zip)) {
+      return res.status(400).json({ error: 'Invalid zip code format' });
+    }
+    // Always accept — zip is used for proximity matching, not access gating
+    res.json({ inMarket: true });
   } catch (err) {
     console.error('Check zip error:', err);
     res.status(500).json({ error: 'Failed to check zip code' });
@@ -183,6 +183,7 @@ async function addToWaitlist(req, res) {
 }
 
 // Step 1 -> Step 2: Validate basic info, create pending registration
+// Zip is stored for location-based matching — no market restriction
 async function startRegistration(req, res) {
   try {
     const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
@@ -198,17 +199,14 @@ async function startRegistration(req, res) {
       return res.status(400).json({ error: 'Invalid phone number' });
     }
     const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
+    // Validate zip format only (5 digits)
+    if (!/^\d{5}$/.test(zip)) {
+      return res.status(400).json({ error: 'Invalid zip code' });
+    }
     // Check email uniqueness
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' });
-    }
-    // Check zip is in active market
-    const market = await pool.query(
-      'SELECT id FROM markets WHERE $1 = ANY(zip_codes) AND is_active = true', [zip]
-    );
-    if (market.rows.length === 0) {
-      return res.status(400).json({ error: 'Service not available in your area' });
     }
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
@@ -222,7 +220,7 @@ async function startRegistration(req, res) {
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
     console.error('Start registration error:', err);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'Registration failed', detail: err.message });
   }
 }
 
