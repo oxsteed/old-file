@@ -162,7 +162,7 @@ export default function Login() {
 
           <p className="text-center">
             <Link
-              to="/register"
+                            to="/"
               className="inline-flex items-center gap-1 text-orange-500 hover:text-orange-400 font-medium transition"
             >
               Create an account
