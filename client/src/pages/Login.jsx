@@ -192,15 +192,22 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="text-center">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1 text-orange-500 hover:text-orange-400 font-medium transition"
-            >
-              Create an account
-              <ArrowRight size={16} />
-            </Link>
-          </p>
+          <div className="flex gap-3 justify-center">
+              <Link
+                to="/register/customer"
+                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
+              >
+                Sign up as Customer
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                to="/register/helper"
+                className="flex-1 flex items-center justify-center gap-1 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
+              >
+                Sign up as Helper
+                <ArrowRight size={16} />
+              </Link>
+            </div>
 
           <p className="text-center text-xs text-gray-600">
             By signing in, you agree to our{' '}
