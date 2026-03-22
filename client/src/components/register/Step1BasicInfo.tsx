@@ -16,8 +16,6 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
-  const [zipInMarket, setZipInMarket] = useState<boolean | null>(null);
-  const [waitlistMode, setWaitlistMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const update = (field: string, value: any) => {
@@ -39,28 +37,6 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
     }
   }, [form.email]);
 
-  // Check zip on blur
-  const checkZip = useCallback(async () => {
-    if (!form.zip || form.zip.length < 5) return;
-    try {
-      const res = await api.post('/auth/check-zip', { zip: form.zip });
-      setZipInMarket(res.data.inMarket);
-      if (!res.data.inMarket) setWaitlistMode(true);
-      else setWaitlistMode(false);
-    } catch (err) {
-      console.error('Zip check error:', err);
-    }
-  }, [form.zip]);
-
-  const handleWaitlist = async () => {
-    try {
-      await api.post('/auth/waitlist', { email: form.email, zip: form.zip });
-      toast.success('You\'ve been added to our waitlist! We\'ll notify you when we launch in your area.');
-    } catch (err) {
-      toast.error('Failed to join waitlist');
-    }
-  };
-
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.firstName.trim()) e.firstName = 'Required';
@@ -71,8 +47,7 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
     const phoneDigits = form.phone.replace(/\D/g, '');
     if (phoneDigits.length < 10) e.phone = 'Invalid phone number';
     if (!form.zip.trim()) e.zip = 'Required';
-    if (form.zip.length < 5) e.zip = 'Invalid zip code';
-    if (zipInMarket === false) e.zip = 'Not in service area';
+    if (form.zip.length < 5) e.zip = 'Enter a valid 5-digit zip code';
     if (form.password.length < 8) e.password = 'Min 8 characters';
     if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     if (!form.ageConfirmed) e.ageConfirmed = 'Required';
@@ -97,25 +72,6 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
       setLoading(false);
     }
   };
-
-  // Waitlist mode - zip not in active market
-  if (waitlistMode) {
-    return (
-      <div className="max-w-md mx-auto p-6">
-        <h2 className="text-2xl font-bold mb-4">OxSteed isn't in your area yet</h2>
-        <p className="text-gray-600 mb-4">Enter your email to be notified when we launch near you.</p>
-        <input type="email" placeholder="Email" value={form.email}
-          onChange={e => update('email', e.target.value)}
-          className={`${inputBase} mb-3`} />
-        <button onClick={handleWaitlist}
-          className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700">
-          Notify Me
-        </button>
-        <button onClick={() => setWaitlistMode(false)}
-          className="w-full mt-2 text-gray-500 underline">Back</button>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit} className="max-w-md mx-auto p-6">
@@ -156,8 +112,8 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
       <div className="mb-3">
         <input placeholder="Zip Code *" value={form.zip} maxLength={5}
           onChange={e => update('zip', e.target.value)}
-          onBlur={checkZip}
-          className={`${inputBase} ${errors.zip ? 'border-red-500' : zipInMarket === true ? 'border-green-500' : ''}`} />
+          className={`${inputBase} ${errors.zip ? 'border-red-500' : ''}`} />
+        <p className="text-xs text-gray-400 mt-1">Used to show services and helpers near you</p>
         {errors.zip && <span className="text-red-500 text-sm">{errors.zip}</span>}
       </div>
 
