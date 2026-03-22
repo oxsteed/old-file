@@ -66,7 +66,7 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         ageConfirmed: form.ageConfirmed
       });
       toast.success('Info saved! Please review terms.');
-      onSuccess(res.data.registrationToken);
+      onSuccess(res.data.token);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Registration failed');
     } finally {
