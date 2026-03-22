@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Home } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login({ email, password });
+      await login({ email, password, rememberMe });
       toast.success('Welcome back!');
       navigate(from, { replace: true });
     } catch (err) {
@@ -31,14 +32,29 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
+      {/* Top navigation */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-sm border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 text-white hover:text-orange-400 transition">
+            <Home size={18} />
+            <span className="font-semibold">OxSteed</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="text-sm text-gray-400 hover:text-white transition">Home</Link>
+            <Link to="/jobs" className="text-sm text-gray-400 hover:text-white transition">Browse Jobs</Link>
+          </div>
+        </div>
+      </div>
+
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE4YzEuNjU3IDAgMy0xLjM0MyAzLTNzLTEuMzQzLTMtMy0zLTMgMS4zNDMtMyAzIDEuMzQzIDMgMyAzem0wIDEyYzEuNjU3IDAgMy0xLjM0MyAzLTNzLTEuMzQzLTMtMy0zLTMgMS4zNDMtMyAzIDEuMzQzIDMgMyAzem0tMTItMTJjMS42NTcgMCAzLTEuMzQzIDMtM3MtMS4zNDMtMy0zLTMtMyAxLjM0My0zIDMgMS4zNDMgMyAzIDN6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div>
             <h1 className="text-white text-4xl font-bold tracking-tight">OxSteed</h1>
-            <p className="text-orange-100 mt-1 text-lg">Your local help marketplace</p>
+            <p className="text-orange-100 mt-1 text-lg">Find help anywhere</p>
           </div>
+
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -47,9 +63,10 @@ export default function Login() {
                 </div>
                 <div>
                   <p className="text-white font-semibold">Verified Helpers</p>
-                  <p className="text-orange-100 text-sm">Background-checked & insured</p>
+                  <p className="text-orange-100 text-sm">Identity-verified service providers</p>
                 </div>
               </div>
+
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -59,28 +76,30 @@ export default function Login() {
                   <p className="text-orange-100 text-sm">Escrow protection on every job</p>
                 </div>
               </div>
+
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Local First</p>
-                  <p className="text-orange-100 text-sm">Helpers in your neighborhood</p>
+                  <p className="text-white font-semibold">Nationwide Coverage</p>
+                  <p className="text-orange-100 text-sm">Helpers available across the US</p>
                 </div>
               </div>
             </div>
           </div>
-          <p className="text-orange-200 text-sm">&copy; 2026 OxSteed LLC &middot; Springfield, OH</p>
+
+          <p className="text-orange-200 text-sm">&copy; {new Date().getFullYear()} OxSteed LLC</p>
         </div>
       </div>
 
       {/* Right side - Login Form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      <div className="flex-1 flex items-center justify-center px-6 py-12 pt-20">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile logo */}
           <div className="lg:hidden text-center">
             <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
-            <p className="text-gray-500 mt-1">Your local help marketplace</p>
+            <p className="text-gray-500 mt-1">Find help anywhere</p>
           </div>
 
           <div>
@@ -135,6 +154,19 @@ export default function Login() {
               </div>
             </div>
 
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-950"
+              />
+              <label htmlFor="remember-me" className="ml-2 text-sm text-gray-400">
+                Remember me
+              </label>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -162,12 +194,19 @@ export default function Login() {
 
           <p className="text-center">
             <Link
-                            to="/"
+              to="/"
               className="inline-flex items-center gap-1 text-orange-500 hover:text-orange-400 font-medium transition"
             >
               Create an account
               <ArrowRight size={16} />
             </Link>
+          </p>
+
+          <p className="text-center text-xs text-gray-600">
+            By signing in, you agree to our{' '}
+            <Link to="/terms" className="text-gray-400 hover:text-orange-400 underline">Terms of Service</Link>
+            {' '}and{' '}
+            <Link to="/privacy" className="text-gray-400 hover:text-orange-400 underline">Privacy Policy</Link>
           </p>
         </div>
       </div>
