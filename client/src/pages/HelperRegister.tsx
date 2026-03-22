@@ -55,21 +55,20 @@ export default function HelperRegister() {
       case 2:
         return (
           <Step2Profile
-            token={registrationToken}
+            registrationToken={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 3:
         return (
           <Step3TierSelection
-            token={registrationToken}
+            registrationToken={registrationToken}
             onSuccess={(tier: string) => {
               setSelectedTier(tier);
-              // After tier selection, figure out next step
               if (tier === 'free') {
-                setStep(6); // skip W-9 and Payment
+                setStep(6);
               } else {
-                setStep(4); // go to W-9
+                setStep(4);
               }
             }}
           />
@@ -77,29 +76,28 @@ export default function HelperRegister() {
       case 4:
         return (
           <Step4W9
-            token={registrationToken}
+            registrationToken={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 5:
         return (
           <Step5Payment
-            token={registrationToken}
-            tier={selectedTier}
+            registrationToken={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 6:
         return (
           <Step6Terms
-            token={registrationToken}
+            registrationToken={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 7:
         return (
           <Step7OTPVerification
-            token={registrationToken}
+            registrationToken={registrationToken}
             onSuccess={() => {
               navigate('/login', { state: { message: 'Registration complete! Please log in.' } });
             }}
@@ -111,53 +109,42 @@ export default function HelperRegister() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
-      {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800 px-4 py-4">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-xl font-bold text-white mb-4">Become an OxSteed Helper</h1>
-          {/* Progress bar */}
-          <div className="flex items-center gap-2 mb-2">
-            {visibleSteps.map((s, i) => (
-              <div key={s} className="flex items-center flex-1">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition ${
-                    s === step
-                      ? 'bg-orange-500 text-white'
-                      : s < step || visibleSteps.indexOf(s) < currentIndex
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-700 text-gray-400'
-                  }`}
-                >
-                  {visibleSteps.indexOf(s) < currentIndex ? '\u2713' : STEPS[s - 1].icon}
-                </div>
-                {i < visibleSteps.length - 1 && (
-                  <div className={`flex-1 h-1 mx-1 rounded ${
-                    visibleSteps.indexOf(s) < currentIndex ? 'bg-green-500' : 'bg-gray-700'
-                  }`} />
-                )}
+    <div className="min-h-screen bg-gray-950 text-white">
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        {/* Header */}
+        <h1 className="text-2xl font-bold mb-6">Become an OxSteed Helper</h1>
+
+        {/* Progress bar */}
+        <div className="flex items-center gap-2 mb-2">
+          {visibleSteps.map((s, i) => (
+            <React.Fragment key={s}>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  visibleSteps.indexOf(s) < currentIndex
+                    ? 'bg-green-500 text-white'
+                    : s === step
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-700 text-gray-400'
+                }`}
+              >
+                {visibleSteps.indexOf(s) < currentIndex ? '\u2713' : STEPS[s - 1].icon}
               </div>
-            ))}
-          </div>
-          <p className="text-sm text-gray-400">
-            Step {currentIndex + 1} of {visibleSteps.length}: {STEPS[step - 1].label}
-          </p>
+              {i < visibleSteps.length - 1 && (
+                <div
+                  className={`flex-1 h-0.5 ${
+                    visibleSteps.indexOf(s) < currentIndex ? 'bg-green-500' : 'bg-gray-700'
+                  }`}
+                />
+              )}
+            </React.Fragment>
+          ))}
         </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          {renderStep()}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="bg-gray-900 border-t border-gray-800 px-4 py-3 text-center">
-        <p className="text-gray-500 text-sm">
-          Already have an account?{' '}
-          <a href="/login" className="text-orange-400 hover:text-orange-300">Log in</a>
+        <p className="text-sm text-gray-400 mb-8">
+          Step {currentIndex + 1} of {visibleSteps.length}: {STEPS[step - 1].label}
         </p>
+
+        {/* Content */}
+        <div>{renderStep()}</div>
       </div>
     </div>
   );
