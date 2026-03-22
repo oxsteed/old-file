@@ -1,25 +1,31 @@
+/* PostJobPage - Dark/Orange Theme */
 .post-job-page {
   max-width: 700px;
   margin: 0 auto;
   padding: 2rem 1rem;
+  min-height: 100vh;
+  background: #030712;
+  color: #fff;
 }
 
 .post-job-page h1 {
   font-size: 1.75rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
+  color: #fff;
 }
 
 .subtitle {
-  color: #888;
+  color: #9ca3af;
   margin-bottom: 2rem;
 }
 
 .post-job-form {
-  background: white;
-  border: 1px solid #eee;
+  background: rgba(17, 24, 39, 0.8);
+  border: 1px solid rgba(55, 65, 81, 0.5);
   border-radius: 12px;
   padding: 2rem;
+  backdrop-filter: blur(12px);
 }
 
 .form-row {
@@ -34,13 +40,13 @@
   gap: 1rem;
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(55, 65, 81, 0.5);
 }
 
 .btn-secondary {
-  background: white;
-  color: #555;
-  border: 1px solid #ddd;
+  background: rgba(55, 65, 81, 0.5);
+  color: #d1d5db;
+  border: 1px solid rgba(55, 65, 81, 0.5);
   padding: 0.6rem 1.5rem;
   border-radius: 8px;
   font-weight: 600;
@@ -49,7 +55,7 @@
 }
 
 .btn-secondary:hover {
-  background: #f5f5f5;
+  background: rgba(75, 85, 99, 0.5);
 }
 
 @media (max-width: 640px) {
