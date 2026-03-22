@@ -34,3 +34,59 @@
     text-wrap: balance;
   }
 }
+
+
+/* ─── Accessibility (WCAG 2.1 AA) ─────────────────────────── */
+
+/* Skip Navigation — visible on focus (WCAG 2.4.1) */
+.skip-nav:focus {
+  position: fixed !important;
+  top: 12px !important;
+  left: 12px !important;
+  z-index: 10001 !important;
+  padding: 12px 24px;
+  background: #f97316;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  outline: 3px solid #fff;
+}
+
+/* Focus indicator — WCAG 2.4.7 */
+*:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+/* Remove outline for mouse clicks */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Reduced motion — WCAG 2.3.3 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast support */
+@media (prefers-contrast: high) {
+  a { text-decoration: underline !important; }
+  button { border: 2px solid currentColor !important; }
+}
+
+/* Print styles for legal pages */
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .skip-nav, nav[aria-label="Breadcrumb"], footer nav { display: none !important; }
+  main { padding: 0 !important; }
+  a { color: #000 !important; text-decoration: underline !important; }
+  a[href]::after { content: " (" attr(href) ")" !important; font-size: 0.8em; }
+}
