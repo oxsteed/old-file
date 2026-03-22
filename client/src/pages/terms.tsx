@@ -153,25 +153,25 @@ export default function TermsOfService() {
         <section className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             Background Checks, Verification, and FCRA Compliance          </h2>
-          <h3 font-bold>5.1 Optional Background Screening</h3>
-  <p>
+          <h2>5.1 Optional Background Screening</h2>
+  <p className="mb-3">
     Tier 2 and Tier 3 Helpers may elect to complete a background check through <strong>Checkr, Inc.</strong>, OxSteed's third-party consumer reporting agency. Background checks are entirely voluntary. Completion of a background check does not guarantee employment, job awards, or continued platform access.
   </p>
 
-  <h3>5.2 Fair Credit Reporting Act (FCRA) Disclosure</h3>
-  <p>
+  <h2>5.2 Fair Credit Reporting Act (FCRA) Disclosure</h2>
+  <p className="mb-3">
     OxSteed complies with the Fair Credit Reporting Act, 15 U.S.C. § 1681 et seq. ("FCRA"). Before initiating a background check, OxSteed will provide you with:
   </p>
   <ul>
     <li>A <strong>standalone written FCRA disclosure</strong> informing you that a consumer report may be obtained for platform access purposes; and</li>
     <li>A request for your <strong>written authorization</strong> to obtain the report.</li>
   </ul>
-  <p>
+  <p className="mb-3">
     You must affirmatively consent before any background check is initiated. Your consent is separate from acceptance of these Terms.
   </p>
 
-  <h3>5.3 Adverse Action Procedure</h3>
-  <p>
+  <h2>5.3 Adverse Action Procedure</h2>
+  <p className="mb-3">
     If OxSteed takes an adverse action based in whole or in part on information in a consumer report — for example, denying or revoking your verified badge — OxSteed will:
   </p>
   <ol>
@@ -180,18 +180,18 @@ export default function TermsOfService() {
     <li>Provide a final <strong>adverse action notice</strong> if the decision is upheld, including contact information for Checkr and information on your right to obtain a free copy of the report.</li>
   </ol>
 
-  <h3>5.4 Accuracy Disclaimer</h3>
-  <p>
+  <h2>5.4 Accuracy Disclaimer</h2>
+  <p className="mb-3">
     Background check results are provided solely by <strong>Checkr, Inc.</strong>, which is subject to its own Terms of Service and Privacy Policy. <strong>OxSteed makes no representation or warranty that any background check result is complete, accurate, or current.</strong> OxSteed is not responsible for errors or omissions in Checkr's reports. Customers are solely responsible for conducting their own independent due diligence before engaging any Helper, regardless of badge status.
   </p>
 
-  <h3>5.5 Badge Expiration and Renewal</h3>
-  <p>
+  <h2>5.5 Badge Expiration and Renewal</h2>
+  <p className="mb-3">
     Background check badges expire 12 months after the date of the underlying report and must be renewed to maintain verified status. OxSteed will notify you at least 30 days before your badge expires.
   </p>
 
-  <h3>5.6 Verified Badge Limitations</h3>
-  <p>
+  <h2>5.6 Verified Badge Limitations</h2>
+  <p className="mb-3">
     The verified badge indicates only that a background check was completed at a specific point in time through Checkr. It does not:
   </p>
   <ul>
@@ -200,7 +200,7 @@ export default function TermsOfService() {
     <li>Reflect criminal activity, license changes, or other events occurring after the check date;</li>
     <li>Create any warranty or guarantee by OxSteed regarding the Helper's fitness for any particular job.</li>
   </ul>
-  <p>
+  <p className="mb-3">
     <strong>Do not rely solely on the verified badge when hiring a Helper.</strong> Always independently verify licenses, insurance, and references for any regulated trade or high-value job.
   </p>
 </section> 
