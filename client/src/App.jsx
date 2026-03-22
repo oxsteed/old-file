@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CustomerRegister from './pages/CustomerRegister';
+import HelperRegister from './pages/HelperRegister';
 import Dashboard from './pages/Dashboard';
 import UpgradePage from './pages/UpgradePage';
 import HelperDashboard from './pages/HelperDashboard';
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/register/customer" element={<CustomerRegister />} />
+          <Route path="/register/helper" element={<HelperRegister />} />
           <Route
             path="/dashboard"
             element={
