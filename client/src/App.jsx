@@ -14,12 +14,14 @@ import JobDetailPage from './pages/JobDetailPage';
 import PostJobPage from './pages/PostJobPage';
 import AdminDashboard from './pages/AdminDashboard';
 import TermsPage from './pages/terms';
+import TermsGate from './components/TermsGate';
 
 export default function App() {
   return (
     <Router>
       <AuthProvider>
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+                  <TermsGate>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
@@ -84,6 +86,7 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+                              </TermsGate>
       </AuthProvider>
     </Router>
   );
