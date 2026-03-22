@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, MapPin, Wrench, Users, Star, ChevronRight, Lock } from 'lucide-react';
 
@@ -11,6 +12,11 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
+    const [pricing, setPricing] = useState({ tier1_price: '0', tier1_label: 'Free', tier2_price: '29.99', tier2_label: '/month', tier3_price: '5%', tier3_label: 'per transaction' });
+  useEffect(() => {
+    fetch('/api/config/pricing').then(r => r.json()).then(data => setPricing(p => ({ ...p, ...data })));
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Navbar */}
@@ -75,7 +81,7 @@ export default function HomePage() {
                 1
               </div>
               <h3 className="mt-4 text-lg font-semibold">Browse the Board</h3>
-              <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 1 — Free Directory</p>
+              <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">{pricing.tier1_price === '0' ? 'Tier 1 — Free Directory' : `Tier 1 — $${pricing.tier1_price} ${pricing.tier1_label}`}</p>
               <p className="mt-2 text-gray-400 text-sm">
                 Helpers post free listings. Customers browse and post jobs. Connect directly and arrange everything between yourselves. No money passes through OxSteed.
               </p>
@@ -85,7 +91,7 @@ export default function HomePage() {
                 2
               </div>
               <h3 className="mt-4 text-lg font-semibold">Go Pro</h3>
-              <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 2 — Helper Subscription</p>
+              <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 2 — ${pricing.tier2_price}{pricing.tier2_label}</p>
               <p className="mt-2 text-gray-400 text-sm">
                 Helpers subscribe for priority placement, a verified badge, optional background check certification, and bid alerts. Payments still happen directly between you and the customer.
               </p>
@@ -95,7 +101,7 @@ export default function HomePage() {
                 3
               </div>
               <h3 className="mt-4 text-lg font-semibold">Add Payment Protection</h3>
-              <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 3 — Mutual Opt-In Only</p>
+              <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 3 — {pricing.tier3_price} {pricing.tier3_label}</p>
               <p className="mt-2 text-gray-400 text-sm">
                 When both the customer and helper agree, OxSteed can hold funds in escrow via Stripe until the job is confirmed complete. Includes dispute resolution. Only activated when both sides opt in.
               </p>
