@@ -22,6 +22,7 @@ const reviewRoutes       = require('./routes/reviews');
 const disputeRoutes      = require('./routes/disputes');
 const consentRoutes      = require('./routes/consent');
 const privacyRoutes      = require('./routes/privacy');
+const configRoutes      = require('./routes/config');
 
 app.use('/api/admin',         adminRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -29,6 +30,7 @@ app.use('/api/reviews',       reviewRoutes);
 app.use('/api/disputes',      disputeRoutes);
 app.use('/api/consent',       consentRoutes);
 app.use('/api/privacy',       privacyRoutes);
+app.use('/api/config',       configRoutes);
 
 // Apply strict rate limiter to sensitive privacy endpoints
 app.use('/api/privacy/delete-account', strictLimiter);
