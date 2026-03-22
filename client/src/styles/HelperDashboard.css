@@ -1,19 +1,22 @@
-/* HelperDashboard Styles */
+/* HelperDashboard Styles - Dark/Orange Theme */
 .helper-dashboard {
   max-width: 1000px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
+  min-height: 100vh;
+  background: #030712;
+  color: #fff;
 }
 
 .helper-dashboard h1 {
   font-size: 1.75rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  color: #1a1a2e;
+  color: #fff;
 }
 
 .helper-dashboard .subtitle {
-  color: #6b7280;
+  color: #9ca3af;
   margin-bottom: 2rem;
 }
 
@@ -25,23 +28,23 @@
 }
 
 .dashboard-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: rgba(17, 24, 39, 0.8);
+  border: 1px solid rgba(55, 65, 81, 0.5);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(12px);
   transition: box-shadow 0.2s;
 }
 
 .dashboard-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.1);
 }
 
 .dashboard-card h3 {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #1a1a2e;
+  color: #fff;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -55,7 +58,7 @@
 .subscription-card .plan-name {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #6c63ff;
+  color: #f97316;
   margin-bottom: 0.25rem;
 }
 
@@ -69,18 +72,18 @@
 }
 
 .plan-status.active {
-  background: #d1fae5;
-  color: #065f46;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
 }
 
 .plan-status.free {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
 }
 
 .subscription-card .plan-period {
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: #6b7280;
   margin-bottom: 1rem;
 }
 
@@ -91,6 +94,7 @@
   gap: 0.5rem;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  color: #d1d5db;
 }
 
 .status-dot {
@@ -100,25 +104,14 @@
   flex-shrink: 0;
 }
 
-.status-dot.verified {
-  background: #10b981;
-}
-
-.status-dot.pending {
-  background: #f59e0b;
-}
-
-.status-dot.not-started {
-  background: #d1d5db;
-}
-
-.status-dot.failed {
-  background: #ef4444;
-}
+.status-dot.verified { background: #10b981; }
+.status-dot.pending { background: #f59e0b; }
+.status-dot.not-started { background: #4b5563; }
+.status-dot.failed { background: #ef4444; }
 
 .verification-description {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: #9ca3af;
   margin-bottom: 1rem;
   line-height: 1.5;
 }
@@ -133,19 +126,19 @@
 .stat-item {
   text-align: center;
   padding: 0.75rem;
-  background: #f9fafb;
+  background: rgba(249, 115, 22, 0.1);
   border-radius: 8px;
 }
 
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #6c63ff;
+  color: #f97316;
 }
 
 .stat-label {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #9ca3af;
   margin-top: 0.25rem;
 }
 
@@ -166,30 +159,30 @@
 }
 
 .btn-primary {
-  background: #6c63ff;
+  background: #f97316;
   color: #fff;
 }
 
 .btn-primary:hover {
-  background: #5a52d5;
+  background: #ea580c;
 }
 
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
+  background: rgba(55, 65, 81, 0.5);
+  color: #d1d5db;
 }
 
 .btn-secondary:hover {
-  background: #e5e7eb;
+  background: rgba(75, 85, 99, 0.5);
 }
 
 .btn-danger {
-  background: #fee2e2;
-  color: #991b1b;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 
 .btn-danger:hover {
-  background: #fecaca;
+  background: rgba(239, 68, 68, 0.3);
 }
 
 .btn:disabled {
@@ -201,16 +194,29 @@
 .dashboard-loading {
   text-align: center;
   padding: 4rem 2rem;
-  color: #6b7280;
+  color: #9ca3af;
 }
 
 .dashboard-error {
   text-align: center;
   padding: 2rem;
-  color: #ef4444;
-  background: #fef2f2;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
   border-radius: 8px;
   margin-bottom: 1.5rem;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.muted {
+  color: #6b7280;
 }
 
 /* Responsive */
@@ -218,11 +224,9 @@
   .helper-dashboard {
     padding: 1rem;
   }
-
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-
   .stats-grid {
     grid-template-columns: 1fr;
   }
