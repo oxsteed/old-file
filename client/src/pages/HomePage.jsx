@@ -176,13 +176,19 @@ export default function HomePage() {
       <footer className="border-t border-gray-800 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-500">© 2026 OxSteed LLC</p>
-            <div className="flex gap-6 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">&copy; 2026 OxSteed LLC</p>
+            <div className="flex flex-wrap gap-4 text-sm text-gray-500">
               <Link to="/login" className="hover:text-white transition">Sign In</Link>
               <Link to="/register/customer" className="hover:text-white transition">Find Help</Link>
               <Link to="/register/helper" className="hover:text-white transition">List Your Skills</Link>
-              <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
             </div>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-500">
+            <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
+            <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
+            <Link to="/security" className="hover:text-white transition">Security</Link>
+            <Link to="/cookie-policy" className="hover:text-white transition">Cookie Policy</Link>
+            <Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link>
           </div>
           <p className="text-xs text-gray-600 text-center max-w-4xl mx-auto">
             OxSteed LLC operates an online introduction platform and optional payment services. OxSteed is not a party to any service agreement between users unless both parties have affirmatively opted into Tier 3 Payment Protection for a specific job. All helpers are independent individuals or businesses — not employees, agents, or contractors of OxSteed. OxSteed does not control how helpers perform work, does not set prices, and does not dispatch helpers. Users are solely responsible for evaluating and selecting other users. OxSteed does not provide insurance of any kind.
