@@ -110,15 +110,20 @@ export default function HomePage() {
           <h2 className="text-2xl font-bold text-center mb-12">Popular Listings</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {CATEGORIES.map((cat) => (
-              <div
-                key={cat.name}
-                className="p-6 bg-gray-900 border border-gray-800 rounded-xl hover:border-orange-500/50 transition cursor-pointer"
-              >
-                <cat.icon className="w-8 h-8 text-orange-500 mb-3" />
-                <h3 className="font-semibold">{cat.name}</h3>
-                <p className="text-sm text-gray-400 mt-1">{cat.desc}</p>
-              </div>
-            ))}
+                <Link
+                  key={cat.name}
+                  to={`/jobs?category=${encodeURIComponent(cat.name)}`}
+                  className="p-6 bg-gray-900 border border-gray-800 rounded-xl hover:border-orange-500/50 transition cursor-pointer block"
+                >
+                  <cat.icon className="w-8 h-8 text-orange-500 mb-3" />
+                  <h3 className="font-semibold">{cat.name}</h3>
+                  <p className="text-sm text-gray-400 mt-1">{cat.desc}</p>
+                </Link>
+              ))}
+            </div>
+            <p className="text-center text-gray-500 text-sm mt-8">
+              We're just getting started! New helpers and jobs are being added every day. Don't see what you need? <Link to="/register/customer" className="text-orange-500 hover:text-orange-400 underline">Post a job</Link> and let helpers come to you.
+            </p>
           </div>
         </div>
       </section>
