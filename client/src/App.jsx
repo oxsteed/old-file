@@ -13,6 +13,7 @@ import JobListPage from './pages/JobListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import PostJobPage from './pages/PostJobPage';
 import AdminDashboard from './pages/AdminDashboard';
+import TermsPage from './pages/terms';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/register/customer" element={<CustomerRegister />} />
           <Route path="/register/helper" element={<HelperRegister />} />
           <Route
@@ -75,12 +77,11 @@ export default function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute adminOnly>
+              <ProtectedRoute>
                 <AdminDashboard />
               </ProtectedRoute>
             }
           />
-          <Route path="/register" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
