@@ -152,8 +152,7 @@ export default function TermsOfService() {
 
         <section className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
-            5. Background Checks and Verification
-          </h2>
+            Background Checks, Verification, and FCRA Compliance          </h2>
           <p className="mb-3">
             Tier 2 and Tier 3 Helpers may elect to complete a background
             check through OxSteed's third-party provider, Checkr, Inc.
