@@ -1,7 +1,11 @@
+/* JobListPage - Dark/Orange Theme */
 .job-list-page {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1rem;
+  min-height: 100vh;
+  background: #030712;
+  color: #fff;
 }
 
 .job-list-header {
@@ -14,11 +18,11 @@
 .job-list-header h1 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #fff;
 }
 
 .btn-primary {
-  background: #e67e22;
+  background: #f97316;
   color: white;
   border: none;
   padding: 0.6rem 1.5rem;
@@ -29,7 +33,7 @@
 }
 
 .btn-primary:hover {
-  background: #d35400;
+  background: #ea580c;
 }
 
 .job-filters {
@@ -42,10 +46,12 @@
 .job-filters select,
 .job-filters input {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(55, 65, 81, 0.5);
   border-radius: 8px;
   font-size: 0.9rem;
   min-width: 160px;
+  background: rgba(17, 24, 39, 0.8);
+  color: #fff;
 }
 
 .job-grid {
@@ -55,16 +61,17 @@
 }
 
 .job-card {
-  background: white;
-  border: 1px solid #eee;
+  background: rgba(17, 24, 39, 0.8);
+  border: 1px solid rgba(55, 65, 81, 0.5);
   border-radius: 12px;
   padding: 1.25rem;
   cursor: pointer;
   transition: box-shadow 0.2s, transform 0.15s;
+  backdrop-filter: blur(12px);
 }
 
 .job-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.1);
   transform: translateY(-2px);
 }
 
@@ -81,47 +88,47 @@
   text-transform: uppercase;
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
-  background: #eee;
-  color: #555;
+  background: rgba(55, 65, 81, 0.5);
+  color: #9ca3af;
 }
 
 .priority-badge.urgent {
-  background: #fee2e2;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 
 .priority-badge.high {
-  background: #fef3c7;
-  color: #d97706;
+  background: rgba(249, 115, 22, 0.2);
+  color: #fdba74;
 }
 
 .priority-badge.normal {
-  background: #e0f2fe;
-  color: #0284c7;
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
 }
 
 .bid-count {
   font-size: 0.8rem;
-  color: #888;
+  color: #6b7280;
 }
 
 .job-card h3 {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 0.3rem;
-  color: #1a1a1a;
+  color: #fff;
 }
 
 .job-category {
   font-size: 0.8rem;
-  color: #e67e22;
+  color: #f97316;
   font-weight: 500;
   margin-bottom: 0.4rem;
 }
 
 .job-description {
   font-size: 0.85rem;
-  color: #666;
+  color: #9ca3af;
   line-height: 1.4;
   margin-bottom: 0.75rem;
 }
@@ -131,22 +138,22 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 0.75rem;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(55, 65, 81, 0.5);
 }
 
 .budget {
   font-weight: 600;
-  color: #1a1a1a;
+  color: #fff;
 }
 
 .location {
   font-size: 0.8rem;
-  color: #888;
+  color: #6b7280;
 }
 
 .error-message {
-  background: #fee2e2;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -155,13 +162,13 @@
 .loading {
   text-align: center;
   padding: 3rem;
-  color: #888;
+  color: #9ca3af;
 }
 
 .no-results {
   text-align: center;
   padding: 3rem;
-  color: #888;
+  color: #9ca3af;
   grid-column: 1 / -1;
 }
 
@@ -174,21 +181,22 @@
 
 .pagination button {
   padding: 0.4rem 0.8rem;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(55, 65, 81, 0.5);
   border-radius: 6px;
-  background: white;
+  background: rgba(17, 24, 39, 0.8);
+  color: #d1d5db;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .pagination button.active {
-  background: #e67e22;
+  background: #f97316;
   color: white;
-  border-color: #e67e22;
+  border-color: #f97316;
 }
 
 .pagination button:hover:not(.active) {
-  background: #f5f5f5;
+  background: rgba(55, 65, 81, 0.5);
 }
 
 @media (max-width: 640px) {
