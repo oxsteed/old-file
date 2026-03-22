@@ -5,6 +5,15 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.SMTP_FROM || 'noreply@oxsteed.com';
 const FROM_NAME = process.env.FROM_NAME || 'OxSteed';
 
+// Dedicated email addresses for compliance
+const EMAIL_ADDRESSES = {
+  noreply: 'noreply@oxsteed.com',
+  privacy: 'privacy@oxsteed.com',
+  security: 'security@oxsteed.com',
+  legal: 'legal@oxsteed.com',
+  support: 'support@oxsteed.com',
+};
+
 let emailConfigured = false;
 if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
   emailConfigured = true;
@@ -12,11 +21,14 @@ if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
   console.warn('Resend API key not set or invalid. Email features disabled.');
 }
 
-async function sendEmail({ to, subject, text, html }) {
+async function sendEmail({ to, subject, text, html, from, fromName }) {
   if (!emailConfigured) {
     console.warn('Email not sent - Resend not configured');
     return { success: false, error: 'Email not configured' };
   }
+
+  const senderEmail = from || FROM_EMAIL;
+  const senderName = fromName || FROM_NAME;
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -26,7 +38,7 @@ async function sendEmail({ to, subject, text, html }) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `${FROM_NAME} <${FROM_EMAIL}>`,
+        from: `${senderName} <${senderEmail}>`,
         to: [to],
         subject,
         text,
@@ -35,12 +47,10 @@ async function sendEmail({ to, subject, text, html }) {
     });
 
     const data = await response.json();
-
     if (!response.ok) {
       console.error('Resend API error:', data);
       return { success: false, error: data.message || 'Email send failed' };
     }
-
     console.log('Email sent successfully to:', to);
     return { success: true, id: data.id };
   } catch (err) {
@@ -76,4 +86,34 @@ async function sendPasswordResetEmail(email, resetUrl) {
   });
 }
 
-module.exports = { sendEmail, sendWelcomeEmail, sendOTPEmail, sendPasswordResetEmail };
+async function sendPrivacyRequestConfirmation(email, requestType, requestId) {
+  return sendEmail({
+    to: email,
+    from: EMAIL_ADDRESSES.privacy,
+    fromName: 'OxSteed Privacy',
+    subject: `Privacy Request Received - ${requestType}`,
+    text: `Your ${requestType} request (ID: ${requestId}) has been received and will be processed within 45 days as required by law.`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #2563eb;">OxSteed Privacy</h2><p>Your <strong>${requestType}</strong> request has been received.</p><p>Request ID: <code>${requestId}</code></p><p>We will process your request within 45 days as required by applicable privacy laws (CCPA/CPRA). You may contact us at <a href="mailto:privacy@oxsteed.com">privacy@oxsteed.com</a> with your request ID for updates.</p><p>- OxSteed Privacy Team</p></div>`,
+  });
+}
+
+async function sendSecurityAlertEmail(email, alertType, details) {
+  return sendEmail({
+    to: email,
+    from: EMAIL_ADDRESSES.security,
+    fromName: 'OxSteed Security',
+    subject: `Security Alert: ${alertType}`,
+    text: `Security alert: ${alertType}. ${details}`,
+    html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;"><h2 style="color: #dc2626;">OxSteed Security Alert</h2><p><strong>${alertType}</strong></p><p>${details}</p><p>If this wasn't you, please contact us immediately at <a href="mailto:security@oxsteed.com">security@oxsteed.com</a>.</p></div>`,
+  });
+}
+
+module.exports = {
+  sendEmail,
+  sendWelcomeEmail,
+  sendOTPEmail,
+  sendPasswordResetEmail,
+  sendPrivacyRequestConfirmation,
+  sendSecurityAlertEmail,
+  EMAIL_ADDRESSES,
+};
