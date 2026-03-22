@@ -54,25 +54,18 @@ export default function Step3EmailVerification({ registrationToken }: Props) {
   if (success) {
     return (
       <div className="text-center py-8">
-        <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Welcome to OxSteed!</h2>
+        <h2 className="text-2xl font-bold text-orange-400 mb-2">Welcome to OxSteed!</h2>
         <p className="text-gray-400">Your account has been created. Redirecting to dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="text-center">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Verify Your Email</h2>
-        <p className="text-gray-400 text-sm">
-          We sent a 6-digit verification code to your email. Enter it below to complete registration.
-        </p>
-      </div>
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold text-white text-center">Verify Your Email</h2>
+      <p className="text-gray-400 text-center text-sm">
+        We sent a 6-digit verification code to your email. Enter it below to complete registration.
+      </p>
 
       <input
         type="text"
@@ -80,33 +73,30 @@ export default function Step3EmailVerification({ registrationToken }: Props) {
         value={otp}
         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
         placeholder="000000"
-        className="w-full text-center text-3xl tracking-[0.5em] p-4 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors mb-4"
+        className="w-full text-center text-3xl tracking-[0.5em] p-4 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors mb-4"
         autoFocus
       />
 
       {error && (
-        <p className="text-red-400 text-sm mb-3">{error}</p>
+        <p className="text-red-400 text-sm text-center">{error}</p>
       )}
 
       <button
         onClick={handleVerify}
         disabled={otp.length !== 6 || loading}
-        className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors shadow-lg shadow-blue-600/25 mb-4"
+        className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Verifying...' : 'Verify & Create Account'}
       </button>
 
-      <p className="text-sm text-gray-500">
+      <p className="text-center text-sm text-gray-400">
         Didn't receive a code?{' '}
-        <button
-          onClick={handleResend}
-          className="text-blue-400 hover:text-blue-300"
-        >
+        <button onClick={handleResend} className="text-orange-400 hover:text-orange-300 underline">
           Resend code
         </button>
       </p>
 
-      <p className="text-xs text-gray-500 mt-4">
+      <p className="text-gray-500 text-xs text-center">
         The code expires in 15 minutes. After 3 failed attempts, your registration will be locked for 1 hour.
       </p>
     </div>
