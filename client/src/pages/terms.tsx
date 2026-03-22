@@ -153,12 +153,12 @@ export default function TermsOfService() {
         <section className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             Background Checks, Verification, and FCRA Compliance          </h2>
-          <h2>5.1 Optional Background Screening</h2>
+          <h2 className="mb-3">5.1 Optional Background Screening</h2>
   <p className="mb-3">
     Tier 2 and Tier 3 Helpers may elect to complete a background check through <strong>Checkr, Inc.</strong>, OxSteed's third-party consumer reporting agency. Background checks are entirely voluntary. Completion of a background check does not guarantee employment, job awards, or continued platform access.
   </p>
 
-  <h2>5.2 Fair Credit Reporting Act (FCRA) Disclosure</h2>
+  <h2 className="mb-3">5.2 Fair Credit Reporting Act (FCRA) Disclosure</h2>
   <p className="mb-3">
     OxSteed complies with the Fair Credit Reporting Act, 15 U.S.C. § 1681 et seq. ("FCRA"). Before initiating a background check, OxSteed will provide you with:
   </p>
