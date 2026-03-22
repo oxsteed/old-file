@@ -17,16 +17,21 @@ export default function HomePage() {
       <nav className="border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">Sign in</Link>
-            <Link
-              to="/register/helper"
-              className="text-sm px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition"
-            >
-              List Your Skills
-            </Link>
-          </div>
-        </div>
+              <div className="flex items-center gap-3">
+                <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">Sign in</Link>
+                <Link
+                  to="/register/customer"
+                  className="text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg font-medium transition"
+                >
+                  Find Help
+                </Link>
+                <Link
+                  to="/register/helper"
+                  className="text-sm px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition"
+                >
+                  List Your Skills
+                </Link>
+              </div>
       </nav>
 
       {/* Hero */}
@@ -41,7 +46,7 @@ export default function HomePage() {
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            to="/register/customer"
+                          to="/jobs"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 transition text-lg"
           >
             Browse Listings
