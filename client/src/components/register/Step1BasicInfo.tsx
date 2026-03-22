@@ -7,6 +7,8 @@ interface Props {
   onSuccess: (token: string) => void;
 }
 
+const inputBase = 'w-full p-3 border rounded bg-white text-gray-900 placeholder-gray-400';
+
 export default function Step1BasicInfo({ onSuccess }: Props) {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '', zip: '',
@@ -104,7 +106,7 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         <p className="text-gray-600 mb-4">Enter your email to be notified when we launch near you.</p>
         <input type="email" placeholder="Email" value={form.email}
           onChange={e => update('email', e.target.value)}
-          className="w-full p-3 border rounded mb-3" />
+          className={`${inputBase} mb-3`} />
         <button onClick={handleWaitlist}
           className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700">
           Notify Me
@@ -124,13 +126,13 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         <div>
           <input placeholder="First Name *" value={form.firstName}
             onChange={e => update('firstName', e.target.value)}
-            className={`w-full p-3 border rounded ${errors.firstName ? 'border-red-500' : ''}`} />
+            className={`${inputBase} ${errors.firstName ? 'border-red-500' : ''}`} />
           {errors.firstName && <span className="text-red-500 text-sm">{errors.firstName}</span>}
         </div>
         <div>
           <input placeholder="Last Name *" value={form.lastName}
             onChange={e => update('lastName', e.target.value)}
-            className={`w-full p-3 border rounded ${errors.lastName ? 'border-red-500' : ''}`} />
+            className={`${inputBase} ${errors.lastName ? 'border-red-500' : ''}`} />
           {errors.lastName && <span className="text-red-500 text-sm">{errors.lastName}</span>}
         </div>
       </div>
@@ -139,7 +141,7 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         <input type="email" placeholder="Email *" value={form.email}
           onChange={e => update('email', e.target.value)}
           onBlur={checkEmail}
-          className={`w-full p-3 border rounded ${errors.email ? 'border-red-500' : emailAvailable === true ? 'border-green-500' : ''}`} />
+          className={`${inputBase} ${errors.email ? 'border-red-500' : emailAvailable === true ? 'border-green-500' : ''}`} />
         {errors.email && <span className="text-red-500 text-sm">{errors.email}</span>}
         {emailAvailable === true && <span className="text-green-500 text-sm">Email available</span>}
       </div>
@@ -147,7 +149,7 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
       <div className="mb-3">
         <input type="tel" placeholder="Phone (+1) *" value={form.phone}
           onChange={e => update('phone', e.target.value)}
-          className={`w-full p-3 border rounded ${errors.phone ? 'border-red-500' : ''}`} />
+          className={`${inputBase} ${errors.phone ? 'border-red-500' : ''}`} />
         {errors.phone && <span className="text-red-500 text-sm">{errors.phone}</span>}
       </div>
 
@@ -155,21 +157,21 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         <input placeholder="Zip Code *" value={form.zip} maxLength={5}
           onChange={e => update('zip', e.target.value)}
           onBlur={checkZip}
-          className={`w-full p-3 border rounded ${errors.zip ? 'border-red-500' : zipInMarket === true ? 'border-green-500' : ''}`} />
+          className={`${inputBase} ${errors.zip ? 'border-red-500' : zipInMarket === true ? 'border-green-500' : ''}`} />
         {errors.zip && <span className="text-red-500 text-sm">{errors.zip}</span>}
       </div>
 
       <div className="mb-3">
         <input type="password" placeholder="Password (min 8 chars) *" value={form.password}
           onChange={e => update('password', e.target.value)}
-          className={`w-full p-3 border rounded ${errors.password ? 'border-red-500' : ''}`} />
+          className={`${inputBase} ${errors.password ? 'border-red-500' : ''}`} />
         {errors.password && <span className="text-red-500 text-sm">{errors.password}</span>}
       </div>
 
       <div className="mb-4">
         <input type="password" placeholder="Confirm Password *" value={form.confirmPassword}
           onChange={e => update('confirmPassword', e.target.value)}
-          className={`w-full p-3 border rounded ${errors.confirmPassword ? 'border-red-500' : ''}`} />
+          className={`${inputBase} ${errors.confirmPassword ? 'border-red-500' : ''}`} />
         {errors.confirmPassword && <span className="text-red-500 text-sm">{errors.confirmPassword}</span>}
       </div>
 
@@ -185,7 +187,6 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 disabled:opacity-50">
         {loading ? 'Validating...' : 'Continue to Terms'}
       </button>
-
       <p className="text-center text-sm text-gray-500 mt-4">
         Already have an account? <a href="/login" className="text-blue-600 underline">Sign in</a>
       </p>
