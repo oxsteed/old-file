@@ -58,59 +58,46 @@ export default function Step2Terms({ registrationToken, onSuccess }: Props) {
   };
 
   return (
-    <div>
-      <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-white mb-2">Terms & Conditions</h2>
-        <p className="text-gray-400 text-sm">
-          Please review our terms of service. Scroll to read all terms.
-        </p>
-      </div>
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold text-white text-center">Terms & Conditions</h2>
+      <p className="text-gray-400 text-center text-sm">Please review our terms of service. Scroll to read all terms.</p>
 
       <div
-        className="border border-gray-600 rounded-lg bg-gray-800/50 p-4 mb-4 max-h-80 overflow-y-auto"
         onScroll={handleScroll}
+        className="max-h-64 overflow-y-auto border border-gray-700 rounded-lg p-4 bg-gray-800/30 space-y-4"
       >
         {termsItems.map((item, idx) => (
-          <div key={idx} className="mb-4 last:mb-0">
-            <h3 className="font-semibold text-gray-200 mb-1">
-              {idx + 1}. {item.title}
-            </h3>
-            <p className="text-sm text-gray-400 leading-relaxed">{item.summary}</p>
+          <div key={idx} className="pb-3 border-b border-gray-700 last:border-0">
+            <h3 className="text-orange-400 font-semibold text-sm">{idx + 1}. {item.title}</h3>
+            <p className="text-gray-300 text-sm mt-1">{item.summary}</p>
           </div>
         ))}
-      </div>
-
-      <div className="mt-4 pt-4 border-t border-gray-700">
-        <p className="text-xs text-gray-500">
-          By accepting, a record of your acceptance including timestamp and IP address
-          will be stored for legal enforceability.
+        <p className="text-gray-500 text-xs italic">
+          By accepting, a record of your acceptance including timestamp and IP address will be stored for legal enforceability.
         </p>
       </div>
 
       {!scrolledToBottom && (
-        <p className="text-amber-400 text-sm mb-3 mt-2">
+        <p className="text-orange-400 text-xs text-center animate-pulse">
           Please scroll down to read all terms before accepting.
         </p>
       )}
 
-      <label className="flex items-start mb-6 mt-4 cursor-pointer">
+      <label className="flex items-start text-sm text-gray-300">
         <input
           type="checkbox"
           checked={accepted}
           onChange={(e) => setAccepted(e.target.checked)}
           disabled={!scrolledToBottom}
-          className="mt-1 mr-3 accent-blue-500"
+          className="mt-1 mr-3 accent-orange-500"
         />
-        <span className={`text-sm ${!scrolledToBottom ? 'text-gray-500' : 'text-gray-300'}`}>
-          I have read, understand, and agree to the OxSteed Terms & Conditions,
-          Privacy Policy, and Service Agreement.
-        </span>
+        <span>I have read, understand, and agree to the OxSteed Terms & Conditions, Privacy Policy, and Service Agreement.</span>
       </label>
 
       <button
         onClick={handleAccept}
         disabled={!accepted || loading}
-        className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors shadow-lg shadow-blue-600/25"
+        className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Processing...' : 'I Accept & Continue'}
       </button>
