@@ -1,7 +1,11 @@
+/* UpgradePage - Dark/Orange Theme */
 .upgrade-page {
   max-width: 1000px;
   margin: 0 auto;
   padding: 40px 20px;
+  min-height: 100vh;
+  background: #030712;
+  color: #fff;
 }
 
 .upgrade-header {
@@ -16,23 +20,24 @@
 }
 
 .upgrade-header p {
-  color: #aaa;
+  color: #9ca3af;
   font-size: 1.1rem;
 }
 
 .upgrade-error {
-  background: #ff4444;
-  color: white;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 20px;
   text-align: center;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .upgrade-loading {
   text-align: center;
   padding: 60px;
-  color: #aaa;
+  color: #9ca3af;
   font-size: 1.2rem;
 }
 
@@ -44,8 +49,8 @@
 }
 
 .plan-card {
-  background: #1e1e2e;
-  border: 2px solid #333;
+  background: rgba(17, 24, 39, 0.8);
+  border: 2px solid rgba(55, 65, 81, 0.5);
   border-radius: 16px;
   padding: 32px 24px;
   text-align: center;
@@ -54,117 +59,120 @@
 
 .plan-card:hover {
   transform: translateY(-4px);
-  border-color: #555;
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.plan-card.current {
+  border-color: rgba(249, 115, 22, 0.6);
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.1);
 }
 
 .plan-card.recommended {
-  border-color: #FF9800;
-  position: relative;
+  border-color: #f97316;
+  box-shadow: 0 0 30px rgba(249, 115, 22, 0.15);
 }
 
-.recommended-badge {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #FF9800;
-  color: #000;
-  padding: 4px 16px;
-  border-radius: 12px;
-  font-size: 0.8rem;
+.plan-badge {
+  display: inline-block;
+  background: rgba(249, 115, 22, 0.2);
+  color: #fb923c;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.plan-name {
+  font-size: 1.5rem;
   font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
 }
 
 .plan-price {
-  margin: 20px 0;
-}
-
-.plan-price .price {
   font-size: 2.5rem;
-  font-weight: 700;
-  color: #fff;
+  font-weight: 800;
+  color: #f97316;
+  margin-bottom: 4px;
 }
 
-.plan-price .period {
-  color: #888;
+.plan-price span {
   font-size: 1rem;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.plan-description {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
 }
 
 .plan-features {
   list-style: none;
   padding: 0;
-  margin: 20px 0;
+  margin: 0 0 24px 0;
   text-align: left;
 }
 
 .plan-features li {
   padding: 8px 0;
-  color: #ccc;
-  border-bottom: 1px solid #2a2a3a;
+  color: #d1d5db;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .plan-features li::before {
-  content: '\2713 ';
-  color: #4CAF50;
-  font-weight: bold;
+  content: '\2713';
+  color: #f97316;
+  font-weight: 700;
 }
 
-.btn-upgrade {
+.plan-button {
   width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #FF9800, #F44336);
-  color: white;
+  padding: 12px 24px;
   border: none;
   border-radius: 8px;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background 0.2s;
 }
 
-.btn-upgrade:hover {
-  opacity: 0.9;
+.plan-button.primary {
+  background: #f97316;
+  color: #fff;
 }
 
-.current-plan-card {
-  background: #1e1e2e;
-  border: 2px solid #4CAF50;
-  border-radius: 16px;
-  padding: 40px;
-  text-align: center;
-  max-width: 500px;
-  margin: 0 auto;
+.plan-button.primary:hover {
+  background: #ea580c;
 }
 
-.status-active {
-  color: #4CAF50;
-  font-weight: 600;
-  text-transform: capitalize;
+.plan-button.secondary {
+  background: rgba(55, 65, 81, 0.5);
+  color: #d1d5db;
+  border: 1px solid rgba(55, 65, 81, 0.5);
 }
 
-.plan-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-top: 20px;
+.plan-button.secondary:hover {
+  background: rgba(55, 65, 81, 0.8);
 }
 
-.btn-portal {
-  padding: 10px 24px;
-  background: #2196F3;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
+.plan-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.btn-cancel {
-  padding: 10px 24px;
-  background: transparent;
-  color: #ff4444;
-  border: 1px solid #ff4444;
-  border-radius: 8px;
-  cursor: pointer;
+.plan-button.current-btn {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  cursor: default;
 }
 
 .upgrade-faq {
@@ -173,23 +181,41 @@
 
 .upgrade-faq h2 {
   text-align: center;
-  margin-bottom: 24px;
+  font-size: 1.75rem;
   color: #fff;
+  margin-bottom: 24px;
 }
 
 .faq-item {
-  background: #1e1e2e;
-  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.6);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 10px;
   padding: 20px;
   margin-bottom: 12px;
 }
 
-.faq-item h4 {
-  color: #fff;
+.faq-item h3 {
+  color: #fb923c;
+  font-size: 1rem;
   margin-bottom: 8px;
 }
 
 .faq-item p {
-  color: #aaa;
-  line-height: 1.6;
+  color: #9ca3af;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .upgrade-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .plan-price {
+    font-size: 2rem;
+  }
 }
