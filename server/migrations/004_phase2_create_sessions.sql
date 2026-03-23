@@ -5,8 +5,9 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  refresh_token_hash VARCHAR(255) NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  refresh_token VARCHAR(255) NOT NULL,
+  is_valid BOOLEAN NOT NULL DEFAULT true,
   device_info TEXT NULL,
   ip_address VARCHAR(45) NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -15,6 +16,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(refresh_token_hash);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(refresh_token);
 
 COMMIT;
