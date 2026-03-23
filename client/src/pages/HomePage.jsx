@@ -82,7 +82,7 @@ export default function HomePage() {
               <h3 className="mt-4 text-lg font-semibold">Browse the Board</h3>
               <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">{pricing.tier1_price === '0' ? 'Tier 1 — Free Directory' : `Tier 1 — $${pricing.tier1_price} ${pricing.tier1_label}`}</p>
               <p className="mt-2 text-gray-400 text-sm">
-                Helpers post free listings. Customers browse and post jobs. Connect directly and arrange everything between yourselves. No money passes through OxSteed.
+                Helpers list their services for free. Customers browse, post jobs, and coordinate directly with them. Payments are handled between you and the helper but never through OxSteed
               </p>
             </div>
             <div className="text-center">
@@ -102,7 +102,7 @@ export default function HomePage() {
               <h3 className="mt-4 text-lg font-semibold">Add Payment Protection</h3>
               <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 3 — {pricing.tier3_price} {pricing.tier3_label}</p>
               <p className="mt-2 text-gray-400 text-sm">
-                When both the customer and helper agree, OxSteed can hold funds in escrow via Stripe until the job is confirmed complete. Includes dispute resolution. Only activated when both sides opt in.
+                When both the customer and helper agree, OxSteed can hold funds in escrow via Stripe until the job is confirmed complete by both party. Includes dispute resolution. Only activated when both sides opt in.
               </p>
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="font-semibold">Verified Profiles Available</h3>
-                <p className="text-sm text-gray-400 mt-1">Helpers can opt into background screening through Checkr. Look for the verified badge. OxSteed does not endorse or guarantee any helper.</p>
+                <p className="text-sm text-gray-400 mt-1">Helpers can opt in for background screening through Checkr. Look for the verified badge. OxSteed does not endorse or guarantee any helper.</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
@@ -151,7 +151,7 @@ export default function HomePage() {
                 <Lock className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <h3 className="font-semibold">OxSteed Pay — Mutual Opt-In</h3>
+                <h3 className="font-semibold">OxSteed Pay with Mutual Opt-In</h3>
                 <p className="text-sm text-gray-400 mt-1">Both the customer and helper must agree to activate escrow protection. Funds are held via Stripe Connect until the job is confirmed complete. Never automatic.</p>
               </div>
             </div>
@@ -174,7 +174,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-bold">Post your skills. Run your own business.</h2>
           <p className="mt-4 text-gray-400 text-lg">
             List your services for free on your local help board, or subscribe to Pro for priority visibility and a verified badge.
-            You set your own rates, hours, and service area. OxSteed is the board — you're the business owner.
+            You set your own rates, hours, and service area. OxSteed is the board and you're the business owner.
           </p>
           <Link
             to="/register/helper"
@@ -205,7 +205,7 @@ export default function HomePage() {
             <Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link>
           </div>
           <p className="text-xs text-gray-600 text-center max-w-4xl mx-auto">
-            PLEASE READ FULL <Link to="/terms" className="hover:text-white transition">TERMS OF SERVICE</Link>. OxSteed LLC operates an online introduction platform and optional payment services. OxSteed is not a party to any service agreement between users unless both parties have affirmatively opted into Tier 3 Payment Protection for a specific job. All helpers are independent individuals or businesses — not employees, agents, or contractors of OxSteed. OxSteed does not control how helpers perform work, does not set prices, and does not dispatch helpers. Users are solely responsible for evaluating and selecting other users. OxSteed does not provide insurance of any kind.
+            PLEASE READ THE FULL <Link to="/terms" className="hover:text-white transition">TERMS OF SERVICE</Link>. This is a small extract from the terms of service, stating that OxSteed LLC operates an online introduction platform and optional payment services. OxSteed is not a party to any service agreement between users unless both parties have affirmatively opted into Tier 3 Payment Protection for a specific job. All helpers are independent individuals or businesses — not employees, agents, or contractors of OxSteed. OxSteed does not control how helpers perform work, does not set prices, and does not dispatch helpers. Users are solely responsible for evaluating and selecting other users. OxSteed does not provide insurance of any kind.
           </p>
         </div>
       </footer>
