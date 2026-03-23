@@ -249,18 +249,6 @@ export default function JobListPage() {
               </div>
 
 
-      {/* Browse by Category */}
-      <div className="jlp-browse-cats">
-        <h2>Browse by Category</h2>
-        <div className="jlp-cat-grid">
-          {CATEGORIES.map(c => (
-            <div key={c.name} className="jlp-cat-card" onClick={() => handleFilter('category', c.name)}>
-              <span className="jlp-cat-card-icon">{c.icon}</span>
-              <span className="jlp-cat-card-name">{c.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Footer */}
       <footer className="jlp-footer">
