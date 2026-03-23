@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
+import TrustKeys from '../components/TrustKeys';
 import '../styles/JobListPage.css';
 
 const CATEGORIES = [
@@ -168,29 +169,13 @@ export default function JobListPage() {
                 <p>Pay directly or use OxSteed Escrow for added protection. Rate your helper when complete.</p>
               </div>
             </div>
-            <div className="jlp-trust-section">
+                        <div className="jlp-trust-section">
               <h4>Choose your trust level</h4>
               <div className="jlp-trust-badges">
-                <div className="jlp-trust-badge">
-                  <span className="jlp-badge-icon badge-community">C</span>
-                  <span className="jlp-badge-label">Community</span>
-                  <span className="jlp-badge-desc">Profile &amp; reviews</span>
-                </div>
-                <div className="jlp-trust-badge">
-                  <span className="jlp-badge-icon badge-verified">ID</span>
-                  <span className="jlp-badge-label">ID Verified</span>
-                  <span className="jlp-badge-desc">Identity confirmed</span>
-                </div>
-                <div className="jlp-trust-badge">
-                  <span className="jlp-badge-icon badge-pro">BG</span>
-                  <span className="jlp-badge-label">Verified Pro</span>
-                  <span className="jlp-badge-desc">ID + background check</span>
-                </div>
-                <div className="jlp-trust-badge badge-highlight">
-                  <span className="jlp-badge-icon badge-protected">$</span>
-                  <span className="jlp-badge-label">Protected</span>
-                  <span className="jlp-badge-desc">ID + background + escrow</span>
-                </div>
+                <TrustKeys level="community" mode="card" />
+                <TrustKeys level="verified" mode="card" />
+                <TrustKeys level="pro" mode="card" />
+                <TrustKeys level="protected" mode="card" />
               </div>
             </div>
           </div>
@@ -218,29 +203,13 @@ export default function JobListPage() {
                 <p>Complete the job, collect payment directly or through OxSteed Escrow, and build your reputation.</p>
               </div>
             </div>
-                        <div className="jlp-trust-section">
+                                    <div className="jlp-trust-section">
               <h4>Build your trust level</h4>
               <div className="jlp-trust-badges">
-                <div className="jlp-trust-badge">
-                  <span className="jlp-badge-icon badge-community">C</span>
-                  <span className="jlp-badge-label">Community</span>
-                  <span className="jlp-badge-desc">Free — start bidding today</span>
-                </div>
-                                <div className="jlp-trust-badge">
-                  <span className="jlp-badge-icon badge-verified">ID</span>
-                  <span className="jlp-badge-label">ID Verified</span>
-                  <span className="jlp-badge-desc">Stand out with identity proof</span>
-                </div>
-                <div className="jlp-trust-badge">
-                  <span className="jlp-badge-icon badge-pro">BG</span>
-                  <span className="jlp-badge-label">Verified Pro</span>
-                  <span className="jlp-badge-desc">ID + background check</span>
-                </div>
-                                <div className="jlp-trust-badge badge-highlight">
-                  <span className="jlp-badge-icon badge-protected">$</span>
-                  <span className="jlp-badge-label">Protected</span>
-                  <span className="jlp-badge-desc">ID + background + escrow</span>
-                </div>
+                <TrustKeys level="community" mode="card" />
+                <TrustKeys level="verified" mode="card" />
+                <TrustKeys level="pro" mode="card" />
+                <TrustKeys level="protected" mode="card" />
               </div>
             </div>
           </div>
