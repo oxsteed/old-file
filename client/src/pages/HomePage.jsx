@@ -48,8 +48,7 @@ export default function HomePage() {
           <span className="text-orange-500">services board.</span>
         </h1>
         <p className="mt-4 text-lg text-gray-400 max-w-2xl mx-auto">
-          OxSteed is a community directory where neighbors post jobs and local helpers list their skills.
-          Browse listings, connect directly, or opt into payment protection — you decide how you work together.
+          OxSteed is a community directory where neighbors post jobs and local helpers offer their skills, plus an opt‑in payment protection option for added peace of mind.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
           <Link
