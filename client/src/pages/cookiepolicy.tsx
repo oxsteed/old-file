@@ -8,7 +8,7 @@ const tableStyles = {
 
 export default function CookiePolicyPage() {
   return (
-    <LegalPageLayout title="Cookie Policy" effectiveDate="2025-06-01">
+    <LegalPageLayout title="Cookie Policy" effectiveDate="2026-03-23">
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           1. What Are Cookies?
@@ -57,7 +57,7 @@ export default function CookiePolicyPage() {
             </tr>
             <tr>
               <td style={tableStyles.td}><strong>Marketing</strong></td>
-              <td style={tableStyles.td}>Ad targeting, campaign tracking, conversion pixels</td>
+              <td style={tableStyles.td}>Reserved for future use</td>
               <td style={tableStyles.td}>Up to 1 year</td>
               <td style={tableStyles.td}>No</td>
             </tr>
@@ -107,7 +107,7 @@ export default function CookiePolicyPage() {
           We do not control these cookies. Key third parties include:
         </p>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li>Google Analytics (analytics)</li>
+          <li>Google Analytics (not currently in use)</li>
           <li>Stripe (payment processing — essential)</li>
         </ul>
       </section>
@@ -128,7 +128,7 @@ export default function CookiePolicyPage() {
         </h2>
         <p className="mb-3">
           Under the CCPA, you have the right to opt out of the sale of your personal
-          information. Marketing cookies may constitute a "sale" under CCPA. Visit our{' '}
+          information. If marketing cookies are enabled in the future, they may constitute a "sale" under CCPA. Visit our{' '}
           <a href="/do-not-sell" className="text-orange-400 underline">Do Not Sell My Personal Information</a>{' '}
           page to exercise this right.
         </p>
