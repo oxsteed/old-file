@@ -67,22 +67,9 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/jobs"
-                element={
-                  <ProtectedRoute>
-                    <JobListPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/jobs/:id"
-                element={
-                  <ProtectedRoute>
-                    <JobDetailPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/jobs" element={<JobListPage />} />
+                          <Route path="/jobs/:id" element={<JobDetailPage />} />
+                
               <Route
                 path="/post-job"
                 element={
