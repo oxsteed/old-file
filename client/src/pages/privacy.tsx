@@ -1,13 +1,40 @@
+import { Link } from 'react-router-dom';
+import { Home, Shield } from 'lucide-react';
+
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-300">
-      <div className="max-w-4xl mx-auto px-4 py-12 text-sm leading-relaxed">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          Privacy Policy
-        </h1>
-        <p className="text-gray-500 text-xs mb-10">
-          Last updated: March 22, 2026 — Effective immediately upon account creation
-        </p>
+    <div className="min-h-screen bg-gray-950 text-gray-300 flex flex-col">
+      {/* Header */}
+      <nav className="sticky top-0 z-50 bg-gray-950/80 backdrop-blur-md border-b border-gray-800">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 group">
+            <Home className="w-5 h-5 text-orange-500 group-hover:text-orange-400 transition-colors" />
+            <span className="text-xl font-bold text-white group-hover:text-orange-400 transition-colors">OxSteed</span>
+          </Link>
+          <div className="flex items-center gap-6">
+            <Link to="/" className="text-sm text-gray-400 hover:text-white transition-colors">Home</Link>
+            <Link to="/jobs" className="text-sm text-gray-400 hover:text-white transition-colors">Browse Jobs</Link>
+            <Link to="/login" className="text-sm bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg transition-colors font-medium">Sign In</Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-r from-orange-600/20 via-orange-500/10 to-transparent border-b border-gray-800">
+        <div className="max-w-4xl mx-auto px-4 py-10 flex items-center gap-4">
+          <div className="bg-orange-500/20 p-3 rounded-xl">
+            <Shield className="w-8 h-8 text-orange-400" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Privacy Policy</h1>
+            <p className="text-gray-400 text-sm mt-1">Last updated: March 22, 2026 — Effective immediately upon account creation</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1">
+        <div className="max-w-4xl mx-auto px-4 py-12 text-sm leading-relaxed">
 
         <section className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
@@ -274,13 +301,31 @@ export default function PrivacyPolicy() {
           </p>
         </section>
 
-        <p className="text-gray-500 text-xs mt-8 border-t border-gray-700 pt-4 mb-8">
-          OxSteed LLC — Springfield, Ohio —{' '}
-          <a href="mailto:legal@oxsteed.com" className="text-orange-500 underline">
-            legal@oxsteed.com
-          </a>
-        </p>
+                </div>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-800 bg-gray-950">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Home className="w-4 h-4 text-orange-500" />
+              <span className="text-sm font-semibold text-white">OxSteed</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+              <Link to="/terms" className="hover:text-orange-400 transition-colors">Terms of Service</Link>
+              <Link to="/privacy" className="hover:text-orange-400 transition-colors">Privacy Policy</Link>
+              <Link to="/security" className="hover:text-orange-400 transition-colors">Security</Link>
+              <Link to="/cookiepolicy" className="hover:text-orange-400 transition-colors">Cookie Policy</Link>
+              <Link to="/donotsell" className="hover:text-orange-400 transition-colors">Do Not Sell My Info</Link>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-gray-600">
+            <p>&copy; {new Date().getFullYear()} OxSteed LLC</p>
+            <p>For questions, contact <a href="mailto:legal@oxsteed.com" className="text-orange-500 hover:text-orange-400 underline">legal@oxsteed.com</a></p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
