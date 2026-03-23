@@ -12,55 +12,54 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
-    const [pricing, setPricing] = useState({ tier1_price: '0', tier1_label: 'Free', tier2_price: '29.99', tier2_label: '/month', tier3_price: '5%', tier3_label: 'per transaction' });
+  const [pricing, setPricing] = useState({ tier1_price: '0', tier1_label: 'Free', tier2_price: '29.99', tier2_label: '/month', tier3_price: '5%', tier3_label: 'per transaction' });
   useEffect(() => {
     fetch('/api/config/pricing').then(r => r.json()).then(data => setPricing(p => ({ ...p, ...data })));
   }, []);
-
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Navbar */}
       <nav className="border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 md:px-6 md:py-4 flex flex-col items-center gap-3 md:flex-row md:justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
-              <div className="flex items-center gap-3">
-                <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">Sign in</Link>
-                <Link
-                  to="/register/customer"
-                  className="text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg font-medium transition"
-                >
-                  Find Help
-                </Link>
-                <Link
-                  to="/register/helper"
-                  className="text-sm px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition"
-                >
-                  List Your Skills
-                </Link>
-              </div>
-                    </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3">
+            <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">Sign in</Link>
+            <Link
+              to="/register/customer"
+              className="text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg font-medium transition"
+            >
+              Find Help
+            </Link>
+            <Link
+              to="/register/helper"
+              className="text-sm px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition"
+            >
+              List Your Skills
+            </Link>
+          </div>
+        </div>
       </nav>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 py-20 text-center">
-        <h1 className="text-4xl md:text-6xl font-bold leading-tight">
+      <section className="max-w-6xl mx-auto px-4 py-12 sm:px-6 sm:py-16 md:py-20 text-center">
+        <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight">
           Your local{' '}
           <span className="text-orange-500">services board.</span>
         </h1>
-        <p className="mt-4 text-lg text-gray-400 max-w-2xl mx-auto">
+        <p className="mt-4 text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
           OxSteed is a community directory where neighbors post jobs and local helpers offer their skills, plus an opt‑in payment protection option for added peace of mind.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-                          to="/jobs"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 transition text-lg"
+            to="/jobs"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 transition text-lg"
           >
             Browse Listings
             <ArrowRight size={20} />
           </Link>
           <Link
             to="/register/helper"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-gray-700 hover:border-gray-500 text-white font-semibold rounded-xl transition text-lg"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 border border-gray-700 hover:border-gray-500 text-white font-semibold rounded-xl transition text-lg"
           >
             List Your Skills
             <ChevronRight size={20} />
@@ -116,22 +115,22 @@ export default function HomePage() {
           <h2 className="text-2xl font-bold text-center mb-12">Popular Listings</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {CATEGORIES.map((cat) => (
-                <Link
-                  key={cat.name}
-                  to={`/jobs?category=${encodeURIComponent(cat.name)}`}
-                  className="p-6 bg-gray-900 border border-gray-800 rounded-xl hover:border-orange-500/50 transition cursor-pointer block"
-                >
-                  <cat.icon className="w-8 h-8 text-orange-500 mb-3" />
-                  <h3 className="font-semibold">{cat.name}</h3>
-                  <p className="text-sm text-gray-400 mt-1">{cat.desc}</p>
-                </Link>
-              ))}
-            </div>
-            <p className="text-center text-gray-500 text-sm mt-8">
-              We're just getting started! New helpers and jobs are being added every day. Don't see what you need? <Link to="/register/customer" className="text-orange-500 hover:text-orange-400 underline">Post a job</Link> and let helpers come to you.
-            </p>
+              <Link
+                key={cat.name}
+                to={`/jobs?category=${encodeURIComponent(cat.name)}`}
+                className="p-6 bg-gray-900 border border-gray-800 rounded-xl hover:border-orange-500/50 transition cursor-pointer block"
+              >
+                <cat.icon className="w-8 h-8 text-orange-500 mb-3" />
+                <h3 className="font-semibold">{cat.name}</h3>
+                <p className="text-sm text-gray-400 mt-1">{cat.desc}</p>
+              </Link>
+            ))}
           </div>
-        </section>
+          <p className="text-center text-gray-500 text-sm mt-8">
+            We're just getting started! New helpers and jobs are being added every day. Don't see what you need? <Link to="/register/customer" className="text-orange-500 hover:text-orange-400 underline">Post a job</Link> and let helpers come to you.
+          </p>
+        </div>
+      </section>
 
       {/* Why OxSteed */}
       <section className="bg-gray-900/50 py-16">
@@ -191,7 +190,7 @@ export default function HomePage() {
       <footer className="border-t border-gray-800 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-500">&copy; 2026 OxSteed LLC</p>
+            <p className="text-sm text-gray-500">© 2026 OxSteed LLC</p>
             <div className="flex flex-wrap gap-4 text-sm text-gray-500">
               <Link to="/login" className="hover:text-white transition">Sign In</Link>
               <Link to="/register/customer" className="hover:text-white transition">Find Help</Link>
