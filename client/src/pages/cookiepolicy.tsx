@@ -51,7 +51,7 @@ export default function CookiePolicyPage() {
             </tr>
             <tr>
               <td style={tableStyles.td}><strong>Analytics</strong></td>
-              <td style={tableStyles.td}>Page views, feature usage, performance metrics (Google Analytics)</td>
+              <td style={tableStyles.td}>Page views, feature usage, performance metrics (Google Analytics not currently active)</td>
               <td style={tableStyles.td}>Up to 2 years</td>
               <td style={tableStyles.td}>No</td>
             </tr>
