@@ -27,6 +27,7 @@ export default function JobListPage() {
   const handleFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
 
   const hasJobs = jobs && jobs.length > 0;
+    const [tourView, setTourView] = useState('customer');
 
   return (
     <div className="job-list-page">
@@ -135,27 +136,118 @@ export default function JobListPage() {
         )}
       </div>
 
-      {/* How It Works */}
+            {/* How It Works - Tour Toggle */}
       <div className="jlp-how-it-works">
         <h2>How OxSteed Works</h2>
-        <div className="jlp-steps">
-          <div className="jlp-step">
-            <div className="jlp-step-num">1</div>
-            <h3>Post a Job</h3>
-            <p>Describe what you need done and set your budget.</p>
-          </div>
-          <div className="jlp-step">
-            <div className="jlp-step-num">2</div>
-            <h3>Get Bids</h3>
-            <p>Local helpers review your job and submit competitive bids.</p>
-          </div>
-          <div className="jlp-step">
-            <div className="jlp-step-num">3</div>
-            <h3>Hire &amp; Pay</h3>
-            <p>Choose the best helper and pay securely through OxSteed.</p>
-          </div>
+        <div className="jlp-tour-toggle">
+          <button className={`jlp-tour-btn ${tourView === 'customer' ? 'active' : ''}`} onClick={() => setTourView('customer')}>I Need Help</button>
+          <button className={`jlp-tour-btn ${tourView === 'helper' ? 'active' : ''}`} onClick={() => setTourView('helper')}>I'm a Helper</button>
         </div>
-      </div>
+
+        {tourView === 'customer' ? (
+          <div className="jlp-tour-content">
+            <div className="jlp-steps">
+              <div className="jlp-step">
+                <div className="jlp-step-num">1</div>
+                <h3>Post What You Need</h3>
+                <p>Describe the job, set your budget, and your request goes live to local helpers instantly.</p>
+              </div>
+              <div className="jlp-step">
+                <div className="jlp-step-num">2</div>
+                <h3>Compare &amp; Choose</h3>
+                <p>Review bids, check helper profiles, and pick the right fit — no obligation.</p>
+              </div>
+              <div className="jlp-step">
+                <div className="jlp-step-num">3</div>
+                <h3>Choose Your Helper</h3>
+                <p>Filter by trust level — from community members to fully verified pros.</p>
+              </div>
+              <div className="jlp-step">
+                <div className="jlp-step-num">4</div>
+                <h3>Get It Done</h3>
+                <p>Pay directly or use OxSteed Escrow for added protection. Rate your helper when complete.</p>
+              </div>
+            </div>
+            <div className="jlp-trust-section">
+              <h4>Choose your trust level</h4>
+              <div className="jlp-trust-badges">
+                <div className="jlp-trust-badge">
+                  <span className="jlp-badge-icon badge-community">C</span>
+                  <span className="jlp-badge-label">Community</span>
+                  <span className="jlp-badge-desc">Profile &amp; reviews</span>
+                </div>
+                <div className="jlp-trust-badge">
+                  <span className="jlp-badge-icon badge-verified">ID</span>
+                  <span className="jlp-badge-label">ID Verified</span>
+                  <span className="jlp-badge-desc">Identity confirmed</span>
+                </div>
+                <div className="jlp-trust-badge">
+                  <span className="jlp-badge-icon badge-pro">BG</span>
+                  <span className="jlp-badge-label">Verified Pro</span>
+                  <span className="jlp-badge-desc">ID + background check</span>
+                </div>
+                <div className="jlp-trust-badge badge-highlight">
+                  <span className="jlp-badge-icon badge-protected">$</span>
+                  <span className="jlp-badge-label">Protected</span>
+                  <span className="jlp-badge-desc">ID + background + escrow</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="jlp-tour-content">
+            <div className="jlp-steps">
+              <div className="jlp-step">
+                <div className="jlp-step-num">1</div>
+                <h3>Create Your Profile</h3>
+                <p>Sign up for free, list your skills, and set your service area.</p>
+              </div>
+              <div className="jlp-step">
+                <div className="jlp-step-num">2</div>
+                <h3>Get Verified</h3>
+                <p>Level up with ID verification and background checks to win more jobs.</p>
+              </div>
+              <div className="jlp-step">
+                <div className="jlp-step-num">3</div>
+                <h3>Browse &amp; Bid</h3>
+                <p>Find jobs in your area, submit competitive bids, and stand out with your profile.</p>
+              </div>
+              <div className="jlp-step">
+                <div className="jlp-step-num">4</div>
+                <h3>Get Paid</h3>
+                <p>Complete the job, collect payment directly or through OxSteed Escrow, and build your reputation.</p>
+              </div>
+            </div>
+                        <div className="jlp-trust-section">
+              <h4>Build your trust level</h4>
+              <div className="jlp-trust-badges">
+                <div className="jlp-trust-badge">
+                  <span className="jlp-badge-icon badge-community">C</span>
+                  <span className="jlp-badge-label">Community</span>
+                  <span className="jlp-badge-desc">Free — start bidding today</span>
+                </div>
+                                <div className="jlp-trust-badge">
+                  <span className="jlp-badge-icon badge-verified">ID</span>
+                  <span className="jlp-badge-label">ID Verified</span>
+                  <span className="jlp-badge-desc">Stand out with identity proof</span>
+                </div>
+                <div className="jlp-trust-badge">
+                  <span className="jlp-badge-icon badge-pro">BG</span>
+                  <span className="jlp-badge-label">Verified Pro</span>
+                  <span className="jlp-badge-desc">ID + background check</span>
+                </div>
+                                <div className="jlp-trust-badge badge-highlight">
+                  <span className="jlp-badge-icon badge-protected">$</span>
+                  <span className="jlp-badge-label">Protected</span>
+                  <span className="jlp-badge-desc">ID + background + escrow</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+              </div>
+
 
       {/* Browse by Category */}
       <div className="jlp-browse-cats">
