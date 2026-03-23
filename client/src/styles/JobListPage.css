@@ -420,3 +420,115 @@
   .jlp-footer-links { flex-wrap: wrap; }
   .jlp-cat-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+
+/* Tour Toggle */
+.jlp-tour-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 2rem;
+}
+.jlp-tour-btn {
+  padding: 0.75rem 2rem;
+  border: 2px solid #f97316;
+  background: transparent;
+  color: #f97316;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.jlp-tour-btn:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.jlp-tour-btn:last-child {
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+.jlp-tour-btn.active {
+  background: #f97316;
+  color: #030712;
+}
+.jlp-tour-btn:hover:not(.active) {
+  background: rgba(249, 115, 22, 0.1);
+}
+
+/* Tour Content */
+.jlp-tour-content {
+  text-align: center;
+}
+
+/* Trust Section */
+.jlp-trust-section {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(249, 115, 22, 0.2);
+}
+.jlp-trust-section h4 {
+  text-align: center;
+  color: #f97316;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+.jlp-trust-badges {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.jlp-trust-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.25rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  min-width: 140px;
+  transition: all 0.3s;
+}
+.jlp-trust-badge:hover {
+  border-color: #f97316;
+  transform: translateY(-2px);
+}
+.jlp-trust-badge.badge-highlight {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.08);
+}
+.jlp-badge-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.badge-community {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+.badge-verified {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+.badge-pro {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a78bfa;
+}
+.badge-protected {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+.jlp-badge-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #fff;
+}
+.jlp-badge-desc {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
