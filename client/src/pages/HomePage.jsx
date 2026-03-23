@@ -38,6 +38,7 @@ export default function HomePage() {
                   List Your Skills
                 </Link>
               </div>
+                    </div>
       </nav>
 
       {/* Hero */}
