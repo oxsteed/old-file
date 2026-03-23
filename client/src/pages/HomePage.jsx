@@ -12,7 +12,7 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
-  const [pricing, setPricing] = useState({ tier1_price: '0', tier1_label: 'Free', tier2_price: '29.99', tier2_label: '/month', tier3_price: '5%', tier3_label: 'per transaction' });
+  const [pricing, setPricing] = useState({ tier1_price: '0', tier1_label: 'Free', tier2_price: '29.99', tier2_label: '/month', tier3_price: '5%', tier3_label: 'starting at 5% — see Terms for full fee schedule' });
   useEffect(() => {
     fetch('/api/config/pricing').then(r => r.json()).then(data => setPricing(p => ({ ...p, ...data })));
   }, []);
@@ -25,7 +25,7 @@ export default function HomePage() {
           <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3">
             <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">Sign in</Link>
             <Link
-              to="/register/customer"
+                            to="/jobs"
               className="text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg font-medium transition"
             >
               Find Help
@@ -112,7 +112,7 @@ export default function HomePage() {
       {/* Categories */}
       <section className="py-16">
         <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-2xl font-bold text-center mb-12">Popular Listings</h2>
+          <h2 className="text-2xl font-bold text-center mb-12">Service Categories</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {CATEGORIES.map((cat) => (
               <Link
@@ -202,6 +202,7 @@ export default function HomePage() {
             <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
             <Link to="/security" className="hover:text-white transition">Security</Link>
             <Link to="/cookie-policy" className="hover:text-white transition">Cookie Policy</Link>
+                          <Link to="/cookie-settings" className="hover:text-white transition">Cookie Settings</Link>
             <Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link>
           </div>
           <p className="text-xs text-gray-600 text-center max-w-4xl mx-auto">
