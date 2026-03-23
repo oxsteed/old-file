@@ -316,8 +316,8 @@ export default function PrivacyPolicy() {
               <Link to="/terms" className="hover:text-orange-400 transition-colors">Terms of Service</Link>
               <Link to="/privacy" className="hover:text-orange-400 transition-colors">Privacy Policy</Link>
               <Link to="/security" className="hover:text-orange-400 transition-colors">Security</Link>
-              <Link to="/cookiepolicy" className="hover:text-orange-400 transition-colors">Cookie Policy</Link>
-              <Link to="/donotsell" className="hover:text-orange-400 transition-colors">Do Not Sell My Info</Link>
+              <Link to="/cookie-policy" className="hover:text-orange-400 transition-colors">Cookie Policy</Link>
+              <Link to="/do-not-sell" className="hover:text-orange-400 transition-colors">Do Not Sell My Info</Link>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-gray-600">
