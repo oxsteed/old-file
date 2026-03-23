@@ -132,7 +132,7 @@ export default function HomePage() {
               We're just getting started! New helpers and jobs are being added every day. Don't see what you need? <Link to="/register/customer" className="text-orange-500 hover:text-orange-400 underline">Post a job</Link> and let helpers come to you.
             </p>
           </div>
-        section>
+        </section>
 
       {/* Why OxSteed */}
       <section className="bg-gray-900/50 py-16">
