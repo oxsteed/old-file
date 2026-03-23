@@ -23,6 +23,7 @@ import SecurityPage from './pages/security';
 import CookiePolicyPage from './pages/cookiepolicy';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
+import PricingConfig from './pages/admin/PricingConfig';
 
 export default function App() {
   return (
@@ -98,7 +99,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="*" element={<NotFoundPage />} />
+              <Route path="/admin/pricing" element={<ProtectedRoute><PricingConfig /></ProtectedRoute>} />             <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </TermsGate>
           <CookieConsent />
