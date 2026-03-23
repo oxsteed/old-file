@@ -118,8 +118,8 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
               <Link to="/terms" style={{ color: '#6b7280', textDecoration: 'none' }}>Terms of Service</Link>
               <Link to="/privacy" style={{ color: '#6b7280', textDecoration: 'none' }}>Privacy Policy</Link>
               <Link to="/security" style={{ color: '#6b7280', textDecoration: 'none' }}>Security</Link>
-              <Link to="/cookiepolicy" style={{ color: '#6b7280', textDecoration: 'none' }}>Cookie Policy</Link>
-              <Link to="/donotsell" style={{ color: '#6b7280', textDecoration: 'none' }}>Do Not Sell My Info</Link>
+              <Link to="/cookie-policy" style={{ color: '#6b7280', textDecoration: 'none' }}>Cookie Policy</Link>
+              <Link to="/do-not-sell" style={{ color: '#6b7280', textDecoration: 'none' }}>Do Not Sell My Info</Link>
             </div>
           </div>
           <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #1f2937', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: '#4b5563' }} className="md-flex-row">
