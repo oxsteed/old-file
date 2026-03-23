@@ -52,7 +52,7 @@ export default function Login() {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div>
             <h1 className="text-white text-4xl font-bold tracking-tight">OxSteed</h1>
-            <p className="text-orange-100 mt-1 text-lg">Find help anywhere</p>
+            <p className="text-orange-100 mt-1 text-lg">Your local services board.</p>
           </div>
 
           <div className="space-y-8">
@@ -62,8 +62,8 @@ export default function Login() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Verified Helpers</p>
-                  <p className="text-orange-100 text-sm">Identity-verified service providers</p>
+                  <p className="text-white font-semibold">Free to Start</p>
+                  <p className="text-orange-100 text-sm">Browse helpers and post jobs at no cost</p>
                 </div>
               </div>
 
@@ -72,8 +72,8 @@ export default function Login() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Secure Payments</p>
-                  <p className="text-orange-100 text-sm">Escrow protection on every job</p>
+                  <p className="text-white font-semibold">Go Pro</p>
+                  <p className="text-orange-100 text-sm">Verified badge, priority placement, bid alerts</p>
                 </div>
               </div>
 
@@ -82,8 +82,8 @@ export default function Login() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Nationwide Coverage</p>
-                  <p className="text-orange-100 text-sm">Helpers available across the US</p>
+                  <p className="text-white font-semibold">Pay with Confidence</p>
+                  <p className="text-orange-100 text-sm">Optional escrow protection on any job</p>
                 </div>
               </div>
             </div>
@@ -99,7 +99,7 @@ export default function Login() {
           {/* Mobile logo */}
           <div className="lg:hidden text-center">
             <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
-            <p className="text-gray-500 mt-1">Find help anywhere</p>
+            <p className="text-gray-500 mt-1">Your local services board.</p>
           </div>
 
           <div>
@@ -210,7 +210,7 @@ export default function Login() {
             </div>
 
           <p className="text-center text-xs text-gray-600">
-            By signing in, you agree to our{' '}
+            Subject to our{' '}
             <Link to="/terms" className="text-gray-400 hover:text-orange-400 underline">Terms of Service</Link>
             {' '}and{' '}
             <Link to="/privacy" className="text-gray-400 hover:text-orange-400 underline">Privacy Policy</Link>
