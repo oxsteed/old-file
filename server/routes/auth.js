@@ -7,7 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const {
   register,
   login,
-    loginWith2FA,
+  loginWith2FA,
   requestOTP,
   verifyOTP,
   refreshToken,
@@ -19,14 +19,14 @@ const {
   startRegistration,
   acceptTerms,
   verifyRegistrationOTP,
-    resendRegistrationOTP,
-    // Settings & Profile
+  resendRegistrationOTP,
+  // Settings & Profile
   getMe,
   updateProfile,
   changePassword,
-  getPublicProfile
+  getPublicProfile,
+  resendVerification
 } = require('../controllers/authController');
-
 const {
   getCategories,
   startHelperRegistration,
@@ -72,5 +72,6 @@ router.post('/helper/register/resend-otp', resendHelperOTP);
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);
+router.post('/resend-verification', authenticate, resendVerification);
 
 module.exports = router;
