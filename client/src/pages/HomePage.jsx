@@ -43,11 +43,11 @@ export default function HomePage() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 py-12 sm:px-6 sm:py-16 md:py-20 text-center">
         <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight">
-          Your local{' '}
-          <span className="text-orange-500">services board.</span>
+          Get things done.{' '}
+          <span className="text-orange-500">hire local help today.</span>
         </h1>
         <p className="mt-4 text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
-          OxSteed is a community directory where neighbors post jobs and local helpers offer their skills, plus an opt‑in payment protection option for added peace of mind.
+          Post a job in minutes, compare bids from local helpers, and pay securely — with optional escrow protection. Free to start.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
           <Link
@@ -190,7 +190,7 @@ export default function HomePage() {
       <footer className="border-t border-gray-800 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-gray-500">© 2026 OxSteed LLC</p>
+            <p className="text-sm text-gray-500">© 2026 OxSteed LLC · support@oxsteed.com</p>
             <div className="flex flex-wrap gap-4 text-sm text-gray-500">
               <Link to="/login" className="hover:text-white transition">Sign In</Link>
               <Link to="/register/customer" className="hover:text-white transition">Find Help</Link>
