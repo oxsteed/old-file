@@ -1,3 +1,4 @@
+  // Job routes with media upload support
   const router = require('express').Router();
 const authenticate = require('../middleware/authenticate');
 const multer = require('multer');
