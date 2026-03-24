@@ -210,7 +210,7 @@ export default function HomePage() {
             <Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link>               <Link to="/accessibility" className="hover:text-white transition">Accessibility</Link>
                           <Link to="/accessibility" className="hover:text-white transition">Accessibility</Link>
           </div>
-          <p className="text-xs text-gray-600 text-center max-w-4xl mx-auto">
+          <p className="text-sm text-gray-400 text-center max-w-4xl pt-4 mx-auto">
             PLEASE READ THE FULL <Link to="/terms" className="hover:text-white transition">TERMS OF SERVICE</Link>. This is a small extract from the terms of service, stating that OxSteed LLC operates an online introduction platform and optional payment services. OxSteed is not a party to any service agreement between users unless both parties have affirmatively opted into Tier 3 Payment Protection for a specific job. All helpers are independent individuals or businesses. They are not employees, agents, or contractors of OxSteed. OxSteed does not control how helpers perform work, does not set prices, and does not dispatch helpers. Users are solely responsible for evaluating and selecting other users. OxSteed does not provide insurance of any kind.
           </p>
         </div>
