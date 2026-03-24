@@ -17,6 +17,7 @@ import ReportsList       from './pages/ReportsList';
 import Disputes          from './pages/Disputes';
 import DisputeResolve    from './pages/DisputeResolve';
 import MarketZipCodes    from './pages/MarketZipCodes';
+import AdminLogin          from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -45,6 +46,8 @@ export default function AdminApp() {
   return (
     <BrowserRouter>
       <Routes>
+                  {/* Public login route */}
+          <Route path="/admin/login" element={<AdminLogin />} />
         {/* Protected admin routes */}
         <Route path="/admin" element={
           <AdminGuard>
