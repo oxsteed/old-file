@@ -53,7 +53,10 @@ export default function useJobs() {
   }, []);
 
   const createJob = async (jobData) => {
-    const { data } = await api.post('/jobs', jobData);
+    const isFormData = jobData instanceof FormData;
+    const { data } = await api.post('/jobs', jobData, isFormData ? {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    } : {});
     return data;
   };
 
