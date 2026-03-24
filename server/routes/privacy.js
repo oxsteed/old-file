@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { authenticate } = require('../middleware/authenticate');
-
+const authenticate = require('../middleware/authenticate');
 /**
  * CCPA/CPRA Privacy Rights Routes
  * Provides data export, account deletion, and data portability
