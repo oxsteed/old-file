@@ -11,7 +11,7 @@ exports.requireAdmin = async (req, res, next) => {
     const { rows } = await db.query(
       `SELECT id, role, is_active, first_name, last_name, email
        FROM users WHERE id = $1`,
-      [decoded.userId]
+      [decoded.id]
     );
 
     if (!rows.length || !rows[0].is_active) {
@@ -41,7 +41,7 @@ exports.requireSuperAdmin = async (req, res, next) => {
 
     const { rows } = await db.query(
       `SELECT id, role, is_active FROM users WHERE id = $1`,
-      [decoded.userId]
+      [decoded.id]
     );
 
     if (!rows.length || rows[0].role !== 'super_admin' || !rows[0].is_active) {
