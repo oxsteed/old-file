@@ -1,7 +1,7 @@
 import { useEffect, useState }  from 'react';
 import { Star, ChevronDown }    from 'lucide-react';
 import { formatDistanceToNow }  from 'date-fns';
-import api                      from '../../api/api';
+import api                      from '../../api/axios';
 
 export default function ReviewsList({ userId }) {
   const [reviews, setReviews]  = useState([]);
