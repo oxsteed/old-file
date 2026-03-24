@@ -13,7 +13,9 @@ const CATEGORIES = [
   { name: 'Moving', icon: '🚚' },
   { name: 'Painting', icon: '🎨' },
   { name: 'Landscaping', icon: '🌿' },
-  { name: 'Assembly', icon: '🔧' },
+  { name: 'Yard Work', icon: '🌱' },
+  { name: 'Tool Rental', icon: '🔧' },
+  { name: 'General Labor', icon: '💪' },
   { name: 'Other', icon: '📋' },
 ];
 
@@ -24,26 +26,28 @@ export default function JobListPage() {
   const [filters, setFilters] = useState({ category: '', city: '', sort: 'newest', page: 1 });
 
   useEffect(() => { fetchJobs(filters); }, [filters, fetchJobs]);
-
   const handleFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
-
   const hasJobs = jobs && jobs.length > 0;
-    const [tourView, setTourView] = useState('customer');
+  const [tourView, setTourView] = useState('customer');
 
   return (
     <div className="job-list-page">
-      {/* Navbar */}
+      {/* Navbar - matches HomePage */}
       <nav className="jlp-navbar">
         <Link to="/" className="jlp-logo">OxSteed</Link>
         <div className="jlp-nav-links">
-          <Link to="/jobs" className="jlp-nav-active">Browse Jobs</Link>
           {user ? (
-            <Link to="/dashboard" className="jlp-nav-link">Dashboard</Link>
+            <>
+              <Link to="/dashboard" className="jlp-nav-link">Dashboard</Link>
+              <button onClick={() => navigate('/post-job')} className="btn-primary">Post a Job</button>
+            </>
           ) : (
-            <Link to="/login" className="jlp-nav-link">Sign In</Link>
+            <>
+              <Link to="/login" className="jlp-nav-link">Sign in</Link>
+              <Link to="/register/customer" className="btn-outline-nav">Post a Job</Link>
+              <Link to="/register/helper" className="btn-primary">List Your Skills</Link>
+            </>
           )}
-          {user && <button onClick={() => navigate('/post-job')} className="btn-primary">Post a Job</button>}
-          {!user && <Link to="/register/customer" className="btn-primary">Get Started</Link>}
         </div>
       </nav>
 
@@ -137,14 +141,13 @@ export default function JobListPage() {
         )}
       </div>
 
-            {/* How It Works - Tour Toggle */}
+      {/* How It Works - Tour Toggle */}
       <div className="jlp-how-it-works">
         <h2>How OxSteed Works</h2>
         <div className="jlp-tour-toggle">
           <button className={`jlp-tour-btn ${tourView === 'customer' ? 'active' : ''}`} onClick={() => setTourView('customer')}>I Need Help</button>
           <button className={`jlp-tour-btn ${tourView === 'helper' ? 'active' : ''}`} onClick={() => setTourView('helper')}>I'm a Helper</button>
         </div>
-
         {tourView === 'customer' ? (
           <div className="jlp-tour-content">
             <div className="jlp-steps">
@@ -155,7 +158,7 @@ export default function JobListPage() {
               </div>
               <div className="jlp-step">
                 <div className="jlp-step-num">2</div>
-                <h3>Compare &amp; Choose</h3>
+                <h3>Compare & Choose</h3>
                 <p>Review bids, check helper profiles, and pick the right fit — no obligation.</p>
               </div>
               <div className="jlp-step">
@@ -169,7 +172,7 @@ export default function JobListPage() {
                 <p>Pay directly or use OxSteed Escrow for added protection. Rate your helper when complete.</p>
               </div>
             </div>
-                        <div className="jlp-trust-section">
+            <div className="jlp-trust-section">
               <h4>Choose your trust level</h4>
               <div className="jlp-trust-badges">
                 <TrustKeys level="community" mode="card" />
@@ -194,7 +197,7 @@ export default function JobListPage() {
               </div>
               <div className="jlp-step">
                 <div className="jlp-step-num">3</div>
-                <h3>Browse &amp; Bid</h3>
+                <h3>Browse & Bid</h3>
                 <p>Find jobs in your area, submit competitive bids, and stand out with your profile.</p>
               </div>
               <div className="jlp-step">
@@ -203,7 +206,7 @@ export default function JobListPage() {
                 <p>Complete the job, collect payment directly or through OxSteed Escrow, and build your reputation.</p>
               </div>
             </div>
-                                    <div className="jlp-trust-section">
+            <div className="jlp-trust-section">
               <h4>Build your trust level</h4>
               <div className="jlp-trust-badges">
                 <TrustKeys level="community" mode="card" />
@@ -214,10 +217,8 @@ export default function JobListPage() {
             </div>
           </div>
         )
-      }
-              </div>
-
-
+        }
+      </div>
 
       {/* Footer */}
       <footer className="jlp-footer">
@@ -228,7 +229,7 @@ export default function JobListPage() {
           <Link to="/cookie-policy">Cookies</Link>
           <Link to="/security">Security</Link>
         </div>
-        <p>&copy; 2026 OxSteed. All rights reserved.</p>
+        <p>© 2026 OxSteed. All rights reserved.</p>
       </footer>
     </div>
   );
