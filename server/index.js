@@ -81,11 +81,14 @@ app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/helper-registration', helperRegistrationRoutes);
 app.use('/api/fee-config', feeConfigRoutes);
 app.use('/api/verification', verificationRoutes);
+// ── INLINE ROUTES ──────────────────────────────────────
+const { getPublicProfile } = require('./controllers/authController');
+app.get('/api/users/:id/profile', getPublicProfile);
 
 // ── PRODUCTION STATIC SERVING ────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
-
+  
   // Admin SPA - serve admin.html for all /admin/* routes
   app.get('/admin/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/admin.html'));
