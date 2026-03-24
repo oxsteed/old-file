@@ -19,6 +19,11 @@ const {
   startRegistration,
   acceptTerms,
   verifyRegistrationOTP,
+    // Settings & Profile
+  getMe,
+  updateProfile,
+  changePassword,
+  getPublicProfile
   resendRegistrationOTP
 } = require('../controllers/authController');
 
@@ -62,5 +67,10 @@ router.post('/helper/register/payment', recordPaymentSetup);
 router.post('/helper/register/accept-terms', helperAcceptTerms);
 router.post('/helper/register/verify-otp', verifyHelperOTP);
 router.post('/helper/register/resend-otp', resendHelperOTP);
+
+// Settings & Profile routes
+router.get('/me', authenticate, getMe);
+router.put('/profile', authenticate, updateProfile);
+router.put('/change-password', authenticate, changePassword);
 
 module.exports = router;
