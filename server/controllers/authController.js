@@ -1,8 +1,10 @@
-// Phase 2 — Auth controller (register, login, OTP, refresh, logout)
+// Phase 2 - Auth controller (register, login, OTP, refresh, logout)
 // + Customer Registration Flow (3-step)
+// + 2FA (TOTP) support on login
 // OxSteed v2
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const speakeasy = require('speakeasy');
 const pool = require('../db');
 const { generateTokens } = require('../middleware/auth');
 const { sendOTPEmail } = require('../utils/email');
@@ -29,7 +31,7 @@ async function register(req, res) {
     const user = rows[0];
     const tokens = generateTokens(user);
     await pool.query(
-      'INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval \'7 days\')',
+      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
     res.status(201).json({ user: { id: user.id, email: user.email, role: user.role }, ...tokens });
@@ -39,11 +41,12 @@ async function register(req, res) {
   }
 }
 
+// LOGIN - Updated to support 2FA
 async function login(req, res) {
   try {
     const { email, password } = req.body;
     const { rows } = await pool.query(
-      'SELECT id, email, password_hash, role, tier, is_active FROM users WHERE email = $1',
+      'SELECT id, email, password_hash, role, tier, is_active, totp_enabled FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     if (!rows[0]) return res.status(401).json({ error: 'Invalid credentials' });
@@ -51,14 +54,70 @@ async function login(req, res) {
     if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (user.totp_enabled) {
+      return res.status(200).json({
+        requiresTwoFactor: true,
+        userId: user.id,
+        message: 'Please provide your 2FA code to complete login.'
+      });
+    }
     const tokens = generateTokens(user);
     await pool.query(
-      'INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval \'7 days\')',
+      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
     res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier }, ...tokens });
   } catch (err) {
     console.error('Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
+  }
+}
+
+// Complete login after 2FA verification
+async function loginWith2FA(req, res) {
+  try {
+    const { userId, token, isBackupCode } = req.body;
+    if (!userId || !token) {
+      return res.status(400).json({ error: 'User ID and 2FA code required' });
+    }
+    const { rows } = await pool.query(
+      'SELECT id, email, role, tier, is_active, totp_secret, totp_enabled, backup_codes FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!rows[0] || !rows[0].totp_enabled) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    const user = rows[0];
+    if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
+    let verified = false;
+    if (isBackupCode) {
+      const hashed = crypto.createHash('sha256').update(token.toLowerCase().trim()).digest('hex');
+      const codes = user.backup_codes || [];
+      const idx = codes.indexOf(hashed);
+      if (idx !== -1) {
+        codes.splice(idx, 1);
+        await pool.query('UPDATE users SET backup_codes = $1 WHERE id = $2', [codes, userId]);
+        verified = true;
+      }
+    } else {
+      verified = speakeasy.totp.verify({
+        secret: user.totp_secret,
+        encoding: 'base32',
+        token: token,
+        window: 1
+      });
+    }
+    if (!verified) {
+      return res.status(401).json({ error: 'Invalid 2FA code' });
+    }
+    const tokens = generateTokens(user);
+    await pool.query(
+      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
+      [user.id, tokens.refreshToken]
+    );
+    res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier }, ...tokens });
+  } catch (err) {
+    console.error('Login 2FA error:', err);
     res.status(500).json({ error: 'Login failed' });
   }
 }
@@ -115,7 +174,7 @@ async function refreshToken(req, res) {
     await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [token]);
     const tokens = generateTokens(rows[0]);
     await pool.query(
-      'INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval \'7 days\')',
+      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [rows[0].user_id, tokens.refreshToken]
     );
     res.json(tokens);
@@ -135,8 +194,7 @@ async function logout(req, res) {
   }
 }
 
-// ===== NEW CUSTOMER REGISTRATION FLOW (3-Step) =====
-
+// ===== CUSTOMER REGISTRATION FLOW (3-Step) =====
 async function checkEmail(req, res) {
   try {
     const { email } = req.body;
@@ -150,15 +208,11 @@ async function checkEmail(req, res) {
   }
 }
 
-// Zip is for location matching only — no restriction, all US zips accepted
 async function checkZip(req, res) {
   try {
     const { zip } = req.body;
     if (!zip) return res.status(400).json({ error: 'Zip code required' });
-    if (!/^\d{5}$/.test(zip)) {
-      return res.status(400).json({ error: 'Invalid zip code format' });
-    }
-    // Always accept — zip is used for proximity matching, not access gating
+    if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code format' });
     res.json({ inMarket: true });
   } catch (err) {
     console.error('Check zip error:', err);
@@ -172,7 +226,7 @@ async function addToWaitlist(req, res) {
     if (!email || !zip) return res.status(400).json({ error: 'Email and zip code required' });
     const ipHash = crypto.createHash('sha256').update(req.ip || 'unknown').digest('hex');
     await pool.query(
-      `INSERT INTO waitlist (email, zip_code, ip_hash) VALUES ($1, $2, $3) ON CONFLICT (email, zip_code) DO NOTHING`,
+      'INSERT INTO waitlist (email, zip_code, ip_hash) VALUES ($1, $2, $3) ON CONFLICT (email, zip_code) DO NOTHING',
       [email.toLowerCase(), zip, ipHash]
     );
     res.json({ message: 'Added to waitlist' });
@@ -182,39 +236,26 @@ async function addToWaitlist(req, res) {
   }
 }
 
-// Step 1 -> Step 2: Validate basic info, create pending registration
-// Zip is stored for location-based matching — no market restriction
 async function startRegistration(req, res) {
   try {
     const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
     if (!email || !password || !firstName || !lastName || !phone || !zip) {
       return res.status(400).json({ error: 'All fields required' });
     }
-    if (!ageConfirmed) {
-      return res.status(400).json({ error: 'Age confirmation required' });
-    }
-    // Validate phone (basic US format check)
+    if (!ageConfirmed) return res.status(400).json({ error: 'Age confirmation required' });
     const phoneClean = phone.replace(/\D/g, '');
     if (phoneClean.length < 10 || phoneClean.length > 11) {
       return res.status(400).json({ error: 'Invalid phone number' });
     }
     const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
-    // Validate zip format only (5 digits)
-    if (!/^\d{5}$/.test(zip)) {
-      return res.status(400).json({ error: 'Invalid zip code' });
-    }
-    // Check email uniqueness
+    if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code' });
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Email already registered' });
-    }
+    if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
-    // Clean up any old pending registrations for this email
     await pool.query('DELETE FROM pending_registrations WHERE email = $1', [email.toLowerCase()]);
     await pool.query(
-      `INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      'INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip, ageConfirmed]
     );
     res.json({ token, message: 'Basic info validated' });
@@ -224,7 +265,6 @@ async function startRegistration(req, res) {
   }
 }
 
-// Step 2 -> Step 3: Record terms acceptance, send OTP
 async function acceptTerms(req, res) {
   try {
     const { token } = req.body;
@@ -237,14 +277,10 @@ async function acceptTerms(req, res) {
     const termsVersion = '2026-03-20';
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || '';
-    // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
-      `UPDATE pending_registrations
-      SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4,
-          otp_code = $5, otp_expires_at = $6, otp_attempts = 0
-      WHERE token = $1`,
+      'UPDATE pending_registrations SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6, otp_attempts = 0 WHERE token = $1',
       [token, termsVersion, ip, userAgent, otp, otpExpires]
     );
     await sendOTPEmail(pending.email, otp);
@@ -255,7 +291,6 @@ async function acceptTerms(req, res) {
   }
 }
 
-// Step 3: Verify OTP, create user account, log in
 async function verifyRegistrationOTP(req, res) {
   try {
     const { token, otp } = req.body;
@@ -265,16 +300,14 @@ async function verifyRegistrationOTP(req, res) {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
     const pending = rows[0];
-    // Check lockout
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
       return res.status(429).json({ error: 'Too many attempts. Try again later.', lockoutUntil: pending.otp_locked_until });
     }
-    // Verify OTP
     if (pending.otp_code !== otp || new Date(pending.otp_expires_at) < new Date()) {
       const newAttempts = pending.otp_attempts + 1;
       if (newAttempts >= 3) {
         await pool.query(
-          `UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1`,
+          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1",
           [token, newAttempts]
         );
         return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
@@ -282,36 +315,19 @@ async function verifyRegistrationOTP(req, res) {
       await pool.query('UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1', [token, newAttempts]);
       return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
-    // OTP verified - create user account
     const referralCode = crypto.randomBytes(6).toString('hex');
     const userResult = await pool.query(
-      `INSERT INTO users (
-        email, password_hash, first_name, last_name, phone, zip_code,
-        role, age_confirmed, email_verified,
-        terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua,
-        referral_code
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13)
-      RETURNING id, email, role, tier`,
-      [
-        pending.email, pending.password_hash, pending.first_name, pending.last_name,
-        pending.phone, pending.zip_code, 'customer', pending.age_confirmed,
-        pending.terms_accepted_at, pending.terms_version,
-        pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode
-      ]
+      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13) RETURNING id, email, role, tier',
+      [pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code, 'customer', pending.age_confirmed, pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode]
     );
     const user = userResult.rows[0];
-    // Delete pending registration
     await pool.query('DELETE FROM pending_registrations WHERE token = $1', [token]);
-    // Generate tokens and create session
     const tokens = generateTokens(user);
     await pool.query(
-      'INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval \'7 days\')',
+      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.status(201).json({
-      user: { id: user.id, email: user.email, role: user.role, tier: user.tier },
-      ...tokens
-    });
+    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier }, ...tokens });
   } catch (err) {
     console.error('Verify registration OTP error:', err);
     res.status(500).json({ error: 'Verification failed' });
@@ -344,8 +360,7 @@ async function resendRegistrationOTP(req, res) {
 }
 
 module.exports = {
-  register, login, requestOTP, verifyOTP, refreshToken, logout,
-  // New customer registration flow
+  register, login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP
 };
