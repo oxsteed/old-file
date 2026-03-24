@@ -4,10 +4,14 @@ import { ArrowRight, Shield, MapPin, Wrench, Users, Star, ChevronRight, Lock } f
 
 const CATEGORIES = [
   { name: 'Handyman', icon: Wrench, desc: 'Repairs, assembly, installations' },
-  { name: 'Tool Rental', icon: Wrench, desc: 'Borrow tools from locals' },
-  { name: 'Moving Help', icon: Users, desc: 'Loading, unloading, hauling' },
-  { name: 'Yard Work', icon: Wrench, desc: 'Mowing, trimming, cleanup' },
+  { name: 'Plumbing', icon: Wrench, desc: 'Pipes, faucets, water heaters' },
+  { name: 'Electrical', icon: Wrench, desc: 'Wiring, outlets, lighting' },
   { name: 'Cleaning', icon: Star, desc: 'Home & office cleaning' },
+  { name: 'Moving', icon: Users, desc: 'Loading, unloading, hauling' },
+  { name: 'Painting', icon: Star, desc: 'Interior & exterior painting' },
+  { name: 'Landscaping', icon: Wrench, desc: 'Garden design, tree care' },
+  { name: 'Yard Work', icon: Wrench, desc: 'Mowing, trimming, cleanup' },
+  { name: 'Tool Rental', icon: Wrench, desc: 'Borrow tools from locals' },
   { name: 'General Labor', icon: Users, desc: 'Any task you need done' },
 ];
 
