@@ -121,14 +121,14 @@ export default function JobListPage() {
                 <circle cx="58" cy="50" r="3" fill="#f97316" opacity="0.5" />
               </svg>
             </div>
-            <h2>No jobs posted yet</h2>
-            <p>Be the first to post a job and connect with local helpers.</p>
+            <h2>No jobs in your area yet</h2>
+            <p>Post a Job — It's Free in your area — takes 60 seconds.</p>
             <div className="jlp-empty-actions">
               {user ? (
-                <button onClick={() => navigate('/post-job')} className="btn-primary btn-lg">Post the First Job</button>
+                <button onClick={() => navigate('/post-job')} className="btn-primary btn-lg">Post a Job — It's Free</button>
               ) : (
                 <>
-                  <Link to="/register/customer" className="btn-primary btn-lg">Sign Up to Post a Job</Link>
+                  <Link to="/register/customer" className="btn-primary btn-lg">Post Your First Job Free</Link>
                   <Link to="/register/helper" className="btn-outline btn-lg">Join as a Helper</Link>
                 </>
               )}
