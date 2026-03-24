@@ -14,7 +14,6 @@ import HelperDashboard from './pages/HelperDashboard';
 import JobListPage from './pages/JobListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import PostJobPage from './pages/PostJobPage';
-import AdminDashboard from './pages/AdminDashboard';
 import NotFoundPage from './pages/NotFoundPage';
 import TermsPage from './pages/terms';
 import PrivacyPage from './pages/privacy';
@@ -28,7 +27,6 @@ import ResetPasswordPage from './pages/ResetPassword';
 import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
-import PricingConfig from './pages/admin/PricingConfig';
 
 export default function App() {
   return (
@@ -48,9 +46,9 @@ export default function App() {
               <Route path="/cookie-policy" element={<CookiePolicyPage />} />
               <Route path="/accessibility" element={<AccessibilityPage />} />
               <Route path="/register/customer" element={<CustomerRegister />} />
-                            <Route path="/about" element={<AboutPage />} />
-                            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/register/helper" element={<HelperRegister />} />
               <Route
                 path="/dashboard"
@@ -78,7 +76,6 @@ export default function App() {
               />
               <Route path="/jobs" element={<JobListPage />} />
               <Route path="/jobs/:id" element={<JobDetailPage />} />
-
               <Route
                 path="/post-job"
                 element={
@@ -87,16 +84,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/admin/pricing" element={<ProtectedRoute><PricingConfig /></ProtectedRoute>} />
-                            <Route path="/settings/2fa" element={<ProtectedRoute><TwoFactorSetup /></ProtectedRoute>} />
+              <Route path="/settings/2fa" element={<ProtectedRoute><TwoFactorSetup /></ProtectedRoute>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </TermsGate>
