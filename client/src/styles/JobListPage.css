@@ -487,3 +487,19 @@
   font-size: 0.8rem;
   color: #6b7280;
 }
+
+/* Nav outline button - matches HomePage pattern */
+.btn-outline-nav {
+  padding: 0.5rem 1rem;
+  border: 1px solid #f97316;
+  color: #f97316;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-outline-nav:hover {
+  background: #f97316;
+  color: #fff;
+}
