@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api                     from '../../api/api';
+import api                     from '../../api/axios';
 
 const PREF_GROUPS = [
   {
