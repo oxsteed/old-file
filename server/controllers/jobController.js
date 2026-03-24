@@ -1,13 +1,24 @@
 const pool = require('../db');
+const { uploadFile } = require('../utils/storage');
 
 // Create a new job
 exports.createJob = async (req, res) => {
   try {
-    const { title, description, category, subcategory, budget_min, budget_max, priority, location_address, location_city, location_state, location_zip, location_lat, location_lng, is_remote, scheduled_date, scheduled_time_start, scheduled_time_end, estimated_duration_hours, requirements, images, tags } = req.body;
+    const { title, description, category, subcategory, budget_min, budget_max, priority, location_address, location_city, location_state, location_zip, location_lat, location_lng, is_remote, scheduled_date, scheduled_time_start, scheduled_time_end, estimated_duration_hours, requirements, tags } = req.body;
+
+    // Upload media files to S3 if present
+    let mediaUrls = [];
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map(file =>
+        uploadFile(file.buffer, 'job-media', file.originalname, file.mimetype)
+      );
+      mediaUrls = await Promise.all(uploadPromises);
+    }
+
     const result = await pool.query(
       `INSERT INTO jobs (poster_id, title, description, category, subcategory, budget_min, budget_max, priority, location_address, location_city, location_state, location_zip, location_lat, location_lng, is_remote, scheduled_date, scheduled_time_start, scheduled_time_end, estimated_duration_hours, requirements, images, tags)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING *`,
-      [req.user.id, title, description, category, subcategory, budget_min, budget_max, priority || 'normal', location_address, location_city, location_state, location_zip, location_lat, location_lng, is_remote || false, scheduled_date, scheduled_time_start, scheduled_time_end, estimated_duration_hours, JSON.stringify(requirements || []), JSON.stringify(images || []), JSON.stringify(tags || [])]
+      [req.user.id, title, description, category, subcategory, budget_min, budget_max, priority || 'normal', location_address, location_city, location_state, location_zip, location_lat, location_lng, is_remote || false, scheduled_date, scheduled_time_start, scheduled_time_end, estimated_duration_hours, JSON.stringify(requirements ? (Array.isArray(requirements) ? requirements : [requirements]) : []), JSON.stringify(mediaUrls), JSON.stringify(tags ? (Array.isArray(tags) ? tags : [tags]) : [])]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -101,7 +112,6 @@ exports.cancelJob = async (req, res) => {
       `UPDATE jobs SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
       [req.body.reason || 'Cancelled by poster', req.params.id]
     );
-    // Reject all pending bids
     await pool.query(`UPDATE bids SET status = 'rejected', rejected_at = NOW() WHERE job_id = $1 AND status = 'pending'`, [req.params.id]);
     res.json(result.rows[0]);
   } catch (err) {
@@ -119,9 +129,7 @@ exports.assignHelper = async (req, res) => {
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [bid.rows[0].job_id]);
     if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });
     if (job.rows[0].poster_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-    // Accept bid and assign helper
     await pool.query(`UPDATE bids SET status = 'accepted', accepted_at = NOW() WHERE id = $1`, [bid_id]);
-    // Reject other pending bids
     await pool.query(`UPDATE bids SET status = 'rejected', rejected_at = NOW() WHERE job_id = $1 AND id != $2 AND status = 'pending'`, [bid.rows[0].job_id, bid_id]);
     const result = await pool.query(
       `UPDATE jobs SET helper_id = $1, status = 'assigned', final_price = $2, assigned_at = NOW(), updated_at = NOW() WHERE id = $3 RETURNING *`,
@@ -134,7 +142,7 @@ exports.assignHelper = async (req, res) => {
   }
 };
 
-// Start job (helper confirms they started)
+// Start job
 exports.startJob = async (req, res) => {
   try {
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [req.params.id]);
@@ -152,7 +160,7 @@ exports.startJob = async (req, res) => {
   }
 };
 
-// Complete job (both parties must confirm)
+// Complete job
 exports.completeJob = async (req, res) => {
   try {
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [req.params.id]);
@@ -163,7 +171,6 @@ exports.completeJob = async (req, res) => {
     if (!isPoster && !isHelper) return res.status(403).json({ error: 'Not authorized' });
     const updateField = isPoster ? 'poster_confirmed' : 'helper_confirmed';
     await pool.query(`UPDATE jobs SET ${updateField} = true, updated_at = NOW() WHERE id = $1`, [req.params.id]);
-    // Check if both confirmed
     const updated = await pool.query('SELECT * FROM jobs WHERE id = $1', [req.params.id]);
     if (updated.rows[0].poster_confirmed && updated.rows[0].helper_confirmed) {
       const result = await pool.query(
@@ -179,7 +186,7 @@ exports.completeJob = async (req, res) => {
   }
 };
 
-// Get my jobs (as poster or helper)
+// Get my jobs
 exports.getMyJobs = async (req, res) => {
   try {
     const { role = 'poster', status } = req.query;
@@ -198,4 +205,4 @@ exports.getMyJobs = async (req, res) => {
     console.error('Get my jobs error:', err);
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
-};
+};  
