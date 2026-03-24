@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import Navbar from '../components/Navbar';
@@ -17,7 +17,9 @@ export default function PostJobPage() {
   const [mediaType, setMediaType] = useState('photo');
   const [recording, setRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
-  const [recordedChunks, setRecordedChunks] = useState([]);
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const videoPreviewRef = useRef(null);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -54,8 +56,8 @@ export default function PostJobPage() {
       recorder.onstop = () => {
         const mimeType = type === 'audio' ? 'audio/webm' : 'video/webm';
         const blob = new Blob(chunks, { type: mimeType });
-        const ext = type === 'audio' ? 'webm' : 'webm';
-        const file = new File([blob], `recording_${Date.now()}.${ext}`, { type: mimeType });
+        const ext = 'webm';
+        const file = new File([blob], 'recording_' + Date.now() + '.' + ext, { type: mimeType });
         setMediaFiles(prev => [...prev, file]);
         stream.getTracks().forEach(t => t.stop());
       };
@@ -75,6 +77,44 @@ export default function PostJobPage() {
     }
   };
 
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      setCameraStream(stream);
+      setShowCamera(true);
+      setTimeout(() => {
+        if (videoPreviewRef.current) {
+          videoPreviewRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      alert('Could not access camera. Please check permissions.');
+    }
+  };
+
+  const closeCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+    }
+    setCameraStream(null);
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoPreviewRef.current) return;
+    const video = videoPreviewRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      const file = new File([blob], 'live_photo_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+      setMediaFiles(prev => [...prev, file]);
+    }, 'image/jpeg', 0.92);
+    closeCamera();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -86,7 +126,7 @@ export default function PostJobPage() {
       formData.set('budget_max', parseFloat(form.budget_max));
       mediaFiles.forEach(file => formData.append('media', file));
       const result = await createJob(formData);
-      navigate(`/jobs/${result.job?.id || result.id}`);
+      navigate('/jobs/' + (result.job?.id || result.id));
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create job');
     } finally {
@@ -95,26 +135,22 @@ export default function PostJobPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="post-job-page-wrapper">
       <Navbar />
-      <main className="flex-1 py-10">
+      <main>
         <div className="post-job-container">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Post a Job</h1>
-          <p className="text-gray-500 mb-6">Describe what you need done and let helpers bid on your project.</p>
-
-          {error && <div className="bg-red-50 text-red-700 p-3 rounded mb-4">{error}</div>}
-
+          <h1>Post a Job</h1>
+          <p className="subtitle">Describe what you need done and let helpers bid on your project.</p>
+          {error && <div style={{background:'#fef2f2',color:'#b91c1c',padding:'0.75rem 1rem',borderRadius:'8px',marginBottom:'1rem',fontSize:'0.9rem'}}>{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label>Job Title *</label>
               <input name="title" value={form.title} onChange={handleChange} placeholder="e.g. Need help moving furniture" required />
             </div>
-
             <div className="form-group">
               <label>Description *</label>
               <textarea name="description" value={form.description} onChange={handleChange} rows="5" placeholder="Describe the job in detail: what needs to be done, tools needed, estimated time..." required />
             </div>
-
             <div className="form-row">
               <div className="form-group">
                 <label>Category *</label>
@@ -130,7 +166,6 @@ export default function PostJobPage() {
                 </select>
               </div>
             </div>
-
             <div className="form-row">
               <div className="form-group">
                 <label>Budget Min ($) *</label>
@@ -141,7 +176,6 @@ export default function PostJobPage() {
                 <input name="budget_max" type="number" step="0.01" min="5" value={form.budget_max} onChange={handleChange} placeholder="100" required />
               </div>
             </div>
-
             <div className="form-row">
               <div className="form-group">
                 <label>City *</label>
@@ -152,7 +186,6 @@ export default function PostJobPage() {
                 <input name="location_state" value={form.location_state} onChange={handleChange} placeholder="OH" />
               </div>
             </div>
-
             <div className="form-group">
               <label>Job Type</label>
               <select name="job_type" value={form.job_type} onChange={handleChange}>
@@ -164,60 +197,71 @@ export default function PostJobPage() {
 
             {/* Media Upload Section */}
             <div className="form-group">
-              <label>Add Photos, Video, or Audio <span className="text-gray-400 font-normal">(optional)</span></label>
-              <div className="flex gap-2 mb-3">
-                <button type="button" onClick={() => setMediaType('photo')} className={`px-3 py-1 rounded-full text-sm border ${mediaType === 'photo' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>📷 Photos</button>
-                <button type="button" onClick={() => setMediaType('video')} className={`px-3 py-1 rounded-full text-sm border ${mediaType === 'video' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>🎥 Video</button>
-                <button type="button" onClick={() => setMediaType('audio')} className={`px-3 py-1 rounded-full text-sm border ${mediaType === 'audio' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>🎙️ Audio</button>
+              <label>Add Photos, Video, or Audio <span style={{color:'#9ca3af',fontWeight:'400'}}>(optional)</span></label>
+              <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.75rem',flexWrap:'wrap'}}>
+                <button type="button" onClick={() => setMediaType('photo')} className={'media-tab-btn' + (mediaType === 'photo' ? ' active' : '')}>📷 Photos</button>
+                <button type="button" onClick={() => setMediaType('video')} className={'media-tab-btn' + (mediaType === 'video' ? ' active' : '')}>🎥 Video</button>
+                <button type="button" onClick={() => setMediaType('audio')} className={'media-tab-btn' + (mediaType === 'audio' ? ' active' : '')}>🎙️ Audio</button>
               </div>
 
               {mediaType === 'photo' && (
                 <div>
-                  <label className="cursor-pointer inline-block bg-white border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 text-center text-gray-500 hover:border-blue-400 hover:text-blue-500 transition w-full">
-                    <span className="block text-2xl mb-1">📷</span>
-                    <span className="text-sm">Click to upload photos</span>
-                    <input type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
+                  <label className="media-upload-area">
+                    <span className="upload-icon">📷</span>
+                    <span style={{fontSize:'0.9rem'}}>Click to upload photos from your device</span>
+                    <input type="file" accept="image/*" multiple onChange={handleFileChange} />
                   </label>
+                  {!showCamera ? (
+                    <button type="button" className="btn-live-photo" onClick={openCamera}>
+                      📸 Take a Live Photo
+                    </button>
+                  ) : (
+                    <div className="camera-preview-container">
+                      <video ref={videoPreviewRef} autoPlay playsInline muted />
+                      <button type="button" className="camera-capture-btn" onClick={capturePhoto}>📸 Capture</button>
+                      <button type="button" className="camera-close-btn" onClick={closeCamera}>✕</button>
+                    </div>
+                  )}
                 </div>
               )}
 
               {mediaType === 'video' && (
-                <div className="flex flex-col gap-2">
-                  <label className="cursor-pointer inline-block bg-white border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 text-center text-gray-500 hover:border-blue-400 hover:text-blue-500 transition w-full">
-                    <span className="block text-2xl mb-1">🎥</span>
-                    <span className="text-sm">Click to upload a video file</span>
-                    <input type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
+                <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
+                  <label className="media-upload-area">
+                    <span className="upload-icon">🎥</span>
+                    <span style={{fontSize:'0.9rem'}}>Click to upload a video file</span>
+                    <input type="file" accept="video/*" onChange={handleFileChange} />
                   </label>
-                  <div className="text-center text-gray-400 text-sm">or</div>
+                  <div className="or-divider">or</div>
                   {!recording ? (
-                    <button type="button" onClick={() => startRecording('video')} className="w-full py-3 bg-red-50 border border-red-300 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium">🔴 Record Video</button>
+                    <button type="button" className="btn-record-video" onClick={() => startRecording('video')}>🔴 Record Video</button>
                   ) : (
-                    <button type="button" onClick={stopRecording} className="w-full py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium animate-pulse">⏹ Stop Recording</button>
+                    <button type="button" className="btn-record-video recording" onClick={stopRecording}>⏹ Stop Recording</button>
                   )}
                 </div>
               )}
 
               {mediaType === 'audio' && (
-                <div className="flex flex-col gap-2">
+                <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
                   {!recording ? (
-                    <button type="button" onClick={() => startRecording('audio')} className="w-full py-4 bg-blue-50 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-medium">🎙️ Start Audio Recording</button>
+                    <button type="button" className="btn-record-audio" onClick={() => startRecording('audio')}>🎙️ Start Audio Recording</button>
                   ) : (
-                    <button type="button" onClick={stopRecording} className="w-full py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium animate-pulse">⏹ Stop Recording</button>
+                    <button type="button" className="btn-record-audio recording" onClick={stopRecording}>⏹ Stop Recording</button>
                   )}
-                  <p className="text-xs text-gray-400 text-center">Describe your job verbally — helpers will listen to understand what you need.</p>
+                  <p className="audio-hint">Describe your job verbally — helpers will listen to understand what you need.</p>
                 </div>
               )}
 
               {mediaFiles.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Attached ({mediaFiles.length}):</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className="attached-files">
+                  <p className="attached-files-title">Attached ({mediaFiles.length}):</p>
+                  <div>
                     {mediaFiles.map((file, i) => (
-                      <div key={i} className="flex items-center gap-1 bg-gray-100 rounded-full px-3 py-1 text-sm text-gray-700">
+                      <span key={i} className="attached-file-chip">
                         <span>{file.type.startsWith('image') ? '📷' : file.type.startsWith('video') ? '🎥' : '🎙️'}</span>
-                        <span className="max-w-[120px] truncate">{file.name}</span>
-                        <button type="button" onClick={() => removeFile(i)} className="text-gray-400 hover:text-red-500 ml-1 font-bold">&times;</button>
-                      </div>
+                        <span style={{maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{file.name}</span>
+                        <button type="button" onClick={() => removeFile(i)}>×</button>
+                      </span>
                     ))}
                   </div>
                 </div>
