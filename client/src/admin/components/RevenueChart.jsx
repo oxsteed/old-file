@@ -53,15 +53,15 @@ export default function RevenueChart({ period }) {
         <AreaChart data={data}
                    margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
           <defs>
-            earGradient id="jobFee" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="jobFee" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor="#f97316" stopOpacity={0.4} />
               <stop offset="95%" stopColor="#f97316" stopOpacity={0}   />
             </linearGradient>
-            earGradient id="subGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="subGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor="#a855f7" stopOpacity={0.4} />
               <stop offset="95%" stopColor="#a855f7" stopOpacity={0}   />
             </linearGradient>
-            earGradient id="refundGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="refundGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.3} />
               <stop offset="95%" stopColor="#ef4444" stopOpacity={0}   />
             </linearGradient>
