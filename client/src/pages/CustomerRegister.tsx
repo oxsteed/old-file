@@ -13,7 +13,7 @@ export default function CustomerRegister() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-orange-950 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl bg-gray-900/80 backdrop-blur-lg border border-gray-700/50 rounded-2xl shadow-2xl shadow-orange-900/20 p-8">
-        {/* Step indicator */}
+        <div className="text-center mb-6 px-4"><p className="text-orange-400 font-semibold text-lg">Post jobs for free, find local help instantly.</p><p className="text-gray-400 text-sm mt-1">Compare bids, check reviews, and hire with confidence.</p></div>            {/* Step indicator */}
         <div className="flex items-center justify-center gap-3 mb-8">
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-3">
