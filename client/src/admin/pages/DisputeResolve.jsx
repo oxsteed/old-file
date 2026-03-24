@@ -192,7 +192,7 @@ export default function DisputeResolve() {
             </h2>
 
             {RESOLUTION_OPTIONS.map(opt => (
-              abel key={opt.value}
+              <l<l<label key={opt.value}
                      className={`block border-2 rounded-xl p-4 cursor-pointer
                                  transition ${
                 resolution === opt.value
@@ -219,7 +219,7 @@ export default function DisputeResolve() {
             {/* Partial refund amount */}
             {resolution === 'partial_refund' && (
               <div>
-                abel className="block text-sm font-medium
+                <l<label className="block text-sm font-medium
                                   text-gray-300 mb-1">
                   Refund Amount ($)
                 </label>
@@ -250,7 +250,7 @@ export default function DisputeResolve() {
 
             {/* Resolution notes */}
             <div>
-              abel className="block text-sm font-medium
+              <l<label className="block text-sm font-medium
                                 text-gray-300 mb-1">
                 Resolution Notes
                 <span className="text-red-400 ml-1">*</span>
