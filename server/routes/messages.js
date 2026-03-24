@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const { getConversations, getOrCreateConversation, getMessages, sendMessage } = require('../controllers/messageController');
 
 // All routes require authentication
-router.use(auth);
+router.use(authenticate);
 
 // GET /api/messages/conversations - Get all conversations
 router.get('/conversations', getConversations);
