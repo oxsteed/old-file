@@ -25,7 +25,6 @@ const {
   updateProfile,
   changePassword,
   getPublicProfile
-  resendRegistrationOTP
 } = require('../controllers/authController');
 
 const {
