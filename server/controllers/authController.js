@@ -363,7 +363,7 @@ async function resendRegistrationOTP(req, res) {
 async function getMe(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, email, first_name, last_name, phone, bio, zip_code as zipcode, role, tier, profile_photo, created_at FROM users WHERE id = $1',
+      'SELECT id, email, first_name, last_name, phone, bio, zip_code as zipcode, role, tier, profile_photo, email_verified, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -424,9 +424,33 @@ async function getPublicProfile(req, res) {
   }
 }
 
+
+// Resend email verification for logged-in users
+async function resendVerification(req, res) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, email, email_verified FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    if (rows[0].email_verified) return res.status(400).json({ error: 'Email already verified' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    await pool.query(
+      'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE id = $3',
+      [otp, expiresAt, req.user.id]
+    );
+    await sendOTPEmail(rows[0].email, otp);
+    res.json({ message: 'Verification email sent' });
+  } catch (err) {
+    console.error('Resend verification error:', err);
+    res.status(500).json({ error: 'Failed to send verification email' });
+  }
+}
 module.exports = {
   register, login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
-  getMe, updateProfile, changePassword, getPublicProfile
+  getMe, updateProfile, changePassword, getPublicProfile, resendVerification
 };
