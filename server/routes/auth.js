@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const {
   register,
   login,
+    loginWith2FA,
   requestOTP,
   verifyOTP,
   refreshToken,
@@ -36,6 +37,7 @@ const {
 // Original routes
 router.post('/register', register);
 router.post('/login', login);
+router.post('/login/2fa', loginWith2FA);
 router.post('/otp/request', requestOTP);
 router.post('/otp/verify', verifyOTP);
 router.post('/refresh', refreshToken);
