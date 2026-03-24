@@ -111,7 +111,7 @@ export default function HelperRegister() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
+        <div className="text-center mb-4 px-4"><p className="text-orange-400 font-semibold text-lg">Set your own rates, get found by neighbors, earn on your schedule.</p><p className="text-gray-400 text-sm mt-1">List your skills for free. Upgrade to Pro anytime for priority placement.</p></div>            {/* Header */}
         <h1 className="text-2xl font-bold mb-6">Become an OxSteed Helper</h1>
 
         {/* Progress bar */}
