@@ -5,6 +5,7 @@ const reviewCtrl  = require('../controllers/reviewController');
 
 // Public
 router.get('/users/:userId',          reviewCtrl.getUserReviews);
+router.get('/user/:userId',          reviewCtrl.getUserReviews);
 
 // Authenticated
 router.post('/jobs/:jobId',
