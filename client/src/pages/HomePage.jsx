@@ -168,7 +168,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Helper CTA */}
+      {/* Early Adopter CTA */}           <section className="py-16">             <div className="max-w-6xl mx-auto px-6 text-center">               <h2 className="text-2xl font-bold mb-4">Join Our Growing Community</h2>               <p className="text-gray-400 mb-8 max-w-xl mx-auto">OxSteed is brand new and growing fast. Be among the first helpers and customers in your area.</p>               <div className="grid md:grid-cols-3 gap-6">                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">Free</p>                   <p className="text-sm text-gray-400 mt-1">To list your skills</p>                 </div>                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">9</p>                   <p className="text-sm text-gray-400 mt-1">Service categories</p>                 </div>                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">Nationwide</p>                   <p className="text-sm text-gray-400 mt-1">Available across the US</p>                 </div>               </div>             </div>           </section>            {/* Helper CTA */}
       <section className="py-16">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold">Post your skills. Run your own business.</h2>
