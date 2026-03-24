@@ -56,7 +56,6 @@ export default function AdminLogin() {
         return;
       }
 
-      localStorage.setItem('oxsteed_token', data.accessToken);
       setAttempts(0);
       navigate('/admin/dashboard', { replace: true });
     } catch (err) {
@@ -77,10 +76,12 @@ export default function AdminLogin() {
   async function handle2FASubmit(e) {
     e.preventDefault();
     setError('');
+
     if (!twoFACode) {
       setError('Please enter your 2FA code.');
       return;
     }
+
     setLoading(true);
     try {
       const api = (await import('../../api/auth')).default;
@@ -99,7 +100,6 @@ export default function AdminLogin() {
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('oxsteed_token', data.accessToken);
       window.location.href = '/admin/dashboard';
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid 2FA code.');
@@ -135,9 +135,7 @@ export default function AdminLogin() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3
-                    text-white placeholder-gray-500 focus:outline-none focus:border-orange-500
-                    transition"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                   placeholder="admin@oxsteed.com"
                   autoComplete="email"
                   disabled={loading || isLocked}
@@ -150,9 +148,7 @@ export default function AdminLogin() {
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3
-                    text-white placeholder-gray-500 focus:outline-none focus:border-orange-500
-                    transition"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={loading || isLocked}
@@ -162,9 +158,7 @@ export default function AdminLogin() {
               <button
                 type="submit"
                 disabled={loading || isLocked}
-                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50
-                  disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg
-                  transition mt-2"
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition mt-2"
               >
                 {loading ? 'Signing in...' : isLocked ? 'Account Locked' : 'Sign In'}
               </button>
@@ -180,9 +174,7 @@ export default function AdminLogin() {
                   type="text"
                   value={twoFACode}
                   onChange={e => setTwoFACode(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3
-                    text-white placeholder-gray-500 focus:outline-none focus:border-orange-500
-                    transition text-center tracking-widest text-lg"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition text-center tracking-widest text-lg"
                   placeholder="000000"
                   maxLength={20}
                   autoComplete="one-time-code"
@@ -193,9 +185,7 @@ export default function AdminLogin() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50
-                  disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg
-                  transition"
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition"
               >
                 {loading ? 'Verifying...' : 'Verify'}
               </button>
