@@ -169,24 +169,4 @@ exports.validateFeeBreakdown = (storedBreakdown, jobValueCents, isBrokerMediated
 };
 
 // Export constants for use in other modules
-exports.FEES = FEES;const { calculateTier3Fees, getSubscriptionPrice } = require('../utils/feeCalculator');
-
-// When a bid is accepted and payment intent is created:
-const breakdown = calculateTier3Fees(
-  agreedJobValueCents,
-  job.is_broker_mediated
-);
-// breakdown.customer_total_cents → charge the customer this
-// breakdown.helper_payout_cents  → transfer this to helper after completion
-// breakdown.platform_fee_cents   → platform keeps this
-
-// Before releasing escrow — validate stored fees haven't drifted:
-const validation = validateFeeBreakdown(
-  storedPaymentRecord,
-  job.job_value_cents,
-  job.is_broker_mediated
-);
-if (!validation.valid) {
-  console.error('[Fee Validation] Discrepancy detected:', validation.discrepancies);
-  // Alert super admin, do not release funds automatically
-}
+exports.FEES = FEES;
