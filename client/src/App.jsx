@@ -21,6 +21,7 @@ import PrivacyPage from './pages/privacy';
 import DoNotSellPage from './pages/donotsell';
 import SecurityPage from './pages/security';
 import CookiePolicyPage from './pages/cookiepolicy';
+import AccessibilityPage from './pages/accessibility';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import PricingConfig from './pages/admin/PricingConfig';
@@ -41,6 +42,7 @@ export default function App() {
               <Route path="/do-not-sell" element={<DoNotSellPage />} />
               <Route path="/security" element={<SecurityPage />} />
               <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+              <Route path="/accessibility" element={<AccessibilityPage />} />
               <Route path="/register/customer" element={<CustomerRegister />} />
               <Route path="/register/helper" element={<HelperRegister />} />
               <Route
@@ -68,8 +70,8 @@ export default function App() {
                 }
               />
               <Route path="/jobs" element={<JobListPage />} />
-                          <Route path="/jobs/:id" element={<JobDetailPage />} />
-                
+              <Route path="/jobs/:id" element={<JobDetailPage />} />
+
               <Route
                 path="/post-job"
                 element={
@@ -86,7 +88,8 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/admin/pricing" element={<ProtectedRoute><PricingConfig /></ProtectedRoute>} />             <Route path="*" element={<NotFoundPage />} />
+              <Route path="/admin/pricing" element={<ProtectedRoute><PricingConfig /></ProtectedRoute>} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </TermsGate>
           <CookieConsent />
