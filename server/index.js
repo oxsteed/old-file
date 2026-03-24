@@ -31,6 +31,7 @@ const twoFactorRoutes = require('./routes/twoFactor');
 const helperRegistrationRoutes = require('./routes/helperRegistration');
 const feeConfigRoutes = require('./routes/feeConfig');
 const verificationRoutes = require('./routes/verification');
+  const messageRoutes = require('./routes/messages');
 
 const app = express();
 app.set('trust proxy', 1);  // Required for Render reverse proxy
@@ -82,6 +83,7 @@ app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/helper-registration', helperRegistrationRoutes);
 app.use('/api/fee-config', feeConfigRoutes);
 app.use('/api/verification', verificationRoutes);
+  app.use('/api/messages', messageRoutes);
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
 app.get('/api/users/:id/profile', getPublicProfile);
