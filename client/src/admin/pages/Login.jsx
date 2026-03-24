@@ -100,7 +100,7 @@ export default function AdminLogin() {
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('oxsteed_token', data.accessToken);
-      navigate('/admin/dashboard', { replace: true });
+      window.location.href = '/admin/dashboard';
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid 2FA code.');
     } finally {
