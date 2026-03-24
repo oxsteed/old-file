@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../api/auth';
+import api from '../api/axios';
 
 export const AuthContext = createContext(null);
 
@@ -17,19 +18,33 @@ export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    const savedUser = localStorage.getItem('user');
-    if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-        setIsAuthenticated(true);
-      } catch {
-        localStorage.removeItem('user');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+    const initAuth = async () => {
+      const token = localStorage.getItem('accessToken');
+      const savedUser = localStorage.getItem('user');
+      if (token && savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+          setIsAuthenticated(true);
+          // Fetch full profile to get email_verified and other fresh data
+          try {
+            const res = await api.get('/auth/me');
+            const fullUser = res.data;
+            setUser(fullUser);
+            localStorage.setItem('user', JSON.stringify(fullUser));
+          } catch (err) {
+            // If /auth/me fails (token expired etc), keep cached user
+            console.warn('Could not refresh user profile:', err?.response?.status);
+          }
+        } catch {
+          localStorage.removeItem('user');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+    initAuth();
   }, []);
 
   const login = useCallback(async (credentials) => {
@@ -39,6 +54,15 @@ export function AuthProvider({ children }) {
     localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
     setIsAuthenticated(true);
+    // Fetch full profile after login to hydrate email_verified etc.
+    try {
+      const res = await api.get('/auth/me');
+      const fullUser = res.data;
+      setUser(fullUser);
+      localStorage.setItem('user', JSON.stringify(fullUser));
+    } catch (err) {
+      console.warn('Could not fetch full profile after login:', err);
+    }
     return data;
   }, []);
 
@@ -82,6 +106,18 @@ export function AuthProvider({ children }) {
     return response;
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await api.get('/auth/me');
+      const fullUser = res.data;
+      setUser(fullUser);
+      localStorage.setItem('user', JSON.stringify(fullUser));
+      return fullUser;
+    } catch (err) {
+      console.error('refreshUser error:', err);
+    }
+  }, []);
+
   const value = {
     user,
     loading,
@@ -91,6 +127,7 @@ export function AuthProvider({ children }) {
     logout,
     requestOTP,
     verifyOTP,
+    refreshUser,
   };
 
   return (
