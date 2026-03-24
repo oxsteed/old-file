@@ -199,6 +199,7 @@ export default function HomePage() {
               <Link to="/login" className="hover:text-white transition">Sign In</Link>
               <Link to="/register/customer" className="hover:text-white transition">Find Help</Link>
               <Link to="/register/helper" className="hover:text-white transition">List Your Skills</Link>
+                            <Link to="/about" className="hover:text-white transition">About</Link>
             </div>
           </div>
           <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-500">
