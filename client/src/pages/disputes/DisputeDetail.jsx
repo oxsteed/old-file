@@ -323,7 +323,7 @@ export default function DisputeDetail() {
               />
 
               {/* File upload */}
-              abel className="flex items-center gap-2 text-sm
+              <label className="flex items-center gap-2 text-sm
                                 text-gray-500 cursor-pointer mb-3
                                 hover:text-orange-500 transition">
                 <Upload size={15} />
