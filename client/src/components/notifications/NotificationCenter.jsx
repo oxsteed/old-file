@@ -3,7 +3,7 @@ import { Bell }                        from 'lucide-react';
 import { Link }                        from 'react-router-dom';
 import { formatDistanceToNow }         from 'date-fns';
 import { useSocket }                   from '../../hooks/useSocket';
-import api                             from '../../lib/api';
+import api                             from '../../api/api';
 
 export default function NotificationCenter() {
   const [open,         setOpen]    = useState(false);
