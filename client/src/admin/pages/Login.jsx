@@ -83,8 +83,8 @@ export default function AdminLogin() {
     }
     setLoading(true);
     try {
-      const { authAPI } = await import('../../api/auth');
-      const { data } = await authAPI.login({
+      const api = (await import('../../api/auth')).default;
+      const { data } = await api.post('/auth/login/2fa', {
         userId,
         token: twoFACode,
         isBackupCode: twoFACode.length > 6
@@ -216,4 +216,4 @@ export default function AdminLogin() {
       </div>
     </div>
   );
-  }
+}
