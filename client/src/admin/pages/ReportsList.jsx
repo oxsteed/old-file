@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import adminApi                from '../../lib/adminApi';
+import adminApi              from '../../lib/adminApi';
 
 const STATUS_TABS = ['pending','reviewed','escalated','dismissed'];
 
 const REASON_COLORS = {
   spam:          'bg-yellow-900 text-yellow-400',
-  fraud:         'bg-red-900    text-red-400',
+  fraud:         'bg-red-900   text-red-400',
   inappropriate: 'bg-orange-900 text-orange-400',
   other:         'bg-gray-700   text-gray-400'
 };
@@ -37,12 +37,11 @@ export default function ReportsList() {
 
   const handleAction = async (reportId, action) => {
     const actionLabel = {
-      dismiss:        'Dismiss this report',
-      warn_user:      'Warn the reported user',
+      dismiss: 'Dismiss this report',
+      warn_user: 'Warn the reported user',
       remove_content: 'Remove the reported content',
-      escalate:       'Escalate to super admin'
+      escalate: 'Escalate to super admin'
     }[action];
-
     if (!window.confirm(`${actionLabel}?`)) return;
 
     setActing(reportId);
@@ -82,11 +81,11 @@ export default function ReportsList() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold
-                        capitalize transition ${
+              capitalize transition ${
               tab === t
                 ? 'bg-orange-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:text-white'
-            }`}
+              }`}
           >
             {t}
           </button>
@@ -116,17 +115,17 @@ export default function ReportsList() {
         <div className="space-y-4">
           {reports.map(report => (
             <div key={report.id}
-                 className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
+              className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <span className="text-xs font-semibold text-gray-300
-                                     uppercase tracking-wider bg-gray-700
-                                     px-2 py-0.5 rounded">
+                      uppercase tracking-wider bg-gray-700
+                      px-2 py-0.5 rounded">
                       {report.target_type}
                     </span>
                     <span className={`text-xs font-medium px-2 py-0.5
-                                      rounded-full capitalize ${
+                      rounded-full capitalize ${
                       REASON_COLORS[report.reason] || REASON_COLORS.other
                     }`}>
                       {report.reason}
@@ -150,7 +149,14 @@ export default function ReportsList() {
                 {/* Actions — only for pending */}
                 {tab === 'pending' && (
                   <div className="flex flex-col gap-2 shrink-0">
-                                          { action: 'escalate', label: 'Escalate',
+                    {[
+                      { action: 'dismiss', label: 'Dismiss',
+                        cls: 'bg-gray-700 text-gray-300 hover:bg-gray-600' },
+                      { action: 'warn_user', label: 'Warn',
+                        cls: 'bg-yellow-900 text-yellow-300 hover:bg-yellow-800' },
+                      { action: 'remove_content', label: 'Remove',
+                        cls: 'bg-red-900 text-red-300 hover:bg-red-800' },
+                      { action: 'escalate', label: 'Escalate',
                         cls: 'bg-orange-900 text-orange-300 hover:bg-orange-800' },
                     ].map(({ action, label, cls }) => (
                       <button
@@ -158,7 +164,7 @@ export default function ReportsList() {
                         onClick={() => handleAction(report.id, action)}
                         disabled={acting === report.id}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold
-                                    transition disabled:opacity-50 ${cls}`}
+                          transition disabled:opacity-50 ${cls}`}
                       >
                         {acting === report.id ? '...' : label}
                       </button>
