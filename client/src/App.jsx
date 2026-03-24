@@ -27,6 +27,10 @@ import ResetPasswordPage from './pages/ResetPassword';
 import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
 import SettingsPage from './pages/SettingsPage';
 import PublicProfile from './pages/PublicProfile';
+import DisputeCenter from './pages/disputes/DisputeCenter';
+import DisputeDetail from './pages/disputes/DisputeDetail';
+import MessagesPage from './pages/MessagesPage';
+import ConversationPage from './pages/ConversationPage';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 
@@ -87,8 +91,12 @@ export default function App() {
                 }
               />
               <Route path="/settings/2fa" element={<ProtectedRoute><TwoFactorSetup /></ProtectedRoute>} />
-                        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-          <Route path="/profile/:id" element={<PublicProfile />} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/profile/:id" element={<PublicProfile />} />
+              <Route path="/disputes" element={<ProtectedRoute><DisputeCenter /></ProtectedRoute>} />
+              <Route path="/disputes/:id" element={<ProtectedRoute><DisputeDetail /></ProtectedRoute>} />
+              <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+              <Route path="/messages/:conversationId" element={<ProtectedRoute><ConversationPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </TermsGate>
