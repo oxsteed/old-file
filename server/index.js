@@ -33,6 +33,7 @@ const feeConfigRoutes = require('./routes/feeConfig');
 const verificationRoutes = require('./routes/verification');
 
 const app = express();
+app.set('trust proxy', 1);  // Required for Render reverse proxy
 const PORT = process.env.PORT || 5000;
 
 // ── SECURITY ─────────────────────────────────────────────────
