@@ -19,6 +19,7 @@ const {
   startRegistration,
   acceptTerms,
   verifyRegistrationOTP,
+    resendRegistrationOTP,
     // Settings & Profile
   getMe,
   updateProfile,
