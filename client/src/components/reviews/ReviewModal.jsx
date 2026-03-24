@@ -1,6 +1,6 @@
 import { useState }   from 'react';
 import { Star }       from 'lucide-react';
-import api            from '../../lib/api';
+import api            from '../../api/api';
 
 export default function ReviewModal({ jobId, revieweeName, onComplete }) {
   const [open,    setOpen]    = useState(false);
