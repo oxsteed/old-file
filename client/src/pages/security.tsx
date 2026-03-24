@@ -23,6 +23,7 @@ export default function SecurityPolicy() {
           <li><strong>Encryption in transit:</strong> All data transmitted between your browser and OxSteed's servers is encrypted using TLS 1.2+ (HTTPS).</li>
           <li><strong>Password security:</strong> Passwords are hashed using bcrypt with per-user salts. OxSteed staff cannot view your password.</li>
           <li><strong>Authentication:</strong> JWT-based authentication with secure, HTTP-only cookies. Tokens expire and are refreshed automatically.</li>
+          <li><strong>Two-factor authentication:</strong> Optional TOTP-based 2FA via authenticator apps for account protection.</li>
           <li><strong>Rate limiting:</strong> Authentication endpoints are rate-limited to prevent brute-force attacks.</li>
           <li><strong>Role-based access control:</strong> Users can only access data and features appropriate to their role (Customer, Helper, Admin).</li>
           <li><strong>Input validation:</strong> All user inputs are validated and sanitized server-side to prevent injection attacks.</li>
@@ -79,6 +80,7 @@ export default function SecurityPolicy() {
         </h2>
         <ul className="list-disc ml-5 space-y-2 mb-3">
           <li>Use a strong, unique password for your OxSteed account;</li>
+          <li>Enable two-factor authentication for additional account protection;</li>
           <li>Do not share your login credentials with anyone;</li>
           <li>Log out of your account when using shared or public devices;</li>
           <li>Notify us immediately at <a href="mailto:security@oxsteed.com" className="text-orange-400 underline">security@oxsteed.com</a> if you suspect unauthorized access to your account;</li>
