@@ -22,6 +22,10 @@ import DoNotSellPage from './pages/donotsell';
 import SecurityPage from './pages/security';
 import CookiePolicyPage from './pages/cookiepolicy';
 import AccessibilityPage from './pages/accessibility';
+import AboutPage from './pages/about';
+import ForgotPasswordPage from './pages/ForgotPassword';
+import ResetPasswordPage from './pages/ResetPassword';
+import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import PricingConfig from './pages/admin/PricingConfig';
@@ -44,6 +48,9 @@ export default function App() {
               <Route path="/cookie-policy" element={<CookiePolicyPage />} />
               <Route path="/accessibility" element={<AccessibilityPage />} />
               <Route path="/register/customer" element={<CustomerRegister />} />
+                            <Route path="/about" element={<AboutPage />} />
+                            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/register/helper" element={<HelperRegister />} />
               <Route
                 path="/dashboard"
@@ -89,6 +96,7 @@ export default function App() {
                 }
               />
               <Route path="/admin/pricing" element={<ProtectedRoute><PricingConfig /></ProtectedRoute>} />
+                            <Route path="/settings/2fa" element={<ProtectedRoute><TwoFactorSetup /></ProtectedRoute>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </TermsGate>
