@@ -25,6 +25,8 @@ import AboutPage from './pages/about';
 import ForgotPasswordPage from './pages/ForgotPassword';
 import ResetPasswordPage from './pages/ResetPassword';
 import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
+import SettingsPage from './pages/SettingsPage';
+import PublicProfile from './pages/PublicProfile';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 
@@ -85,6 +87,8 @@ export default function App() {
                 }
               />
               <Route path="/settings/2fa" element={<ProtectedRoute><TwoFactorSetup /></ProtectedRoute>} />
+                        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/profile/:id" element={<PublicProfile />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </TermsGate>
