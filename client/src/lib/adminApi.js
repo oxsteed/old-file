@@ -2,25 +2,25 @@ import axios from 'axios';
 
 const adminApi = axios.create({
     baseURL: import.meta.env.VITE_API_URL || '/api',
-  withCredentials: true
+    withCredentials: true
 });
 
-// Attach token automatically
+// Attach token automatically — uses the same key as the main app
 adminApi.interceptors.request.use(config => {
-  const token = localStorage.getItem('oxsteed_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+    const token = localStorage.getItem('accessToken');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
 });
 
 // Redirect to admin login on 401/403
 adminApi.interceptors.response.use(
-  res => res,
-  err => {
-    if ([401, 403].includes(err.response?.status)) {
-      window.location.href = '/admin/login';
+    res => res,
+    err => {
+        if ([401, 403].includes(err.response?.status)) {
+            window.location.href = '/admin/login';
+        }
+        return Promise.reject(err);
     }
-    return Promise.reject(err);
-  }
 );
 
 export default adminApi;
