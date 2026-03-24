@@ -1,7 +1,7 @@
 import { useEffect, useState }  from 'react';
 import { Link }                 from 'react-router-dom';
 import { AlertTriangle }        from 'lucide-react';
-import api                      from '../../api/api';
+import api                      from '../../api/axios';
 
 const STATUS_COLORS = {
   open:         'bg-yellow-100 text-yellow-700',
