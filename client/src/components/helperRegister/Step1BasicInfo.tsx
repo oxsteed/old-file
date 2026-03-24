@@ -145,7 +145,7 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         <input type="checkbox" checked={form.ageConfirmed}
           onChange={e => set('ageConfirmed', e.target.checked)}
           className="rounded border-gray-600" />
-        I confirm I am 18 years of age or older
+        I confirm I am 18+ (required per our <a href="/terms" className="text-orange-400 underline hover:text-orange-300">Terms of Service §2</a>).
       </label>
       {errors.age && <p className="text-red-400 text-xs">{errors.age}</p>}
 
