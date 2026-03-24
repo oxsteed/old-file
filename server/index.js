@@ -62,6 +62,13 @@ app.use('/api/admin', adminRoutes);
 // Production static serving
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
+
+  // Admin SPA - serve admin.html for all /admin/* routes
+  app.get('/admin/*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/admin.html'));
+  });
+
+  // Main SPA - catch-all for everything else
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
