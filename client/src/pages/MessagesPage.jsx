@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
@@ -26,17 +28,22 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Navbar />
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Messages</h1>
-        
+
         {conversations.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,27 +61,26 @@ export default function MessagesPage() {
                 className="p-4 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-medium text-gray-900 truncate">{conv.other_user_name}</p>
                     {parseInt(conv.unread_count) > 0 && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {conv.unread_count}
-                      </span>
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{conv.unread_count}</span>
                     )}
                   </div>
                   {conv.job_title && (
-                    <p className="text-xs text-gray-500 mt-0.5">Re: {conv.job_title}</p>
+                    <p className="text-xs text-blue-600 mb-1">Re: {conv.job_title}</p>
                   )}
-                  <p className="text-sm text-gray-500 truncate mt-1">{conv.last_message || 'No messages yet'}</p>
+                  <p className="text-sm text-gray-500 truncate">{conv.last_message || 'No messages yet'}</p>
                 </div>
-                <div className="ml-4 text-xs text-gray-400">
+                <div className="ml-4 flex-shrink-0 text-xs text-gray-400">
                   {conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : ''}
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 }
