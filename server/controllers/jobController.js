@@ -13,7 +13,7 @@ exports.createJob = async (req, res) => {
           const key = await uploadFile(file.buffer, 'job-media', file.originalname, file.mimetype);
           const bucket = process.env.S3_BUCKET || 'oxsteed-uploads';
           const region = process.env.AWS_REGION || 'us-east-1';
-          return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+                    return 'https://' + bucket + '.s3.' + region + '.amazonaws.com/' + key;  
       );
       mediaUrls = await Promise.all(uploadPromises);
     }
