@@ -9,8 +9,11 @@ exports.createJob = async (req, res) => {
     // Upload media files to S3 if present
     let mediaUrls = [];
     if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map(file =>
-        uploadFile(file.buffer, 'job-media', file.originalname, file.mimetype)
+              const uploadPromises = req.files.map(async file => {
+          const key = await uploadFile(file.buffer, 'job-media', file.originalname, file.mimetype);
+          const bucket = process.env.S3_BUCKET || 'oxsteed-uploads';
+          const region = process.env.AWS_REGION || 'us-east-1';
+          return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
       );
       mediaUrls = await Promise.all(uploadPromises);
     }
