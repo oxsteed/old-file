@@ -1,31 +1,33 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth }          from '../hooks/useAuth';
-import AdminLayout           from './layouts/AdminLayout';
+import { useAuth }       from '../hooks/useAuth';
+import AdminLayout       from './layouts/AdminLayout';
 
 // Super Admin pages
-import SuperDashboard    from './pages/super/Dashboard';
-import RevenueReport     from './pages/super/RevenueReport';
-import UserDetail        from './pages/super/UserDetail';
-import Financials        from './pages/super/Financials';
-import Payouts           from './pages/super/Payouts';
-import PlatformSettings  from './pages/super/PlatformSettings';
-import AuditLog          from './pages/super/AuditLog';
+import SuperDashboard  from './pages/super/Dashboard';
+import RevenueReport   from './pages/super/RevenueReport';
+import UserDetail      from './pages/super/UserDetail';
+import Financials      from './pages/super/Financials';
+import Payouts         from './pages/super/Payouts';
+import PlatformSettings from './pages/super/PlatformSettings';
+import AuditLog        from './pages/super/AuditLog';
+import FeeConfig       from './pages/super/FeeConfig';
+import PricingConfig   from './pages/super/PricingConfig';
 
 // Shared admin pages
-import AdminDashboard    from './pages/AdminDashboard';
-import UsersList         from './pages/UsersList';
-import JobsList          from './pages/JobsList';
-import ReportsList       from './pages/ReportsList';
-import ModerationQueue   from './pages/ModerationQueue';
-import AdminLogin        from './pages/AdminLogin';
-import MarketZipCodes    from './pages/MarketZipCodes';
+import AdminDashboard  from './pages/AdminDashboard';
+import UsersList       from './pages/UsersList';
+import JobsList        from './pages/JobsList';
+import ReportsList     from './pages/ReportsList';
+import ModerationQueue from './pages/ModerationQueue';
+import AdminLogin      from './pages/AdminLogin';
+import MarketZipCodes  from './pages/MarketZipCodes';
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
   if (loading) return (
     <div className="h-screen flex items-center justify-center">
       <div className="animate-spin w-8 h-8 border-4 border-orange-500
-            border-t-transparent rounded-full" />
+        border-t-transparent rounded-full" />
     </div>
   );
   if (!user) return <Navigate to="/admin/login" replace />;
@@ -81,6 +83,12 @@ export default function AdminApp() {
           } />
           <Route path="super/audit-log" element={
             <AdminGuard superOnly><AuditLog /></AdminGuard>
+          } />
+          <Route path="super/fees" element={
+            <AdminGuard superOnly><FeeConfig /></AdminGuard>
+          } />
+          <Route path="super/pricing" element={
+            <AdminGuard superOnly><PricingConfig /></AdminGuard>
           } />
         </Route>
 
