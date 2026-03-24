@@ -3,7 +3,7 @@ import { useAuth }   from '../../hooks/useAuth';
 import {
   LayoutDashboard, Users, Briefcase,
   Flag, Shield, DollarSign, Settings,
-  FileText, BarChart2, LogOut,
+  FileText, BarChart2, LogOut TrendingUp,,
   AlertTriangle, ScrollText
 } from 'lucide-react';
 
