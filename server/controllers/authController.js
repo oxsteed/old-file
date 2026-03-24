@@ -359,8 +359,74 @@ async function resendRegistrationOTP(req, res) {
   }
 }
 
+// ===== SETTINGS PAGE ENDPOINTS =====
+async function getMe(req, res) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, email, first_name, last_name, phone, bio, zip_code as zipcode, role, tier, profile_photo, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get me error:', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+}
+
+async function updateProfile(req, res) {
+  try {
+    const { first_name, last_name, phone, bio, zipcode } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name), phone = COALESCE($3, phone), bio = COALESCE($4, bio), zip_code = COALESCE($5, zip_code), updated_at = NOW() WHERE id = $6 RETURNING id, email, first_name, last_name, phone, bio, zip_code as zipcode',
+      [first_name, last_name, phone, bio, zipcode, req.user.id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+}
+
+async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both passwords required' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    const valid = await bcrypt.compare(currentPassword, rows[0].password_hash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+}
+
+// GET public profile for any user
+async function getPublicProfile(req, res) {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `SELECT id, first_name, last_name, bio, role, tier, profile_photo, city, state, zip_code,
+              skills, hourly_rate, availability, created_at
+       FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Public profile error:', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+}
+
 module.exports = {
   register, login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
-  startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP
+  startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
+  getMe, updateProfile, changePassword, getPublicProfile
 };
