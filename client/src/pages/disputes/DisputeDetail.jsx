@@ -3,7 +3,7 @@ import { useParams }                   from 'react-router-dom';
 import { Send, Upload, AlertTriangle } from 'lucide-react';
 import { useAuth }                     from '../../hooks/useAuth';
 import { useSocket }                   from '../../hooks/useSocket';
-import api                             from '../../api/api';
+import api                             from '../../api/axios';
 
 export default function DisputeDetail() {
   const { disputeId }            = useParams();
