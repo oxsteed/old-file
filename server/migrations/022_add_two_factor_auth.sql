@@ -13,7 +13,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_recovery_email VARCHAR(255) NULL
 -- Track 2FA setup attempts and failed verifications
 CREATE TABLE IF NOT EXISTS two_factor_audit_log (
   id SERIAL PRIMARY KEY,
-  user_id VARCHAR REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   action VARCHAR(50) NOT NULL,
   ip_address VARCHAR(45) NULL,
   user_agent TEXT NULL,
