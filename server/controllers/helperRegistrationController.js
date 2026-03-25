@@ -44,7 +44,7 @@ async function startHelperRegistration(req, res) {
       return res.status(409).json({ error: 'Email already registered' });
     }
     const market = await pool.query(
-      'SELECT id FROM markets WHERE $1 = ANY(zip_codes) AND is_active = true', [zip]
+      'SELECT id FROM markets WHERE $1 = ANY(zipcodes) AND active = true', [zip]
     );
     if (market.rows.length === 0) {
       return res.status(400).json({ error: 'Service not available in your area' });
@@ -270,7 +270,7 @@ async function verifyHelperOTP(req, res) {
         availability_json, rate_preference, hourly_rate_min,
         service_zip, market_id
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,
-        (SELECT id FROM markets WHERE $9 = ANY(zip_codes) AND is_active = true LIMIT 1)
+        (SELECT id FROM markets WHERE $9 = ANY(zipcodes) AND active = true LIMIT 1)
       )`,
       [
         user.id, tier,
