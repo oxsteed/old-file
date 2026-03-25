@@ -1,6 +1,5 @@
 // Phase 2 — Web Push Notification utility
 // OxSteed v2
-
 const webpush = require('web-push');
 const pool = require('../db');
 
@@ -17,7 +16,7 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 async function sendPushToUser(userId, payload) {
-    if (!pushConfigured) {
+  if (!pushConfigured) {
     console.warn('Push not sent - VAPID not configured');
     return [];
   }
@@ -25,47 +24,46 @@ async function sendPushToUser(userId, payload) {
     'SELECT id, endpoint, p256dh_key, auth_key FROM push_subscriptions WHERE user_id = $1 AND active = true',
     [userId]
   );
-
-  const results = [];
-  for (const sub of subs) {
-    const pushSub = {
-      endpoint: sub.endpoint,
-      keys: { p256dh: sub.p256dh_key, auth: sub.auth_key },
-    };
-    try {
-      await webpush.sendNotification(pushSub, JSON.stringify(payload));
-      await pool.query(
-        'UPDATE push_subscriptions SET last_used_at = NOW() WHERE id = $1',
-        [sub.id]
-      );
-      results.push({ id: sub.id, success: true });
-    } catch (err) {
-      if (err.statusCode === 410 || err.statusCode === 404) {
+  const results = await Promise.all(
+    subs.map(async (sub) => {
+      const pushSub = {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh_key, auth: sub.auth_key },
+      };
+      try {
+        await webpush.sendNotification(pushSub, JSON.stringify(payload));
         await pool.query(
-          'UPDATE push_subscriptions SET active = false WHERE id = $1',
+          'UPDATE push_subscriptions SET last_used_at = NOW() WHERE id = $1',
           [sub.id]
         );
+        return { id: sub.id, success: true };
+      } catch (err) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await pool.query(
+            'UPDATE push_subscriptions SET active = false WHERE id = $1',
+            [sub.id]
+          );
+        }
+        return { id: sub.id, success: false, error: err.message };
       }
-      results.push({ id: sub.id, success: false, error: err.message });
-    }
-  }
+    })
+  );
   return results;
 }
 
 async function sendPushToAll(payload) {
-    if (!pushConfigured) {
+  if (!pushConfigured) {
     console.warn('Push not sent - VAPID not configured');
     return [];
   }
   const { rows: subs } = await pool.query(
     'SELECT DISTINCT user_id FROM push_subscriptions WHERE active = true'
   );
-  const results = [];
-  for (const { user_id } of subs) {
-    const r = await sendPushToUser(user_id, payload);
-    results.push(...r);
-  }
-  return results;
+  // Run all user pushes in parallel instead of sequentially
+  const results = await Promise.all(
+    subs.map(({ user_id }) => sendPushToUser(user_id, payload))
+  );
+  return results.flat();
 }
 
 module.exports = { sendPushToUser, sendPushToAll };
