@@ -5,8 +5,12 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const pool = require('./db');
+const socketService = require('./services/socketService');
+const { reloadFeeConfig } = require('./services/feeService');
 
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
@@ -31,11 +35,36 @@ const twoFactorRoutes = require('./routes/twoFactor');
 const helperRegistrationRoutes = require('./routes/helperRegistration');
 const feeConfigRoutes = require('./routes/feeConfig');
 const verificationRoutes = require('./routes/verification');
-  const messageRoutes = require('./routes/messages');
+const messageRoutes = require('./routes/messages');
 
 const app = express();
-app.set('trust proxy', 1);  // Required for Render reverse proxy
+const httpServer = http.createServer(app);
+
+app.set('trust proxy', 1); // Required for Render reverse proxy
+
 const PORT = process.env.PORT || 5000;
+
+// ── SOCKET.IO ─────────────────────────────────────────────────
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true,
+  },
+});
+
+io.on('connection', (socket) => {
+  const userId = socket.handshake.query.userId;
+  if (userId) {
+    socket.join(`user_${userId}`);
+    console.log(`[Socket] User ${userId} connected (socket ${socket.id})`);
+  }
+  socket.on('disconnect', () => {
+    console.log(`[Socket] Socket ${socket.id} disconnected`);
+  });
+});
+
+// Wire socket service so notificationService can broadcast
+socketService.init(io);
 
 // ── SECURITY ─────────────────────────────────────────────────
 app.use(helmet());
@@ -83,7 +112,8 @@ app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/helper-registration', helperRegistrationRoutes);
 app.use('/api/fee-config', feeConfigRoutes);
 app.use('/api/verification', verificationRoutes);
-  app.use('/api/messages', messageRoutes);
+app.use('/api/messages', messageRoutes);
+
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
 app.get('/api/users/:id/profile', getPublicProfile);
@@ -91,7 +121,7 @@ app.get('/api/users/:id/profile', getPublicProfile);
 // ── PRODUCTION STATIC SERVING ────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
-  
+
   // Admin SPA - serve admin.html for all /admin/* routes
   app.get('/admin/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/admin.html'));
@@ -109,7 +139,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong' });
 });
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`OxSteed v2 server running on port ${PORT}`);
 });
 
