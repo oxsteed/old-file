@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS platform_config (
   id SERIAL PRIMARY KEY,
   key VARCHAR(100) UNIQUE NOT NULL,
   value TEXT NOT NULL,
-  updated_by INTEGER REFERENCES users(id),
+  updated_by UUID REFERENCES users(id),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
