@@ -75,7 +75,7 @@ export default function UserDetail() {
     <div className="p-8 text-center text-gray-500">User not found.</div>
   );
 
-  const { user, recentJobs, recentPayouts, billing } = data;
+  const { user, recentJobs = [], recentPayouts = [], billing = [], recentReviews = [] } = data;
 
   return (
     <div className="p-8 max-w-5xl">
