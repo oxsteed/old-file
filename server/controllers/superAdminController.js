@@ -145,7 +145,7 @@ exports.toggleUserBan = async (req, res) => {
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin','super_admin'].includes(before[0].role)) return res.status(403).json({ error: 'Cannot ban admin accounts.' });
     const newStatus = !before[0].is_active;
-    await db.query('UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2', [newStatus, userId]);
+    await db.query('UPDATE users SET is_active = $1 WHERE id = $2', [newStatus, userId]);
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
@@ -175,7 +175,7 @@ exports.updateUserRole = async (req, res) => {
     if (!allowed.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
     if (role === 'admin' && !req.isSuper) return res.status(403).json({ error: 'Super Admin required.' });
     const { rows: before } = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
-    await db.query('UPDATE users SET role = $1, updated_at = now() WHERE id = $2', [role, userId]);
+    await db.query('UPDATE users SET role = $1 WHERE id = $2', [role, userId]);
     try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0]?.role }, after: { role }, req }); } catch(e) {}
     res.json({ message: `User role updated to ${role}.` });
   } catch (err) { console.error('updateUserRole error:', err); res.status(500).json({ error: 'Failed to update role.' }); }
