@@ -2,9 +2,9 @@
 -- Supports job posting, bidding, assignment, and completion workflow
 
 CREATE TABLE IF NOT EXISTS jobs (
-    id SERIAL PRIMARY KEY,
-    client_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    assigned_helper_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    assigned_helper_id UUID REFERENCES users(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     category VARCHAR(100),
@@ -56,5 +56,3 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(category);
 CREATE INDEX IF NOT EXISTS idx_jobs_location ON jobs(location_city, location_state);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_jobs_scheduled_date ON jobs(scheduled_date);
-CREATE INDEX IF NOT EXISTS idx_jobs_status_category ON jobs(status, category);
