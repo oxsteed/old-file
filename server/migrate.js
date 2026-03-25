@@ -11,59 +11,63 @@ const pool = new Pool({
 });
 
 async function migrate() {
-  const client = await pool.connect();
+  // Use one client just for the _migrations tracking table
+  const setupClient = await pool.connect();
   try {
-    // Create migrations tracking table if it doesn't exist
-    await client.query(`
+    await setupClient.query(`
       CREATE TABLE IF NOT EXISTS _migrations (
         id SERIAL PRIMARY KEY,
         filename VARCHAR(255) UNIQUE NOT NULL,
         applied_at TIMESTAMPTZ DEFAULT now()
       )
     `);
+  } finally {
+    setupClient.release();
+  }
 
-    // Get already-applied migrations
-    const { rows: applied } = await client.query(
-      'SELECT filename FROM _migrations ORDER BY filename'
-    );
-    const appliedSet = new Set(applied.map(r => r.filename));
+  // Get already-applied migrations
+  const { rows: applied } = await pool.query(
+    'SELECT filename FROM _migrations ORDER BY filename'
+  );
+  const appliedSet = new Set(applied.map(r => r.filename));
 
-    // Read migration files
-    const migrationsDir = path.join(__dirname, 'migrations');
-    const files = fs.readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
-      .sort();
+  // Read migration files
+  const migrationsDir = path.join(__dirname, 'migrations');
+  const files = fs.readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
 
-    console.log(`Found ${files.length} migration files, ${appliedSet.size} already applied.`);
+  console.log(`Found ${files.length} migration files, ${appliedSet.size} already applied.`);
 
-    for (const file of files) {
-      if (appliedSet.has(file)) {
-        console.log(`  SKIP: ${file} (already applied)`);
-        continue;
-      }
-
-      console.log(`  APPLYING: ${file}...`);
-      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-
-      try {
-        await client.query(sql);
-        await client.query(
-          'INSERT INTO _migrations (filename) VALUES ($1)',
-          [file]
-        );
-        console.log(`  DONE: ${file}`);
-      } catch (err) {
-        console.error(`  FAILED: ${file} - ${err.message}`);
-        // Continue with next migration instead of stopping
-        // Some migrations may fail if tables already exist
-      }
+  for (const file of files) {
+    if (appliedSet.has(file)) {
+      console.log(`  SKIP: ${file} (already applied)`);
+      continue;
     }
 
-    console.log('Migration complete.');
-  } finally {
-    client.release();
-    await pool.end();
+    console.log(`  APPLYING: ${file}...`);
+    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+
+    // Use a FRESH client for each migration to avoid transaction state issues
+    const migClient = await pool.connect();
+    try {
+      await migClient.query(sql);
+      await migClient.query(
+        'INSERT INTO _migrations (filename) VALUES ($1)',
+        [file]
+      );
+      console.log(`  DONE: ${file}`);
+    } catch (err) {
+      console.error(`  FAILED: ${file} - ${err.message}`);
+      // Rollback any open transaction on this client
+      try { await migClient.query('ROLLBACK'); } catch (e) { /* ignore */ }
+    } finally {
+      migClient.release();
+    }
   }
+
+  console.log('Migration complete.');
+  await pool.end();
 }
 
 migrate().catch(err => {
