@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   value TEXT NOT NULL,
   value_type VARCHAR(20) DEFAULT 'text',
   description TEXT,
-  updated_by INTEGER REFERENCES users(id),
+  updated_by UUID REFERENCES users(id),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS feature_flags (
   key VARCHAR(100) UNIQUE NOT NULL,
   enabled BOOLEAN DEFAULT false,
   description TEXT,
-  updated_by INTEGER REFERENCES users(id),
+  updated_by UUID REFERENCES users(id),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
