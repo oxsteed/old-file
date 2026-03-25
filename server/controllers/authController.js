@@ -363,7 +363,7 @@ async function resendRegistrationOTP(req, res) {
 async function getMe(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, email, first_name, last_name, phone, bio, zip_code as zipcode, role, tier, profile_photo, email_verified, created_at FROM users WHERE id = $1',
+      'SELECT id, email, first_name, last_name, phone, zip_code as zipcode, role, tier, email_verified, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -376,10 +376,10 @@ async function getMe(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const { first_name, last_name, phone, bio, zipcode } = req.body;
+    const { first_name, last_name, phone, zipcode } = req.body;
     const { rows } = await pool.query(
-      'UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name), phone = COALESCE($3, phone), bio = COALESCE($4, bio), zip_code = COALESCE($5, zip_code), updated_at = NOW() WHERE id = $6 RETURNING id, email, first_name, last_name, phone, bio, zip_code as zipcode',
-      [first_name, last_name, phone, bio, zipcode, req.user.id]
+      'UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name), phone = COALESCE($3, phone), zip_code = COALESCE($4, zip_code), updated_at = NOW() WHERE id = $5 RETURNING id, email, first_name, last_name, phone, zip_code as zipcode',
+      [first_name, last_name, phone, zipcode, req.user.id]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -411,8 +411,8 @@ async function getPublicProfile(req, res) {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT id, first_name, last_name, bio, role, tier, profile_photo, city, state, zip_code,
-              skills, hourly_rate, availability, created_at
+      `SELECT id, first_name, last_name, role, tier, zip_code,
+              headline, typical_rate, categories, availability_days, created_at
        FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     );
