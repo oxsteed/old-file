@@ -117,7 +117,7 @@ exports.getJobs = async (req, res) => {
 };
 
 // Get single job by ID
-exports.getJobById = async (req, res) => {
+exports.getJob = async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(`
@@ -195,7 +195,7 @@ exports.cancelJob = async (req, res) => {
     const { rows } = await pool.query(`
       UPDATE jobs SET status = 'cancelled', updated_at = now()
       WHERE id = $1 AND client_id = $2
-        AND status IN ('draft','published','matched','negotiating')
+      AND status IN ('draft','published','matched','negotiating')
       RETURNING *
     `, [id, req.user.id]);
 
@@ -206,6 +206,78 @@ exports.cancelJob = async (req, res) => {
   } catch (err) {
     console.error('Cancel job error:', err);
     res.status(500).json({ error: 'Failed to cancel job' });
+  }
+};
+
+// Assign a helper to a job
+exports.assignHelper = async (req, res) => {
+  try {
+    const { job_id, helper_id } = req.body;
+    const { rows } = await pool.query(`
+      UPDATE jobs SET
+        assigned_helper_id = $1,
+        status = 'matched',
+        updated_at = now()
+      WHERE id = $2 AND client_id = $3
+      AND status IN ('published','negotiating')
+      RETURNING *
+    `, [helper_id, job_id, req.user.id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or cannot be assigned' });
+    }
+    res.json({ message: 'Helper assigned', job: rows[0] });
+  } catch (err) {
+    console.error('Assign helper error:', err);
+    res.status(500).json({ error: 'Failed to assign helper' });
+  }
+};
+
+// Start a job
+exports.startJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(`
+      UPDATE jobs SET
+        status = 'in_progress',
+        started_at = now(),
+        updated_at = now()
+      WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
+      AND status = 'matched'
+      RETURNING *
+    `, [id, req.user.id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or cannot be started' });
+    }
+    res.json({ message: 'Job started', job: rows[0] });
+  } catch (err) {
+    console.error('Start job error:', err);
+    res.status(500).json({ error: 'Failed to start job' });
+  }
+};
+
+// Complete a job
+exports.completeJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(`
+      UPDATE jobs SET
+        status = 'completed',
+        completed_at = now(),
+        updated_at = now()
+      WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
+      AND status = 'in_progress'
+      RETURNING *
+    `, [id, req.user.id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or cannot be completed' });
+    }
+    res.json({ message: 'Job completed', job: rows[0] });
+  } catch (err) {
+    console.error('Complete job error:', err);
+    res.status(500).json({ error: 'Failed to complete job' });
   }
 };
 
