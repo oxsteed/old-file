@@ -27,8 +27,8 @@ ON CONFLICT (slug) DO NOTHING;
 
 -- Subscriptions table
 CREATE TABLE IF NOT EXISTS subscriptions (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   plan_id INTEGER REFERENCES plans(id),
   stripe_subscription_id VARCHAR(255) UNIQUE,
   stripe_customer_id VARCHAR(255),
