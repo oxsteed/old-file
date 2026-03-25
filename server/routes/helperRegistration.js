@@ -1,5 +1,4 @@
 const router = require('express').Router();
-const authenticate = require('../middleware/authenticate');
 const ctrl = require('../controllers/helperRegistrationController');
 
 // Public - get service categories
