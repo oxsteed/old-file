@@ -151,7 +151,7 @@ export default function UserDetail() {
             <button
               onClick={() => doAction(
                 'verify',
-                { field: 'id_verified' },
+                { field: 'is_identity_verified' },
                 'Mark ID as verified'
               )}
               disabled={working || user.id_verified}
@@ -172,7 +172,7 @@ export default function UserDetail() {
                          focus:outline-none focus:border-orange-500"
             >
               <option value="">Change Role</option>
-              {['client','helper','both','broker','admin'].map(r => (
+              {['customer','helper','helper_pro','broker','admin'].map(r => (
                 <option key={r} value={r} className="capitalize">{r}</option>
               ))}
             </select>
