@@ -4,9 +4,9 @@
 
 CREATE TABLE IF NOT EXISTS payments (
   id SERIAL PRIMARY KEY,
-  job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  payer_id INTEGER NOT NULL REFERENCES users(id),
-  payee_id INTEGER NOT NULL REFERENCES users(id),
+  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  payer_id UUID NOT NULL REFERENCES users(id),
+  payee_id UUID NOT NULL REFERENCES users(id),
   stripe_payment_intent_id VARCHAR(255),
   stripe_transfer_id VARCHAR(255),
   stripe_charge_id VARCHAR(255),
@@ -31,29 +31,25 @@ CREATE TABLE IF NOT EXISTS payments (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Stripe Connect accounts for helpers
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_payments_job_id ON payments(job_id);
+CREATE INDEX IF NOT EXISTS idx_payments_payer_id ON payments(payer_id);
+CREATE INDEX IF NOT EXISTS idx_payments_payee_id ON payments(payee_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_escrow ON payments(escrow_status);
+CREATE INDEX IF NOT EXISTS idx_payments_stripe_pi ON payments(stripe_payment_intent_id);
+
+-- Connect accounts table for Stripe Connect onboarding
 CREATE TABLE IF NOT EXISTS connect_accounts (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   stripe_account_id VARCHAR(255) NOT NULL UNIQUE,
-  account_type VARCHAR(20) DEFAULT 'express',
   charges_enabled BOOLEAN DEFAULT false,
   payouts_enabled BOOLEAN DEFAULT false,
-  details_submitted BOOLEAN DEFAULT false,
   onboarding_complete BOOLEAN DEFAULT false,
-  default_currency VARCHAR(3) DEFAULT 'usd',
-  country VARCHAR(2) DEFAULT 'US',
-  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indexes
-CREATE INDEX idx_payments_job_id ON payments(job_id);
-CREATE INDEX idx_payments_payer_id ON payments(payer_id);
-CREATE INDEX idx_payments_payee_id ON payments(payee_id);
-CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_escrow ON payments(escrow_status);
-CREATE INDEX idx_payments_stripe_pi ON payments(stripe_payment_intent_id);
-CREATE INDEX idx_connect_user_id ON connect_accounts(user_id);
-CREATE INDEX idx_connect_stripe_id ON connect_accounts(stripe_account_id);
+CREATE INDEX IF NOT EXISTS idx_connect_accounts_user ON connect_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_connect_accounts_stripe ON connect_accounts(stripe_account_id);
