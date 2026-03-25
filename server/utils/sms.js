@@ -1,6 +1,5 @@
 // Phase 2 - SMS utility (Twilio)
 // OxSteed v2
-
 const twilio = require('twilio');
 
 let client = null;
@@ -42,7 +41,8 @@ async function sendOTPSMS(phone, otp) {
     console.warn('OTP SMS not sent - Twilio not configured');
     return { success: false, error: 'Twilio not configured' };
   }
-  const body = `Your OxSteed verification code is: ${otp}. It expires in 10 minutes.`;
+  // 15 minutes to match email OTP expiry (sendOTPEmail in email.js)
+  const body = `Your OxSteed verification code is: ${otp}. It expires in 15 minutes.`;
   return sendSMS(phone, body);
 }
 
