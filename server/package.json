@@ -4,7 +4,8 @@
   "description": "OxSteed v2 API server",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+        "start": "node migrate.js && node index.js",
+        "migrate": "node migrate.js",
     "dev": "nodemon index.js"
   },
   "dependencies": {
