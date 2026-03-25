@@ -182,3 +182,67 @@ exports.getDisputeStats = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch dispute stats' });
   }
 };
+
+
+// ─── START REVIEW (Admin) ───────────────────────────────────
+exports.startReview = async (req, res) => {
+  try {
+    const { disputeId } = req.params;
+    const adminId = req.user.id;
+
+    // Verify dispute exists and is in 'open' status
+    const { rows: disputeRows } = await db.query(
+      'SELECT * FROM disputes WHERE id = $1 AND status = $2',
+      [disputeId, 'open']
+    );
+
+    if (!disputeRows.length) {
+      return res.status(404).json({
+        error: 'Dispute not found or not in open status.'
+      });
+    }
+
+    // Update status to under_review
+    await db.query(
+      `UPDATE disputes SET status = 'under_review', reviewed_at = NOW() WHERE id = $1`,
+      [disputeId]
+    );
+
+    // Log admin action
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'start_dispute_review',
+        targetType: 'dispute',
+        targetId: disputeId,
+        details: {}
+      });
+    } catch (logErr) {
+      console.error('Failed to log admin action:', logErr);
+    }
+
+    // Notify the dispute opener
+    try {
+      const dispute = disputeRows[0];
+      if (dispute.opened_by) {
+        await sendNotification({
+          userId: dispute.opened_by,
+          type: 'dispute_under_review',
+          title: 'Dispute Under Review',
+          message: 'Your dispute is now being reviewed by an admin.',
+          metadata: { disputeId }
+        });
+      }
+    } catch (notifErr) {
+      console.error('Failed to send review notification:', notifErr);
+    }
+
+    res.json({
+      message: 'Dispute is now under review.',
+      dispute: { id: disputeId, status: 'under_review' }
+    });
+  } catch (err) {
+    console.error('Start review error:', err);
+    res.status(500).json({ error: 'Failed to start dispute review.' });
+  }
+};
