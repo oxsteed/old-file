@@ -1,12 +1,10 @@
-  // Job routes with media upload support
-  const router = require('express').Router();
-const authenticate = require('../middleware/authenticate');
-const multer = require('multer');
+// Job routes with media upload support
+const router = require('express').Router();
+const { authenticate } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 const { createJob, getJobs, getJob, updateJob, cancelJob, assignHelper, startJob, completeJob, getMyJobs } = require('../controllers/jobController');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
-
-// Protected - specific routes before parameterized
+// Protected — specific routes before parameterized
 router.get('/me/list', authenticate, getMyJobs);
 router.post('/', authenticate, upload.array('media', 10), createJob);
 router.post('/assign', authenticate, assignHelper);
@@ -15,7 +13,7 @@ router.post('/assign', authenticate, assignHelper);
 router.get('/', getJobs);
 router.get('/:id', getJob);
 
-// Protected - parameterized
+// Protected — parameterized
 router.put('/:id', authenticate, updateJob);
 router.post('/:id/cancel', authenticate, cancelJob);
 router.post('/:id/start', authenticate, startJob);
