@@ -201,3 +201,49 @@ exports.submitEvidence = async (req, res) => {
     res.status(500).json({ error: 'Failed to submit evidence.' });
   }
 };
+
+
+// ─── SEND DISPUTE MESSAGE ─────────────────────────────────────
+exports.sendDisputeMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { disputeId } = req.params;
+    const { message } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message cannot be empty.' });
+    }
+
+    // Verify dispute exists and user has access
+    const { rows: disputeRows } = await db.query(
+      'SELECT * FROM disputes WHERE id = $1',
+      [disputeId]
+    );
+
+    if (!disputeRows.length) {
+      return res.status(404).json({ error: 'Dispute not found.' });
+    }
+
+    const dispute = disputeRows[0];
+    const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+
+    if (!isAdmin && dispute.opened_by !== userId) {
+      return res.status(403).json({ error: 'Not authorized.' });
+    }
+
+    // Insert message into dispute_messages table
+    const { rows } = await db.query(
+      `INSERT INTO dispute_messages (dispute_id, sender_id, message, is_admin)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [disputeId, userId, message.trim(), isAdmin]
+    );
+
+    res.status(201).json({
+      message: 'Message sent successfully.',
+      disputeMessage: rows[0]
+    });
+  } catch (err) {
+    console.error('sendDisputeMessage error:', err);
+    res.status(500).json({ error: 'Failed to send dispute message.' });
+  }
+};
