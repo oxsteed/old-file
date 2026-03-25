@@ -1,4 +1,4 @@
-// Phase 2 — Authentication & authorization middleware
+// Phase 2 - Authentication & authorization middleware
 // OxSteed v2
 
 const jwt = require('jsonwebtoken');
@@ -10,7 +10,7 @@ const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
 
 function generateTokens(user) {
   const accessToken = jwt.sign(
-    { id: user.id, email: user.email, role: user.role, tier: user.tier },
+    { id: user.id, email: user.email, role: user.role },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -49,27 +49,46 @@ function requireRole(...roles) {
   };
 }
 
+// Check tier from helper_profiles table (not JWT)
 function requireTier(...tiers) {
-  return (req, res, next) => {
-    if (!req.user || !tiers.includes(req.user.tier)) {
-      return res.status(403).json({ error: 'Subscription tier required', requiredTiers: tiers });
+  return async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(
+        'SELECT tier FROM helper_profiles WHERE user_id = $1',
+        [req.user.id]
+      );
+      if (!rows[0] || !tiers.includes(rows[0].tier)) {
+        return res.status(403).json({ error: 'Subscription tier required', requiredTiers: tiers });
+      }
+      next();
+    } catch (err) {
+      console.error('requireTier error:', err);
+      return res.status(500).json({ error: 'Failed to check tier' });
     }
-    next();
   };
 }
 
+// Check active subscription from subscriptions table
 async function requireActiveSubscription(req, res, next) {
-  const { rows } = await pool.query(
-    'SELECT subscription_status, subscription_end FROM users WHERE id = $1',
-    [req.user.id]
-  );
-  if (!rows[0] || rows[0].subscription_status !== 'active') {
-    return res.status(403).json({ error: 'Active subscription required' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.status, s.current_period_end
+       FROM subscriptions s
+       WHERE s.user_id = $1 AND s.status = 'active'
+       ORDER BY s.created_at DESC LIMIT 1`,
+      [req.user.id]
+    );
+    if (!rows[0]) {
+      return res.status(403).json({ error: 'Active subscription required' });
+    }
+    if (rows[0].current_period_end && new Date(rows[0].current_period_end) < new Date()) {
+      return res.status(403).json({ error: 'Subscription expired' });
+    }
+    next();
+  } catch (err) {
+    console.error('requireActiveSubscription error:', err);
+    return res.status(500).json({ error: 'Failed to check subscription' });
   }
-  if (rows[0].subscription_end && new Date(rows[0].subscription_end) < new Date()) {
-    return res.status(403).json({ error: 'Subscription expired' });
-  }
-  next();
 }
 
 module.exports = {
