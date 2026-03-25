@@ -1,18 +1,18 @@
--- =====================================================================
+-- ===============================================================
 -- Migration 019: Helper Registration Flow (Legacy DB Compatible)
 -- Creates: helper_profiles, categories, helper_skills
 -- Adds: role to pending_registrations, profile fields
--- Compatible with legacy VARCHAR users.id (no length limit)
+-- Compatible with UUID users.id
 -- OxSteed v2
--- =====================================================================
+-- ===============================================================
 
 BEGIN;
 
--- --- Add role to pending_registrations ----
+-- ---- Add role to pending_registrations -----
 ALTER TABLE pending_registrations
   ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'customer';
 
--- --- Add profile fields to pending_registrations ----
+-- ---- Add profile fields to pending_registrations ----
 ALTER TABLE pending_registrations
   ADD COLUMN IF NOT EXISTS profile_headline VARCHAR(280),
   ADD COLUMN IF NOT EXISTS bio TEXT,
@@ -23,7 +23,7 @@ ALTER TABLE pending_registrations
   ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(8,2),
   ADD COLUMN IF NOT EXISTS selected_tier VARCHAR(20) DEFAULT 'free';
 
--- --- Create categories if not exists ---
+-- ---- Create categories if not exists ----
 CREATE TABLE IF NOT EXISTS categories (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -55,10 +55,10 @@ INSERT INTO categories (name, slug, icon, sort_order) VALUES
   ('General Labor', 'general-labor', 'hard-hat', 16)
 ON CONFLICT (slug) DO NOTHING;
 
--- --- Create helper_profiles (VARCHAR FK to match users.id type) ---
+-- ---- Create helper_profiles (UUID FK to match users.id type) ----
 CREATE TABLE IF NOT EXISTS helper_profiles (
   id SERIAL PRIMARY KEY,
-  user_id VARCHAR NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   tier VARCHAR(20) NOT NULL DEFAULT 'free',
   profile_headline VARCHAR(280),
   bio_short VARCHAR(280),
@@ -103,10 +103,10 @@ CREATE INDEX IF NOT EXISTS idx_helper_profiles_tier ON helper_profiles(tier);
 CREATE INDEX IF NOT EXISTS idx_helper_profiles_rating ON helper_profiles(avg_rating DESC);
 CREATE INDEX IF NOT EXISTS idx_helper_profiles_market ON helper_profiles(market_id);
 
--- --- Create helper_skills (VARCHAR FK to match users.id type) ---
+-- ---- Create helper_skills (UUID FK to match users.id type) ----
 CREATE TABLE IF NOT EXISTS helper_skills (
   id SERIAL PRIMARY KEY,
-  user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   category_id INTEGER NOT NULL REFERENCES categories(id),
   skill_name VARCHAR(100) NOT NULL,
   years_exp INTEGER,
