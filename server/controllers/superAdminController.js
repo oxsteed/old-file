@@ -1,7 +1,7 @@
-const db                       = require('../db');
-const { logAdminAction }       = require('../services/auditService');
-const { issueRefund }          = require('../services/stripeService');
-const { sendNotification }     = require('../services/notificationService');
+const db                    = require('../db');
+const { logAdminAction }    = require('../services/auditService');
+const { issueRefund }       = require('../services/stripeService');
+const { sendNotification }  = require('../services/notificationService');
 
 // ═══════════════════════════════════════════════════════════════
 // DASHBOARD OVERVIEW
@@ -15,10 +15,10 @@ exports.getDashboardStats = async (req, res) => {
         (SELECT COUNT(*) FROM users WHERE role NOT IN ('admin','super_admin'))
           AS total_users,
         (SELECT COUNT(*) FROM users
-         WHERE role NOT IN ('admin','super_admin')
-           AND created_at >= now() - interval '30 days')
+          WHERE role NOT IN ('admin','super_admin')
+            AND created_at >= now() - interval '30 days')
           AS new_users_30d,
-        (SELECT COUNT(*) FROM users WHERE role = 'helper' OR role = 'both')
+        (SELECT COUNT(*) FROM users WHERE role IN ('helper','helper_pro'))
           AS total_helpers,
         (SELECT COUNT(*) FROM users WHERE role = 'broker')
           AS total_brokers,
@@ -33,41 +33,32 @@ exports.getDashboardStats = async (req, res) => {
         (SELECT COUNT(*) FROM jobs WHERE status = 'completed')
           AS completed_jobs,
         (SELECT COUNT(*) FROM jobs
-         WHERE created_at >= now() - interval '30 days')
+          WHERE created_at >= now() - interval '30 days')
           AS new_jobs_30d,
 
         -- Revenue
         (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger
-         WHERE source_type IN ('job_fee','subscription')
-           AND amount_cents > 0)
+          WHERE source_type IN ('job_fee','subscription')
+            AND amount_cents > 0)
           AS total_revenue_cents,
         (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger
-         WHERE source_type IN ('job_fee','subscription')
-           AND amount_cents > 0
-           AND created_at >= date_trunc('month', now()))
+          WHERE source_type IN ('job_fee','subscription')
+            AND amount_cents > 0
+            AND created_at >= date_trunc('month', now()))
           AS revenue_mtd_cents,
         (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger
-         WHERE source_type = 'subscription'
-           AND amount_cents > 0
-           AND created_at >= date_trunc('month', now()))
+          WHERE source_type = 'subscription'
+            AND amount_cents > 0
+            AND created_at >= date_trunc('month', now()))
           AS subscription_revenue_mtd_cents,
 
         -- Subscriptions
         (SELECT COUNT(*) FROM subscriptions WHERE status = 'active')
           AS active_subscriptions,
 
-        -- Escrow
-        (SELECT COALESCE(SUM(gross_amount),0) FROM escrow_holds
-         WHERE status IN ('pending','release_pending'))
-          AS escrow_held,
-
         -- Disputes
-        (SELECT COUNT(*) FROM jobs WHERE status = 'disputed')
-          AS open_disputes,
-
-        -- Reports
-        (SELECT COUNT(*) FROM content_reports WHERE status = 'pending')
-          AS pending_reports
+        (SELECT COUNT(*) FROM jobs WHERE dispute_status = 'open')
+          AS open_disputes
     `);
 
     const stats = rows[0];
@@ -75,16 +66,16 @@ exports.getDashboardStats = async (req, res) => {
     // MRR calculation
     const { rows: mrrRows } = await db.query(`
       SELECT
-        p.price_monthly,
+        p.amount_cents,
         COUNT(s.id) AS count
       FROM subscriptions s
       JOIN plans p ON s.plan_id = p.id
       WHERE s.status = 'active'
-      GROUP BY p.price_monthly
+      GROUP BY p.amount_cents
     `);
 
     const mrr = mrrRows.reduce(
-      (sum, r) => sum + (parseFloat(r.price_monthly) * parseInt(r.count)),
+      (sum, r) => sum + (parseInt(r.amount_cents) * parseInt(r.count)),
       0
     );
 
@@ -95,30 +86,28 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-// ─── Revenue Chart Data ───────────────────────────────────────
+// ─── Revenue Chart Data ───────────────────────────────────────────
 exports.getRevenueChart = async (req, res) => {
   try {
     const { period = '30d' } = req.query;
-
     const intervalMap = {
       '7d':  { interval: '7 days',  trunc: 'day' },
       '30d': { interval: '30 days', trunc: 'day' },
       '90d': { interval: '90 days', trunc: 'week' },
       '1y':  { interval: '1 year',  trunc: 'month' }
     };
-
     const { interval, trunc } = intervalMap[period] || intervalMap['30d'];
 
     const { rows } = await db.query(`
       SELECT
-        date_trunc($1, created_at)          AS period,
+        date_trunc($1, created_at) AS period,
         SUM(CASE WHEN source_type = 'job_fee'
-            THEN amount_cents ELSE 0 END)   AS job_fee_cents,
+          THEN amount_cents ELSE 0 END) AS job_fee_cents,
         SUM(CASE WHEN source_type = 'subscription'
-            THEN amount_cents ELSE 0 END)   AS subscription_cents,
-                    SUM(CASE WHEN amount_cents < 0
-            THEN ABS(amount_cents) ELSE 0 END) AS refunds_cents,
-        SUM(GREATEST(amount_cents, 0))        AS gross_cents
+          THEN amount_cents ELSE 0 END) AS subscription_cents,
+        SUM(CASE WHEN amount_cents < 0
+          THEN ABS(amount_cents) ELSE 0 END) AS refunds_cents,
+        SUM(GREATEST(amount_cents, 0)) AS gross_cents
       FROM platform_ledger
       WHERE created_at >= now() - $2::interval
         AND source_type IN ('job_fee','subscription','refund')
@@ -145,67 +134,67 @@ exports.getUsers = async (req, res) => {
       sort = 'created_at', order = 'desc'
     } = req.query;
 
-    const offset      = (page - 1) * limit;
-    const params      = [];
-    let   paramIdx    = 1;
-    let   conditions  = [`u.role NOT IN ('admin','super_admin')`];
+    const offset = (page - 1) * limit;
+    const params = [];
+    let paramIdx = 1;
+    let conditions = [`u.role NOT IN ('admin','super_admin')`];
 
     if (search) {
       conditions.push(`(
         u.first_name ILIKE $${paramIdx}
-        OR u.last_name  ILIKE $${paramIdx}
-        OR u.email      ILIKE $${paramIdx}
+        OR u.last_name ILIKE $${paramIdx}
+        OR u.email ILIKE $${paramIdx}
       )`);
       params.push(`%${search}%`);
       paramIdx++;
     }
-
     if (role) {
       conditions.push(`u.role = $${paramIdx++}`);
       params.push(role);
     }
-
     if (status === 'active') {
       conditions.push(`u.is_active = true`);
     } else if (status === 'banned') {
       conditions.push(`u.is_active = false`);
     }
-
     if (plan) {
       conditions.push(`p.slug = $${paramIdx++}`);
       params.push(plan);
     }
 
     const allowedSorts = ['created_at','last_login_at','first_name','email'];
-    const safeSort     = allowedSorts.includes(sort) ? sort : 'created_at';
-    const safeOrder    = order === 'asc' ? 'ASC' : 'DESC';
+    const safeSort = allowedSorts.includes(sort) ? sort : 'created_at';
+    const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
 
-    const whereClause  = conditions.length
+    const whereClause = conditions.length
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
     const { rows: users } = await db.query(`
       SELECT
         u.id, u.first_name, u.last_name, u.email,
-        u.role, u.is_active, u.avatar_url,
+        u.role, u.is_active, u.phone,
         u.created_at, u.last_login_at,
-        p.slug          AS plan_slug,
-        p.name          AS plan_name,
-        s.status        AS subscription_status,
+        u.email_verified,
+        u.subscription_status AS user_sub_status,
+        p.slug AS plan_slug,
+        p.name AS plan_name,
+        s.status AS subscription_status,
         s.current_period_end,
-        hp.average_rating,
-        hp.completed_jobs,
-        hp.earnings_total,
-        hp.background_check_status,
-        hp.id_verified,
+        hp.avg_rating,
+        hp.completed_jobs_count,
+        hp.total_reviews,
+        hp.is_background_checked,
+        hp.is_identity_verified,
+        hp.tier AS helper_tier,
         (SELECT COUNT(*) FROM jobs
-         WHERE client_id = u.id)        AS jobs_posted,
+          WHERE client_id = u.id) AS jobs_posted,
         (SELECT COUNT(*) FROM jobs
-         WHERE assigned_helper_id = u.id
-           AND status = 'completed')    AS jobs_completed_as_helper
+          WHERE assigned_helper_id = u.id
+            AND status = 'completed') AS jobs_completed_as_helper
       FROM users u
       LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'
-      LEFT JOIN plans p         ON p.id = s.plan_id
+      LEFT JOIN plans p ON p.id = s.plan_id
       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
       ${whereClause}
       ORDER BY u.${safeSort} ${safeOrder}
@@ -221,10 +210,10 @@ exports.getUsers = async (req, res) => {
 
     res.json({
       users,
-      total:   parseInt(countRows[0].count),
-      page:    parseInt(page),
-      limit:   parseInt(limit),
-      pages:   Math.ceil(countRows[0].count / limit)
+      total: parseInt(countRows[0].count),
+      page: parseInt(page),
+      limit: parseInt(limit),
+      pages: Math.ceil(countRows[0].count / limit)
     });
   } catch (err) {
     console.error('getUsers error:', err);
@@ -232,7 +221,7 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-// ─── Get single user detail ───────────────────────────────────
+// ─── Get single user detail ───────────────────────────────────────
 exports.getUserDetail = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -241,26 +230,26 @@ exports.getUserDetail = async (req, res) => {
       SELECT
         u.*,
         p.slug AS plan_slug, p.name AS plan_name,
-        s.status AS subscription_status,
+        s.status AS sub_status,
         s.stripe_subscription_id,
         s.current_period_start,
         s.current_period_end,
         s.cancel_at_period_end,
-        hp.bio, hp.skill_category_ids, hp.skill_tags,
-        hp.average_rating, hp.total_reviews,
-        hp.completed_jobs, hp.completion_rate,
-        hp.earnings_total, hp.earnings_mtd,
-        hp.background_check_status, hp.id_verified,
-        hp.is_available,
-        sa.stripe_account_id,
-        sa.onboarding_complete,
-        sa.charges_enabled,
-        sa.payouts_enabled
+        hp.bio_short, hp.bio_long,
+        hp.avg_rating, hp.total_reviews,
+        hp.completed_jobs_count,
+        hp.is_background_checked,
+        hp.is_identity_verified,
+        hp.tier AS helper_tier,
+        hp.hourly_rate_min, hp.hourly_rate_max,
+        hp.service_city, hp.service_state,
+        hp.stripe_account_id,
+        hp.stripe_charges_enabled,
+        hp.stripe_payouts_enabled
       FROM users u
-      LEFT JOIN subscriptions s    ON s.user_id = u.id AND s.status = 'active'
-      LEFT JOIN plans p            ON p.id = s.plan_id
+      LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'
+      LEFT JOIN plans p ON p.id = s.plan_id
       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
-      LEFT JOIN stripe_accounts sa ON sa.user_id = u.id
       WHERE u.id = $1
     `, [userId]);
 
@@ -270,36 +259,26 @@ exports.getUserDetail = async (req, res) => {
 
     // Recent jobs
     const { rows: recentJobs } = await db.query(`
-      SELECT id, title, status, final_price, created_at
+      SELECT id, title, status, job_value, created_at
       FROM jobs
       WHERE client_id = $1 OR assigned_helper_id = $1
       ORDER BY created_at DESC LIMIT 10
     `, [userId]);
 
-    // Recent payouts
-    const { rows: recentPayouts } = await db.query(`
-      SELECT p.net_to_helper_cents, p.status,
-             p.completed_at, j.title AS job_title
-      FROM payouts p
-      JOIN jobs j ON p.job_id = j.id
-      WHERE p.helper_id = $1
-      ORDER BY p.created_at DESC LIMIT 5
-    `, [userId]);
-
-    // Billing history
-    const { rows: billing } = await db.query(`
-      SELECT event_type, amount_cents, status,
-             period_start, period_end, invoice_url
-      FROM billing_events
-      WHERE user_id = $1
-      ORDER BY created_at DESC LIMIT 12
+    // Recent reviews
+    const { rows: recentReviews } = await db.query(`
+      SELECT r.rating, r.comment, r.created_at,
+        u.first_name || ' ' || u.last_name AS reviewer_name
+      FROM reviews r
+      JOIN users u ON r.reviewer_id = u.id
+      WHERE r.reviewee_id = $1
+      ORDER BY r.created_at DESC LIMIT 5
     `, [userId]);
 
     res.json({
-      user:         userRows[0],
+      user: userRows[0],
       recentJobs,
-      recentPayouts,
-      billing
+      recentReviews
     });
   } catch (err) {
     console.error('getUserDetail error:', err);
@@ -307,12 +286,12 @@ exports.getUserDetail = async (req, res) => {
   }
 };
 
-// ─── Ban / Unban user ─────────────────────────────────────────
+// ─── Ban / Unban user ─────────────────────────────────────────────
 exports.toggleUserBan = async (req, res) => {
   try {
-    const { userId }  = req.params;
-    const { reason }  = req.body;
-    const adminId     = req.user.id;
+    const { userId } = req.params;
+    const { reason } = req.body;
+    const adminId = req.user.id;
 
     const { rows: before } = await db.query(
       `SELECT is_active, role FROM users WHERE id = $1`,
@@ -321,14 +300,11 @@ exports.toggleUserBan = async (req, res) => {
     if (!before.length) {
       return res.status(404).json({ error: 'User not found.' });
     }
-
-    // Prevent banning other admins
     if (['admin','super_admin'].includes(before[0].role)) {
       return res.status(403).json({ error: 'Cannot ban admin accounts.' });
     }
 
     const newStatus = !before[0].is_active;
-
     await db.query(
       `UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2`,
       [newStatus, userId]
@@ -336,26 +312,26 @@ exports.toggleUserBan = async (req, res) => {
 
     await logAdminAction({
       adminId,
-      action:      newStatus ? 'user_unbanned' : 'user_banned',
-      targetType:  'user',
-      targetId:    userId,
+      action: newStatus ? 'user_unbanned' : 'user_banned',
+      targetType: 'user',
+      targetId: userId,
       description: reason || null,
-      before:      { is_active: before[0].is_active },
-      after:       { is_active: newStatus },
+      before: { is_active: before[0].is_active },
+      after: { is_active: newStatus },
       req
     });
 
     await sendNotification({
       userId,
-      type:  newStatus ? 'account_restored' : 'account_banned',
+      type: newStatus ? 'account_restored' : 'account_banned',
       title: newStatus ? 'Account restored' : 'Account suspended',
-      body:  newStatus
+      body: newStatus
         ? 'Your account has been restored. Welcome back.'
         : `Your account has been suspended. Reason: ${reason || 'Policy violation'}`,
     });
 
     res.json({
-      message:   `User ${newStatus ? 'unbanned' : 'banned'} successfully.`,
+      message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`,
       is_active: newStatus
     });
   } catch (err) {
@@ -364,20 +340,19 @@ exports.toggleUserBan = async (req, res) => {
   }
 };
 
-// ─── Verify user (ID / background check override) ────────────
+// ─── Verify user (ID / background check override) ────────────────
 exports.verifyUser = async (req, res) => {
   try {
-    const { userId }    = req.params;
-    const { field }     = req.body; // 'id_verified' | 'background_check_status'
-    const adminId       = req.user.id;
+    const { userId } = req.params;
+    const { field } = req.body;
+    const adminId = req.user.id;
 
-    const allowed = ['id_verified','background_check_status'];
+    const allowed = ['is_identity_verified','is_background_checked'];
     if (!allowed.includes(field)) {
       return res.status(400).json({ error: 'Invalid verification field.' });
     }
 
-    const value = field === 'id_verified' ? true : 'passed';
-
+    const value = true;
     await db.query(`
       UPDATE helper_profiles
       SET ${field} = $1, updated_at = now()
@@ -386,9 +361,9 @@ exports.verifyUser = async (req, res) => {
 
     await logAdminAction({
       adminId,
-      action:     'user_verified',
+      action: 'user_verified',
       targetType: 'user',
-      targetId:   userId,
+      targetId: userId,
       description: `Admin set ${field} = ${value}`,
       req
     });
@@ -400,19 +375,18 @@ exports.verifyUser = async (req, res) => {
   }
 };
 
-// ─── Promote user role ────────────────────────────────────────
+// ─── Promote user role ────────────────────────────────────────────
 exports.updateUserRole = async (req, res) => {
   try {
-    const { userId }  = req.params;
-    const { role }    = req.body;
-    const adminId     = req.user.id;
+    const { userId } = req.params;
+    const { role } = req.body;
+    const adminId = req.user.id;
 
-    const allowed = ['client','helper','both','broker','admin'];
+    const allowed = ['customer','helper','helper_pro','broker','admin'];
     if (!allowed.includes(role)) {
       return res.status(400).json({ error: 'Invalid role.' });
     }
 
-    // Only super_admin can promote to admin
     if (role === 'admin' && !req.isSuper) {
       return res.status(403).json({ error: 'Super Admin required to promote to admin.' });
     }
@@ -420,7 +394,6 @@ exports.updateUserRole = async (req, res) => {
     const { rows: before } = await db.query(
       `SELECT role FROM users WHERE id = $1`, [userId]
     );
-
     await db.query(
       `UPDATE users SET role = $1, updated_at = now() WHERE id = $2`,
       [role, userId]
@@ -428,11 +401,11 @@ exports.updateUserRole = async (req, res) => {
 
     await logAdminAction({
       adminId,
-      action:     'user_role_changed',
+      action: 'user_role_changed',
       targetType: 'user',
-      targetId:   userId,
-      before:     { role: before[0]?.role },
-      after:      { role },
+      targetId: userId,
+      before: { role: before[0]?.role },
+      after: { role },
       req
     });
 
@@ -451,13 +424,12 @@ exports.getJobs = async (req, res) => {
   try {
     const {
       search, status, category_id,
-      flagged, page = 1, limit = 25
+      page = 1, limit = 25
     } = req.query;
-
-    const offset     = (page - 1) * limit;
-    const params     = [];
-    let   paramIdx   = 1;
-    let   conditions = [];
+    const offset = (page - 1) * limit;
+    const params = [];
+    let paramIdx = 1;
+    let conditions = [];
 
     if (search) {
       conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx})`);
@@ -472,14 +444,6 @@ exports.getJobs = async (req, res) => {
       conditions.push(`j.category_id = $${paramIdx++}`);
       params.push(category_id);
     }
-    if (flagged === 'true') {
-      conditions.push(`EXISTS (
-        SELECT 1 FROM content_reports cr
-        WHERE cr.target_type = 'job'
-          AND cr.target_id = j.id
-          AND cr.status = 'pending'
-      )`);
-    }
 
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(' AND ')}`
@@ -488,19 +452,14 @@ exports.getJobs = async (req, res) => {
     const { rows } = await db.query(`
       SELECT
         j.id, j.title, j.status, j.budget_min, j.budget_max,
-        j.final_price, j.is_broker_mediated, j.created_at,
-        j.bid_count, j.location_text,
-        c.name                            AS category_name,
+        j.job_value, j.is_broker_mediated, j.created_at,
+        j.bid_count, j.location_city, j.location_state,
+        j.category_name,
         u_client.first_name || ' ' || u_client.last_name AS client_name,
-        u_client.email                    AS client_email,
-        u_helper.first_name || ' ' || u_helper.last_name AS helper_name,
-        (SELECT COUNT(*) FROM content_reports cr
-         WHERE cr.target_type = 'job'
-           AND cr.target_id = j.id
-           AND cr.status = 'pending')     AS report_count
+        u_client.email AS client_email,
+        u_helper.first_name || ' ' || u_helper.last_name AS helper_name
       FROM jobs j
       JOIN users u_client ON j.client_id = u_client.id
-      JOIN categories c   ON j.category_id = c.id
       LEFT JOIN users u_helper ON j.assigned_helper_id = u_helper.id
       ${whereClause}
       ORDER BY j.created_at DESC
@@ -512,9 +471,9 @@ exports.getJobs = async (req, res) => {
     `, params);
 
     res.json({
-      jobs:  rows,
+      jobs: rows,
       total: parseInt(countRows[0].count),
-            page:  parseInt(page),
+      page: parseInt(page),
       limit: parseInt(limit),
       pages: Math.ceil(countRows[0].count / limit)
     });
@@ -524,15 +483,14 @@ exports.getJobs = async (req, res) => {
   }
 };
 
-// ─── Force cancel a job ───────────────────────────────────────
+// ─── Force cancel a job ───────────────────────────────────────────
 exports.forceJobAction = async (req, res) => {
   const dbClient = await db.connect();
   try {
     await dbClient.query('BEGIN');
-
-    const { jobId }              = req.params;
-    const { action, reason }     = req.body;
-    const adminId                = req.user.id;
+    const { jobId } = req.params;
+    const { action, reason } = req.body;
+    const adminId = req.user.id;
 
     const allowed = ['cancel','remove','flag','unflag'];
     if (!allowed.includes(action)) {
@@ -545,75 +503,49 @@ exports.forceJobAction = async (req, res) => {
     if (!jobRows.length) {
       return res.status(404).json({ error: 'Job not found.' });
     }
-
     const job = jobRows[0];
 
     if (action === 'cancel' || action === 'remove') {
-      // Cancel payment if exists
-      const { cancelJobPayment } = require('../services/stripeService');
-      await cancelJobPayment(jobId);
-
       await dbClient.query(`
         UPDATE jobs
         SET status = 'cancelled',
-            cancelled_at = now(),
-            cancellation_reason = $1,
             updated_at = now()
-        WHERE id = $2
-      `, [`Admin action: ${reason || action}`, jobId]);
+        WHERE id = $1
+      `, [jobId]);
 
-      // Notify client and helper
       const notifications = [
         sendNotification({
           userId: job.client_id,
-          type:   'job_admin_cancelled',
-          title:  'Job cancelled by support',
-          body:   `Your job "${job.title}" was cancelled. Reason: ${reason || 'Policy violation'}`,
-          data:   { jobId }
+          type: 'job_admin_cancelled',
+          title: 'Job cancelled by support',
+          body: `Your job "${job.title}" was cancelled. Reason: ${reason || 'Policy violation'}`,
+          data: { jobId }
         })
       ];
       if (job.assigned_helper_id) {
         notifications.push(
           sendNotification({
             userId: job.assigned_helper_id,
-            type:   'job_admin_cancelled',
-            title:  'Job cancelled by support',
-            body:   `The job "${job.title}" was cancelled by our team.`,
-            data:   { jobId }
+            type: 'job_admin_cancelled',
+            title: 'Job cancelled by support',
+            body: `The job "${job.title}" was cancelled by our team.`,
+            data: { jobId }
           })
         );
       }
       await Promise.allSettled(notifications);
     }
 
-    if (action === 'flag') {
-      await dbClient.query(`
-        UPDATE jobs
-        SET metadata = metadata || '{"admin_flagged": true}'::jsonb,
-            updated_at = now()
-        WHERE id = $1
-      `, [jobId]);
-    }
-
-    if (action === 'unflag') {
-      await dbClient.query(`
-        UPDATE jobs
-        SET metadata = metadata - 'admin_flagged',
-            updated_at = now()
-        WHERE id = $1
-      `, [jobId]);
-    }
-
     await dbClient.query('COMMIT');
 
     await logAdminAction({
       adminId,
-      action:     `job_${action}`,
+      action: `job_${action}`,
       targetType: 'job',
-      targetId:   jobId,
+      targetId: jobId,
       description: reason || null,
-      before:     { status: job.status },
-      after:      { status: action === 'cancel' ? 'cancelled' : job.status },
+      before: { status: job.status },
+      after: { status: action === 'cancel' ? 'cancelled' : job.status },
       req
     });
 
@@ -634,10 +566,10 @@ exports.forceJobAction = async (req, res) => {
 exports.getFinancials = async (req, res) => {
   try {
     const { page = 1, limit = 25, type } = req.query;
-    const offset   = (page - 1) * limit;
-    const params   = [];
-    let   paramIdx = 1;
-    let   condition = '';
+    const offset = (page - 1) * limit;
+    const params = [];
+    let paramIdx = 1;
+    let condition = '';
 
     if (type) {
       condition = `WHERE source_type = $${paramIdx++}`;
@@ -652,8 +584,7 @@ exports.getFinancials = async (req, res) => {
         j.title AS job_title
       FROM platform_ledger pl
       LEFT JOIN users u ON pl.user_id = u.id
-      LEFT JOIN jobs  j ON pl.source_id = j.id
-        AND pl.source_type = 'job_fee'
+      LEFT JOIN jobs j ON pl.job_id = j.id
       ${condition}
       ORDER BY pl.created_at DESC
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
@@ -667,10 +598,10 @@ exports.getFinancials = async (req, res) => {
           AS total_refunds_cents,
         SUM(amount_cents) AS net_revenue_cents,
         SUM(CASE WHEN source_type = 'subscription'
-            THEN amount_cents ELSE 0 END)
+          THEN amount_cents ELSE 0 END)
           AS subscription_revenue_cents,
         SUM(CASE WHEN source_type = 'job_fee'
-            THEN amount_cents ELSE 0 END)
+          THEN amount_cents ELSE 0 END)
           AS job_fee_revenue_cents
       FROM platform_ledger
     `);
@@ -678,8 +609,8 @@ exports.getFinancials = async (req, res) => {
     res.json({
       ledger: rows,
       totals: totals[0],
-      page:   parseInt(page),
-      limit:  parseInt(limit)
+      page: parseInt(page),
+      limit: parseInt(limit)
     });
   } catch (err) {
     console.error('getFinancials error:', err);
@@ -687,12 +618,12 @@ exports.getFinancials = async (req, res) => {
   }
 };
 
-// ─── Issue manual refund ──────────────────────────────────────
+// ─── Issue manual refund ──────────────────────────────────────────
 exports.issueManualRefund = async (req, res) => {
   try {
-    const { jobId }               = req.params;
+    const { jobId } = req.params;
     const { reason, amount_cents } = req.body;
-    const adminId                 = req.user.id;
+    const adminId = req.user.id;
 
     if (!reason) {
       return res.status(400).json({ error: 'Refund reason required.' });
@@ -707,16 +638,15 @@ exports.issueManualRefund = async (req, res) => {
 
     const refund = await issueRefund(jobId, reason, amount_cents || null);
 
-    // Update job status
     await db.query(`
       UPDATE jobs SET status = 'cancelled', updated_at = now() WHERE id = $1
     `, [jobId]);
 
     await logAdminAction({
       adminId,
-      action:     'manual_refund_issued',
-      targetType: 'payout',
-      targetId:   jobId,
+      action: 'manual_refund_issued',
+      targetType: 'job',
+      targetId: jobId,
       description: `Refund: ${reason}. Amount: $${(refund.amount / 100).toFixed(2)}`,
       req
     });
@@ -731,36 +661,11 @@ exports.issueManualRefund = async (req, res) => {
   }
 };
 
-// ─── Get all payouts ──────────────────────────────────────────
+// ─── Get all payouts (placeholder) ────────────────────────────────
 exports.getPayouts = async (req, res) => {
   try {
-    const { status, page = 1, limit = 25 } = req.query;
-    const offset = (page - 1) * limit;
-
-    let condition = '';
-    const params  = [];
-    if (status) {
-      condition = `WHERE p.status = $1`;
-      params.push(status);
-    }
-
-    const { rows } = await db.query(`
-      SELECT
-        p.*,
-        j.title                                       AS job_title,
-        u_h.first_name || ' ' || u_h.last_name       AS helper_name,
-        u_h.email                                     AS helper_email,
-        u_b.first_name || ' ' || u_b.last_name       AS broker_name
-      FROM payouts p
-      JOIN jobs j           ON p.job_id = j.id
-      JOIN users u_h        ON p.helper_id = u_h.id
-      LEFT JOIN users u_b   ON p.broker_id = u_b.id
-      ${condition}
-      ORDER BY p.created_at DESC
-      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-    `, [...params, limit, offset]);
-
-    res.json({ payouts: rows, page: parseInt(page), limit: parseInt(limit) });
+    // Payouts table not yet created - return empty for now
+    res.json({ payouts: [], page: 1, limit: 25, message: 'Payouts table pending migration.' });
   } catch (err) {
     console.error('getPayouts error:', err);
     res.status(500).json({ error: 'Failed to fetch payouts.' });
@@ -773,13 +678,23 @@ exports.getPayouts = async (req, res) => {
 
 exports.getSettings = async (req, res) => {
   try {
-    const { rows } = await db.query(
-      `SELECT * FROM platform_settings ORDER BY key ASC`
-    );
+    // Check if platform_settings table exists, fall back gracefully
+    let settings = [];
+    try {
+      const result = await db.query(
+        `SELECT * FROM platform_settings ORDER BY key ASC`
+      );
+      settings = result.rows;
+    } catch (e) {
+      // Table may not exist yet
+      settings = [];
+    }
+
     const { rows: flags } = await db.query(
       `SELECT * FROM feature_flags ORDER BY key ASC`
     );
-    res.json({ settings: rows, flags });
+
+    res.json({ settings, flags });
   } catch (err) {
     console.error('getSettings error:', err);
     res.status(500).json({ error: 'Failed to fetch settings.' });
@@ -788,9 +703,9 @@ exports.getSettings = async (req, res) => {
 
 exports.updateSetting = async (req, res) => {
   try {
-    const { key }      = req.params;
-    const { value }    = req.body;
-    const adminId      = req.user.id;
+    const { key } = req.params;
+    const { value } = req.body;
+    const adminId = req.user.id;
 
     const { rows: before } = await db.query(
       `SELECT value FROM platform_settings WHERE key = $1`, [key]
@@ -805,23 +720,13 @@ exports.updateSetting = async (req, res) => {
       WHERE key = $3
     `, [String(value), adminId, key]);
 
-    // If fee settings changed — update feeService cache
-    const feeKeys = [
-      'platform_fee_starter','platform_fee_pro',
-      'platform_fee_elite','platform_fee_broker','broker_cut_rate'
-    ];
-    if (feeKeys.includes(key)) {
-      const { reloadFeeConfig } = require('../services/feeService');
-      await reloadFeeConfig();
-    }
-
     await logAdminAction({
       adminId,
-      action:     'setting_updated',
+      action: 'setting_updated',
       targetType: 'setting',
       description: `Changed ${key}`,
-      before:     { [key]: before[0].value },
-      after:      { [key]: value },
+      before: { [key]: before[0].value },
+      after: { [key]: value },
       req
     });
 
@@ -834,19 +739,19 @@ exports.updateSetting = async (req, res) => {
 
 exports.updateFeatureFlag = async (req, res) => {
   try {
-    const { key }      = req.params;
-    const { enabled }  = req.body;
-    const adminId      = req.user.id;
+    const { key } = req.params;
+    const { enabled } = req.body;
+    const adminId = req.user.id;
 
     await db.query(`
       UPDATE feature_flags
-      SET enabled = $1, updated_by = $2, updated_at = now()
+      SET is_enabled = $1, updated_by = $2, updated_at = now()
       WHERE key = $3
     `, [Boolean(enabled), adminId, key]);
 
     await logAdminAction({
       adminId,
-      action:     'feature_flag_toggled',
+      action: 'feature_flag_toggled',
       targetType: 'setting',
       description: `${key} set to ${enabled}`,
       req
@@ -859,13 +764,13 @@ exports.updateFeatureFlag = async (req, res) => {
   }
 };
 
-// ─── Audit log ────────────────────────────────────────────────
+// ─── Audit log ────────────────────────────────────────────────────
 exports.getAuditLog = async (req, res) => {
   try {
     const { page = 1, limit = 50, admin_id, action, target_type } = req.query;
-    const offset   = (page - 1) * limit;
-    const params   = [];
-    let   paramIdx = 1;
+    const offset = (page - 1) * limit;
+    const params = [];
+    let paramIdx = 1;
     const conditions = [];
 
     if (admin_id) {
@@ -889,7 +794,7 @@ exports.getAuditLog = async (req, res) => {
       SELECT
         a.*,
         u.first_name || ' ' || u.last_name AS admin_name,
-        u.email                             AS admin_email
+        u.email AS admin_email
       FROM admin_audit_log a
       LEFT JOIN users u ON a.admin_id = u.id
       ${whereClause}
@@ -904,77 +809,62 @@ exports.getAuditLog = async (req, res) => {
   }
 };
 
-// ─── Data export (exit-readiness / due diligence) ─────────────
+// ─── Data export ──────────────────────────────────────────────────
 exports.exportData = async (req, res) => {
   try {
-    const { type } = req.params; // 'users'|'jobs'|'revenue'|'payouts'
-    const adminId  = req.user.id;
+    const { type } = req.params;
+    const adminId = req.user.id;
 
     const queries = {
       users: `
         SELECT u.id, u.first_name, u.last_name, u.email, u.role,
-               u.is_active, u.created_at, p.slug AS plan,
-               s.status AS subscription_status,
-               hp.average_rating, hp.completed_jobs, hp.earnings_total
+          u.is_active, u.created_at, p.slug AS plan,
+          s.status AS subscription_status,
+          hp.avg_rating, hp.completed_jobs_count
         FROM users u
         LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'
         LEFT JOIN plans p ON p.id = s.plan_id
         LEFT JOIN helper_profiles hp ON hp.user_id = u.id
         WHERE u.role NOT IN ('admin','super_admin')
-                ORDER BY u.created_at DESC
+        ORDER BY u.created_at DESC
       `,
       jobs: `
         SELECT j.id, j.title, j.status, j.job_type,
-               j.budget_min, j.budget_max, j.final_price,
-               j.is_broker_mediated, j.location_text,
-               j.bid_count, j.created_at, j.completed_at,
-               c.name AS category,
-               u_c.email AS client_email,
-               u_h.email AS helper_email
+          j.budget_min, j.budget_max, j.job_value,
+          j.is_broker_mediated, j.location_city, j.location_state,
+          j.bid_count, j.created_at, j.completed_at,
+          j.category_name,
+          u_c.email AS client_email,
+          u_h.email AS helper_email
         FROM jobs j
-        JOIN categories c ON j.category_id = c.id
-        JOIN users u_c    ON j.client_id = u_c.id
+        JOIN users u_c ON j.client_id = u_c.id
         LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id
         ORDER BY j.created_at DESC
       `,
       revenue: `
         SELECT pl.source_type, pl.amount_cents, pl.currency,
-               pl.description, pl.created_at,
-               u.email AS user_email
+          pl.description, pl.created_at,
+          u.email AS user_email
         FROM platform_ledger pl
         LEFT JOIN users u ON pl.user_id = u.id
         ORDER BY pl.created_at DESC
-      `,
-      payouts: `
-        SELECT p.gross_amount_cents, p.platform_fee_cents,
-               p.broker_cut_cents, p.net_to_helper_cents,
-               p.status, p.completed_at,
-               u_h.email AS helper_email,
-               u_b.email AS broker_email,
-               j.title AS job_title
-        FROM payouts p
-        JOIN jobs j         ON p.job_id = j.id
-        JOIN users u_h      ON p.helper_id = u_h.id
-        LEFT JOIN users u_b ON p.broker_id = u_b.id
-        ORDER BY p.created_at DESC
       `
     };
 
     if (!queries[type]) {
-      return res.status(400).json({ error: 'Invalid export type.' });
+      return res.status(400).json({ error: 'Invalid export type. Use: users, jobs, revenue' });
     }
 
     const { rows } = await db.query(queries[type]);
 
     await logAdminAction({
       adminId,
-      action:     'data_exported',
+      action: 'data_exported',
       targetType: 'setting',
-      description: `Exported ${type} data — ${rows.length} records`,
+      description: `Exported ${type} data - ${rows.length} records`,
       req
     });
 
-    // Convert to CSV
     if (!rows.length) {
       return res.json({ data: [], csv: '' });
     }
