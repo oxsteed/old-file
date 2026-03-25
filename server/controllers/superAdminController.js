@@ -71,7 +71,7 @@ exports.getUsers = async (req, res) => {
     if (role) { conditions.push(`u.role = $${paramIdx++}`); params.push(role); }
     if (status === 'active') conditions.push(`u.is_active = true`);
     else if (status === 'banned') conditions.push(`u.is_active = false`);
-    const allowedSorts = ['created_at','last_login_at','first_name','email'];
+    const allowedSorts = ['created_at','first_name','email'];
     const safeSort = allowedSorts.includes(sort) ? sort : 'created_at';
     const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -85,7 +85,7 @@ exports.getUsers = async (req, res) => {
     if (plan && hasPlan) { conditions.push(`p.slug = $${paramIdx++}`); params.push(plan); }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const selectCols = [
-      'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.last_login_at, u.email_verified, u.subscription_status AS user_sub_status'
+      'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.email_verified, u.subscription_status AS user_sub_status'
     ];
     const joins = [];
     if (hasSubs) { joins.push('LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = \'active\''); selectCols.push('s.status AS subscription_status, s.current_period_end'); }
