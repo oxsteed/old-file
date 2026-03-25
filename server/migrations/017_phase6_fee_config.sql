@@ -6,7 +6,7 @@ BEGIN;
 -- feeCalculator.js reads from this table when present,
 -- falls back to hardcoded constants if table is empty.
 
-CREATE TABLE fee_config (
+    CREATE TABLE IF NOT EXISTS fee_config (
   id              SERIAL       PRIMARY KEY,
   key             VARCHAR(100) NOT NULL UNIQUE,
   value           DECIMAL(10,4) NOT NULL,
@@ -71,11 +71,12 @@ VALUES
     'Broker Subscription Monthly Price',
     'Monthly subscription price for Tier 3 (Broker) helpers in cents. $79.00 = 7900. Changes sync to Stripe.',
     2900,
-    29900);
+    29900)
+  ON CONFLICT (key) DO NOTHING;
 
 -- ——— Fee Change History ———————————————————————————
 -- Immutable log of every price change. Never delete.
-CREATE TABLE fee_change_log (
+  CREATE TABLE IF NOT EXISTS fee_change_log (
   id            BIGSERIAL   PRIMARY KEY,
   config_key    VARCHAR(100) NOT NULL,
   old_value     DECIMAL(10,4) NOT NULL,
@@ -86,11 +87,13 @@ CREATE TABLE fee_change_log (
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_fee_change_log_key     ON fee_change_log(config_key);
-CREATE INDEX idx_fee_change_log_created ON fee_change_log(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_fee_change_log_key    ON fee_change_log(config_key);
+  CREATE INDEX IF NOT EXISTS idx_fee_change_log_created ON fee_change_log(created_at DESC);
 
--- Prevent deletion of fee history
-CREATE RULE fee_log_no_delete AS ON DELETE TO fee_change_log
+-- Prevent deletion of fee history (safe if rule already exists)
+DO $$ BEGIN
+  CREATE RULE fee_log_no_delete AS ON DELETE TO fee_change_log
   DO INSTEAD NOTHING;
-
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 COMMIT;
