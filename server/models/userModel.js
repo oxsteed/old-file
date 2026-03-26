@@ -1,5 +1,5 @@
 const db      = require('../db');
-const bcrypt  = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const crypto  = require('crypto');
 const { ROLES } = require('../constants/roles');
 
