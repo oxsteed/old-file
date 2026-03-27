@@ -33,12 +33,13 @@ const {
   saveHelperProfile,
   selectTier,
   submitW9,
-  recordPaymentSetup,
   helperAcceptTerms,
-  verifyHelperOTP,
+  sendOTP: sendHelperOTP,
+  verifyOTP: verifyHelperOTP,
+  updateContact,
+  finalizeRegistration,
   resendHelperOTP
 } = require('../controllers/helperRegistrationController');
-
 // Original routes
 router.post('/register', register);
 router.post('/login', login);
@@ -47,7 +48,6 @@ router.post('/otp/request', requestOTP);
 router.post('/otp/verify', verifyOTP);
 router.post('/refresh', refreshToken);
 router.post('/logout', authenticate, logout);
-
 // Customer registration flow (3-step)
 router.post('/check-email', checkEmail);
 router.post('/check-zip', checkZip);
@@ -56,22 +56,21 @@ router.post('/register/start', startRegistration);
 router.post('/register/accept-terms', acceptTerms);
 router.post('/register/verify-otp', verifyRegistrationOTP);
 router.post('/register/resend-otp', resendRegistrationOTP);
-
-// Helper registration flow (7-step)
+// Helper registration flow (5-step)
 router.get('/helper/categories', getCategories);
 router.post('/helper/register/start', startHelperRegistration);
 router.post('/helper/register/profile', saveHelperProfile);
 router.post('/helper/register/tier', selectTier);
 router.post('/helper/register/w9', submitW9);
-router.post('/helper/register/payment', recordPaymentSetup);
 router.post('/helper/register/accept-terms', helperAcceptTerms);
+router.post('/helper/register/send-otp', sendHelperOTP);
 router.post('/helper/register/verify-otp', verifyHelperOTP);
 router.post('/helper/register/resend-otp', resendHelperOTP);
-
+router.post('/helper/register/update-contact', updateContact);
+router.post('/helper/register/finalize', finalizeRegistration);
 // Settings & Profile routes
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);
 router.post('/resend-verification', authenticate, resendVerification);
-
 module.exports = router;
