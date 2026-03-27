@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 
 interface Props {
   registrationToken: string;
+  firstName: string;
+  lastName: string;
   onSuccess: () => void;
 }
 
@@ -31,10 +33,17 @@ const termsItems = [
   },
 ];
 
-export default function Step2Terms({ registrationToken, onSuccess }: Props) {
+export default function Step2Terms({ registrationToken, firstName, lastName, onSuccess }: Props) {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
-  const [accepted, setAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [brokerAccepted, setBrokerAccepted] = useState(false);
+  const [signatureAccepted, setSignatureAccepted] = useState(false);
+  const [sigFirstName, setSigFirstName] = useState(firstName);
+  const [sigLastName, setSigLastName] = useState(lastName);
   const [loading, setLoading] = useState(false);
+
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -43,11 +52,23 @@ export default function Step2Terms({ registrationToken, onSuccess }: Props) {
     }
   };
 
+  const allAccepted = termsAccepted && privacyAccepted && brokerAccepted && signatureAccepted && sigFirstName.trim() && sigLastName.trim();
+
   const handleAccept = async () => {
-    if (!accepted) return;
+    if (!allAccepted) return;
     setLoading(true);
     try {
-      await api.post('/auth/register/accept-terms', { token: registrationToken });
+      await api.post('/auth/register/accept-terms', {
+        token: registrationToken,
+        termsAccepted,
+        privacyAccepted,
+        brokerAccepted,
+        electronicSignature: {
+          firstName: sigFirstName.trim(),
+          lastName: sigLastName.trim(),
+          date: new Date().toISOString(),
+        },
+      });
       toast.success('Terms accepted. Check your email for verification code.');
       onSuccess();
     } catch (err: any) {
@@ -57,47 +78,112 @@ export default function Step2Terms({ registrationToken, onSuccess }: Props) {
     }
   };
 
+  const inputClass = 'px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition text-sm';
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-white text-center">Terms & Conditions</h2>
-      <p className="text-gray-400 text-center text-sm">Please review our terms of service. Scroll to read all terms.</p>
+    <div>
+      <h2 className="text-2xl font-bold text-center mb-2">Terms & Conditions</h2>
+      <p className="text-gray-400 text-sm text-center mb-6">Please review our terms of service. Scroll to read all terms.</p>
 
       <div
         onScroll={handleScroll}
-        className="max-h-64 overflow-y-auto border border-gray-700 rounded-lg p-4 bg-gray-800/30 space-y-4"
+        className="max-h-64 overflow-y-auto border border-gray-700 rounded-lg p-4 mb-6 bg-gray-900/50"
+        tabIndex={0}
+        role="region"
+        aria-label="Terms and conditions content"
       >
         {termsItems.map((item, idx) => (
-          <div key={idx} className="pb-3 border-b border-gray-700 last:border-0">
-            <h3 className="text-orange-400 font-semibold text-sm">{idx + 1}. {item.title}</h3>
-            <p className="text-gray-300 text-sm mt-1">{item.summary}</p>
+          <div key={idx} className={idx < termsItems.length - 1 ? 'mb-4 pb-4 border-b border-gray-700' : 'mb-2'}>
+            <h3 className="text-orange-400 font-semibold mb-1">{idx + 1}. {item.title}</h3>
+            <p className="text-gray-300 text-sm">{item.summary}</p>
           </div>
         ))}
-        <p className="text-gray-500 text-xs italic">
-          By accepting, a record of your acceptance including timestamp and IP address will be stored for legal enforceability.
-        </p>
       </div>
 
       {!scrolledToBottom && (
-        <p className="text-orange-400 text-xs text-center animate-pulse">
+        <p className="text-yellow-400 text-xs text-center mb-4">
           Please scroll down to read all terms before accepting.
         </p>
       )}
 
-      <label className="flex items-start text-sm text-gray-300">
-        <input
-          type="checkbox"
-          checked={accepted}
-          onChange={(e) => setAccepted(e.target.checked)}
-          disabled={!scrolledToBottom}
-          className="mt-1 mr-3 accent-orange-500"
-        />
-        <span>I have read, understand, and agree to the OxSteed Terms & Conditions, Privacy Policy, and Service Agreement.</span>
-      </label>
+      {/* Individual checkboxes */}
+      <div className="space-y-4 mb-6">
+        <label className="flex items-start gap-2 text-gray-300 text-sm cursor-pointer">
+          <input type="checkbox" checked={termsAccepted}
+            onChange={e => setTermsAccepted(e.target.checked)}
+            disabled={!scrolledToBottom}
+            className="rounded border-gray-600 mt-0.5 accent-orange-500" />
+          <span>I have read and agree to the{' '}
+            <a href="/terms" target="_blank" className="text-orange-400 underline hover:text-orange-300">Terms & Conditions</a>
+            {' '}(effective March 27, 2026).
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2 text-gray-300 text-sm cursor-pointer">
+          <input type="checkbox" checked={privacyAccepted}
+            onChange={e => setPrivacyAccepted(e.target.checked)}
+            disabled={!scrolledToBottom}
+            className="rounded border-gray-600 mt-0.5 accent-orange-500" />
+          <span>I have read and agree to the{' '}
+            <a href="/privacy" target="_blank" className="text-orange-400 underline hover:text-orange-300">Privacy Policy</a>
+            {' '}(effective March 27, 2026).
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2 text-gray-300 text-sm cursor-pointer">
+          <input type="checkbox" checked={brokerAccepted}
+            onChange={e => setBrokerAccepted(e.target.checked)}
+            disabled={!scrolledToBottom}
+            className="rounded border-gray-600 mt-0.5 accent-orange-500" />
+          <span>I understand that OxSteed acts as a connection platform (broker) and is not a party to service agreements unless Tier 3 protection is activated. I accept the{' '}
+            <a href="/terms#liability" target="_blank" className="text-orange-400 underline hover:text-orange-300">Service Agreement & Liability Disclosure</a>.
+          </span>
+        </label>
+
+        {/* Electronic Signature checkbox with name and date */}
+        <div className="border border-gray-700 rounded-lg p-4 bg-gray-900/30">
+          <label className="flex items-start gap-2 text-gray-300 text-sm cursor-pointer mb-3">
+            <input type="checkbox" checked={signatureAccepted}
+              onChange={e => setSignatureAccepted(e.target.checked)}
+              disabled={!scrolledToBottom}
+              className="rounded border-gray-600 mt-0.5 accent-orange-500" />
+            <span>I acknowledge and accept all of the above agreements.</span>
+          </label>
+          <div className="ml-6 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">First Name</label>
+                <input type="text" value={sigFirstName}
+                  onChange={e => setSigFirstName(e.target.value)}
+                  className={inputClass + ' w-full'}
+                  placeholder="First Name" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Last Name</label>
+                <input type="text" value={sigLastName}
+                  onChange={e => setSigLastName(e.target.value)}
+                  className={inputClass + ' w-full'}
+                  placeholder="Last Name" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Date</label>
+              <input type="text" value={today} disabled
+                className={inputClass + ' w-full opacity-60 cursor-not-allowed'} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-gray-500 text-xs text-center mb-4">
+        By accepting, a record of your full name, acceptance timestamp, and IP address will be stored for legal enforceability.
+      </p>
 
       <button
         onClick={handleAccept}
-        disabled={!accepted || loading}
-        className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={!allAccepted || loading}
+        className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg disabled:opacity-50 transition text-lg"
+        title={!allAccepted ? 'Please review and accept all agreements above' : ''}
       >
         {loading ? 'Processing...' : 'I Accept & Continue'}
       </button>
