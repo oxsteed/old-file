@@ -1,17 +1,16 @@
 // Helper Registration Controller
-// Handles the full 7-step helper registration flow
+// Handles the full helper registration flow (new 5-step spec)
 // OxSteed v2
 
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../db');
 const { generateTokens } = require('../middleware/auth');
-const { sendOTPEmail } = require('../utils/email');
+const { sendOTPEmail, sendWelcomeEmail } = require('../utils/email');
 
 const SALT_ROUNDS = 12;
 
 // ── GET CATEGORIES ────────────────────────────────────────
-// Returns the 16 active service categories for multi-select
 async function getCategories(req, res) {
   try {
     const { rows } = await pool.query(
@@ -24,43 +23,118 @@ async function getCategories(req, res) {
   }
 }
 
-// ── STEP 1 → 2: Validate basic info, create pending helper registration ──
+// ── STEP 1: Validate basic info, create pending helper registration ──
 async function startHelperRegistration(req, res) {
   try {
     const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
-    if (!email || !password || !firstName || !lastName || !phone || !zip) {
+    if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ error: 'All fields required' });
     }
     if (!ageConfirmed) {
       return res.status(400).json({ error: 'Age confirmation required' });
     }
-    const phoneClean = phone.replace(/\D/g, '');
-    if (phoneClean.length < 10 || phoneClean.length > 11) {
-      return res.status(400).json({ error: 'Invalid phone number' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
-    const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' });
     }
-    const market = await pool.query(
-      'SELECT id FROM markets WHERE $1 = ANY(zipcodes) AND active = true', [zip]
-    );
-    if (market.rows.length === 0) {
-      return res.status(400).json({ error: 'Service not available in your area' });
-    }
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
+    // Clean up any previous pending registration for this email
     await pool.query('DELETE FROM pending_registrations WHERE email = $1 AND role = $2', [email.toLowerCase(), 'helper']);
+    const phoneClean = phone ? phone.replace(/\D/g, '') : '0000000000';
+    const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
     await pool.query(
       `INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed, role)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'helper')`,
-      [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip, ageConfirmed]
+      [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip || '00000', ageConfirmed]
     );
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
     console.error('Start helper registration error:', err);
     res.status(500).json({ error: 'Registration failed' });
+  }
+}
+
+// ── SEND OTP (called after account setup, before email verification) ──
+async function sendOTP(req, res) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { rows } = await pool.query(
+      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()", [token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    const pending = rows[0];
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await pool.query(
+      'UPDATE pending_registrations SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0 WHERE token = $1',
+      [token, otp, otpExpires]
+    );
+    await sendOTPEmail(pending.email, otp);
+    res.json({ message: 'Verification code sent' });
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    res.status(500).json({ error: 'Failed to send verification code' });
+  }
+}
+
+// ── VERIFY OTP (email verification step) ──
+async function verifyOTP(req, res) {
+  try {
+    const { token, otp } = req.body;
+    if (!token || !otp) return res.status(400).json({ error: 'Token and code required' });
+    const { rows } = await pool.query(
+      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()", [token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    const pending = rows[0];
+    if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
+      return res.status(429).json({ error: 'Too many attempts. Try again later.', lockoutUntil: pending.otp_locked_until });
+    }
+    if (pending.otp_code !== otp || new Date(pending.otp_expires_at) < new Date()) {
+      const newAttempts = (pending.otp_attempts || 0) + 1;
+      if (newAttempts >= 5) {
+        await pool.query(
+          `UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1`,
+          [token, newAttempts]
+        );
+        return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
+      }
+      await pool.query('UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1', [token, newAttempts]);
+      return res.status(400).json({ error: 'Invalid or expired code', attemptsRemaining: 5 - newAttempts });
+    }
+    // Mark email as verified on the pending record
+    await pool.query('UPDATE pending_registrations SET otp_code = NULL, otp_attempts = 0 WHERE token = $1', [token]);
+    res.json({ message: 'Email verified' });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+}
+
+// ── UPDATE CONTACT (phone/zip — collected in Step 4) ──
+async function updateContact(req, res) {
+  try {
+    const { token, phone, zip } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { rows } = await pool.query(
+      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()", [token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    const phoneClean = phone ? phone.replace(/\D/g, '') : '';
+    const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
+    await pool.query(
+      'UPDATE pending_registrations SET phone = $2, zip_code = $3 WHERE token = $1',
+      [token, formattedPhone, zip || '00000']
+    );
+    res.json({ message: 'Contact info updated' });
+  } catch (err) {
+    console.error('Update contact error:', err);
+    res.status(500).json({ error: 'Failed to update contact info' });
   }
 }
 
@@ -79,15 +153,12 @@ async function saveHelperProfile(req, res) {
     if (serviceCategories.length > 8) {
       return res.status(400).json({ error: 'Maximum 8 categories allowed' });
     }
-    if (!profileHeadline || profileHeadline.trim().length === 0) {
-      return res.status(400).json({ error: 'Profile headline required' });
-    }
     await pool.query(
       `UPDATE pending_registrations
        SET profile_headline = $2, bio = $3, service_categories = $4,
            availability_json = $5, service_radius = $6, rate_preference = $7, hourly_rate = $8
        WHERE token = $1`,
-      [token, profileHeadline.trim(), bio || null, serviceCategories,
+      [token, (profileHeadline || '').trim() || null, bio || null, serviceCategories,
        JSON.stringify(availability || {}), serviceRadius || 10, ratePreference || 'per_job', hourlyRate || null]
     );
     res.json({ message: 'Profile saved' });
@@ -132,7 +203,6 @@ async function submitW9(req, res) {
       "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()", [token]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-    // Encrypt TIN with AES-256
     const encKey = process.env.TIN_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(encKey, 'hex').slice(0, 32), iv);
@@ -142,14 +212,6 @@ async function submitW9(req, res) {
     const tinLast4 = tin.replace(/\D/g, '').slice(-4);
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || '';
-    // Store W-9 data in pending_registration metadata (actual record created on account creation)
-    await pool.query(
-      `UPDATE pending_registrations
-       SET profile_headline = COALESCE(profile_headline, $2)
-       WHERE token = $1`,
-      [token, legalName]
-    );
-    // Temporarily store W9 data as JSON in bio field extension — will be committed on account creation
     const w9Payload = JSON.stringify({
       legalName, businessName: businessName || null, taxClassification,
       tinEncrypted: tinEncryptedFull, tinLast4, address,
@@ -166,28 +228,7 @@ async function submitW9(req, res) {
   }
 }
 
-// ── STEP 5: Record payment setup (Stripe handled client-side) ─
-async function recordPaymentSetup(req, res) {
-  try {
-    const { token, stripeCustomerId, subscriptionId, backgroundCheckPaymentIntentId } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
-    const { rows } = await pool.query(
-      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()", [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-    // Store payment info in availability_json for later commit
-    await pool.query(
-      'UPDATE pending_registrations SET availability_json = availability_json || $2::jsonb WHERE token = $1',
-      [token, JSON.stringify({ stripeCustomerId, subscriptionId, backgroundCheckPaymentIntentId })]
-    );
-    res.json({ message: 'Payment setup recorded' });
-  } catch (err) {
-    console.error('Record payment error:', err);
-    res.status(500).json({ error: 'Failed to record payment setup' });
-  }
-}
-
-// ── STEP 6: Accept terms, send OTP ───────────────────────
+// ── ACCEPT TERMS ──────────────────────────────────────────
 async function helperAcceptTerms(req, res) {
   try {
     const { token } = req.body;
@@ -196,55 +237,34 @@ async function helperAcceptTerms(req, res) {
       "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()", [token]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-    const pending = rows[0];
-    const termsVersion = '2026-03-20';
+    const termsVersion = '2026-03-27';
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || '';
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       `UPDATE pending_registrations
-       SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4,
-           otp_code = $5, otp_expires_at = $6, otp_attempts = 0
+       SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4
        WHERE token = $1`,
-      [token, termsVersion, ip, userAgent, otp, otpExpires]
+      [token, termsVersion, ip, userAgent]
     );
-    await sendOTPEmail(pending.email, otp);
-    res.json({ message: 'Terms accepted, OTP sent' });
+    res.json({ message: 'Terms accepted' });
   } catch (err) {
     console.error('Helper accept terms error:', err);
     res.status(500).json({ error: 'Failed to accept terms' });
   }
 }
 
-// ── STEP 6: Verify OTP, create helper account ─────────────
-async function verifyHelperOTP(req, res) {
+// ── FINALIZE: Create helper account from pending registration ──
+async function finalizeRegistration(req, res) {
   try {
-    const { token, otp } = req.body;
-    if (!token || !otp) return res.status(400).json({ error: 'Token and OTP required' });
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
     const { rows } = await pool.query(
       "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()", [token]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
     const pending = rows[0];
-    if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
-      return res.status(429).json({ error: 'Too many attempts. Try again later.', lockoutUntil: pending.otp_locked_until });
-    }
-    if (pending.otp_code !== otp || new Date(pending.otp_expires_at) < new Date()) {
-      const newAttempts = (pending.otp_attempts || 0) + 1;
-      if (newAttempts >= 3) {
-        await pool.query(
-          `UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1`,
-          [token, newAttempts]
-        );
-        return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
-      }
-      await pool.query('UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1', [token, newAttempts]);
-      return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
-    }
-    // Determine user role based on tier
     const tier = pending.selected_tier || 'free';
-    const userRole = tier === 'free' ? 'helper' : tier === 'basic' ? 'helper' : 'helper_pro';
+    const userRole = 'helper';
     const referralCode = crypto.randomBytes(6).toString('hex');
     const userResult = await pool.query(
       `INSERT INTO users (
@@ -267,11 +287,8 @@ async function verifyHelperOTP(req, res) {
     await pool.query(
       `INSERT INTO helper_profiles (
         user_id, tier, profile_headline, bio_long, service_radius_miles,
-        availability_json, rate_preference, hourly_rate_min,
-        service_zip, market_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,
-        (SELECT id FROM markets WHERE $9 = ANY(zipcodes) AND active = true LIMIT 1)
-      )`,
+        availability_json, rate_preference, hourly_rate_min, service_zip
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [
         user.id, tier,
         pending.profile_headline || null,
@@ -327,13 +344,17 @@ async function verifyHelperOTP(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail({ email: pending.email, first_name: pending.first_name }).catch(err =>
+      console.error('Welcome email error (non-fatal):', err)
+    );
     res.status(201).json({
       user: { id: user.id, email: user.email, role: user.role, tier },
       ...tokens
     });
   } catch (err) {
-    console.error('Verify helper OTP error:', err);
-    res.status(500).json({ error: 'Verification failed' });
+    console.error('Finalize registration error:', err);
+    res.status(500).json({ error: 'Registration failed' });
   }
 }
 
@@ -366,11 +387,13 @@ async function resendHelperOTP(req, res) {
 module.exports = {
   getCategories,
   startHelperRegistration,
+  sendOTP,
+  verifyOTP,
+  updateContact,
   saveHelperProfile,
   selectTier,
   submitW9,
-  recordPaymentSetup,
   helperAcceptTerms,
-  verifyHelperOTP,
-  resendHelperOTP
+  finalizeRegistration,
+  resendHelperOTP,
 };

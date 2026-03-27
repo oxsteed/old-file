@@ -95,13 +95,14 @@ export default function HelperRegister() {
         return (
           <Step3TheFork
             onContinue={() => setStep(4)}
-            onFinishLater={() => navigate('/helper/dashboard')}
+            onFinishLater={() => navigate('/helper-dashboard')}
           />
         );
       case 4:
         return (
           <Step4ProfileLocation
             token={registrationToken}
+            onBack={() => setStep(3)}
             onSuccess={(data) => {
               updateFormData(data);
               setStep(5);
@@ -112,6 +113,7 @@ export default function HelperRegister() {
         return (
           <Step5ChoosePlan
             token={registrationToken}
+            onBack={() => setStep(4)}
             onSuccess={(tier: string) => {
               setSelectedTier(tier);
               if (tier === 'free') {
@@ -126,6 +128,7 @@ export default function HelperRegister() {
         return (
           <Step6TaxInfo
             token={registrationToken}
+            onBack={() => setStep(5)}
             onSuccess={(data) => {
               updateFormData(data);
               setStep(7);
@@ -140,7 +143,7 @@ export default function HelperRegister() {
             selectedTier={selectedTier}
             onEdit={(targetStep: number) => setStep(targetStep)}
             onSuccess={() => {
-              navigate('/helper/dashboard', { state: { message: 'Welcome to OxSteed!' } });
+              navigate('/helper-dashboard', { state: { message: 'Welcome to OxSteed!' } });
             }}
           />
         );
@@ -250,8 +253,8 @@ export default function HelperRegister() {
               <li><Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link></li>
               <li><Link to="/security" className="hover:text-white transition">Security Policy</Link></li>
               <li><Link to="/accessibility" className="hover:text-white transition">Accessibility</Link></li>
-              <li><Link to="/cookiepolicy" className="hover:text-white transition">Cookie Policy</Link></li>
-              <li><Link to="/donotsell" className="hover:text-white transition">Do Not Sell My Info</Link></li>
+              <li><Link to="/cookie-policy" className="hover:text-white transition">Cookie Policy</Link></li>
+              <li><Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link></li>
             </ul>
           </div>
           <div>
