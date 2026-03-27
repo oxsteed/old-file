@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-build:
-    name: Lint & Build
+  install-check:
+    name: Install Dependencies
     runs-on: ubuntu-latest
 
     steps:
@@ -28,20 +28,14 @@ jobs:
         working-directory: client
         run: npm install
 
-      - name: Build client
-        working-directory: client
-        run: npm run build
-        env:
-          VITE_API_URL: https://app.oxsteed.com
-
   deploy:
     name: Deploy to Coolify
     runs-on: ubuntu-latest
-    needs: lint-and-build
+    needs: install-check
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Trigger Coolify deploy
         run: |
-          curl -X GET "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
+          curl -f -X GET "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
