@@ -53,14 +53,14 @@ export default function HelperRegister() {
       case 2:
         return (
           <Step2Profile
-            registrationToken={registrationToken}
+            token={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 3:
         return (
           <Step3TierSelection
-            registrationToken={registrationToken}
+            token={registrationToken}
             onSuccess={(tier: string) => {
               setSelectedTier(tier);
               if (tier === 'free') {
@@ -74,28 +74,28 @@ export default function HelperRegister() {
       case 4:
         return (
           <Step4W9
-            registrationToken={registrationToken}
+            token={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 5:
         return (
           <Step5Payment
-            registrationToken={registrationToken}
+            token={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 6:
         return (
           <Step6Terms
-            registrationToken={registrationToken}
+            token={registrationToken}
             onSuccess={() => nextStep()}
           />
         );
       case 7:
         return (
           <Step7OTPVerification
-            registrationToken={registrationToken}
+            token={registrationToken}
             onSuccess={() => {
               navigate('/login', { state: { message: 'Registration complete! Please log in.' } });
             }}
