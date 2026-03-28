@@ -110,7 +110,7 @@ export default function Step7ReviewComplete({ token, formData, selectedTier, onE
 
       <Section title="Plan" step={5}>
         <p className="text-orange-400 font-medium">
-          {selectedTier === 'pro' ? 'Pro — $29.99/mo' : 'Free'}
+          {selectedTier === 'pro' ? 'Pro — $19.99/mo' : 'Free'}
         </p>
       </Section>
 
