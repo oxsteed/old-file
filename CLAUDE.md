@@ -1,4 +1,17 @@
-# CLAUDE.md — OxSteed V2
+# CLAUDE.md — OxSteed
+
+> ⚠️ **IMPORTANT FOR AI TOOLS (Claude Code, Copilot, Cursor, etc.)**
+>
+> This repository is the **current working prototype** built with:
+> - **Backend**: Express.js (plain JavaScript, CommonJS)
+> - **Database**: PostgreSQL with **raw SQL** (no ORM)
+> - **Frontend**: React (JavaScript, not TypeScript) + Vite → deployed to Cloudflare Pages
+>
+> The "Target Architecture" section further down in this file describes a **future planned rewrite** using Hono (TypeScript) + Drizzle ORM. That version **does not exist yet**.
+>
+> **When generating code for this repo, use Express.js + plain JS + raw SQL (pg client) unless explicitly told otherwise.**
+
+---
 
 ## Business Model
 OxSteed is a local home-services marketplace. Customers post jobs. Helpers bid on them. OxSteed takes a fee. We are a BROKER — not an employer. Helpers are independent contractors.
@@ -19,48 +32,57 @@ Launch market: Springfield, Ohio (45501-45506 ZIP codes). All geo-search default
 
 ---
 
-## Technical Architecture
+## Current Technical Architecture (What Actually Exists)
+
+> **This is what Claude Code and other AI tools should use when generating or modifying code in this repo.**
 
 ### Stack
-- **Frontend**: React + TypeScript + Vite → deployed to Cloudflare Pages
-- **Backend**: Hono (TypeScript) → deployed via Coolify on Hetzner CX22, accessed through Cloudflare Tunnel
-- **Database**: PostgreSQL 16 on Coolify (same Hetzner server)
-- **Search**: Meilisearch on Coolify → indexed helper profiles, jobs
+- **Frontend**: React (JavaScript) + Vite → deployed to Cloudflare Pages
+- **Backend**: Express.js (plain JavaScript / CommonJS) → deployed via Coolify on Hetzner CX22, accessed through Cloudflare Tunnel
+- **Database**: PostgreSQL 16 — queries written as **raw SQL** using the `pg` (node-postgres) client. No ORM.
 - **Auth**: JWT stored in Cloudflare KV. Email/password. Resend for transactional email.
 - **Payments**: Stripe Connect (Express accounts for helpers). Stripe Checkout for Pro subscriptions.
 - **Background checks**: Checkr API with FCRA adverse action compliance
 - **File storage**: Cloudflare R2 (profile photos, invoices)
 - **Automation**: n8n on Coolify (timed workflows, AI pipelines)
 - **SMS**: Plivo
+- **Search**: Meilisearch on Coolify → indexed helper profiles, jobs
 - **Monitoring**: Uptime Kuma on Coolify
 - **Analytics**: Plausible (self-hosted on Coolify)
 
-### Monorepo Structure
+### Current Repo Structure
 ```
-oxsteed-v2/
+oxsteed/
 ├── CLAUDE.md              ← you are here
-├── packages/
-│   ├── api/               ← Hono backend
-│   │   └── src/
-│   │       ├── index.ts
-│   │       ├── routes/
-│   │       ├── middleware/
-│   │       ├── services/
-│   │       ├── db/
-│   │       │   ├── schema.ts    ← Drizzle ORM schema
-│   │       │   └── migrations/
-│   │       └── lib/
-│   └── web/               ← React frontend
-│       └── src/
-│           ├── pages/
-│           ├── components/
-│           ├── hooks/
-│           ├── lib/
-│           └── stores/
-├── package.json           ← npm workspaces root
-└── .github/
-    └── workflows/         ← CI/CD
+├── server/                ← Express.js backend (plain JS)
+│   ├── index.js
+│   ├── routes/
+│   ├── middleware/
+│   ├── services/
+│   └── db/
+│       └── queries/       ← raw SQL helper functions (pg client)
+├── client/                ← React frontend (plain JS/JSX)
+│   └── src/
+│       ├── pages/
+│       ├── components/
+│       ├── hooks/
+│       └── lib/
+└── package.json
 ```
+
+### Coding Rules (Current Stack)
+1. **Plain JavaScript (CommonJS).** No TypeScript in this repo yet.
+2. **Raw SQL via `pg` client.** No ORM — write SQL directly. Use parameterized queries always (`$1, $2` placeholders). Never concatenate user input into SQL strings.
+3. **Functional React components only.** No class components.
+4. **No CSS modules or styled-components.** Use Tailwind CSS or plain CSS.
+5. **Input validation with express-validator or manual checks.** No Zod in current stack.
+6. **Never expose secrets.** No API keys in frontend. Use server-side env vars only.
+7. **Address safety rule.** NEVER return customer address to helper unless bid accepted AND within 12 hours of job start.
+8. **Broker language.** We are a broker/marketplace, NOT an employer. Use "helper" not "employee". Use "service fee" not "wage".
+9. **All monetary values in cents.** Store as integer. Display conversion in frontend.
+10. **UTC timestamps.** All dates stored as UTC. Frontend converts to user's local timezone.
+11. **Soft deletes.** Use `deleted_at` timestamp instead of hard DELETE for users, jobs, bids.
+12. **FCRA compliance.** Background check results must follow adverse action workflow: pre-adverse notice → 5 business day wait → adverse action notice.
 
 ---
 
@@ -73,11 +95,11 @@ oxsteed-v2/
 
 ---
 
-## Database Conventions
-- Use Drizzle ORM for type-safe queries
-- All tables have: id (UUID, primary key), created_at (timestamp), updated_at (timestamp)
-- Soft deletes where appropriate (deleted_at timestamp)
-- Enums for status fields (job_status, bid_status, payment_status, etc.)
+## Database Conventions (Raw SQL / pg client)
+- All queries use parameterized placeholders (`$1`, `$2`, etc.) — never string interpolation
+- All tables have: `id` (UUID, primary key), `created_at` (timestamptz), `updated_at` (timestamptz)
+- Soft deletes where appropriate (`deleted_at` timestamptz, nullable)
+- Enums implemented as PostgreSQL `CHECK` constraints or `ENUM` types for status fields
 - Indexes on all foreign keys and commonly filtered columns
 
 ### Core Tables
@@ -150,24 +172,6 @@ NODE_ENV=production
 
 ---
 
-## Coding Rules (for Claude Code)
-1. **TypeScript everywhere.** No `any` types. Use `unknown` + type guards if needed.
-2. **Functional components only.** No class components in React.
-3. **Tailwind CSS for all styling.** No CSS modules, no styled-components.
-4. **Drizzle ORM only.** No raw SQL unless Drizzle cannot express the query.
-5. **Zod for all input validation.** Every API endpoint validates request body/params with Zod.
-6. **Error boundaries in React.** Every page-level component wraps in ErrorBoundary.
-7. **Never expose secrets.** No API keys in frontend code. Use server-side env vars only.
-8. **Address safety rule.** NEVER return customer address to helper unless bid accepted AND within 12 hours of job start.
-9. **Broker language.** We are a broker/marketplace, NOT an employer. Use "helper" not "employee". Use "service fee" not "wage".
-10. **Sequential migrations.** Name migration files: `001_create_users.sql`, `002_create_jobs.sql`, etc.
-11. **All monetary values in cents.** Store as integer. Display conversion happens in frontend.
-12. **UTC timestamps.** All dates stored as UTC. Frontend converts to user's local timezone.
-13. **Soft deletes.** Use deleted_at timestamp instead of hard DELETE for users, jobs, bids.
-14. **FCRA compliance.** Background check results must follow adverse action workflow: pre-adverse notice → 5 business day wait → adverse action notice.
-
----
-
 ## Key Business Rules (enforce in ALL generated code)
 1. OxSteed is a broker. Never generate language implying employment relationship.
 2. Address reveal: ONLY after bid accepted AND within 12 hours of job start.
@@ -186,7 +190,7 @@ NODE_ENV=production
 |------|-------------|--------|
 | 1-4 | Infrastructure (Hetzner, Coolify, Cloudflare, services) | ✅ Done |
 | 5-7 | GitHub + CI/CD | ✅ Done |
-| 8 | PostgreSQL Schema (Drizzle ORM) | 🔜 Week 2-3 |
+| 8 | PostgreSQL Schema (raw SQL migrations) | 🔜 Week 2-3 |
 | 9 | Auth System (JWT, register, login, email verify) | 🔜 Week 2-3 |
 | 10 | Job Posting + Browsing | 🔜 Week 4 |
 | 11 | Bidding System | 🔜 Week 5 |
@@ -203,3 +207,52 @@ NODE_ENV=production
 | 22 | Mobile Responsiveness + PWA | 🔜 Week 17 |
 | 23 | Load Testing + Security Audit | 🔜 Week 18 |
 | 24 | Launch Prep + Marketing | 🔜 Week 19-20 |
+
+---
+
+## Target Architecture (Future V2 Rewrite — NOT YET BUILT)
+
+> **This section is for planning purposes only. Do NOT use these patterns when generating code for the current repo.**
+>
+> The plan is to eventually rewrite the backend in Hono (TypeScript) with Drizzle ORM once the prototype is validated. This is a future migration, not the current state.
+
+### Planned V2 Stack
+- **Backend**: Hono (TypeScript) → same Coolify/Hetzner infra
+- **ORM**: Drizzle ORM (type-safe queries, schema-driven migrations)
+- **Frontend**: React + TypeScript + Vite (same Cloudflare Pages)
+
+### Planned V2 Monorepo Structure
+```
+oxsteed-v2/
+├── CLAUDE.md
+├── packages/
+│   ├── api/               ← Hono backend (TypeScript)
+│   │   └── src/
+│   │       ├── index.ts
+│   │       ├── routes/
+│   │       ├── middleware/
+│   │       ├── services/
+│   │       ├── db/
+│   │       │   ├── schema.ts    ← Drizzle ORM schema
+│   │       │   └── migrations/
+│   │       └── lib/
+│   └── web/               ← React frontend (TypeScript)
+│       └── src/
+│           ├── pages/
+│           ├── components/
+│           ├── hooks/
+│           ├── lib/
+│           └── stores/
+├── package.json           ← npm workspaces root
+└── .github/
+    └── workflows/         ← CI/CD
+```
+
+### Planned V2 Coding Rules
+1. **TypeScript everywhere.** No `any` types. Use `unknown` + type guards if needed.
+2. **Drizzle ORM only.** No raw SQL unless Drizzle cannot express the query.
+3. **Zod for all input validation.** Every API endpoint validates request body/params with Zod.
+4. **Functional components only.** No class components in React.
+5. **Tailwind CSS for all styling.**
+6. **Error boundaries in React.** Every page-level component wraps in ErrorBoundary.
+7. **Sequential migrations.** Name migration files: `001_create_users.sql`, `002_create_jobs.sql`, etc.
