@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 const pool = require('./db');
 const socketService = require('./services/socketService');
@@ -39,9 +40,7 @@ const messageRoutes = require('./routes/messages');
 
 const app = express();
 const httpServer = http.createServer(app);
-
 app.set('trust proxy', 1); // Required for Render reverse proxy
-
 const PORT = process.env.PORT || 5000;
 
 // ── SOCKET.IO ─────────────────────────────────────────────────
@@ -52,12 +51,26 @@ const io = new Server(httpServer, {
   },
 });
 
-io.on('connection', (socket) => {
-  const userId = socket.handshake.query.userId;
-  if (userId) {
-    socket.join(`user_${userId}`);
-    console.log(`[Socket] User ${userId} connected (socket ${socket.id})`);
+// Socket.IO authentication middleware - verify JWT before allowing connection
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token || socket.handshake.query.token;
+  if (!token) {
+    return next(new Error('Authentication required'));
   }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    next();
+  } catch (err) {
+    return next(new Error('Invalid token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const userId = socket.userId;
+  socket.join(`user_${userId}`);
+  console.log(`[Socket] User ${userId} connected (socket ${socket.id})`);
+
   socket.on('disconnect', () => {
     console.log(`[Socket] Socket ${socket.id} disconnected`);
   });
