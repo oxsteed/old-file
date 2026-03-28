@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const authenticate = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/auth');
 const { createConnectAccount, getConnectStatus, createPaymentIntent, capturePayment, refundPayment, getJobPayment, getMyPayments } = require('../controllers/paymentController');
 
 // Connect account
