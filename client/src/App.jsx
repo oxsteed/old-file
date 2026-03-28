@@ -21,6 +21,7 @@ import DoNotSellPage from './pages/donotsell';
 import SecurityPage from './pages/security';
 import CookiePolicyPage from './pages/cookiepolicy';
 import AccessibilityPage from './pages/accessibility';
+import HowItWorksPage from './pages/HowItWorks';
 import AboutPage from './pages/about';
 import ForgotPasswordPage from './pages/ForgotPassword';
 import ResetPasswordPage from './pages/ResetPassword';
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/register/helper" element={<HelperRegister />} />
               <Route
+                <Route path="/how-it-works" element={<HowItWorksPage />} />
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
