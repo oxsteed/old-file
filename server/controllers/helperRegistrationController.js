@@ -218,7 +218,7 @@ async function submitW9(req, res) {
       signatureData, ip, userAgent, signedAt: new Date().toISOString()
     });
     await pool.query(
-      'UPDATE pending_registrations SET availability_json = COALESCE(availability_json, '{}'::jsonb) || $2::jsonb WHERE token = $1',
+      `UPDATE pending_registrations SET availability_json = COALESCE(availability_json, '{}'::jsonb) || $2::jsonb WHERE token = $1`,
       [token, JSON.stringify({ w9Pending: w9Payload })]
     );
     res.json({ message: 'W-9 submitted', tinLast4 });
@@ -283,7 +283,18 @@ async function finalizeRegistration(req, res) {
     );
     const user = userResult.rows[0];
     // Create helper_profile record
-    const metaJson = pending.availability_json || {};
+    let metaJson = {};
+try {
+  const raw = pending.availability_json;
+  if (raw && typeof raw === 'string') {
+    metaJson = JSON.parse(raw);
+  } else if (raw && typeof raw === 'object') {
+    metaJson = raw;
+  }
+} catch (err) {
+  console.error('Failed to parse availability_json:', err);
+  metaJson = {};
+}
     await pool.query(
       `INSERT INTO helper_profiles (
         user_id, tier, profile_headline, bio_long, service_radius_miles,
@@ -345,9 +356,13 @@ async function finalizeRegistration(req, res) {
       [user.id, tokens.refreshToken]
     );
     // Send welcome email (non-blocking)
-    sendWelcomeEmail({ email: pending.email, first_name: pending.first_name }).catch(err =>
-      console.error('Welcome email error (non-fatal):', err)
-    );
+    if (typeof sendWelcomeEmail === 'function') {
+  sendWelcomeEmail({ email: pending.email, first_name: pending.first_name }).catch(err =>
+    console.error('Welcome email error (non-fatal):', err)
+  );
+} else {
+  console.warn('sendWelcomeEmail not available — skipping welcome email');
+}
     res.status(201).json({
       user: { id: user.id, email: user.email, role: user.role, tier },
       ...tokens
