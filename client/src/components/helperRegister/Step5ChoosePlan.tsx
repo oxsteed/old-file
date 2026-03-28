@@ -15,11 +15,11 @@ const plans = [
     cta: 'Start Free',
   },
   {
-    id: 'pro', name: 'Pro', price: '$29.99', period: '/mo', badge: 'Most Popular',
+    id: 'pro', name: 'Pro', price: '$19.99', period: '/mo', badge: 'Most Popular',
     description: 'Stand out, get verified, earn more',
     features: [
       'Everything in Free', 'Verified badge on profile', 'Priority search placement',
-      'Background check included', 'Instant payouts', 'Monthly analytics',
+      'Background check included', 'Monthly analytics',
     ],
     cta: 'Go Pro',
   },
