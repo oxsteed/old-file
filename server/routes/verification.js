@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const authenticate = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/verificationController');
 
 // Background check (requires auth)
