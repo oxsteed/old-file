@@ -1,52 +1,45 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const authenticate = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/auth');
 /**
  * CCPA/CPRA Privacy Rights Routes
  * Provides data export, account deletion, and data portability
  * endpoints required by California and other state privacy laws.
  */
-
 // GET /api/privacy/export - Export all user data (CCPA right to know)
 router.get('/export', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
-
     // Gather all user data across tables
-    const [userResult] = await pool.query(
+    const userResult = await pool.query(
       `SELECT id, name, email, phone, role, city, state, zip_code,
               bio, skills, hourly_rate, availability, profile_photo,
               subscription_tier, created_at, updated_at
        FROM users WHERE id = $1`,
       [userId]
     );
-
     const jobsResult = await pool.query(
       `SELECT id, title, description, category, budget, status, created_at
        FROM jobs WHERE customer_id = $1 OR helper_id = $1`,
       [userId]
     );
-
     const bidsResult = await pool.query(
       `SELECT id, job_id, amount, message, status, created_at
        FROM bids WHERE helper_id = $1`,
       [userId]
     );
-
     const reviewsResult = await pool.query(
       `SELECT id, job_id, rating, comment, created_at
        FROM reviews WHERE reviewer_id = $1 OR reviewee_id = $1`,
       [userId]
     );
-
     const consentsResult = await pool.query(
       `SELECT consent_type, version, accepted_at
        FROM user_consents WHERE user_id = $1
        ORDER BY accepted_at DESC`,
       [userId]
     );
-
     const exportData = {
       exportDate: new Date().toISOString(),
       exportType: 'CCPA Data Export',
@@ -56,13 +49,11 @@ router.get('/export', authenticate, async (req, res) => {
       reviews: reviewsResult.rows,
       consents: consentsResult.rows,
     };
-
     // Remove sensitive fields
     if (exportData.user) {
       delete exportData.user.password_hash;
       delete exportData.user.otp_secret;
     }
-
     res.setHeader('Content-Type', 'application/json');
     res.setHeader(
       'Content-Disposition',
@@ -74,34 +65,29 @@ router.get('/export', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to export data. Please try again.' });
   }
 });
-
 // DELETE /api/privacy/delete-account - Request account deletion (CCPA right to delete)
 router.delete('/delete-account', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
     const { confirmation } = req.body;
-
     if (confirmation !== 'DELETE MY ACCOUNT') {
       return res.status(400).json({
         error: 'Please type "DELETE MY ACCOUNT" to confirm.',
       });
     }
-
     // Check for active escrow/Tier 3 jobs
     const activeJobs = await pool.query(
       `SELECT id FROM jobs
        WHERE (customer_id = $1 OR helper_id = $1)
-         AND status IN ('in_progress', 'escrow_held')`,
+       AND status IN ('in_progress', 'escrow_held')`,
       [userId]
     );
-
     if (activeJobs.rows.length > 0) {
       return res.status(409).json({
         error: 'Cannot delete account while you have active jobs or held escrow funds. Please resolve all active jobs first.',
         activeJobIds: activeJobs.rows.map((j) => j.id),
       });
     }
-
     // Soft-delete: anonymize PII but keep records for legal/financial compliance
     await pool.query(
       `UPDATE users SET
@@ -120,14 +106,12 @@ router.delete('/delete-account', authenticate, async (req, res) => {
        WHERE id = $1`,
       [userId]
     );
-
     // Log the deletion request for audit
     await pool.query(
       `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
        VALUES ($1, 'account_deletion', '1.0', $2, $3)`,
       [userId, req.ip, req.headers['user-agent'] || 'unknown']
     );
-
     res.json({
       message: 'Your account has been scheduled for deletion. Personal data has been anonymized. Some records may be retained for legal and financial compliance purposes as described in our Privacy Policy.',
     });
@@ -136,7 +120,6 @@ router.delete('/delete-account', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to process deletion request.' });
   }
 });
-
 // GET /api/privacy/data-categories - List categories of data collected (CCPA disclosure)
 router.get('/data-categories', (req, res) => {
   res.json({
@@ -157,5 +140,4 @@ router.get('/data-categories', (req, res) => {
     ],
   });
 });
-
 module.exports = router;
