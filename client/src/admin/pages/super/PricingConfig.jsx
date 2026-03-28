@@ -7,9 +7,9 @@ export default function PricingConfig() {
   const [form, setForm] = useState({
     tier1_price: '0',
     tier1_label: 'Free',
-    tier2_price: '29.99',
+    tier2_price: '19.99',
     tier2_label: '/month',
-    tier3_price: '5%',
+    tier3_price: 'up to 17%',
     tier3_label: 'per transaction'
   });
   const [saved, setSaved] = useState(false);
