@@ -1,11 +1,10 @@
 const router      = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
-const reviewCtrl  = require('../controllers/reviewController');
+const reviewCtrl = require('../controllers/reviewController');
 
 // Public
-router.get('/users/:userId',          reviewCtrl.getUserReviews);
-router.get('/user/:userId',          reviewCtrl.getUserReviews);
+router.get('/users/:userId', reviewCtrl.getUserReviews);
 
 // Authenticated
 router.post('/jobs/:jobId',
