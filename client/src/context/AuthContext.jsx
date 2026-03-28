@@ -15,66 +15,77 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const clearAuthState = useCallback(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setUser(null);
+  }, []);
+
+  const persistUser = useCallback((nextUser) => {
+    setUser(nextUser);
+    localStorage.setItem('user', JSON.stringify(nextUser));
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('accessToken');
       const savedUser = localStorage.getItem('user');
-      if (token && savedUser) {
+
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      if (savedUser) {
         try {
-          const parsed = JSON.parse(savedUser);
-          setUser(parsed);
-          setIsAuthenticated(true);
-          // Fetch full profile to get email_verified and other fresh data
-          try {
-            const res = await api.get('/auth/me');
-            const fullUser = res.data;
-            setUser(fullUser);
-            localStorage.setItem('user', JSON.stringify(fullUser));
-          } catch (err) {
-            // If /auth/me fails (token expired etc), keep cached user
-            console.warn('Could not refresh user profile:', err?.response?.status);
-          }
+          setUser(JSON.parse(savedUser));
         } catch {
           localStorage.removeItem('user');
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
         }
       }
-      setLoading(false);
+
+      try {
+        const res = await api.get('/auth/me');
+        const fullUser = res.data.user ?? res.data;
+        persistUser(fullUser);
+      } catch (err) {
+        console.warn('Could not refresh user profile:', err?.response?.status);
+        clearAuthState();
+      } finally {
+        setLoading(false);
+      }
     };
+
     initAuth();
-  }, []);
+  }, [clearAuthState, persistUser]);
 
   const login = useCallback(async (credentials) => {
     const { data } = await authAPI.login(credentials);
+
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    setUser(data.user);
-    setIsAuthenticated(true);
-    // Fetch full profile after login to hydrate email_verified etc.
+    persistUser(data.user);
+
     try {
       const res = await api.get('/auth/me');
-      const fullUser = res.data;
-      setUser(fullUser);
-      localStorage.setItem('user', JSON.stringify(fullUser));
+      const fullUser = res.data.user ?? res.data;
+      persistUser(fullUser);
+      return { ...data, user: fullUser };
     } catch (err) {
-      console.warn('Could not fetch full profile after login:', err);
+      console.warn('Could not fetch full profile after login:', err?.response?.status);
+      return data;
     }
-    return data;
-  }, []);
+  }, [persistUser]);
 
   const register = useCallback(async (userData) => {
     const { data } = await authAPI.register(userData);
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    setUser(data.user);
-    setIsAuthenticated(true);
+    persistUser(data.user);
     return data;
-  }, []);
+  }, [persistUser]);
 
   const logout = useCallback(async () => {
     try {
@@ -85,13 +96,9 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      setUser(null);
-      setIsAuthenticated(false);
+      clearAuthState();
     }
-  }, []);
+  }, [clearAuthState]);
 
   const requestOTP = useCallback(async (data) => {
     return authAPI.requestOTP(data);
@@ -100,28 +107,27 @@ export function AuthProvider({ children }) {
   const verifyOTP = useCallback(async (data) => {
     const response = await authAPI.verifyOTP(data);
     if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      setUser(response.data.user);
+      persistUser(response.data.user);
     }
     return response;
-  }, []);
+  }, [persistUser]);
 
   const refreshUser = useCallback(async () => {
     try {
       const res = await api.get('/auth/me');
-      const fullUser = res.data;
-      setUser(fullUser);
-      localStorage.setItem('user', JSON.stringify(fullUser));
+      const fullUser = res.data.user ?? res.data;
+      persistUser(fullUser);
       return fullUser;
     } catch (err) {
       console.error('refreshUser error:', err);
+      throw err;
     }
-  }, []);
+  }, [persistUser]);
 
   const value = {
     user,
     loading,
-    isAuthenticated,
+    isAuthenticated: !!user,
     login,
     register,
     logout,
