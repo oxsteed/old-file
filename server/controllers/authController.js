@@ -412,8 +412,8 @@ async function getPublicProfile(req, res) {
     const { id } = req.params;
     const { rows } = await pool.query(
       `SELECT id, first_name, last_name, role, tier, zip_code,
-              headline, typical_rate, categories, availability_days, created_at
-       FROM users WHERE id = $1 AND deleted_at IS NULL`,
+              hp.headline, hp.typical_rate, hp.categories, hp.availability_days, users.created_at
+       FROM users LEFT JOIN helper_profiles hp ON hp.user_id = users.id WHERE users.id = $1 AND users.deleted_at IS NULL`,
       [id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
