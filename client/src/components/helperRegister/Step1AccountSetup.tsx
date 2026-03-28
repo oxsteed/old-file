@@ -54,7 +54,7 @@ export default function Step1AccountSetup({ onSuccess }: Props) {
     if (!validate()) return;
     setLoading(true);
     try {
-      const res = await api.post('/api/helper-registration/start', {
+              const res = await api.post('/auth/helper/register/start', {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         firstName: form.firstName.trim(),
