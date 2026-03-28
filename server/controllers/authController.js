@@ -415,7 +415,7 @@ async function getPublicProfile(req, res) {
   hp.profile_headline, hp.bio_long, hp.hourly_rate_min,
   hp.service_radius_miles, hp.rate_preference, hp.tier AS helper_tier,
   hp.availability_json, users.created_at
-  FROM users LEFT JOIN helper_profiles hp ON hp.user_id = users.id WHERE users.id = $1 AND users.deleted_at IS NULL`
+  FROM users LEFT JOIN helper_profiles hp ON hp.user_id = users.id WHERE users.id = $1 AND users.deleted_at IS NULL`,
       [id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
