@@ -57,8 +57,8 @@ export default function App() {
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/register/helper" element={<HelperRegister />} />
-              <Route
-                <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
