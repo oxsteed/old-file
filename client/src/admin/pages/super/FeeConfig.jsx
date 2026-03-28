@@ -203,8 +203,8 @@ export default function FeeConfig() {
 
   const load = () => {
     Promise.all([
-      api.get('/api/admin/fees'),
-      api.get('/api/admin/fees/history'),
+      api.get('/admin/fees'),
+      api.get('/admin/fees/history'),
     ]).then(([cfgRes, histRes]) => {
       setConfig(cfgRes.data.config);
       setHistory(histRes.data.history);
@@ -217,7 +217,7 @@ export default function FeeConfig() {
   const handleReset = async () => {
     setResetting(true);
     try {
-      await api.post('/api/admin/fees/reset', {
+      await api.post('/admin/fees/reset', {
         reason: resetReason || 'Manual reset to defaults',
       });
       setShowReset(false);

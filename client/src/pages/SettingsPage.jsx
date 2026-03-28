@@ -16,14 +16,14 @@ export default function SettingsPage() {
   const [showDelete, setShowDelete] = useState(false);
 
   useEffect(() => {
-    api.get('/api/auth/me').then(r => { setProfile(r.data); setLoading(false); }).catch(() => setLoading(false));
+    api.get('/auth/me').then(r => { setProfile(r.data); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
   const saveProfile = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.put('/api/auth/profile', profile);
+      await api.put('/auth/profile', profile);
       toast.success('Profile updated');
     } catch (err) { toast.error(err.response?.data?.error || 'Failed to update'); }
     setSaving(false);
@@ -34,7 +34,7 @@ export default function SettingsPage() {
     if (passwords.newPass !== passwords.confirm) return toast.error('Passwords do not match');
     if (passwords.newPass.length < 8) return toast.error('Password must be at least 8 characters');
     try {
-      await api.put('/api/auth/change-password', { currentPassword: passwords.current, newPassword: passwords.newPass });
+      await api.put('/auth/change-password', { currentPassword: passwords.current, newPassword: passwords.newPass });
       toast.success('Password changed');
       setPasswords({ current: '', newPass: '', confirm: '' });
     } catch (err) { toast.error(err.response?.data?.error || 'Failed to change password'); }
@@ -42,7 +42,7 @@ export default function SettingsPage() {
 
   const deleteAccount = async () => {
     try {
-      await api.delete('/api/privacy/delete-account');
+      await api.delete('/privacy/delete-account');
       toast.success('Account deleted');
       logout();
       navigate('/');
@@ -108,7 +108,7 @@ export default function SettingsPage() {
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
           <h2 className="text-xl font-semibold mb-4">Your Data</h2>
           <p className="text-gray-400 mb-4">Download a copy of all your data as required by GDPR/CCPA.</p>
-          <button onClick={() => { api.get('/api/privacy/export').then(r => { const blob = new Blob([JSON.stringify(r.data, null, 2)]); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my-data.json'; a.click(); toast.success('Data exported'); }).catch(() => toast.error('Export failed')); }} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">Export My Data</button>
+          <button onClick={() => { api.get('/privacy/export').then(r => { const blob = new Blob([JSON.stringify(r.data, null, 2)]); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my-data.json'; a.click(); toast.success('Data exported'); }).catch(() => toast.error('Export failed')); }} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">Export My Data</button>
         </div>
 
         {/* Delete Account */}

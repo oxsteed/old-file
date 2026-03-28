@@ -31,7 +31,7 @@ export default function TermsGate({ children }: TermsGateProps) {
 
   const checkConsent = async () => {
     try {
-      const { data } = await axios.get('/api/consent/status');
+      const { data } = await axios.get('/consent/status');
       setOutstanding(data.outstanding || []);
     } catch {
       setOutstanding([]);
@@ -43,7 +43,7 @@ export default function TermsGate({ children }: TermsGateProps) {
   const handleAccept = async () => {
     setAccepting(true);
     try {
-      await axios.post('/api/consent/accept', {
+      await axios.post('/consent/accept', {
         consent_types: outstanding.map((o) => o.consent_type),
       });
       setOutstanding([]);

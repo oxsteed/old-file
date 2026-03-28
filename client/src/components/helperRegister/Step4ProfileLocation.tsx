@@ -81,7 +81,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
       const phone = form.phone.replace(/\D/g, '');
       const zip = form.zip.replace(/\D/g, '');
       const slugs = form.skills.map(s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
-      await api.post('/api/helper-registration/profile', {
+      await api.post('/helper-registration/profile', {
         token,
         profileHeadline: form.skills.slice(0, 3).join(', '),
         bio: form.bio || null,
@@ -91,7 +91,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
         hourlyRate: null,
       });
       // Update phone/zip on pending record
-      await api.post('/api/helper-registration/update-contact', { token, phone, zip });
+      await api.post('/helper-registration/update-contact', { token, phone, zip });
       const parts = cityState.split(', ');
       onSuccess({
         phone, zip,

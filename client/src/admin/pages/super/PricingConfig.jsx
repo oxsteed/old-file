@@ -17,7 +17,7 @@ export default function PricingConfig() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/api/config/pricing')
+    api.get('/config/pricing')
       .then(res => { setForm(res.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
@@ -26,7 +26,7 @@ export default function PricingConfig() {
     setSaved(false);
     setError('');
     try {
-      await api.put('/api/config/pricing', form);
+      await api.put('/config/pricing', form);
       setSaved(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save');

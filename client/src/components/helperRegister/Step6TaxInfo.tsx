@@ -59,7 +59,7 @@ export default function Step6TaxInfo({ token, onSuccess, onBack }: Props) {
     if (!validate()) return;
     setLoading(true);
     try {
-      await api.post('/api/helper-registration/w9', {
+      await api.post('/helper-registration/w9', {
         token,
         legalName: form.legalName.trim(),
         businessName: null,

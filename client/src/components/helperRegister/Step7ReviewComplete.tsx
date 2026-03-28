@@ -35,8 +35,8 @@ export default function Step7ReviewComplete({ token, formData, selectedTier, onE
     setError('');
     try {
       // Accept terms then finalize
-      await api.post('/api/helper-registration/accept-terms', { token });
-      await api.post('/api/helper-registration/finalize', { token });
+      await api.post('/helper-registration/accept-terms', { token });
+      await api.post('/helper-registration/finalize', { token });
       setCompleted(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to complete registration');

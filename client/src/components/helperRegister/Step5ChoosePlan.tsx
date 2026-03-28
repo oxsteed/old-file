@@ -34,7 +34,7 @@ export default function Step5ChoosePlan({ token, onSuccess, onBack }: Props) {
     setLoading(true);
     setError('');
     try {
-      await api.post('/api/helper-registration/tier', { token, tier: selected });
+      await api.post('/helper-registration/tier', { token, tier: selected });
       onSuccess(selected);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save plan');
