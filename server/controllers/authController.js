@@ -67,7 +67,13 @@ async function login(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier || 'free' }, ...tokens });
+    // Fetch tier from helper_profiles if helper, otherwise 'free'
+    let tier = 'free';
+    if (user.role === 'helper') {
+      const tierResult = await pool.query('SELECT tier FROM helper_profiles WHERE user_id = $1', [user.id]);
+      if (tierResult.rows[0]) tier = tierResult.rows[0].tier;
+    }
+    res.json({ user: { id: user.id, email: user.email, role: user.role, tier }, ...tokens });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -116,7 +122,13 @@ async function loginWith2FA(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier || 'free' }, ...tokens });
+    // Fetch tier from helper_profiles if helper, otherwise 'free'
+    let tier = 'free';
+    if (user.role === 'helper') {
+      const tierResult = await pool.query('SELECT tier FROM helper_profiles WHERE user_id = $1', [user.id]);
+      if (tierResult.rows[0]) tier = tierResult.rows[0].tier;
+    }
+    res.json({ user: { id: user.id, email: user.email, role: user.role, tier }, ...tokens });
   } catch (err) {
     console.error('Login 2FA error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -328,7 +340,7 @@ async function verifyRegistrationOTP(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier || 'free' }, ...tokens });
+    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role, tier: 'free' }, ...tokens });
   } catch (err) {
     console.error('Verify registration OTP error:', err);
     res.status(500).json({ error: 'Verification failed' });

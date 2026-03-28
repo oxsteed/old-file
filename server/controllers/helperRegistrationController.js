@@ -273,7 +273,7 @@ async function finalizeRegistration(req, res) {
         terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua,
         referral_code
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13)
-      RETURNING id, email, role, tier`,
+      RETURNING id, email, role`,
       [
         pending.email, pending.password_hash, pending.first_name, pending.last_name,
         pending.phone, pending.zip_code, userRole, pending.age_confirmed,
