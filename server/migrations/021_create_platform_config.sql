@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS platform_config (
 INSERT INTO platform_config (key, value) VALUES
   ('tier1_price', '0'),
   ('tier1_label', 'Free'),
-  ('tier2_price', '29.99'),
+  ('tier2_price', '19.99'),
   ('tier2_label', '/month'),
-  ('tier3_price', '5%'),
+  ('tier3_price', 'up to 17%'),
   ('tier3_label', 'per transaction')
 ON CONFLICT (key) DO NOTHING;
