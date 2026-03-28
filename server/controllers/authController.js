@@ -25,7 +25,7 @@ async function register(req, res) {
     const referralCode = crypto.randomBytes(6).toString('hex');
     const { rows } = await pool.query(
       `INSERT INTO users (email, password_hash, first_name, last_name, phone, role, preferred_language, referral_code)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, email, role, tier`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, email, role`,
       [email.toLowerCase(), passwordHash, first_name, last_name, phone || null, role || 'customer', language || 'en', referralCode]
     );
     const user = rows[0];
@@ -34,7 +34,7 @@ async function register(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role }, ...tokens });
+    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role, tier: 'free' }, ...tokens });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Registration failed' });
@@ -46,7 +46,7 @@ async function login(req, res) {
   try {
     const { email, password } = req.body;
     const { rows } = await pool.query(
-      'SELECT id, email, password_hash, role, tier, is_active, totp_enabled FROM users WHERE email = $1',
+      'SELECT id, email, password_hash, role, is_active FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     if (!rows[0]) return res.status(401).json({ error: 'Invalid credentials' });
@@ -54,6 +54,7 @@ async function login(req, res) {
     if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    // 2FA check - totp_enabled may not exist yet if migration 022 hasn't run
     if (user.totp_enabled) {
       return res.status(200).json({
         requiresTwoFactor: true,
@@ -66,7 +67,7 @@ async function login(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier }, ...tokens });
+    res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier || 'free' }, ...tokens });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -81,7 +82,7 @@ async function loginWith2FA(req, res) {
       return res.status(400).json({ error: 'User ID and 2FA code required' });
     }
     const { rows } = await pool.query(
-      'SELECT id, email, role, tier, is_active, totp_secret, totp_enabled, backup_codes FROM users WHERE id = $1',
+      'SELECT id, email, role, is_active, totp_secret, totp_enabled, backup_codes FROM users WHERE id = $1',
       [userId]
     );
     if (!rows[0] || !rows[0].totp_enabled) {
@@ -115,7 +116,7 @@ async function loginWith2FA(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier }, ...tokens });
+    res.json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier || 'free' }, ...tokens });
   } catch (err) {
     console.error('Login 2FA error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -167,7 +168,7 @@ async function refreshToken(req, res) {
   try {
     const { refreshToken: token } = req.body;
     const { rows } = await pool.query(
-      'SELECT s.user_id, u.email, u.role, u.tier FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
+      'SELECT s.user_id, u.email, u.role FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
       [token]
     );
     if (!rows[0]) return res.status(401).json({ error: 'Invalid refresh token' });
@@ -317,7 +318,7 @@ async function verifyRegistrationOTP(req, res) {
     }
     const referralCode = crypto.randomBytes(6).toString('hex');
     const userResult = await pool.query(
-      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13) RETURNING id, email, role, tier',
+      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13) RETURNING id, email, role',
       [pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code, 'customer', pending.age_confirmed, pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode]
     );
     const user = userResult.rows[0];
@@ -327,7 +328,7 @@ async function verifyRegistrationOTP(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier }, ...tokens });
+    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role, tier: user.tier || 'free' }, ...tokens });
   } catch (err) {
     console.error('Verify registration OTP error:', err);
     res.status(500).json({ error: 'Verification failed' });
@@ -363,7 +364,7 @@ async function resendRegistrationOTP(req, res) {
 async function getMe(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, email, first_name, last_name, phone, zip_code as zipcode, role, tier, email_verified, created_at FROM users WHERE id = $1',
+      'SELECT id, email, first_name, last_name, phone, zip_code as zipcode, role, email_verified, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -411,7 +412,7 @@ async function getPublicProfile(req, res) {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT users.id, users.first_name, users.last_name, users.role, users.tier, users.zip_code,
+      `SELECT users.id, users.first_name, users.last_name, users.role, users.zip_code,
   hp.profile_headline, hp.bio_long, hp.hourly_rate_min,
   hp.service_radius_miles, hp.rate_preference, hp.tier AS helper_tier,
   hp.availability_json, users.created_at
