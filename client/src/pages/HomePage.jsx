@@ -16,7 +16,7 @@ const CATEGORIES = [
 ];
 
 export default function HomePage() {
-  const [pricing, setPricing] = useState({ tier1_price: '0', tier1_label: 'Free', tier2_price: '29.99', tier2_label: '/month', tier3_price: '5%', tier3_label: 'starting at 5% — see Terms for full fee schedule' });
+  const [pricing, setPricing] = useState({ tier1_price: '0', tier1_label: 'Free', tier2_price: '19.99', tier2_label: '/month', tier3_price: 'up to 17%', tier3_label: 'starting at 12% with min $5 — see Terms for full fee schedule' });
   useEffect(() => {
     fetch('/api/config/pricing').then(r => r.json()).then(data => setPricing(p => ({ ...p, ...data })));
   }, []);
@@ -48,7 +48,7 @@ export default function HomePage() {
       <section className="max-w-6xl mx-auto px-4 py-12 sm:px-6 sm:py-16 md:py-20 text-center">
         <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight">
           Post a job. Find a helper.{' '}
-          <span className="text-orange-500">Get it done today.</span>
+          <span className="text-orange-500">Get it done.</span>
         </h1>
         <p className="mt-4 text-base sm:text-lg text-gray-400 max-w-2xl mx-auto">
           Post a job in minutes, compare bids from local helpers, and pay securely — with optional escrow protection. Free to start.
@@ -96,7 +96,7 @@ export default function HomePage() {
               <h3 className="mt-4 text-lg font-semibold">Go Pro</h3>
               <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 2 — ${pricing.tier2_price}{pricing.tier2_label}</p>
               <p className="mt-2 text-gray-400 text-sm">
-                Helpers subscribe for priority placement, a verified badge, optional background check certification, and bid alerts. Payments still happen directly between you and the customer.
+                Helpers subscribe for priority placement, an identity verified badge, optional background check certification, and bid alerts. Payments still happen directly between you and the customer.
               </p>
             </div>
             <div className="text-center">
@@ -106,7 +106,7 @@ export default function HomePage() {
               <h3 className="mt-4 text-lg font-semibold">Add Payment Protection</h3>
               <p className="mt-1 text-xs text-orange-400 font-medium uppercase tracking-wide">Tier 3 — {pricing.tier3_price} {pricing.tier3_label}</p>
               <p className="mt-2 text-gray-400 text-sm">
-                When both the customer and helper agree, OxSteed can hold funds in escrow via Stripe until the job is confirmed complete by both party. Includes dispute resolution. Only activated when both sides opt in.
+                When both the customer and helper agree, OxSteed may facilitate an escrow arrangement through Stripe, holding the agreed payment until both parties confirm that the job has been satisfactorily completed. OxSteed may charge a service fee of up to 17% for this facilitation. Dispute resolution support is available if requested. This service is only activated when both parties expressly opt in.
               </p>
             </div>
           </div>
@@ -146,8 +146,8 @@ export default function HomePage() {
                 <Shield className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <h3 className="font-semibold">Verified Profiles Available</h3>
-                <p className="text-sm text-gray-400 mt-1">Helpers can opt in for background screening through Checkr. Look for the verified badge. OxSteed does not endorse or guarantee any helper.</p>
+                <h3 className="font-semibold">ID Verified Profiles Available</h3>
+                <p className="text-sm text-gray-400 mt-1">Helpers can opt in for background screening. Look for the ID verified badge. OxSteed does not endorse or guarantee any helper.</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
@@ -172,12 +172,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Early Adopter CTA */}           <section className="py-16">             <div className="max-w-6xl mx-auto px-6 text-center">               <h2 className="text-2xl font-bold mb-4">Join 50+ helpers across 12 states</h2>               <p className="text-gray-400 mb-8 max-w-xl mx-auto">Our community is growing every day. Helpers and customers are connecting for local jobs across the country.</p>               <div className="grid md:grid-cols-3 gap-6">                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">Free</p>                   <p className="text-sm text-gray-400 mt-1">To list your skills</p>                 </div>                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">9</p>                   <p className="text-sm text-gray-400 mt-1">Service categories</p>                 </div>                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">Nationwide</p>                   <p className="text-sm text-gray-400 mt-1">Available across the US</p>                 </div>               </div>             </div>           </section>            {/* Testimonials */}          <section className="bg-gray-900/50 py-16">            <div className="max-w-6xl mx-auto px-6 text-center">              <h2 className="text-2xl font-bold mb-12">What Early Users Are Saying</h2>              <div className="grid md:grid-cols-3 gap-8">                <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl text-left">                  <p className="text-gray-300 text-sm italic mb-4">"I posted a fence repair job and had 3 bids within an hour. Way easier than calling around."</p>                  <p className="text-orange-500 font-semibold text-sm">— Sarah M., Columbus OH</p>                </div>                <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl text-left">                  <p className="text-gray-300 text-sm italic mb-4">"Finally a platform where I set my own rates. The escrow option gives my customers peace of mind."</p>                  <p className="text-orange-500 font-semibold text-sm">— Marcus T., Dayton OH</p>                </div>                <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl text-left">                  <p className="text-gray-300 text-sm italic mb-4">"Signed up as a helper last week and already landed two moving jobs in my neighborhood."</p>                  <p className="text-orange-500 font-semibold text-sm">— Jalen R., Cincinnati OH</p>                </div>              </div>            </div>          </section>          {/* Helper CTA */}
+      {/* Early Adopter CTA */}           <section className="py-16">             <div className="max-w-6xl mx-auto px-6 text-center">               <h2 className="text-2xl font-bold mb-4">Be one of the first helpers on OxSteed.</h2>               <p className="text-gray-400 mb-8 max-w-xl mx-auto">Our community is growing every day. Helpers and customers are connecting for local jobs across the country.</p>               <div className="grid md:grid-cols-3 gap-6">                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">Free</p>                   <p className="text-sm text-gray-400 mt-1">To list your skills</p>                 </div>                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">9</p>                   <p className="text-sm text-gray-400 mt-1">Service categories</p>                 </div>                 <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl">                   <p className="text-3xl font-bold text-orange-500">Nationwide</p>                   <p className="text-sm text-gray-400 mt-1">Available across the US</p>                 </div>               </div>             </div>           </section>            {/* Testimonials */}          <section className="bg-gray-900/50 py-16">            <div className="max-w-6xl mx-auto px-6 text-center">              <h2 className="text-2xl font-bold mb-12">What Early Users Are Saying</h2>              <div className="grid md:grid-cols-3 gap-8">                <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl text-left">                  <p className="text-gray-300 text-sm italic mb-4">"I posted a fence repair job and had 3 bids within an hour. Way easier than calling around."</p>                  <p className="text-orange-500 font-semibold text-sm">— Sarah M., Columbus OH</p>                </div>                <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl text-left">                  <p className="text-gray-300 text-sm italic mb-4">"Finally a platform where I set my own rates. The escrow option gives my customers peace of mind."</p>                  <p className="text-orange-500 font-semibold text-sm">— Marcus T., Dayton OH</p>                </div>                <div className="p-6 bg-gray-900 border border-gray-800 rounded-xl text-left">                  <p className="text-gray-300 text-sm italic mb-4">"Signed up as a helper last week and already landed two moving jobs in my neighborhood."</p>                  <p className="text-orange-500 font-semibold text-sm">— Jalen R., Cincinnati OH</p>                </div>              </div>            </div>          </section>          {/* Helper CTA */}
       <section className="py-16">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold">Post your skills. Run your own business.</h2>
           <p className="mt-4 text-gray-400 text-lg">
-            List your services for free on your local help board, or subscribe to Pro for priority visibility and a verified badge.
+            List your services for free on your local help board, or subscribe to Pro for priority visibility and a ID verified badge.
             You set your own rates, hours, and service area. OxSteed is the board and you're the business owner.
           </p>
           <Link
@@ -208,7 +208,7 @@ export default function HomePage() {
             <Link to="/security" className="hover:text-white transition">Security</Link>
             <Link to="/cookie-policy" className="hover:text-white transition">Cookie Policy</Link>
                           <Link to="/cookie-settings" className="hover:text-white transition">Cookie Settings</Link>
-            <Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link>               <Link to="/accessibility" className="hover:text-white transition">Accessibility</Link>
+            <Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link>               
                           <Link to="/accessibility" className="hover:text-white transition">Accessibility</Link>
           </div>
           <p className="text-sm text-gray-400 text-center max-w-4xl pt-4 mx-auto">
