@@ -253,11 +253,11 @@ async function startRegistration(req, res) {
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
-    await pool.query('DELETE FROM pending_registrations WHERE email = $1', [email.toLowerCase()]);
+    await pool.query('DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)', [email.toLowerCase(), 'customer']);
     await pool.query(
-      'INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip, ageConfirmed]
-    );
+  'INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed, role) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+  [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip, ageConfirmed, 'customer']
+);
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
     console.error('Start registration error:', err);
@@ -411,9 +411,11 @@ async function getPublicProfile(req, res) {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT id, first_name, last_name, role, tier, zip_code,
-              hp.headline, hp.typical_rate, hp.categories, hp.availability_days, users.created_at
-       FROM users LEFT JOIN helper_profiles hp ON hp.user_id = users.id WHERE users.id = $1 AND users.deleted_at IS NULL`,
+      `SELECT users.id, users.first_name, users.last_name, users.role, users.tier, users.zip_code,
+  hp.profile_headline, hp.bio_long, hp.hourly_rate_min,
+  hp.service_radius_miles, hp.rate_preference, hp.tier AS helper_tier,
+  hp.availability_json, users.created_at
+  FROM users LEFT JOIN helper_profiles hp ON hp.user_id = users.id WHERE users.id = $1 AND users.deleted_at IS NULL`
       [id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
