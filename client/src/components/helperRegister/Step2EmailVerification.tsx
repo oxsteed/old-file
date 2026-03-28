@@ -35,7 +35,7 @@ export default function Step2EmailVerification({ token, email, firstName, onSucc
 
   const sendOTP = async () => {
     try {
-      await api.post('/api/helper-registration/send-otp', { token });
+            await api.post('/auth/helper/register/send-otp', { token });
       setSent(true);
       setResendCooldown(60);
     } catch (err: any) {
@@ -82,7 +82,7 @@ export default function Step2EmailVerification({ token, email, firstName, onSucc
     setLoading(true);
     setError('');
     try {
-      await api.post('/api/helper-registration/verify-otp', { token, otp });
+            await api.post('/auth/helper/register/verify-otp', { token, otp });
       onSuccess();
     } catch (err: any) {
       const msg = err.response?.data?.error || err.response?.data?.message || 'Invalid code. Please try again.';
