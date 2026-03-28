@@ -218,7 +218,7 @@ async function submitW9(req, res) {
       signatureData, ip, userAgent, signedAt: new Date().toISOString()
     });
     await pool.query(
-      'UPDATE pending_registrations SET availability_json = availability_json || $2::jsonb WHERE token = $1',
+      'UPDATE pending_registrations SET availability_json = COALESCE(availability_json, '{}'::jsonb) || $2::jsonb WHERE token = $1',
       [token, JSON.stringify({ w9Pending: w9Payload })]
     );
     res.json({ message: 'W-9 submitted', tinLast4 });
