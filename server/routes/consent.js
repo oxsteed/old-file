@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const crypto = require('crypto');
-const authenticate = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/auth');
 const { TERMS_CONFIG, REQUIRED_CONSENTS } = require('../constants/termsConfig');
 const User = require('../models/userModel');
 
@@ -17,13 +17,12 @@ router.get('/status', authenticate, async (req, res) => {
     const { rows } = await db.query(
       `SELECT DISTINCT ON (consent_type)
         consent_type, version, created_at
-      FROM user_consents
-      WHERE user_id = $1
+        FROM user_consents
+        WHERE user_id = $1
         AND consent_type = ANY($2)
-      ORDER BY consent_type, created_at DESC`,
+        ORDER BY consent_type, created_at DESC`,
       [req.user.id, REQUIRED_CONSENTS]
     );
-
     const accepted = {};
     rows.forEach((r) => {
       accepted[r.consent_type] = {
@@ -31,7 +30,6 @@ router.get('/status', authenticate, async (req, res) => {
         accepted_at: r.created_at,
       };
     });
-
     const outstanding = [];
     for (const type of REQUIRED_CONSENTS) {
       const cfg = TERMS_CONFIG[type];
@@ -46,7 +44,6 @@ router.get('/status', authenticate, async (req, res) => {
         });
       }
     }
-
     res.json({
       up_to_date: outstanding.length === 0,
       outstanding,
@@ -66,20 +63,16 @@ router.get('/status', authenticate, async (req, res) => {
 router.post('/accept', authenticate, async (req, res) => {
   try {
     const { consent_types } = req.body; // e.g. ['terms_of_service', 'privacy_policy']
-
     if (!Array.isArray(consent_types) || consent_types.length === 0) {
       return res.status(400).json({ error: 'consent_types array is required' });
     }
-
     // Validate all types
     const invalid = consent_types.filter((t) => !TERMS_CONFIG[t]);
     if (invalid.length > 0) {
       return res.status(400).json({ error: `Invalid consent types: ${invalid.join(', ')}` });
     }
-
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
-
     // Record each consent
     for (const type of consent_types) {
       await User.recordConsent({
@@ -90,7 +83,6 @@ router.post('/accept', authenticate, async (req, res) => {
         userAgent,
       });
     }
-
     res.json({
       success: true,
       accepted: consent_types.map((t) => ({
