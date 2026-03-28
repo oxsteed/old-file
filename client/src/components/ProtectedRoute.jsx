@@ -2,7 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function ProtectedRoute({ children, requiredRole, requiredTier }) {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -13,15 +13,15 @@ export default function ProtectedRoute({ children, requiredRole, requiredTier })
     );
   }
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
+  if (requiredRole && user.role !== requiredRole) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (requiredTier && user?.tier !== requiredTier) {
+  if (requiredTier && user.tier !== requiredTier) {
     return <Navigate to="/dashboard" replace />;
   }
 
