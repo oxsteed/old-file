@@ -27,19 +27,6 @@ const {
   getPublicProfile,
   resendVerification
 } = require('../controllers/authController');
-const {
-  getCategories,
-  startHelperRegistration,
-  saveHelperProfile,
-  selectTier,
-  submitW9,
-  helperAcceptTerms,
-  sendOTP: sendHelperOTP,
-  verifyOTP: verifyHelperOTP,
-  updateContact,
-  finalizeRegistration,
-  resendHelperOTP
-} = require('../controllers/helperRegistrationController');
 // Original routes
 router.post('/register', register);
 router.post('/login', login);
@@ -56,18 +43,6 @@ router.post('/register/start', startRegistration);
 router.post('/register/accept-terms', acceptTerms);
 router.post('/register/verify-otp', verifyRegistrationOTP);
 router.post('/register/resend-otp', resendRegistrationOTP);
-// Helper registration flow (5-step)
-router.get('/helper/categories', getCategories);
-router.post('/helper/register/start', startHelperRegistration);
-router.post('/helper/register/profile', saveHelperProfile);
-router.post('/helper/register/tier', selectTier);
-router.post('/helper/register/w9', submitW9);
-router.post('/helper/register/accept-terms', helperAcceptTerms);
-router.post('/helper/register/send-otp', sendHelperOTP);
-router.post('/helper/register/verify-otp', verifyHelperOTP);
-router.post('/helper/register/resend-otp', resendHelperOTP);
-router.post('/helper/register/update-contact', updateContact);
-router.post('/helper/register/finalize', finalizeRegistration);
 // Settings & Profile routes
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
