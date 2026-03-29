@@ -11,6 +11,33 @@ const { sendOTPEmail } = require('../utils/email');
 const { sendOTPSMS } = require('../utils/sms');
 const SALT_ROUNDS = 12;
 
+function formatAuthUser(user) {
+  if (!user) return null;
+  return {
+    id:                    user.id,
+    first_name:            user.first_name,
+    last_name:             user.last_name,
+    email:                 user.email,
+    phone:                 user.phone,
+    role:                  user.role,
+    email_verified:        !!user.email_verified,
+    is_verified:           !!user.is_verified,
+    onboarding_status:     user.onboarding_status,
+    onboarding_completed:  !!user.onboarding_completed,
+    contact_completed:     !!user.contact_completed,
+    profile_completed:     !!user.profile_completed,
+    tier_selected:         !!user.tier_selected,
+    w9_completed:          !!user.w9_completed,
+    terms_accepted:        !!user.terms_accepted,
+    membership_tier:       user.membership_tier,
+    id_verified:           !!user.id_verified,
+    background_check_passed: !!user.background_check_passed,
+    city:                  user.city,
+    state:                 user.state,
+    zip_code:              user.zip_code
+  };
+}
+
 async function register(req, res) {
   try {
     const { email, password, first_name, last_name, phone, role, language = 'en' } = req.body;
@@ -46,7 +73,14 @@ async function login(req, res) {
   try {
     const { email, password } = req.body;
     const { rows } = await pool.query(
-      'SELECT id, email, password_hash, role, is_active, email_verified, onboarding_status, onboarding_completed, contact_completed, profile_completed, tier_selected, w9_completed, terms_accepted FROM users WHERE email = $1'
+      `SELECT id, first_name, last_name, email, phone, password_hash, role, is_active,
+              email_verified, is_verified,
+              onboarding_status, onboarding_completed,
+              contact_completed, profile_completed,
+              tier_selected, w9_completed, terms_accepted,
+              membership_tier, id_verified, background_check_passed,
+              city, state, zip_code, totp_enabled
+       FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
     if (!rows[0]) return res.status(401).json({ error: 'Invalid credentials' });
@@ -73,23 +107,13 @@ async function login(req, res) {
       const tierResult = await pool.query('SELECT tier FROM helper_profiles WHERE user_id = $1', [user.id]);
       if (tierResult.rows[0]) tier = tierResult.rows[0].tier;
     }
-    res.json({ 
-  user: { 
-    id: user.id, 
-    email: user.email, 
-    role: user.role, 
-    tier,
-    email_verified: user.email_verified,
-    onboarding_status: user.onboarding_status,
-    onboarding_completed: user.onboarding_completed,
-    contact_completed: user.contact_completed,
-    profile_completed: user.profile_completed,
-    tier_selected: user.tier_selected,
-    w9_completed: user.w9_completed,
-    terms_accepted: user.terms_accepted
-  }, 
-  ...tokens 
-});
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: formatAuthUser(user),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -195,18 +219,36 @@ async function verifyOTP(req, res) {
 async function refreshToken(req, res) {
   try {
     const { refreshToken: token } = req.body;
-    const { rows } = await pool.query(
-      'SELECT s.user_id, u.email, u.role FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
+    const { rows: sessionRows } = await pool.query(
+      'SELECT s.user_id FROM sessions s WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
       [token]
     );
-    if (!rows[0]) return res.status(401).json({ error: 'Invalid refresh token' });
+    if (!sessionRows[0]) return res.status(401).json({ error: 'Invalid refresh token' });
     await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [token]);
-    const tokens = generateTokens(rows[0]);
+    const { rows: userRows } = await pool.query(
+      `SELECT id, first_name, last_name, email, phone, role,
+              email_verified, is_verified,
+              onboarding_status, onboarding_completed,
+              contact_completed, profile_completed,
+              tier_selected, w9_completed, terms_accepted,
+              membership_tier, id_verified, background_check_passed,
+              city, state, zip_code
+       FROM users WHERE id = $1`,
+      [sessionRows[0].user_id]
+    );
+    if (!userRows[0]) return res.status(401).json({ error: 'User not found' });
+    const user = userRows[0];
+    const tokens = generateTokens(user);
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [rows[0].user_id, tokens.refreshToken]
+      [user.id, tokens.refreshToken]
     );
-    res.json(tokens);
+    res.json({
+      success: true,
+      user: formatAuthUser(user),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    });
   } catch (err) {
     console.error('Refresh error:', err);
     res.status(500).json({ error: 'Token refresh failed' });
@@ -391,12 +433,10 @@ async function resendRegistrationOTP(req, res) {
 // ===== SETTINGS PAGE ENDPOINTS =====
 async function getMe(req, res) {
   try {
-    const { rows } = await pool.query(
-      'SELECT id, email, first_name, last_name, phone, zip_code as zipcode, role, email_verified, created_at FROM users WHERE id = $1',
-      [req.user.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
-    res.json(rows[0]);
+    return res.json({
+      success: true,
+      user: formatAuthUser(req.user)
+    });
   } catch (err) {
     console.error('Get me error:', err);
     res.status(500).json({ error: 'Failed to fetch profile' });
@@ -483,5 +523,6 @@ module.exports = {
   register, login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
-  getMe, updateProfile, changePassword, getPublicProfile, resendVerification
+  getMe, updateProfile, changePassword, getPublicProfile, resendVerification,
+  formatAuthUser
 };

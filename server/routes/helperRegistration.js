@@ -1,27 +1,41 @@
-const router = require('express').Router();
-const ctrl = require('../controllers/helperRegistrationController');
+// server/routes/helperRegistration.js
+
+const express = require('express');
+const router  = express.Router();
+
 const { authenticate } = require('../middleware/auth');
 const {
-  requireHelperLimitedAccess,
-  requireCompletedHelperOnboarding
+  requireHelperLimitedAccess
 } = require('../middleware/helperOnboardingMiddleware');
 
-// Public - get service categories
-router.get('/categories', ctrl.getCategories);
+const {
+  startHelperRegistration,
+  sendOTP,
+  resendHelperOTP,
+  verifyOTP,
+  updateContactInfo,
+  completeProfileStep,
+  selectTierStep,
+  completeW9Step,
+  acceptTermsStep,
+  finalizeRegistration,
+  getCategories
+} = require('../controllers/helperRegistrationController');
 
-// Public - registration steps (token-based, no auth needed)
-router.post('/start', ctrl.startHelperRegistration);
-router.post('/send-otp', ctrl.sendOTP);
-router.post('/verify-otp', ctrl.verifyOTP);
-router.post('/resend-otp', ctrl.resendHelperOTP);
+// ── PUBLIC (no auth required — user does not exist yet) ───────────
+router.get('/categories',            getCategories);
+router.post('/register/start',       startHelperRegistration);
+router.post('/register/send-otp',    sendOTP);
+router.post('/register/verify-otp',  verifyOTP);
+router.post('/register/resend-otp',  resendHelperOTP);
 
-// Step 3: Limited-access routes (helper must be verified but onboarding can be incomplete)
-// These are routes the helper needs BEFORE full onboarding is complete
-router.post('/update-contact', authenticate, requireHelperLimitedAccess, ctrl.updateContact);
-router.post('/profile', authenticate, requireHelperLimitedAccess, ctrl.saveHelperProfile);
-router.post('/tier', authenticate, requireHelperLimitedAccess, ctrl.selectTier);
-router.post('/w9', authenticate, requireHelperLimitedAccess, ctrl.submitW9);
-router.post('/accept-terms', authenticate, requireHelperLimitedAccess, ctrl.helperAcceptTerms);
-router.post('/finalize', authenticate, requireHelperLimitedAccess, ctrl.finalizeRegistration);
+// ── AUTHENTICATED + LIMITED ACCESS (user exists, email verified,
+//    onboarding may still be incomplete) ───────────────────────────
+router.post('/register/update-contact', authenticate, requireHelperLimitedAccess, updateContactInfo);
+router.post('/register/profile',        authenticate, requireHelperLimitedAccess, completeProfileStep);
+router.post('/register/tier',           authenticate, requireHelperLimitedAccess, selectTierStep);
+router.post('/register/w9',            authenticate, requireHelperLimitedAccess, completeW9Step);
+router.post('/register/accept-terms',   authenticate, requireHelperLimitedAccess, acceptTermsStep);
+router.post('/register/finalize',       authenticate, requireHelperLimitedAccess, finalizeRegistration);
 
 module.exports = router;

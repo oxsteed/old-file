@@ -33,19 +33,15 @@ async function authenticate(req, res, next) {
 
     const { rows } = await pool.query(
       `SELECT
-        id, first_name, last_name, email, phone, role,
-        email_verified,
-        onboarding_status,
-        onboarding_completed,
-        contact_completed,
-        profile_completed,
-        tier_selected,
-        w9_completed,
-        terms_accepted,
-        is_verified
+         id, first_name, last_name, email, phone, role,
+         email_verified, is_verified,
+         onboarding_status, onboarding_completed,
+         contact_completed, profile_completed,
+         tier_selected, w9_completed, terms_accepted,
+         membership_tier, id_verified, background_check_passed,
+         city, state, zip_code
        FROM users
-       WHERE id = $1
-       LIMIT 1`,
+       WHERE id = $1`,
       [decoded.id]
     );
 
