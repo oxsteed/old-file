@@ -108,6 +108,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+
 // ── API ROUTES ───────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/subscription', subscriptionRoutes);
@@ -152,8 +153,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong' });
 });
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`OxSteed v2 server running on port ${PORT}`);
+  // Run pending database migrations on startup
+  try {
+    const { runAllMigrations } = require('./migrations/runOnce');
+    await runAllMigrations();
+  } catch (err) {
+    console.error('[Startup] Migration runner error:', err.message);
+  }
 });
 
 // ── CRON JOBS ────────────────────────────────────────────────
