@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
-const pool = require('../config/db');
+const pool = require('../db');
 const { sendOTPEmail } = require('../services/emailService');
 const { generateTokens } = require('../utils/auth');
 
