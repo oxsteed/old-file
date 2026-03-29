@@ -1199,6 +1199,7 @@ exports.finalizeRegistration = async (req, res) => {
   } finally {
     client.release();
   }
+  };
 
   // Alias exports for route compatibility
 exports.getCategories = async (req, res) => {
