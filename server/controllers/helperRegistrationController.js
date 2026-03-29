@@ -51,6 +51,34 @@ function buildRegistrationPayload(row) {
   };
 }
 
+function onboardingStatusFromFlags(userLike) {
+  const isComplete =
+    !!userLike.profile_completed &&
+    !!userLike.tier_selected &&
+    !!userLike.w9_completed &&
+    !!userLike.terms_accepted;
+
+  if (isComplete) return 'onboarding_complete';
+
+  const hasStarted =
+    !!userLike.contact_completed ||
+    !!userLike.profile_completed ||
+    !!userLike.tier_selected ||
+    !!userLike.w9_completed ||
+    !!userLike.terms_accepted;
+
+  return hasStarted ? 'onboarding_in_progress' : 'verified_pending_onboarding';
+}
+
+function onboardingCompletedFromFlags(userLike) {
+  return (
+    !!userLike.profile_completed &&
+    !!userLike.tier_selected &&
+    !!userLike.w9_completed &&
+    !!userLike.terms_accepted
+  );
+}
+
 async function getPendingRegistration(client, sessionId) {
   const { rows } = await client.query(
     `SELECT * FROM pending_registrations WHERE session_id = $1 LIMIT 1`,
@@ -159,12 +187,61 @@ async function pendingPhoneExists(client, phone, excludeSessionId = null) {
   return !!rows[0];
 }
 
+async function syncPendingFlagsFromUser(client, sessionId, userId) {
+  const user = await getUserById(client, userId);
+  if (!user) return null;
+
+  const { rows } = await client.query(
+    `UPDATE pending_registrations
+     SET user_id = $2,
+         account_created = true,
+         contact_updated = $3,
+         profile_completed = $4,
+         tier_selected = $5,
+         w9_completed = $6,
+         terms_accepted = $7,
+         updated_at = NOW()
+     WHERE session_id = $1
+     RETURNING *`,
+    [
+      sessionId,
+      userId,
+      !!user.contact_completed,
+      !!user.profile_completed,
+      !!user.tier_selected,
+      !!user.w9_completed,
+      !!user.terms_accepted
+    ]
+  );
+
+  return rows[0] || null;
+}
+
+async function updateUserOnboardingState(client, userId) {
+  const user = await getUserById(client, userId);
+  if (!user) return null;
+
+  const onboardingCompleted = onboardingCompletedFromFlags(user);
+  const onboardingStatus = onboardingStatusFromFlags(user);
+
+  const { rows } = await client.query(
+    `UPDATE users
+     SET onboarding_completed = $2,
+         onboarding_status = $3
+     WHERE id = $1
+     RETURNING *`,
+    [userId, onboardingCompleted, onboardingStatus]
+  );
+
+  return rows[0] || null;
+}
+
 async function createUserFromPendingRegistration(client, pending) {
   if (pending.user_id) {
     return getUserById(client, pending.user_id);
   }
 
-  const insert = await client.query(
+  const { rows } = await client.query(
     `INSERT INTO users (
       first_name,
       last_name,
@@ -184,18 +261,30 @@ async function createUserFromPendingRegistration(client, pending) {
       w9_name,
       w9_tax_classification,
       w9_tin,
-      terms_accepted,
       email_verified,
-      is_verified
+      is_verified,
+      onboarding_status,
+      onboarding_completed,
+      contact_completed,
+      profile_completed,
+      tier_selected,
+      w9_completed,
+      terms_accepted
     ) VALUES (
       $1,$2,$3,$4,$5,
       'helper',
       $6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-      COALESCE($18, false),
       true,
+      false,
+      'verified_pending_onboarding',
+      false,
+      false,
+      false,
+      false,
+      false,
       false
     )
-    RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+    RETURNING *`,
     [
       pending.first_name,
       pending.last_name,
@@ -213,28 +302,18 @@ async function createUserFromPendingRegistration(client, pending) {
       pending.selected_tier,
       pending.w9_name,
       pending.w9_tax_classification,
-      pending.w9_tin,
-      pending.terms_accepted
+      pending.w9_tin
     ]
   );
 
-  return insert.rows[0];
+  return rows[0];
 }
 
 exports.startHelperRegistration = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      city,
-      state,
-      zipCode
-    } = req.body;
+    const { firstName, lastName, email, phone, password, city, state, zipCode } = req.body;
 
     const normalizedEmail = normalizeEmail(email);
     const normalizedPhone = normalizePhone(phone);
@@ -524,49 +603,21 @@ exports.verifyOTP = async (req, res) => {
 
     if (!user) {
       user = await createUserFromPendingRegistration(client, pending);
-
-      const updatedPending = await client.query(
-        `UPDATE pending_registrations
-         SET user_id = $2,
-             account_created = true,
-             otp_verified = true,
-             email_verified = true,
-             otp_attempts = 0,
-             updated_at = NOW()
-         WHERE session_id = $1
-         RETURNING *`,
-        [sessionId, user.id]
-      );
-
-      await client.query('COMMIT');
-
-      const tokens = generateTokens({
-        id: user.id,
-        email: user.email,
-        role: user.role
-      });
-
-      return res.json({
-        success: true,
-        message: 'Email verified and helper account created',
-        user,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        registration: buildRegistrationPayload(updatedPending.rows[0])
-      });
     }
 
-    const updatedPending = await client.query(
+    const pendingUpdate = await client.query(
       `UPDATE pending_registrations
-       SET account_created = true,
+       SET user_id = $2,
+           account_created = true,
            otp_verified = true,
            email_verified = true,
-           otp_attempts = 0,
            updated_at = NOW()
        WHERE session_id = $1
        RETURNING *`,
-      [sessionId]
+      [sessionId, user.id]
     );
+
+    user = await updateUserOnboardingState(client, user.id);
 
     await client.query('COMMIT');
 
@@ -578,11 +629,26 @@ exports.verifyOTP = async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Email verified successfully',
-      user,
+      message: 'Email verified. Helper account created with limited access until onboarding is complete.',
+      user: {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        email_verified: user.email_verified,
+        onboarding_status: user.onboarding_status,
+        onboarding_completed: user.onboarding_completed,
+        contact_completed: user.contact_completed,
+        profile_completed: user.profile_completed,
+        tier_selected: user.tier_selected,
+        w9_completed: user.w9_completed,
+        terms_accepted: user.terms_accepted
+      },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      registration: buildRegistrationPayload(updatedPending.rows[0])
+      registration: buildRegistrationPayload(pendingUpdate.rows[0])
     });
   } catch (error) {
     try {
@@ -605,15 +671,7 @@ exports.updateContactInfo = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const {
-      sessionId,
-      userId,
-      email,
-      phone,
-      city,
-      state,
-      zipCode
-    } = req.body;
+    const { sessionId, userId, email, phone, city, state, zipCode } = req.body;
 
     if (!sessionId && !userId) {
       return res.status(400).json({
@@ -649,22 +707,24 @@ exports.updateContactInfo = async (req, res) => {
         });
       }
 
-      const { rows } = await client.query(
+      await client.query(
         `UPDATE users
          SET email = $2,
              phone = $3,
              city = COALESCE($4, city),
              state = COALESCE($5, state),
-             zip_code = COALESCE($6, zip_code)
-         WHERE id = $1
-         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+             zip_code = COALESCE($6, zip_code),
+             contact_completed = true
+         WHERE id = $1`,
         [userId, nextEmail, nextPhone || null, city || null, state || null, zipCode || null]
       );
+
+      const updatedUser = await updateUserOnboardingState(client, userId);
 
       return res.json({
         success: true,
         message: 'Contact info updated',
-        user: rows[0]
+        user: updatedUser
       });
     }
 
@@ -713,11 +773,6 @@ exports.updateContactInfo = async (req, res) => {
            state = COALESCE($5, state),
            zip_code = COALESCE($6, zip_code),
            contact_updated = true,
-           email_verified = CASE WHEN email <> $2 THEN false ELSE email_verified END,
-           otp_verified = CASE WHEN email <> $2 THEN false ELSE otp_verified END,
-           otp_code = CASE WHEN email <> $2 THEN NULL ELSE otp_code END,
-           otp_expires_at = CASE WHEN email <> $2 THEN NULL ELSE otp_expires_at END,
-           otp_attempts = CASE WHEN email <> $2 THEN 0 ELSE otp_attempts END,
            updated_at = NOW()
        WHERE session_id = $1
        RETURNING *`,
@@ -731,10 +786,13 @@ exports.updateContactInfo = async (req, res) => {
              phone = $3,
              city = COALESCE($4, city),
              state = COALESCE($5, state),
-             zip_code = COALESCE($6, zip_code)
+             zip_code = COALESCE($6, zip_code),
+             contact_completed = true
          WHERE id = $1`,
         [pending.user_id, normalizedEmail, normalizedPhone || null, city || null, state || null, zipCode || null]
       );
+
+      await updateUserOnboardingState(client, pending.user_id);
     }
 
     return res.json({
@@ -757,15 +815,7 @@ exports.completeProfileStep = async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const {
-      sessionId,
-      userId,
-      bio,
-      skills,
-      experienceYears,
-      categories,
-      serviceArea
-    } = req.body;
+    const { sessionId, userId, bio, skills, experienceYears, categories, serviceArea } = req.body;
 
     if (!sessionId && !userId) {
       return res.status(400).json({
@@ -775,19 +825,21 @@ exports.completeProfileStep = async (req, res) => {
     }
 
     if (userId) {
-      const { rows } = await client.query(
+      await client.query(
         `UPDATE users
          SET bio = COALESCE($2, bio),
              skills = COALESCE($3, skills),
              experience_years = COALESCE($4, experience_years),
              categories = COALESCE($5, categories),
-             service_area = COALESCE($6, service_area)
-         WHERE id = $1
-         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+             service_area = COALESCE($6, service_area),
+             profile_completed = true
+         WHERE id = $1`,
         [userId, bio || null, skills || null, experienceYears || null, categories || null, serviceArea || null]
       );
 
-      if (!rows[0]) {
+      const updatedUser = await updateUserOnboardingState(client, userId);
+
+      if (!updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -797,7 +849,7 @@ exports.completeProfileStep = async (req, res) => {
       return res.json({
         success: true,
         message: 'Profile step completed',
-        user: rows[0]
+        user: updatedUser
       });
     }
 
@@ -824,10 +876,13 @@ exports.completeProfileStep = async (req, res) => {
              skills = COALESCE($3, skills),
              experience_years = COALESCE($4, experience_years),
              categories = COALESCE($5, categories),
-             service_area = COALESCE($6, service_area)
+             service_area = COALESCE($6, service_area),
+             profile_completed = true
          WHERE id = $1`,
         [pending.user_id, bio || null, skills || null, experienceYears || null, categories || null, serviceArea || null]
       );
+
+      await updateUserOnboardingState(client, pending.user_id);
     }
 
     return res.json({
@@ -860,15 +915,17 @@ exports.selectTierStep = async (req, res) => {
     }
 
     if (userId) {
-      const { rows } = await client.query(
+      await client.query(
         `UPDATE users
-         SET helper_tier = $2
-         WHERE id = $1
-         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+         SET helper_tier = $2,
+             tier_selected = true
+         WHERE id = $1`,
         [userId, selectedTier]
       );
 
-      if (!rows[0]) {
+      const updatedUser = await updateUserOnboardingState(client, userId);
+
+      if (!updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -878,7 +935,7 @@ exports.selectTierStep = async (req, res) => {
       return res.json({
         success: true,
         message: 'Tier selected',
-        user: rows[0]
+        user: updatedUser
       });
     }
 
@@ -897,10 +954,13 @@ exports.selectTierStep = async (req, res) => {
     if (pending.user_id) {
       await client.query(
         `UPDATE users
-         SET helper_tier = $2
+         SET helper_tier = $2,
+             tier_selected = true
          WHERE id = $1`,
         [pending.user_id, selectedTier]
       );
+
+      await updateUserOnboardingState(client, pending.user_id);
     }
 
     return res.json({
@@ -933,17 +993,19 @@ exports.completeW9Step = async (req, res) => {
     }
 
     if (userId) {
-      const { rows } = await client.query(
+      await client.query(
         `UPDATE users
          SET w9_name = COALESCE($2, w9_name),
              w9_tax_classification = COALESCE($3, w9_tax_classification),
-             w9_tin = COALESCE($4, w9_tin)
-         WHERE id = $1
-         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+             w9_tin = COALESCE($4, w9_tin),
+             w9_completed = true
+         WHERE id = $1`,
         [userId, w9Name || null, w9TaxClassification || null, w9Tin || null]
       );
 
-      if (!rows[0]) {
+      const updatedUser = await updateUserOnboardingState(client, userId);
+
+      if (!updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -953,7 +1015,7 @@ exports.completeW9Step = async (req, res) => {
       return res.json({
         success: true,
         message: 'W-9 step completed',
-        user: rows[0]
+        user: updatedUser
       });
     }
 
@@ -976,10 +1038,13 @@ exports.completeW9Step = async (req, res) => {
         `UPDATE users
          SET w9_name = COALESCE($2, w9_name),
              w9_tax_classification = COALESCE($3, w9_tax_classification),
-             w9_tin = COALESCE($4, w9_tin)
+             w9_tin = COALESCE($4, w9_tin),
+             w9_completed = true
          WHERE id = $1`,
         [pending.user_id, w9Name || null, w9TaxClassification || null, w9Tin || null]
       );
+
+      await updateUserOnboardingState(client, pending.user_id);
     }
 
     return res.json({
@@ -1012,15 +1077,16 @@ exports.acceptTermsStep = async (req, res) => {
     }
 
     if (userId) {
-      const { rows } = await client.query(
+      await client.query(
         `UPDATE users
          SET terms_accepted = true
-         WHERE id = $1
-         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+         WHERE id = $1`,
         [userId]
       );
 
-      if (!rows[0]) {
+      const updatedUser = await updateUserOnboardingState(client, userId);
+
+      if (!updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -1030,7 +1096,7 @@ exports.acceptTermsStep = async (req, res) => {
       return res.json({
         success: true,
         message: 'Terms accepted',
-        user: rows[0]
+        user: updatedUser
       });
     }
 
@@ -1052,6 +1118,8 @@ exports.acceptTermsStep = async (req, res) => {
          WHERE id = $1`,
         [pending.user_id]
       );
+
+      await updateUserOnboardingState(client, pending.user_id);
     }
 
     return res.json({
@@ -1084,9 +1152,9 @@ exports.finalizeRegistration = async (req, res) => {
     }
 
     if (userId) {
-      const user = await getUserById(client, userId);
+      const updatedUser = await updateUserOnboardingState(client, userId);
 
-      if (!user) {
+      if (!updatedUser) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
@@ -1095,8 +1163,10 @@ exports.finalizeRegistration = async (req, res) => {
 
       return res.json({
         success: true,
-        message: 'Helper account already exists. Onboarding can continue later.',
-        user
+        message: updatedUser.onboarding_completed
+          ? 'Helper onboarding is complete. Full access unlocked.'
+          : 'Helper account exists, but onboarding is still incomplete. Keep limited access enabled.',
+        user: updatedUser
       });
     }
 
@@ -1109,20 +1179,16 @@ exports.finalizeRegistration = async (req, res) => {
       });
     }
 
-    const user = await getUserById(client, pending.user_id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Linked user record not found'
-      });
-    }
+    const updatedUser = await updateUserOnboardingState(client, pending.user_id);
+    const syncedPending = await syncPendingFlagsFromUser(client, sessionId, pending.user_id);
 
     return res.json({
       success: true,
-      message: 'Helper account already exists. Onboarding can continue later.',
-      user,
-      registration: buildRegistrationPayload(pending)
+      message: updatedUser.onboarding_completed
+        ? 'Helper onboarding is complete. Full access unlocked.'
+        : 'Helper account exists, but onboarding is still incomplete. Keep limited access enabled.',
+      user: updatedUser,
+      registration: buildRegistrationPayload(syncedPending)
     });
   } catch (error) {
     console.error('finalizeRegistration error:', error);
