@@ -1,128 +1,51 @@
-function requireAuth(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required'
-    });
-  }
+// server/middleware/helperOnboardingMiddleware.js
 
-  next();
+// Require minimum onboarding step before allowing an action
+function requireOnboardingStep(minimumStep) {
+  const STEP_ORDER = [
+    'registered',
+    'profile_complete',
+    'id_submitted',
+    'id_verified',
+    'background_submitted',
+    'background_passed',
+    'active'
+  ];
+
+  return (req, res, next) => {
+    const userStep = req.user?.onboarding_step || 'registered';
+    const userIdx  = STEP_ORDER.indexOf(userStep);
+    const minIdx   = STEP_ORDER.indexOf(minimumStep);
+
+    if (userIdx < minIdx) {
+      return res.status(403).json({
+        error: 'Onboarding incomplete',
+        current_step: userStep,
+        required_step: minimumStep
+      });
+    }
+    next();
+  };
 }
 
-function requireHelperRole(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required'
-    });
-  }
+// Require minimum membership tier
+function requireTier(minimumTier) {
+  const TIER_ORDER = ['free', 'active', 'premium'];
 
-  if (req.user.role !== 'helper') {
-    return res.status(403).json({
-      success: false,
-      message: 'Helper access required'
-    });
-  }
+  return (req, res, next) => {
+    const userTier = req.user?.membership_tier || 'free';
+    const userIdx  = TIER_ORDER.indexOf(userTier);
+    const minIdx   = TIER_ORDER.indexOf(minimumTier);
 
-  next();
+    if (userIdx < minIdx) {
+      return res.status(403).json({
+        error: 'Membership tier insufficient',
+        current_tier: userTier,
+        required_tier: minimumTier
+      });
+    }
+    next();
+  };
 }
 
-function requireVerifiedHelper(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required'
-    });
-  }
-
-  if (req.user.role !== 'helper') {
-    return res.status(403).json({
-      success: false,
-      message: 'Helper access required'
-    });
-  }
-
-  if (!req.user.email_verified) {
-    return res.status(403).json({
-      success: false,
-      message: 'Email verification is required'
-    });
-  }
-
-  next();
-}
-
-function requireCompletedHelperOnboarding(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required'
-    });
-  }
-
-  if (req.user.role !== 'helper') {
-    return res.status(403).json({
-      success: false,
-      message: 'Helper access required'
-    });
-  }
-
-  if (!req.user.email_verified) {
-    return res.status(403).json({
-      success: false,
-      message: 'Email verification is required'
-    });
-  }
-
-  if (!req.user.onboarding_completed || req.user.onboarding_status !== 'onboarding_complete') {
-    return res.status(403).json({
-      success: false,
-      code: 'HELPER_ONBOARDING_INCOMPLETE',
-      message: 'Complete helper onboarding before accessing this feature',
-      onboarding: {
-        onboarding_status: req.user.onboarding_status,
-        onboarding_completed: !!req.user.onboarding_completed,
-        contact_completed: !!req.user.contact_completed,
-        profile_completed: !!req.user.profile_completed,
-        tier_selected: !!req.user.tier_selected,
-        w9_completed: !!req.user.w9_completed,
-        terms_accepted: !!req.user.terms_accepted
-      }
-    });
-  }
-
-  next();
-}
-
-function requireHelperLimitedAccess(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required'
-    });
-  }
-
-  if (req.user.role !== 'helper') {
-    return res.status(403).json({
-      success: false,
-      message: 'Helper access required'
-    });
-  }
-
-  if (!req.user.email_verified) {
-    return res.status(403).json({
-      success: false,
-      message: 'Email verification is required'
-    });
-  }
-
-  next();
-}
-
-module.exports = {
-  requireAuth,
-  requireHelperRole,
-  requireVerifiedHelper,
-  requireCompletedHelperOnboarding,
-  requireHelperLimitedAccess
-};
+module.exports = { requireOnboardingStep, requireTier };

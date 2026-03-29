@@ -1,41 +1,49 @@
 // server/routes/helperRegistration.js
-
 const express = require('express');
 const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
-const {
-  requireHelperLimitedAccess
-} = require('../middleware/helperOnboardingMiddleware');
+const { requireOnboardingStep, requireTier } = require('../middleware/helperOnboardingMiddleware');
 
 const {
-  startHelperRegistration,
-  sendOTP,
-  resendHelperOTP,
+  startRegistration,
   verifyOTP,
-  updateContactInfo,
-  completeProfileStep,
-  selectTierStep,
-  completeW9Step,
-  acceptTermsStep,
-  finalizeRegistration,
-  getCategories
+  resendOTP,
+  completeRegistration,
+  submitOnboardingProfile,
+  submitIdVerification,
+  submitBackgroundCheck,
+  getOnboardingStatus
 } = require('../controllers/helperRegistrationController');
 
-// ── PUBLIC (no auth required — user does not exist yet) ───────────
-router.get('/categories',            getCategories);
-router.post('/register/start',       startHelperRegistration);
-router.post('/register/send-otp',    sendOTP);
-router.post('/register/verify-otp',  verifyOTP);
-router.post('/register/resend-otp',  resendHelperOTP);
+// Public (no auth)
+router.post('/start',       startRegistration);
+router.post('/verify-otp',  verifyOTP);
+router.post('/resend-otp',  resendOTP);
+router.post('/complete',    completeRegistration);
 
-// ── AUTHENTICATED + LIMITED ACCESS (user exists, email verified,
-//    onboarding may still be incomplete) ───────────────────────────
-router.post('/register/update-contact', authenticate, requireHelperLimitedAccess, updateContactInfo);
-router.post('/register/profile',        authenticate, requireHelperLimitedAccess, completeProfileStep);
-router.post('/register/tier',           authenticate, requireHelperLimitedAccess, selectTierStep);
-router.post('/register/w9',            authenticate, requireHelperLimitedAccess, completeW9Step);
-router.post('/register/accept-terms',   authenticate, requireHelperLimitedAccess, acceptTermsStep);
-router.post('/register/finalize',       authenticate, requireHelperLimitedAccess, finalizeRegistration);
+// Authenticated + onboarding gated
+router.put('/onboarding/profile',
+  authenticate,
+  requireOnboardingStep('registered'),
+  submitOnboardingProfile
+);
+
+router.put('/onboarding/id-verification',
+  authenticate,
+  requireOnboardingStep('profile_complete'),
+  submitIdVerification
+);
+
+router.put('/onboarding/background-check',
+  authenticate,
+  requireOnboardingStep('id_submitted'),
+  submitBackgroundCheck
+);
+
+router.get('/onboarding/status',
+  authenticate,
+  getOnboardingStatus
+);
 
 module.exports = router;

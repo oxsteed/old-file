@@ -35,7 +35,7 @@ async function authenticate(req, res, next) {
       `SELECT
          id, first_name, last_name, email, phone, role,
          email_verified, is_verified,
-         onboarding_status, onboarding_completed,
+         onboarding_status, onboarding_completed, onboarding_step,
          contact_completed, profile_completed,
          tier_selected, w9_completed, terms_accepted,
          membership_tier, id_verified, background_check_passed,

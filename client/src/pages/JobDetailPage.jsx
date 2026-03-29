@@ -104,6 +104,7 @@ export default function JobDetailPage() {
 
   const isOwner = user?.id === job.client_id;
   const isHelper = user?.role === 'helper';
+  const canApplyToJobs = ['active', 'premium'].includes(user?.membership_tier);
   const hasAlreadyBid = bids.some(b => b.helper_id === user?.id);
 
   return (
@@ -162,7 +163,7 @@ export default function JobDetailPage() {
       </div>
 
       {/* Bid Form - only for helpers on published jobs */}
-      {isHelper && job.status === 'published' && !hasAlreadyBid && (
+      {isHelper && job.status === 'published' && !hasAlreadyBid && canApplyToJobs && (
         <div className="bid-form-card">
           <h2>Place Your Bid</h2>
           {bidError && <div className="error-message">{bidError}</div>}
@@ -181,6 +182,14 @@ export default function JobDetailPage() {
             </div>
             <button type="submit" className="btn-primary" disabled={bidLoading}>{bidLoading ? 'Submitting...' : 'Submit Bid'}</button>
           </form>
+        </div>
+      )}
+
+      {isHelper && job.status === 'published' && !hasAlreadyBid && !canApplyToJobs && (
+        <div className="bid-form-card">
+          <div className="upgrade-prompt">
+            Upgrade to an Active or Premium membership to apply for jobs.
+          </div>
         </div>
       )}
 

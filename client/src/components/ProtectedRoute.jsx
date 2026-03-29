@@ -1,6 +1,15 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+const ONBOARDING_ALLOWED_PATHS = [
+  '/helper/onboarding',
+  '/login',
+  '/register',
+  '/register/helper',
+  '/register/customer',
+  '/helper-register',
+];
+
 export default function ProtectedRoute({ children, requiredRole, requiredTier }) {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -15,6 +24,16 @@ export default function ProtectedRoute({ children, requiredRole, requiredTier })
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Helper onboarding gate: redirect incomplete helpers unless on allowed paths
+  if (
+    user.role === 'helper' &&
+    user.onboarding_step &&
+    user.onboarding_step !== 'active' &&
+    !ONBOARDING_ALLOWED_PATHS.some(p => location.pathname.startsWith(p))
+  ) {
+    return <Navigate to="/helper/onboarding" replace />;
   }
 
   if (requiredRole && user.role !== requiredRole) {
