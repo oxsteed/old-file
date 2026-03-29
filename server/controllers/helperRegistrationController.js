@@ -1199,4 +1199,19 @@ exports.finalizeRegistration = async (req, res) => {
   } finally {
     client.release();
   }
+
+  // Alias exports for route compatibility
+exports.getCategories = async (req, res) => {
+  const categories = [
+    'Home Repair', 'Cleaning', 'Landscaping', 'Moving', 'Painting',
+    'Plumbing', 'Electrical', 'HVAC', 'Carpentry', 'Handyman',
+    'Pet Care', 'Tutoring', 'Tech Support', 'Auto Services', 'Other'
+  ];
+  return res.json({ success: true, categories });
+};
+exports.updateContact = exports.updateContactInfo;
+exports.saveHelperProfile = exports.completeProfileStep;
+exports.selectTier = exports.selectTierStep;
+exports.submitW9 = exports.completeW9Step;
+exports.helperAcceptTerms = exports.acceptTermsStep;
 };
