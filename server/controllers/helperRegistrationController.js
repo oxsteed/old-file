@@ -1214,4 +1214,3 @@ exports.saveHelperProfile = exports.completeProfileStep;
 exports.selectTier = exports.selectTierStep;
 exports.submitW9 = exports.completeW9Step;
 exports.helperAcceptTerms = exports.acceptTermsStep;
-};
