@@ -153,15 +153,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong' });
 });
 
-httpServer.listen(PORT, async () => {
+httpServer.listen(PORT, () => {
   console.log(`OxSteed v2 server running on port ${PORT}`);
-  // Run pending database migrations on startup
-  try {
-    const { runAllMigrations } = require('./migrations/runOnce');
-    await runAllMigrations();
-  } catch (err) {
-    console.error('[Startup] Migration runner error:', err.message);
-  }
 });
 
 // ── CRON JOBS ────────────────────────────────────────────────
