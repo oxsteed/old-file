@@ -124,6 +124,7 @@ app.use('/api/privacy', privacyRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/helper-registration', helperRegistrationRoutes);
+app.use('/api/auth/helper/register', helperRegistrationRoutes); // alias for frontend
 app.use('/api/fee-config', feeConfigRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/messages', messageRoutes);
