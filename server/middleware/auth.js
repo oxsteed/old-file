@@ -22,7 +22,7 @@ function generateTokens(user) {
   return { accessToken, refreshToken };
 }
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
@@ -30,7 +30,31 @@ function authenticate(req, res, next) {
   const token = header.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+
+    const { rows } = await pool.query(
+      `SELECT
+        id, first_name, last_name, email, phone, role,
+        email_verified,
+        onboarding_status,
+        onboarding_completed,
+        contact_completed,
+        profile_completed,
+        tier_selected,
+        w9_completed,
+        terms_accepted,
+        is_verified
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [decoded.id]
+    );
+
+    const user = rows[0];
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User no longer exists' });
+    }
+
+    req.user = user;
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
