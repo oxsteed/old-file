@@ -1,6 +1,6 @@
 // server/controllers/helperRegistrationController.js
 const pool = require('../db');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
 const { sendOTPEmail } = require('../utils/email');
 
