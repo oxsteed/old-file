@@ -1,431 +1,1136 @@
-// Helper Registration Controller
-// Handles the full helper registration flow (new 5-step spec)
-// OxSteed v2
-
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { encrypt } = require('../utils/encryption');
-const pool = require('../db');
-const { generateTokens } = require('../middleware/auth');
-const { sendOTPEmail, sendWelcomeEmail } = require('../utils/email');
+const bcrypt = require('bcryptjs');
+const pool = require('../config/db');
+const { sendOTPEmail } = require('../services/emailService');
+const { generateTokens } = require('../utils/auth');
 
 const SALT_ROUNDS = 12;
+const OTP_EXPIRY_MINUTES = 10;
+const MAX_OTP_ATTEMPTS = 5;
 
-// ── GET CATEGORIES ────────────────────────────────────────
-async function getCategories(req, res) {
-  try {
-    const { rows } = await pool.query(
-      'SELECT id, name, slug, icon FROM categories WHERE is_active = true ORDER BY sort_order ASC'
-    );
-    res.json({ categories: rows });
-  } catch (err) {
-    console.error('Get categories error:', err);
-    res.status(500).json({ error: 'Failed to fetch categories' });
-  }
+function normalizeEmail(email = '') {
+  return String(email).trim().toLowerCase();
 }
 
-// ── STEP 1: Validate basic info, create pending helper registration ──
-async function startHelperRegistration(req, res) {
+function normalizePhone(phone = '') {
+  return String(phone).trim();
+}
+
+function generateOTP() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function otpExpiryDate() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + OTP_EXPIRY_MINUTES);
+  return d;
+}
+
+function registrationSessionId() {
+  return crypto.randomUUID();
+}
+
+function buildRegistrationPayload(row) {
+  if (!row) return null;
+
+  return {
+    sessionId: row.session_id,
+    userId: row.user_id || null,
+    email: row.email,
+    phone: row.phone,
+    emailVerified: !!row.email_verified,
+    otpVerified: !!row.otp_verified,
+    accountCreated: !!row.account_created,
+    contactUpdated: !!row.contact_updated,
+    profileCompleted: !!row.profile_completed,
+    tierSelected: !!row.tier_selected,
+    w9Completed: !!row.w9_completed,
+    termsAccepted: !!row.terms_accepted,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+async function getPendingRegistration(client, sessionId) {
+  const { rows } = await client.query(
+    `SELECT * FROM pending_registrations WHERE session_id = $1 LIMIT 1`,
+    [sessionId]
+  );
+  return rows[0] || null;
+}
+
+async function ensurePendingRegistration(client, sessionId) {
+  const pending = await getPendingRegistration(client, sessionId);
+  if (!pending) {
+    const err = new Error('Registration session not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  return pending;
+}
+
+async function getUserById(client, userId) {
+  const { rows } = await client.query(
+    `SELECT * FROM users WHERE id = $1 LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+async function emailExists(client, email, excludeUserId = null) {
+  if (excludeUserId) {
+    const { rows } = await client.query(
+      `SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id <> $2 LIMIT 1`,
+      [email, excludeUserId]
+    );
+    return !!rows[0];
+  }
+
+  const { rows } = await client.query(
+    `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+    [email]
+  );
+  return !!rows[0];
+}
+
+async function phoneExists(client, phone, excludeUserId = null) {
+  if (!phone) return false;
+
+  if (excludeUserId) {
+    const { rows } = await client.query(
+      `SELECT id FROM users WHERE phone = $1 AND id <> $2 LIMIT 1`,
+      [phone, excludeUserId]
+    );
+    return !!rows[0];
+  }
+
+  const { rows } = await client.query(
+    `SELECT id FROM users WHERE phone = $1 LIMIT 1`,
+    [phone]
+  );
+  return !!rows[0];
+}
+
+async function pendingEmailExists(client, email, excludeSessionId = null) {
+  if (excludeSessionId) {
+    const { rows } = await client.query(
+      `SELECT session_id
+       FROM pending_registrations
+       WHERE LOWER(email) = LOWER($1)
+         AND session_id <> $2
+       LIMIT 1`,
+      [email, excludeSessionId]
+    );
+    return !!rows[0];
+  }
+
+  const { rows } = await client.query(
+    `SELECT session_id
+     FROM pending_registrations
+     WHERE LOWER(email) = LOWER($1)
+     LIMIT 1`,
+    [email]
+  );
+  return !!rows[0];
+}
+
+async function pendingPhoneExists(client, phone, excludeSessionId = null) {
+  if (!phone) return false;
+
+  if (excludeSessionId) {
+    const { rows } = await client.query(
+      `SELECT session_id
+       FROM pending_registrations
+       WHERE phone = $1
+         AND session_id <> $2
+       LIMIT 1`,
+      [phone, excludeSessionId]
+    );
+    return !!rows[0];
+  }
+
+  const { rows } = await client.query(
+    `SELECT session_id
+     FROM pending_registrations
+     WHERE phone = $1
+     LIMIT 1`,
+    [phone]
+  );
+  return !!rows[0];
+}
+
+async function createUserFromPendingRegistration(client, pending) {
+  if (pending.user_id) {
+    return getUserById(client, pending.user_id);
+  }
+
+  const insert = await client.query(
+    `INSERT INTO users (
+      first_name,
+      last_name,
+      email,
+      phone,
+      password,
+      role,
+      city,
+      state,
+      zip_code,
+      bio,
+      skills,
+      experience_years,
+      categories,
+      service_area,
+      helper_tier,
+      w9_name,
+      w9_tax_classification,
+      w9_tin,
+      terms_accepted,
+      email_verified,
+      is_verified
+    ) VALUES (
+      $1,$2,$3,$4,$5,
+      'helper',
+      $6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
+      COALESCE($18, false),
+      true,
+      false
+    )
+    RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+    [
+      pending.first_name,
+      pending.last_name,
+      pending.email,
+      pending.phone,
+      pending.password_hash,
+      pending.city,
+      pending.state,
+      pending.zip_code,
+      pending.bio,
+      pending.skills,
+      pending.experience_years,
+      pending.categories,
+      pending.service_area,
+      pending.selected_tier,
+      pending.w9_name,
+      pending.w9_tax_classification,
+      pending.w9_tin,
+      pending.terms_accepted
+    ]
+  );
+
+  return insert.rows[0];
+}
+
+exports.startHelperRegistration = async (req, res) => {
+  const client = await pool.connect();
+
   try {
-    const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
-    if (!email || !password || !firstName || !lastName) {
-      return res.status(400).json({ error: 'All fields required' });
-    }
-    if (!ageConfirmed) {
-      return res.status(400).json({ error: 'Age confirmation required' });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      city,
+      state,
+      zipCode
+    } = req.body;
+
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPhone = normalizePhone(phone);
+
+    if (!firstName || !lastName || !normalizedEmail || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'First name, last name, email, and password are required'
+      });
     }
 
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Email already registered' });
+    if (await emailExists(client, normalizedEmail)) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with that email already exists'
+      });
+    }
+
+    if (await pendingEmailExists(client, normalizedEmail)) {
+      return res.status(409).json({
+        success: false,
+        message: 'A pending registration with that email already exists'
+      });
+    }
+
+    if (normalizedPhone) {
+      if (await phoneExists(client, normalizedPhone)) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with that phone number already exists'
+        });
+      }
+
+      if (await pendingPhoneExists(client, normalizedPhone)) {
+        return res.status(409).json({
+          success: false,
+          message: 'A pending registration with that phone number already exists'
+        });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const token = crypto.randomBytes(32).toString('hex');
+    const sessionId = registrationSessionId();
 
-    // Clean up any previous pending registration for this email
-    await pool.query(
-      'DELETE FROM pending_registrations WHERE email = $1 AND role = $2',
-      [email.toLowerCase(), 'helper']
-    );
-
-    const phoneClean = phone ? phone.replace(/\D/g, '') : '0000000000';
-    const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
-
-    await pool.query(
+    const { rows } = await client.query(
       `INSERT INTO pending_registrations (
-         token, email, password_hash, first_name, last_name,
-         phone, zip_code, age_confirmed, role
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'helper')`,
+        session_id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        password_hash,
+        city,
+        state,
+        zip_code,
+        user_id,
+        account_created,
+        contact_updated,
+        profile_completed,
+        tier_selected,
+        w9_completed,
+        terms_accepted,
+        email_verified,
+        otp_verified,
+        otp_attempts
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,
+        NULL,false,false,false,false,false,false,false,false,0
+      )
+      RETURNING *`,
       [
-        token,
-        email.toLowerCase(),
-        passwordHash,
+        sessionId,
         firstName,
         lastName,
-        formattedPhone,
-        zip || '00000',
-        ageConfirmed
+        normalizedEmail,
+        normalizedPhone || null,
+        passwordHash,
+        city || null,
+        state || null,
+        zipCode || null
       ]
     );
 
-    res.json({ token, message: 'Basic info validated' });
-  } catch (err) {
-    console.error('Start helper registration error:', err);
-    res.status(500).json({ error: 'Registration failed' });
+    return res.status(201).json({
+      success: true,
+      message: 'Helper registration started',
+      registration: buildRegistrationPayload(rows[0])
+    });
+  } catch (error) {
+    console.error('startHelperRegistration error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to start helper registration'
+    });
+  } finally {
+    client.release();
   }
-}
+};
 
-// ── SEND OTP (called after account setup, before email verification) ──
-async function sendOTP(req, res) {
+exports.sendOTP = async (req, res) => {
+  const client = await pool.connect();
+
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { sessionId } = req.body;
 
-    const { rows } = await pool.query(
-      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()",
-      [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId is required'
+      });
+    }
 
-    const pending = rows[0];
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+    const pending = await ensurePendingRegistration(client, sessionId);
 
-    await pool.query(
-      'UPDATE pending_registrations SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0 WHERE token = $1',
-      [token, otp, otpExpires]
+    if (!pending.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'No email found for this registration'
+      });
+    }
+
+    const otp = generateOTP();
+    const expiresAt = otpExpiryDate();
+
+    await client.query(
+      `UPDATE pending_registrations
+       SET otp_code = $2,
+           otp_expires_at = $3,
+           otp_attempts = 0,
+           otp_verified = false,
+           updated_at = NOW()
+       WHERE session_id = $1`,
+      [sessionId, otp, expiresAt]
     );
 
     await sendOTPEmail(pending.email, otp);
-    res.json({ message: 'Verification code sent' });
-  } catch (err) {
-    console.error('Send OTP error:', err);
-    res.status(500).json({ error: 'Failed to send verification code' });
+
+    const updated = await getPendingRegistration(client, sessionId);
+
+    return res.json({
+      success: true,
+      message: 'Verification code sent',
+      registration: buildRegistrationPayload(updated)
+    });
+  } catch (error) {
+    console.error('sendOTP error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to send verification code'
+    });
+  } finally {
+    client.release();
   }
-}
+};
 
-// ── VERIFY OTP (email verification step) ──
-async function verifyOTP(req, res) {
+exports.resendHelperOTP = async (req, res) => {
+  const client = await pool.connect();
+
   try {
-    const { token, otp } = req.body;
-    if (!token || !otp) return res.status(400).json({ error: 'Token and code required' });
+    const { sessionId } = req.body;
 
-    const { rows } = await pool.query(
-      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()",
-      [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-
-    const pending = rows[0];
-
-    if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
-      return res.status(429).json({
-        error: 'Too many attempts. Try again later.',
-        lockoutUntil: pending.otp_locked_until
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId is required'
       });
     }
 
-    if (pending.otp_code !== otp || new Date(pending.otp_expires_at) < new Date()) {
-      const newAttempts = (pending.otp_attempts || 0) + 1;
-      if (newAttempts >= 5) {
-        await pool.query(
-          `UPDATE pending_registrations
-           SET otp_attempts = $2,
-               otp_locked_until = NOW() + interval '1 hour'
-           WHERE token = $1`,
-          [token, newAttempts]
-        );
-        return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
-      }
+    const pending = await ensurePendingRegistration(client, sessionId);
 
-      await pool.query(
-        'UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1',
-        [token, newAttempts]
+    if (!pending.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'No email found for this registration'
+      });
+    }
+
+    const otp = generateOTP();
+    const expiresAt = otpExpiryDate();
+
+    await client.query(
+      `UPDATE pending_registrations
+       SET otp_code = $2,
+           otp_expires_at = $3,
+           otp_attempts = 0,
+           otp_verified = false,
+           updated_at = NOW()
+       WHERE session_id = $1`,
+      [sessionId, otp, expiresAt]
+    );
+
+    await sendOTPEmail(pending.email, otp);
+
+    const updated = await getPendingRegistration(client, sessionId);
+
+    return res.json({
+      success: true,
+      message: 'Verification code resent',
+      registration: buildRegistrationPayload(updated)
+    });
+  } catch (error) {
+    console.error('resendHelperOTP error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to resend verification code'
+    });
+  } finally {
+    client.release();
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { sessionId, otp } = req.body;
+
+    if (!sessionId || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId and otp are required'
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const pending = await ensurePendingRegistration(client, sessionId);
+
+    if (!pending.otp_code) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'No verification code has been sent'
+      });
+    }
+
+    if (pending.otp_attempts >= MAX_OTP_ATTEMPTS) {
+      await client.query('ROLLBACK');
+      return res.status(429).json({
+        success: false,
+        message: 'Too many incorrect attempts. Please request a new code.'
+      });
+    }
+
+    if (pending.otp_expires_at && new Date(pending.otp_expires_at) < new Date()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code has expired. Please request a new code.'
+      });
+    }
+
+    if (String(pending.otp_code) !== String(otp).trim()) {
+      await client.query(
+        `UPDATE pending_registrations
+         SET otp_attempts = COALESCE(otp_attempts, 0) + 1,
+             updated_at = NOW()
+         WHERE session_id = $1`,
+        [sessionId]
       );
 
+      await client.query('COMMIT');
+
       return res.status(400).json({
-        error: 'Invalid or expired code',
-        attemptsRemaining: 5 - newAttempts
+        success: false,
+        message: 'Invalid verification code'
       });
     }
 
-    // Mark email as verified on the pending record
-    await pool.query(
-      'UPDATE pending_registrations SET otp_code = NULL, otp_attempts = 0 WHERE token = $1',
-      [token]
-    );
-
-    res.json({ message: 'Email verified' });
-  } catch (err) {
-    console.error('Verify OTP error:', err);
-    res.status(500).json({ error: 'Verification failed' });
-  }
-}
-
-// ── UPDATE CONTACT (phone/zip — collected in Step 4) ──
-async function updateContact(req, res) {
-  try {
-    const { token, phone, zip } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
-
-    const { rows } = await pool.query(
-      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()",
-      [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-
-    const phoneClean = phone ? phone.replace(/\D/g, '') : '';
-    const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
-
-    await pool.query(
-      'UPDATE pending_registrations SET phone = $2, zip_code = $3 WHERE token = $1',
-      [token, formattedPhone, zip || '00000']
-    );
-
-    res.json({ message: 'Contact info updated' });
-  } catch (err) {
-    console.error('Update contact error:', err);
-    res.status(500).json({ error: 'Failed to update contact info' });
-  }
-}
-
-// ── STEP 2 → 3: Save helper profile details ──────────────
-async function saveHelperProfile(req, res) {
-  try {
-    const {
-      token,
-      profileHeadline,
-      bio,
-      serviceCategories,
-      availability,
-      serviceRadius,
-      ratePreference,
-      hourlyRate
-    } = req.body;
-
-    if (!token) return res.status(400).json({ error: 'Token required' });
-
-    const { rows } = await pool.query(
-      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()",
-      [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-
-    if (!serviceCategories || serviceCategories.length < 1) {
-      return res.status(400).json({ error: 'At least 1 service category required' });
+    if (await emailExists(client, pending.email, pending.user_id || null)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        success: false,
+        message: 'An account with that email already exists'
+      });
     }
 
-    if (serviceCategories.length > 8) {
-      return res.status(400).json({ error: 'Maximum 8 categories allowed' });
+    if (pending.phone && await phoneExists(client, pending.phone, pending.user_id || null)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        success: false,
+        message: 'An account with that phone number already exists'
+      });
     }
 
-    await pool.query(
+    let user = pending.user_id ? await getUserById(client, pending.user_id) : null;
+
+    if (!user) {
+      user = await createUserFromPendingRegistration(client, pending);
+
+      const updatedPending = await client.query(
+        `UPDATE pending_registrations
+         SET user_id = $2,
+             account_created = true,
+             otp_verified = true,
+             email_verified = true,
+             otp_attempts = 0,
+             updated_at = NOW()
+         WHERE session_id = $1
+         RETURNING *`,
+        [sessionId, user.id]
+      );
+
+      await client.query('COMMIT');
+
+      const tokens = generateTokens({
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+
+      return res.json({
+        success: true,
+        message: 'Email verified and helper account created',
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        registration: buildRegistrationPayload(updatedPending.rows[0])
+      });
+    }
+
+    const updatedPending = await client.query(
       `UPDATE pending_registrations
-       SET profile_headline = $2,
-           bio = $3,
-           service_categories = $4,
-           availability_json = $5,
-           service_radius = $6,
-           rate_preference = $7,
-           hourly_rate = $8
-       WHERE token = $1`,
-      [
-        token,
-        (profileHeadline || '').trim() || null,
-        bio || null,
-        serviceCategories,
-        JSON.stringify(availability || {}),
-        serviceRadius || 10,
-        ratePreference || 'per_job',
-        hourlyRate || null
-      ]
+       SET account_created = true,
+           otp_verified = true,
+           email_verified = true,
+           otp_attempts = 0,
+           updated_at = NOW()
+       WHERE session_id = $1
+       RETURNING *`,
+      [sessionId]
     );
 
-    res.json({ message: 'Profile saved' });
-  } catch (err) {
-    console.error('Save helper profile error:', err);
-    res.status(500).json({ error: 'Failed to save profile' });
-  }
-}
+    await client.query('COMMIT');
 
-// ── STEP 3 → 4: Save tier selection ──────────────────────
-async function selectTier(req, res) {
-  try {
-    const { token, tier } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
-
-    if (!['free', 'basic', 'pro'].includes(tier)) {
-      return res.status(400).json({ error: 'Invalid tier selection' });
-    }
-
-    const { rows } = await pool.query(
-      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()",
-      [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-
-    await pool.query(
-      'UPDATE pending_registrations SET selected_tier = $2 WHERE token = $1',
-      [token, tier]
-    );
-
-    res.json({ message: 'Tier selected', tier });
-  } catch (err) {
-    console.error('Select tier error:', err);
-    res.status(500).json({ error: 'Failed to save tier selection' });
-  }
-}
-
-// ── STEP 4: Submit W-9 (Tier 2/3 only) ───────────────────
-async function submitW9(req, res) {
-  try {
-    const {
-      token,
-      legalName,
-      businessName,
-      taxClassification,
-      tin,
-      address,
-      signatureData,
-      certify
-    } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ error: 'Token required' });
-    }
-
-    if (!legalName || !taxClassification || !tin || !address || !signatureData || !certify) {
-      return res.status(400).json({ error: 'All W-9 fields required' });
-    }
-
-    const { rows } = await pool.query(
-      "SELECT * FROM pending_registrations WHERE token = $1 AND role = 'helper' AND expires_at > NOW()",
-      [token]
-    );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Invalid or expired registration' });
-    }
-
-    // Encrypt TIN using shared utility
-    const tinEncrypted = encrypt(tin);
-
-    const tinLast4 = tin.replace(/\D/g, '').slice(-4);
-    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    const userAgent = req.headers['user-agent'] || '';
-
-    const w9Payload = JSON.stringify({
-      legalName,
-      businessName: businessName || null,
-      taxClassification,
-      tinEncrypted,
-      tinLast4,
-      address,
-      signatureData,
-      ip,
-      userAgent,
-      signedAt: new Date().toISOString()
+    const tokens = generateTokens({
+      id: user.id,
+      email: user.email,
+      role: user.role
     });
 
-    await pool.query(
+    return res.json({
+      success: true,
+      message: 'Email verified successfully',
+      user,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      registration: buildRegistrationPayload(updatedPending.rows[0])
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('verifyOTP rollback error:', rollbackError);
+    }
+
+    console.error('verifyOTP error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to verify code'
+    });
+  } finally {
+    client.release();
+  }
+};
+
+exports.updateContactInfo = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const {
+      sessionId,
+      userId,
+      email,
+      phone,
+      city,
+      state,
+      zipCode
+    } = req.body;
+
+    if (!sessionId && !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId or userId is required'
+      });
+    }
+
+    if (userId) {
+      const user = await getUserById(client, userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const nextEmail = email ? normalizeEmail(email) : user.email;
+      const nextPhone = phone !== undefined ? normalizePhone(phone) : user.phone;
+
+      if (nextEmail !== user.email && await emailExists(client, nextEmail, userId)) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with that email already exists'
+        });
+      }
+
+      if (nextPhone && nextPhone !== user.phone && await phoneExists(client, nextPhone, userId)) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with that phone number already exists'
+        });
+      }
+
+      const { rows } = await client.query(
+        `UPDATE users
+         SET email = $2,
+             phone = $3,
+             city = COALESCE($4, city),
+             state = COALESCE($5, state),
+             zip_code = COALESCE($6, zip_code)
+         WHERE id = $1
+         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+        [userId, nextEmail, nextPhone || null, city || null, state || null, zipCode || null]
+      );
+
+      return res.json({
+        success: true,
+        message: 'Contact info updated',
+        user: rows[0]
+      });
+    }
+
+    const pending = await ensurePendingRegistration(client, sessionId);
+
+    const normalizedEmail = email ? normalizeEmail(email) : pending.email;
+    const normalizedPhone = phone !== undefined ? normalizePhone(phone) : pending.phone;
+
+    if (normalizedEmail !== pending.email) {
+      if (await emailExists(client, normalizedEmail, pending.user_id || null)) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with that email already exists'
+        });
+      }
+
+      if (await pendingEmailExists(client, normalizedEmail, sessionId)) {
+        return res.status(409).json({
+          success: false,
+          message: 'A pending registration with that email already exists'
+        });
+      }
+    }
+
+    if (normalizedPhone && normalizedPhone !== pending.phone) {
+      if (await phoneExists(client, normalizedPhone, pending.user_id || null)) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with that phone number already exists'
+        });
+      }
+
+      if (await pendingPhoneExists(client, normalizedPhone, sessionId)) {
+        return res.status(409).json({
+          success: false,
+          message: 'A pending registration with that phone number already exists'
+        });
+      }
+    }
+
+    const pendingUpdate = await client.query(
       `UPDATE pending_registrations
-       SET availability_json = COALESCE(availability_json, '{}'::jsonb) || $2::jsonb
-       WHERE token = $1`,
-      [token, JSON.stringify({ w9Pending: w9Payload })]
+       SET email = $2,
+           phone = $3,
+           city = COALESCE($4, city),
+           state = COALESCE($5, state),
+           zip_code = COALESCE($6, zip_code),
+           contact_updated = true,
+           email_verified = CASE WHEN email <> $2 THEN false ELSE email_verified END,
+           otp_verified = CASE WHEN email <> $2 THEN false ELSE otp_verified END,
+           otp_code = CASE WHEN email <> $2 THEN NULL ELSE otp_code END,
+           otp_expires_at = CASE WHEN email <> $2 THEN NULL ELSE otp_expires_at END,
+           otp_attempts = CASE WHEN email <> $2 THEN 0 ELSE otp_attempts END,
+           updated_at = NOW()
+       WHERE session_id = $1
+       RETURNING *`,
+      [sessionId, normalizedEmail, normalizedPhone || null, city || null, state || null, zipCode || null]
     );
 
-    res.json({ message: 'W-9 submitted', tinLast4 });
-  } catch (err) {
-    console.error('W9 submit error:', err);
-    res.status(500).json({ error: 'Failed to submit W-9' });
-  }
-}
+    if (pending.user_id) {
+      await client.query(
+        `UPDATE users
+         SET email = $2,
+             phone = $3,
+             city = COALESCE($4, city),
+             state = COALESCE($5, state),
+             zip_code = COALESCE($6, zip_code)
+         WHERE id = $1`,
+        [pending.user_id, normalizedEmail, normalizedPhone || null, city || null, state || null, zipCode || null]
+      );
+    }
 
-// -- HELPER ACCEPT TERMS --
-async function helperAcceptTerms(req, res) {
+    return res.json({
+      success: true,
+      message: 'Contact info updated',
+      registration: buildRegistrationPayload(pendingUpdate.rows[0])
+    });
+  } catch (error) {
+    console.error('updateContactInfo error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to update contact info'
+    });
+  } finally {
+    client.release();
+  }
+};
+
+exports.completeProfileStep = async (req, res) => {
+  const client = await pool.connect();
+
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
-    const { rows } = await pool.query(
-      'SELECT * FROM pending_registrations WHERE token = $1 AND role = \'helper\' AND expires_at > NOW()',
-      [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-    await pool.query(
-      'UPDATE pending_registrations SET terms_accepted = true WHERE token = $1',
-      [token]
-    );
-    res.json({ message: 'Terms accepted' });
-  } catch (err) {
-    console.error('Helper accept terms error:', err);
-    res.status(500).json({ error: 'Failed to accept terms' });
-  }
-}
+    const {
+      sessionId,
+      userId,
+      bio,
+      skills,
+      experienceYears,
+      categories,
+      serviceArea
+    } = req.body;
 
-// -- RESEND HELPER OTP --
-async function resendHelperOTP(req, res) {
+    if (!sessionId && !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId or userId is required'
+      });
+    }
+
+    if (userId) {
+      const { rows } = await client.query(
+        `UPDATE users
+         SET bio = COALESCE($2, bio),
+             skills = COALESCE($3, skills),
+             experience_years = COALESCE($4, experience_years),
+             categories = COALESCE($5, categories),
+             service_area = COALESCE($6, service_area)
+         WHERE id = $1
+         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+        [userId, bio || null, skills || null, experienceYears || null, categories || null, serviceArea || null]
+      );
+
+      if (!rows[0]) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Profile step completed',
+        user: rows[0]
+      });
+    }
+
+    const pending = await ensurePendingRegistration(client, sessionId);
+
+    const pendingUpdate = await client.query(
+      `UPDATE pending_registrations
+       SET bio = COALESCE($2, bio),
+           skills = COALESCE($3, skills),
+           experience_years = COALESCE($4, experience_years),
+           categories = COALESCE($5, categories),
+           service_area = COALESCE($6, service_area),
+           profile_completed = true,
+           updated_at = NOW()
+       WHERE session_id = $1
+       RETURNING *`,
+      [sessionId, bio || null, skills || null, experienceYears || null, categories || null, serviceArea || null]
+    );
+
+    if (pending.user_id) {
+      await client.query(
+        `UPDATE users
+         SET bio = COALESCE($2, bio),
+             skills = COALESCE($3, skills),
+             experience_years = COALESCE($4, experience_years),
+             categories = COALESCE($5, categories),
+             service_area = COALESCE($6, service_area)
+         WHERE id = $1`,
+        [pending.user_id, bio || null, skills || null, experienceYears || null, categories || null, serviceArea || null]
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'Profile step completed',
+      registration: buildRegistrationPayload(pendingUpdate.rows[0])
+    });
+  } catch (error) {
+    console.error('completeProfileStep error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to save profile step'
+    });
+  } finally {
+    client.release();
+  }
+};
+
+exports.selectTierStep = async (req, res) => {
+  const client = await pool.connect();
+
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
-    const { rows } = await pool.query(
-      'SELECT * FROM pending_registrations WHERE token = $1 AND role = \'helper\' AND expires_at > NOW()',
-      [token]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await pool.query(
-      'UPDATE pending_registrations SET otp = $1 WHERE token = $2',
-      [otp, token]
-    );
-    await sendOTPEmail(rows[0].email, otp);
-    res.json({ message: 'OTP resent' });
-  } catch (err) {
-    console.error('Resend helper OTP error:', err);
-    res.status(500).json({ error: 'Failed to resend OTP' });
-  }
-}
+    const { sessionId, userId, selectedTier } = req.body;
 
-// -- FINALIZE REGISTRATION --
-async function finalizeRegistration(req, res) {
+    if ((!sessionId && !userId) || !selectedTier) {
+      return res.status(400).json({
+        success: false,
+        message: 'selectedTier and sessionId or userId are required'
+      });
+    }
+
+    if (userId) {
+      const { rows } = await client.query(
+        `UPDATE users
+         SET helper_tier = $2
+         WHERE id = $1
+         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+        [userId, selectedTier]
+      );
+
+      if (!rows[0]) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Tier selected',
+        user: rows[0]
+      });
+    }
+
+    const pending = await ensurePendingRegistration(client, sessionId);
+
+    const pendingUpdate = await client.query(
+      `UPDATE pending_registrations
+       SET selected_tier = $2,
+           tier_selected = true,
+           updated_at = NOW()
+       WHERE session_id = $1
+       RETURNING *`,
+      [sessionId, selectedTier]
+    );
+
+    if (pending.user_id) {
+      await client.query(
+        `UPDATE users
+         SET helper_tier = $2
+         WHERE id = $1`,
+        [pending.user_id, selectedTier]
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'Tier selected',
+      registration: buildRegistrationPayload(pendingUpdate.rows[0])
+    });
+  } catch (error) {
+    console.error('selectTierStep error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to save selected tier'
+    });
+  } finally {
+    client.release();
+  }
+};
+
+exports.completeW9Step = async (req, res) => {
+  const client = await pool.connect();
+
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
-    const { rows } = await pool.query(
-      'SELECT * FROM pending_registrations WHERE token = $1 AND role = \'helper\' AND expires_at > NOW()',
-      [token]
+    const { sessionId, userId, w9Name, w9TaxClassification, w9Tin } = req.body;
+
+    if (!sessionId && !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId or userId is required'
+      });
+    }
+
+    if (userId) {
+      const { rows } = await client.query(
+        `UPDATE users
+         SET w9_name = COALESCE($2, w9_name),
+             w9_tax_classification = COALESCE($3, w9_tax_classification),
+             w9_tin = COALESCE($4, w9_tin)
+         WHERE id = $1
+         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+        [userId, w9Name || null, w9TaxClassification || null, w9Tin || null]
+      );
+
+      if (!rows[0]) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'W-9 step completed',
+        user: rows[0]
+      });
+    }
+
+    const pending = await ensurePendingRegistration(client, sessionId);
+
+    const pendingUpdate = await client.query(
+      `UPDATE pending_registrations
+       SET w9_name = COALESCE($2, w9_name),
+           w9_tax_classification = COALESCE($3, w9_tax_classification),
+           w9_tin = COALESCE($4, w9_tin),
+           w9_completed = true,
+           updated_at = NOW()
+       WHERE session_id = $1
+       RETURNING *`,
+      [sessionId, w9Name || null, w9TaxClassification || null, w9Tin || null]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
-    const reg = rows[0];
-    const passwordHash = await bcrypt.hash(reg.password, SALT_ROUNDS);
-    const userResult = await pool.query(
-      'INSERT INTO users (email, password, role, is_verified) VALUES ($1, $2, \'helper\', true) RETURNING id',
-      [reg.email, passwordHash]
-    );
-    await pool.query('DELETE FROM pending_registrations WHERE token = $1', [token]);
-    const user = { id: userResult.rows[0].id, email: reg.email, role: 'helper' };
-    const tokens = generateTokens(user);
-    res.json({ message: 'Registration complete', ...tokens });
-  } catch (err) {
-    console.error('Finalize registration error:', err);
-    res.status(500).json({ error: 'Failed to finalize registration' });
+
+    if (pending.user_id) {
+      await client.query(
+        `UPDATE users
+         SET w9_name = COALESCE($2, w9_name),
+             w9_tax_classification = COALESCE($3, w9_tax_classification),
+             w9_tin = COALESCE($4, w9_tin)
+         WHERE id = $1`,
+        [pending.user_id, w9Name || null, w9TaxClassification || null, w9Tin || null]
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'W-9 step completed',
+      registration: buildRegistrationPayload(pendingUpdate.rows[0])
+    });
+  } catch (error) {
+    console.error('completeW9Step error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to save W-9 step'
+    });
+  } finally {
+    client.release();
   }
-}
+};
 
-module.exports = {
-  getCategories,
-  startHelperRegistration,
-  sendOTP,
-  verifyOTP,
-  updateContact,
-  saveHelperProfile,
-  selectTier,
-  submitW9,
-  finalizeRegistration,
-  resendHelperOTP,
-  helperAcceptTerms
+exports.acceptTermsStep = async (req, res) => {
+  const client = await pool.connect();
 
+  try {
+    const { sessionId, userId } = req.body;
+
+    if (!sessionId && !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId or userId is required'
+      });
+    }
+
+    if (userId) {
+      const { rows } = await client.query(
+        `UPDATE users
+         SET terms_accepted = true
+         WHERE id = $1
+         RETURNING id, first_name, last_name, email, phone, role, city, state, zip_code, created_at`,
+        [userId]
+      );
+
+      if (!rows[0]) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Terms accepted',
+        user: rows[0]
+      });
+    }
+
+    const pending = await ensurePendingRegistration(client, sessionId);
+
+    const pendingUpdate = await client.query(
+      `UPDATE pending_registrations
+       SET terms_accepted = true,
+           updated_at = NOW()
+       WHERE session_id = $1
+       RETURNING *`,
+      [sessionId]
+    );
+
+    if (pending.user_id) {
+      await client.query(
+        `UPDATE users
+         SET terms_accepted = true
+         WHERE id = $1`,
+        [pending.user_id]
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: 'Terms accepted',
+      registration: buildRegistrationPayload(pendingUpdate.rows[0])
+    });
+  } catch (error) {
+    console.error('acceptTermsStep error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to accept terms'
+    });
+  } finally {
+    client.release();
+  }
+};
+
+exports.finalizeRegistration = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { sessionId, userId } = req.body;
+
+    if (!sessionId && !userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId or userId is required'
+      });
+    }
+
+    if (userId) {
+      const user = await getUserById(client, userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Helper account already exists. Onboarding can continue later.',
+        user
+      });
+    }
+
+    const pending = await ensurePendingRegistration(client, sessionId);
+
+    if (!pending.user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account has not been created yet. Complete email verification first.'
+      });
+    }
+
+    const user = await getUserById(client, pending.user_id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Linked user record not found'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Helper account already exists. Onboarding can continue later.',
+      user,
+      registration: buildRegistrationPayload(pending)
+    });
+  } catch (error) {
+    console.error('finalizeRegistration error:', error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to finalize helper registration'
+    });
+  } finally {
+    client.release();
+  }
 };
