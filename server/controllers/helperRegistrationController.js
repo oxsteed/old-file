@@ -345,6 +345,76 @@ async function submitW9(req, res) {
   }
 }
 
+// -- HELPER ACCEPT TERMS --
+async function helperAcceptTerms(req, res) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { rows } = await pool.query(
+      'SELECT * FROM pending_registrations WHERE token = $1 AND role = \'helper\' AND expires_at > NOW()',
+      [token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    await pool.query(
+      'UPDATE pending_registrations SET terms_accepted = true WHERE token = $1',
+      [token]
+    );
+    res.json({ message: 'Terms accepted' });
+  } catch (err) {
+    console.error('Helper accept terms error:', err);
+    res.status(500).json({ error: 'Failed to accept terms' });
+  }
+}
+
+// -- RESEND HELPER OTP --
+async function resendHelperOTP(req, res) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { rows } = await pool.query(
+      'SELECT * FROM pending_registrations WHERE token = $1 AND role = \'helper\' AND expires_at > NOW()',
+      [token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await pool.query(
+      'UPDATE pending_registrations SET otp = $1 WHERE token = $2',
+      [otp, token]
+    );
+    await sendOTPEmail(rows[0].email, otp);
+    res.json({ message: 'OTP resent' });
+  } catch (err) {
+    console.error('Resend helper OTP error:', err);
+    res.status(500).json({ error: 'Failed to resend OTP' });
+  }
+}
+
+// -- FINALIZE REGISTRATION --
+async function finalizeRegistration(req, res) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    const { rows } = await pool.query(
+      'SELECT * FROM pending_registrations WHERE token = $1 AND role = \'helper\' AND expires_at > NOW()',
+      [token]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    const reg = rows[0];
+    const passwordHash = await bcrypt.hash(reg.password, SALT_ROUNDS);
+    const userResult = await pool.query(
+      'INSERT INTO users (email, password, role, is_verified) VALUES ($1, $2, \'helper\', true) RETURNING id',
+      [reg.email, passwordHash]
+    );
+    await pool.query('DELETE FROM pending_registrations WHERE token = $1', [token]);
+    const user = { id: userResult.rows[0].id, email: reg.email, role: 'helper' };
+    const tokens = generateTokens(user);
+    res.json({ message: 'Registration complete', ...tokens });
+  } catch (err) {
+    console.error('Finalize registration error:', err);
+    res.status(500).json({ error: 'Failed to finalize registration' });
+  }
+}
+
 module.exports = {
   getCategories,
   startHelperRegistration,
@@ -353,6 +423,9 @@ module.exports = {
   updateContact,
   saveHelperProfile,
   selectTier,
-  submitW9
-  // plus finalizeRegistration, resendHelperOTP, helperAcceptTerms etc. if they are defined below
+  submitW9,
+  finalizeRegistration,
+  resendHelperOTP,
+  helperAcceptTerms
+
 };
