@@ -35,7 +35,7 @@ export default function ProtectedRoute({ children, requiredRole, requiredTier })
     !helperOnboardingComplete &&
     !ONBOARDING_ALLOWED_PATHS.some(p => location.pathname.startsWith(p))
   ) {
-    return <Navigate to="/helper/onboarding" replace />;
+    return <Navigate to="/register/helper" replace />;
   }
 
   if (requiredRole && user.role !== requiredRole) {

@@ -8,7 +8,7 @@ import '../styles/JobDetailPage.css';
 export default function JobDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canApplyToJobs, needsOnboarding } = useAuth();
   const { fetchJob, job, loading, error, createBid, getJobBids, assignHelper, startJob, completeJob, cancelJob } = useJobs();
   const { createPaymentIntent } = usePayments();
   const [bids, setBids] = useState([]);
@@ -104,7 +104,6 @@ export default function JobDetailPage() {
 
   const isOwner = user?.id === job.client_id;
   const isHelper = user?.role === 'helper';
-  const canApplyToJobs = ['active', 'premium', 'tier2'].includes(user?.membership_tier);
   const hasAlreadyBid = bids.some(b => b.helper_id === user?.id);
 
   return (
@@ -187,8 +186,10 @@ export default function JobDetailPage() {
 
       {isHelper && job.status === 'published' && !hasAlreadyBid && !canApplyToJobs && (
         <div className="bid-form-card">
-          <div className="upgrade-prompt">
-            Upgrade to an Active or Premium membership to apply for jobs.
+          <div className="upgrade-prompt" style={{ color: '#f59e0b', fontWeight: 600, padding: '1rem' }}>
+            {needsOnboarding
+              ? 'Complete your onboarding to start bidding on jobs.'
+              : 'Upgrade your plan to bid on jobs.'}
           </div>
         </div>
       )}

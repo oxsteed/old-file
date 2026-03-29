@@ -1,4 +1,5 @@
 // server/controllers/helperRegistrationController.js
+const crypto = require('crypto');
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
@@ -36,6 +37,9 @@ async function startRegistration(req, res) {
     const otp = generateOTP();
     const otp_expires = otpExpiry();
 
+    // Generate a unique token for this registration
+    const token = crypto.randomBytes(32).toString('hex');
+
     // Delete any existing pending registration for this email, then insert fresh
     await pool.query(
       'DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)',
@@ -44,10 +48,10 @@ async function startRegistration(req, res) {
 
     const result = await pool.query(`
       INSERT INTO pending_registrations
-        (email, password_hash, first_name, last_name, role, otp_code, otp_expires_at, account_created)
-      VALUES ($1,$2,$3,$4,'helper',$5,$6,false)
+        (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at, otp_attempts, account_created)
+      VALUES ($1,$2,$3,$4,$5,'pending','00000','helper',$6,$7,0,false)
       RETURNING id
-    `, [email, password_hash, first_name, last_name, otp, otp_expires]);
+    `, [token, email, password_hash, first_name, last_name, otp, otp_expires]);
 
     await sendOTPEmail(email, otp);
 

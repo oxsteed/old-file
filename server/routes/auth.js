@@ -24,7 +24,6 @@ const {
   getMe,
   updateProfile,
   changePassword,
-  getPublicProfile,
   resendVerification
 } = require('../controllers/authController');
 // Original routes
