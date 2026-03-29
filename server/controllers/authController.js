@@ -46,7 +46,7 @@ async function login(req, res) {
   try {
     const { email, password } = req.body;
     const { rows } = await pool.query(
-      'SELECT id, email, password_hash, role, is_active FROM users WHERE email = $1',
+      'SELECT id, email, password_hash, role, is_active, email_verified, onboarding_status, onboarding_completed, contact_completed, profile_completed, tier_selected, w9_completed, terms_accepted FROM users WHERE email = $1'
       [email.toLowerCase()]
     );
     if (!rows[0]) return res.status(401).json({ error: 'Invalid credentials' });
@@ -73,7 +73,23 @@ async function login(req, res) {
       const tierResult = await pool.query('SELECT tier FROM helper_profiles WHERE user_id = $1', [user.id]);
       if (tierResult.rows[0]) tier = tierResult.rows[0].tier;
     }
-    res.json({ user: { id: user.id, email: user.email, role: user.role, tier }, ...tokens });
+    res.json({ 
+  user: { 
+    id: user.id, 
+    email: user.email, 
+    role: user.role, 
+    tier,
+    email_verified: user.email_verified,
+    onboarding_status: user.onboarding_status,
+    onboarding_completed: user.onboarding_completed,
+    contact_completed: user.contact_completed,
+    profile_completed: user.profile_completed,
+    tier_selected: user.tier_selected,
+    w9_completed: user.w9_completed,
+    terms_accepted: user.terms_accepted
+  }, 
+  ...tokens 
+});
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
