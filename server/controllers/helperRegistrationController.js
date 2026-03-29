@@ -18,15 +18,11 @@ function otpExpiry() {
 // POST /api/helper-registration/start
 async function startRegistration(req, res) {
   try {
-    const { email, password, full_name } = req.body;
-    if (!email || !password || !full_name)
-      return res.status(400).json({ error: 'Email, password, and full name required' });
+        const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
+        if (!email || !password || !firstName || !lastName || !phone || !zip)
+            return res.status(400).json({ error: 'Email, password, first name, and last name required' });
 
-    // Split full_name into first_name and last_name for schema compatibility
-    const nameParts = full_name.trim().split(/\s+/);
-    const first_name = nameParts[0];
-    const last_name = nameParts.slice(1).join(' ') || first_name;
-
+    
     // Check for existing user
     const dup = await pool.query(
       'SELECT id FROM users WHERE email = $1', [email]);
@@ -48,16 +44,16 @@ async function startRegistration(req, res) {
 
     const result = await pool.query(`
       INSERT INTO pending_registrations
-        (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at, otp_attempts, account_created)
-      VALUES ($1,$2,$3,$4,$5,'pending','00000','helper',$6,$7,0,false)
-      RETURNING id
-    `, [token, email, password_hash, first_name, last_name, otp, otp_expires]);
+                  (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
+                RETURNING token
+            `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
 
     await sendOTPEmail(email, otp);
 
     res.status(201).json({
       message: 'OTP sent to email',
-      registrationId: result.rows[0].id
+                token: result.rows[0].token,
     });
   } catch (err) {
     console.error('startRegistration error:', err);
