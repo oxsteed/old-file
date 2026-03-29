@@ -26,28 +26,26 @@ async function startRegistration(req, res) {
     const first_name = nameParts[0];
     const last_name = nameParts.slice(1).join(' ') || first_name;
 
-    const password_hash = await bcrypt.hash(password, 12);
-    const otp = generateOTP();
-    const otp_expires = otpExpiry();
-
-    // Check for duplicate
+    // Check for existing user
     const dup = await pool.query(
       'SELECT id FROM users WHERE email = $1', [email]);
     if (dup.rows.length)
       return res.status(409).json({ error: 'Email already registered' });
 
-    // upsert into pending_registrations
+    const password_hash = await bcrypt.hash(password, 12);
+    const otp = generateOTP();
+    const otp_expires = otpExpiry();
+
+    // Delete any existing pending registration for this email, then insert fresh
+    await pool.query(
+      'DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)',
+      [email, 'helper']
+    );
+
     const result = await pool.query(`
       INSERT INTO pending_registrations
-        (email, password_hash, first_name, last_name, role, otp_code, otp_expires_at)
-      VALUES ($1,$2,$3,$4,'helper',$5,$6)
-      ON CONFLICT (email) DO UPDATE SET
-        password_hash  = EXCLUDED.password_hash,
-        first_name     = EXCLUDED.first_name,
-        last_name      = EXCLUDED.last_name,
-        otp_code       = EXCLUDED.otp_code,
-        otp_expires_at = EXCLUDED.otp_expires_at,
-        otp_verified   = false
+        (email, password_hash, first_name, last_name, role, otp_code, otp_expires_at, account_created)
+      VALUES ($1,$2,$3,$4,'helper',$5,$6,false)
       RETURNING id
     `, [email, password_hash, first_name, last_name, otp, otp_expires]);
 
@@ -59,63 +57,74 @@ async function startRegistration(req, res) {
     });
   } catch (err) {
     console.error('startRegistration error:', err);
-    res.status(500).json({ error: 'Registration failed', detail: err.message });
+    res.status(500).json({ error: 'Registration failed' });
   }
 }
 
 // ── 2. Verify OTP ────────────────────────────────────────
 // POST /api/helper-registration/verify-otp
 async function verifyOTP(req, res) {
-  const { email, otp } = req.body;
-  if (!email || !otp)
-    return res.status(400).json({ error: 'Email and OTP required' });
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp)
+      return res.status(400).json({ error: 'Email and OTP required' });
 
-  const { rows } = await pool.query(
-    `SELECT id, otp_code, otp_expires_at
-     FROM pending_registrations
-     WHERE email = $1 AND role = 'helper'`,
-    [email]
-  );
+    const { rows } = await pool.query(
+      `SELECT id, otp_code, otp_expires_at
+       FROM pending_registrations
+       WHERE email = $1 AND role = 'helper'`,
+      [email]
+    );
 
-  if (!rows.length)
-    return res.status(404).json({ error: 'No pending registration found' });
+    if (!rows.length)
+      return res.status(404).json({ error: 'No pending registration found' });
 
-  const reg = rows[0];
-  if (reg.otp_code !== otp)
-    return res.status(400).json({ error: 'Invalid OTP' });
-  if (new Date(reg.otp_expires_at) < new Date())
-    return res.status(400).json({ error: 'OTP expired' });
+    const reg = rows[0];
+    if (reg.otp_code !== otp)
+      return res.status(400).json({ error: 'Invalid OTP' });
+    if (new Date(reg.otp_expires_at) < new Date())
+      return res.status(400).json({ error: 'OTP expired' });
 
-  await pool.query(
-    `UPDATE pending_registrations SET otp_verified = true WHERE id = $1`,
-    [reg.id]
-  );
+    // Mark as verified by clearing OTP (consumed) and setting otp_attempts to -1 as verified flag
+    await pool.query(
+      `UPDATE pending_registrations SET otp_code = NULL, otp_attempts = -1 WHERE id = $1`,
+      [reg.id]
+    );
 
-  res.json({ message: 'Email verified', registrationId: reg.id });
+    res.json({ message: 'Email verified', registrationId: reg.id });
+  } catch (err) {
+    console.error('verifyOTP error:', err);
+    res.status(500).json({ error: 'OTP verification failed' });
+  }
 }
 
 // ── 3. Resend OTP ────────────────────────────────────────
 // POST /api/helper-registration/resend-otp
 async function resendOTP(req, res) {
-  const { email } = req.body;
-  if (!email)
-    return res.status(400).json({ error: 'Email required' });
+  try {
+    const { email } = req.body;
+    if (!email)
+      return res.status(400).json({ error: 'Email required' });
 
-  const otp = generateOTP();
-  const otp_expires = otpExpiry();
+    const otp = generateOTP();
+    const otp_expires = otpExpiry();
 
-  const { rowCount } = await pool.query(
-    `UPDATE pending_registrations
-     SET otp_code = $1, otp_expires_at = $2
-     WHERE email = $3 AND role = 'helper'`,
-    [otp, otp_expires, email]
-  );
+    const { rowCount } = await pool.query(
+      `UPDATE pending_registrations
+       SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0
+       WHERE email = $3 AND role = 'helper'`,
+      [otp, otp_expires, email]
+    );
 
-  if (!rowCount)
-    return res.status(404).json({ error: 'No pending registration found' });
+    if (!rowCount)
+      return res.status(404).json({ error: 'No pending registration found' });
 
-  await sendOTPEmail(email, otp);
-  res.json({ message: 'New OTP sent' });
+    await sendOTPEmail(email, otp);
+    res.json({ message: 'New OTP sent' });
+  } catch (err) {
+    console.error('resendOTP error:', err);
+    res.status(500).json({ error: 'Resend OTP failed' });
+  }
 }
 
 // ── 4. Complete Registration (creates user row) ──────────
@@ -130,9 +139,10 @@ async function completeRegistration(req, res) {
     client = await pool.connect();
     await client.query('BEGIN');
 
+    // otp_attempts = -1 means OTP was verified
     const { rows } = await client.query(
       `SELECT * FROM pending_registrations
-       WHERE email = $1 AND role = 'helper' AND otp_verified = true`,
+       WHERE email = $1 AND role = 'helper' AND otp_attempts = -1`,
       [email]
     );
     if (!rows.length) {
@@ -174,7 +184,7 @@ async function completeRegistration(req, res) {
     });
   } catch (err) {
     if (client) {
-      try { await client.query('ROLLBACK'); } catch (e) { /* ignore rollback error */ }
+      try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
     }
     console.error('completeRegistration error:', err);
     res.status(500).json({ error: 'Registration completion failed' });
@@ -187,109 +197,125 @@ async function completeRegistration(req, res) {
 // PUT /api/helper-registration/onboarding/profile
 // Auth required — user must be logged in
 async function submitOnboardingProfile(req, res) {
-  const userId = req.user.id;
-  const {
-    phone, address_line1, address_line2,
-    city, state, zip_code, date_of_birth,
-    bio, profile_photo_url, skills
-  } = req.body;
+  try {
+    const userId = req.user.id;
+    const { phone, city, state, zip_code, bio, skills } = req.body;
 
-  if (!phone || !city || !state || !zip_code)
-    return res.status(400).json({ error: 'Required profile fields missing' });
+    if (!phone || !city || !state || !zip_code)
+      return res.status(400).json({ error: 'Required profile fields missing' });
 
-  await pool.query(`
-    UPDATE users SET
-      phone            = $1,
-      city             = $2,
-      state            = $3,
-      zip_code         = $4,
-      bio              = $5,
-      skills           = $6,
-      profile_completed = true,
-      contact_completed = true,
-      onboarding_status = 'onboarding_in_progress'
-    WHERE id = $7 AND role = 'helper'
-  `, [phone, city, state, zip_code,
-      bio || null, JSON.stringify(skills || []), userId]);
+    await pool.query(`
+      UPDATE users SET
+        phone            = $1,
+        city             = $2,
+        state            = $3,
+        zip_code         = $4,
+        bio              = $5,
+        skills           = $6,
+        profile_completed = true,
+        contact_completed = true,
+        onboarding_status = 'onboarding_in_progress'
+      WHERE id = $7 AND role = 'helper'
+    `, [phone, city, state, zip_code,
+        bio || null, JSON.stringify(skills || []), userId]);
 
-  res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
+    res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
+  } catch (err) {
+    console.error('submitOnboardingProfile error:', err);
+    res.status(500).json({ error: 'Profile save failed' });
+  }
 }
 
 // ── 6. Submit ID Verification ────────────────────────────
 // PUT /api/helper-registration/onboarding/id-verification
 // Auth required
 async function submitIdVerification(req, res) {
-  const userId = req.user.id;
-  const { id_document_url } = req.body;
+  try {
+    const userId = req.user.id;
+    const { id_document_url } = req.body;
 
-  if (!id_document_url)
-    return res.status(400).json({ error: 'ID document URL required' });
+    if (!id_document_url)
+      return res.status(400).json({ error: 'ID document URL required' });
 
-  await pool.query(`
-    UPDATE users SET
-      id_verified     = false,
-      onboarding_status = 'onboarding_in_progress'
-    WHERE id = $1 AND role = 'helper'
-  `, [userId]);
+    await pool.query(`
+      UPDATE users SET
+        id_verified     = false,
+        onboarding_status = 'onboarding_in_progress'
+      WHERE id = $1 AND role = 'helper'
+    `, [userId]);
 
-  res.json({ message: 'ID submitted for review', onboarding_step: 'id_submitted' });
+    res.json({ message: 'ID submitted for review', onboarding_step: 'id_submitted' });
+  } catch (err) {
+    console.error('submitIdVerification error:', err);
+    res.status(500).json({ error: 'ID verification submission failed' });
+  }
 }
 
 // ── 7. Submit Background Check ───────────────────────────
 // PUT /api/helper-registration/onboarding/background-check
 // Auth required
 async function submitBackgroundCheck(req, res) {
-  const userId = req.user.id;
-  const { background_check_consent } = req.body;
+  try {
+    const userId = req.user.id;
+    const { background_check_consent } = req.body;
 
-  if (!background_check_consent)
-    return res.status(400).json({ error: 'Background check consent required' });
+    if (!background_check_consent)
+      return res.status(400).json({ error: 'Background check consent required' });
 
-  await pool.query(`
-    UPDATE users SET
-      background_check_passed  = false,
-      onboarding_status        = 'onboarding_in_progress'
-    WHERE id = $1 AND role = 'helper'
-  `, [userId]);
+    await pool.query(`
+      UPDATE users SET
+        background_check_passed  = false,
+        onboarding_status        = 'onboarding_in_progress'
+      WHERE id = $1 AND role = 'helper'
+    `, [userId]);
 
-  res.json({ message: 'Background check submitted', onboarding_step: 'background_submitted' });
+    res.json({ message: 'Background check submitted', onboarding_step: 'background_submitted' });
+  } catch (err) {
+    console.error('submitBackgroundCheck error:', err);
+    res.status(500).json({ error: 'Background check submission failed' });
+  }
 }
 
 // ── 8. Get Onboarding Status ─────────────────────────────
 // GET /api/helper-registration/onboarding/status
 // Auth required
 async function getOnboardingStatus(req, res) {
-  const userId = req.user.id;
-  const { rows } = await pool.query(
-    `SELECT onboarding_status, membership_tier, id_verified,
-            background_check_passed, bio, skills,
-            profile_completed, contact_completed, tier_selected,
-            w9_completed, terms_accepted, onboarding_completed
-     FROM users WHERE id = $1 AND role = 'helper'`,
-    [userId]
-  );
+  try {
+    const userId = req.user.id;
+    const { rows } = await pool.query(
+      `SELECT onboarding_status, membership_tier, id_verified,
+              background_check_passed, bio, skills,
+              profile_completed, contact_completed, tier_selected,
+              w9_completed, terms_accepted, onboarding_completed
+       FROM users WHERE id = $1 AND role = 'helper'`,
+      [userId]
+    );
 
-  if (!rows.length)
-    return res.status(404).json({ error: 'Helper not found' });
+    if (!rows.length)
+      return res.status(404).json({ error: 'Helper not found' });
 
-  const u = rows[0];
+    const u = rows[0];
 
-  // Map onboarding_status to step for API consumers
-  let onboarding_step = 'registered';
-  if (u.onboarding_completed) onboarding_step = 'active';
-  else if (u.profile_completed) onboarding_step = 'profile_complete';
-  if (u.onboarding_status === 'onboarding_complete') onboarding_step = 'active';
+    // Map onboarding_status to step for API consumers
+    let onboarding_step = 'registered';
+    if (u.onboarding_completed) onboarding_step = 'active';
+    else if (u.profile_completed) onboarding_step = 'profile_complete';
+    if (u.onboarding_status === 'onboarding_complete') onboarding_step = 'active';
 
-  res.json({
-    onboarding_step:         onboarding_step,
-    membership_tier:         u.membership_tier,
-    id_verified:             u.id_verified,
-    background_check_passed: u.background_check_passed,
-    profile_complete:        !!u.profile_completed,
-    canBrowseJobs:           true,
-    canApplyToJobs:          u.membership_tier === 'tier2' || u.onboarding_completed,
-    canAppearInSearch:       u.membership_tier === 'tier2' && u.onboarding_completed
-  });
+    res.json({
+      onboarding_step:         onboarding_step,
+      membership_tier:         u.membership_tier,
+      id_verified:             u.id_verified,
+      background_check_passed: u.background_check_passed,
+      profile_complete:        !!u.profile_completed,
+      canBrowseJobs:           true,
+      canApplyToJobs:          u.membership_tier === 'tier2' || u.onboarding_completed,
+      canAppearInSearch:       u.membership_tier === 'tier2' && u.onboarding_completed
+    });
+  } catch (err) {
+    console.error('getOnboardingStatus error:', err);
+    res.status(500).json({ error: 'Failed to get onboarding status' });
+  }
 }
 
 module.exports = {
