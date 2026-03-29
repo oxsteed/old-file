@@ -65,15 +65,15 @@ async function startRegistration(req, res) {
 // POST /api/helper-registration/verify-otp
 async function verifyOTP(req, res) {
   try {
-    const { email, otp } = req.body;
-    if (!email || !otp)
+    const { token, otp } = req.body;
+    if (!token || !otp)
       return res.status(400).json({ error: 'Email and OTP required' });
 
     const { rows } = await pool.query(
       `SELECT id, otp_code, otp_expires_at
        FROM pending_registrations
-       WHERE email = $1 AND role = 'helper'`,
-      [email]
+       WHERE token = $1 AND role = 'helper'`,
+      [token]
     );
 
     if (!rows.length)
