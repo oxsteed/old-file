@@ -20,6 +20,7 @@ const {
 router.post('/start',       startRegistration);
 router.post('/verify-otp',  verifyOTP);
 router.post('/resend-otp',  resendOTP);
+router.post('/send-otp',    resendOTP);  // alias for frontend
 router.post('/complete',    completeRegistration);
 
 // Authenticated + onboarding gated
