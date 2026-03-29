@@ -16,34 +16,28 @@ function otpExpiry() {
 // ── 1. Start Registration ────────────────────────────────
 // POST /api/helper-registration/start
 async function startRegistration(req, res) {
-  const { email, password, full_name } = req.body;
-  if (!email || !password || !full_name)
-    return res.status(400).json({ error: 'Email, password, and full name required' });
-
-  // Split full_name into first_name and last_name for schema compatibility
-  const nameParts = full_name.trim().split(/\s+/);
-  const first_name = nameParts[0];
-  const last_name = nameParts.slice(1).join(' ') || first_name;
-
-  let client;
   try {
-    client = await pool.connect();
-    await client.query('BEGIN');
+    const { email, password, full_name } = req.body;
+    if (!email || !password || !full_name)
+      return res.status(400).json({ error: 'Email, password, and full name required' });
 
-    // duplicate guard
-    const dup = await client.query(
-      'SELECT id FROM users WHERE email = $1', [email]);
-    if (dup.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ error: 'Email already registered' });
-    }
+    // Split full_name into first_name and last_name for schema compatibility
+    const nameParts = full_name.trim().split(/\s+/);
+    const first_name = nameParts[0];
+    const last_name = nameParts.slice(1).join(' ') || first_name;
 
     const password_hash = await bcrypt.hash(password, 12);
     const otp = generateOTP();
     const otp_expires = otpExpiry();
 
+    // Check for duplicate
+    const dup = await pool.query(
+      'SELECT id FROM users WHERE email = $1', [email]);
+    if (dup.rows.length)
+      return res.status(409).json({ error: 'Email already registered' });
+
     // upsert into pending_registrations
-    const result = await client.query(`
+    const result = await pool.query(`
       INSERT INTO pending_registrations
         (email, password_hash, first_name, last_name, role, otp_code, otp_expires_at)
       VALUES ($1,$2,$3,$4,'helper',$5,$6)
@@ -57,7 +51,6 @@ async function startRegistration(req, res) {
       RETURNING id
     `, [email, password_hash, first_name, last_name, otp, otp_expires]);
 
-    await client.query('COMMIT');
     await sendOTPEmail(email, otp);
 
     res.status(201).json({
@@ -65,13 +58,8 @@ async function startRegistration(req, res) {
       registrationId: result.rows[0].id
     });
   } catch (err) {
-    if (client) {
-      try { await client.query('ROLLBACK'); } catch (e) { /* ignore rollback error */ }
-    }
     console.error('startRegistration error:', err);
-    res.status(500).json({ error: 'Registration failed' });
-  } finally {
-    if (client) client.release();
+    res.status(500).json({ error: 'Registration failed', detail: err.message });
   }
 }
 
