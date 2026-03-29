@@ -125,10 +125,12 @@ export function AuthProvider({ children }) {
   }, [persistUser]);
 
   // Onboarding & tier computed helpers
-  const isOnboardingComplete = user?.onboarding_step === 'active';
+  const isOnboardingComplete = user?.onboarding_step === 'active'
+    || user?.onboarding_completed
+    || user?.onboarding_status === 'onboarding_complete';
   const canBrowseJobs = true;
-  const canApplyToJobs = ['active', 'premium'].includes(user?.membership_tier);
-  const canAppearInSearch = user?.membership_tier === 'premium';
+  const canApplyToJobs = ['active', 'premium', 'tier2'].includes(user?.membership_tier) || isOnboardingComplete;
+  const canAppearInSearch = ['premium', 'tier2'].includes(user?.membership_tier) && isOnboardingComplete;
 
   const value = {
     user,

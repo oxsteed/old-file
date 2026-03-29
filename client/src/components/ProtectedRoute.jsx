@@ -27,10 +27,12 @@ export default function ProtectedRoute({ children, requiredRole, requiredTier })
   }
 
   // Helper onboarding gate: redirect incomplete helpers unless on allowed paths
+  const helperOnboardingComplete = user.onboarding_step === 'active'
+    || user.onboarding_completed
+    || user.onboarding_status === 'onboarding_complete';
   if (
     user.role === 'helper' &&
-    user.onboarding_step &&
-    user.onboarding_step !== 'active' &&
+    !helperOnboardingComplete &&
     !ONBOARDING_ALLOWED_PATHS.some(p => location.pathname.startsWith(p))
   ) {
     return <Navigate to="/helper/onboarding" replace />;

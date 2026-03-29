@@ -104,7 +104,7 @@ export default function JobDetailPage() {
 
   const isOwner = user?.id === job.client_id;
   const isHelper = user?.role === 'helper';
-  const canApplyToJobs = ['active', 'premium'].includes(user?.membership_tier);
+  const canApplyToJobs = ['active', 'premium', 'tier2'].includes(user?.membership_tier);
   const hasAlreadyBid = bids.some(b => b.helper_id === user?.id);
 
   return (

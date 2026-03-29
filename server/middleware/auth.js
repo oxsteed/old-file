@@ -35,7 +35,7 @@ async function authenticate(req, res, next) {
       `SELECT
          id, first_name, last_name, email, phone, role,
          email_verified, is_verified,
-         onboarding_status, onboarding_completed, onboarding_step,
+         onboarding_status, onboarding_completed,
          contact_completed, profile_completed,
          tier_selected, w9_completed, terms_accepted,
          membership_tier, id_verified, background_check_passed,
@@ -48,6 +48,15 @@ async function authenticate(req, res, next) {
     const user = rows[0];
     if (!user) {
       return res.status(401).json({ success: false, message: 'User no longer exists' });
+    }
+
+    // Compute virtual onboarding_step from existing columns
+    if (user.onboarding_completed || user.onboarding_status === 'onboarding_complete') {
+      user.onboarding_step = 'active';
+    } else if (user.profile_completed) {
+      user.onboarding_step = 'profile_complete';
+    } else {
+      user.onboarding_step = 'registered';
     }
 
     req.user = user;

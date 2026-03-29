@@ -13,6 +13,15 @@ const SALT_ROUNDS = 12;
 
 function formatAuthUser(user) {
   if (!user) return null;
+
+  // Compute virtual onboarding_step from existing columns
+  let onboarding_step = 'registered';
+  if (user.onboarding_completed || user.onboarding_status === 'onboarding_complete') {
+    onboarding_step = 'active';
+  } else if (user.profile_completed) {
+    onboarding_step = 'profile_complete';
+  }
+
   return {
     id:                    user.id,
     first_name:            user.first_name,
@@ -24,7 +33,7 @@ function formatAuthUser(user) {
     is_verified:           !!user.is_verified,
     onboarding_status:     user.onboarding_status,
     onboarding_completed:  !!user.onboarding_completed,
-    onboarding_step:       user.onboarding_step,
+    onboarding_step:       onboarding_step,
     contact_completed:     !!user.contact_completed,
     profile_completed:     !!user.profile_completed,
     tier_selected:         !!user.tier_selected,
@@ -76,7 +85,7 @@ async function login(req, res) {
     const { rows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, password_hash, role, is_active,
               email_verified, is_verified,
-              onboarding_status, onboarding_completed, onboarding_step,
+              onboarding_status, onboarding_completed,
               contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted,
               membership_tier, id_verified, background_check_passed,
@@ -229,7 +238,7 @@ async function refreshToken(req, res) {
     const { rows: userRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role,
               email_verified, is_verified,
-              onboarding_status, onboarding_completed, onboarding_step,
+              onboarding_status, onboarding_completed,
               contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted,
               membership_tier, id_verified, background_check_passed,

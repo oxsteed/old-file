@@ -20,6 +20,11 @@ async function startRegistration(req, res) {
   if (!email || !password || !full_name)
     return res.status(400).json({ error: 'Email, password, and full name required' });
 
+  // Split full_name into first_name and last_name for schema compatibility
+  const nameParts = full_name.trim().split(/\s+/);
+  const first_name = nameParts[0];
+  const last_name = nameParts.slice(1).join(' ') || first_name;
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -37,16 +42,17 @@ async function startRegistration(req, res) {
     // upsert into pending_registrations
     const result = await client.query(`
       INSERT INTO pending_registrations
-        (email, password_hash, full_name, role, otp_code, otp_expires_at)
-      VALUES ($1,$2,$3,'helper',$4,$5)
+        (email, password_hash, first_name, last_name, role, otp_code, otp_expires_at)
+      VALUES ($1,$2,$3,$4,'helper',$5,$6)
       ON CONFLICT (email) DO UPDATE SET
-        password_hash = EXCLUDED.password_hash,
-        full_name     = EXCLUDED.full_name,
-        otp_code      = EXCLUDED.otp_code,
-        otp_expires_at= EXCLUDED.otp_expires_at,
-        email_verified = false
+        password_hash  = EXCLUDED.password_hash,
+        first_name     = EXCLUDED.first_name,
+        last_name      = EXCLUDED.last_name,
+        otp_code       = EXCLUDED.otp_code,
+        otp_expires_at = EXCLUDED.otp_expires_at,
+        otp_verified   = false
       RETURNING id
-    `, [email, password_hash, full_name, otp, otp_expires]);
+    `, [email, password_hash, first_name, last_name, otp, otp_expires]);
 
     await client.query('COMMIT');
     await sendOTPEmail(email, otp);
@@ -88,7 +94,7 @@ async function verifyOTP(req, res) {
     return res.status(400).json({ error: 'OTP expired' });
 
   await pool.query(
-    `UPDATE pending_registrations SET email_verified = true WHERE id = $1`,
+    `UPDATE pending_registrations SET otp_verified = true WHERE id = $1`,
     [reg.id]
   );
 
@@ -132,7 +138,7 @@ async function completeRegistration(req, res) {
 
     const { rows } = await client.query(
       `SELECT * FROM pending_registrations
-       WHERE email = $1 AND role = 'helper' AND email_verified = true`,
+       WHERE email = $1 AND role = 'helper' AND otp_verified = true`,
       [email]
     );
     if (!rows.length)
@@ -140,12 +146,13 @@ async function completeRegistration(req, res) {
 
     const reg = rows[0];
 
-    // create user — defaults: membership_tier = 'free', onboarding_step = 'registered'
+    // create user — defaults: membership_tier = 'tier1', onboarding_status = 'verified_pending_onboarding'
     const userResult = await client.query(`
-      INSERT INTO users (email, password_hash, full_name, role, membership_tier, onboarding_step)
-      VALUES ($1,$2,$3,'helper','free','registered')
-      RETURNING id, email, full_name, role, membership_tier, onboarding_step
-    `, [reg.email, reg.password_hash, reg.full_name]);
+      INSERT INTO users (email, password_hash, first_name, last_name, role,
+                         membership_tier, onboarding_status, onboarding_completed, email_verified)
+      VALUES ($1,$2,$3,$4,'helper','tier1','verified_pending_onboarding',false,true)
+      RETURNING id, email, first_name, last_name, role, membership_tier, onboarding_status
+    `, [reg.email, reg.password_hash, reg.first_name, reg.last_name]);
 
     const user = userResult.rows[0];
 
@@ -162,10 +169,10 @@ async function completeRegistration(req, res) {
       user: {
         id: user.id,
         email: user.email,
-        full_name: user.full_name,
+        full_name: (user.first_name + ' ' + user.last_name).trim(),
         role: user.role,
         membership_tier: user.membership_tier,
-        onboarding_step: user.onboarding_step
+        onboarding_step: user.onboarding_status
       },
       ...tokens
     });
@@ -189,26 +196,23 @@ async function submitOnboardingProfile(req, res) {
     bio, profile_photo_url, skills
   } = req.body;
 
-  if (!phone || !address_line1 || !city || !state || !zip_code || !date_of_birth)
+  if (!phone || !city || !state || !zip_code)
     return res.status(400).json({ error: 'Required profile fields missing' });
 
   await pool.query(`
     UPDATE users SET
       phone            = $1,
-      address_line1    = $2,
-      address_line2    = $3,
-      city             = $4,
-      state            = $5,
-      zip_code         = $6,
-      date_of_birth    = $7,
-      bio              = $8,
-      profile_photo_url= $9,
-      skills           = $10,
-      onboarding_step  = 'profile_complete'
-    WHERE id = $11 AND role = 'helper'
-  `, [phone, address_line1, address_line2, city, state, zip_code,
-      date_of_birth, bio, profile_photo_url,
-      JSON.stringify(skills || []), userId]);
+      city             = $2,
+      state            = $3,
+      zip_code         = $4,
+      bio              = $5,
+      skills           = $6,
+      profile_completed = true,
+      contact_completed = true,
+      onboarding_status = 'onboarding_in_progress'
+    WHERE id = $7 AND role = 'helper'
+  `, [phone, city, state, zip_code,
+      bio || null, JSON.stringify(skills || []), userId]);
 
   res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
 }
@@ -225,11 +229,10 @@ async function submitIdVerification(req, res) {
 
   await pool.query(`
     UPDATE users SET
-      id_document_url = $1,
       id_verified     = false,
-      onboarding_step = 'id_submitted'
-    WHERE id = $2 AND role = 'helper'
-  `, [id_document_url, userId]);
+      onboarding_status = 'onboarding_in_progress'
+    WHERE id = $1 AND role = 'helper'
+  `, [userId]);
 
   res.json({ message: 'ID submitted for review', onboarding_step: 'id_submitted' });
 }
@@ -246,11 +249,10 @@ async function submitBackgroundCheck(req, res) {
 
   await pool.query(`
     UPDATE users SET
-      background_check_consent = $1,
       background_check_passed  = false,
-      onboarding_step          = 'background_submitted'
-    WHERE id = $2 AND role = 'helper'
-  `, [true, userId]);
+      onboarding_status        = 'onboarding_in_progress'
+    WHERE id = $1 AND role = 'helper'
+  `, [userId]);
 
   res.json({ message: 'Background check submitted', onboarding_step: 'background_submitted' });
 }
@@ -261,8 +263,10 @@ async function submitBackgroundCheck(req, res) {
 async function getOnboardingStatus(req, res) {
   const userId = req.user.id;
   const { rows } = await pool.query(
-    `SELECT onboarding_step, membership_tier, id_verified,
-            background_check_passed, profile_photo_url, bio, skills
+    `SELECT onboarding_status, membership_tier, id_verified,
+            background_check_passed, bio, skills,
+            profile_completed, contact_completed, tier_selected,
+            w9_completed, terms_accepted, onboarding_completed
      FROM users WHERE id = $1 AND role = 'helper'`,
     [userId]
   );
@@ -271,15 +275,22 @@ async function getOnboardingStatus(req, res) {
     return res.status(404).json({ error: 'Helper not found' });
 
   const u = rows[0];
+
+  // Map onboarding_status to step for API consumers
+  let onboarding_step = 'registered';
+  if (u.onboarding_completed) onboarding_step = 'active';
+  else if (u.profile_completed) onboarding_step = 'profile_complete';
+  if (u.onboarding_status === 'onboarding_complete') onboarding_step = 'active';
+
   res.json({
-    onboarding_step:         u.onboarding_step,
+    onboarding_step:         onboarding_step,
     membership_tier:         u.membership_tier,
     id_verified:             u.id_verified,
     background_check_passed: u.background_check_passed,
-    profile_complete:        u.onboarding_step !== 'registered',
-    canBrowseJobs:           true,                          // all tiers
-    canApplyToJobs:          ['active','premium'].includes(u.membership_tier),
-    canAppearInSearch:       u.membership_tier === 'premium'
+    profile_complete:        !!u.profile_completed,
+    canBrowseJobs:           true,
+    canApplyToJobs:          u.membership_tier === 'tier2' || u.onboarding_completed,
+    canAppearInSearch:       u.membership_tier === 'tier2' && u.onboarding_completed
   });
 }
 
