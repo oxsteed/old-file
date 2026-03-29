@@ -25,15 +25,18 @@ async function startRegistration(req, res) {
   const first_name = nameParts[0];
   const last_name = nameParts.slice(1).join(' ') || first_name;
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
 
     // duplicate guard
     const dup = await client.query(
       'SELECT id FROM users WHERE email = $1', [email]);
-    if (dup.rows.length)
+    if (dup.rows.length) {
+      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Email already registered' });
+    }
 
     const password_hash = await bcrypt.hash(password, 12);
     const otp = generateOTP();
@@ -62,11 +65,13 @@ async function startRegistration(req, res) {
       registrationId: result.rows[0].id
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (e) { /* ignore rollback error */ }
+    }
     console.error('startRegistration error:', err);
     res.status(500).json({ error: 'Registration failed' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 
@@ -132,8 +137,9 @@ async function completeRegistration(req, res) {
   if (!email)
     return res.status(400).json({ error: 'Email required' });
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query('BEGIN');
 
     const { rows } = await client.query(
@@ -141,8 +147,10 @@ async function completeRegistration(req, res) {
        WHERE email = $1 AND role = 'helper' AND otp_verified = true`,
       [email]
     );
-    if (!rows.length)
+    if (!rows.length) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Email not verified or no pending registration' });
+    }
 
     const reg = rows[0];
 
@@ -177,11 +185,13 @@ async function completeRegistration(req, res) {
       ...tokens
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (e) { /* ignore rollback error */ }
+    }
     console.error('completeRegistration error:', err);
     res.status(500).json({ error: 'Registration completion failed' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 
