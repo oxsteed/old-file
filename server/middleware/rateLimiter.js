@@ -22,7 +22,7 @@ const generalLimiter = rateLimit({
 // Protects login, register, OTP endpoints from brute-force
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
