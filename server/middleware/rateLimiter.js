@@ -18,11 +18,11 @@ const generalLimiter = rateLimit({
   },
 });
 
-// Auth rate limiter: 10 attempts per 15 minutes per IP
+    // Auth rate limiter: 50 attempts per 15 minutes per IP
 // Protects login, register, OTP endpoints from brute-force
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
