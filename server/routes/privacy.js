@@ -14,7 +14,7 @@ router.get('/export', authenticate, async (req, res) => {
     // Gather all user data across tables
     const userResult = await pool.query(
       `SELECT id, name, email, phone, role, city, state, zip_code,
-              bio, skills, hourly_rate, availability, profile_photo,
+              bio, skills, hourly_rate, availability, profile_photo_url,
               subscription_tier, created_at, updated_at
        FROM users WHERE id = $1`,
       [userId]
@@ -96,7 +96,7 @@ router.delete('/delete-account', authenticate, async (req, res) => {
         phone = NULL,
         bio = NULL,
         skills = NULL,
-        profile_photo = NULL,
+        profile_photo_url = NULL,
         city = NULL,
         state = NULL,
         zip_code = NULL,
