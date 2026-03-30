@@ -154,11 +154,11 @@ async function completeRegistration(req, res) {
 
     // create user — defaults: membership_tier = 'tier1', onboarding_status = 'verified_pending_onboarding'
     const userResult = await client.query(`
-      INSERT INTO users (email, password_hash, first_name, last_name, role,
+      INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role,
                          membership_tier, onboarding_status, onboarding_completed, email_verified)
-      VALUES ($1,$2,$3,$4,'helper','tier1','verified_pending_onboarding',false,true)
-      RETURNING id, email, first_name, last_name, role, membership_tier, onboarding_status
-    `, [reg.email, reg.password_hash, reg.first_name, reg.last_name]);
+      VALUES ($1,$2,$3,$4,$5,$6,'helper','tier1','verified_pending_onboarding',false,true)
+      RETURNING id, email, first_name, last_name, phone, zip_code, role, membership_tier, onboarding_status
+    `, [reg.email, reg.password_hash, reg.first_name, reg.last_name, reg.phone || null, reg.zip_code || null]);
 
     const user = userResult.rows[0];
 
