@@ -4,6 +4,7 @@ const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
 const { requireOnboardingStep, requireTier } = require('../middleware/helperOnboardingMiddleware');
+const upload = require('../middleware/upload');
 
 const {
   startRegistration,
@@ -15,6 +16,7 @@ const {
   submitBackgroundCheck,
   submitProfile,
   updateContact,
+  uploadProfilePhoto,
   getOnboardingStatus
 } = require('../controllers/helperRegistrationController');
 
@@ -25,9 +27,10 @@ router.post('/resend-otp',  resendOTP);
 router.post('/send-otp',    resendOTP);  // alias for frontend
 router.post('/complete',    completeRegistration);
 
-// Authenticated — profile + contact (frontend Step4)
+// Authenticated - profile + contact + photo (frontend Step4)
 router.post('/profile', authenticate, submitProfile);
 router.post('/update-contact', authenticate, updateContact);
+router.post('/profile-photo', authenticate, upload.single('photo'), uploadProfilePhoto);
 
 // Authenticated + onboarding gated
 router.put('/onboarding/profile',
