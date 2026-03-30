@@ -318,6 +318,54 @@ async function getOnboardingStatus(req, res) {
   }
 }
 
+// ── 9. Submit Profile (token-based, called by frontend Step4) ──────
+// POST /api/helper-registration/profile
+async function submitProfile(req, res) {
+  try {
+    const userId = req.user.id;
+    const { profileHeadline, bio, serviceCategories, serviceRadius, ratePreference, hourlyRate } = req.body;
+
+    await pool.query(`
+      UPDATE users SET
+        bio = $1,
+        skills = $2,
+        profile_completed = true,
+        onboarding_status = 'onboarding_in_progress'
+      WHERE id = $3 AND role = 'helper'
+    `, [bio || null, JSON.stringify(serviceCategories || []), userId]);
+
+    res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
+  } catch (err) {
+    console.error('submitProfile error:', err);
+    res.status(500).json({ error: 'Profile save failed' });
+  }
+}
+
+// ── 10. Update Contact Info (token-based, called by frontend Step4) ──
+// POST /api/helper-registration/update-contact
+async function updateContact(req, res) {
+  try {
+    const userId = req.user.id;
+    const { phone, zip } = req.body;
+
+    if (!phone || !zip) return res.status(400).json({ error: 'Phone and zip required' });
+
+    // Look up city/state from zip using zippopotam or just store zip
+    await pool.query(`
+      UPDATE users SET
+        phone = $1,
+        zip_code = $2,
+        contact_completed = true
+      WHERE id = $3 AND role = 'helper'
+    `, [phone, zip, userId]);
+
+    res.json({ message: 'Contact updated' });
+  } catch (err) {
+    console.error('updateContact error:', err);
+    res.status(500).json({ error: 'Contact update failed' });
+  }
+}
+
 module.exports = {
   startRegistration,
   verifyOTP,
@@ -326,5 +374,7 @@ module.exports = {
   submitOnboardingProfile,
   submitIdVerification,
   submitBackgroundCheck,
-  getOnboardingStatus
+  getOnboardingStatus,
+  submitProfile,
+  updateContact
 };
