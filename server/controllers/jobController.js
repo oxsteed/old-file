@@ -4,36 +4,44 @@ const pool = require('../db');
 exports.createJob = async (req, res) => {
   try {
     const {
-      title, description, category, category_id, category_name,
+      title, description, category, category_name,
       job_type, budget_min, budget_max,
       location_address, location_city, location_state, location_zip,
       location_lat, location_lng,
-      is_urgent, priority, scheduled_start_at, scheduled_end_at,
-      market_id, media_urls
+      priority, scheduled_date,
+      media_urls
     } = req.body;
 
     // Map client fields: client sends 'category' but DB uses category_name
     const finalCategoryName = category_name || category || null;
-    const finalIsUrgent = is_urgent || (priority === 'urgent') || false;
+    const finalCategory = category || null;
+
+    // Handle media: uploaded files or provided URLs
+    let images = '[]';
+    if (req.files && req.files.length > 0) {
+      images = JSON.stringify(req.files.map(f => f.path || f.location || f.filename));
+    } else if (media_urls) {
+      images = typeof media_urls === 'string' ? media_urls : JSON.stringify(media_urls);
+    }
 
     const result = await pool.query(
       `INSERT INTO jobs (
-        client_id, title, description, category_id, category_name,
+        client_id, title, description, category, category_name,
         job_type, status, budget_min, budget_max,
         location_address, location_city, location_state, location_zip,
         location_lat, location_lng,
-        is_urgent, scheduled_start_at, scheduled_end_at,
-        market_id, media_urls
+        priority, scheduled_date,
+        images
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,'published',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+        $1,$2,$3,$4,$5,$6,'published',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
       ) RETURNING *`,
       [
-        req.user.id, title, description, category_id || null, finalCategoryName,
+        req.user.id, title, description, finalCategory, finalCategoryName,
         job_type || 'one_time', budget_min || null, budget_max || null,
         location_address || null, location_city || null, location_state || null,
         location_zip || null, location_lat || null, location_lng || null,
-        finalIsUrgent, scheduled_start_at || null, scheduled_end_at || null,
-        market_id || null, media_urls || '{}'
+        priority || 'normal', scheduled_date || null,
+        images
       ]
     );
     res.status(201).json(result.rows[0]);
@@ -47,17 +55,19 @@ exports.createJob = async (req, res) => {
 exports.getJobs = async (req, res) => {
   try {
     const {
-      category_id, city, state, status,
+      category, city, state, status,
       min_budget, max_budget, sort,
       page = 1, limit = 20
     } = req.query;
     const offset = (page - 1) * limit;
-    let conditions = [`j.deleted_at IS NULL`];
+
+    let conditions = [];
     let params = [];
     let paramIdx = 1;
-    if (category_id) {
-      conditions.push(`j.category_id = $${paramIdx++}`);
-      params.push(category_id);
+
+    if (category) {
+      conditions.push(`j.category = $${paramIdx++}`);
+      params.push(category);
     }
     if (city) {
       conditions.push(`j.location_city ILIKE $${paramIdx++}`);
@@ -79,13 +89,16 @@ exports.getJobs = async (req, res) => {
       conditions.push(`j.budget_min <= $${paramIdx++}`);
       params.push(max_budget);
     }
+
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
+
     let orderBy = 'j.created_at DESC';
     if (sort === 'budget_high') orderBy = 'j.budget_max DESC NULLS LAST';
     if (sort === 'budget_low') orderBy = 'j.budget_min ASC NULLS LAST';
-    if (sort === 'urgent') orderBy = 'j.is_urgent DESC, j.created_at DESC';
+    if (sort === 'urgent') orderBy = 'j.priority DESC, j.created_at DESC';
+
     const { rows } = await pool.query(`
       SELECT
         j.*,
@@ -97,9 +110,11 @@ exports.getJobs = async (req, res) => {
       ORDER BY ${orderBy}
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `, [...params, limit, offset]);
+
     const { rows: countRows } = await pool.query(`
       SELECT COUNT(*) FROM jobs j ${whereClause}
     `, params);
+
     res.json({
       jobs: rows,
       total: parseInt(countRows[0].count),
@@ -125,8 +140,9 @@ exports.getJob = async (req, res) => {
       FROM jobs j
       JOIN users u ON j.client_id = u.id
       LEFT JOIN users h ON j.assigned_helper_id = h.id
-      WHERE j.id = $1 AND j.deleted_at IS NULL
+      WHERE j.id = $1
     `, [id]);
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -142,35 +158,36 @@ exports.updateJob = async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      title, description, category_id, category_name,
+      title, description, category, category_name,
       budget_min, budget_max,
       location_city, location_state, location_zip,
-      is_urgent, scheduled_start_at, scheduled_end_at
+      priority, scheduled_date
     } = req.body;
+
     const { rows } = await pool.query(`
       UPDATE jobs SET
         title = COALESCE($1, title),
         description = COALESCE($2, description),
-        category_id = COALESCE($3, category_id),
+        category = COALESCE($3, category),
         category_name = COALESCE($4, category_name),
         budget_min = COALESCE($5, budget_min),
         budget_max = COALESCE($6, budget_max),
         location_city = COALESCE($7, location_city),
         location_state = COALESCE($8, location_state),
         location_zip = COALESCE($9, location_zip),
-        is_urgent = COALESCE($10, is_urgent),
-        scheduled_start_at = COALESCE($11, scheduled_start_at),
-        scheduled_end_at = COALESCE($12, scheduled_end_at),
+        priority = COALESCE($10, priority),
+        scheduled_date = COALESCE($11, scheduled_date),
         updated_at = now()
-      WHERE id = $13 AND client_id = $14 AND status IN ('draft','published')
+      WHERE id = $12 AND client_id = $13 AND status IN ('draft','published','open')
       RETURNING *
     `, [
-      title, description, category_id, category_name,
+      title, description, category, category_name,
       budget_min, budget_max,
       location_city, location_state, location_zip,
-      is_urgent, scheduled_start_at, scheduled_end_at,
+      priority, scheduled_date,
       id, req.user.id
     ]);
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be edited' });
     }
@@ -186,11 +203,12 @@ exports.cancelJob = async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(`
-      UPDATE jobs SET status = 'cancelled', updated_at = now()
+      UPDATE jobs SET status = 'cancelled', cancelled_at = now(), updated_at = now()
       WHERE id = $1 AND client_id = $2
-      AND status IN ('draft','published','matched','negotiating')
+      AND status IN ('draft','published','open','matched','negotiating')
       RETURNING *
     `, [id, req.user.id]);
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be cancelled' });
     }
@@ -208,12 +226,14 @@ exports.assignHelper = async (req, res) => {
     const { rows } = await pool.query(`
       UPDATE jobs SET
         assigned_helper_id = $1,
-        status = 'matched',
+        status = 'assigned',
+        assigned_at = now(),
         updated_at = now()
       WHERE id = $2 AND client_id = $3
-      AND status IN ('published','negotiating')
+      AND status IN ('published','open','bidding')
       RETURNING *
     `, [helper_id, job_id, req.user.id]);
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be assigned' });
     }
@@ -234,9 +254,10 @@ exports.startJob = async (req, res) => {
         started_at = now(),
         updated_at = now()
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
-      AND status = 'matched'
+      AND status = 'assigned'
       RETURNING *
     `, [id, req.user.id]);
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be started' });
     }
@@ -260,6 +281,7 @@ exports.completeJob = async (req, res) => {
       AND status = 'in_progress'
       RETURNING *
     `, [id, req.user.id]);
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be completed' });
     }
@@ -275,7 +297,7 @@ exports.getMyJobs = async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT * FROM jobs
-      WHERE client_id = $1 AND deleted_at IS NULL
+      WHERE client_id = $1
       ORDER BY created_at DESC
     `, [req.user.id]);
     res.json(rows);
