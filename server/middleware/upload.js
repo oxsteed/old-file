@@ -4,7 +4,7 @@ const path = require('path');
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-  const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx'];
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.webm', '.mp4', '.mov', '.mp3', '.wav', '.ogg'];
   const ext = path.extname(file.originalname).toLowerCase();
   if (allowed.includes(ext)) {
     cb(null, true);
@@ -16,7 +16,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB
 });
 
 module.exports = upload;
