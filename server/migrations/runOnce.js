@@ -45,9 +45,38 @@ async function runMigration001() {
   }
 }
 
+async function runMigration002() {
+  const client = await pool.connect();
+  try {
+    // Check if migration already ran
+    const { rows: check } = await client.query(`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'users' AND column_name = 'bio'
+    `);
+    if (check.length > 0) {
+      console.log('[Migration 002] Already applied — skipping');
+      return;
+    }
+
+    console.log('[Migration 002] Adding bio, skills, profile_photo_url columns to users...');
+    await client.query('BEGIN');
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT, ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]', ADD COLUMN IF NOT EXISTS profile_photo_url TEXT, ADD COLUMN IF NOT EXISTS availability TEXT, ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(8,2), ADD COLUMN IF NOT EXISTS subscription_tier TEXT, ADD COLUMN IF NOT EXISTS name VARCHAR(200)`);
+    // Backfill name from first_name + last_name
+    await client.query(`UPDATE users SET name = TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) WHERE name IS NULL`);
+    await client.query('COMMIT');
+    console.log('[Migration 002] Completed successfully');
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (e) {}
+    console.error('[Migration 002] FAILED:', err.message);
+  } finally {
+    client.release();
+  }
+}
+
 async function runAllMigrations() {
   try {
     await runMigration001();
+        await runMigration002();
   } catch (err) {
     console.error('[Migrations] Error:', err.message);
   }
