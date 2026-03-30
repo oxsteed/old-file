@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../api/axios';
 
 interface Props {
@@ -21,6 +21,8 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
   const [cityState, setCityState] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const set = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -63,6 +65,37 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
     setErrors(prev => ({ ...prev, skills: '' }));
   };
 
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setErrors(prev => ({ ...prev, photo: 'Please select an image file' }));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors(prev => ({ ...prev, photo: 'Image must be under 5MB' }));
+      return;
+    }
+    setUploading(true);
+    setErrors(prev => ({ ...prev, photo: '' }));
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const { data } = await api.post('/helper-registration/profile-photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      set('photoUrl', data.photoUrl);
+    } catch (err: any) {
+      setErrors(prev => ({ ...prev, photo: err.response?.data?.error || 'Photo upload failed' }));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const validate = () => {
     const e: Record<string, string> = {};
     const digits = form.phone.replace(/\D/g, '');
@@ -81,6 +114,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
       const phone = form.phone.replace(/\D/g, '');
       const zip = form.zip.replace(/\D/g, '');
       const slugs = form.skills.map(s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+
       await api.post('/helper-registration/profile', {
         token,
         profileHeadline: form.skills.slice(0, 3).join(', '),
@@ -90,8 +124,10 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
         ratePreference: 'per_job',
         hourlyRate: null,
       });
-      // Update phone/zip on pending record
+
+      // Update phone/zip on user record
       await api.post('/helper-registration/update-contact', { token, phone, zip });
+
       const parts = cityState.split(', ');
       onSuccess({
         phone, zip,
@@ -128,19 +164,28 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
         <input id="zip" type="text" inputMode="numeric" autoComplete="postal-code" placeholder="45505" maxLength={5}
           value={form.zip} onChange={e => set('zip', e.target.value.replace(/\D/g, '').slice(0, 5))}
           className={inputClass} aria-required="true" />
-        {cityState && <p className="text-green-400 text-xs mt-1">📍 {cityState}</p>}
+        {cityState && <p className="text-green-400 text-xs mt-1">{cityState}</p>}
         {errors.zip && <p className="text-red-400 text-xs mt-1" role="alert">{errors.zip}</p>}
       </div>
 
-      {/* Photo placeholder */}
+      {/* Photo upload */}
       <div>
         <label className="block text-sm text-gray-300 mb-1">Profile Photo <span className="text-gray-500">(optional)</span></label>
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-500 text-2xl">
-            {form.photoUrl ? <img src={form.photoUrl} alt="" className="w-full h-full rounded-full object-cover" /> : '👤'}
+          <button type="button" onClick={handlePhotoClick}
+            className="w-16 h-16 rounded-full bg-gray-800 border-2 border-dashed border-gray-600 hover:border-orange-500 flex items-center justify-center text-gray-500 text-2xl cursor-pointer transition overflow-hidden">
+            {form.photoUrl ? <img src={form.photoUrl} alt="" className="w-full h-full rounded-full object-cover" /> : uploading ? '...' : '+'}
+          </button>
+          <div>
+            <button type="button" onClick={handlePhotoClick}
+              className="text-sm text-orange-500 hover:text-orange-400 font-medium">
+              {form.photoUrl ? 'Change Photo' : uploading ? 'Uploading...' : 'Add Photo'}
+            </button>
+            <p className="text-gray-500 text-xs mt-0.5">Helpers with photos get 2x more job requests.</p>
           </div>
-          <p className="text-gray-500 text-xs">Helpers with photos get 2x more job requests. You can add one later from your dashboard.</p>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
         </div>
+        {errors.photo && <p className="text-red-400 text-xs mt-1" role="alert">{errors.photo}</p>}
       </div>
 
       {/* Skills chip selector */}
@@ -175,11 +220,11 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
       <div className="flex gap-3">
         <button type="button" onClick={onBack}
           className="px-6 py-3 bg-transparent border border-gray-600 text-gray-300 hover:border-gray-500 rounded-lg transition">
-          ← Back
+          Back
         </button>
         <button type="submit" disabled={loading}
           className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg disabled:opacity-50 transition">
-          {loading ? 'Saving...' : 'Continue →'}
+          {loading ? 'Saving...' : 'Continue'}
         </button>
       </div>
     </form>
