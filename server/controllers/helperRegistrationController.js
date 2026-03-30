@@ -379,7 +379,7 @@ async function uploadProfilePhoto(req, res) {
     const dataUrl = `data:${mimeType};base64,${base64}`;
 
     await pool.query(
-      'UPDATE users SET profile_photo = $1 WHERE id = $2 AND role = $3',
+      'UPDATE users SET profile_photo_url = $1 WHERE id = $2 AND role = $3',
       [dataUrl, userId, 'helper']
     );
 
