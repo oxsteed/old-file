@@ -366,6 +366,30 @@ async function updateContact(req, res) {
   }
 }
 
+// ── 11. Upload Profile Photo ────────────────────────────────
+// POST /api/helper-registration/profile-photo
+async function uploadProfilePhoto(req, res) {
+  try {
+    const userId = req.user.id;
+    if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
+
+    // Store as base64 data URL for now (swap to S3/CDN later)
+    const base64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+
+    await pool.query(
+      'UPDATE users SET profile_photo = $1 WHERE id = $2 AND role = $3',
+      [dataUrl, userId, 'helper']
+    );
+
+    res.json({ message: 'Photo uploaded', photoUrl: dataUrl });
+  } catch (err) {
+    console.error('uploadProfilePhoto error:', err);
+    res.status(500).json({ error: 'Photo upload failed' });
+  }
+}
+
 module.exports = {
   startRegistration,
   verifyOTP,
@@ -376,5 +400,6 @@ module.exports = {
   submitBackgroundCheck,
   getOnboardingStatus,
   submitProfile,
-  updateContact
+  updateContact,
+  uploadProfilePhoto
 };
