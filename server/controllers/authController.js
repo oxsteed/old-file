@@ -60,11 +60,19 @@ async function register(req, res) {
     }
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const referralCode = crypto.randomBytes(6).toString('hex');
-    const { rows } = await pool.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, phone, role, preferred_language, referral_code)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, email, role`,
-      [email.toLowerCase(), passwordHash, first_name, last_name, phone || null, role || 'customer', language || 'en', referralCode]
-    );
+    const finalRole = role || 'customer';
+const defaultOnboardingStatus = finalRole === 'helper' ? 'verified_pending_onboarding' : null;
+const defaultMembershipTier = finalRole === 'helper' ? 'tier1' : null;
+
+const { rows } = await pool.query(
+  `INSERT INTO users (email, password_hash, first_name, last_name, phone, role,
+   preferred_language, referral_code, onboarding_status, membership_tier)
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+   RETURNING id, email, role`,
+  [email.toLowerCase(), passwordHash, first_name, last_name, phone || null,
+   finalRole, language || 'en', referralCode,
+   defaultOnboardingStatus, defaultMembershipTier]
+);
     const user = rows[0];
     const tokens = generateTokens(user);
     await pool.query(
