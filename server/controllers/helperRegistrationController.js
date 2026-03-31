@@ -384,7 +384,12 @@ async function uploadProfilePhoto(req, res) {
       'UPDATE users SET profile_photo_url = $1 WHERE id = $2 AND role = $3',
       [dataUrl, userId, 'helper']
     );
-
+    await pool.query(
+      `INSERT INTO helper_profiles (user_id, profile_photo_url)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET profile_photo_url = $2, updated_at = now()`,
+      [userId, dataUrl]
+    );
     res.json({ message: 'Photo uploaded', photoUrl: dataUrl });
   } catch (err) {
     console.error('uploadProfilePhoto error:', err);
