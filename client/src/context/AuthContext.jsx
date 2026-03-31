@@ -137,8 +137,8 @@ export function AuthProvider({ children }) {
     || user?.onboarding_completed
     || user?.onboarding_status === 'onboarding_complete';
   const canBrowseJobs = true;
-  const canApplyToJobs = isOnboardingComplete;
-  const canAppearInSearch = ['premium', 'tier2'].includes(user?.membership_tier) && isOnboardingComplete;
+  const canApplyToJobs = isOnboardingComplete || user?.membership_tier === 'tier2';
+  const canAppearInSearch = user?.membership_tier === 'tier2' && isOnboardingComplete;
   const isHelper = user?.role === 'helper';
   const needsOnboarding = isHelper && !isOnboardingComplete;
 
