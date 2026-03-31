@@ -15,7 +15,7 @@ exports.createBid = async (req, res) => {
     if (existing.rows[0]) return res.status(400).json({ error: 'You already placed a bid on this job' });
 
     const result = await pool.query(
-      'INSERT INTO bids (job_id, helper_id, amount, message, estimated_hours) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+     'INSERT INTO bids (job_id, helper_id, amount, message, eta_hours) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [job_id, req.user.id, amount, message, estimated_hours]
     );
 
@@ -74,10 +74,10 @@ exports.updateBid = async (req, res) => {
     if (bid.rows[0].helper_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
     if (bid.rows[0].status !== 'pending') return res.status(400).json({ error: 'Can only update pending bids' });
 
-    const { amount, message, estimated_hours } = req.body;
+    const { amount, message, eta_hours } = req.body;
     const result = await pool.query(
-      'UPDATE bids SET amount = COALESCE($1, amount), message = COALESCE($2, message), estimated_hours = COALESCE($3, estimated_hours), updated_at = NOW() WHERE id = $4 RETURNING *',
-      [amount, message, estimated_hours, req.params.id]
+      'UPDATE bids SET amount = COALESCE($1, amount), message = COALESCE($2, message), eta_hours = COALESCE($3, eta_hours), updated_at = NOW() WHERE id = $4 RETURNING *',
+      [amount, message, eta_hours, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
