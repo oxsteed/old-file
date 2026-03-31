@@ -21,7 +21,7 @@ async function startRegistration(req, res) {
   try {
         const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
         if (!email || !password || !firstName || !lastName || !phone || !zip)
-            return res.status(400).json({ error: 'Email, password, first name, and last name required' });
+            return res.status(400).json({ error: 'Email, password, first name, last name, phone, and zip required' });
 
     
     // Check for existing user
@@ -68,7 +68,7 @@ async function verifyOTP(req, res) {
   try {
     const { token, otp } = req.body;
     if (!token || !otp)
-      return res.status(400).json({ error: 'Email and OTP required' });
+      return res.status(400).json({ error: 'Token and OTP required' });
 
     const { rows } = await pool.query(
       `SELECT id, otp_code, otp_expires_at
