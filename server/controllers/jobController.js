@@ -47,7 +47,7 @@ exports.createJob = async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Create job error:', err);
-    res.status(500).json({ error: 'Failed to create job' });
+    res.status(500).json({ error: 'Failed to create job', detail: err.message });
   }
 };
 
