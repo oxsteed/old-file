@@ -129,11 +129,7 @@ async function login(req, res) {
       [user.id, tokens.refreshToken]
     );
     // Fetch tier from helper_profiles if helper, otherwise 'free'
-    let tier = 'free';
-    if (user.role === 'helper') {
-      const tierResult = await pool.query('SELECT tier FROM helper_profiles WHERE user_id = $1', [user.id]);
-      if (tierResult.rows[0]) tier = tierResult.rows[0].tier;
-    }
+    
     res.json({
       success: true,
       message: 'Login successful',
