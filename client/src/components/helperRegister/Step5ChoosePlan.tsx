@@ -25,7 +25,7 @@ const plans = [
   },
 ];
 
-export default function Step5ChoosePlan({ token, onSuccess, onBack }: Props) {
+export default function Step5ChoosePlan({ token: _token, onSuccess, onBack }: Props) {
   const [selected, setSelected] = useState('free');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,7 +34,7 @@ export default function Step5ChoosePlan({ token, onSuccess, onBack }: Props) {
     setLoading(true);
     setError('');
     try {
-      await api.post('/helper-registration/tier', { token, tier: selected });
+      await api.post('/helper-registration/tier', { tier: selected });
       onSuccess(selected);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save plan');

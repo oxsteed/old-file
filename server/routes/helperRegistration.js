@@ -3,14 +3,20 @@ const express = require('express');
 const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
-const { requireOnboardingStep, requireTier } = require('../middleware/helperOnboardingMiddleware');
+const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const upload = require('../middleware/upload');
 
 const {
   startRegistration,
   verifyOTP,
   resendOTP,
+  getCategories,
   completeRegistration,
+  saveTier,
+  saveW9,
+  acceptTerms,
+  finalizeRegistration,
+  savePaymentStep,
   submitOnboardingProfile,
   submitIdVerification,
   submitBackgroundCheck,
@@ -25,7 +31,13 @@ router.post('/start',       startRegistration);
 router.post('/verify-otp',  verifyOTP);
 router.post('/resend-otp',  resendOTP);
 router.post('/send-otp',    resendOTP);  // alias for frontend
+router.get('/categories',   getCategories);
 router.post('/complete',    completeRegistration);
+router.post('/tier',        authenticate, saveTier);
+router.post('/w9',          authenticate, saveW9);
+router.post('/accept-terms', authenticate, acceptTerms);
+router.post('/finalize',    authenticate, finalizeRegistration);
+router.post('/payment',     authenticate, savePaymentStep);
 
 // Authenticated - profile + contact + photo (frontend Step4)
 router.post('/profile', authenticate, submitProfile);

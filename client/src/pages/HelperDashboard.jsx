@@ -10,19 +10,19 @@ export default function HelperDashboard() {
   const { user } = useAuth();
   const { subscription, openPortal } = useSubscription();
   const navigate = useNavigate();
-  const [verification, setVerification] = useState({ background: null, identity: null });
+  const [verification, setVerification] = useState({ backgroundCheck: null, identity: null });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
         const [bgRes, idRes] = await Promise.allSettled([
-          api.get('/subscription/background-check/status'),
-          api.get('/subscription/identity/status'),
+          api.get('/verification/background-check/status'),
+          api.get('/verification/identity/status'),
         ]);
         setVerification({
-          background: bgRes.status === 'fulfilled' ? bgRes.value.data : null,
-          identity: idRes.status === 'fulfilled' ? idRes.value.data : null,
+          backgroundCheck: bgRes.status === 'fulfilled' ? (bgRes.value.data?.backgroundCheck || null) : null,
+          identity: idRes.status === 'fulfilled' ? (idRes.value.data?.identity || null) : null,
         });
       } catch (err) {
         console.error('Failed to fetch verification status:', err);
@@ -35,7 +35,7 @@ export default function HelperDashboard() {
 
   const startBackgroundCheck = async () => {
     try {
-      await api.post('/subscription/background-check');
+      await api.post('/verification/background-check');
       window.location.reload();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to start background check');
@@ -44,7 +44,7 @@ export default function HelperDashboard() {
 
   const startIdentityVerification = async () => {
     try {
-      const { data } = await api.post('/subscription/identity/session');
+      const { data } = await api.post('/verification/identity/session');
       window.location.href = data.url;
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to start identity verification');
@@ -84,13 +84,13 @@ export default function HelperDashboard() {
         {/* Background Check Card */}
         <div className="dashboard-card">
           <h3>Background Check</h3>
-          {verification.background ? (
+          {verification.backgroundCheck ? (
             <>
-              <p className={`status-badge ${verification.background.status}`}>
-                {verification.background.status}
+              <p className="status-badge">
+                {verification.backgroundCheck.status}
               </p>
-              {verification.background.completed_at && (
-                <p>Completed: {new Date(verification.background.completed_at).toLocaleDateString()}</p>
+              {verification.backgroundCheck.completed_at && (
+                <p>Completed: {new Date(verification.backgroundCheck.completed_at).toLocaleDateString()}</p>
               )}
             </>
           ) : isProActive ? (
@@ -108,7 +108,7 @@ export default function HelperDashboard() {
           <h3>Identity Verification</h3>
           {verification.identity ? (
             <>
-              <p className={`status-badge ${verification.identity.status}`}>
+              <p className="status-badge">
                 {verification.identity.status}
               </p>
             </>

@@ -19,7 +19,7 @@ export default function Navbar() {
         ]);
         if (notifRes.status === 'fulfilled') {
           const notifs = notifRes.value.data?.notifications || notifRes.value.data || [];
-          setUnreadNotifs(Array.isArray(notifs) ? notifs.filter(n => !n.read).length : 0);
+          setUnreadNotifs(Array.isArray(notifs) ? notifs.filter(n => !n.is_read && !n.read_at).length : 0);
         }
         if (msgRes.status === 'fulfilled') {
           const convos = msgRes.value.data?.conversations || msgRes.value.data || [];

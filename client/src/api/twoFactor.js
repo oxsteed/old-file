@@ -19,7 +19,7 @@ export const twoFactorAPI = {
   disable: (token) => api.post('/2fa/disable', { token }),
 
   // Regenerate backup codes
-  regenerateBackupCodes: (token) => api.post('/2fa/backup-codes', { token }),
+  regenerateBackupCodes: (token) => api.post('/2fa/regenerate-backup', { token }),
 };
 
 export default twoFactorAPI;

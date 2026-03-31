@@ -16,7 +16,19 @@ export default function SettingsPage() {
   const [showDelete, setShowDelete] = useState(false);
 
   useEffect(() => {
-    api.get('/auth/me').then(r => { setProfile(r.data); setLoading(false); }).catch(() => setLoading(false));
+    api.get('/auth/me')
+      .then(r => {
+        const u = r.data?.user || r.data || {};
+        setProfile({
+          first_name: u.first_name || '',
+          last_name: u.last_name || '',
+          phone: u.phone || '',
+          bio: u.bio || '',
+          zipcode: u.zip_code || u.zipcode || '',
+        });
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   const saveProfile = async (e) => {

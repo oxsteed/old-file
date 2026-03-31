@@ -39,12 +39,14 @@ exports.stripeWebhook = async (req, res) => {
 
           // Get plan tier
           const { rows: plans } = await db.query(
-            'SELECT tier FROM plans WHERE id = $1', [planId]
+            'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
           );
+          const planSlug = plans[0]?.slug || plans[0]?.tier_slug || 'pro';
+          const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
 
           await db.query(
-            `UPDATE users SET tier = $1, subscription_status = 'active', subscription_id = $2 WHERE id = $3`,
-            [plans[0]?.tier || 'tier2_basic', subscriptionId, userId]
+            `UPDATE users SET tier = $1, subscription_status = 'active' WHERE id = $2`,
+            [userTier, userId]
           );
 
           await recalculateBadges(userId);
@@ -88,7 +90,7 @@ exports.stripeWebhook = async (req, res) => {
         );
         if (rows.length) {
           await db.query(
-            `UPDATE users SET tier = 'tier1', subscription_status = 'cancelled', subscription_id = NULL WHERE id = $1`,
+            `UPDATE users SET tier = 'free', subscription_status = 'cancelled' WHERE id = $1`,
             [rows[0].user_id]
           );
           // Deactivate subscription-dependent badges

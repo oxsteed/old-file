@@ -1,5 +1,12 @@
 const db = require('../db');
 
+async function hasPlatformConfigTable() {
+  const { rows } = await db.query(
+    "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='platform_config'"
+  );
+  return rows.length > 0;
+}
+
 // Default tier pricing (fallback if DB has no entries)
 const DEFAULT_PRICES = {
   tier1_price: '0',
@@ -13,6 +20,9 @@ const DEFAULT_PRICES = {
 // GET /api/config/pricing — public, no auth needed
 exports.getPricing = async (req, res) => {
   try {
+    if (!(await hasPlatformConfigTable())) {
+      return res.json(DEFAULT_PRICES);
+    }
     const { rows } = await db.query(
       `SELECT key, value FROM platform_config WHERE key LIKE 'tier%' ORDER BY key`
     );
@@ -32,6 +42,9 @@ exports.getPricing = async (req, res) => {
 // PUT /api/config/pricing — super_admin only
 exports.updatePricing = async (req, res) => {
   try {
+    if (!(await hasPlatformConfigTable())) {
+      return res.status(501).json({ error: 'Pricing configuration is not available yet.' });
+    }
     const updates = req.body; // { tier1_price: '0', tier2_price: '29.99', ... }
     const allowedKeys = Object.keys(DEFAULT_PRICES);
     const entries = Object.entries(updates).filter(([k]) => allowedKeys.includes(k));
