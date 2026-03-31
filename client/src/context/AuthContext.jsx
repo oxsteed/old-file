@@ -80,12 +80,20 @@ export function AuthProvider({ children }) {
   }, [persistUser]);
 
   const register = useCallback(async (userData) => {
-    const { data } = await authAPI.register(userData);
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    persistUser(data.user);
+  const { data } = await authAPI.register(userData);
+  localStorage.setItem('accessToken', data.accessToken);
+  localStorage.setItem('refreshToken', data.refreshToken);
+  persistUser(data.user);
+  try {
+    const res = await api.get('/auth/me');
+    const fullUser = res.data.user ?? res.data;
+    persistUser(fullUser);
+    return { ...data, user: fullUser };
+  } catch (err) {
+    console.warn('Could not fetch full profile after register:', err?.response?.status);
     return data;
-  }, [persistUser]);
+  }
+}, [persistUser]);
 
   const logout = useCallback(async () => {
     try {
