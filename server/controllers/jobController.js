@@ -26,21 +26,21 @@ exports.createJob = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO jobs (
-        client_id, title, description, category, category_name,
+        client_id, title, description, category_id, category_name,
         job_type, status, budget_min, budget_max,
         location_address, location_city, location_state, location_zip,
         location_lat, location_lng,
-        priority, scheduled_date,
-        images
+        is_urgent, scheduled_start_at,
+        media_urls
       ) VALUES (
         $1,$2,$3,$4,$5,$6,'published',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
       ) RETURNING *`,
       [
-        req.user.id, title, description, finalCategory, finalCategoryName,
+                req.user.id, title, description, null, finalCategoryName,
         job_type || 'one_time', budget_min || null, budget_max || null,
         location_address || null, location_city || null, location_state || null,
         location_zip || null, location_lat || null, location_lng || null,
-        priority || 'normal', scheduled_date || null,
+        priority === 'urgent', scheduled_date || null,
         images
       ]
     );
