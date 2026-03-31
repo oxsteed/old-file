@@ -188,13 +188,21 @@ async function loginWith2FA(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    // Fetch tier from helper_profiles if helper, otherwise 'free'
-    let tier = 'free';
-    if (user.role === 'helper') {
-      const tierResult = await pool.query('SELECT tier FROM helper_profiles WHERE user_id = $1', [user.id]);
-      if (tierResult.rows[0]) tier = tierResult.rows[0].tier;
-    }
-    res.json({ user: { id: user.id, email: user.email, role: user.role, tier }, ...tokens });
+        const { rows: fullRows } = await pool.query(
+      `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
+       onboarding_status, onboarding_completed, contact_completed, profile_completed,
+       tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
+       background_check_passed, city, state, zip_code
+       FROM users WHERE id = $1`,
+      [user.id]
+    );
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: formatAuthUser(fullRows[0]),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    });
   } catch (err) {
     console.error('Login 2FA error:', err);
     res.status(500).json({ error: 'Login failed' });
