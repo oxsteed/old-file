@@ -97,7 +97,7 @@ res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
 // LOGIN - Updated to support 2FA
 async function login(req, res) {
   try {
-    const { email, password } = req.body;
+   const { email, password, rememberMe } = req.body;
     const { rows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, password_hash, role, is_active,
               email_verified, is_verified,
@@ -123,8 +123,9 @@ async function login(req, res) {
       });
     }
     const tokens = generateTokens(user);
+        const sessionDuration = rememberMe ? '30 days' : '7 days';
     await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
+      `INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '${sessionDuration}')`,
       [user.id, tokens.refreshToken]
     );
     // Fetch tier from helper_profiles if helper, otherwise 'free'
