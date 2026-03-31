@@ -304,6 +304,26 @@ exports.completeJob = async (req, res) => {
   }
 };
 
+// Close a job (after completion, enables reviews)
+exports.closeJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(`
+      UPDATE jobs SET status = 'closed', updated_at = now()
+      WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
+      AND status = 'completed'
+      RETURNING *
+    `, [id, req.user.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Job not found or cannot be closed' });
+    }
+    res.json({ message: 'Job closed', job: rows[0] });
+  } catch (err) {
+    console.error('Close job error:', err);
+    res.status(500).json({ error: 'Failed to close job' });
+  }
+};
+
 // Get jobs posted by current user
 exports.getMyJobs = async (req, res) => {
   try {
