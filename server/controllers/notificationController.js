@@ -3,7 +3,7 @@ const db = require('../db');
 // ─── GET USER NOTIFICATIONS ───────────────────────────────────
 exports.getNotifications = async (req, res) => {
   try {
-    const userId  = req.user.id;
+    const userId = req.user.id;
     const { page = 1, limit = 20, unread_only } = req.query;
     const offset  = (page - 1) * limit;
 
@@ -11,7 +11,8 @@ exports.getNotifications = async (req, res) => {
     if (unread_only === 'true') condition += ' AND n.is_read = false';
 
     const { rows } = await db.query(`
-      SELECT id, type, title, body, data, action_url,
+      SELECT id, type, title, body, data,
+             data->>'action_url' AS action_url,
              is_read, created_at, read_at
       FROM notifications n
       ${condition}
@@ -26,9 +27,9 @@ exports.getNotifications = async (req, res) => {
 
     res.json({
       notifications: rows,
-      unread_count:  parseInt(countRows[0].count),
-      page:          parseInt(page),
-      limit:         parseInt(limit)
+      unread_count: parseInt(countRows[0].count),
+      page: parseInt(page),
+      limit: parseInt(limit)
     });
   } catch (err) {
     console.error('getNotifications error:', err);
@@ -53,7 +54,7 @@ exports.markRead = async (req, res) => {
         UPDATE notifications
         SET is_read = true, read_at = now()
         WHERE user_id = $1
-          AND id = ANY($2::uuid[])
+          AND id = ANY($2::bigint[])
           AND is_read = false
       `, [userId, ids]);
     }
@@ -72,11 +73,20 @@ exports.markRead = async (req, res) => {
 };
 
 // ─── GET + UPDATE PREFERENCES ─────────────────────────────────
+// NOTE: notification_preferences table does not exist yet.
+// These functions return safe defaults until the table is created.
 exports.getPreferences = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Upsert default prefs if not set
+    // Check if table exists before querying
+    const { rows: tableCheck } = await db.query(
+      "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='notification_preferences'"
+    );
+    if (!tableCheck.length) {
+      return res.json({ preferences: { user_id: userId }, message: 'Preferences table not yet created. Using defaults.' });
+    }
+
     await db.query(`
       INSERT INTO notification_preferences (user_id)
       VALUES ($1)
@@ -100,6 +110,14 @@ exports.updatePreferences = async (req, res) => {
     const userId = req.user.id;
     const updates = req.body;
 
+    // Check if table exists
+    const { rows: tableCheck } = await db.query(
+      "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='notification_preferences'"
+    );
+    if (!tableCheck.length) {
+      return res.status(501).json({ error: 'Notification preferences not yet available.' });
+    }
+
     // Whitelist allowed preference keys
     const allowed = [
       'in_app_new_bid','in_app_bid_accepted','in_app_job_started',
@@ -120,7 +138,7 @@ exports.updatePreferences = async (req, res) => {
     const setClause = filteredKeys
       .map((key, i) => `${key} = $${i + 2}`)
       .join(', ');
-    const values    = filteredKeys.map(k => Boolean(updates[k]));
+    const values = filteredKeys.map(k => Boolean(updates[k]));
 
     await db.query(`
       INSERT INTO notification_preferences (user_id, ${filteredKeys.join(', ')})
@@ -137,6 +155,8 @@ exports.updatePreferences = async (req, res) => {
 };
 
 // ─── REGISTER PUSH TOKEN ──────────────────────────────────────
+// NOTE: push_token column does not exist in helper_profiles yet.
+// This function stores the token in the user's notification data until the column is added.
 exports.registerPushToken = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -146,14 +166,12 @@ exports.registerPushToken = async (req, res) => {
       return res.status(400).json({ error: 'Push token required.' });
     }
 
-    await db.query(`
-      INSERT INTO helper_profiles (user_id, push_token)
-      VALUES ($1, $2)
-      ON CONFLICT (user_id) DO UPDATE
-      SET push_token = $2, updated_at = now()
-    `, [userId, token]);
-
-    res.json({ message: 'Push token registered.' });
+    // Store push token in users table metadata or return not-implemented
+    // until a proper push_tokens table or column is created
+    return res.status(501).json({
+      error: 'Push notifications not yet configured. Token not stored.',
+      message: 'A push_tokens table needs to be created to support this feature.'
+    });
   } catch (err) {
     console.error('registerPushToken error:', err);
     res.status(500).json({ error: 'Failed to register push token.' });
