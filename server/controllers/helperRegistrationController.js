@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
+const { formatAuthUser } = require('./authController');
 const { sendOTPEmail } = require('../utils/email');
 
 // ── helpers ──────────────────────────────────────────────
@@ -170,16 +171,17 @@ async function completeRegistration(req, res) {
 
     const tokens = generateTokens(user);
 
+        const { rows: fullRows } = await client.query(
+      `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
+       onboarding_status, onboarding_completed, contact_completed, profile_completed,
+       tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
+       background_check_passed, city, state, zip_code
+       FROM users WHERE id = $1`,
+      [user.id]
+    );
     res.status(201).json({
       message: 'Registration complete',
-      user: {
-        id: user.id,
-        email: user.email,
-        full_name: (user.first_name + ' ' + user.last_name).trim(),
-        role: user.role,
-        membership_tier: user.membership_tier,
-        onboarding_step: user.onboarding_status
-      },
+      user: formatAuthUser(fullRows[0]),
       ...tokens
     });
   } catch (err) {
