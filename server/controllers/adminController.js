@@ -136,7 +136,7 @@ exports.reviewReport = async (req, res) => {
       if (report.target_type === 'review' && await tableExists('reviews')) {
         await dbClient.query(`
           UPDATE reviews
-          SET is_visible = false, updated_at = now()
+          SET is_public = false, updated_at = now()
           WHERE id = $1
         `, [report.target_id]);
       }
