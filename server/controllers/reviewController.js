@@ -250,3 +250,39 @@ exports.adminHideReview = async (req, res) => {
     res.status(500).json({ error: 'Failed to hide review.' });
   }
 };
+
+// ─── RESPOND TO REVIEW ────────────────────────────────────────
+exports.respondToReview = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { response } = req.body;
+
+    if (!response?.trim()) {
+      return res.status(400).json({ error: 'Response text is required.' });
+    }
+
+    // Only the reviewee can respond
+    const { rows } = await db.query(`
+      UPDATE reviews
+      SET response = $1,
+          response_at = now(),
+          updated_at = now()
+      WHERE id = $2
+        AND reviewee_id = $3
+        AND response IS NULL
+      RETURNING *
+    `, [response.trim(), id, userId]);
+
+    if (!rows.length) {
+      return res.status(404).json({
+        error: 'Review not found, you are not the reviewee, or already responded.'
+      });
+    }
+
+    res.json({ review: rows[0] });
+  } catch (err) {
+    console.error('respondToReview error:', err);
+    res.status(500).json({ error: 'Failed to respond to review.' });
+  }
+};
