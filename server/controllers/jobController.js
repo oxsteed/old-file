@@ -17,11 +17,11 @@ exports.createJob = async (req, res) => {
     const finalCategory = category || null;
 
     // Handle media: uploaded files or provided URLs
-    let images = '[]';
+        let images = [];
     if (req.files && req.files.length > 0) {
-      images = JSON.stringify(req.files.map(f => f.path || f.location || f.filename));
+            images = req.files.map(f => f.path || f.location || f.filename);
     } else if (media_urls) {
-      images = typeof media_urls === 'string' ? media_urls : JSON.stringify(media_urls);
+            images = typeof media_urls === 'string' ? JSON.parse(media_urls) : (Array.isArray(media_urls) ? media_urls : []);
     }
 
     const result = await pool.query(
@@ -37,7 +37,7 @@ exports.createJob = async (req, res) => {
       ) RETURNING *`,
       [
                 req.user.id, title, description, null, finalCategoryName,
-        job_type || 'one_time', budget_min || null, budget_max || null,
+                'tier1_intro', budget_min || null, budget_max || null,
         location_address || null, location_city || null, location_state || null,
         location_zip || null, location_lat || null, location_lng || null,
         priority === 'urgent', scheduled_date || null,
