@@ -8,6 +8,17 @@ const { sendOTPEmail } = require('../utils/email');
 const { encrypt, hashTIN, maskTIN } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 
+async function pendingRegistrationsHasRoleColumn() {
+  const { rows } = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'pending_registrations'
+       AND column_name = 'role'`
+  );
+  return rows.length > 0;
+}
+
 // ── helpers ──────────────────────────────────────────────
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -55,18 +66,29 @@ async function startRegistration(req, res) {
     // Generate a unique token for this registration
     const token = crypto.randomBytes(32).toString('hex');
 
+    const hasRole = await pendingRegistrationsHasRoleColumn();
+
     // Delete any existing pending registration for this email, then insert fresh
     await pool.query(
-      'DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)',
-      [email, 'helper']
+      hasRole
+        ? 'DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)'
+        : 'DELETE FROM pending_registrations WHERE email = $1',
+      hasRole ? [email, 'helper'] : [email]
     );
 
-    const result = await pool.query(`
-      INSERT INTO pending_registrations
-                  (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
-                RETURNING token
-            `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
+    const result = hasRole
+      ? await pool.query(`
+          INSERT INTO pending_registrations
+                      (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
+                    RETURNING token
+                `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires])
+      : await pool.query(`
+          INSERT INTO pending_registrations
+                      (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                    RETURNING token
+                `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
 
     await sendOTPEmail(email, otp);
 
