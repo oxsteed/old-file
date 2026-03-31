@@ -37,7 +37,7 @@ exports.createJob = async (req, res) => {
       ) RETURNING *`,
       [
         req.user.id, title, description, null, finalCategoryName,
-        'tier1_intro', budget_min || null, budget_max || null,
+        job_type || 'tier1_intro', budget_min || null, budget_max || null,
         location_address || null, location_city || null, location_state || null,
         location_zip || null, location_lat || null, location_lng || null,
         priority === 'urgent', scheduled_date || null,
