@@ -82,10 +82,7 @@ export default function Step2EmailVerification({ token, email, firstName, onSucc
     setLoading(true);
     setError('');
     try {
-      await api.post('/helper-registration/verify-otp', { token, otp });
-
-      // Complete registration: create user and get JWT tokens
-      const { data } = await api.post('/helper-registration/complete', { email });
+      const { data } = await api.post('/helper-registration/verify-otp', { token, otp });
       if (data.accessToken) {
         localStorage.setItem('accessToken', data.accessToken);
       }
