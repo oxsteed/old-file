@@ -398,11 +398,22 @@ async function getOnboardingStatus(req, res) {
 
     const u = rows[0];
 
-    // Map onboarding_status to step for API consumers
+        // Map onboarding_status to step for API consumers
+    // Order: most-complete to least-complete
     let onboarding_step = 'registered';
-    if (u.onboarding_completed) onboarding_step = 'active';
-    else if (u.profile_completed) onboarding_step = 'profile_complete';
-    if (u.onboarding_status === 'onboarding_complete') onboarding_step = 'active';
+    if (u.onboarding_completed || u.onboarding_status === 'onboarding_complete') {
+      onboarding_step = 'active';
+    } else if (u.w9_completed || u.terms_accepted) {
+      onboarding_step = 'tax_complete';
+    } else if (u.tier_selected) {
+      onboarding_step = 'plan_selected';
+    } else if (u.profile_completed) {
+      onboarding_step = 'profile_complete';
+    } else {
+      // Helper users are only created after email verification,
+      // so any existing user has verified their email
+      onboarding_step = 'email_verified';
+    }
 
     res.json({
       onboarding_step:         onboarding_step,
