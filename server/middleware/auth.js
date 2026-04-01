@@ -22,6 +22,32 @@ function generateTokens(user) {
   return { accessToken, refreshToken };
 }
 
+/**
+ * Derive onboarding_step from DB flags — mirrors formatAuthUser() in authController.
+ * Order matters: most-complete wins.
+ */
+function computeOnboardingStep(user) {
+  if (!user) return 'registered';
+
+  if (user.onboarding_completed || user.onboarding_status === 'onboarding_complete') {
+    return 'active';
+  }
+  if (user.w9_completed || user.terms_accepted) {
+    return 'tax_complete';
+  }
+  if (user.tier_selected) {
+    return 'plan_selected';
+  }
+  if (user.profile_completed) {
+    return 'profile_complete';
+  }
+  // Helper users are created only after OTP → always email_verified
+  if (user.email_verified) {
+    return 'email_verified';
+  }
+  return 'registered';
+}
+
 async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -50,14 +76,8 @@ async function authenticate(req, res, next) {
       return res.status(401).json({ success: false, message: 'User no longer exists' });
     }
 
-    // Compute virtual onboarding_step from existing columns
-    if (user.onboarding_completed || user.onboarding_status === 'onboarding_complete') {
-      user.onboarding_step = 'active';
-    } else if (user.profile_completed) {
-      user.onboarding_step = 'profile_complete';
-    } else {
-      user.onboarding_step = 'registered';
-    }
+    // Compute consistent onboarding_step matching authController.formatAuthUser
+    user.onboarding_step = computeOnboardingStep(user);
 
     req.user = user;
     next();
