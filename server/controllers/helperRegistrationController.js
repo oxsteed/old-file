@@ -237,6 +237,7 @@ async function completeRegistration(req, res) {
   const { email, token } = req.body;
   if (!email && !token) return res.status(400).json({ error: 'Email or token required' });
 
+    let client;
   try {
     client = await pool.connect();
     await client.query('BEGIN');
@@ -271,14 +272,13 @@ async function completeRegistration(req, res) {
 
     await client.query('COMMIT');
 
-    const tokens = generateTokens(user);
     const { rows: fullRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
               onboarding_status, onboarding_completed, contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
               background_check_passed, city, state, zip_code
        FROM users WHERE id = $1`,
-      [userId]
+      [user.id]
     );
 
     const tokens = generateTokens(fullRows[0]);
@@ -290,6 +290,8 @@ async function completeRegistration(req, res) {
   } catch (err) {
     console.error('completeRegistration (deprecated) error:', err);
     res.status(500).json({ error: 'Registration completion failed' });
+      } finally {
+    if (client) client.release();
   }
 }
 
