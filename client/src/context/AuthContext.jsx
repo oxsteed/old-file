@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI } from '../api/auth';
 import api from '../api/axios';
 
@@ -12,92 +12,158 @@ export function useAuth() {
   return context;
 }
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const USER_KEY = 'user';
 
-  const clearAuthState = useCallback(() => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    setUser(null);
+function getStoredUser() {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+}
+
+function normalizeUserPayload(data) {
+  if (!data) return null;
+  return data.user ?? data;
+}
+
+function isOnboardingComplete(user) {
+  return (
+    user?.onboarding_step === 'active' ||
+    user?.onboarding_completed === true ||
+    user?.onboarding_status === 'onboarding_complete'
+  );
+}
+
+function getMembershipTier(user) {
+  return user?.membership_tier || user?.membershipTier || user?.plan || null;
+}
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => getStoredUser());
+  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+
+  const persistTokens = useCallback((payload) => {
+    if (!payload) return;
+
+    if (payload.accessToken) {
+      localStorage.setItem(ACCESS_TOKEN_KEY, payload.accessToken);
+    }
+
+    if (payload.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, payload.refreshToken);
+    }
   }, []);
 
   const persistUser = useCallback((nextUser) => {
+    if (!nextUser) {
+      localStorage.removeItem(USER_KEY);
+      setUser(null);
+      return null;
+    }
+
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
     setUser(nextUser);
-    localStorage.setItem('user', JSON.stringify(nextUser));
+    return nextUser;
   }, []);
 
+  const persistSession = useCallback((payload) => {
+    if (!payload) return null;
+
+    persistTokens(payload);
+    const normalizedUser = normalizeUserPayload(payload);
+    if (normalizedUser) {
+      persistUser(normalizedUser);
+    }
+    return normalizedUser;
+  }, [persistTokens, persistUser]);
+
+  const clearAuthState = useCallback(() => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    setUser(null);
+  }, []);
+
+  const fetchMe = useCallback(async () => {
+    const res = await api.get('/auth/me');
+    const fullUser = normalizeUserPayload(res.data);
+    if (fullUser) {
+      persistUser(fullUser);
+    }
+    return fullUser;
+  }, [persistUser]);
+
   useEffect(() => {
+    let mounted = true;
+
     const initAuth = async () => {
-      const token = localStorage.getItem('accessToken');
-      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
 
       if (!token) {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
         return;
       }
 
-      if (savedUser) {
-        try {
-          setUser(JSON.parse(savedUser));
-        } catch {
-          localStorage.removeItem('user');
-        }
-      }
-
       try {
-        const res = await api.get('/auth/me');
-        const fullUser = res.data.user ?? res.data;
-        persistUser(fullUser);
+        await fetchMe();
       } catch (err) {
-        console.warn('Could not refresh user profile:', err?.response?.status);
+        console.warn('Could not initialize auth session:', err?.response?.status || err?.message);
         clearAuthState();
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
       }
     };
 
     initAuth();
-  }, [clearAuthState, persistUser]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [clearAuthState, fetchMe]);
 
   const login = useCallback(async (credentials) => {
     const { data } = await authAPI.login(credentials);
-
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    persistUser(data.user);
+    persistSession(data);
 
     try {
-      const res = await api.get('/auth/me');
-      const fullUser = res.data.user ?? res.data;
-      persistUser(fullUser);
-      return { ...data, user: fullUser };
+      const fullUser = await fetchMe();
+      return { ...data, user: fullUser || normalizeUserPayload(data) };
     } catch (err) {
-      console.warn('Could not fetch full profile after login:', err?.response?.status);
-      return data;
+      console.warn('Could not fetch full profile after login:', err?.response?.status || err?.message);
+      return { ...data, user: normalizeUserPayload(data) };
     }
-  }, [persistUser]);
+  }, [fetchMe, persistSession]);
 
   const register = useCallback(async (userData) => {
-  const { data } = await authAPI.register(userData);
-  localStorage.setItem('accessToken', data.accessToken);
-  localStorage.setItem('refreshToken', data.refreshToken);
-  persistUser(data.user);
-  try {
-    const res = await api.get('/auth/me');
-    const fullUser = res.data.user ?? res.data;
-    persistUser(fullUser);
-    return { ...data, user: fullUser };
-  } catch (err) {
-    console.warn('Could not fetch full profile after register:', err?.response?.status);
-    return data;
-  }
-}, [persistUser]);
+    const { data } = await authAPI.register(userData);
+    persistSession(data);
+
+    try {
+      const fullUser = await fetchMe();
+      return { ...data, user: fullUser || normalizeUserPayload(data) };
+    } catch (err) {
+      console.warn('Could not fetch full profile after register:', err?.response?.status || err?.message);
+      return { ...data, user: normalizeUserPayload(data) };
+    }
+  }, [fetchMe, persistSession]);
 
   const logout = useCallback(async () => {
     try {
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
       if (refreshToken) {
         await authAPI.logout(refreshToken);
       }
@@ -114,51 +180,113 @@ export function AuthProvider({ children }) {
 
   const verifyOTP = useCallback(async (data) => {
     const response = await authAPI.verifyOTP(data);
-    if (response.data.user) {
-      persistUser(response.data.user);
+    persistSession(response.data);
+
+    try {
+      const fullUser = await fetchMe();
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          user: fullUser || normalizeUserPayload(response.data),
+        },
+      };
+    } catch (err) {
+      console.warn('Could not fetch full profile after OTP verification:', err?.response?.status || err?.message);
+      return response;
     }
-    return response;
-  }, [persistUser]);
+  }, [fetchMe, persistSession]);
 
   const refreshUser = useCallback(async () => {
     try {
-      const res = await api.get('/auth/me');
-      const fullUser = res.data.user ?? res.data;
-      persistUser(fullUser);
+      const fullUser = await fetchMe();
       return fullUser;
     } catch (err) {
       console.error('refreshUser error:', err);
       throw err;
     }
-  }, [persistUser]);
+  }, [fetchMe]);
 
-  // Onboarding & tier computed helpers
-  const isOnboardingComplete = user?.onboarding_step === 'active'
-    || user?.onboarding_completed
-    || user?.onboarding_status === 'onboarding_complete';
-  const canBrowseJobs = true;
-  const canApplyToJobs = isOnboardingComplete || user?.membership_tier === 'tier2';
-  const canAppearInSearch = user?.membership_tier === 'tier2' && isOnboardingComplete;
+  const refreshSession = useCallback(async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) {
+      clearAuthState();
+      return null;
+    }
+
+    try {
+      const response = await authAPI.refresh(refreshToken);
+      persistSession(response.data);
+      const fullUser = await fetchMe().catch(() => normalizeUserPayload(response.data));
+      return fullUser;
+    } catch (err) {
+      clearAuthState();
+      throw err;
+    }
+  }, [clearAuthState, fetchMe, persistSession]);
+
+  const onboardingComplete = isOnboardingComplete(user);
   const isHelper = user?.role === 'helper';
-  const needsOnboarding = isHelper && !isOnboardingComplete;
+  const isCustomer = user?.role === 'customer';
+  const membershipTier = getMembershipTier(user);
+  const needsOnboarding = isHelper && !onboardingComplete;
+  const canBrowseJobs = true;
+  const canBid = isHelper && onboardingComplete;
+  const canApplyToJobs = canBid;
+  const canReceivePayouts = isHelper && onboardingComplete;
+  const canAppearInSearch = isHelper && onboardingComplete;
+  const isRestrictedHelper = isHelper && !onboardingComplete;
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     loading,
+    initialized,
     isAuthenticated: !!user,
-    isOnboardingComplete,
-    canBrowseJobs,
-    canApplyToJobs,
-    canAppearInSearch,
     isHelper,
+    isCustomer,
+    membershipTier,
+    isOnboardingComplete: onboardingComplete,
     needsOnboarding,
+    isRestrictedHelper,
+    canBrowseJobs,
+    canBid,
+    canApplyToJobs,
+    canReceivePayouts,
+    canAppearInSearch,
     login,
     register,
     logout,
     requestOTP,
     verifyOTP,
     refreshUser,
-  };
+    refreshSession,
+    clearAuthState,
+    setUser: persistUser,
+  }), [
+    user,
+    loading,
+    initialized,
+    isHelper,
+    isCustomer,
+    membershipTier,
+    onboardingComplete,
+    needsOnboarding,
+    isRestrictedHelper,
+    canBrowseJobs,
+    canBid,
+    canApplyToJobs,
+    canReceivePayouts,
+    canAppearInSearch,
+    login,
+    register,
+    logout,
+    requestOTP,
+    verifyOTP,
+    refreshUser,
+    refreshSession,
+    clearAuthState,
+    persistUser,
+  ]);
 
   return (
     <AuthContext.Provider value={value}>
