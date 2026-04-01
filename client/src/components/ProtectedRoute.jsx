@@ -8,6 +8,7 @@ const ONBOARDING_ALLOWED_PATHS = [
   '/register/helper',
   '/register/customer',
   '/helper-register',
+    '/helper-dashboard',
 ];
 
 export default function ProtectedRoute({ children, requiredRole, requiredTier }) {
