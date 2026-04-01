@@ -7,8 +7,9 @@ const crypto = require('crypto');
 const speakeasy = require('speakeasy');
 const pool = require('../db');
 const { generateTokens } = require('../middleware/auth');
-const { sendOTPEmail } = require('../utils/email');
+const { sendOTPEmail, sendPasswordResetEmail } = require('../utils/email');
 const { sendOTPSMS } = require('../utils/sms');
+const { TERMS_CONFIG } = require('../constants/termsConfig');
 const SALT_ROUNDS = 12;
 
 function formatAuthUser(user) {
@@ -376,7 +377,7 @@ async function acceptTerms(req, res) {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
     const pending = rows[0];
-    const termsVersion = '2026-03-20';
+    const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || '';
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -458,6 +459,83 @@ async function resendRegistrationOTP(req, res) {
   } catch (err) {
     console.error('Resend OTP error:', err);
     res.status(500).json({ error: 'Failed to resend OTP' });
+  }
+}
+
+// Password reset flow
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const { rows } = await pool.query(
+      'SELECT id, email FROM users WHERE email = $1 AND deleted_at IS NULL',
+      [normalizedEmail]
+    );
+
+    // Respond with the same message regardless of account existence.
+    const genericResponse = {
+      message: 'If that email exists, a reset link has been sent.'
+    };
+
+    if (!rows[0]) {
+      return res.json(genericResponse);
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await pool.query(
+      `UPDATE users
+       SET reset_token = $1, reset_token_expires = $2, updated_at = NOW()
+       WHERE id = $3`,
+      [resetToken, resetExpires, rows[0].id]
+    );
+
+    const appUrl = process.env.APP_URL || process.env.CLIENT_URL || '';
+    const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password/${resetToken}`;
+    await sendPasswordResetEmail(rows[0].email, resetUrl);
+
+    return res.json(genericResponse);
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ error: 'Failed to process password reset request' });
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and password are required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const { rowCount } = await pool.query(
+      `UPDATE users
+       SET password_hash = $1,
+           reset_token = NULL,
+           reset_token_expires = NULL,
+           updated_at = NOW()
+       WHERE reset_token = $2
+         AND reset_token_expires > NOW()`,
+      [passwordHash, token]
+    );
+
+    if (!rowCount) {
+      return res.status(400).json({ error: 'Reset link is invalid or expired.' });
+    }
+
+    return res.json({ message: 'Password reset successful.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ error: 'Failed to reset password' });
   }
 }
 
@@ -555,6 +633,7 @@ module.exports = {
   register, login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
+  forgotPassword, resetPassword,
   getMe, updateProfile, changePassword, getPublicProfile, resendVerification,
   formatAuthUser
 };

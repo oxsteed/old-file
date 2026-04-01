@@ -1,11 +1,10 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const axios = require('axios');
+const fetch = require('node-fetch');
 const db = require('../db');
 const { sendPush } = require('../utils/pushNotification');
 const { sendEmail } = require('../utils/email');
 
 const CHECKR_API = 'https://api.checkr.com/v1';
-const checkrAuth = { auth: { username: process.env.CHECKR_API_KEY, password: '' } };
 
 // === CHECKR BACKGROUND CHECK ===
 
@@ -14,7 +13,7 @@ exports.initiateBackgroundCheck = async (req, res) => {
   try {
     const userId = req.user.id;
     const { rows: users } = await db.query(
-      'SELECT email, first_name, last_name, phone, zipcode FROM users WHERE id = $1', [userId]
+      'SELECT email, first_name, last_name, phone, zip_code FROM users WHERE id = $1', [userId]
     );
     const user = users[0];
 
@@ -25,34 +24,61 @@ exports.initiateBackgroundCheck = async (req, res) => {
     if (existing.length) return res.status(400).json({ error: 'Background check already in progress.' });
 
     // Create Checkr candidate
-    const candidateRes = await axios.post(`${CHECKR_API}/candidates`, {
+    const candidateResponse = await fetch(`${CHECKR_API}/candidates`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${process.env.CHECKR_API_KEY || ''}:`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
       first_name: user.first_name,
       last_name: user.last_name,
       email: user.email,
       phone: user.phone,
-      zipcode: user.zipcode,
-    }, checkrAuth);
+      zipcode: user.zip_code,
+      }),
+    });
+    if (!candidateResponse.ok) {
+      const text = await candidateResponse.text();
+      throw new Error(`Checkr candidate create failed: ${text}`);
+    }
+    const candidateRes = await candidateResponse.json();
 
     // Create invitation (sends Checkr email to candidate)
-    const inviteRes = await axios.post(`${CHECKR_API}/invitations`, {
+    const inviteResponse = await fetch(`${CHECKR_API}/invitations`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${process.env.CHECKR_API_KEY || ''}:`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
       candidate_id: candidateRes.data.id,
       package: 'tasker_standard',
-    }, checkrAuth);
+      }),
+    });
+    if (!inviteResponse.ok) {
+      const text = await inviteResponse.text();
+      throw new Error(`Checkr invitation create failed: ${text}`);
+    }
+    const inviteRes = await inviteResponse.json();
 
     // Store in DB
     await db.query(
       `INSERT INTO background_checks (user_id, checkr_candidate_id, checkr_invitation_id, status)
        VALUES ($1, $2, $3, 'invited')`,
-      [userId, candidateRes.data.id, inviteRes.data.id]
+      [userId, candidateRes.id, inviteRes.id]
     );
 
     await db.query(
-      `UPDATE users SET background_check_status = 'invited' WHERE id = $1`, [userId]
+      `UPDATE users SET background_check_status = 'pending' WHERE id = $1`, [userId]
     );
 
-    await sendEmail(user.email, 'Background check in progress',
-      '<h2>Your background check is underway</h2><p>Results typically arrive in 1-3 business days. We\'ll notify you when it\'s complete.</p>'
-    );
+    await sendEmail({
+      to: user.email,
+      subject: 'Background check in progress',
+      html: '<h2>Your background check is underway</h2><p>Results typically arrive in 1-3 business days. We\'ll notify you when it\'s complete.</p>',
+      text: 'Your background check is underway. Results typically arrive in 1-3 business days.'
+    });
 
     res.json({ status: 'invited', message: 'Background check initiated. Check your email.' });
   } catch (err) {
@@ -81,7 +107,7 @@ exports.checkrWebhook = async (req, res) => {
         const passed = result === 'clear';
 
         await db.query(
-          `UPDATE users SET background_check_status = $1, background_check_date = NOW(),
+        `UPDATE users SET background_check_status = $1, background_check_passed_at = NOW(),
            background_check_expiry = NOW() + INTERVAL '1 year' WHERE id = $2`,
           [passed ? 'passed' : 'failed', userId]
         );
@@ -233,7 +259,15 @@ exports.getUserBadges = async (req, res) => {
 // Recalculate and award badges based on user stats
 exports.recalculateBadges = async (userId) => {
   const { rows: users } = await db.query(
-    'SELECT jobs_completed, community_score, subscription_status, background_check_status, identity_verified, tier FROM users WHERE id = $1',
+    `SELECT
+       referrals_count AS jobs_completed,
+       community_score,
+       subscription_status,
+       background_check_status,
+       identity_verified,
+       COALESCE(tier, membership_tier, 'free') AS tier
+     FROM users
+     WHERE id = $1`,
     [userId]
   );
   if (!users.length) return;

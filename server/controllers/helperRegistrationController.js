@@ -5,6 +5,19 @@ const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
 const { formatAuthUser } = require('./authController');
 const { sendOTPEmail } = require('../utils/email');
+const { encrypt, hashTIN, maskTIN } = require('../utils/encryption');
+const { TERMS_CONFIG } = require('../constants/termsConfig');
+
+async function pendingRegistrationsHasRoleColumn() {
+  const { rows } = await pool.query(
+    `SELECT 1
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = 'pending_registrations'
+       AND column_name = 'role'`
+  );
+  return rows.length > 0;
+}
 
 // ── helpers ──────────────────────────────────────────────
 function generateOTP() {
@@ -13,6 +26,22 @@ function generateOTP() {
 
 function otpExpiry() {
   return new Date(Date.now() + 10 * 60 * 1000); // 10 min
+}
+
+// GET /api/helper-registration/categories
+async function getCategories(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, slug, icon
+       FROM categories
+       WHERE is_active = TRUE
+       ORDER BY sort_order ASC, id ASC`
+    );
+    return res.json({ categories: rows });
+  } catch (err) {
+    console.error('getCategories error:', err);
+    return res.status(500).json({ error: 'Failed to load categories' });
+  }
 }
 
 // ── 1. Start Registration ────────────────────────────────
@@ -37,18 +66,29 @@ async function startRegistration(req, res) {
     // Generate a unique token for this registration
     const token = crypto.randomBytes(32).toString('hex');
 
+    const hasRole = await pendingRegistrationsHasRoleColumn();
+
     // Delete any existing pending registration for this email, then insert fresh
     await pool.query(
-      'DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)',
-      [email, 'helper']
+      hasRole
+        ? 'DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)'
+        : 'DELETE FROM pending_registrations WHERE email = $1',
+      hasRole ? [email, 'helper'] : [email]
     );
 
-    const result = await pool.query(`
-      INSERT INTO pending_registrations
-                  (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
-                RETURNING token
-            `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
+    const result = hasRole
+      ? await pool.query(`
+          INSERT INTO pending_registrations
+                      (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
+                    RETURNING token
+                `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires])
+      : await pool.query(`
+          INSERT INTO pending_registrations
+                      (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                    RETURNING token
+                `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
 
     await sendOTPEmail(email, otp);
 
@@ -158,24 +198,30 @@ async function verifyOTP(req, res) {
 // POST /api/helper-registration/resend-otp
 async function resendOTP(req, res) {
   try {
-    const { email } = req.body;
-    if (!email)
-      return res.status(400).json({ error: 'Email required' });
+    const { email, token } = req.body;
+    if (!email && !token) {
+      return res.status(400).json({ error: 'Email or token required' });
+    }
 
     const otp = generateOTP();
     const otp_expires = otpExpiry();
 
-    const { rowCount } = await pool.query(
+    const lookup = token
+      ? { where: 'token = $3', value: token }
+      : { where: 'email = $3', value: email };
+
+    const { rows } = await pool.query(
       `UPDATE pending_registrations
        SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0
-       WHERE email = $3 AND role = 'helper'`,
-      [otp, otp_expires, email]
+       WHERE ${lookup.where} AND role = 'helper'
+       RETURNING email`,
+      [otp, otp_expires, lookup.value]
     );
 
-    if (!rowCount)
+    if (!rows.length)
       return res.status(404).json({ error: 'No pending registration found' });
 
-    await sendOTPEmail(email, otp);
+    await sendOTPEmail(rows[0].email, otp);
     res.json({ message: 'New OTP sent' });
   } catch (err) {
     console.error('resendOTP error:', err);
@@ -188,20 +234,44 @@ async function resendOTP(req, res) {
 // kept only to avoid a hard 404 for older clients that still call it.
 // It returns the already-created user if the email matches.
 async function completeRegistration(req, res) {
-  const { email } = req.body;
-  if (!email)
-    return res.status(400).json({ error: 'Email required' });
+  const { email, token } = req.body;
+  if (!email && !token) return res.status(400).json({ error: 'Email or token required' });
 
   try {
-    const { rows } = await pool.query(
-      `SELECT id FROM users WHERE email = $1 AND role = 'helper'`,
-      [email]
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    // otp_attempts = -1 means OTP was verified
+    const lookupClause = token
+      ? 'token = $1'
+      : 'email = $1';
+
+    const { rows } = await client.query(
+      `SELECT * FROM pending_registrations
+       WHERE ${lookupClause} AND role = 'helper' AND otp_attempts = -1`,
+      [token || email]
     );
     if (!rows.length)
       return res.status(400).json({ error: 'Email not verified or no pending registration' });
 
-    const userId = rows[0].id;
+    const reg = rows[0];
 
+    // create user — defaults: membership_tier = 'tier1', onboarding_status = 'verified_pending_onboarding'
+    const userResult = await client.query(`
+      INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role,
+                         membership_tier, onboarding_status, onboarding_completed, email_verified)
+      VALUES ($1,$2,$3,$4,$5,$6,'helper','tier1','verified_pending_onboarding',false,true)
+      RETURNING id, email, first_name, last_name, phone, zip_code, role, membership_tier, onboarding_status
+    `, [reg.email, reg.password_hash, reg.first_name, reg.last_name, reg.phone || null, reg.zip_code || null]);
+
+    const user = userResult.rows[0];
+
+    // Mark pending row as consumed and remove it.
+    await client.query('DELETE FROM pending_registrations WHERE id = $1', [reg.id]);
+
+    await client.query('COMMIT');
+
+    const tokens = generateTokens(user);
     const { rows: fullRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
               onboarding_status, onboarding_completed, contact_completed, profile_completed,
@@ -425,10 +495,172 @@ async function uploadProfilePhoto(req, res) {
   }
 }
 
+// ── 12. Save selected tier ───────────────────────────────
+// POST /api/helper-registration/tier
+async function saveTier(req, res) {
+  try {
+    const userId = req.user.id;
+    const { tier } = req.body;
+    const allowed = new Set(['free', 'basic', 'pro', 'tier1', 'tier2']);
+    if (!allowed.has(String(tier || ''))) {
+      return res.status(400).json({ error: 'Invalid tier selection' });
+    }
+
+    const normalized = (tier === 'pro' || tier === 'basic' || tier === 'tier2') ? 'tier2' : 'tier1';
+
+    await pool.query(
+      `UPDATE users
+       SET tier_selected = TRUE,
+           membership_tier = $1,
+           updated_at = NOW()
+       WHERE id = $2 AND role = 'helper'`,
+      [normalized, userId]
+    );
+
+    await pool.query(
+      `INSERT INTO helper_profiles (user_id, tier)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET tier = $2, updated_at = NOW()`,
+      [userId, normalized === 'tier2' ? 'pro' : 'free']
+    );
+
+    return res.json({ message: 'Tier saved', membership_tier: normalized });
+  } catch (err) {
+    console.error('saveTier error:', err);
+    return res.status(500).json({ error: 'Failed to save tier' });
+  }
+}
+
+// ── 13. Save W9 information ──────────────────────────────
+// POST /api/helper-registration/w9
+async function saveW9(req, res) {
+  try {
+    const userId = req.user.id;
+    const {
+      legalName,
+      businessName,
+      taxClassification,
+      tin,
+      address,
+      signatureData,
+      certify
+    } = req.body;
+
+    if (!legalName || !taxClassification || !tin || !address || !signatureData || !certify) {
+      return res.status(400).json({ error: 'Missing required W9 fields' });
+    }
+
+    const sanitizedTIN = String(tin).replace(/\D/g, '');
+    if (sanitizedTIN.length < 9) {
+      return res.status(400).json({ error: 'TIN must be at least 9 digits' });
+    }
+
+    await pool.query(
+      `INSERT INTO w9_records
+       (user_id, legal_name, business_name, tax_classification, ssn_last4, tin_encrypted, tin_verified,
+        address, signature_data, signed_at, ip_address, user_agent, year_applicable)
+       VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7, $8, NOW(), $9, $10, $11)`,
+      [
+        userId,
+        legalName,
+        businessName || null,
+        taxClassification,
+        maskTIN(sanitizedTIN).slice(-4),
+        encrypt(sanitizedTIN),
+        address,
+        signatureData,
+        req.ip || 'unknown',
+        req.headers['user-agent'] || '',
+        new Date().getUTCFullYear()
+      ]
+    );
+
+    await pool.query(
+      `UPDATE users
+       SET w9_completed = TRUE,
+           w9_on_file = TRUE,
+           tax_id_last4 = $1,
+           w9_submitted_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $2`,
+      [maskTIN(sanitizedTIN).slice(-4), userId]
+    );
+
+    // Keep deterministic hash available for anti-duplicate checks if needed later.
+    await pool.query(
+      `UPDATE w9_records
+       SET tin_verified = CASE WHEN tin_verified THEN TRUE ELSE FALSE END
+       WHERE user_id = $1`,
+      [userId]
+    );
+    hashTIN(sanitizedTIN);
+
+    return res.json({ message: 'W9 saved successfully' });
+  } catch (err) {
+    console.error('saveW9 error:', err);
+    return res.status(500).json({ error: 'Failed to save W9 information' });
+  }
+}
+
+// ── 14. Accept terms for helper onboarding ───────────────
+// POST /api/helper-registration/accept-terms
+async function acceptTerms(req, res) {
+  try {
+    const userId = req.user.id;
+    const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
+    await pool.query(
+      `UPDATE users
+       SET terms_accepted = TRUE,
+           terms_accepted_at = NOW(),
+           terms_version = $1,
+           terms_acceptance_ip = $2,
+           terms_acceptance_ua = $3,
+           updated_at = NOW()
+       WHERE id = $4`,
+      [termsVersion, req.ip || 'unknown', req.headers['user-agent'] || '', userId]
+    );
+    return res.json({ message: 'Terms accepted' });
+  } catch (err) {
+    console.error('acceptTerms helper error:', err);
+    return res.status(500).json({ error: 'Failed to accept terms' });
+  }
+}
+
+// ── 15. Finalize helper onboarding ───────────────────────
+// POST /api/helper-registration/finalize
+async function finalizeRegistration(req, res) {
+  try {
+    const userId = req.user.id;
+    const { rows } = await pool.query(
+      `UPDATE users
+       SET onboarding_completed = TRUE,
+           onboarding_status = 'onboarding_complete',
+           updated_at = NOW()
+       WHERE id = $1 AND role = 'helper'
+       RETURNING id`,
+      [userId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Helper account not found' });
+    }
+    return res.json({ message: 'Helper registration finalized' });
+  } catch (err) {
+    console.error('finalizeRegistration error:', err);
+    return res.status(500).json({ error: 'Failed to finalize registration' });
+  }
+}
+
+// ── 16. Legacy payment step (no-op compatibility) ────────
+// POST /api/helper-registration/payment
+async function savePaymentStep(req, res) {
+  return res.json({ message: 'Payment step recorded' });
+}
+
 module.exports = {
   startRegistration,
   verifyOTP,
   resendOTP,
+  getCategories,
   completeRegistration,
   submitOnboardingProfile,
   submitIdVerification,
@@ -436,5 +668,10 @@ module.exports = {
   getOnboardingStatus,
   submitProfile,
   updateContact,
-  uploadProfilePhoto
+  uploadProfilePhoto,
+  saveTier,
+  saveW9,
+  acceptTerms,
+  finalizeRegistration,
+  savePaymentStep
 };

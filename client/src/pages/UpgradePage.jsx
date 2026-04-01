@@ -13,8 +13,8 @@ export default function UpgradePage() {
 
   const isSubscribed = subscription && subscription.status === 'active';
 
-  const handleUpgrade = async (priceId) => {
-    await createCheckout(priceId);
+  const handleUpgrade = async (planSlug) => {
+    await createCheckout(planSlug);
   };
 
   const handleCancel = async () => {
@@ -56,7 +56,7 @@ export default function UpgradePage() {
               {plan.recommended && <div className="recommended-badge">Recommended</div>}
               <h3>{plan.name}</h3>
               <div className="plan-price">
-                <span className="price">${(plan.price / 100).toFixed(2)}</span>
+                <span className="price">${(plan.amount_cents / 100).toFixed(2)}</span>
                 <span className="period">/{plan.interval}</span>
               </div>
               <ul className="plan-features">
@@ -64,7 +64,7 @@ export default function UpgradePage() {
                   <li key={i}>{feature}</li>
                 ))}
               </ul>
-              <button onClick={() => handleUpgrade(plan.stripe_price_id)} className="btn-upgrade">
+              <button onClick={() => handleUpgrade(plan.slug)} className="btn-upgrade">
                 Subscribe Now
               </button>
             </div>

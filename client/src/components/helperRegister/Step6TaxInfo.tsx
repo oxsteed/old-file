@@ -7,7 +7,7 @@ interface Props {
   onBack: () => void;
 }
 
-export default function Step6TaxInfo({ token, onSuccess, onBack }: Props) {
+export default function Step6TaxInfo({ token: _token, onSuccess, onBack }: Props) {
   const [taxType, setTaxType] = useState<'ssn' | 'ein'>('ssn');
   const [form, setForm] = useState({
     legalName: '', taxId: '', street: '', city: '', state: '', zip: '',
@@ -60,7 +60,6 @@ export default function Step6TaxInfo({ token, onSuccess, onBack }: Props) {
     setLoading(true);
     try {
       await api.post('/helper-registration/w9', {
-        token,
         legalName: form.legalName.trim(),
         businessName: null,
         taxClassification: taxType === 'ssn' ? 'Individual/sole proprietor' : 'LLC - S',

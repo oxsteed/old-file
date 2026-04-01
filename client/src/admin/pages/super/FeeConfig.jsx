@@ -40,7 +40,7 @@ function FeeRow({ row, onSave }) {
       } else if (row.value_type === 'cents') {
         sendValue = Math.round(sendValue * 100);
       }
-      await api.put(`/api/admin/fees/${row.key}`, {
+      await api.put('/fee-config', {
         key: row.key,
         value: sendValue,
         reason: reason || undefined,
@@ -203,8 +203,8 @@ export default function FeeConfig() {
 
   const load = () => {
     Promise.all([
-      api.get('/admin/fees'),
-      api.get('/admin/fees/history'),
+      api.get('/fee-config'),
+      api.get('/fee-config/history'),
     ]).then(([cfgRes, histRes]) => {
       setConfig(cfgRes.data.config);
       setHistory(histRes.data.history);
@@ -217,7 +217,7 @@ export default function FeeConfig() {
   const handleReset = async () => {
     setResetting(true);
     try {
-      await api.post('/admin/fees/reset', {
+      await api.post('/fee-config/reset', {
         reason: resetReason || 'Manual reset to defaults',
       });
       setShowReset(false);

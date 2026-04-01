@@ -10,6 +10,8 @@ const {
   loginWith2FA,
   requestOTP,
   verifyOTP,
+  forgotPassword,
+  resetPassword,
   refreshToken,
   logout,
   // Customer registration flow
@@ -32,6 +34,8 @@ router.post('/login', login);
 router.post('/login/2fa', loginWith2FA);
 router.post('/otp/request', requestOTP);
 router.post('/otp/verify', verifyOTP);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 router.post('/refresh', refreshToken);
 router.post('/logout', authenticate, logout);
 // Customer registration flow (3-step)

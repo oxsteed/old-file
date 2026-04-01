@@ -12,7 +12,7 @@ export default function Step2Profile({ token, onSuccess }: Props) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/auth/helper/categories').then(r => setCategories(r.data.categories)).catch(() => {});
+    api.get('/helper-registration/categories').then(r => setCategories(r.data.categories)).catch(() => {});
   }, []);
 
   const toggleCat = (slug: string) => {
@@ -27,8 +27,8 @@ export default function Step2Profile({ token, onSuccess }: Props) {
     if (selected.length < 1) { setError('Select at least 1 category'); return; }
     setLoading(true); setError('');
     try {
-      await api.post('/auth/helper/register/profile', {
-        token, profileHeadline: form.profileHeadline, bio: form.bio,
+      await api.post('/helper-registration/profile', {
+        profileHeadline: form.profileHeadline, bio: form.bio,
         serviceCategories: selected, serviceRadius: form.serviceRadius,
         ratePreference: form.ratePreference,
         hourlyRate: form.hourlyRate ? parseFloat(form.hourlyRate) : null

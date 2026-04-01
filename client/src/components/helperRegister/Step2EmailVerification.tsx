@@ -35,7 +35,7 @@ export default function Step2EmailVerification({ token, email, firstName, onSucc
 
   const sendOTP = async () => {
     try {
-      await api.post('/helper-registration/send-otp', { token });
+      await api.post('/helper-registration/send-otp', { email });
       setSent(true);
       setResendCooldown(60);
     } catch (err: any) {

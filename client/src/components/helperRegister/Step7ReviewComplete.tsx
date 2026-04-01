@@ -15,7 +15,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export default function Step7ReviewComplete({ token, formData, selectedTier, onEdit, onSuccess }: Props) {
+export default function Step7ReviewComplete({ token: _token, formData, selectedTier, onEdit, onSuccess }: Props) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [contractorAcknowledged, setContractorAcknowledged] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,8 +35,8 @@ export default function Step7ReviewComplete({ token, formData, selectedTier, onE
     setError('');
     try {
       // Accept terms then finalize
-      await api.post('/helper-registration/accept-terms', { token });
-      await api.post('/helper-registration/finalize', { token });
+      await api.post('/helper-registration/accept-terms');
+      await api.post('/helper-registration/finalize');
       setCompleted(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to complete registration');

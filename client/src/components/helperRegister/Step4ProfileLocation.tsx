@@ -126,7 +126,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
       });
 
       // Update phone/zip on user record
-      await api.post('/helper-registration/update-contact', { token, phone, zip });
+      await api.post('/helper-registration/update-contact', { phone, zip });
 
       const parts = cityState.split(', ');
       onSuccess({

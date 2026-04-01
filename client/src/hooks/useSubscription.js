@@ -11,7 +11,7 @@ export default function useSubscription() {
     try {
       setLoading(true);
       const { data } = await api.get('/subscription/current');
-      setSubscription(data);
+      setSubscription(data?.subscription ?? null);
     } catch (err) {
       if (err.response?.status !== 404) {
         setError(err.response?.data?.error || 'Failed to fetch subscription');
@@ -24,15 +24,19 @@ export default function useSubscription() {
   const fetchPlans = useCallback(async () => {
     try {
       const { data } = await api.get('/subscription/plans');
-      setPlans(data);
+      setPlans(data?.plans || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch plans');
     }
   }, []);
 
-  const createCheckout = useCallback(async (priceId) => {
+  const createCheckout = useCallback(async (planSlug) => {
     try {
-      const { data } = await api.post('/subscription/checkout', { priceId });
+      if (!planSlug) {
+        setError('Please select a plan');
+        return;
+      }
+      const { data } = await api.post('/subscription/checkout', { planSlug });
       window.location.href = data.url;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create checkout');

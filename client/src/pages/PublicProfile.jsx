@@ -15,9 +15,9 @@ export default function PublicProfile() {
     const load = async () => {
       try {
         const [profileRes, reviewsRes, badgesRes] = await Promise.all([
-          api.get(`/api/users/${id}/profile`),
-          api.get(`/api/reviews/user/${id}`),
-          api.get(`/api/verification/badges/${id}`),
+          api.get(`/users/${id}/profile`),
+          api.get(`/reviews/users/${id}`),
+          api.get(`/verification/badges/${id}`),
         ]);
         setProfile(profileRes.data);
         setReviews(reviewsRes.data.reviews || []);
@@ -50,7 +50,12 @@ export default function PublicProfile() {
             </div>
             <div className="flex-1">
               <h1 className="text-2xl font-bold">{profile.first_name} {profile.last_name?.[0]}.</h1>
-              <p className="text-gray-400 mt-1">{profile.city || profile.zipcode} &middot; Member since {new Date(profile.created_at).getFullYear()}</p>
+              <p className="text-gray-400 mt-1">
+                {(profile.city && profile.state)
+                  ? `${profile.city}, ${profile.state}`
+                  : (profile.zip_code || profile.zipcode || 'Location unavailable')}
+                {' '}&middot; Member since {new Date(profile.created_at).getFullYear()}
+              </p>
               <div className="flex gap-2 mt-3 flex-wrap">
                 {badges.map((b, i) => (
                   <span key={i} className="px-3 py-1 bg-orange-900/30 text-orange-400 rounded-full text-sm border border-orange-800">
