@@ -15,13 +15,20 @@ const SALT_ROUNDS = 12;
 function formatAuthUser(user) {
   if (!user) return null;
 
-  // Compute virtual onboarding_step from existing columns
-  let onboarding_step = 'registered';
-  if (user.onboarding_completed || user.onboarding_status === 'onboarding_complete') {
-    onboarding_step = 'active';
-  } else if (user.profile_completed) {
-    onboarding_step = 'profile_complete';
-  }
+      // Compute virtual onboarding_step from existing columns
+    // Order matters: check from most-complete to least-complete
+    let onboarding_step = 'registered';
+    if (user.onboarding_completed || user.onboarding_status === 'onboarding_complete') {
+      onboarding_step = 'active';
+    } else if (user.w9_completed || user.terms_accepted) {
+      onboarding_step = 'tax_complete';
+    } else if (user.tier_selected) {
+      onboarding_step = 'plan_selected';
+    } else if (user.profile_completed) {
+      onboarding_step = 'profile_complete';
+    } else if (user.email_verified) {
+      onboarding_step = 'email_verified';
+    }
 
   return {
     id:                    user.id,
