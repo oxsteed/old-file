@@ -172,7 +172,7 @@ export default function HelperRegister() {
         {/* Hero */}
         <section className="text-center mb-8 px-4">
           <h1 className="text-3xl font-bold text-white mb-2">
-            Start Earning in Your Neighborhood
+            Start Earning in Your Neighborhoooood
           </h1>
           <p className="text-orange-400 font-semibold text-lg">
             Set your own rates. Get found by neighbors. Earn on your schedule.
