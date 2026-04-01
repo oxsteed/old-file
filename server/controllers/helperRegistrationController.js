@@ -102,40 +102,95 @@ async function startRegistration(req, res) {
   }
 }
 
-// ── 2. Verify OTP ────────────────────────────────────────
+// ── 2. Verify OTP — creates the helper user and returns auth tokens ──
 // POST /api/helper-registration/verify-otp
 async function verifyOTP(req, res) {
-  try {
-    const { token, otp } = req.body;
-    if (!token || !otp)
-      return res.status(400).json({ error: 'Token and OTP required' });
+  const { token, otp } = req.body;
+  if (!token || !otp)
+    return res.status(400).json({ error: 'Token and OTP required' });
 
-    const { rows } = await pool.query(
-      `SELECT id, otp_code, otp_expires_at
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `SELECT id, email, password_hash, first_name, last_name, phone, zip_code,
+              otp_code, otp_expires_at, user_id, account_created
        FROM pending_registrations
        WHERE token = $1 AND role = 'helper'`,
       [token]
     );
 
-    if (!rows.length)
+    if (!rows.length) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'No pending registration found' });
+    }
 
     const reg = rows[0];
-    if (reg.otp_code !== otp)
-      return res.status(400).json({ error: 'Invalid OTP' });
-    if (new Date(reg.otp_expires_at) < new Date())
-      return res.status(400).json({ error: 'OTP expired' });
 
-    // Mark as verified by clearing OTP (consumed) and setting otp_attempts to -1 as verified flag
-    await pool.query(
-      `UPDATE pending_registrations SET otp_code = NULL, otp_attempts = -1 WHERE id = $1`,
-      [reg.id]
+    if (reg.otp_code !== null && reg.otp_code !== otp) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+    if (reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'OTP expired' });
+    }
+
+    let userId;
+
+    if (reg.user_id && reg.account_created) {
+      // Account was already created on a previous OTP verify (idempotent re-verify)
+      userId = reg.user_id;
+    } else {
+      // Create the helper user row
+      const userResult = await client.query(`
+        INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code,
+                           role, email_verified, onboarding_status)
+        VALUES ($1, $2, $3, $4, $5, $6, 'helper', true, 'verified_pending_onboarding')
+        RETURNING id
+      `, [reg.email, reg.password_hash, reg.first_name, reg.last_name,
+          reg.phone || null, reg.zip_code || null]);
+
+      userId = userResult.rows[0].id;
+
+      // Mark the pending row so we don't re-create on retry
+      await client.query(
+        `UPDATE pending_registrations
+         SET user_id = $1, account_created = true, otp_code = NULL, otp_attempts = -1
+         WHERE id = $2`,
+        [userId, reg.id]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Fetch the full user row (outside txn — data is committed)
+    const { rows: fullRows } = await pool.query(
+      `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
+              onboarding_status, onboarding_completed, contact_completed, profile_completed,
+              tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
+              background_check_passed, city, state, zip_code
+       FROM users WHERE id = $1`,
+      [userId]
     );
 
-    res.json({ message: 'Email verified', registrationId: reg.id });
+    const tokens = generateTokens(fullRows[0]);
+
+    res.json({
+      message: 'Email verified',
+      user: formatAuthUser(fullRows[0]),
+      ...tokens
+    });
   } catch (err) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
+    }
     console.error('verifyOTP error:', err);
     res.status(500).json({ error: 'OTP verification failed' });
+  } finally {
+    if (client) client.release();
   }
 }
 
@@ -174,13 +229,14 @@ async function resendOTP(req, res) {
   }
 }
 
-// ── 4. Complete Registration (creates user row) ──────────
-// POST /api/helper-registration/complete
+// ── 4. DEPRECATED — completeRegistration ─────────────────
+// User creation now happens inside verifyOTP. This endpoint is
+// kept only to avoid a hard 404 for older clients that still call it.
+// It returns the already-created user if the email matches.
 async function completeRegistration(req, res) {
   const { email, token } = req.body;
   if (!email && !token) return res.status(400).json({ error: 'Email or token required' });
 
-  let client;
   try {
     client = await pool.connect();
     await client.query('BEGIN');
@@ -195,10 +251,8 @@ async function completeRegistration(req, res) {
        WHERE ${lookupClause} AND role = 'helper' AND otp_attempts = -1`,
       [token || email]
     );
-    if (!rows.length) {
-      await client.query('ROLLBACK');
+    if (!rows.length)
       return res.status(400).json({ error: 'Email not verified or no pending registration' });
-    }
 
     const reg = rows[0];
 
@@ -220,25 +274,22 @@ async function completeRegistration(req, res) {
     const tokens = generateTokens(user);
     const { rows: fullRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
-       onboarding_status, onboarding_completed, contact_completed, profile_completed,
-       tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
-       background_check_passed, city, state, zip_code
+              onboarding_status, onboarding_completed, contact_completed, profile_completed,
+              tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
+              background_check_passed, city, state, zip_code
        FROM users WHERE id = $1`,
-      [user.id]
+      [userId]
     );
+
+    const tokens = generateTokens(fullRows[0]);
     res.status(201).json({
       message: 'Registration complete',
       user: formatAuthUser(fullRows[0]),
       ...tokens
     });
   } catch (err) {
-    if (client) {
-      try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
-    }
-    console.error('completeRegistration error:', err);
+    console.error('completeRegistration (deprecated) error:', err);
     res.status(500).json({ error: 'Registration completion failed' });
-  } finally {
-    if (client) client.release();
   }
 }
 
