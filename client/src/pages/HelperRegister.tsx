@@ -322,6 +322,7 @@ export default function HelperRegister() {
         return (
           <Step6TaxInfo
             token={registrationToken}
+            suggestedName={`${formData.firstName} ${formData.lastName}`.trim()}
             onBack={() => setStep(5)}
             onSuccess={(data: Partial<FormDataShape>) => {
               updateFormData(data);
@@ -472,4 +473,3 @@ export default function HelperRegister() {
     </div>
   );
 }
- 
