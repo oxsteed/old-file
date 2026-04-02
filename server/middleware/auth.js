@@ -1,4 +1,4 @@
-// Phase 2 - Authentication & authorization middleware
+// Phase  2 - Authentication & authorization middleware
 // OxSteed v2
 
 const jwt = require('jsonwebtoken');
