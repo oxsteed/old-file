@@ -54,13 +54,13 @@ export default function Step1AccountSetup({ onSuccess }: Props) {
     if (!validate()) return;
     setLoading(true);
     try {
-              const res = await api.post('/auth/helper/register/start', {
+      const res = await api.post('/auth/helper/register/start', {
         email: form.email.trim().toLowerCase(),
         password: form.password,
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         phone: '0000000000', // collected later in Step 4
-        zip: '00000', // collected later in Step 4
+        zip: '00000',        // collected later in Step 4
         ageConfirmed: form.ageConfirmed,
       });
       onSuccess(res.data.token, {
@@ -107,21 +107,28 @@ export default function Step1AccountSetup({ onSuccess }: Props) {
       </div>
 
       {/* Name fields */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="firstName" className="block text-sm text-gray-300 mb-1">First Name</label>
-          <input id="firstName" type="text" autoComplete="given-name" placeholder="Jane"
-            value={form.firstName} onChange={e => set('firstName', e.target.value)}
-            className={inputClass} aria-required="true" aria-invalid={!!errors.firstName} />
-          {errors.firstName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.firstName}</p>}
+      <div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="firstName" className="block text-sm text-gray-300 mb-1">First Name</label>
+            <input id="firstName" type="text" autoComplete="given-name" placeholder="Jane"
+              value={form.firstName} onChange={e => set('firstName', e.target.value)}
+              className={inputClass} aria-required="true" aria-invalid={!!errors.firstName} />
+            {errors.firstName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.firstName}</p>}
+          </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm text-gray-300 mb-1">Last Name</label>
+            <input id="lastName" type="text" autoComplete="family-name" placeholder="Doe"
+              value={form.lastName} onChange={e => set('lastName', e.target.value)}
+              className={inputClass} aria-required="true" aria-invalid={!!errors.lastName} />
+            {errors.lastName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.lastName}</p>}
+          </div>
         </div>
-        <div>
-          <label htmlFor="lastName" className="block text-sm text-gray-300 mb-1">Last Name</label>
-          <input id="lastName" type="text" autoComplete="family-name" placeholder="Doe"
-            value={form.lastName} onChange={e => set('lastName', e.target.value)}
-            className={inputClass} aria-required="true" aria-invalid={!!errors.lastName} />
-          {errors.lastName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.lastName}</p>}
-        </div>
+        {/* Government ID notice */}
+        <p className="text-xs text-amber-400/80 mt-2 flex items-start gap-1.5">
+          <span className="mt-0.5 shrink-0">⚠</span>
+          <span>Use your legal name exactly as it appears on your government-issued ID. This is required for identity verification and tax purposes.</span>
+        </p>
       </div>
 
       {/* Email */}
