@@ -308,16 +308,16 @@ async function submitOnboardingProfile(req, res) {
       WHERE id = $5 AND role = 'helper'
     `, [phone, city, state, zip_code, userId]);
 
-    // Upsert bio and skills into helper_profiles
+    // Upsert bio and location into helper_profiles
     await pool.query(`
       INSERT INTO helper_profiles (user_id, bio_long, service_city, service_state, service_zip)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id) DO UPDATE SET
-        bio_long     = EXCLUDED.bio_long,
-        service_city = EXCLUDED.service_city,
+        bio_long      = EXCLUDED.bio_long,
+        service_city  = EXCLUDED.service_city,
         service_state = EXCLUDED.service_state,
-        service_zip  = EXCLUDED.service_zip,
-        updated_at   = NOW()
+        service_zip   = EXCLUDED.service_zip,
+        updated_at    = NOW()
     `, [userId, bio || null, city, state, zip_code]);
 
     res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
@@ -427,9 +427,9 @@ async function getOnboardingStatus(req, res) {
 async function submitProfile(req, res) {
   try {
     const userId = req.user.id;
-    const { profileHeadline, bio, serviceCategories, serviceRadius, ratePreference, hourlyRate } = req.body;
+    const { bio, serviceCategories, serviceRadius, ratePreference } = req.body;
 
-    // Mark profile complete on users table — no bio/skills column there
+    // Mark profile complete on users table
     await pool.query(`
       UPDATE users SET
         profile_completed = true,
@@ -437,17 +437,17 @@ async function submitProfile(req, res) {
       WHERE id = $1 AND role = 'helper'
     `, [userId]);
 
-    // Upsert bio, headline, and service categories into helper_profiles
+    // Upsert bio and service info into helper_profiles
+    // Note: profile_headline column does not exist in this DB — omitted
     await pool.query(`
-      INSERT INTO helper_profiles (user_id, bio_long, profile_headline, service_radius_miles, rate_preference)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO helper_profiles (user_id, bio_long, service_radius_miles, rate_preference)
+      VALUES ($1, $2, $3, $4)
       ON CONFLICT (user_id) DO UPDATE SET
-        bio_long           = EXCLUDED.bio_long,
-        profile_headline   = EXCLUDED.profile_headline,
+        bio_long             = EXCLUDED.bio_long,
         service_radius_miles = EXCLUDED.service_radius_miles,
-        rate_preference    = EXCLUDED.rate_preference,
-        updated_at         = NOW()
-    `, [userId, bio || null, profileHeadline || null, serviceRadius || 10, ratePreference || 'per_job']);
+        rate_preference      = EXCLUDED.rate_preference,
+        updated_at           = NOW()
+    `, [userId, bio || null, serviceRadius || 10, ratePreference || 'per_job']);
 
     res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
   } catch (err) {
@@ -560,11 +560,12 @@ async function saveW9(req, res) {
       return res.status(400).json({ error: 'TIN must be at least 9 digits' });
     }
 
+    // Note: tin_verified column does not exist in this DB — omitted from INSERT
     await pool.query(
       `INSERT INTO w9_records
-       (user_id, legal_name, business_name, tax_classification, ssn_last4, tin_encrypted, tin_verified,
+       (user_id, legal_name, business_name, tax_classification, ssn_last4, tin_encrypted,
         address, signature_data, signed_at, ip_address, user_agent, year_applicable)
-       VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7, $8, NOW(), $9, $10, $11)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11)`,
       [
         userId, legalName, businessName || null, taxClassification,
         maskTIN(sanitizedTIN).slice(-4), encrypt(sanitizedTIN),
