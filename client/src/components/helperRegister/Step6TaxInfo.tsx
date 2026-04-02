@@ -3,14 +3,15 @@ import api from '../../api/axios';
 
 interface Props {
   token: string;
+  suggestedName: string;
   onSuccess: (data: { taxType: string; taxId: string; legalName: string; mailingAddress: { street: string; city: string; state: string; zip: string } }) => void;
   onBack: () => void;
 }
 
-export default function Step6TaxInfo({ token: _token, onSuccess, onBack }: Props) {
+export default function Step6TaxInfo({ token: _token, suggestedName, onSuccess, onBack }: Props) {
   const [taxType, setTaxType] = useState<'ssn' | 'ein'>('ssn');
   const [form, setForm] = useState({
-    legalName: '', taxId: '', street: '', city: '', state: '', zip: '',
+    legalName: suggestedName, taxId: '', street: '', city: '', state: '', zip: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -115,12 +116,18 @@ export default function Step6TaxInfo({ token: _token, onSuccess, onBack }: Props
         </div>
       </div>
 
-      {/* Legal name */}
+      {/* Legal name — pre-filled from signup, editable */}
       <div>
-        <label htmlFor="legalName" className="block text-sm text-gray-300 mb-1">Legal Name (as shown on tax return)</label>
+        <label htmlFor="legalName" className="block text-sm text-gray-300 mb-1">
+          Legal Name (as shown on tax return)
+        </label>
         <input id="legalName" type="text" autoComplete="name" placeholder="Jane A. Doe"
           value={form.legalName} onChange={e => set('legalName', e.target.value)}
           className={inputClass} aria-required="true" />
+        <p className="text-xs text-amber-400/80 mt-1.5 flex items-start gap-1.5">
+          <span className="mt-0.5 shrink-0">⚠</span>
+          <span>This should match your government-issued ID exactly. Edit if your legal name differs from your display name.</span>
+        </p>
         {errors.legalName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.legalName}</p>}
       </div>
 
