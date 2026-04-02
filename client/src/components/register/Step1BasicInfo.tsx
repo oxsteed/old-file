@@ -116,22 +116,36 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
         <div className="flex-1 h-px bg-gray-700" />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="firstName" className="block text-sm text-gray-300 mb-1">First Name</label>
-          <input id="firstName" type="text" autoComplete="given-name" placeholder="Jane" value={form.firstName} onChange={e => set('firstName', e.target.value)} className={inputClass} aria-required="true" aria-invalid={!!errors.firstName} />
-          {errors.firstName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.firstName}</p>}
+      {/* Name fields */}
+      <div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="firstName" className="block text-sm text-gray-300 mb-1">First Name</label>
+            <input id="firstName" type="text" autoComplete="given-name" placeholder="Jane"
+              value={form.firstName} onChange={e => set('firstName', e.target.value)}
+              className={inputClass} aria-required="true" aria-invalid={!!errors.firstName} />
+            {errors.firstName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.firstName}</p>}
+          </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm text-gray-300 mb-1">Last Name</label>
+            <input id="lastName" type="text" autoComplete="family-name" placeholder="Doe"
+              value={form.lastName} onChange={e => set('lastName', e.target.value)}
+              className={inputClass} aria-required="true" aria-invalid={!!errors.lastName} />
+            {errors.lastName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.lastName}</p>}
+          </div>
         </div>
-        <div>
-          <label htmlFor="lastName" className="block text-sm text-gray-300 mb-1">Last Name</label>
-          <input id="lastName" type="text" autoComplete="family-name" placeholder="Doe" value={form.lastName} onChange={e => set('lastName', e.target.value)} className={inputClass} aria-required="true" aria-invalid={!!errors.lastName} />
-          {errors.lastName && <p className="text-red-400 text-xs mt-1" role="alert">{errors.lastName}</p>}
-        </div>
+        {/* Government ID notice */}
+        <p className="text-xs text-amber-400/80 mt-2 flex items-start gap-1.5">
+          <span className="mt-0.5 shrink-0">⚠</span>
+          <span>Use your legal name exactly as it appears on your government-issued ID. This is required for identity verification and tax purposes.</span>
+        </p>
       </div>
 
       <div>
         <label htmlFor="email" className="block text-sm text-gray-300 mb-1">Email</label>
-        <input id="email" type="email" autoComplete="email" placeholder="jane@example.com" value={form.email} onChange={e => set('email', e.target.value)} onBlur={checkEmail} className={inputClass} aria-required="true" aria-invalid={!!errors.email} inputMode="email" />
+        <input id="email" type="email" autoComplete="email" placeholder="jane@example.com"
+          value={form.email} onChange={e => set('email', e.target.value)} onBlur={checkEmail}
+          className={inputClass} aria-required="true" aria-invalid={!!errors.email} inputMode="email" />
         {emailAvailable === true && <p className="text-green-400 text-xs mt-1">Email is available</p>}
         {emailAvailable === false && <p className="text-red-400 text-xs mt-1">Email is already taken</p>}
         {errors.email && <p className="text-red-400 text-xs mt-1" role="alert">{errors.email}</p>}
@@ -139,13 +153,17 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
 
       <div>
         <label htmlFor="phone" className="block text-sm text-gray-300 mb-1">Phone (+1)</label>
-        <input id="phone" type="tel" autoComplete="tel" placeholder="(555) 123-4567" value={form.phone} onChange={e => set('phone', e.target.value)} className={inputClass} aria-required="true" aria-invalid={!!errors.phone} inputMode="tel" />
+        <input id="phone" type="tel" autoComplete="tel" placeholder="(555) 123-4567"
+          value={form.phone} onChange={e => set('phone', e.target.value)}
+          className={inputClass} aria-required="true" aria-invalid={!!errors.phone} inputMode="tel" />
         {errors.phone && <p className="text-red-400 text-xs mt-1" role="alert">{errors.phone}</p>}
       </div>
 
       <div>
         <label htmlFor="zip" className="block text-sm text-gray-300 mb-1">Zip Code</label>
-        <input id="zip" type="text" autoComplete="postal-code" placeholder="40291" value={form.zip} onChange={e => set('zip', e.target.value)} className={inputClass} aria-required="true" aria-invalid={!!errors.zip} inputMode="numeric" />
+        <input id="zip" type="text" autoComplete="postal-code" placeholder="40291"
+          value={form.zip} onChange={e => set('zip', e.target.value)}
+          className={inputClass} aria-required="true" aria-invalid={!!errors.zip} inputMode="numeric" />
         <p className="text-xs text-gray-500 mt-1">Used to show services and helpers near you</p>
         {errors.zip && <p className="text-red-400 text-xs mt-1" role="alert">{errors.zip}</p>}
       </div>
@@ -153,8 +171,13 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
       <div>
         <label htmlFor="password" className="block text-sm text-gray-300 mb-1">Create Password</label>
         <div className="relative">
-          <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="At least 8 characters" value={form.password} onChange={e => set('password', e.target.value)} className={inputClass + ' pr-12'} aria-required="true" aria-invalid={!!errors.password} />
-          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+          <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password"
+            placeholder="At least 8 characters"
+            value={form.password} onChange={e => set('password', e.target.value)}
+            className={inputClass + ' pr-12'} aria-required="true" aria-invalid={!!errors.password} />
+          <button type="button" onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm"
+            aria-label={showPassword ? 'Hide password' : 'Show password'}>
             {showPassword ? 'Hide' : 'Show'}
           </button>
         </div>
@@ -171,19 +194,28 @@ export default function Step1BasicInfo({ onSuccess }: Props) {
 
       <div className="space-y-3">
         <label className="flex items-start gap-2 text-gray-300 text-sm cursor-pointer">
-          <input type="checkbox" checked={form.ageConfirmed} onChange={e => set('ageConfirmed', e.target.checked)} className="rounded border-gray-600 mt-0.5 accent-orange-500" />
-          <span>I confirm I am at least 18 years old (required per our{' '}<a href="/terms" target="_blank" className="text-orange-400 underline hover:text-orange-300">Terms of Service</a>).</span>
+          <input type="checkbox" checked={form.ageConfirmed}
+            onChange={e => set('ageConfirmed', e.target.checked)}
+            className="rounded border-gray-600 mt-0.5 accent-orange-500" />
+          <span>I confirm I am at least 18 years old (required per our{' '}
+            <a href="/terms" target="_blank" className="text-orange-400 underline hover:text-orange-300">Terms of Service</a>).
+          </span>
         </label>
         {errors.ageConfirmed && <p className="text-red-400 text-xs ml-6" role="alert">{errors.ageConfirmed}</p>}
 
         <label className="flex items-start gap-2 text-gray-300 text-sm cursor-pointer">
-          <input type="checkbox" checked={form.privacyConsent} onChange={e => set('privacyConsent', e.target.checked)} className="rounded border-gray-600 mt-0.5 accent-orange-500" />
-          <span>I agree to the{' '}<a href="/privacy" target="_blank" className="text-orange-400 underline hover:text-orange-300">Privacy Policy</a>.</span>
+          <input type="checkbox" checked={form.privacyConsent}
+            onChange={e => set('privacyConsent', e.target.checked)}
+            className="rounded border-gray-600 mt-0.5 accent-orange-500" />
+          <span>I agree to the{' '}
+            <a href="/privacy" target="_blank" className="text-orange-400 underline hover:text-orange-300">Privacy Policy</a>.
+          </span>
         </label>
         {errors.privacyConsent && <p className="text-red-400 text-xs ml-6" role="alert">{errors.privacyConsent}</p>}
       </div>
 
-      <button type="submit" disabled={loading} className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg disabled:opacity-50 transition text-lg">
+      <button type="submit" disabled={loading}
+        className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg disabled:opacity-50 transition text-lg">
         {loading ? 'Creating Account...' : 'Find Local Help'}
       </button>
 
