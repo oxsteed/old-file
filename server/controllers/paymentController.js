@@ -72,7 +72,7 @@ exports.getConnectStatus = async (req, res) => {
  * Flow:
  *   1. Customer selects a helper for a Tier 3 job.
  *   2. OxSteed creates a PaymentIntent as a DIRECT CHARGE on the helper's account.
- *   3. application_fee_amount = 7.1% of job value (or $5 min) + broker fee if applicable.
+ *   3. application_fee_amount = 7.1% of job value (or $5 min).
  *   4. capture_method: 'manual' — authorize now, capture after job completion.
  *   5. Stripe processing fees are deducted from the helper's charge.
  *   6. On capture, helper gets paid and OxSteed receives its application_fee.
@@ -92,8 +92,7 @@ exports.createPaymentIntent = async (req, res) => {
     }
 
     const jobValueCents = Math.round(job.rows[0].job_value * 100);
-    const isBrokerMediated = !!job.rows[0].broker_helper_id;
-    const fees = calculateTier3Fees(jobValueCents, isBrokerMediated);
+    const fees = calculateTier3Fees(jobValueCents);
 
     // Direct charge on helper's connected account
     const paymentIntent = await stripe.paymentIntents.create(
@@ -109,7 +108,6 @@ exports.createPaymentIntent = async (req, res) => {
           helper_id: job.rows[0].assigned_helper_id.toString(),
           tier: 'tier3',
           platform_fee_cents: fees.platform_fee_cents.toString(),
-          broker_fee_cents: fees.broker_fee_cents.toString(),
         },
       },
       { stripeAccount: connect.rows[0].stripe_account_id }
@@ -118,18 +116,15 @@ exports.createPaymentIntent = async (req, res) => {
     await pool.query(
       `INSERT INTO payments
         (job_id, payer_id, payee_id, stripe_payment_intent_id,
-         amount, application_fee, platform_fee, broker_fee,
-         status, payment_hold_status, stripe_account_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'authorized', 'held', $9)`,
+         amount, platform_fee, status, payment_hold_status, stripe_account_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7)`,
       [
         job_id,
         req.user.id,
         job.rows[0].assigned_helper_id,
         paymentIntent.id,
         job.rows[0].job_value,
-        fees.application_fee_cents / 100,
         fees.platform_fee_cents / 100,
-        fees.broker_fee_cents / 100,
         connect.rows[0].stripe_account_id,
       ]
     );
