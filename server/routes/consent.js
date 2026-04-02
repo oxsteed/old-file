@@ -16,18 +16,18 @@ router.get('/status', authenticate, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT DISTINCT ON (consent_type)
-        consent_type, version, created_at
+        consent_type, version, accepted_at
         FROM user_consents
         WHERE user_id = $1
         AND consent_type = ANY($2)
-        ORDER BY consent_type, created_at DESC`,
+        ORDER BY consent_type, accepted_at DESC`,
       [req.user.id, REQUIRED_CONSENTS]
     );
     const accepted = {};
     rows.forEach((r) => {
       accepted[r.consent_type] = {
         version: r.version,
-        accepted_at: r.created_at,
+        accepted_at: r.accepted_at,
       };
     });
     const outstanding = [];
