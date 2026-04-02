@@ -48,11 +48,10 @@ async function getCategories(req, res) {
 // POST /api/helper-registration/start
 async function startRegistration(req, res) {
   try {
-        const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
-        if (!email || !password || !firstName || !lastName || !phone || !zip)
-            return res.status(400).json({ error: 'Email, password, first name, last name, phone, and zip required' });
+    const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
+    if (!email || !password || !firstName || !lastName || !phone || !zip)
+      return res.status(400).json({ error: 'Email, password, first name, last name, phone, and zip required' });
 
-    
     // Check for existing user
     const dup = await pool.query(
       'SELECT id FROM users WHERE email = $1', [email]);
@@ -79,22 +78,22 @@ async function startRegistration(req, res) {
     const result = hasRole
       ? await pool.query(`
           INSERT INTO pending_registrations
-                      (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
-                    RETURNING token
-                `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires])
+            (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
+          RETURNING token
+        `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires])
       : await pool.query(`
           INSERT INTO pending_registrations
-                      (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-                    RETURNING token
-                `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
+            (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          RETURNING token
+        `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
 
     await sendOTPEmail(email, otp);
 
     res.status(201).json({
       message: 'OTP sent to email',
-                token: result.rows[0].token,
+      token: result.rows[0].token,
     });
   } catch (err) {
     console.error('startRegistration error:', err);
@@ -230,22 +229,16 @@ async function resendOTP(req, res) {
 }
 
 // ── 4. DEPRECATED — completeRegistration ─────────────────
-// User creation now happens inside verifyOTP. This endpoint is
-// kept only to avoid a hard 404 for older clients that still call it.
-// It returns the already-created user if the email matches.
 async function completeRegistration(req, res) {
   const { email, token } = req.body;
   if (!email && !token) return res.status(400).json({ error: 'Email or token required' });
 
-    let client;
+  let client;
   try {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    // otp_attempts = -1 means OTP was verified
-    const lookupClause = token
-      ? 'token = $1'
-      : 'email = $1';
+    const lookupClause = token ? 'token = $1' : 'email = $1';
 
     const { rows } = await client.query(
       `SELECT * FROM pending_registrations
@@ -257,7 +250,6 @@ async function completeRegistration(req, res) {
 
     const reg = rows[0];
 
-    // create user — defaults: membership_tier = 'tier1', onboarding_status = 'verified_pending_onboarding'
     const userResult = await client.query(`
       INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role,
                          membership_tier, onboarding_status, onboarding_completed, email_verified)
@@ -267,9 +259,7 @@ async function completeRegistration(req, res) {
 
     const user = userResult.rows[0];
 
-    // Mark pending row as consumed and remove it.
     await client.query('DELETE FROM pending_registrations WHERE id = $1', [reg.id]);
-
     await client.query('COMMIT');
 
     const { rows: fullRows } = await pool.query(
@@ -290,14 +280,13 @@ async function completeRegistration(req, res) {
   } catch (err) {
     console.error('completeRegistration (deprecated) error:', err);
     res.status(500).json({ error: 'Registration completion failed' });
-      } finally {
+  } finally {
     if (client) client.release();
   }
 }
 
 // ── 5. Submit Onboarding Profile ─────────────────────────
 // PUT /api/helper-registration/onboarding/profile
-// Auth required — user must be logged in
 async function submitOnboardingProfile(req, res) {
   try {
     const userId = req.user.id;
@@ -306,20 +295,30 @@ async function submitOnboardingProfile(req, res) {
     if (!phone || !city || !state || !zip_code)
       return res.status(400).json({ error: 'Required profile fields missing' });
 
+    // Update contact fields on users table (no bio/skills — those live in helper_profiles)
     await pool.query(`
       UPDATE users SET
-        phone            = $1,
-        city             = $2,
-        state            = $3,
-        zip_code         = $4,
-        bio              = $5,
-        skills           = $6,
+        phone             = $1,
+        city              = $2,
+        state             = $3,
+        zip_code          = $4,
         profile_completed = true,
         contact_completed = true,
         onboarding_status = 'onboarding_in_progress'
-      WHERE id = $7 AND role = 'helper'
-    `, [phone, city, state, zip_code,
-        bio || null, JSON.stringify(skills || []), userId]);
+      WHERE id = $5 AND role = 'helper'
+    `, [phone, city, state, zip_code, userId]);
+
+    // Upsert bio and skills into helper_profiles
+    await pool.query(`
+      INSERT INTO helper_profiles (user_id, bio_long, service_city, service_state, service_zip)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (user_id) DO UPDATE SET
+        bio_long     = EXCLUDED.bio_long,
+        service_city = EXCLUDED.service_city,
+        service_state = EXCLUDED.service_state,
+        service_zip  = EXCLUDED.service_zip,
+        updated_at   = NOW()
+    `, [userId, bio || null, city, state, zip_code]);
 
     res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
   } catch (err) {
@@ -329,8 +328,6 @@ async function submitOnboardingProfile(req, res) {
 }
 
 // ── 6. Submit ID Verification ────────────────────────────
-// PUT /api/helper-registration/onboarding/id-verification
-// Auth required
 async function submitIdVerification(req, res) {
   try {
     const userId = req.user.id;
@@ -341,7 +338,7 @@ async function submitIdVerification(req, res) {
 
     await pool.query(`
       UPDATE users SET
-        id_verified     = false,
+        id_verified       = false,
         onboarding_status = 'onboarding_in_progress'
       WHERE id = $1 AND role = 'helper'
     `, [userId]);
@@ -354,8 +351,6 @@ async function submitIdVerification(req, res) {
 }
 
 // ── 7. Submit Background Check ───────────────────────────
-// PUT /api/helper-registration/onboarding/background-check
-// Auth required
 async function submitBackgroundCheck(req, res) {
   try {
     const userId = req.user.id;
@@ -366,8 +361,8 @@ async function submitBackgroundCheck(req, res) {
 
     await pool.query(`
       UPDATE users SET
-        background_check_passed  = false,
-        onboarding_status        = 'onboarding_in_progress'
+        background_check_passed = false,
+        onboarding_status       = 'onboarding_in_progress'
       WHERE id = $1 AND role = 'helper'
     `, [userId]);
 
@@ -379,17 +374,17 @@ async function submitBackgroundCheck(req, res) {
 }
 
 // ── 8. Get Onboarding Status ─────────────────────────────
-// GET /api/helper-registration/onboarding/status
-// Auth required
 async function getOnboardingStatus(req, res) {
   try {
     const userId = req.user.id;
     const { rows } = await pool.query(
-      `SELECT onboarding_status, membership_tier, id_verified,
-              background_check_passed, bio, skills,
-              profile_completed, contact_completed, tier_selected,
-              w9_completed, terms_accepted, onboarding_completed
-       FROM users WHERE id = $1 AND role = 'helper'`,
+      `SELECT u.onboarding_status, u.membership_tier, u.id_verified,
+              u.background_check_passed, u.profile_completed, u.contact_completed,
+              u.tier_selected, u.w9_completed, u.terms_accepted, u.onboarding_completed,
+              hp.bio_long AS bio
+       FROM users u
+       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       WHERE u.id = $1 AND u.role = 'helper'`,
       [userId]
     );
 
@@ -398,8 +393,6 @@ async function getOnboardingStatus(req, res) {
 
     const u = rows[0];
 
-        // Map onboarding_status to step for API consumers
-    // Order: most-complete to least-complete
     let onboarding_step = 'registered';
     if (u.onboarding_completed || u.onboarding_status === 'onboarding_complete') {
       onboarding_step = 'active';
@@ -410,20 +403,18 @@ async function getOnboardingStatus(req, res) {
     } else if (u.profile_completed) {
       onboarding_step = 'profile_complete';
     } else {
-      // Helper users are only created after email verification,
-      // so any existing user has verified their email
       onboarding_step = 'email_verified';
     }
 
     res.json({
-      onboarding_step:         onboarding_step,
+      onboarding_step,
       membership_tier:         u.membership_tier,
       id_verified:             u.id_verified,
       background_check_passed: u.background_check_passed,
       profile_complete:        !!u.profile_completed,
       canBrowseJobs:           true,
       canApplyToJobs:          u.membership_tier === 'tier2' || u.onboarding_completed,
-      canAppearInSearch:       u.membership_tier === 'tier2' && u.onboarding_completed
+      canAppearInSearch:       u.membership_tier === 'tier2' && u.onboarding_completed,
     });
   } catch (err) {
     console.error('getOnboardingStatus error:', err);
@@ -431,21 +422,32 @@ async function getOnboardingStatus(req, res) {
   }
 }
 
-// ── 9. Submit Profile (token-based, called by frontend Step4) ──────
+// ── 9. Submit Profile (called by frontend Step 4) ────────
 // POST /api/helper-registration/profile
 async function submitProfile(req, res) {
   try {
     const userId = req.user.id;
     const { profileHeadline, bio, serviceCategories, serviceRadius, ratePreference, hourlyRate } = req.body;
 
+    // Mark profile complete on users table — no bio/skills column there
     await pool.query(`
       UPDATE users SET
-        bio = $1,
-        skills = $2,
         profile_completed = true,
         onboarding_status = 'onboarding_in_progress'
-      WHERE id = $3 AND role = 'helper'
-    `, [bio || null, JSON.stringify(serviceCategories || []), userId]);
+      WHERE id = $1 AND role = 'helper'
+    `, [userId]);
+
+    // Upsert bio, headline, and service categories into helper_profiles
+    await pool.query(`
+      INSERT INTO helper_profiles (user_id, bio_long, profile_headline, service_radius_miles, rate_preference)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (user_id) DO UPDATE SET
+        bio_long           = EXCLUDED.bio_long,
+        profile_headline   = EXCLUDED.profile_headline,
+        service_radius_miles = EXCLUDED.service_radius_miles,
+        rate_preference    = EXCLUDED.rate_preference,
+        updated_at         = NOW()
+    `, [userId, bio || null, profileHeadline || null, serviceRadius || 10, ratePreference || 'per_job']);
 
     res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
   } catch (err) {
@@ -454,7 +456,7 @@ async function submitProfile(req, res) {
   }
 }
 
-// ── 10. Update Contact Info (token-based, called by frontend Step4) ──
+// ── 10. Update Contact Info (called by frontend Step 4) ──
 // POST /api/helper-registration/update-contact
 async function updateContact(req, res) {
   try {
@@ -463,11 +465,10 @@ async function updateContact(req, res) {
 
     if (!phone || !zip) return res.status(400).json({ error: 'Phone and zip required' });
 
-    // Look up city/state from zip using zippopotam or just store zip
     await pool.query(`
       UPDATE users SET
-        phone = $1,
-        zip_code = $2,
+        phone             = $1,
+        zip_code          = $2,
         contact_completed = true
       WHERE id = $3 AND role = 'helper'
     `, [phone, zip, userId]);
@@ -479,14 +480,13 @@ async function updateContact(req, res) {
   }
 }
 
-// ── 11. Upload Profile Photo ────────────────────────────────
+// ── 11. Upload Profile Photo ──────────────────────────────
 // POST /api/helper-registration/profile-photo
 async function uploadProfilePhoto(req, res) {
   try {
     const userId = req.user.id;
     if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
 
-    // Store as base64 data URL for now (swap to S3/CDN later)
     const base64 = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
     const dataUrl = `data:${mimeType};base64,${base64}`;
@@ -498,7 +498,7 @@ async function uploadProfilePhoto(req, res) {
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_photo_url)
        VALUES ($1, $2)
-       ON CONFLICT (user_id) DO UPDATE SET profile_photo_url = $2, updated_at = now()`,
+       ON CONFLICT (user_id) DO UPDATE SET profile_photo_url = $2, updated_at = NOW()`,
       [userId, dataUrl]
     );
     res.json({ message: 'Photo uploaded', photoUrl: dataUrl });
@@ -508,7 +508,7 @@ async function uploadProfilePhoto(req, res) {
   }
 }
 
-// ── 12. Save selected tier ───────────────────────────────
+// ── 12. Save selected tier ────────────────────────────────
 // POST /api/helper-registration/tier
 async function saveTier(req, res) {
   try {
@@ -523,9 +523,9 @@ async function saveTier(req, res) {
 
     await pool.query(
       `UPDATE users
-       SET tier_selected = TRUE,
+       SET tier_selected   = TRUE,
            membership_tier = $1,
-           updated_at = NOW()
+           updated_at      = NOW()
        WHERE id = $2 AND role = 'helper'`,
       [normalized, userId]
     );
@@ -544,20 +544,12 @@ async function saveTier(req, res) {
   }
 }
 
-// ── 13. Save W9 information ──────────────────────────────
+// ── 13. Save W9 information ───────────────────────────────
 // POST /api/helper-registration/w9
 async function saveW9(req, res) {
   try {
     const userId = req.user.id;
-    const {
-      legalName,
-      businessName,
-      taxClassification,
-      tin,
-      address,
-      signatureData,
-      certify
-    } = req.body;
+    const { legalName, businessName, taxClassification, tin, address, signatureData, certify } = req.body;
 
     if (!legalName || !taxClassification || !tin || !address || !signatureData || !certify) {
       return res.status(400).json({ error: 'Missing required W9 fields' });
@@ -574,38 +566,25 @@ async function saveW9(req, res) {
         address, signature_data, signed_at, ip_address, user_agent, year_applicable)
        VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7, $8, NOW(), $9, $10, $11)`,
       [
-        userId,
-        legalName,
-        businessName || null,
-        taxClassification,
-        maskTIN(sanitizedTIN).slice(-4),
-        encrypt(sanitizedTIN),
-        address,
-        signatureData,
-        req.ip || 'unknown',
-        req.headers['user-agent'] || '',
+        userId, legalName, businessName || null, taxClassification,
+        maskTIN(sanitizedTIN).slice(-4), encrypt(sanitizedTIN),
+        address, signatureData,
+        req.ip || 'unknown', req.headers['user-agent'] || '',
         new Date().getUTCFullYear()
       ]
     );
 
     await pool.query(
       `UPDATE users
-       SET w9_completed = TRUE,
-           w9_on_file = TRUE,
-           tax_id_last4 = $1,
+       SET w9_completed    = TRUE,
+           w9_on_file      = TRUE,
+           tax_id_last4    = $1,
            w9_submitted_at = NOW(),
-           updated_at = NOW()
+           updated_at      = NOW()
        WHERE id = $2`,
       [maskTIN(sanitizedTIN).slice(-4), userId]
     );
 
-    // Keep deterministic hash available for anti-duplicate checks if needed later.
-    await pool.query(
-      `UPDATE w9_records
-       SET tin_verified = CASE WHEN tin_verified THEN TRUE ELSE FALSE END
-       WHERE user_id = $1`,
-      [userId]
-    );
     hashTIN(sanitizedTIN);
 
     return res.json({ message: 'W9 saved successfully' });
@@ -615,7 +594,7 @@ async function saveW9(req, res) {
   }
 }
 
-// ── 14. Accept terms for helper onboarding ───────────────
+// ── 14. Accept terms ──────────────────────────────────────
 // POST /api/helper-registration/accept-terms
 async function acceptTerms(req, res) {
   try {
@@ -623,12 +602,12 @@ async function acceptTerms(req, res) {
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
     await pool.query(
       `UPDATE users
-       SET terms_accepted = TRUE,
-           terms_accepted_at = NOW(),
-           terms_version = $1,
+       SET terms_accepted      = TRUE,
+           terms_accepted_at   = NOW(),
+           terms_version       = $1,
            terms_acceptance_ip = $2,
            terms_acceptance_ua = $3,
-           updated_at = NOW()
+           updated_at          = NOW()
        WHERE id = $4`,
       [termsVersion, req.ip || 'unknown', req.headers['user-agent'] || '', userId]
     );
@@ -639,7 +618,7 @@ async function acceptTerms(req, res) {
   }
 }
 
-// ── 15. Finalize helper onboarding ───────────────────────
+// ── 15. Finalize helper onboarding ────────────────────────
 // POST /api/helper-registration/finalize
 async function finalizeRegistration(req, res) {
   try {
@@ -647,8 +626,8 @@ async function finalizeRegistration(req, res) {
     const { rows } = await pool.query(
       `UPDATE users
        SET onboarding_completed = TRUE,
-           onboarding_status = 'onboarding_complete',
-           updated_at = NOW()
+           onboarding_status    = 'onboarding_complete',
+           updated_at           = NOW()
        WHERE id = $1 AND role = 'helper'
        RETURNING id`,
       [userId]
@@ -663,8 +642,7 @@ async function finalizeRegistration(req, res) {
   }
 }
 
-// ── 16. Legacy payment step (no-op compatibility) ────────
-// POST /api/helper-registration/payment
+// ── 16. Legacy payment step (no-op) ──────────────────────
 async function savePaymentStep(req, res) {
   return res.json({ message: 'Payment step recorded' });
 }
@@ -686,5 +664,5 @@ module.exports = {
   saveW9,
   acceptTerms,
   finalizeRegistration,
-  savePaymentStep
+  savePaymentStep,
 };
