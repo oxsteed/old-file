@@ -19,7 +19,7 @@ const FEES = {
   // Tier 2 — Subscription only. If parties voluntarily use
   // platform payment, Tier 3 rates apply automatically.
   TIER_2_SUBSCRIPTION: {
-    monthly_cents:    2900,   // $29.00/month
+    monthly_cents:    1499,   // $14.99/month
     description:      'Pro helper subscription',
   },
 
@@ -33,7 +33,7 @@ const FEES = {
   },
 
   TIER_3_SUBSCRIPTION: {
-    monthly_cents:    7900,   // $79.00/month
+    monthly_cents:    3900,   // $39.00/month
     description:      'Broker helper subscription',
   },
 };
