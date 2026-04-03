@@ -18,6 +18,20 @@ export default function useLifeDashboard() {
     }
   }, []);
 
+  // ── Community stats ─────────────────────────────────────────────────
+  const [community, setCommunity] = useState(null);
+
+  const fetchCommunity = useCallback(async (zip) => {
+    try {
+      const qs = zip ? `?zip=${zip}` : '';
+      const { data } = await api.get(`/life/community${qs}`);
+      setCommunity(data);
+      return data;
+    } catch (err) {
+      console.error('fetchCommunity error:', err);
+    }
+  }, []);
+
   // ── Expenses ────────────────────────────────────────────────────────
   const [expenses, setExpenses] = useState([]);
   const [expenseSummary, setExpenseSummary] = useState(null);
@@ -214,6 +228,9 @@ export default function useLifeDashboard() {
 
     // Summary
     summary, fetchSummary,
+
+    // Community
+    community, fetchCommunity,
 
     // Expenses
     expenses, expenseSummary, fetchExpenses, createExpense, updateExpense, deleteExpense, fetchExpenseBreakdown,
