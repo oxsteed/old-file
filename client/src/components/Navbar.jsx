@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
+import ThemeToggle from './ThemeToggle';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -36,6 +37,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16 items-center">
           <Link to="/" className="text-xl font-bold text-orange-500 hover:text-orange-400 transition">OxSteed</Link>
 
+          <ThemeToggle />
           {/* Mobile menu button */}
           <button onClick={() => setMobileOpen(!mobileOpen)} className="sm:hidden text-gray-300 hover:text-white">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,6 +72,7 @@ export default function Navbar() {
                 <Link to="/register/helper" className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">List Your Skills</Link>
               </>
             )}
+            <ThemeToggle />
           </div>
         </div>
 
