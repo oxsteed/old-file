@@ -3,24 +3,15 @@
 
 const { Pool } = require('pg');
 
-const getSslConfig = () => {
-  if (process.env.NODE_ENV !== 'production') return false;
-
-  if (process.env.DATABASE_CA_CERT) {
-    return {
-      rejectUnauthorized: true,
-      ca: process.env.DATABASE_CA_CERT,
-    };
-  }
-
-  // TODO: provide DATABASE_CA_CERT in production to enable full cert verification
-  // (rejectUnauthorized: false skips certificate validation — acceptable on private VPC)
-  return { rejectUnauthorized: false };
-};
+// Determine SSL config from DATABASE_URL.
+// Local Docker PostgreSQL (sslmode=disable) needs ssl: false.
+// Managed/remote databases need ssl: true (with proper CA cert).
+const dbUrl = process.env.DATABASE_URL || '';
+const needsSsl = !dbUrl.includes('sslmode=disable') && process.env.NODE_ENV === 'production';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: getSslConfig(),
+  ssl: needsSsl ? { rejectUnauthorized: true } : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
