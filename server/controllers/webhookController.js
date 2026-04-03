@@ -160,9 +160,11 @@ exports.diditWebhook = async (req, res) => {
     .update(`${timestamp}.${rawBody}`)
     .digest('hex');
 
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+  const sigBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expected);
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
     console.warn('[Didit] Invalid webhook signature');
-    return res.status(400).json({ error: 'Invalid signature.' });
+    return res.status(401).json({ error: 'Invalid signature.' });
   }
 
   let payload;
