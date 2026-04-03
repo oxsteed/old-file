@@ -26,6 +26,7 @@ function clearStoredSession() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  delete api.defaults.headers.common.Authorization;
 }
 
 function persistSessionPayload(data = {}) {
@@ -63,18 +64,6 @@ export function getStoredUser() {
 
 let refreshPromise = null;
 
-api.interceptors.request.use(
-  (config) => {
-    const token = getAccessToken();
-    if (token) {
-      config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -99,6 +88,7 @@ api.interceptors.response.use(
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       clearStoredSession();
+      window.location.replace('/login');
       return Promise.reject(error);
     }
 
@@ -110,21 +100,23 @@ api.interceptors.response.use(
         api.post('/auth/refresh', { refreshToken });
 
       const response = await refreshPromise;
-      refreshPromise = null;
+      const newAccessToken = response.data?.accessToken;
 
       persistSessionPayload(response.data);
 
-      const newAccessToken = response.data?.accessToken;
       if (newAccessToken) {
+        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
         originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       }
 
       return api(originalRequest);
     } catch (refreshError) {
-      refreshPromise = null;
       clearStoredSession();
+      window.location.replace('/login');
       return Promise.reject(refreshError);
+    } finally {
+      refreshPromise = null;
     }
   },
 );
