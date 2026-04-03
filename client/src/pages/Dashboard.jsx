@@ -126,6 +126,7 @@ export default function Dashboard() {
     };
     fetchAll();
     life.fetchSummary();
+    life.fetchCommunity();
     life.fetchExpenses();
     life.fetchBudgets();
     life.fetchGoals();
@@ -248,6 +249,49 @@ export default function Dashboard() {
 
         {/* ═══════ PULSE ═══════ */}
         {tab==='pulse' && (<>
+          {/* Life Pulse Score */}
+          {s?.pulse_score !== undefined && (
+            <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                <div className="relative w-20 h-20">
+                  <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#1f2937" strokeWidth="6"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#F97316" strokeWidth="6"
+                      strokeDasharray={`${(s.pulse_score / 100) * 213.6} 213.6`} strokeLinecap="round"
+                      className="transition-all duration-1000"/>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-orange-400">{s.pulse_score}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Life Pulse Score</p>
+                  <p className="text-sm text-gray-400 max-w-xs">
+                    {s.pulse_score >= 80 ? "You're crushing it. Finances, goals, and home are all in great shape." :
+                     s.pulse_score >= 60 ? "Good momentum. A few areas could use attention — check your goals and home tasks." :
+                     s.pulse_score >= 40 ? "Room to grow. Focus on logging expenses and tackling overdue items." :
+                     "Let's get started. Add some goals and expenses to get your pulse moving."}
+                  </p>
+                </div>
+              </div>
+              {s.pulse_breakdown && (
+                <div className="grid grid-cols-4 gap-4">
+                  {[
+                    {l:'Finances',v:s.pulse_breakdown.finances,c:'text-emerald-400'},
+                    {l:'Goals',v:s.pulse_breakdown.goals,c:'text-purple-400'},
+                    {l:'Home',v:s.pulse_breakdown.home,c:'text-blue-400'},
+                    {l:'Activity',v:s.pulse_breakdown.activity,c:'text-orange-400'},
+                  ].map((d,i)=>(
+                    <div key={i} className="text-center">
+                      <p className={`text-lg font-bold ${d.c}`}>{d.v}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Net This Month</p>
@@ -295,6 +339,39 @@ export default function Dashboard() {
                   </Link>
                 ))}
               </div>
+            </Card>
+          )}
+
+          {/* Community Pulse */}
+          {life.community && (
+            <Card className="mb-6">
+              <CardHeader icon={IcoUsers} title="Community Pulse" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">Browse Jobs →</Link>}/>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                  <p className="text-xl font-bold text-orange-400">{life.community.jobs_this_week}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Jobs This Week</p>
+                </div>
+                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                  <p className="text-xl font-bold text-emerald-400">{life.community.open_jobs}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Open Now</p>
+                </div>
+                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                  <p className="text-xl font-bold text-blue-400">{life.community.active_helpers}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Active Helpers</p>
+                </div>
+                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                  <p className="text-xl font-bold text-purple-400">{life.community.active_seekers}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Seekers This Week</p>
+                </div>
+              </div>
+              {life.community.top_categories?.length > 0 && (
+                <div className="mt-4 flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-gray-500">Trending:</span>
+                  {life.community.top_categories.slice(0,3).map((c,i) => (
+                    <Tag key={i} text={`${c.category_name} (${c.job_count})`} color={['orange','green','blue'][i]}/>
+                  ))}
+                </div>
+              )}
             </Card>
           )}
 
