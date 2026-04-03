@@ -27,6 +27,7 @@ const IcoChat      = (p) => <Ico {...p}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 
 const IcoId        = (p) => <Ico {...p}><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></Ico>;
 const IcoSettings  = (p) => <Ico {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></Ico>;
 const IcoTrash     = (p) => <Ico {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></Ico>;
+const IcoUsers     = (p) => <Ico {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></Ico>;
 const IcoX         = (p) => <Ico {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ico>;
 
 // ── Shared UI ─────────────────────────────────────────────────────────────
@@ -113,7 +114,7 @@ export default function HelperDashboard() {
       }catch(e){console.error(e);}finally{setLoading(false);}
     };
     fetchAll();
-    if(isOnboardingComplete){life.fetchSummary();life.fetchExpenses();life.fetchBudgets();life.fetchGoals();life.fetchChecklist();}
+    if(isOnboardingComplete){life.fetchSummary();life.fetchCommunity();life.fetchExpenses();life.fetchBudgets();life.fetchGoals();life.fetchChecklist();}
   },[isOnboardingComplete]);
 
   const startBackgroundCheck=async()=>{try{await api.post('/verification/background-check');window.location.reload();}catch(e){alert(e.response?.data?.error||'Failed');}};
@@ -172,6 +173,49 @@ export default function HelperDashboard() {
         {tab==='pulse'&&(<>
           {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/register/helper')}/></div>}
 
+          {/* Life Pulse Score */}
+          {!showOnboarding && s?.pulse_score !== undefined && (
+            <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                <div className="relative w-20 h-20">
+                  <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#1f2937" strokeWidth="6"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#F97316" strokeWidth="6"
+                      strokeDasharray={`${(s.pulse_score / 100) * 213.6} 213.6`} strokeLinecap="round"
+                      className="transition-all duration-1000"/>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-orange-400">{s.pulse_score}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Life Pulse Score</p>
+                  <p className="text-sm text-gray-400 max-w-xs">
+                    {s.pulse_score >= 80 ? "You're on fire. Strong earnings, great reputation, and goals on track." :
+                     s.pulse_score >= 60 ? "Solid progress. Keep bidding and logging your earnings to push higher." :
+                     s.pulse_score >= 40 ? "Building momentum. Log expenses, set goals, and stay active on jobs." :
+                     "Just getting started. Complete your profile and bid on your first job!"}
+                  </p>
+                </div>
+              </div>
+              {s.pulse_breakdown && (
+                <div className="grid grid-cols-4 gap-4">
+                  {[
+                    {l:'Earnings',v:s.pulse_breakdown.finances,c:'text-emerald-400'},
+                    {l:'Goals',v:s.pulse_breakdown.goals,c:'text-purple-400'},
+                    {l:'Home',v:s.pulse_breakdown.home,c:'text-blue-400'},
+                    {l:'Activity',v:s.pulse_breakdown.activity,c:'text-orange-400'},
+                  ].map((d,i)=>(
+                    <div key={i} className="text-center">
+                      <p className={`text-lg font-bold ${d.c}`}>{d.v}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 ${showOnboarding?'opacity-50 pointer-events-none':''}`}>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Jobs Completed</p><p className="text-2xl font-bold text-orange-400">{user?.completed_jobs||0}</p><p className="text-xs text-gray-500 mt-1">{user?.avg_rating?`${user.avg_rating}★ avg`:'No reviews yet'}</p></Card>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Net This Month</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(s?.finances?.net||0).toFixed(2)}</p><p className="text-xs text-gray-500 mt-1">${(s?.finances?.total_income||0).toFixed(0)} earned</p></Card>
@@ -219,6 +263,47 @@ export default function HelperDashboard() {
                   </Link>
                 ))}</div>
               </Card>
+            )}
+
+            {/* Community Stats */}
+            {life.community && (
+              <Card className="mb-6">
+                <CardHeader icon={IcoUsers} title="Springfield Helpers" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">Browse Jobs →</Link>}/>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className="text-xl font-bold text-orange-400">{life.community.jobs_this_week}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Jobs This Week</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className="text-xl font-bold text-emerald-400">{life.community.open_jobs}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Open Now</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className="text-xl font-bold text-blue-400">{life.community.active_helpers}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Active Helpers</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className="text-xl font-bold text-purple-400">{life.community.active_seekers}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Seekers This Week</p>
+                  </div>
+                </div>
+                {life.community.top_categories?.length > 0 && (
+                  <div className="mt-4 flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-gray-500">Most requested:</span>
+                    {life.community.top_categories.slice(0,3).map((c,i) => (
+                      <Tag key={i} text={`${c.category_name} (${c.job_count})`} color={['orange','green','blue'][i]}/>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Upgrade CTA */}
+            {!isProActive && (
+              <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">Upgrade to Pro</h3></div><p className="text-sm text-gray-400">Get priority placement, verified badge, background check, ID verification, and bid alerts.</p></div>
+                <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">View Plans</button>
+              </div>
             )}
           </>)}
         </>)}
