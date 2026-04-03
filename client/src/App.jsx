@@ -33,9 +33,11 @@ import MessagesPage from './pages/MessagesPage';
 import ConversationPage from './pages/ConversationPage';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
+import { ThemeProvider } from './context/ThemeContext';
 
 export default function App() {
   return (
+          <ThemeProvider>
     <ErrorBoundary>
       <Router>
         <AuthProvider>
@@ -105,5 +107,7 @@ export default function App() {
         </AuthProvider>
       </Router>
     </ErrorBoundary>
+                  </ThemeProvider>
   );
+              
 }
