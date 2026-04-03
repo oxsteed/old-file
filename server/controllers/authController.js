@@ -62,6 +62,9 @@ async function register(req, res) {
     if (!email || !password || !first_name || !last_name) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' });

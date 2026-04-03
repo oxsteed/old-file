@@ -1,15 +1,26 @@
 const rateLimit = require('express-rate-limit');
 
-/**
- * Rate limiting middleware configurations.
- * Uses express-rate-limit with in-memory store.
- * For production at scale, swap to a Redis store.
- */
+let redisStore = null;
+if (process.env.REDIS_URL) {
+  try {
+    const { RedisStore } = require('rate-limit-redis');
+    const Redis = require('ioredis');
+    const client = new Redis(process.env.REDIS_URL, { lazyConnect: true });
+    client.on('error', (err) => console.warn('[RateLimit] Redis error:', err.message));
+    redisStore = new RedisStore({ sendCommand: (...args) => client.call(...args) });
+    console.log('[RateLimit] Using Redis store');
+  } catch (err) {
+    console.warn('[RateLimit] Redis store unavailable, falling back to memory:', err.message);
+  }
+}
+
+const storeOption = redisStore ? { store: redisStore } : {};
 
 // General API rate limiter: 100 requests per 15 minutes per IP
 const generalLimiter = rateLimit({
+  ...storeOption,
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -18,11 +29,12 @@ const generalLimiter = rateLimit({
   },
 });
 
-    // Auth rate limiter: 50 attempts per 15 minutes per IP
+// Auth rate limiter: 10 attempts per 15 minutes per IP
 // Protects login, register, OTP endpoints from brute-force
 const authLimiter = rateLimit({
+  ...storeOption,
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -34,8 +46,9 @@ const authLimiter = rateLimit({
 // Strict limiter for sensitive operations: 5 per hour per IP
 // For password reset, account deletion, data export
 const strictLimiter = rateLimit({
+  ...storeOption,
   windowMs: 60 * 60 * 1000,
-  max: 1000,
+  max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

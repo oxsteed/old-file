@@ -2,13 +2,10 @@ const express = require('express');
 const router = express.Router();
 const webhookCtrl = require('../controllers/webhookController');
 
-// Stripe webhook (requires raw body)
+// Stripe webhook (requires raw body for signature verification)
 router.post('/stripe', express.raw({ type: 'application/json' }), webhookCtrl.stripeWebhook);
 
-// Checkr webhook (placeholder - controller not yet implemented)
-router.post('/checkr', (req, res) => {
-  console.log('Checkr webhook received:', req.body);
-  res.json({ received: true });
-});
+// Didit identity webhook (requires raw body for HMAC verification)
+router.post('/didit', express.raw({ type: 'application/json' }), webhookCtrl.diditWebhook);
 
 module.exports = router;

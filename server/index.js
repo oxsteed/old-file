@@ -81,10 +81,14 @@ io.on('connection', (socket) => {
 socketService.init(io);
 
 // ── SECURITY ─────────────────────────────────────────────────
-app.use(helmet());
 app.use(securityHeaders);
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',').map(o => o.trim());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('CORS: origin not allowed'));
+  },
   credentials: true,
 }));
 
@@ -98,8 +102,8 @@ app.use('/api/privacy/export', strictLimiter);
 app.use('/api/webhooks', webhookRoutes);
 
 // ── BODY PARSING ─────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── INPUT SANITIZATION ───────────────────────────────────────
 app.use(sanitizeInputs);
@@ -158,9 +162,22 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong' });
 });
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`OxSteed v2 server running on port ${PORT}`);
+  // Load fee config after DB is reachable
+  try { await reloadFeeConfig(); } catch (e) { console.warn('[Startup] Fee config reload failed:', e.message); }
 });
+
+// ── GRACEFUL SHUTDOWN ────────────────────────────────────────
+function shutdown(signal) {
+  console.log(`[${signal}] Shutting down gracefully…`);
+  httpServer.close(() => {
+    pool.end(() => process.exit(0));
+  });
+  setTimeout(() => process.exit(1), 10000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
 
 // ── CRON JOBS ────────────────────────────────────────────────
 const { startWeeklySummaryJob } = require('./jobs/weeklySummary');
