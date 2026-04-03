@@ -161,6 +161,24 @@ exports.capturePayment = async (req, res) => {
       [payment.rows[0].id]
     );
 
+    // Auto-log to Life Dashboard
+    try {
+      const helperPayout = payment.rows[0].amount;
+      const jobTitle = job.rows[0].title || 'Job payment';
+      await pool.query(
+        `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
+         VALUES ($1, 'income', $2, 'Gig Payment', $3, CURRENT_DATE)`,
+        [job.rows[0].assigned_helper_id, helperPayout, 'Payment: ' + jobTitle]
+      );
+      await pool.query(
+        `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
+         VALUES ($1, 'expense', $2, 'Home Services', $3, CURRENT_DATE)`,
+        [job.rows[0].client_id, payment.rows[0].amount, 'Paid: ' + jobTitle]
+      );
+    } catch (autoLogErr) {
+      console.error('Auto-log earnings (non-critical):', autoLogErr.message);
+    }
+
     res.json({ message: 'Payment captured — funds released to helper' });
   } catch (err) {
     console.error('Capture payment error:', err);
