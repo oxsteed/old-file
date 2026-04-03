@@ -3,15 +3,27 @@ const rateLimit = require('express-rate-limit');
 let redisStore = null;
 if (process.env.REDIS_URL) {
   try {
-    const { RedisStore } = require('rate-limit-redis');
+    const RedisStore = require('rate-limit-redis').default;
     const Redis = require('ioredis');
-    const client = new Redis(process.env.REDIS_URL, { lazyConnect: true });
+    const client = new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 3,
+      enableOfflineQueue: false,
+      lazyConnect: true,
+    });
+    client.connect()
+      .then(() => console.log('[RateLimit] Redis connected'))
+      .catch(err => console.warn('[RateLimit] Redis connect failed:', err.message));
     client.on('error', (err) => console.warn('[RateLimit] Redis error:', err.message));
-    redisStore = new RedisStore({ sendCommand: (...args) => client.call(...args) });
+    redisStore = new RedisStore({
+      sendCommand: (...args) => client.call(...args),
+      prefix: 'rl:',
+    });
     console.log('[RateLimit] Using Redis store');
   } catch (err) {
     console.warn('[RateLimit] Redis store unavailable, falling back to memory:', err.message);
   }
+} else {
+  console.log('[RateLimit] REDIS_URL not set, using in-memory store');
 }
 
 const storeOption = redisStore ? { store: redisStore } : {};
@@ -29,12 +41,12 @@ const generalLimiter = rateLimit({
   },
 });
 
-// Auth rate limiter: 10 attempts per 15 minutes per IP
+// Auth rate limiter: 15 attempts per 15 minutes per IP
 // Protects login, register, OTP endpoints from brute-force
 const authLimiter = rateLimit({
   ...storeOption,
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
