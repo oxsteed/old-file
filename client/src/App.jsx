@@ -8,9 +8,8 @@ import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import CustomerRegister from './pages/CustomerRegister';
 import HelperRegister from './pages/HelperRegister';
-import Dashboard from './pages/Dashboard';
+import SmartDashboard from './pages/SmartDashboard';
 import UpgradePage from './pages/UpgradePage';
-import HelperDashboard from './pages/HelperDashboard';
 import JobListPage from './pages/JobListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import PostJobPage from './pages/PostJobPage';
@@ -62,7 +61,7 @@ export default function App() {
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <SmartDashboard />
                   </ProtectedRoute>
                 }
               />
@@ -78,7 +77,7 @@ export default function App() {
                 path="/helper-dashboard"
                 element={
                   <ProtectedRoute>
-                    <HelperDashboard />
+                    <SmartDashboard />
                   </ProtectedRoute>
                 }
               />
