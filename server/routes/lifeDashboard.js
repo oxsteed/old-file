@@ -5,6 +5,9 @@ const ctrl = require('../controllers/lifeDashboardController');
 // ── Dashboard summary (one-shot load) ────────────────────────────────────
 router.get('/summary', authenticate, ctrl.getDashboardSummary);
 
+// ── Community stats ──────────────────────────────────────────────────────
+router.get('/community', authenticate, ctrl.getCommunityStats);
+
 // ── Expenses ─────────────────────────────────────────────────────────────
 router.get('/expenses',          authenticate, ctrl.getExpenses);
 router.get('/expenses/summary',  authenticate, ctrl.getExpenseSummary);
