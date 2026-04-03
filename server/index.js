@@ -44,10 +44,14 @@ const httpServer = http.createServer(app);
 app.set('trust proxy', 1); // Required for Render reverse proxy
 const PORT = process.env.PORT || 5000;
 
+// ── ALLOWED ORIGINS (shared by Express CORS and Socket.IO) ────
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',').map(o => o.trim());
+
 // ── SOCKET.IO ─────────────────────────────────────────────────
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true,
   },
 });
@@ -82,8 +86,6 @@ socketService.init(io);
 
 // ── SECURITY ─────────────────────────────────────────────────
 app.use(securityHeaders);
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
-  .split(',').map(o => o.trim());
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
@@ -92,14 +94,17 @@ app.use(cors({
   credentials: true,
 }));
 
+// ── WEBHOOK ROUTES (before rate limiting AND body parsing) ───
+// Stripe needs raw body for signature verification.
+// Webhooks must skip the rate limiter — Stripe/Didit IPs can burst
+// during batch events and a 429 can cause Stripe to disable the endpoint.
+app.use('/api/webhooks', webhookRoutes);
+
 // ── RATE LIMITING ────────────────────────────────────────────
 app.use('/api/', generalLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/privacy/delete-account', strictLimiter);
 app.use('/api/privacy/export', strictLimiter);
-
-// ── WEBHOOK ROUTES (before body parsing — Stripe needs raw body) ──
-app.use('/api/webhooks', webhookRoutes);
 
 // ── BODY PARSING ─────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
@@ -109,8 +114,14 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(sanitizeInputs);
 
 // ── HEALTH CHECK ─────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  } catch (err) {
+    console.error('[Health] DB check failed:', err.message);
+    res.status(503).json({ status: 'degraded', error: 'database unreachable' });
+  }
 });
 
 
@@ -165,20 +176,31 @@ app.use((err, req, res, next) => {
 httpServer.listen(PORT, async () => {
   console.log(`OxSteed v2 server running on port ${PORT}`);
   // Load fee config after DB is reachable
-  try { await reloadFeeConfig(); } catch (e) { console.warn('[Startup] Fee config reload failed:', e.message); }
+  try { await reloadFeeConfig(); } catch (e) { console.warn('[FeeService] Initial load failed:', e.message); }
 });
-
-// ── GRACEFUL SHUTDOWN ────────────────────────────────────────
-function shutdown(signal) {
-  console.log(`[${signal}] Shutting down gracefully…`);
-  httpServer.close(() => {
-    pool.end(() => process.exit(0));
-  });
-  setTimeout(() => process.exit(1), 10000);
-}
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
 
 // ── CRON JOBS ────────────────────────────────────────────────
 const { startWeeklySummaryJob } = require('./jobs/weeklySummary');
 startWeeklySummaryJob();
+
+// ── GRACEFUL SHUTDOWN ────────────────────────────────────────
+function shutdown(signal) {
+  console.log(`[Shutdown] ${signal} received. Closing server...`);
+  httpServer.close(() => {
+    console.log('[Shutdown] HTTP server closed');
+    io.close(() => {
+      console.log('[Shutdown] Socket.IO closed');
+      pool.end(() => {
+        console.log('[Shutdown] DB pool drained');
+        process.exit(0);
+      });
+    });
+  });
+  // Force exit after 15s if graceful shutdown stalls
+  setTimeout(() => {
+    console.error('[Shutdown] Forced exit after timeout');
+    process.exit(1);
+  }, 15000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
