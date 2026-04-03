@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Dark/Light mode via CSS invert trick ─────────────── */
+html:not(.dark) {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html:not(.dark) img,
+html:not(.dark) video,
+html:not(.dark) canvas,
+html:not(.dark) svg image,
+html:not(.dark) [style*="background-image"],
+html:not(.dark) .no-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
