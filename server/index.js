@@ -37,6 +37,7 @@ const helperRegistrationRoutes = require('./routes/helperRegistration');
 const feeConfigRoutes = require('./routes/feeConfig');
 const verificationRoutes = require('./routes/verification');
 const messageRoutes = require('./routes/messages');
+const lifeDashboardRoutes = require('./routes/lifeDashboard');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -130,6 +131,7 @@ app.use('/api/subscription/identity', verificationRoutes);
 app.use('/api/fee-config', feeConfigRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/life', lifeDashboardRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
