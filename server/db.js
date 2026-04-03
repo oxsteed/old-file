@@ -3,9 +3,23 @@
 
 const { Pool } = require('pg');
 
+const getSslConfig = () => {
+  if (process.env.NODE_ENV !== 'production') return false;
+
+  if (process.env.DATABASE_CA_CERT) {
+    return {
+      rejectUnauthorized: true,
+      ca: process.env.DATABASE_CA_CERT,
+    };
+  }
+
+  // Fallback: no trusted CA cert provided
+  return { rejectUnauthorized: false };
+};
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: getSslConfig(),
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
