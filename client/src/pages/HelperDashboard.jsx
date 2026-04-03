@@ -4,7 +4,7 @@ import useSubscription from '../hooks/useSubscription';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import BadgeDisplay from '../components/BadgeDisplay';
 import api from '../api/axios';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -77,8 +77,8 @@ function OnboardingProgress({user,onResume}){
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HelperDashboard() {
-  const { user, isOnboardingComplete } = useAuth();
-  const { subscription, openPortal } = useSubscription();
+  const { user, isOnboardingComplete, refreshUser } = useAuth();
+  const { subscription, openPortal, createCheckout, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,9 +91,19 @@ export default function HelperDashboard() {
   const [welcomeMsg] = useState(location.state?.message||null);
   const [tab, setTab] = useState('pulse');
 
-  // Handle ?subscribed=true redirect from Stripe checkout
-  const searchParams = new URLSearchParams(location.search);
-  const justSubscribed = searchParams.get('subscribed') === 'true';
+  // Handle ?subscribed=true from Stripe redirect
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(()=>{
+    if(searchParams.get('subscribed')==='true'){
+      toast.success('Pro subscription activated! Welcome to the Pro tier.');
+      refreshUser?.();
+      refreshSubscription?.();
+      setSearchParams({},{replace:true}); // clean the URL
+    }
+  },[]);
+
+  // Detect "selected Pro during registration but hasn't paid yet"
+  const selectedProNoPay = !subscription?.status && (user?.membership_tier==='tier2'||user?.membership_tier==='pro') && !!user?.tier_selected;
 
   // Modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -153,13 +163,6 @@ export default function HelperDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
-        {justSubscribed&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>Subscription activated! You're now on the Pro plan.</span></div>}
-        {!justSubscribed&&user?.tier_selected&&(user?.membership_tier==='tier2'||user?.membership_tier==='pro')&&!subscription&&(
-          <div className="mb-5 flex items-center justify-between gap-3 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl text-orange-300 text-sm">
-            <span>You selected the Pro plan but haven't completed payment yet.</span>
-            <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-1.5 rounded-lg transition text-xs whitespace-nowrap">Complete Pro Upgrade</button>
-          </div>
-        )}
 
         {/* Greeting */}
         <div className="flex items-start justify-between mb-1">
@@ -240,6 +243,7 @@ export default function HelperDashboard() {
               <Card>
                 <div className="flex items-center gap-2 mb-3"><IcoDollar size={16} cls="text-orange-400"/><span className="text-sm font-semibold">Subscription</span></div>
                 {isProActive?(<><p className="text-lg font-bold text-orange-400 mb-1">Pro</p><Tag text="Active" color="green"/><button onClick={openPortal} className="mt-2 text-xs text-gray-400 hover:text-gray-200 transition font-medium block">Manage Billing →</button></>)
+                :selectedProNoPay?(<><p className="text-lg font-bold text-orange-400 mb-1">Pro</p><Tag text="Payment Pending" color="orange"/><p className="text-xs text-gray-500 my-2">You selected Pro during signup. Complete payment to activate.</p><button onClick={()=>createCheckout('pro')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Complete Pro Upgrade</button></>)
                 :(<><p className="text-lg font-bold text-gray-400 mb-1">Free</p><p className="text-xs text-gray-500 mb-3">Upgrade for verified badge & priority placement.</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Upgrade to Pro</button></>)}
               </Card>
               <Card>
