@@ -1,3 +1,6 @@
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('[FATAL] STRIPE_SECRET_KEY is not set — subscription features will fail.');
+}
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 
@@ -104,7 +107,7 @@ exports.createCheckout = async (req, res) => {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
-      success_url: `${process.env.APP_URL}/dashboard/helper?subscribed=true`,
+      success_url: `${process.env.APP_URL}/helper-dashboard?subscribed=true`,
       cancel_url: `${process.env.APP_URL}/upgrade?cancelled=true`,
       metadata: { userId: userId.toString(), planId: plan.id.toString() },
       subscription_data: {

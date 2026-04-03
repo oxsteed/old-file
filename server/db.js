@@ -13,7 +13,8 @@ const getSslConfig = () => {
     };
   }
 
-  // Fallback: no trusted CA cert provided
+  // TODO: provide DATABASE_CA_CERT in production to enable full cert verification
+  // (rejectUnauthorized: false skips certificate validation — acceptable on private VPC)
   return { rejectUnauthorized: false };
 };
 

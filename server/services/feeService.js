@@ -36,8 +36,7 @@ exports.reloadFeeConfig = async () => {
   }
 };
 
-// Call on server startup
-exports.reloadFeeConfig();
+// Called explicitly by server/index.js after startup (not at import time)
 
 exports.calculatePlatformFee = (amount, isBrokerMediated = false, planSlug = 'starter') => {
   const rate = isBrokerMediated

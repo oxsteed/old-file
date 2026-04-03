@@ -91,6 +91,10 @@ export default function HelperDashboard() {
   const [welcomeMsg] = useState(location.state?.message||null);
   const [tab, setTab] = useState('pulse');
 
+  // Handle ?subscribed=true redirect from Stripe checkout
+  const searchParams = new URLSearchParams(location.search);
+  const justSubscribed = searchParams.get('subscribed') === 'true';
+
   // Modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -149,6 +153,13 @@ export default function HelperDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
+        {justSubscribed&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>Subscription activated! You're now on the Pro plan.</span></div>}
+        {!justSubscribed&&user?.tier_selected&&(user?.membership_tier==='tier2'||user?.membership_tier==='pro')&&!subscription&&(
+          <div className="mb-5 flex items-center justify-between gap-3 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl text-orange-300 text-sm">
+            <span>You selected the Pro plan but haven't completed payment yet.</span>
+            <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-1.5 rounded-lg transition text-xs whitespace-nowrap">Complete Pro Upgrade</button>
+          </div>
+        )}
 
         {/* Greeting */}
         <div className="flex items-start justify-between mb-1">

@@ -170,13 +170,13 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
 function buildEmailTemplate({ firstName, title, body, action_url, buttonText, isBanned }) {
   const settingsUrl = isBanned
     ? null
-    : `${process.env.FRONTEND_URL}/settings/notifications`;
+    : `${process.env.CLIENT_URL}/settings/notifications`;
 
   const ctaBlock = action_url ? `
     <table cellpadding="0" cellspacing="0" role="presentation">
       <tr>
         <td style="border-radius:10px;background:#f97316;">
-          <a href="${process.env.FRONTEND_URL}${action_url}"
+          <a href="${process.env.CLIENT_URL}${action_url}"
              style="display:inline-block;padding:14px 28px;
                     color:#ffffff;font-size:14px;
                     font-weight:600;text-decoration:none;

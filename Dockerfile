@@ -22,4 +22,8 @@ WORKDIR /app/server
 
 EXPOSE 5000
 
-CMD ["node", "index.js"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:5000/api/health || exit 1
+
+# Run migrations then start the server
+CMD ["sh", "-c", "node migrate.js && node index.js"]

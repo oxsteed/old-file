@@ -51,6 +51,8 @@ async function startRegistration(req, res) {
     const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
     if (!email || !password || !firstName || !lastName || !phone || !zip)
       return res.status(400).json({ error: 'Email, password, first name, last name, phone, and zip required' });
+    if (password.length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
     // Check for existing user
     const dup = await pool.query(

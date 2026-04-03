@@ -1,3 +1,8 @@
+const crypto = require('crypto');
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('[FATAL] STRIPE_SECRET_KEY is not set — Stripe webhooks will fail.');
+}
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const { recalculateBadges } = require('./verificationController');
@@ -130,6 +135,85 @@ exports.stripeWebhook = async (req, res) => {
     res.json({ received: true });
   } catch (err) {
     console.error('Webhook handler error:', err);
+    res.status(500).json({ error: 'Webhook processing failed.' });
+  }
+};
+
+// Didit identity webhook handler
+exports.diditWebhook = async (req, res) => {
+  const secret = process.env.DIDIT_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error('[Didit] DIDIT_WEBHOOK_SECRET not set');
+    return res.status(500).json({ error: 'Webhook not configured.' });
+  }
+
+  // Verify HMAC-SHA256 signature
+  const signature = req.headers['x-signature'];
+  const timestamp = req.headers['x-timestamp'];
+  if (!signature || !timestamp) {
+    return res.status(400).json({ error: 'Missing signature headers.' });
+  }
+
+  const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body));
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest('hex');
+
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    console.warn('[Didit] Invalid webhook signature');
+    return res.status(400).json({ error: 'Invalid signature.' });
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(rawBody.toString());
+  } catch {
+    return res.status(400).json({ error: 'Invalid JSON.' });
+  }
+
+  try {
+    const { session_id, status, vendor_data } = payload;
+
+    if (status === 'Approved') {
+      // Mark identity verified on user
+      const { rows } = await db.query(
+        `UPDATE identity_verifications
+         SET status = 'approved', updated_at = NOW()
+         WHERE didit_session_id = $1
+         RETURNING user_id`,
+        [session_id]
+      );
+
+      if (rows.length) {
+        const userId = rows[0].user_id;
+        await db.query(
+          'UPDATE users SET identity_verified = TRUE WHERE id = $1',
+          [userId]
+        );
+        // Award identity badge
+        await db.query(
+          `INSERT INTO badges (user_id, type, label)
+           VALUES ($1, 'identity_verified', 'ID Verified')
+           ON CONFLICT DO NOTHING`,
+          [userId]
+        );
+        console.log(`[Didit] Identity approved for user ${userId}`);
+      }
+    } else if (status === 'Declined') {
+      await db.query(
+        `UPDATE identity_verifications
+         SET status = 'declined', last_error = $1, updated_at = NOW()
+         WHERE didit_session_id = $2`,
+        [payload.reason || 'Verification declined', session_id]
+      );
+    } else {
+      console.log(`[Didit] Unhandled status: ${status}`);
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('[Didit] Webhook handler error:', err);
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };

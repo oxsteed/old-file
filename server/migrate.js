@@ -56,13 +56,16 @@ async function migrate() {
         'INSERT INTO _migrations (filename) VALUES ($1)',
         [file]
       );
+      migClient.release();
       console.log(`  DONE: ${file}`);
     } catch (err) {
       console.error(`  FAILED: ${file} - ${err.message}`);
       // Rollback any open transaction on this client
       try { await migClient.query('ROLLBACK'); } catch (e) { /* ignore */ }
-    } finally {
       migClient.release();
+      await pool.end();
+      console.error('Migration halted — fix the failing migration before restarting.');
+      process.exit(1);
     }
   }
 
