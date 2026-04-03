@@ -578,7 +578,7 @@ exports.getDashboardSummary = async (req, res) => {
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
 
-    const [expenseRes, goalsRes, homeRes, checklistRes] = await Promise.allSettled([
+    const [expenseRes, goalsRes, homeRes, checklistRes, activityRes] = await Promise.allSettled([
       // Monthly income/expense totals
       db.query(`
         SELECT
@@ -619,18 +619,74 @@ exports.getDashboardSummary = async (req, res) => {
           COUNT(*) FILTER (WHERE is_completed) AS completed
         FROM checklist_items WHERE user_id = $1
       `, [userId]),
+
+      // Activity: recent jobs, bids, reviews
+      db.query(`
+        SELECT
+          (SELECT COUNT(*) FROM jobs WHERE client_id = $1 AND status IN ('open', 'published', 'in_progress')) AS active_jobs_posted,
+          (SELECT COUNT(*) FROM bids WHERE helper_id = $1 AND status = 'pending') AS active_bids,
+          (SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = $1 AND status = 'completed') AS jobs_completed,
+          (SELECT ROUND(AVG(rating), 1) FROM reviews WHERE reviewee_id = $1) AS avg_rating,
+          (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1) AS review_count
+      `, [userId]),
     ]);
 
     const finances = expenseRes.status === 'fulfilled' ? expenseRes.value.rows[0] : {};
     const goals = goalsRes.status === 'fulfilled' ? goalsRes.value.rows[0] : {};
     const home = homeRes.status === 'fulfilled' ? homeRes.value.rows[0] : {};
     const checklist = checklistRes.status === 'fulfilled' ? checklistRes.value.rows[0] : {};
+    const activity = activityRes.status === 'fulfilled' ? activityRes.value.rows[0] : {};
+
+    // ── Life Pulse Score (0-100) ──────────────────────────────────────
+    // Weighted score across 4 dimensions
+    const income = parseFloat(finances.total_income || 0);
+    const expenses = parseFloat(finances.total_expenses || 0);
+    const net = income - expenses;
+
+    // Finance score (25 pts): positive net = good, deeper negative = worse
+    const financeScore = income === 0 && expenses === 0 ? 50 : // neutral if no data
+      Math.max(0, Math.min(100, 50 + (net / Math.max(income, expenses, 1)) * 50));
+
+    // Goals score (25 pts): based on avg progress + completion rate
+    const goalProgress = parseInt(goals.avg_progress || 0);
+    const totalGoals = parseInt(goals.active_goals || 0) + parseInt(goals.completed_goals || 0);
+    const goalsScore = totalGoals === 0 ? 50 :
+      goalProgress * 0.7 + (parseInt(goals.completed_goals || 0) / totalGoals) * 100 * 0.3;
+
+    // Home score (25 pts): fewer overdue = better
+    const overdue = parseInt(home.overdue || 0);
+    const totalPending = parseInt(home.total_pending || 0);
+    const homeScore = totalPending === 0 ? 80 :
+      Math.max(0, 100 - (overdue / Math.max(totalPending, 1)) * 100);
+
+    // Activity score (25 pts): based on jobs, bids, rating
+    const rating = parseFloat(activity.avg_rating || 0);
+    const jobsCompleted = parseInt(activity.jobs_completed || 0);
+    const activityScore = Math.min(100,
+      (rating > 0 ? (rating / 5) * 40 : 20) +
+      Math.min(jobsCompleted * 5, 30) +
+      (parseInt(activity.active_bids || 0) > 0 || parseInt(activity.active_jobs_posted || 0) > 0 ? 30 : 10)
+    );
+
+    const pulseScore = Math.round(
+      financeScore * 0.25 +
+      goalsScore * 0.25 +
+      homeScore * 0.25 +
+      activityScore * 0.25
+    );
 
     res.json({
+      pulse_score: Math.max(0, Math.min(100, pulseScore)),
+      pulse_breakdown: {
+        finances: Math.round(financeScore),
+        goals: Math.round(goalsScore),
+        home: Math.round(homeScore),
+        activity: Math.round(activityScore),
+      },
       finances: {
         total_income: parseFloat(finances.total_income || 0),
         total_expenses: parseFloat(finances.total_expenses || 0),
-        net: parseFloat(finances.total_income || 0) - parseFloat(finances.total_expenses || 0),
+        net,
         month,
         year,
       },
@@ -648,9 +704,75 @@ exports.getDashboardSummary = async (req, res) => {
         total: parseInt(checklist.total || 0),
         completed: parseInt(checklist.completed || 0),
       },
+      activity: {
+        active_jobs_posted: parseInt(activity.active_jobs_posted || 0),
+        active_bids: parseInt(activity.active_bids || 0),
+        jobs_completed: parseInt(activity.jobs_completed || 0),
+        avg_rating: parseFloat(activity.avg_rating || 0),
+        review_count: parseInt(activity.review_count || 0),
+      },
     });
   } catch (err) {
     console.error('getDashboardSummary error:', err);
     res.status(500).json({ error: 'Failed to load dashboard summary.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMMUNITY STATS (local activity for the area)
+// ═══════════════════════════════════════════════════════════════════════════
+
+exports.getCommunityStats = async (req, res) => {
+  try {
+    const { zip } = req.query;
+
+    // Jobs activity this week (optionally filtered by zip)
+    const zipCondition = zip ? 'AND j.location_zip = $1' : '';
+    const zipParams = zip ? [zip] : [];
+
+    const { rows: jobStats } = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE j.created_at >= CURRENT_DATE - INTERVAL '7 days') AS jobs_this_week,
+        COUNT(*) FILTER (WHERE j.status = 'published') AS open_jobs,
+        COUNT(DISTINCT j.client_id) FILTER (WHERE j.created_at >= CURRENT_DATE - INTERVAL '7 days') AS active_seekers
+      FROM jobs j
+      WHERE j.deleted_at IS NULL
+        AND j.status != 'cancelled'
+        ${zipCondition}
+    `, zipParams);
+
+    // Top categories this month
+    const { rows: topCategories } = await db.query(`
+      SELECT category_name, COUNT(*) AS job_count
+      FROM jobs
+      WHERE deleted_at IS NULL
+        AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+        AND category_name IS NOT NULL
+        ${zipCondition}
+      GROUP BY category_name
+      ORDER BY job_count DESC
+      LIMIT 5
+    `, zipParams);
+
+    // Active helpers count
+    const { rows: helperStats } = await db.query(`
+      SELECT
+        COUNT(DISTINCT u.id) AS active_helpers
+      FROM users u
+      WHERE u.role = 'helper'
+        AND u.onboarding_completed = true
+        AND u.is_active = true
+    `);
+
+    res.json({
+      jobs_this_week: parseInt(jobStats[0]?.jobs_this_week || 0),
+      open_jobs: parseInt(jobStats[0]?.open_jobs || 0),
+      active_seekers: parseInt(jobStats[0]?.active_seekers || 0),
+      active_helpers: parseInt(helperStats[0]?.active_helpers || 0),
+      top_categories: topCategories,
+    });
+  } catch (err) {
+    console.error('getCommunityStats error:', err);
+    res.status(500).json({ error: 'Failed to fetch community stats.' });
   }
 };
