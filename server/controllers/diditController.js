@@ -151,7 +151,7 @@ async function getStatus(req, res) {
   try {
     const userId = req.user.id;
     const { rows: [user] } = await pool.query(
-      `SELECT didit_status, didit_verified_at FROM users WHERE id = $1`,
+      `SELECT didit_status, didit_verified_at, didit_session_id FROM users WHERE id = $1`,
       [userId]
     );
 
@@ -160,7 +160,8 @@ async function getStatus(req, res) {
     }
 
     return res.json({
-      status: user.didit_status,
+            status: user.didit_status,
+            hasSession: !!user.didit_session_id,
       verifiedAt: user.didit_verified_at,
     });
 
