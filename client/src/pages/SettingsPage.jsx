@@ -60,7 +60,8 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.put('/auth/profile', profile);
+      const { first_name, last_name, ...updatableFields } = profile;
+      await api.put('/auth/profile', updatableFields);
       toast.success('Profile updated');
     } catch (err) { toast.error(err.response?.data?.error || 'Failed to update'); }
     setSaving(false);
@@ -178,15 +179,38 @@ export default function SettingsPage() {
         {/* Edit Profile */}
         <form onSubmit={saveProfile} className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
           <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {/* Name — read-only, contact support to change */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm text-gray-400 mb-1">First Name</label>
-              <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={profile.first_name || ''} onChange={e => setProfile({...profile, first_name: e.target.value})} />
+              <input
+                className="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
+                value={profile.first_name || ''}
+                readOnly
+                disabled
+              />
             </div>
             <div>
               <label className="block text-sm text-gray-400 mb-1">Last Name</label>
-              <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={profile.last_name || ''} onChange={e => setProfile({...profile, last_name: e.target.value})} />
+              <input
+                className="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
+                value={profile.last_name || ''}
+                readOnly
+                disabled
+              />
             </div>
+          </div>
+          <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-800/50 rounded-lg px-4 py-3 mb-4">
+            <svg className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p className="text-sm text-orange-300">
+              Name changes require identity verification and must be processed by our team — for example, after a marriage or legal name change.{' '}
+              <a href="mailto:support@oxsteed.com" className="underline hover:text-orange-200">Email support@oxsteed.com</a>
+              {' '}or use the <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline hover:text-orange-200">support chat</button> at the bottom of this page.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-400 mb-1">Phone</label>
               <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={profile.phone || ''} onChange={e => setProfile({...profile, phone: e.target.value})} />

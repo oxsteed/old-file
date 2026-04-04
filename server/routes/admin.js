@@ -37,6 +37,7 @@ router.get('/super/dashboard',     requireSuperAdmin, superCtrl.getDashboardStat
 router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart);
 
 // User management (write)
+router.put('/users/:userId/name',    requireAdmin,      superCtrl.updateUserName);
 router.post('/users/:userId/ban',    requireSuperAdmin, superCtrl.toggleUserBan);
 router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);

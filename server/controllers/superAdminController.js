@@ -181,6 +181,23 @@ exports.updateUserRole = async (req, res) => {
   } catch (err) { console.error('updateUserRole error:', err); res.status(500).json({ error: 'Failed to update role.' }); }
 };
 
+exports.updateUserName = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { first_name, last_name } = req.body;
+    const adminId = req.user.id;
+    if (!first_name || !last_name) return res.status(400).json({ error: 'First name and last name are required.' });
+    const trimFirst = first_name.trim();
+    const trimLast = last_name.trim();
+    if (!trimFirst || !trimLast) return res.status(400).json({ error: 'First name and last name cannot be blank.' });
+    const { rows: before } = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    if (!before.length) return res.status(404).json({ error: 'User not found.' });
+    await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3', [trimFirst, trimLast, userId]);
+    try { await logAdminAction({ adminId, action: 'user_name_changed', targetType: 'user', targetId: userId, before: { first_name: before[0].first_name, last_name: before[0].last_name }, after: { first_name: trimFirst, last_name: trimLast }, req }); } catch(e) {}
+    res.json({ message: 'User name updated successfully.' });
+  } catch (err) { console.error('updateUserName error:', err); res.status(500).json({ error: 'Failed to update name.' }); }
+};
+
 // JOB MANAGEMENT
 exports.getJobs = async (req, res) => {
   try {
