@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import TrialBanner from '../components/TrialBanner';
+import useSubscription from '../hooks/useSubscription';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -15,6 +16,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+
+    // ── Subscription state ──────────────────────────────────
+  const { subscription, plans, loading: subLoading, openPortal, cancelSubscription, createCheckout } = useSubscription();
 
   // ── Businesses state ────────────────────────────────────
   const [businesses, setBusinesses] = useState([]);
@@ -200,6 +204,66 @@ export default function SettingsPage() {
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </form>
+
+                {/* Subscription & Billing */}
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Subscription & Billing</h2>
+          {subLoading ? (
+            <p className="text-gray-500 text-sm">Loading subscription...</p>
+          ) : subscription ? (
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-500/15 text-green-400">
+                  {subscription.status === 'active' ? 'Active' : subscription.status}
+                </span>
+                <span className="text-gray-400 text-sm">
+                  {subscription.plan_name || 'Pro Plan'}
+                </span>
+              </div>
+              {subscription.current_period_end && (
+                <p className="text-gray-500 text-sm mb-4">
+                  Next billing date: {new Date(subscription.current_period_end).toLocaleDateString()}
+                </p>
+              )}
+              {subscription.cancel_at_period_end && (
+                <p className="text-yellow-500 text-sm mb-4">
+                  Your subscription will cancel at the end of the current billing period.
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={openPortal}
+                  className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm"
+                >
+                  Manage Billing
+                </button>
+                {!subscription.cancel_at_period_end && (
+                  <button
+                    onClick={() => { if (confirm('Cancel your subscription? You will retain access until the end of your billing period.')) cancelSubscription(); }}
+                    className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm text-red-400"
+                  >
+                    Cancel Plan
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="text-gray-400 text-sm mb-4">You are on the Free plan. Upgrade to unlock more features.</p>
+              <div className="flex gap-3 flex-wrap">
+                {plans.filter(p => p.slug !== 'free').map(plan => (
+                  <button
+                    key={plan.id}
+                    onClick={() => createCheckout(plan.slug)}
+                    className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm"
+                  >
+                    Upgrade to {plan.name} — ${(plan.price_monthly / 100).toFixed(2)}/mo
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* ══════════════════════════════════════════════════ */}
         {/* My Businesses                                     */}
