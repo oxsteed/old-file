@@ -31,9 +31,7 @@ exports.stripeWebhook = async (req, res) => {
           const subscriptionId = session.subscription;
           const userId = parseInt(session.metadata.userId);
           const planId = parseInt(session.metadata.planId);
-
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
-
           await db.query(
             `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
              VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
@@ -41,24 +39,20 @@ exports.stripeWebhook = async (req, res) => {
             [userId, planId, subscriptionId, session.customer, sub.status,
              sub.current_period_start, sub.current_period_end]
           );
-
           // Get plan tier
           const { rows: plans } = await db.query(
             'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
           );
           const planSlug = plans[0]?.slug || plans[0]?.tier_slug || 'pro';
           const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
-
           await db.query(
             `UPDATE users SET tier = $1, subscription_status = 'active' WHERE id = $2`,
             [userTier, userId]
           );
-
           await recalculateBadges(userId);
         }
         break;
       }
-
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         await db.query(
@@ -68,7 +62,6 @@ exports.stripeWebhook = async (req, res) => {
           [sub.status, sub.current_period_start, sub.current_period_end,
            sub.cancel_at_period_end, sub.id]
         );
-
         const { rows } = await db.query(
           'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
         );
@@ -81,7 +74,6 @@ exports.stripeWebhook = async (req, res) => {
         }
         break;
       }
-
       case 'customer.subscription.deleted': {
         const sub = event.data.object;
         await db.query(
@@ -89,7 +81,6 @@ exports.stripeWebhook = async (req, res) => {
            WHERE stripe_subscription_id = $1`,
           [sub.id]
         );
-
         const { rows } = await db.query(
           'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
         );
@@ -106,7 +97,6 @@ exports.stripeWebhook = async (req, res) => {
         }
         break;
       }
-
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
         const subId = invoice.subscription;
@@ -115,7 +105,6 @@ exports.stripeWebhook = async (req, res) => {
            WHERE stripe_subscription_id = $1`,
           [subId]
         );
-
         const { rows } = await db.query(
           'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [subId]
         );
@@ -127,11 +116,9 @@ exports.stripeWebhook = async (req, res) => {
         }
         break;
       }
-
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
-
     res.json({ received: true });
   } catch (err) {
     console.error('Webhook handler error:', err);
@@ -139,7 +126,88 @@ exports.stripeWebhook = async (req, res) => {
   }
 };
 
-// Didit identity webhook handler
+// ── Didit v3 Signature Helpers ──────────────────────────────
+
+// Process floats - convert integer floats to integers (matches Python's shorten_floats)
+function shortenFloats(data) {
+  if (data === null || data === undefined) return data;
+  if (Array.isArray(data)) return data.map(shortenFloats);
+  if (typeof data === 'object') {
+    const result = {};
+    for (const [key, value] of Object.entries(data)) {
+      result[key] = shortenFloats(value);
+    }
+    return result;
+  }
+  if (typeof data === 'number' && !Number.isInteger(data) && data === Math.floor(data)) {
+    return Math.floor(data);
+  }
+  return data;
+}
+
+// Stringify JSON with sorted keys (matches Python's json.dumps with sort_keys=True)
+function stableStringify(obj) {
+  if (obj === null || obj === undefined) return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
+  if (typeof obj === 'object') {
+    const keys = Object.keys(obj).sort();
+    const parts = keys.map(key => JSON.stringify(key) + ':' + stableStringify(obj[key]));
+    return '{' + parts.join(',') + '}';
+  }
+  return JSON.stringify(obj);
+}
+
+function verifySignatureV2(body, receivedSignature, timestamp, secret) {
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > 300) return false;
+  const processedData = shortenFloats(body);
+  const encodedData = stableStringify(processedData);
+  const expectedSig = crypto.createHmac('sha256', secret)
+    .update(encodedData, 'utf-8')
+    .digest('hex');
+  try {
+    const expectedBuf = Buffer.from(expectedSig, 'hex');
+    const providedBuf = Buffer.from(receivedSignature, 'hex');
+    return expectedBuf.length === providedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, providedBuf);
+  } catch { return false; }
+}
+
+function verifySignatureSimple(body, receivedSignature, timestamp, secret) {
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > 300) return false;
+  const canonicalString = [
+    String(body.timestamp || ''),
+    String(body.session_id || ''),
+    String(body.status || ''),
+    String(body.webhook_type || ''),
+  ].join(':');
+  const expectedSig = crypto.createHmac('sha256', secret)
+    .update(canonicalString, 'utf-8')
+    .digest('hex');
+  try {
+    const expectedBuf = Buffer.from(expectedSig, 'hex');
+    const providedBuf = Buffer.from(receivedSignature, 'hex');
+    return expectedBuf.length === providedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, providedBuf);
+  } catch { return false; }
+}
+
+function verifySignatureOriginal(rawBody, receivedSignature, timestamp, secret) {
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > 300) return false;
+  const expectedSig = crypto.createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+  try {
+    const expectedBuf = Buffer.from(expectedSig, 'hex');
+    const providedBuf = Buffer.from(receivedSignature, 'hex');
+    return expectedBuf.length === providedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, providedBuf);
+  } catch { return false; }
+}
+
+// Didit identity webhook handler (v3 API)
 exports.diditWebhook = async (req, res) => {
   const secret = process.env.DIDIT_WEBHOOK_SECRET;
   if (!secret) {
@@ -147,91 +215,65 @@ exports.diditWebhook = async (req, res) => {
     return res.status(500).json({ error: 'Webhook not configured.' });
   }
 
-  // ── Verify signature ─────────────────────────────────────
-  // Didit sends X-Signature-V2 and X-Signature-Simple.
-  // Express lowercases all header names.
-  const signatureV2     = req.headers['x-signature-v2'];
-  const signatureSimple = req.headers['x-signature-simple'];
-  const timestamp       = req.headers['x-timestamp'];
-  const isTestWebhook   = req.headers['x-didit-test-webhook'] === 'true';
-
-  if (!timestamp) {
-    return res.status(400).json({ error: 'Missing timestamp header.' });
-  }
-
-  if (!signatureV2 && !signatureSimple) {
-    return res.status(400).json({ error: 'Missing signature headers.' });
-  }
-
-  const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body));
-
-  // Try V2 first (HMAC of "timestamp.body"), fall back to Simple (HMAC of body)
-  let signatureValid = false;
-
-  if (signatureV2) {
-    const expectedV2 = crypto
-      .createHmac('sha256', secret)
-      .update(`${timestamp}.${rawBody}`)
-      .digest('hex');
-    try {
-      const sigBuf = Buffer.from(signatureV2);
-      const expectedBuf = Buffer.from(expectedV2);
-      signatureValid = sigBuf.length === expectedBuf.length &&
-                       crypto.timingSafeEqual(sigBuf, expectedBuf);
-    } catch {
-      signatureValid = false;
-    }
-  }
-
-  if (!signatureValid && signatureSimple) {
-    const expectedSimple = crypto
-      .createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('hex');
-    try {
-      const sigBuf = Buffer.from(signatureSimple);
-      const expectedBuf = Buffer.from(expectedSimple);
-      signatureValid = sigBuf.length === expectedBuf.length &&
-                       crypto.timingSafeEqual(sigBuf, expectedBuf);
-    } catch {
-      signatureValid = false;
-    }
-  }
-
-  if (!signatureValid) {
-    console.warn('[Didit] Invalid webhook signature');
-    return res.status(401).json({ error: 'Invalid signature.' });
-  }
-
-  // ── Parse body ──────────────────────────────────────────
-  let payload;
+  // Parse body from raw Buffer
+  let rawBody;
+  let body;
   try {
-    payload = JSON.parse(rawBody.toString());
+    rawBody = req.body instanceof Buffer ? req.body.toString('utf-8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+    body = typeof req.body === 'object' && !(req.body instanceof Buffer) ? req.body : JSON.parse(rawBody);
   } catch {
     return res.status(400).json({ error: 'Invalid JSON.' });
   }
 
-  // ── Handle test webhooks from Didit console ─────────────
-  if (isTestWebhook || payload.metadata?.test_webhook) {
-    console.log('[Didit] Test webhook received — signature valid ✓');
+  // Get signature headers (Express lowercases them)
+  const signatureV2 = req.headers['x-signature-v2'];
+  const signatureSimple = req.headers['x-signature-simple'];
+  const signatureOriginal = req.headers['x-signature'];
+  const timestamp = body.created_at; // Didit uses body.created_at as timestamp
+
+  // Try verification methods in order: V2 -> Simple -> Original
+  let isValid = false;
+  let method = null;
+
+  if (signatureV2) {
+    isValid = verifySignatureV2(body, signatureV2, timestamp, secret);
+    if (isValid) method = 'v2';
+  }
+  if (!isValid && signatureSimple) {
+    isValid = verifySignatureSimple(body, signatureSimple, timestamp, secret);
+    if (isValid) method = 'simple';
+  }
+  if (!isValid && signatureOriginal) {
+    isValid = verifySignatureOriginal(rawBody, signatureOriginal, timestamp, secret);
+    if (isValid) method = 'original';
+  }
+
+  if (!isValid) {
+    console.warn('[Didit] Invalid webhook signature');
+    return res.status(401).json({ error: 'Invalid signature.' });
+  }
+
+  console.log(`[Didit] Signature verified via ${method}`);
+
+  // Handle test webhooks from Didit console
+  const isTestWebhook = req.headers['x-didit-test-webhook'] === 'true';
+  if (isTestWebhook || body.metadata?.test_webhook) {
+    console.log('[Didit] Test webhook received - signature valid');
     return res.json({ received: true, test: true });
   }
 
-  // ── Process verification result ─────────────────────────
+  // Process verification result
   try {
-    const { session_id, status, decision } = payload;
-
+    const { session_id, status, decision } = body;
     if (!session_id) {
       return res.status(400).json({ error: 'Missing session_id.' });
     }
 
     // Didit sends capitalized status: "Approved", "Declined"
     const normalizedStatus = (decision?.status || status || '').toLowerCase();
-
-    // Extract identity data from the real Didit payload
     const idVerification = decision?.id_verifications?.[0] || {};
-    const livenessCheck  = decision?.liveness_checks?.[0] || {};
-    const faceMatch      = decision?.face_matches?.[0] || {};
+    const livenessCheck = decision?.liveness_checks?.[0] || {};
+    const faceMatch = decision?.face_matches?.[0] || {};
 
     if (normalizedStatus === 'approved') {
       // Update identity_verifications record
@@ -253,13 +295,9 @@ exports.diditWebhook = async (req, res) => {
       if (rows.length) {
         const userId = rows[0].user_id;
 
-        // ── ONE-PERSON-ONE-ACCOUNT CHECK ────────────────
-        // Build identity hash from government document number + DOB.
-        // This is the unique fingerprint for a real person.
-        // We hash it so we never store raw document numbers.
+        // Build identity hash from document number + DOB
         const docNumber = idVerification.document_number || '';
-        const dob       = idVerification.date_of_birth || '';
-
+        const dob = idVerification.date_of_birth || '';
         let identityHash = null;
         if (docNumber) {
           identityHash = crypto
@@ -269,8 +307,7 @@ exports.diditWebhook = async (req, res) => {
         }
 
         if (!identityHash) {
-          // No document number — can't dedup, but still verify
-          console.warn(`[Didit] No document_number for user ${userId} — skipping dedup`);
+          console.warn(`[Didit] No document_number for user ${userId} - skipping dedup`);
           await db.query(
             `UPDATE users
              SET identity_verified = TRUE,
@@ -280,7 +317,7 @@ exports.diditWebhook = async (req, res) => {
             [userId]
           );
         } else {
-          // Check if this identity already exists on another user
+          // Check for duplicate identity
           const { rows: existing } = await db.query(
             `SELECT id, email FROM users
              WHERE didit_identity_hash = $1 AND id != $2`,
@@ -288,16 +325,12 @@ exports.diditWebhook = async (req, res) => {
           );
 
           if (existing.length > 0) {
-            // Duplicate — this person already has an account
             await db.query(
               `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
               [userId]
             );
-            console.warn(
-              `[Didit] Duplicate identity for user ${userId} — matches user ${existing[0].id} (${idVerification.full_name})`
-            );
+            console.warn(`[Didit] Duplicate identity for user ${userId} - matches user ${existing[0].id}`);
           } else {
-            // Unique identity — mark verified
             await db.query(
               `UPDATE users
                SET identity_verified = TRUE,
@@ -307,7 +340,6 @@ exports.diditWebhook = async (req, res) => {
                WHERE id = $2`,
               [identityHash, userId]
             );
-
             // Award identity badge
             await db.query(
               `INSERT INTO badges (user_id, type, label)
@@ -315,29 +347,45 @@ exports.diditWebhook = async (req, res) => {
                ON CONFLICT DO NOTHING`,
               [userId]
             );
-
             console.log(
-              `[Didit] Identity approved for user ${userId} — ${idVerification.full_name}, ` +
+              `[Didit] Identity approved for user ${userId} - ${idVerification.full_name}, ` +
               `doc: ${idVerification.document_type}, ` +
               `liveness: ${livenessCheck.liveness_score}, ` +
               `face match: ${faceMatch.face_match_score}`
             );
           }
         }
+      } else {
+        // No identity_verifications row found - try finding user by didit_session_id on users table
+        const { rows: userRows } = await db.query(
+          `SELECT id FROM users WHERE didit_session_id = $1`,
+          [session_id]
+        );
+        if (userRows.length) {
+          const userId = userRows[0].id;
+          await db.query(
+            `UPDATE users
+             SET identity_verified = TRUE,
+                 didit_verified_at = NOW(),
+                 didit_status = 'verified'
+             WHERE id = $1`,
+            [userId]
+          );
+          console.log(`[Didit] Identity approved for user ${userId} (via users.didit_session_id)`);
+        } else {
+          console.warn(`[Didit] No user found for session ${session_id}`);
+        }
       }
     } else if (normalizedStatus === 'declined') {
-      // Build decline reason from available data
       const reason = idVerification.warnings?.join(', ')
-        || payload.reason
+        || body.reason
         || 'Verification declined';
-
       await db.query(
         `UPDATE identity_verifications
          SET status = 'declined', last_error = $1, updated_at = NOW()
          WHERE didit_session_id = $2`,
         [reason, session_id]
       );
-
       // Find user and mark failed
       const { rows } = await db.query(
         `SELECT user_id FROM identity_verifications WHERE didit_session_id = $1`,
@@ -347,6 +395,12 @@ exports.diditWebhook = async (req, res) => {
         await db.query(
           `UPDATE users SET didit_status = 'failed' WHERE id = $1`,
           [rows[0].user_id]
+        );
+      } else {
+        // Fallback: check users table directly
+        await db.query(
+          `UPDATE users SET didit_status = 'failed' WHERE didit_session_id = $1`,
+          [session_id]
         );
       }
     } else {
@@ -359,4 +413,3 @@ exports.diditWebhook = async (req, res) => {
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };
-
