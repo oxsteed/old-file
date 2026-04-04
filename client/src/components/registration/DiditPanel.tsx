@@ -44,7 +44,7 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
         } else if (data.status === 'duplicate') {
           setStatus('duplicate');
           setDuplicateHint(data.existing_email_hint || '');
-        } else if (data.status === 'pending') {
+              } else if (data.status === 'pending' && data.hasSession) {
           // User returned from Didit but webhook hasn't fired yet
           setStatus('pending');
           startPolling();
