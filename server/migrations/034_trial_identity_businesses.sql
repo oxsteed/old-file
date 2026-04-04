@@ -38,7 +38,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_didit_identity_hash
 
 CREATE TABLE IF NOT EXISTS businesses (
   id              SERIAL PRIMARY KEY,
-  user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   business_name   VARCHAR(255) NOT NULL,
   ein             VARCHAR(20),             -- encrypted at app layer
   business_type   VARCHAR(50),             -- 'llc', 'sole_prop', 'corp', 'partnership'
