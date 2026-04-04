@@ -29,7 +29,7 @@ exports.stripeWebhook = async (req, res) => {
         const session = event.data.object;
         if (session.mode === 'subscription') {
           const subscriptionId = session.subscription;
-          const userId = parseInt(session.metadata.userId);
+          const userId = session.metadata.userId;
           const planId = parseInt(session.metadata.planId);
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
           await db.query(
