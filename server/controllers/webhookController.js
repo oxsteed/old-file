@@ -228,68 +228,114 @@ exports.diditWebhook = async (req, res) => {
     // Didit sends capitalized status: "Approved", "Declined"
     const normalizedStatus = (decision?.status || status || '').toLowerCase();
 
+    // Extract identity data from the real Didit payload
+    const idVerification = decision?.id_verifications?.[0] || {};
+    const livenessCheck  = decision?.liveness_checks?.[0] || {};
+    const faceMatch      = decision?.face_matches?.[0] || {};
+
     if (normalizedStatus === 'approved') {
       // Update identity_verifications record
       const { rows } = await db.query(
         `UPDATE identity_verifications
-         SET status = 'approved', updated_at = NOW()
-         WHERE didit_session_id = $1
+         SET status = 'approved',
+             verified_name = $1,
+             document_type = $2,
+             updated_at = NOW()
+         WHERE didit_session_id = $3
          RETURNING user_id`,
-        [session_id]
+        [
+          idVerification.full_name || null,
+          idVerification.document_type || null,
+          session_id,
+        ]
       );
 
       if (rows.length) {
         const userId = rows[0].user_id;
 
         // ── ONE-PERSON-ONE-ACCOUNT CHECK ────────────────
-        // Use workflow_id as the identity fingerprint.
-        // Replace with Didit's actual biometric hash from
-        // their session details API when available.
-        const identityHash = decision?.workflow_id || session_id;
+        // Build identity hash from government document number + DOB.
+        // This is the unique fingerprint for a real person.
+        // We hash it so we never store raw document numbers.
+        const docNumber = idVerification.document_number || '';
+        const dob       = idVerification.date_of_birth || '';
 
-        // Check if this identity already exists on another user
-        const { rows: existing } = await db.query(
-          `SELECT id, email FROM users
-           WHERE didit_identity_hash = $1 AND id != $2`,
-          [identityHash, userId]
-        );
+        let identityHash = null;
+        if (docNumber) {
+          identityHash = crypto
+            .createHash('sha256')
+            .update(`${docNumber}:${dob}`.toLowerCase().trim())
+            .digest('hex');
+        }
 
-        if (existing.length > 0) {
-          // Duplicate — this person already has an account
-          await db.query(
-            `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
-            [userId]
-          );
-          console.warn(`[Didit] Duplicate identity for user ${userId} — matches user ${existing[0].id}`);
-        } else {
-          // Unique identity — mark verified
+        if (!identityHash) {
+          // No document number — can't dedup, but still verify
+          console.warn(`[Didit] No document_number for user ${userId} — skipping dedup`);
           await db.query(
             `UPDATE users
              SET identity_verified = TRUE,
-                 didit_identity_hash = $1,
                  didit_verified_at = NOW(),
                  didit_status = 'verified'
-             WHERE id = $2`,
+             WHERE id = $1`,
+            [userId]
+          );
+        } else {
+          // Check if this identity already exists on another user
+          const { rows: existing } = await db.query(
+            `SELECT id, email FROM users
+             WHERE didit_identity_hash = $1 AND id != $2`,
             [identityHash, userId]
           );
 
-          // Award identity badge
-          await db.query(
-            `INSERT INTO badges (user_id, type, label)
-             VALUES ($1, 'identity_verified', 'ID Verified')
-             ON CONFLICT DO NOTHING`,
-            [userId]
-          );
+          if (existing.length > 0) {
+            // Duplicate — this person already has an account
+            await db.query(
+              `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
+              [userId]
+            );
+            console.warn(
+              `[Didit] Duplicate identity for user ${userId} — matches user ${existing[0].id} (${idVerification.full_name})`
+            );
+          } else {
+            // Unique identity — mark verified
+            await db.query(
+              `UPDATE users
+               SET identity_verified = TRUE,
+                   didit_identity_hash = $1,
+                   didit_verified_at = NOW(),
+                   didit_status = 'verified'
+               WHERE id = $2`,
+              [identityHash, userId]
+            );
 
-          console.log(`[Didit] Identity approved for user ${userId}`);
+            // Award identity badge
+            await db.query(
+              `INSERT INTO badges (user_id, type, label)
+               VALUES ($1, 'identity_verified', 'ID Verified')
+               ON CONFLICT DO NOTHING`,
+              [userId]
+            );
+
+            console.log(
+              `[Didit] Identity approved for user ${userId} — ${idVerification.full_name}, ` +
+              `doc: ${idVerification.document_type}, ` +
+              `liveness: ${livenessCheck.liveness_score}, ` +
+              `face match: ${faceMatch.face_match_score}`
+            );
+          }
         }
       }
     } else if (normalizedStatus === 'declined') {
+      // Build decline reason from available data
+      const reason = idVerification.warnings?.join(', ')
+        || payload.reason
+        || 'Verification declined';
+
       await db.query(
         `UPDATE identity_verifications
          SET status = 'declined', last_error = $1, updated_at = NOW()
          WHERE didit_session_id = $2`,
-        [payload.reason || 'Verification declined', session_id]
+        [reason, session_id]
       );
 
       // Find user and mark failed
