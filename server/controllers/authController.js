@@ -10,6 +10,7 @@ const { generateTokens } = require('../middleware/auth');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../utils/email');
 const { sendOTPSMS } = require('../utils/sms');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
+const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = require('../utils/trial');
 const SALT_ROUNDS = 12;
 
 function formatAuthUser(user) {
@@ -48,6 +49,12 @@ function formatAuthUser(user) {
     w9_completed:          !!user.w9_completed,
     terms_accepted:        !!user.terms_accepted,
     membership_tier:       user.membership_tier,
+    effective_tier:        getEffectiveTier(user),
+    is_trial_active:       isTrialActive(user),
+    trial_days_left:       trialDaysLeft(user),
+    trial_ends_at:         user.trial_ends_at || null,
+    didit_status:          user.didit_status || 'pending',
+    didit_verified_at:     user.didit_verified_at || null,
     id_verified:           !!user.id_verified,
     background_check_passed: !!user.background_check_passed,
     city:                  user.city,
@@ -74,15 +81,18 @@ async function register(req, res) {
     const finalRole = role || 'customer';
 const defaultOnboardingStatus = finalRole === 'helper' ? 'verified_pending_onboarding' : null;
 const defaultMembershipTier = finalRole === 'helper' ? 'tier1' : null;
+const { trial_started_at, trial_ends_at } = trialDefaults();
 
 const { rows } = await pool.query(
   `INSERT INTO users (email, password_hash, first_name, last_name, phone, role,
-   preferred_language, referral_code, onboarding_status, membership_tier)
-   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+   preferred_language, referral_code, onboarding_status, membership_tier,
+   trial_started_at, trial_ends_at)
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
    RETURNING id, email, role`,
   [email.toLowerCase(), passwordHash, first_name, last_name, phone || null,
    finalRole, language || 'en', referralCode,
-   defaultOnboardingStatus, defaultMembershipTier]
+   defaultOnboardingStatus, defaultMembershipTier,
+   trial_started_at, trial_ends_at]
 );
     const user = rows[0];
     const tokens = generateTokens(user);
@@ -94,7 +104,8 @@ const { rows } = await pool.query(
   `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
    onboarding_status, onboarding_completed, contact_completed, profile_completed,
    tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
-   background_check_passed, city, state, zip_code
+   background_check_passed, city, state, zip_code,
+   trial_started_at, trial_ends_at, didit_status, didit_verified_at
    FROM users WHERE id = $1`,
   [user.id]
 );
@@ -116,7 +127,8 @@ async function login(req, res) {
               contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted,
               membership_tier, id_verified, background_check_passed,
-              city, state, zip_code, totp_enabled
+              city, state, zip_code, totp_enabled,
+              trial_started_at, trial_ends_at, didit_status, didit_verified_at
        FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
@@ -200,7 +212,8 @@ async function loginWith2FA(req, res) {
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
        onboarding_status, onboarding_completed, contact_completed, profile_completed,
        tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
-       background_check_passed, city, state, zip_code
+       background_check_passed, city, state, zip_code,
+       trial_started_at, trial_ends_at, didit_status, didit_verified_at
        FROM users WHERE id = $1`,
       [user.id]
     );
@@ -274,7 +287,8 @@ async function refreshToken(req, res) {
               contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted,
               membership_tier, id_verified, background_check_passed,
-              city, state, zip_code
+              city, state, zip_code,
+              trial_started_at, trial_ends_at, didit_status, didit_verified_at
        FROM users WHERE id = $1`,
       [sessionRows[0].user_id]
     );
@@ -429,9 +443,10 @@ async function verifyRegistrationOTP(req, res) {
       return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
     const referralCode = crypto.randomBytes(6).toString('hex');
+    const { trial_started_at, trial_ends_at } = trialDefaults();
     const userResult = await pool.query(
-      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13) RETURNING id, email, role',
-      [pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code, 'customer', pending.age_confirmed, pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode]
+      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code, trial_started_at, trial_ends_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13,$14,$15) RETURNING *',
+      [pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code, 'customer', pending.age_confirmed, pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode, trial_started_at, trial_ends_at]
     );
     const user = userResult.rows[0];
     await pool.query('DELETE FROM pending_registrations WHERE token = $1', [token]);
@@ -440,7 +455,7 @@ async function verifyRegistrationOTP(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, tokens.refreshToken]
     );
-    res.status(201).json({ user: { id: user.id, email: user.email, role: user.role, tier: 'free' }, ...tokens });
+    res.status(201).json({ user: formatAuthUser(user), ...tokens });
   } catch (err) {
     console.error('Verify registration OTP error:', err);
     res.status(500).json({ error: 'Verification failed' });
