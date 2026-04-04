@@ -579,11 +579,11 @@ async function getMe(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const { first_name, last_name, phone, zip_code, zipcode } = req.body;
-const finalZip = zip_code || zipcode;
+    const { phone, zip_code, zipcode } = req.body;
+    const finalZip = zip_code || zipcode;
     const { rows } = await pool.query(
-      'UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name), phone = COALESCE($3, phone), zip_code = COALESCE($4, zip_code), updated_at = NOW() WHERE id = $5 RETURNING id, email, first_name, last_name, phone, zip_code',
-      [first_name, last_name, phone, finalZip, req.user.id]
+      'UPDATE users SET phone = COALESCE($1, phone), zip_code = COALESCE($2, zip_code), updated_at = NOW() WHERE id = $3 RETURNING id, email, first_name, last_name, phone, zip_code',
+      [phone, finalZip, req.user.id]
     );
     res.json(rows[0]);
   } catch (err) {

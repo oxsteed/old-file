@@ -9,20 +9,41 @@ export default function UserDetail() {
   const { userId }           = useParams();
   const { user: me }         = useAuth();
   const isSuper              = me?.role === 'super_admin';
+  const isAdmin              = me?.role === 'admin' || me?.role === 'super_admin';
   const [data,    setData]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState(null);
+  const [nameForm, setNameForm] = useState({ first_name: '', last_name: '' });
+  const [showNameEdit, setShowNameEdit] = useState(false);
+  const [nameSaving, setNameSaving] = useState(false);
 
   const fetchUser = async () => {
     setLoading(true);
     try {
       const { data: res } = await adminApi.get(`/admin/users/${userId}`);
       setData(res);
+      setNameForm({ first_name: res.user?.first_name || '', last_name: res.user?.last_name || '' });
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveName = async (e) => {
+    e.preventDefault();
+    setNameSaving(true);
+    setMessage(null);
+    try {
+      const { data: res } = await adminApi.put(`/admin/users/${userId}/name`, nameForm);
+      setMessage({ type: 'success', text: res.message });
+      setShowNameEdit(false);
+      fetchUser();
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Name update failed.' });
+    } finally {
+      setNameSaving(false);
     }
   };
 
@@ -89,9 +110,52 @@ export default function UserDetail() {
             className="w-16 h-16 rounded-2xl object-cover border border-gray-700"
           />
           <div>
-            <h1 className="text-2xl font-bold text-white">
-              {user.first_name} {user.last_name}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-white">
+                {user.first_name} {user.last_name}
+              </h1>
+              {isAdmin && (
+                <button
+                  onClick={() => { setShowNameEdit(v => !v); setNameForm({ first_name: user.first_name || '', last_name: user.last_name || '' }); }}
+                  className="text-xs px-2 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition"
+                  title="Edit name"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+            {showNameEdit && (
+              <form onSubmit={saveName} className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  value={nameForm.first_name}
+                  onChange={e => setNameForm(f => ({ ...f, first_name: e.target.value }))}
+                  placeholder="First name"
+                  required
+                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm w-32 focus:outline-none focus:border-orange-500"
+                />
+                <input
+                  value={nameForm.last_name}
+                  onChange={e => setNameForm(f => ({ ...f, last_name: e.target.value }))}
+                  placeholder="Last name"
+                  required
+                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm w-32 focus:outline-none focus:border-orange-500"
+                />
+                <button
+                  type="submit"
+                  disabled={nameSaving}
+                  className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded font-semibold transition disabled:opacity-50"
+                >
+                  {nameSaving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNameEdit(false)}
+                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition"
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
             <p className="text-gray-400 text-sm">{user.email}</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="px-2 py-0.5 bg-gray-700 text-gray-300

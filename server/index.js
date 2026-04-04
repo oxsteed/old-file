@@ -40,6 +40,7 @@ const messageRoutes = require('./routes/messages');
 const lifeDashboardRoutes = require('./routes/lifeDashboard');
 const diditRoutes = require('./routes/didit');
 const businessRoutes = require('./routes/businesses');
+const supportRoutes = require('./routes/support');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -151,6 +152,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/life', lifeDashboardRoutes);
 app.use('/api/didit', diditRoutes);
 app.use('/api/businesses', businessRoutes);
+app.use('/api/support', supportRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');

@@ -34,6 +34,7 @@ import ConversationPage from './pages/ConversationPage';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
+import SupportWidget from './components/SupportWidget';
 
 export default function App() {
   return (
@@ -104,6 +105,7 @@ export default function App() {
             </Routes>
           </TermsGate>
           <CookieConsent />
+          <SupportWidget />
         </AuthProvider>
       </Router>
     </ErrorBoundary>
