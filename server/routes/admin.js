@@ -40,6 +40,7 @@ router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart)
 router.post('/users/:userId/ban',    requireSuperAdmin, superCtrl.toggleUserBan);
 router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
+router.delete('/users/:userId',        requireSuperAdmin, superCtrl.deleteUser);
 
 // Financials
 router.get('/financials',            requireSuperAdmin, superCtrl.getFinancials);
