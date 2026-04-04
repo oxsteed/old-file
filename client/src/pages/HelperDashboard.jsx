@@ -56,7 +56,7 @@ const OB_STEPS = [
   {key:'email',label:'Verify Email',desc:'Confirm your email address',check:u=>!!u?.email_verified},
   {key:'profile',label:'Profile & Location',desc:'Phone, zip, skills, and a short bio',check:u=>!!u?.profile_completed},
   {key:'plan',label:'Choose Your Plan',desc:'Free or Pro — upgrade anytime',check:u=>!!u?.tier_selected},
-  {key:'tax',label:'Tax Information',desc:'Required for Pro tier helpers (W-9)',check:u=>!!u?.w9_completed||u?.membership_tier==='tier1'||u?.membership_tier==='free',onlyFor:u=>u?.membership_tier==='tier2'||u?.membership_tier==='pro'},
+  {key:'tax',label:'Tax Information',desc:'Required for Pro tier helpers (W-9)',check:u=>!!u?.w9_completed||u?.effective_tier==='free',onlyFor:u=>u?.effective_tier==='pro'},
   {key:'review',label:'Review & Complete',desc:'Accept terms and go live',check:u=>!!u?.onboarding_completed},
 ];
 
@@ -103,7 +103,7 @@ export default function HelperDashboard() {
   },[]);
 
   // Detect "selected Pro during registration but hasn't paid yet"
-  const selectedProNoPay = !subscription?.status && (user?.membership_tier==='tier2'||user?.membership_tier==='pro') && !!user?.tier_selected;
+  const selectedProNoPay = !subscription?.status && user?.effective_tier==='pro' && !!user?.tier_selected;
 
   // Modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);

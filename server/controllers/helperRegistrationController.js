@@ -7,6 +7,7 @@ const { formatAuthUser } = require('./authController');
 const { sendOTPEmail } = require('../utils/email');
 const { encrypt, hashTIN, maskTIN } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
+const { trialDefaults } = require('../utils/trial');
 
 async function pendingRegistrationsHasRoleColumn() {
   const { rows } = await pool.query(
@@ -146,13 +147,17 @@ async function verifyOTP(req, res) {
       userId = reg.user_id;
     } else {
       // Create the helper user row
+      const { trial_started_at, trial_ends_at } = trialDefaults();
       const userResult = await client.query(`
         INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code,
-                           role, email_verified, onboarding_status)
-        VALUES ($1, $2, $3, $4, $5, $6, 'helper', true, 'verified_pending_onboarding')
+                           role, email_verified, onboarding_status,
+                           trial_started_at, trial_ends_at)
+        VALUES ($1, $2, $3, $4, $5, $6, 'helper', true, 'verified_pending_onboarding',
+                $7, $8)
         RETURNING id
       `, [reg.email, reg.password_hash, reg.first_name, reg.last_name,
-          reg.phone || null, reg.zip_code || null]);
+          reg.phone || null, reg.zip_code || null,
+          trial_started_at, trial_ends_at]);
 
       userId = userResult.rows[0].id;
 
@@ -172,7 +177,8 @@ async function verifyOTP(req, res) {
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
               onboarding_status, onboarding_completed, contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
-              background_check_passed, city, state, zip_code
+              background_check_passed, city, state, zip_code,
+              trial_started_at, trial_ends_at, didit_status, didit_verified_at
        FROM users WHERE id = $1`,
       [userId]
     );
