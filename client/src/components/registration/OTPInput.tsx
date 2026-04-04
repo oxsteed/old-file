@@ -1,5 +1,8 @@
 // client/src/components/registration/OTPInput.tsx
-import { useRef, useCallback } from 'react';
+// Compact single-field OTP input with wide tracking.
+// Replaces the 6-box layout that was eating too much vertical space.
+
+import { useRef } from 'react';
 
 interface Props {
   value: string[];            // ['', '', '', '', '', '']
@@ -9,27 +12,18 @@ interface Props {
 }
 
 export default function OTPInput({ value, onChange, onComplete, disabled }: Props) {
-  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayValue = value.join('');
 
-  const setRef = useCallback((i: number) => (el: HTMLInputElement | null) => {
-    refs.current[i] = el;
-  }, []);
-
-  const handleInput = (i: number, v: string) => {
-    const digit = v.replace(/\D/g, '').slice(-1);
-    const next = [...value];
-    next[i] = digit;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 6);
+    const digits = raw.split('');
+    const next = Array(6).fill('');
+    digits.forEach((d, i) => { next[i] = d; });
     onChange(next);
 
-    if (digit && i < 5) refs.current[i + 1]?.focus();
-    if (digit && i === 5 && next.every(d => d !== '')) {
-      onComplete?.(next.join(''));
-    }
-  };
-
-  const handleKeyDown = (i: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !value[i] && i > 0) {
-      refs.current[i - 1]?.focus();
+    if (digits.length === 6) {
+      onComplete?.(raw);
     }
   };
 
@@ -37,32 +31,26 @@ export default function OTPInput({ value, onChange, onComplete, disabled }: Prop
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (!pasted.length) return;
-    const digits = pasted.split('');
-    const next = [...value];
-    digits.forEach((d, idx) => { if (idx < 6) next[idx] = d; });
+    const next = Array(6).fill('');
+    pasted.split('').forEach((d, i) => { next[i] = d; });
     onChange(next);
-    const focusIdx = Math.min(digits.length, 5);
-    refs.current[focusIdx]?.focus();
-    if (next.every(d => d !== '')) onComplete?.(next.join(''));
+    if (pasted.length === 6) onComplete?.(pasted);
   };
 
   return (
-    <div className="flex gap-2" onPaste={handlePaste} role="group" aria-label="6-digit verification code">
-      {value.map((digit, i) => (
-        <input
-          key={i}
-          ref={setRef(i)}
-          type="text"
-          inputMode="numeric"
-          maxLength={1}
-          value={digit}
-          disabled={disabled}
-          onChange={(e) => handleInput(i, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          className="flex-1 h-[52px] text-center text-lg font-semibold tracking-wider border border-gray-700 rounded-lg bg-gray-800/50 text-white caret-orange-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50"
-          aria-label={`Digit ${i + 1}`}
-        />
-      ))}
-    </div>
+    <input
+      ref={inputRef}
+      type="text"
+      inputMode="numeric"
+      maxLength={6}
+      value={displayValue}
+      disabled={disabled}
+      onChange={handleChange}
+      onPaste={handlePaste}
+      placeholder="000000"
+      autoFocus
+      className="w-full h-11 text-center text-xl font-semibold tracking-[0.4em] border border-gray-700 rounded-lg bg-gray-800/50 text-white placeholder-gray-600 caret-orange-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50"
+      aria-label="6-digit verification code"
+    />
   );
 }
