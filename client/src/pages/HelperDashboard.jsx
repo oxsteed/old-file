@@ -7,6 +7,7 @@ import api from '../api/axios';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+import TrialBanner from '../components/TrialBanner';
 import Footer from '../components/Footer';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -162,6 +163,11 @@ export default function HelperDashboard() {
       <Navbar/>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+        {/* Trial Banner */}
+        <div className="mb-5">
+          <TrialBanner />
+        </div>
+
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
         {/* Greeting */}
@@ -185,7 +191,7 @@ export default function HelperDashboard() {
 
         {/* ═══════ PULSE ═══════ */}
         {tab==='pulse'&&(<>
-          {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/register/helper')}/></div>}
+          {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/settings')}/></div>}
 
           {/* Life Pulse Score */}
           {!showOnboarding && s?.pulse_score !== undefined && (
