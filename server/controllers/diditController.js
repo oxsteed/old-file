@@ -3,26 +3,51 @@
 
 const pool = require('../db');
 
+const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
+const DIDIT_API_KEY = process.env.DIDIT_API_KEY;
+const DIDIT_WORKFLOW_ID = process.env.DIDIT_WORKFLOW_ID || '3d74f89a-8a9a-4a0a-a401-1501baaf2b7d';
+const DIDIT_WEBHOOK_SECRET = process.env.DIDIT_WEBHOOK_SECRET;
+
 // ── Create a Didit session for a user ────────────────────
 // Called by the frontend before launching the Didit SDK.
-// Returns a session token the SDK needs to initialize.
+// Returns a session token and verification URL the SDK needs.
 async function createSession(req, res) {
   try {
     const userId = req.user.id;
 
-    // TODO: Call Didit API to create a verification session
-    // const diditResponse = await diditAPI.createSession({ userId, ... });
-    // const sessionId = diditResponse.session_id;
+    // Call Didit API to create a verification session
+    const diditResponse = await fetch(DIDIT_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': DIDIT_API_KEY,
+      },
+      body: JSON.stringify({
+        workflow_id: DIDIT_WORKFLOW_ID,
+        vendor_data: String(userId),
+      }),
+    });
 
-    // Placeholder until Didit SDK is integrated:
-    const sessionId = `didit_${userId}_${Date.now()}`;
+    if (!diditResponse.ok) {
+      const errBody = await diditResponse.text();
+      console.error('Didit API error:', diditResponse.status, errBody);
+      return res.status(502).json({ error: 'Failed to create Didit session' });
+    }
+
+    const diditData = await diditResponse.json();
+    const sessionId = diditData.session_id;
 
     await pool.query(
       `UPDATE users SET didit_session_id = $1, didit_status = 'pending' WHERE id = $2`,
       [sessionId, userId]
     );
 
-    return res.json({ sessionId });
+    return res.json({
+      sessionId,
+      sessionToken: diditData.session_token,
+      verificationUrl: diditData.url,
+    });
+
   } catch (err) {
     console.error('Didit createSession error:', err);
     return res.status(500).json({ error: 'Failed to create verification session' });
@@ -36,12 +61,25 @@ async function handleWebhook(req, res) {
   try {
     const {
       session_id,
-      status,           // 'approved' | 'declined' | 'review'
-      identity_hash,    // unique biometric/document fingerprint from Didit
+      status,          // 'approved' | 'declined' | 'review'
+      identity_hash,   // unique biometric/document fingerprint from Didit
     } = req.body;
 
-    // TODO: Verify webhook signature from Didit
-    // if (!verifyDiditSignature(req)) return res.status(401).json({ error: 'Invalid signature' });
+    // Verify webhook signature from Didit
+    if (DIDIT_WEBHOOK_SECRET) {
+      const signature = req.headers['x-webhook-signature'] || req.headers['x-signature'];
+      if (!signature) {
+        return res.status(401).json({ error: 'Missing webhook signature' });
+      }
+      const crypto = require('crypto');
+      const expectedSig = crypto
+        .createHmac('sha256', DIDIT_WEBHOOK_SECRET)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+      if (signature !== expectedSig) {
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+    }
 
     if (!session_id) {
       return res.status(400).json({ error: 'Missing session_id' });
@@ -101,6 +139,7 @@ async function handleWebhook(req, res) {
     );
 
     return res.json({ ok: true, status: 'verified' });
+
   } catch (err) {
     console.error('Didit webhook error:', err);
     return res.status(500).json({ error: 'Webhook processing failed' });
@@ -116,20 +155,22 @@ async function getStatus(req, res) {
       [userId]
     );
 
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     return res.json({
-      status: user.didit_status,            // 'pending' | 'verified' | 'failed' | 'duplicate'
-      verified_at: user.didit_verified_at,
-      is_verified: user.didit_status === 'verified',
+      status: user.didit_status,
+      verifiedAt: user.didit_verified_at,
     });
+
   } catch (err) {
     console.error('Didit getStatus error:', err);
-    return res.status(500).json({ error: 'Failed to check status' });
+    return res.status(500).json({ error: 'Failed to get verification status' });
   }
 }
 
-// ── Helper: mask email for duplicate hint ────────────────
+// ── Helpers ──────────────────────────────────────────────
 function maskEmail(email) {
   if (!email) return '***';
   const [local, domain] = email.split('@');
