@@ -6,6 +6,7 @@ import api from '../api/axios';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import TrialBanner from '../components/TrialBanner';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -222,6 +223,11 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Trial Banner */}
+        <div className="mb-5">
+          <TrialBanner />
+        </div>
 
         {/* Greeting */}
         <div className="mb-1">
