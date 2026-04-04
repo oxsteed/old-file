@@ -104,3 +104,16 @@ html:not(.dark) .no-invert {
   a { color: #000 !important; text-decoration: underline !important; }
   a[href]::after { content: " (" attr(href) ")" !important; font-size: 0.8em; }
 }
+
+/* Instrument Serif — display font for registration headings */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
+/* Fade-in animation for step transitions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
