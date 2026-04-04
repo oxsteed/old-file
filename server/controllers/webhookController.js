@@ -147,26 +147,63 @@ exports.diditWebhook = async (req, res) => {
     return res.status(500).json({ error: 'Webhook not configured.' });
   }
 
-  // Verify HMAC-SHA256 signature
-  const signature = req.headers['x-signature'];
-  const timestamp = req.headers['x-timestamp'];
-  if (!signature || !timestamp) {
+  // ── Verify signature ─────────────────────────────────────
+  // Didit sends X-Signature-V2 and X-Signature-Simple.
+  // Express lowercases all header names.
+  const signatureV2     = req.headers['x-signature-v2'];
+  const signatureSimple = req.headers['x-signature-simple'];
+  const timestamp       = req.headers['x-timestamp'];
+  const isTestWebhook   = req.headers['x-didit-test-webhook'] === 'true';
+
+  if (!timestamp) {
+    return res.status(400).json({ error: 'Missing timestamp header.' });
+  }
+
+  if (!signatureV2 && !signatureSimple) {
     return res.status(400).json({ error: 'Missing signature headers.' });
   }
 
   const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body));
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(`${timestamp}.${rawBody}`)
-    .digest('hex');
 
-  const sigBuf = Buffer.from(signature);
-  const expectedBuf = Buffer.from(expected);
-  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+  // Try V2 first (HMAC of "timestamp.body"), fall back to Simple (HMAC of body)
+  let signatureValid = false;
+
+  if (signatureV2) {
+    const expectedV2 = crypto
+      .createHmac('sha256', secret)
+      .update(`${timestamp}.${rawBody}`)
+      .digest('hex');
+    try {
+      const sigBuf = Buffer.from(signatureV2);
+      const expectedBuf = Buffer.from(expectedV2);
+      signatureValid = sigBuf.length === expectedBuf.length &&
+                       crypto.timingSafeEqual(sigBuf, expectedBuf);
+    } catch {
+      signatureValid = false;
+    }
+  }
+
+  if (!signatureValid && signatureSimple) {
+    const expectedSimple = crypto
+      .createHmac('sha256', secret)
+      .update(rawBody)
+      .digest('hex');
+    try {
+      const sigBuf = Buffer.from(signatureSimple);
+      const expectedBuf = Buffer.from(expectedSimple);
+      signatureValid = sigBuf.length === expectedBuf.length &&
+                       crypto.timingSafeEqual(sigBuf, expectedBuf);
+    } catch {
+      signatureValid = false;
+    }
+  }
+
+  if (!signatureValid) {
     console.warn('[Didit] Invalid webhook signature');
     return res.status(401).json({ error: 'Invalid signature.' });
   }
 
+  // ── Parse body ──────────────────────────────────────────
   let payload;
   try {
     payload = JSON.parse(rawBody.toString());
@@ -174,11 +211,25 @@ exports.diditWebhook = async (req, res) => {
     return res.status(400).json({ error: 'Invalid JSON.' });
   }
 
-  try {
-    const { session_id, status, vendor_data } = payload;
+  // ── Handle test webhooks from Didit console ─────────────
+  if (isTestWebhook || payload.metadata?.test_webhook) {
+    console.log('[Didit] Test webhook received — signature valid ✓');
+    return res.json({ received: true, test: true });
+  }
 
-    if (status === 'Approved') {
-      // Mark identity verified on user
+  // ── Process verification result ─────────────────────────
+  try {
+    const { session_id, status, decision } = payload;
+
+    if (!session_id) {
+      return res.status(400).json({ error: 'Missing session_id.' });
+    }
+
+    // Didit sends capitalized status: "Approved", "Declined"
+    const normalizedStatus = (decision?.status || status || '').toLowerCase();
+
+    if (normalizedStatus === 'approved') {
+      // Update identity_verifications record
       const { rows } = await db.query(
         `UPDATE identity_verifications
          SET status = 'approved', updated_at = NOW()
@@ -189,26 +240,69 @@ exports.diditWebhook = async (req, res) => {
 
       if (rows.length) {
         const userId = rows[0].user_id;
-        await db.query(
-          'UPDATE users SET identity_verified = TRUE WHERE id = $1',
-          [userId]
+
+        // ── ONE-PERSON-ONE-ACCOUNT CHECK ────────────────
+        // Use workflow_id as the identity fingerprint.
+        // Replace with Didit's actual biometric hash from
+        // their session details API when available.
+        const identityHash = decision?.workflow_id || session_id;
+
+        // Check if this identity already exists on another user
+        const { rows: existing } = await db.query(
+          `SELECT id, email FROM users
+           WHERE didit_identity_hash = $1 AND id != $2`,
+          [identityHash, userId]
         );
-        // Award identity badge
-        await db.query(
-          `INSERT INTO badges (user_id, type, label)
-           VALUES ($1, 'identity_verified', 'ID Verified')
-           ON CONFLICT DO NOTHING`,
-          [userId]
-        );
-        console.log(`[Didit] Identity approved for user ${userId}`);
+
+        if (existing.length > 0) {
+          // Duplicate — this person already has an account
+          await db.query(
+            `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
+            [userId]
+          );
+          console.warn(`[Didit] Duplicate identity for user ${userId} — matches user ${existing[0].id}`);
+        } else {
+          // Unique identity — mark verified
+          await db.query(
+            `UPDATE users
+             SET identity_verified = TRUE,
+                 didit_identity_hash = $1,
+                 didit_verified_at = NOW(),
+                 didit_status = 'verified'
+             WHERE id = $2`,
+            [identityHash, userId]
+          );
+
+          // Award identity badge
+          await db.query(
+            `INSERT INTO badges (user_id, type, label)
+             VALUES ($1, 'identity_verified', 'ID Verified')
+             ON CONFLICT DO NOTHING`,
+            [userId]
+          );
+
+          console.log(`[Didit] Identity approved for user ${userId}`);
+        }
       }
-    } else if (status === 'Declined') {
+    } else if (normalizedStatus === 'declined') {
       await db.query(
         `UPDATE identity_verifications
          SET status = 'declined', last_error = $1, updated_at = NOW()
          WHERE didit_session_id = $2`,
         [payload.reason || 'Verification declined', session_id]
       );
+
+      // Find user and mark failed
+      const { rows } = await db.query(
+        `SELECT user_id FROM identity_verifications WHERE didit_session_id = $1`,
+        [session_id]
+      );
+      if (rows.length) {
+        await db.query(
+          `UPDATE users SET didit_status = 'failed' WHERE id = $1`,
+          [rows[0].user_id]
+        );
+      }
     } else {
       console.log(`[Didit] Unhandled status: ${status}`);
     }
@@ -219,4 +313,3 @@ exports.diditWebhook = async (req, res) => {
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };
-
