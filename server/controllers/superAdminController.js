@@ -309,3 +309,70 @@ exports.exportData = async (req, res) => {
     res.send(csv);
   } catch (err) { console.error('exportData error:', err); res.status(500).json({ error: 'Export failed.' }); }
 };
+
+// DELETE USER ACCOUNT
+exports.deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+    const adminId = req.user.id;
+
+    // Fetch user before deletion
+    const { rows: userRows } = await db.query('SELECT id, first_name, last_name, email, role FROM users WHERE id = $1', [userId]);
+    if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
+    const user = userRows[0];
+
+    // Prevent deleting admin/super_admin accounts
+    if (['admin', 'super_admin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Cannot delete admin accounts.' });
+    }
+
+    // Delete related data in correct order to respect foreign keys
+    const tablesToClean = [
+      { table: 'reviews', conditions: ['reviewer_id = $1', 'reviewee_id = $1'] },
+      { table: 'bids', condition: 'helper_id = $1' },
+      { table: 'messages', conditions: ['sender_id = $1', 'receiver_id = $1'] },
+      { table: 'notifications', condition: 'user_id = $1' },
+      { table: 'subscriptions', condition: 'user_id = $1' },
+      { table: 'helper_profiles', condition: 'user_id = $1' },
+      { table: 'consent_records', condition: 'user_id = $1' },
+      { table: 'user_2fa', condition: 'user_id = $1' },
+      { table: 'refresh_tokens', condition: 'user_id = $1' },
+      { table: 'jobs', conditions: ['client_id = $1', 'assigned_helper_id = $1'] },
+      { table: 'platform_ledger', condition: 'user_id = $1' },
+    ];
+
+    for (const entry of tablesToClean) {
+      if (!(await tableExists(entry.table))) continue;
+      if (entry.conditions) {
+        for (const cond of entry.conditions) {
+          await db.query(`DELETE FROM ${entry.table} WHERE ${cond}`, [userId]);
+        }
+      } else if (entry.condition) {
+        await db.query(`DELETE FROM ${entry.table} WHERE ${entry.condition}`, [userId]);
+      }
+    }
+
+    // Delete the user
+    await db.query('DELETE FROM users WHERE id = $1', [userId]);
+
+    // Log the action
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_deleted',
+        targetType: 'user',
+        targetId: userId,
+        description: reason || `Deleted user ${user.email}`,
+        before: { email: user.email, role: user.role, name: `${user.first_name} ${user.last_name}` },
+        after: null,
+        req
+      });
+    } catch(e) {}
+
+    res.json({ message: `User ${user.email} deleted successfully.` });
+  } catch (err) {
+    console.error('deleteUser error:', err);
+    res.status(500).json({ error: 'Failed to delete user.' });
+  }
+};
