@@ -1,3 +1,6 @@
+/* @import must precede all other statements per CSS spec */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -199,9 +202,6 @@ html:not(.dark) .bg-gradient-to-r.from-gray-900\/80 {
   a { color: #000 !important; text-decoration: underline !important; }
   a[href]::after { content: " (" attr(href) ")" !important; font-size: 0.8em; }
 }
-
-/* Instrument Serif — display font for registration headings */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
 /* Fade-in animation for step transitions */
 @keyframes fadeIn {
