@@ -43,6 +43,7 @@ const businessRoutes = require('./routes/businesses');
 const supportRoutes = require('./routes/support');
 const chatRoutes    = require('./routes/chat');
 const geoRoutes     = require('./routes/geo');
+const helperRoutes  = require('./routes/helpers');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -156,6 +157,7 @@ app.use('/api/didit', diditRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/geo',     geoRoutes);
+app.use('/api/helpers', helperRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');

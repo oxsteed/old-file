@@ -33,9 +33,9 @@ import CTASection from '../components/helperProfile/CTASection';
 // Chat
 import ChatPanel from '../components/helperProfile/chat/ChatPanel';
 
-// Types & mock data
+// Types & API
 import type { HelperProfileData, LoadingState, Service } from '../types/helperProfile';
-import { mockHelperProfileData } from '../mock/helperProfileData';
+import { fetchHelperProfile } from '../api/helpers';
 
 // ── Loading skeleton ──────────────────────────────────────────────────────────
 const ProfileSkeleton: React.FC = () => (
@@ -193,17 +193,8 @@ const HelperBusinessProfilePage: React.FC = () => {
     setError(null);
 
     try {
-      /**
-       * API INTEGRATION POINT:
-       *   const [profileRes, servicesRes, chatRes] = await Promise.all([
-       *     api.get(`/helpers/${id}/profile`),
-       *     api.get(`/helpers/${id}/services`),
-       *     api.post(`/chat/sessions`, { helperId: id }),
-       *   ]);
-       *   setData(transformApiResponse(profileRes.data, servicesRes.data, chatRes.data));
-       */
-      await new Promise((resolve) => setTimeout(resolve, 600)); // Simulate network
-      setData(mockHelperProfileData);
+      const profileData = await fetchHelperProfile(id!);
+      setData(profileData);
       setLoadState('success');
     } catch (err) {
       setError('Something went wrong loading this profile. Please try again.');
