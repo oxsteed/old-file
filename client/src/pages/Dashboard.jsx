@@ -108,6 +108,127 @@ export default function Dashboard() {
   const [showHomeTaskModal, setShowHomeTaskModal] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
 
+  // ── Skills & Tools state ──────────────────────────────────────────────────
+  const [mySkills, setMySkills] = useState([]);
+  const [myTools, setMyTools] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [showSkillModal, setShowSkillModal] = useState(false);
+  const [showToolModal, setShowToolModal] = useState(false);
+  const [editingSkill, setEditingSkill] = useState(null);
+  const [editingTool, setEditingTool] = useState(null);
+  const [skillLookup, setSkillLookup] = useState([]);
+  const [skillSearch, setSkillSearch] = useState('');
+  const [skillForm, setSkillForm] = useState({ skill_name:'', category:'', hourly_rate:'', description:'', years_exp:'', is_available:true });
+  const [toolForm, setToolForm] = useState({ name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' });
+
+  const fetchMySkills = useCallback(async () => {
+    setSkillsLoading(true);
+    try {
+      const res = await api.get('/user-skills/me');
+      setMySkills(res.data?.skills || []);
+    } catch { /* silent */ }
+    finally { setSkillsLoading(false); }
+  }, []);
+
+  const fetchMyTools = useCallback(async () => {
+    setToolsLoading(true);
+    try {
+      const res = await api.get('/tool-rentals/me');
+      setMyTools(res.data?.tools || []);
+    } catch { /* silent */ }
+    finally { setToolsLoading(false); }
+  }, []);
+
+  const searchSkillLookup = useCallback(async (q) => {
+    try {
+      const res = await api.get('/user-skills/lookup', { params: { q, limit: 15 } });
+      setSkillLookup(res.data?.skills || []);
+    } catch { setSkillLookup([]); }
+  }, []);
+
+  // Fetch skills/tools when tab opens
+  useEffect(() => {
+    if (tab === 'skills') {
+      fetchMySkills();
+      fetchMyTools();
+    }
+  }, [tab]);
+
+  const openAddSkill = () => {
+    setEditingSkill(null);
+    setSkillSearch('');
+    setSkillLookup([]);
+    setSkillForm({ skill_name:'', category:'', hourly_rate:'', description:'', years_exp:'', is_available:true });
+    setShowSkillModal(true);
+  };
+  const openEditSkill = (s) => {
+    setEditingSkill(s);
+    setSkillSearch(s.skill_name);
+    setSkillLookup([]);
+    setSkillForm({ skill_name:s.skill_name, category:s.category||'', hourly_rate:s.hourly_rate||'', description:s.description||'', years_exp:s.years_exp||'', is_available:s.is_available });
+    setShowSkillModal(true);
+  };
+  const handleSaveSkill = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingSkill) {
+        await api.put(`/user-skills/${editingSkill.id}`, skillForm);
+        toast.success('Skill updated!');
+      } else {
+        await api.post('/user-skills', skillForm);
+        toast.success('Skill added!');
+      }
+      setShowSkillModal(false);
+      fetchMySkills();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to save skill.');
+    }
+  };
+  const handleDeleteSkill = async (id) => {
+    if (!confirm('Remove this skill listing?')) return;
+    try {
+      await api.delete(`/user-skills/${id}`);
+      toast.success('Skill removed.');
+      fetchMySkills();
+    } catch { toast.error('Failed to remove skill.'); }
+  };
+
+  const openAddTool = () => {
+    setEditingTool(null);
+    setToolForm({ name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' });
+    setShowToolModal(true);
+  };
+  const openEditTool = (t) => {
+    setEditingTool(t);
+    setToolForm({ name:t.name, category:t.category||'', description:t.description||'', daily_rate:t.daily_rate||'', hourly_rate:t.hourly_rate||'', deposit_amount:t.deposit_amount||'', condition:t.condition||'good', brand:t.brand||'', model:t.model||'', is_available:t.is_available, requires_deposit:t.requires_deposit, delivery_available:t.delivery_available, pickup_only:t.pickup_only, location_city:t.location_city||'', location_state:t.location_state||'' });
+    setShowToolModal(true);
+  };
+  const handleSaveTool = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingTool) {
+        await api.put(`/tool-rentals/${editingTool.id}`, toolForm);
+        toast.success('Tool updated!');
+      } else {
+        await api.post('/tool-rentals', toolForm);
+        toast.success('Tool listed!');
+      }
+      setShowToolModal(false);
+      fetchMyTools();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to save tool.');
+    }
+  };
+  const handleDeleteTool = async (id) => {
+    if (!confirm('Remove this tool listing?')) return;
+    try {
+      await api.delete(`/tool-rentals/${id}`);
+      toast.success('Tool removed.');
+      fetchMyTools();
+    } catch { toast.error('Failed to remove tool.'); }
+  };
+
   // Form state
   const [expenseForm, setExpenseForm] = useState({ type:'expense', amount:'', category:'', description:'' });
   const [goalForm, setGoalForm] = useState({ title:'', goal_type:'financial', target_value:'', icon:'🎯' });
@@ -228,6 +349,7 @@ export default function Dashboard() {
     { id:'home', label:'Home' },
     { id:'goals', label:'Goals' },
     { id:'jobs', label:'My Jobs' },
+    { id:'skills', label:'Skills & Tools' },
   ];
 
   return (
@@ -636,6 +758,137 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ═══════ SKILLS & TOOLS ═══════ */}
+        {tab==='skills' && (
+          <div className="space-y-8">
+
+            {/* ── My Skills ── */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-white text-lg">My Skills for Hire</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">List the skills you offer so customers can find and hire you directly.</p>
+                </div>
+                <Btn onClick={openAddSkill}><IcoPlus size={14} cls="text-white inline mr-1"/>Add Skill</Btn>
+              </div>
+
+              {skillsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[1,2,3,4].map(i=>(
+                    <div key={i} className="bg-gray-900/60 border border-gray-700/40 rounded-2xl p-4 animate-pulse">
+                      <div className="h-4 bg-gray-800 rounded w-2/3 mb-2"/><div className="h-3 bg-gray-800 rounded w-1/2"/>
+                    </div>
+                  ))}
+                </div>
+              ) : mySkills.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <IcoZap size={36} cls="text-gray-700 mx-auto mb-3"/>
+                  <p className="text-gray-500 mb-1 font-medium">No skills listed yet</p>
+                  <p className="text-xs text-gray-600 mb-4">Add your skills and set your rate so customers know what you offer.</p>
+                  <Btn onClick={openAddSkill}>List Your First Skill</Btn>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {mySkills.map(s => (
+                    <Card key={s.id} className="relative group">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-white text-sm truncate">{s.skill_name}</p>
+                            {s.category && <span className="text-[10px] font-semibold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full">{s.category}</span>}
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${s.is_available ? 'bg-emerald-500/10 text-emerald-400' : 'bg-gray-700/40 text-gray-500'}`}>
+                              {s.is_available ? 'Available' : 'Unavailable'}
+                            </span>
+                          </div>
+                          {s.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{s.description}</p>}
+                          <div className="flex items-center gap-3 mt-2 flex-wrap">
+                            {s.hourly_rate && <span className="text-xs text-emerald-400 font-semibold">${parseFloat(s.hourly_rate).toFixed(0)}/hr</span>}
+                            {s.years_exp !== null && s.years_exp !== undefined && <span className="text-xs text-gray-500">{s.years_exp} yr{s.years_exp!==1?'s':''} exp</span>}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button onClick={()=>openEditSkill(s)} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition"><IcoSettings size={14}/></button>
+                          <button onClick={()=>handleDeleteSkill(s.id)} className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"><IcoTrash size={14}/></button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── My Tools for Rental ── */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-white text-lg">My Tools for Rental</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Rent out your equipment to earn extra income when you're not using it.</p>
+                </div>
+                <Btn onClick={openAddTool}><IcoPlus size={14} cls="text-white inline mr-1"/>Add Tool</Btn>
+              </div>
+
+              {toolsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[1,2,3].map(i=>(
+                    <div key={i} className="bg-gray-900/60 border border-gray-700/40 rounded-2xl p-4 animate-pulse">
+                      <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"/><div className="h-3 bg-gray-800 rounded w-1/2 mb-2"/><div className="h-3 bg-gray-800 rounded w-1/3"/>
+                    </div>
+                  ))}
+                </div>
+              ) : myTools.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <IcoSettings size={36} cls="text-gray-700 mx-auto mb-3"/>
+                  <p className="text-gray-500 mb-1 font-medium">No tools listed yet</p>
+                  <p className="text-xs text-gray-600 mb-4">List a tool — power washer, trailer, scaffolding — and earn when others rent it.</p>
+                  <Btn onClick={openAddTool}>List Your First Tool</Btn>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {myTools.map(t => (
+                    <Card key={t.id}>
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-white text-sm truncate">{t.name}</p>
+                          {(t.brand||t.model) && <p className="text-[11px] text-gray-500 truncate">{[t.brand,t.model].filter(Boolean).join(' · ')}</p>}
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button onClick={()=>openEditTool(t)} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition"><IcoSettings size={14}/></button>
+                          <button onClick={()=>handleDeleteTool(t.id)} className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"><IcoTrash size={14}/></button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {t.category && <span className="text-[10px] font-semibold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full">{t.category}</span>}
+                        {t.condition && <span className="text-[10px] font-semibold text-gray-400 bg-gray-800/60 px-2 py-0.5 rounded-full capitalize">{t.condition}</span>}
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${t.is_available ? 'bg-emerald-500/10 text-emerald-400' : 'bg-gray-700/40 text-gray-500'}`}>
+                          {t.is_available ? 'Available' : 'Unavailable'}
+                        </span>
+                      </div>
+
+                      {t.description && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{t.description}</p>}
+
+                      <div className="flex items-center gap-3 flex-wrap text-sm">
+                        {t.daily_rate  && <span className="text-emerald-400 font-semibold">${parseFloat(t.daily_rate).toFixed(0)}/day</span>}
+                        {t.hourly_rate && <span className="text-emerald-400 font-semibold">${parseFloat(t.hourly_rate).toFixed(0)}/hr</span>}
+                        {!t.daily_rate && !t.hourly_rate && <span className="text-gray-600 text-xs">Contact for pricing</span>}
+                      </div>
+
+                      {(t.location_city||t.location_state) && (
+                        <p className="text-[10px] text-gray-600 mt-2">{[t.location_city,t.location_state].filter(Boolean).join(', ')}</p>
+                      )}
+
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {t.delivery_available && <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">Delivery available</span>}
+                        {t.requires_deposit  && <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">Deposit required</span>}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </main>
       <Footer/>
 
@@ -681,6 +934,98 @@ export default function Dashboard() {
           <Input label="What do you need to do?" required placeholder="e.g. File quarterly taxes" value={checklistForm.title} onChange={e=>setChecklistForm(p=>({...p,title:e.target.value}))}/>
           <Input label="Due Date (optional)" type="date" value={checklistForm.due_date} onChange={e=>setChecklistForm(p=>({...p,due_date:e.target.value}))}/>
           <Btn className="w-full py-3" type="submit">Add Item</Btn>
+        </form>
+      </Modal>
+
+      {/* ── Add / Edit Skill Modal ── */}
+      <Modal open={showSkillModal} onClose={()=>setShowSkillModal(false)} title={editingSkill ? 'Edit Skill' : 'Add a Skill'}>
+        <form onSubmit={handleSaveSkill} className="space-y-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Skill Name</label>
+            <input
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              placeholder="e.g. Drywall Repair"
+              required
+              value={skillForm.skill_name}
+              onChange={e => {
+                setSkillForm(p => ({ ...p, skill_name: e.target.value }));
+                setSkillSearch(e.target.value);
+                if (e.target.value.length >= 2) searchSkillLookup(e.target.value);
+                else setSkillLookup([]);
+              }}
+            />
+            {skillLookup.length > 0 && (
+              <div className="mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {skillLookup.map(s => (
+                  <button key={s.id} type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/60 hover:text-white transition"
+                    onClick={() => {
+                      setSkillForm(p => ({ ...p, skill_name: s.name, category: s.category || p.category }));
+                      setSkillSearch(s.name);
+                      setSkillLookup([]);
+                    }}
+                  >
+                    <span className="font-medium">{s.name}</span>
+                    {s.category && <span className="text-[10px] text-gray-500 ml-2">{s.category}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Input label="Category" placeholder="e.g. Electrical, Plumbing, HVAC" value={skillForm.category} onChange={e=>setSkillForm(p=>({...p,category:e.target.value}))}/>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Hourly Rate ($/hr)" type="number" step="0.01" min="0" placeholder="0.00" value={skillForm.hourly_rate} onChange={e=>setSkillForm(p=>({...p,hourly_rate:e.target.value}))}/>
+            <Input label="Years Experience" type="number" min="0" max="99" placeholder="0" value={skillForm.years_exp} onChange={e=>setSkillForm(p=>({...p,years_exp:e.target.value}))}/>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Description (optional)</label>
+            <textarea rows={3} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder="Briefly describe what you offer..." value={skillForm.description} onChange={e=>setSkillForm(p=>({...p,description:e.target.value}))}/>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={skillForm.is_available} onChange={e=>setSkillForm(p=>({...p,is_available:e.target.checked}))} className="accent-orange-500"/>
+            <span className="text-sm text-gray-400">Currently available for hire</span>
+          </label>
+          <Btn className="w-full py-3" type="submit">{editingSkill ? 'Save Changes' : 'Add Skill'}</Btn>
+        </form>
+      </Modal>
+
+      {/* ── Add / Edit Tool Modal ── */}
+      <Modal open={showToolModal} onClose={()=>setShowToolModal(false)} title={editingTool ? 'Edit Tool Listing' : 'List a Tool for Rental'}>
+        <form onSubmit={handleSaveTool} className="space-y-4">
+          <Input label="Tool Name" required placeholder="e.g. Pressure Washer 3200 PSI" value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Brand" placeholder="e.g. DeWalt, Milwaukee" value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
+            <Input label="Model" placeholder="e.g. DWE7491RS" value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
+          </div>
+          <Input label="Category" placeholder="e.g. Power Tools, Landscaping, Lifting" value={toolForm.category} onChange={e=>setToolForm(p=>({...p,category:e.target.value}))}/>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Daily Rate ($/day)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
+            <Input label="Hourly Rate ($/hr)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.hourly_rate} onChange={e=>setToolForm(p=>({...p,hourly_rate:e.target.value}))}/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Condition" value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
+              <option value="excellent">Excellent</option>
+              <option value="good">Good</option>
+              <option value="fair">Fair</option>
+              <option value="poor">Poor</option>
+            </Select>
+            <Input label="Deposit Amount ($)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="City" placeholder="Springfield" value={toolForm.location_city} onChange={e=>setToolForm(p=>({...p,location_city:e.target.value}))}/>
+            <Input label="State" placeholder="OH" value={toolForm.location_state} onChange={e=>setToolForm(p=>({...p,location_state:e.target.value}))}/>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Description</label>
+            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder="Condition notes, included accessories, usage requirements..." value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.is_available} onChange={e=>setToolForm(p=>({...p,is_available:e.target.checked}))} className="accent-orange-500"/><span className="text-sm text-gray-400">Currently available for rental</span></label>
+            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.requires_deposit} onChange={e=>setToolForm(p=>({...p,requires_deposit:e.target.checked}))} className="accent-orange-500"/><span className="text-sm text-gray-400">Require a deposit</span></label>
+            <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={toolForm.delivery_available} onChange={e=>setToolForm(p=>({...p,delivery_available:e.target.checked}))} className="accent-orange-500"/><span className="text-sm text-gray-400">Offer delivery</span></label>
+          </div>
+          <Btn className="w-full py-3" type="submit">{editingTool ? 'Save Changes' : 'List Tool'}</Btn>
         </form>
       </Modal>
     </div>

@@ -312,3 +312,63 @@
 }
 .hp-footer-disclaimer a { color: var(--hp-text-muted); text-decoration: underline; }
 .hp-footer-copy { font-size: .78rem; color: var(--hp-text-faint); }
+
+/* ============================================================
+   Dark-mode overrides for homepage
+   When .dark is on <html>, flip the hp-* palette to a dark
+   warm-toned theme that's distinct from the rest of the app
+   (which uses cool gray-950). The homepage uses a warm charcoal.
+   ============================================================ */
+.dark .hp-root {
+  --hp-bg:           #1a1714;   /* warm charcoal — distinct from app gray-950 */
+  --hp-bg-alt:       #211e1a;
+  --hp-surface:      #252119;
+  --hp-surface-2:    #2e2a24;
+  --hp-divider:      rgba(80,72,60,0.5);
+  --hp-border:       rgba(80,72,60,0.7);
+  --hp-text:         #f4f1ec;
+  --hp-text-muted:   #a8a49d;
+  --hp-text-faint:   #6b6760;
+  --hp-text-inv:     #f4f1ec;
+  --hp-primary:      #14a8ae;   /* slightly brighter teal for dark bg */
+  --hp-primary-h:    #0e8a90;
+  --hp-primary-bg:   rgba(20,168,174,0.12);
+  --hp-amber:        #d4960a;
+  --hp-amber-bg:     rgba(212,150,10,0.12);
+  --hp-green:        #4f9a2e;
+  --hp-green-bg:     rgba(79,154,46,0.12);
+  --hp-shadow-sm:    0 1px 3px rgba(0,0,0,0.3);
+  --hp-shadow-md:    0 4px 14px rgba(0,0,0,0.4);
+  --hp-shadow-lg:    0 14px 36px rgba(0,0,0,0.55);
+}
+
+/* Keep nav backdrop dark-aware */
+.dark .hp-nav {
+  background: rgba(26,23,20,0.9);
+  border-bottom-color: var(--hp-divider);
+}
+
+/* Stats strip uses primary bg — keep readable in dark */
+.dark .hp-stats {
+  background: var(--hp-primary);
+}
+
+/* Mock card needs explicit bg in dark */
+.dark .hp-mock-card {
+  background: var(--hp-surface-2);
+  border-color: var(--hp-border);
+}
+
+/* Keep mock bid person name readable */
+.dark .hp-mock-bid > div:nth-child(2) > div:first-child { color: var(--hp-text); }
+.dark .hp-mock-bid > div:last-child > div:first-child { color: var(--hp-text); }
+
+/* Theme toggle on homepage nav */
+.dark .hp-nav .theme-toggle-track { background: #14a8ae; }
+
+/* CTA inner box */
+.dark .hp-cta-inner {
+  background: var(--hp-surface-2);
+  border-color: var(--hp-border);
+}
+
