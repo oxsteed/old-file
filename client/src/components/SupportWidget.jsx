@@ -1,176 +1,136 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
 
-const CATEGORIES = [
-  'General Question',
-  'Account / Login',
-  'Name Change Request',
-  'Billing & Subscription',
-  'Job or Bid Issue',
-  'Technical Problem',
-  'Report a User',
-  'Other',
+const SUGGESTIONS = [
+  'How do I post a job?',
+  'How does payment work?',
+  'How do I become a helper?',
+  'What is a Pro subscription?',
 ];
 
 export default function SupportWidget() {
-  const [open, setOpen]         = useState(false);
-  const [form, setForm]         = useState({ name: '', email: '', category: '', subject: '', message: '' });
-  const [sending, setSending]   = useState(false);
-  const [sent, setSent]         = useState(false);
-  const [error, setError]       = useState('');
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: 'Hi! I\'m OxSteed\'s AI assistant. How can I help you today?' },
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
 
-  // Allow other components to open the widget via custom event
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener('oxsteed:open-support', handler);
     return () => window.removeEventListener('oxsteed:open-support', handler);
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSending(true);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const send = async (text) => {
+    if (!text.trim() || loading) return;
+    const userMsg = { role: 'user', content: text.trim() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
+    setInput('');
+    setLoading(true);
     try {
-      await api.post('/support/request', form);
-      setSent(true);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send. Please email support@oxsteed.com directly.');
+      const { data } = await api.post('/chat/message', { messages: updated });
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I\'m having trouble connecting. Please try again or email support@oxsteed.com.' }]);
     } finally {
-      setSending(false);
+      setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    // Reset after close animation
-    setTimeout(() => { setSent(false); setError(''); setForm({ name: '', email: '', category: '', subject: '', message: '' }); }, 300);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    send(input);
   };
 
   return (
     <>
-      {/* Floating button */}
       <button
         onClick={() => setOpen(true)}
-        aria-label="Open support chat"
+        aria-label="Open AI assistant"
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg shadow-orange-500/30 font-semibold text-sm transition-all hover:scale-105 active:scale-95"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
         </svg>
-        Support
+        Ask AI
       </button>
 
-      {/* Modal overlay */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-end p-6 sm:items-center sm:justify-center"
-          onClick={e => { if (e.target === e.currentTarget) handleClose(); }}
+          className="fixed inset-0 z-50 flex items-end justify-end p-4 sm:p-6"
+          onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '80vh' }}>
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"/>
-                <span className="font-semibold text-white">OxSteed Support</span>
+                <span className="font-semibold text-white text-sm">OxSteed AI Assistant</span>
               </div>
-              <button onClick={handleClose} className="text-gray-500 hover:text-white transition p-1 rounded" aria-label="Close">
+              <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white transition p-1" aria-label="Close">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1">
-              {sent ? (
-                /* Success state */
-                <div className="flex flex-col items-center justify-center px-6 py-12 text-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-green-500/15 flex items-center justify-center">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-400"><polyline points="20 6 9 17 4 12"/></svg>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ minHeight: '300px' }}>
+              {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm leading-relaxed ${
+                    m.role === 'user'
+                      ? 'bg-orange-600 text-white rounded-br-sm'
+                      : 'bg-gray-800 text-gray-200 rounded-bl-sm'
+                  }`}>
+                    {m.content}
                   </div>
-                  <h3 className="text-lg font-semibold text-white">Message sent!</h3>
-                  <p className="text-sm text-gray-400">We'll get back to you at <span className="text-white">{form.email}</span> as soon as possible. Check your inbox for a confirmation email.</p>
-                  <button onClick={handleClose} className="mt-2 px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition">
-                    Close
-                  </button>
                 </div>
-              ) : (
-                /* Form */
-                <form onSubmit={handleSubmit} className="px-5 py-5 flex flex-col gap-4">
-                  <p className="text-sm text-gray-400">
-                    Have a question or need help? Fill out the form below or email us directly at{' '}
-                    <a href="mailto:support@oxsteed.com" className="text-orange-400 hover:text-orange-300">support@oxsteed.com</a>.
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Your Name *</label>
-                      <input
-                        required
-                        value={form.name}
-                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        placeholder="Jane Smith"
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1">Email Address *</label>
-                      <input
-                        required
-                        type="email"
-                        value={form.email}
-                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                        placeholder="you@example.com"
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500"
-                      />
-                    </div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-800 text-gray-400 px-3 py-2 rounded-xl rounded-bl-sm text-sm">
+                    <span className="inline-flex gap-1"><span className="animate-bounce">.</span><span className="animate-bounce" style={{animationDelay:'0.1s'}}>.</span><span className="animate-bounce" style={{animationDelay:'0.2s'}}>.</span></span>
                   </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Category</label>
-                    <select
-                      value={form.category}
-                      onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500"
-                    >
-                      <option value="">Select a topic…</option>
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Subject</label>
-                    <input
-                      value={form.subject}
-                      onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-                      placeholder="Brief description"
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Message *</label>
-                    <textarea
-                      required
-                      value={form.message}
-                      onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-                      placeholder="Describe your issue or question…"
-                      rows={4}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500 resize-none"
-                    />
-                  </div>
-
-                  {error && (
-                    <p className="text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={sending}
-                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold text-sm transition disabled:opacity-50"
-                  >
-                    {sending ? 'Sending…' : 'Send Message'}
-                  </button>
-                </form>
+                </div>
               )}
+              <div ref={endRef}/>
             </div>
+
+            {/* Suggestions */}
+            {messages.length <= 1 && (
+              <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+                {SUGGESTIONS.map(s => (
+                  <button key={s} onClick={() => send(s)} className="text-xs px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-full border border-gray-700 transition">
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Input */}
+            <form onSubmit={handleSubmit} className="flex items-center gap-2 px-4 py-3 border-t border-gray-800">
+              <input
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Ask me anything about OxSteed..."
+                disabled={loading}
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-orange-500 disabled:opacity-50"
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="p-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition disabled:opacity-40"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </form>
           </div>
         </div>
       )}
