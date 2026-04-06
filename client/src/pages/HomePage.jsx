@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import '../styles/HomePage.css';
+import ThemeToggle from '../components/ThemeToggle';
 
 const CATEGORIES = [
   { slug: 'electrical',  icon: '⚡', name: 'Electrical',       desc: 'Wiring, panels, EV chargers' },
@@ -36,6 +37,7 @@ export default function HomePage() {
           <Link to="/how-it-works" className="hp-nav-link">How It Works</Link>
           <Link to="/register/helper" className="hp-btn hp-btn-ghost">List Your Skills</Link>
           <Link to="/register/customer" className="hp-btn hp-btn-primary">Post a Job</Link>
+          <ThemeToggle />
         </div>
         {/* Mobile nav */}
         <div className="hp-nav-mobile">

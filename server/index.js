@@ -43,7 +43,9 @@ const businessRoutes = require('./routes/businesses');
 const supportRoutes = require('./routes/support');
 const chatRoutes    = require('./routes/chat');
 const geoRoutes     = require('./routes/geo');
-const helperRoutes  = require('./routes/helpers');
+const helperRoutes      = require('./routes/helpers');
+const userSkillsRoutes  = require('./routes/userSkills');
+const toolRentalsRoutes = require('./routes/toolRentals');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -156,8 +158,10 @@ app.use('/api/life', lifeDashboardRoutes);
 app.use('/api/didit', diditRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/support', supportRoutes);
-app.use('/api/geo',     geoRoutes);
-app.use('/api/helpers', helperRoutes);
+app.use('/api/geo',          geoRoutes);
+app.use('/api/helpers',      helperRoutes);
+app.use('/api/user-skills',  userSkillsRoutes);
+app.use('/api/tool-rentals', toolRentalsRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
