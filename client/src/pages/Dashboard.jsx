@@ -99,6 +99,7 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [tab, setTab] = useState('pulse');
 
   // Modal state
@@ -113,19 +114,24 @@ export default function Dashboard() {
   const [homeTaskForm, setHomeTaskForm] = useState({ title:'', due_date:'', urgency:'low', recurrence_days:'' });
   const [checklistForm, setChecklistForm] = useState({ title:'', due_date:'' });
 
+  const retryLoad = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const [jobsRes, notifRes, msgRes] = await Promise.allSettled([
+        api.get('/jobs/me/list'), api.get('/notifications'), api.get('/messages/conversations'),
+      ]);
+      const anyFailed = [jobsRes, notifRes, msgRes].some(r => r.status === 'rejected');
+      if (anyFailed) setError(true);
+      if (jobsRes.status === 'fulfilled') setMyJobs(jobsRes.value.data?.jobs || jobsRes.value.data || []);
+      if (notifRes.status === 'fulfilled') setNotifications(notifRes.value.data?.notifications || notifRes.value.data || []);
+      if (msgRes.status === 'fulfilled') setConversations(msgRes.value.data?.conversations || msgRes.value.data || []);
+    } catch (e) { console.error(e); setError(true); }
+    finally { setLoading(false); }
+  }, []);
+
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [jobsRes, notifRes, msgRes] = await Promise.allSettled([
-          api.get('/jobs/me/list'), api.get('/notifications'), api.get('/messages/conversations'),
-        ]);
-        if (jobsRes.status === 'fulfilled') setMyJobs(jobsRes.value.data?.jobs || jobsRes.value.data || []);
-        if (notifRes.status === 'fulfilled') setNotifications(notifRes.value.data?.notifications || notifRes.value.data || []);
-        if (msgRes.status === 'fulfilled') setConversations(msgRes.value.data?.conversations || msgRes.value.data || []);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    };
-    fetchAll();
+    retryLoad();
     life.fetchSummary();
     life.fetchCommunity();
     life.fetchExpenses();
@@ -139,7 +145,12 @@ export default function Dashboard() {
   // ── Derived ───────────────────────────────────────────────────────
   const hr = new Date().getHours();
   const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
-  const displayName = user?.first_name || '';
+  const displayName = (() => {
+    const pref = user?.display_name_preference || 'first_name';
+    if (pref === 'full_name') return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+    if (pref === 'business_name') return user?.business_name || user?.first_name || '';
+    return user?.first_name || '';
+  })();
   const unreadNotifs = Array.isArray(notifications) ? notifications.filter(n => !n.read && !n.read_at).length : 0;
   const unreadMsgs = Array.isArray(conversations) ? conversations.filter(c => c.unread_count > 0).length : 0;
   const activeJobs = Array.isArray(myJobs) ? myJobs.filter(j => ['open','in_progress','published'].includes(j.status)) : [];
@@ -255,6 +266,12 @@ export default function Dashboard() {
 
         {/* ═══════ PULSE ═══════ */}
         {tab==='pulse' && (<>
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
+              <span>⚠</span>
+              <span>Some data failed to load. <button onClick={retryLoad} className="underline hover:text-red-300">Retry</button></span>
+            </div>
+          )}
           {/* Life Pulse Score */}
           {s?.pulse_score !== undefined && (
             <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -301,19 +318,31 @@ export default function Dashboard() {
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Net This Month</p>
-              <p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(s?.finances?.net||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+              {loading
+                ? <div className="h-8 w-20 bg-gray-800 rounded animate-pulse mt-1" />
+                : <p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(s?.finances?.net||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+              }
               <p className="text-xs text-gray-500 mt-1">${(s?.finances?.total_income||0).toFixed(0)} in · ${(s?.finances?.total_expenses||0).toFixed(0)} out</p>
             </Card>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Active Jobs</p>
-              <p className="text-2xl font-bold text-orange-400">{loading?'...':activeJobs.length}</p>
+              {loading
+                ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mt-1" />
+                : <p className="text-2xl font-bold text-orange-400">{activeJobs.length}</p>
+              }
               <p className="text-xs text-gray-500 mt-1">{unreadMsgs>0?`${unreadMsgs} unread messages`:'All caught up'}</p>
             </Card>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Goals Progress</p>
-              <p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p>
+              {loading
+                ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mt-1" />
+                : <p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p>
+              }
               <p className="text-xs text-gray-500 mt-1">{s?.goals?.active||0} active goals</p>
             </Card>
             <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Home Tasks</p>
-              <p className={`text-2xl font-bold ${(s?.home?.overdue||0)>0?'text-red-400':'text-emerald-400'}`}>{s?.home?.overdue||0}</p>
+              {loading
+                ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mt-1" />
+                : <p className={`text-2xl font-bold ${(s?.home?.overdue||0)>0?'text-red-400':'text-emerald-400'}`}>{s?.home?.overdue||0}</p>
+              }
               <p className="text-xs text-gray-500 mt-1">{(s?.home?.overdue||0)>0?'overdue tasks':'All on track'} · {s?.home?.due_this_week||0} due this week</p>
             </Card>
           </div>
@@ -579,8 +608,19 @@ export default function Dashboard() {
               <h3 className="font-semibold text-white text-lg">All My Jobs</h3>
               <Link to="/post-job" className="text-sm bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-xl transition">+ Post a Job</Link>
             </div>
-            {loading ? <div className="text-center py-16 text-gray-600">Loading...</div> :
-            !Array.isArray(myJobs)||myJobs.length===0 ? (
+            {loading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => (
+                  <div key={i} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl animate-pulse">
+                    <div className="space-y-2 flex-1 mr-4">
+                      <div className="h-4 bg-gray-800 rounded w-3/4" />
+                      <div className="h-3 bg-gray-800 rounded w-1/2" />
+                    </div>
+                    <div className="h-5 w-16 bg-gray-800 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : !Array.isArray(myJobs)||myJobs.length===0 ? (
               <Card className="p-16 text-center"><IcoBriefcase size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">No jobs posted yet.</p>
                 <Link to="/post-job" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">Post Your First Job</Link></Card>
             ) : (

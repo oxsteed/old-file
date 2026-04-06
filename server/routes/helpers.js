@@ -3,9 +3,11 @@
 
 const express = require('express');
 const router  = express.Router();
-const { listHelpers, getHelperProfile } = require('../controllers/helpersController');
+const { listHelpers, getHelperProfile, searchSkills, searchLicenses } = require('../controllers/helpersController');
 
-router.get('/',           listHelpers);
+router.get('/',            listHelpers);
+router.get('/skills',      searchSkills);
+router.get('/licenses',    searchLicenses);
 router.get('/:id/profile', getHelperProfile);
 
 module.exports = router;

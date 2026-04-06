@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
@@ -175,8 +175,13 @@ function CheckIcon({ size = 12 }) {
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function PostJobPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user }  = useAuth();
   const { createJob } = useJobs();
+
+  // Pre-selected helper from "Book Now" on a helper profile page
+  const directHelperId   = searchParams.get('helperId')   || '';
+  const directHelperName = searchParams.get('helperName') || '';
 
   const [form, setForm]     = useState(INIT);
   const [errors, setErrors] = useState({});
@@ -353,6 +358,7 @@ export default function PostJobPage() {
           .map(([type, v]) => ({ type, required: true, detail: v }))
       ));
       form.mediaFiles.forEach(f => fd.append('media', f));
+      if (directHelperId) fd.append('preferred_helper_id', directHelperId);
 
       const job = await createJob(fd);
 
@@ -403,6 +409,13 @@ export default function PostJobPage() {
           </nav>
           <h1 className="pjw-page-title">Post a Job</h1>
           <p className="pjw-page-sub">Describe what needs doing and set your own requirements. Helpers who meet your bar will bid.</p>
+          {directHelperId && (
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
+              <span>⚡</span>
+              <span>Direct request to <strong style={{ color:'#fff' }}>{directHelperName || 'this helper'}</strong> — they'll be notified when your job is posted.</span>
+              <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>View profile</a>
+            </div>
+          )}
         </header>
 
         {/* ── Step bar ───────────────────────────────────────────────────── */}

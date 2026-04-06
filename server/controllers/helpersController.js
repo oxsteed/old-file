@@ -359,4 +359,62 @@ async function getHelperProfile(req, res) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile };
+// ── GET /api/helpers/skills?q=&limit= ────────────────────────────────────────
+async function searchSkills(req, res) {
+  try {
+    const q     = (req.query.q     || '').trim();
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+
+    let rows;
+    if (q) {
+      ({ rows } = await pool.query(
+        `SELECT id, name, category FROM skills_lookup
+         WHERE is_active = TRUE AND name ILIKE $1
+         ORDER BY name ASC LIMIT $2`,
+        [`%${q}%`, limit],
+      ));
+    } else {
+      ({ rows } = await pool.query(
+        `SELECT id, name, category FROM skills_lookup
+         WHERE is_active = TRUE
+         ORDER BY name ASC LIMIT $1`,
+        [limit],
+      ));
+    }
+    return res.json({ skills: rows });
+  } catch (err) {
+    console.error('[searchSkills] error:', err);
+    return res.status(500).json({ error: 'Failed to search skills' });
+  }
+}
+
+// ── GET /api/helpers/licenses?q=&limit= ──────────────────────────────────────
+async function searchLicenses(req, res) {
+  try {
+    const q     = (req.query.q     || '').trim();
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+
+    let rows;
+    if (q) {
+      ({ rows } = await pool.query(
+        `SELECT id, name, category FROM licenses_lookup
+         WHERE is_active = TRUE AND name ILIKE $1
+         ORDER BY name ASC LIMIT $2`,
+        [`%${q}%`, limit],
+      ));
+    } else {
+      ({ rows } = await pool.query(
+        `SELECT id, name, category FROM licenses_lookup
+         WHERE is_active = TRUE
+         ORDER BY name ASC LIMIT $1`,
+        [limit],
+      ));
+    }
+    return res.json({ licenses: rows });
+  } catch (err) {
+    console.error('[searchLicenses] error:', err);
+    return res.status(500).json({ error: 'Failed to search licenses' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile, searchSkills, searchLicenses };

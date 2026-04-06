@@ -59,7 +59,9 @@ function formatAuthUser(user) {
     background_check_passed: !!user.background_check_passed,
     city:                  user.city,
     state:                 user.state,
-    zip_code:              user.zip_code
+    zip_code:              user.zip_code,
+    display_name_preference: user.display_name_preference || 'first_name',
+    business_name:         user.business_name || null,
   };
 }
 
@@ -579,11 +581,21 @@ async function getMe(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const { phone, zip_code, zipcode } = req.body;
+    const { phone, zip_code, zipcode, display_name_preference } = req.body;
     const finalZip = zip_code || zipcode;
+
+    const VALID_PREFS = ['full_name', 'first_name', 'business_name'];
+    const pref = VALID_PREFS.includes(display_name_preference) ? display_name_preference : undefined;
+
     const { rows } = await pool.query(
-      'UPDATE users SET phone = COALESCE($1, phone), zip_code = COALESCE($2, zip_code), updated_at = NOW() WHERE id = $3 RETURNING id, email, first_name, last_name, phone, zip_code',
-      [phone, finalZip, req.user.id]
+      `UPDATE users
+       SET phone = COALESCE($1, phone),
+           zip_code = COALESCE($2, zip_code),
+           display_name_preference = COALESCE($3, display_name_preference),
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING id, email, first_name, last_name, phone, zip_code, display_name_preference`,
+      [phone || null, finalZip || null, pref || null, req.user.id]
     );
     res.json(rows[0]);
   } catch (err) {

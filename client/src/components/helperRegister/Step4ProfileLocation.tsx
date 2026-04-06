@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../api/axios';
 
 interface Props {
@@ -7,12 +7,35 @@ interface Props {
   onBack: () => void;
 }
 
-const SKILL_OPTIONS = [
-  'Home Cleaning', 'Lawn & Garden', 'Moving & Hauling', 'Handyman', 'Painting',
-  'Plumbing', 'Electrical', 'Auto Repair', 'Pet Care', 'Tutoring',
-  'Personal Training', 'Tech Support', 'Photography', 'Event Planning',
-  'Delivery & Errands', 'General Labor',
-];
+interface SkillOption { id: number; name: string; category: string; }
+
+function useSkillSearch(q: string) {
+  const [results, setResults] = useState<SkillOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (!q.trim()) {
+      setResults([]);
+      return;
+    }
+    timer.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const { data } = await api.get(`/helpers/skills?q=${encodeURIComponent(q)}&limit=10`);
+        setResults(data.skills || []);
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [q]);
+
+  return { results, loading };
+}
 
 export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props) {
   const [form, setForm] = useState({
@@ -22,7 +45,11 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [skillQuery, setSkillQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const skillInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { results: skillResults, loading: skillSearching } = useSkillSearch(skillQuery);
 
   const set = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -55,15 +82,18 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
     }
   }, [form.zip]);
 
-  const toggleSkill = (skill: string) => {
-    setForm(prev => ({
-      ...prev,
-      skills: prev.skills.includes(skill)
-        ? prev.skills.filter(s => s !== skill)
-        : prev.skills.length < 8 ? [...prev.skills, skill] : prev.skills,
-    }));
+  const addSkill = useCallback((name: string) => {
+    if (form.skills.includes(name) || form.skills.length >= 8) return;
+    setForm(prev => ({ ...prev, skills: [...prev.skills, name] }));
     setErrors(prev => ({ ...prev, skills: '' }));
-  };
+    setSkillQuery('');
+    setShowDropdown(false);
+    skillInputRef.current?.focus();
+  }, [form.skills]);
+
+  const removeSkill = useCallback((name: string) => {
+    setForm(prev => ({ ...prev, skills: prev.skills.filter(s => s !== name) }));
+  }, []);
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
@@ -188,21 +218,71 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
         {errors.photo && <p className="text-red-400 text-xs mt-1" role="alert">{errors.photo}</p>}
       </div>
 
-      {/* Skills chip selector */}
+      {/* Skills searchable input */}
       <div>
-        <label className="block text-sm text-gray-300 mb-2">Skills <span className="text-gray-500">(select 1-8)</span></label>
-        <div className="flex flex-wrap gap-2">
-          {SKILL_OPTIONS.map(skill => (
-            <button key={skill} type="button" onClick={() => toggleSkill(skill)}
-              className={`px-3 py-1.5 rounded-full text-sm transition ${
-                form.skills.includes(skill)
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600'
-              }`}>
-              {skill}
-            </button>
-          ))}
-        </div>
+        <label className="block text-sm text-gray-300 mb-2">
+          Skills <span className="text-gray-500">(select 1–8)</span>
+        </label>
+
+        {/* Selected skill tags */}
+        {form.skills.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {form.skills.map(skill => (
+              <span key={skill}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-sm border border-orange-500/40">
+                {skill}
+                <button type="button" onClick={() => removeSkill(skill)}
+                  className="ml-0.5 text-orange-400 hover:text-white leading-none" aria-label={`Remove ${skill}`}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Search input */}
+        {form.skills.length < 8 && (
+          <div className="relative">
+            <input
+              ref={skillInputRef}
+              type="text"
+              placeholder="Search skills (e.g. Plumbing, Painting, Pet Care…)"
+              value={skillQuery}
+              onChange={e => { setSkillQuery(e.target.value); setShowDropdown(true); }}
+              onFocus={() => setShowDropdown(true)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+              className={inputClass}
+            />
+            {skillSearching && (
+              <span className="absolute right-3 top-3 text-gray-500 text-xs">Searching…</span>
+            )}
+            {showDropdown && skillResults.length > 0 && (
+              <ul className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {skillResults.map(s => (
+                  <li key={s.id}>
+                    <button type="button"
+                      onMouseDown={() => addSkill(s.name)}
+                      disabled={form.skills.includes(s.name)}
+                      className={`w-full text-left px-4 py-2 text-sm transition ${
+                        form.skills.includes(s.name)
+                          ? 'text-gray-500 cursor-default'
+                          : 'text-white hover:bg-gray-700'
+                      }`}>
+                      <span>{s.name}</span>
+                      <span className="text-gray-500 text-xs ml-2">{s.category}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {showDropdown && skillQuery.trim() && !skillSearching && skillResults.length === 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-500">
+                No skills found for "{skillQuery}"
+              </div>
+            )}
+          </div>
+        )}
+
         <p className="text-xs text-gray-500 mt-1">{form.skills.length}/8 selected</p>
         {errors.skills && <p className="text-red-400 text-xs mt-1" role="alert">{errors.skills}</p>}
       </div>
