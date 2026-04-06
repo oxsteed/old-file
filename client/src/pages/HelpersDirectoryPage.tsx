@@ -1,0 +1,491 @@
+/**
+ * HelpersDirectoryPage
+ *
+ * Customer-facing browse/search page for discovering OxSteed helpers.
+ * Route: /helpers
+ *
+ * Layout:
+ *   Desktop (lg+) — left sidebar with FilterPanel, right 3/4 with results grid
+ *   Mobile        — FilterPanel in a slide-up drawer, triggered by a sticky bar
+ *
+ * Filter logic runs client-side against mock data.
+ * API integration notes at the bottom of this file.
+ */
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { SlidersHorizontal, X, ChevronDown, Sparkles } from 'lucide-react';
+
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+
+import SearchBar from '../components/helperDirectory/SearchBar';
+import FilterPanel from '../components/helperDirectory/FilterPanel';
+import SortControls from '../components/helperDirectory/SortControls';
+import ActiveFilterTags from '../components/helperDirectory/ActiveFilterTags';
+import EmptyState from '../components/helperDirectory/EmptyState';
+import HelperCard from '../components/helperDirectory/HelperCard';
+
+import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';
+import { DEFAULT_FILTERS, countActiveFilters } from '../types/helperDirectory';
+import { mockHelpers } from '../mock/helperDirectoryData';
+
+const PAGE_SIZE = 9;
+
+// ── Filter + sort engine ──────────────────────────────────────────────────────
+
+function applyFilters(helpers: HelperCardData[], f: DirectoryFilters): HelperCardData[] {
+  return helpers.filter((h) => {
+    // Text search: matches business name, owner name, bio, categories, skills
+    if (f.query) {
+      const q = f.query.toLowerCase();
+      const searchable = [
+        h.businessName,
+        h.ownerName,
+        h.shortBio,
+        ...h.categories,
+        ...h.skills,
+        ...h.licenses,
+        ...h.topServices.map((s) => s.name),
+      ]
+        .join(' ')
+        .toLowerCase();
+      if (!searchable.includes(q)) return false;
+    }
+
+    // Category (any-of)
+    if (f.categories.length > 0) {
+      if (!f.categories.some((cat) => h.categories.includes(cat))) return false;
+    }
+
+    // Skills (all-of — every selected skill must exist on helper)
+    if (f.skills.length > 0) {
+      if (!f.skills.every((sk) => h.skills.includes(sk))) return false;
+    }
+
+    // Licenses (any-of)
+    if (f.licenses.length > 0) {
+      if (!f.licenses.some((lic) => h.licenses.includes(lic as any))) return false;
+    }
+
+    // Insurance (any-of)
+    if (f.insurance.length > 0) {
+      if (!f.insurance.some((ins) => h.insurance.includes(ins as any))) return false;
+    }
+
+    // Rating
+    if (f.minRating > 0 && h.rating < f.minRating) return false;
+
+    // Price range (against startingPrice)
+    if (f.priceRange) {
+      const [min, max] = f.priceRange;
+      if (h.startingPrice < min || h.startingPrice > max) return false;
+    }
+
+    // Distance (mock: we don't have real geo so skip if no zip)
+    // In production this is computed server-side or via haversine
+    if (f.maxDistance > 0 && h.distanceMiles !== undefined) {
+      if (h.distanceMiles > f.maxDistance) return false;
+    }
+
+    // Quick toggles
+    if (f.availableToday && !h.availableToday) return false;
+    if (f.backgroundChecked && !h.backgroundChecked) return false;
+    if (f.verified && !h.verified) return false;
+
+    return true;
+  });
+}
+
+function applySort(helpers: HelperCardData[], sort: SortOption): HelperCardData[] {
+  const copy = [...helpers];
+  switch (sort) {
+    case 'highest_rated':
+      return copy.sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount);
+    case 'most_reviews':
+      return copy.sort((a, b) => b.reviewCount - a.reviewCount);
+    case 'lowest_price':
+      return copy.sort((a, b) => a.startingPrice - b.startingPrice);
+    case 'fastest_response':
+      return copy.sort((a, b) => a.responseMinutes - b.responseMinutes);
+    case 'newest':
+      return copy.sort((a, b) => new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime());
+    case 'best_match':
+    default:
+      // Best match: blend rating × review volume
+      return copy.sort((a, b) => {
+        const scoreA = a.rating * Math.log1p(a.reviewCount);
+        const scoreB = b.rating * Math.log1p(b.reviewCount);
+        return scoreB - scoreA;
+      });
+  }
+}
+
+// ── Card skeleton ─────────────────────────────────────────────────────────────
+const CardSkeleton: React.FC = () => (
+  <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden animate-pulse">
+    <div className="h-20 bg-gray-800" />
+    <div className="px-4 pt-2 pb-4 space-y-3">
+      <div className="flex items-end justify-between -mt-6">
+        <div className="w-16 h-16 rounded-2xl bg-gray-700 border-4 border-gray-900" />
+        <div className="w-20 h-6 bg-gray-800 rounded" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 bg-gray-800 rounded w-3/4" />
+        <div className="h-3 bg-gray-800 rounded w-1/2" />
+      </div>
+      <div className="h-3 bg-gray-800 rounded w-full" />
+      <div className="h-3 bg-gray-800 rounded w-5/6" />
+      <div className="flex gap-2 mt-2">
+        <div className="h-8 bg-gray-800 rounded-xl flex-1" />
+        <div className="h-8 bg-gray-800 rounded-xl flex-[2]" />
+      </div>
+    </div>
+  </div>
+);
+
+// ── Mobile filter drawer ──────────────────────────────────────────────────────
+const FilterDrawer: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  activeCount: number;
+}> = ({ open, onClose, children, activeCount }) => {
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Filters">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} aria-hidden="true" />
+      <div className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col max-h-[90vh] shadow-2xl">
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-gray-700" aria-hidden="true" />
+        </div>
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 flex-shrink-0">
+          <h2 className="font-semibold text-white flex items-center gap-2">
+            Filters
+            {activeCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-xs flex items-center justify-center font-bold">
+                {activeCount}
+              </span>
+            )}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            aria-label="Close filters"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-4">
+          {children}
+        </div>
+        <div className="px-4 py-3 border-t border-gray-800 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
+          >
+            Show results
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Hero banner ───────────────────────────────────────────────────────────────
+const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => void }> = ({
+  searchValue,
+  onSearch,
+}) => (
+  <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
+    {/* BG texture */}
+    <div className="absolute inset-0 opacity-5" aria-hidden="true">
+      <svg width="100%" height="100%">
+        <defs>
+          <pattern id="hero-dots" width="32" height="32" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1.5" fill="white" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#hero-dots)" />
+      </svg>
+    </div>
+    <div className="absolute inset-y-0 left-0 w-1 bg-brand-500" aria-hidden="true" />
+
+    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+      <div className="max-w-2xl">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-4 h-4 text-brand-400" aria-hidden="true" />
+          <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">
+            OxSteed Helpers
+          </span>
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+          Find a trusted local helper
+        </h1>
+        <p className="text-gray-400 mt-2 text-base leading-relaxed">
+          Browse background-checked, licensed, and insured helpers in your area.
+          Book in minutes — satisfaction guaranteed.
+        </p>
+
+        {/* Hero search */}
+        <div className="mt-6">
+          <SearchBar
+            value={searchValue}
+            onChange={onSearch}
+            placeholder="Try 'lawn mowing', 'electrician', or 'deep clean'…"
+          />
+        </div>
+
+        {/* Popular categories */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {['Landscaping', 'Cleaning', 'Electrical', 'Plumbing', 'HVAC', 'Moving', 'Painting'].map(
+            (cat) => (
+              <button
+                key={cat}
+                onClick={() => onSearch(cat)}
+                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+              >
+                {cat}
+              </button>
+            ),
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+const HelpersDirectoryPage: React.FC = () => {
+  const [filters, setFilters] = useState<DirectoryFilters>(DEFAULT_FILTERS);
+  const [sort, setSort] = useState<SortOption>('best_match');
+  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
+  const [loadState, setLoadState] = useState<'loading' | 'success'>('loading');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Simulate initial data load
+  useEffect(() => {
+    const t = setTimeout(() => setLoadState('success'), 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+  }, [filters, sort]);
+
+  const updateFilters = useCallback((partial: Partial<DirectoryFilters>) => {
+    setFilters((prev) => ({ ...prev, ...partial }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+  }, []);
+
+  const filtered = useMemo(
+    () => applySort(applyFilters(mockHelpers, filters), sort),
+    [filters, sort],
+  );
+
+  const displayed = filtered.slice(0, displayCount);
+  const hasMore = displayCount < filtered.length;
+  const activeFilterCount = countActiveFilters(filters);
+
+  const handleMessage = useCallback((id: string) => {
+    /**
+     * API INTEGRATION POINT:
+     *   navigate(`/helpers/${id}?openChat=true`)
+     *   or open a global chat widget pre-addressed to this helper
+     */
+    window.location.href = `/helpers/${id}`;
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white">
+      <Navbar />
+
+      {/* Hero + search */}
+      <DirectoryHero
+        searchValue={filters.query}
+        onSearch={(q) => updateFilters({ query: q })}
+      />
+
+      {/* Mobile filter bar */}
+      <div className="lg:hidden sticky top-0 z-20 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-2.5 flex items-center gap-3">
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+          aria-label={`Open filters${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
+        >
+          <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="w-4 h-4 rounded-full bg-brand-500 text-white text-xs flex items-center justify-center font-bold">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        <div className="flex-1">
+          <SortControls
+            value={sort}
+            onChange={setSort}
+            resultCount={filtered.length}
+          />
+        </div>
+      </div>
+
+      {/* Page body */}
+      <main
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        id="main-content"
+      >
+        <div className="flex gap-8">
+
+          {/* ── Desktop sidebar ──────────────────────────────── */}
+          <aside
+            className="hidden lg:block w-72 flex-shrink-0"
+            aria-label="Filter helpers"
+          >
+            <div className="sticky top-6">
+              <FilterPanel
+                filters={filters}
+                onChange={updateFilters}
+                onReset={resetFilters}
+              />
+            </div>
+          </aside>
+
+          {/* ── Results column ───────────────────────────────── */}
+          <div className="flex-1 min-w-0 space-y-5">
+
+            {/* Sort + active tags — desktop */}
+            <div className="hidden lg:flex flex-col gap-3">
+              <SortControls
+                value={sort}
+                onChange={setSort}
+                resultCount={filtered.length}
+              />
+              <ActiveFilterTags filters={filters} onChange={updateFilters} />
+            </div>
+
+            {/* Active tags — mobile */}
+            <div className="lg:hidden">
+              <ActiveFilterTags filters={filters} onChange={updateFilters} />
+            </div>
+
+            {/* Grid */}
+            {loadState === 'loading' ? (
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
+                aria-busy="true"
+                aria-label="Loading helpers"
+              >
+                {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                  <CardSkeleton key={i} />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                query={filters.query}
+                hasFilters={activeFilterCount > 0}
+                onReset={resetFilters}
+              />
+            ) : (
+              <>
+                <div
+                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
+                  role="list"
+                  aria-label={`${filtered.length} helpers found`}
+                >
+                  {displayed.map((helper) => (
+                    <div key={helper.id} role="listitem">
+                      <HelperCard helper={helper} onMessage={handleMessage} />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Load more */}
+                {hasMore && (
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={() => setDisplayCount((n) => n + PAGE_SIZE)}
+                      className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium"
+                      aria-label={`Load more helpers (${filtered.length - displayCount} remaining)`}
+                    >
+                      Show more helpers
+                      <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                      <span className="text-gray-500 text-xs">
+                        ({filtered.length - displayCount} more)
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* All loaded indicator */}
+                {!hasMore && filtered.length > PAGE_SIZE && (
+                  <p className="text-center text-xs text-gray-600 pt-2">
+                    All {filtered.length} helpers shown
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+
+      {/* Mobile filter drawer */}
+      <FilterDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        activeCount={activeFilterCount}
+      >
+        <FilterPanel
+          filters={filters}
+          onChange={updateFilters}
+          onReset={resetFilters}
+        />
+      </FilterDrawer>
+    </div>
+  );
+};
+
+export default HelpersDirectoryPage;
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * API INTEGRATION NOTES
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * 1. SEARCH & FILTER  GET /api/helpers?query=&categories=&skills=&licenses=
+ *                     &insurance=&minRating=&minPrice=&maxPrice=&zip=
+ *                     &maxDistance=&availableToday=&verified=&sort=&page=&limit=
+ *    Replace: applyFilters() + applySort() with server response
+ *    Server returns: { helpers: HelperCardData[], total: number, page: number }
+ *
+ * 2. PAGINATION        Use cursor-based or offset pagination from server.
+ *    Replace: local slice with loading next page from API on "Show more" click.
+ *    Add debounce (~300ms) to filter changes before firing API calls.
+ *
+ * 3. GEO DISTANCE      Server computes haversine distance from zip code centroid.
+ *    Returns: distanceMiles on each HelperCardData.
+ *    Client just displays it — no geo logic needed in the browser.
+ *
+ * 4. SKILLS / LICENSE / INSURANCE options: GET /api/helpers/filter-options
+ *    Returns dynamic lists so new skills / licenses appear without frontend deploys.
+ *
+ * 5. SEARCH ANALYTICS  POST /api/analytics/search { query, filters, resultCount }
+ *    Fire after each search to power relevance improvements.
+ *
+ * 6. POPULAR CATEGORIES  GET /api/helpers/popular-categories
+ *    Returns top-N categories for the hero quick-filter buttons.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */

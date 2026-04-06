@@ -28,6 +28,7 @@ import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
 import SettingsPage from './pages/SettingsPage';
 import PublicProfile from './pages/PublicProfile';
 import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
+import HelpersDirectoryPage from './pages/HelpersDirectoryPage';
 import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputeDetail from './pages/disputes/DisputeDetail';
 import MessagesPage from './pages/MessagesPage';
@@ -98,6 +99,7 @@ export default function App() {
               <Route path="/settings/2fa" element={<ProtectedRoute><TwoFactorSetup /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/profile/:id" element={<PublicProfile />} />
+              <Route path="/helpers" element={<HelpersDirectoryPage />} />
               <Route path="/helpers/:id" element={<HelperBusinessProfilePage />} />
               <Route path="/disputes" element={<ProtectedRoute><DisputeCenter /></ProtectedRoute>} />
               <Route path="/disputes/:id" element={<ProtectedRoute><DisputeDetail /></ProtectedRoute>} />
