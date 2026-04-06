@@ -1,0 +1,362 @@
+// server/controllers/helpersController.js
+// Public helper discovery endpoints — no authentication required.
+// Powers /helpers (directory) and /helpers/:id (profile page).
+
+const pool = require('../db');
+
+function formatResponseTime(hours) {
+  if (!hours) return 'Varies';
+  if (hours < 1) return '< 1 hour';
+  if (hours === 1) return '1 hour';
+  if (hours < 24) return `${Math.round(hours)} hours`;
+  return `${Math.round(hours / 24)} days`;
+}
+
+function parseJsonList(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+}
+
+// ── GET /api/helpers ──────────────────────────────────────────────────────────
+// Query params (all optional):
+//   query, categories (comma-separated), skills (comma-separated),
+//   verified, backgroundChecked, availableToday,
+//   minRating, minPrice, maxPrice,
+//   sort (best_match|highest_rated|most_reviews|lowest_price|fastest_response|newest),
+//   page, limit
+async function listHelpers(req, res) {
+  try {
+    const {
+      query = '',
+      categories = '',
+      skills = '',
+      verified = '',
+      backgroundChecked = '',
+      availableToday = '',
+      minRating = 0,
+      minPrice = 0,
+      maxPrice = 0,
+      sort = 'best_match',
+      page = 1,
+      limit = 9,
+    } = req.query;
+
+    const pageNum  = Math.max(1, parseInt(page)  || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 9));
+    const offset   = (pageNum - 1) * limitNum;
+
+    const conditions = ['u.deleted_at IS NULL', 'u.role = $1'];
+    const params     = ['helper'];
+    let pIdx         = 2;
+
+    if (query) {
+      params.push(`%${query.toLowerCase()}%`);
+      conditions.push(`(
+        LOWER(u.first_name || ' ' || u.last_name) LIKE $${pIdx}
+        OR LOWER(COALESCE(hp.bio_short, '')) LIKE $${pIdx}
+        OR LOWER(COALESCE(hp.profile_headline, '')) LIKE $${pIdx}
+      )`);
+      pIdx++;
+    }
+
+    if (verified === 'true') {
+      conditions.push('hp.is_identity_verified = TRUE');
+    }
+
+    if (backgroundChecked === 'true') {
+      conditions.push('hp.is_background_checked = TRUE');
+    }
+
+    if (availableToday === 'true') {
+      conditions.push('hp.is_available_now = TRUE');
+    }
+
+    const minR = parseFloat(minRating);
+    if (minR > 0) {
+      params.push(minR);
+      conditions.push(`hp.avg_rating >= $${pIdx++}`);
+    }
+
+    const minP = parseFloat(minPrice);
+    if (minP > 0) {
+      params.push(minP);
+      conditions.push(`hp.hourly_rate_min >= $${pIdx++}`);
+    }
+
+    const maxP = parseFloat(maxPrice);
+    if (maxP > 0) {
+      params.push(maxP);
+      conditions.push(`(hp.hourly_rate_min <= $${pIdx++} OR hp.hourly_rate_min IS NULL)`);
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    const sortMap = {
+      best_match:      'hp.search_rank_boost DESC, hp.avg_rating DESC',
+      highest_rated:   'hp.avg_rating DESC, hp.total_reviews DESC',
+      most_reviews:    'hp.total_reviews DESC, hp.avg_rating DESC',
+      lowest_price:    'hp.hourly_rate_min ASC NULLS LAST',
+      fastest_response:'hp.response_time_hours ASC NULLS LAST',
+      newest:          'u.created_at DESC',
+    };
+    const orderBy = sortMap[sort] || sortMap.best_match;
+
+    // Count for pagination (uses same WHERE but no LIMIT/OFFSET)
+    const countParams = [...params];
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*) FROM users u
+       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       WHERE ${whereClause}`,
+      countParams,
+    );
+
+    // Main fetch
+    params.push(limitNum, offset);
+    const { rows: helpers } = await pool.query(
+      `SELECT
+         u.id, u.first_name, u.last_name, u.created_at AS member_since,
+         hp.profile_headline, hp.bio_short,
+         hp.profile_photo_url,
+         hp.service_city, hp.service_state, hp.service_radius_miles,
+         hp.hourly_rate_min, hp.flat_rate_available,
+         hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
+         hp.response_time_hours,
+         hp.is_identity_verified, hp.is_background_checked,
+         hp.insurance_details, hp.license_details,
+         hp.is_available_now,
+         hp.search_rank_boost
+       FROM users u
+       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       WHERE ${whereClause}
+       ORDER BY ${orderBy}
+       LIMIT $${pIdx} OFFSET $${pIdx + 1}`,
+      params,
+    );
+
+    if (helpers.length === 0) {
+      return res.json({ helpers: [], total: parseInt(count), page: pageNum });
+    }
+
+    // Skills + categories for the fetched helpers
+    const helperIds = helpers.map((h) => h.id);
+    const { rows: skillRows } = await pool.query(
+      `SELECT hs.user_id, hs.skill_name, c.name AS category_name
+       FROM helper_skills hs
+       JOIN categories c ON c.id = hs.category_id
+       WHERE hs.user_id = ANY($1)
+       ORDER BY c.name, hs.skill_name`,
+      [helperIds],
+    );
+
+    const skillsByUser      = {};
+    const categoriesByUser  = {};
+    for (const row of skillRows) {
+      (skillsByUser[row.user_id]     ||= new Set()).add(row.skill_name);
+      (categoriesByUser[row.user_id] ||= new Set()).add(row.category_name);
+    }
+
+    // Client-side category/skill post-filter (server WHERE can't do array-ANY cheaply)
+    const categoryList = categories ? categories.split(',').map((c) => c.trim()).filter(Boolean) : [];
+    const skillList    = skills     ? skills.split(',').map((s)     => s.trim()).filter(Boolean) : [];
+
+    let result = helpers;
+
+    if (categoryList.length > 0) {
+      result = result.filter((h) => {
+        const cats = categoriesByUser[h.id];
+        return cats && categoryList.some((c) => cats.has(c));
+      });
+    }
+
+    if (skillList.length > 0) {
+      result = result.filter((h) => {
+        const sk = skillsByUser[h.id];
+        return sk && skillList.every((s) => sk.has(s));
+      });
+    }
+
+    const mapped = result.map((h) => {
+      const responseHours   = h.response_time_hours;
+      const responseMinutes = responseHours ? Math.round(responseHours * 60) : 480;
+      return {
+        id:               h.id,
+        businessName:     `${h.first_name} ${h.last_name}`,
+        ownerName:        `${h.first_name} ${h.last_name}`,
+        avatar:           h.profile_photo_url || '',
+        rating:           parseFloat(h.avg_rating)       || 0,
+        reviewCount:      h.total_reviews                || 0,
+        jobsCompleted:    h.completed_jobs_count         || 0,
+        memberSince:      h.member_since,
+        verified:         !!h.is_identity_verified,
+        backgroundChecked:!!h.is_background_checked,
+        categories:       categoriesByUser[h.id] ? [...categoriesByUser[h.id]] : [],
+        skills:           skillsByUser[h.id]     ? [...skillsByUser[h.id]]     : [],
+        licenses:         parseJsonList(h.license_details),
+        insurance:        parseJsonList(h.insurance_details),
+        topServices:      [],
+        startingPrice:    h.hourly_rate_min ? parseFloat(h.hourly_rate_min) : 0,
+        startingPriceUnit:h.flat_rate_available ? 'flat' : 'hour',
+        responseTime:     formatResponseTime(responseHours),
+        responseMinutes,
+        city:             h.service_city  || '',
+        state:            h.service_state || '',
+        serviceRadius:    h.service_radius_miles || 10,
+        availableToday:   !!h.is_available_now,
+        shortBio:         h.bio_short || h.profile_headline || '',
+      };
+    });
+
+    return res.json({ helpers: mapped, total: parseInt(count), page: pageNum });
+  } catch (err) {
+    console.error('[listHelpers] error:', err);
+    return res.status(500).json({ error: 'Failed to load helpers' });
+  }
+}
+
+// ── GET /api/helpers/:id/profile ──────────────────────────────────────────────
+async function getHelperProfile(req, res) {
+  try {
+    const { id } = req.params;
+
+    const { rows: [h] } = await pool.query(
+      `SELECT
+         u.id, u.first_name, u.last_name, u.created_at AS member_since,
+         hp.profile_headline, hp.bio_short, hp.bio_long,
+         hp.profile_photo_url,
+         hp.service_city, hp.service_state, hp.service_zip, hp.service_radius_miles,
+         hp.hourly_rate_min, hp.hourly_rate_max, hp.rate_preference,
+         hp.flat_rate_available, hp.contact_for_pricing,
+         hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
+         hp.response_time_hours,
+         hp.is_identity_verified, hp.is_background_checked,
+         hp.is_insured, hp.is_licensed,
+         hp.insurance_details, hp.license_details,
+         hp.availability_json, hp.is_available_now
+       FROM users u
+       JOIN helper_profiles hp ON hp.user_id = u.id
+       WHERE u.id = $1 AND u.deleted_at IS NULL`,
+      [id],
+    );
+
+    if (!h) return res.status(404).json({ error: 'Helper not found' });
+
+    // Skills + categories
+    const { rows: skillRows } = await pool.query(
+      `SELECT hs.skill_name, c.name AS category_name
+       FROM helper_skills hs
+       JOIN categories c ON c.id = hs.category_id
+       WHERE hs.user_id = $1
+       ORDER BY c.name, hs.skill_name`,
+      [id],
+    );
+    const categories = [...new Set(skillRows.map((r) => r.category_name))];
+
+    // Reviews (most recent 20)
+    const { rows: reviewRows } = await pool.query(
+      `SELECT r.id, r.rating, r.comment, r.created_at, r.response, r.response_at,
+              u.first_name, u.last_name
+       FROM reviews r
+       JOIN users u ON u.id = r.reviewer_id
+       WHERE r.reviewee_id = $1
+       ORDER BY r.created_at DESC
+       LIMIT 20`,
+      [id],
+    );
+
+    const reviews = reviewRows.map((r) => ({
+      id:          String(r.id),
+      authorName:  `${r.first_name} ${r.last_name[0]}.`,
+      rating:      r.rating,
+      date:        r.created_at,
+      serviceUsed: '',
+      content:     r.comment || '',
+      helpfulCount:0,
+      verified:    true,
+      helperReply: r.response ? { content: r.response, date: r.response_at } : undefined,
+    }));
+
+    // Badges
+    const badges = [];
+    if (h.is_background_checked) badges.push({ id: 'bg',   label: 'Background Checked', icon: 'shield-check', variant: 'verified'       });
+    if (h.is_identity_verified)  badges.push({ id: 'id',   label: 'ID Verified',         icon: 'badge-check',  variant: 'verified'       });
+    if (h.is_licensed)           badges.push({ id: 'lic',  label: 'Licensed',            icon: 'award',        variant: 'trusted'        });
+    if (h.is_insured)            badges.push({ id: 'ins',  label: 'Insured',             icon: 'shield',       variant: 'trusted'        });
+    if (h.response_time_hours && h.response_time_hours < 2)
+                                 badges.push({ id: 'fast', label: 'Fast Responder',      icon: 'zap',          variant: 'fast_responder' });
+    if (h.avg_rating >= 4.8 && h.total_reviews >= 10)
+                                 badges.push({ id: 'top',  label: 'Top Rated',           icon: 'star',         variant: 'top_rated'      });
+
+    // Hours from availability_json
+    const avail = h.availability_json || {};
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const hours = DAY_NAMES.map((day) => {
+      const key     = day.toLowerCase();
+      const dayData = avail[key] || avail[day] || null;
+      if (!dayData || dayData.closed) {
+        return { day, open: '9:00 AM', close: '5:00 PM', closed: true };
+      }
+      return {
+        day,
+        open:   dayData.start || dayData.open  || '9:00 AM',
+        close:  dayData.end   || dayData.close || '5:00 PM',
+        closed: false,
+      };
+    });
+
+    const responseHours = h.response_time_hours;
+
+    return res.json({
+      helper: {
+        id:           h.id,
+        businessName: `${h.first_name} ${h.last_name}`,
+        ownerName:    `${h.first_name} ${h.last_name}`,
+        tagline:      h.profile_headline || '',
+        bio:          h.bio_long || h.bio_short || '',
+        avatar:       h.profile_photo_url || '',
+        coverImage:   '',
+        rating:       parseFloat(h.avg_rating) || 0,
+        reviewCount:  h.total_reviews          || 0,
+        jobsCompleted:h.completed_jobs_count   || 0,
+        memberSince:  h.member_since,
+        verified:     !!h.is_identity_verified,
+        responseTime: formatResponseTime(responseHours),
+        responseRate: 95,
+        badges,
+        categories,
+      },
+      services:  [],
+      gallery:   [],
+      hours,
+      location: {
+        city:          h.service_city  || '',
+        state:         h.service_state || '',
+        zip:           h.service_zip   || '',
+        serviceRadius: h.service_radius_miles || 10,
+        radiusUnit:    'miles',
+        servesRemotely:false,
+      },
+      policies: [],
+      reviews,
+      faqs: [],
+      chatSession: {
+        id:            `session_${id}`,
+        destination:   'oxsteed',
+        status:        'ai_assistant',
+        helperStatus:  'offline',
+        oxsteedStatus: 'ai_assistant',
+        timeline:      [],
+        typing:        null,
+      },
+    });
+  } catch (err) {
+    console.error('[getHelperProfile] error:', err);
+    return res.status(500).json({ error: 'Failed to load helper profile' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile };

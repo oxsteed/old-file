@@ -7,12 +7,9 @@
  * Layout:
  *   Desktop (lg+) — left sidebar with FilterPanel, right 3/4 with results grid
  *   Mobile        — FilterPanel in a slide-up drawer, triggered by a sticky bar
- *
- * Filter logic runs client-side against mock data.
- * API integration notes at the bottom of this file.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SlidersHorizontal, X, ChevronDown, Sparkles } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -27,7 +24,7 @@ import HelperCard from '../components/helperDirectory/HelperCard';
 
 import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';
 import { DEFAULT_FILTERS, countActiveFilters } from '../types/helperDirectory';
-import { mockHelpers } from '../mock/helperDirectoryData';
+import { fetchHelpers } from '../api/helpers';
 
 const PAGE_SIZE = 9;
 
@@ -264,22 +261,45 @@ const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => vo
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
-  const [filters, setFilters] = useState<DirectoryFilters>(DEFAULT_FILTERS);
-  const [sort, setSort] = useState<SortOption>('best_match');
-  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
-  const [loadState, setLoadState] = useState<'loading' | 'success'>('loading');
+  const [filters, setFilters]       = useState<DirectoryFilters>(DEFAULT_FILTERS);
+  const [sort, setSort]             = useState<SortOption>('best_match');
+  const [helpers, setHelpers]       = useState<HelperCardData[]>([]);
+  const [total, setTotal]           = useState(0);
+  const [page, setPage]             = useState(1);
+  const [loadState, setLoadState]   = useState<'loading' | 'success' | 'error'>('loading');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Simulate initial data load
-  useEffect(() => {
-    const t = setTimeout(() => setLoadState('success'), 500);
-    return () => clearTimeout(t);
+  // Debounce filter/sort changes so we don't fire on every keystroke
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const load = useCallback(async (f: DirectoryFilters, s: SortOption, p: number, append = false) => {
+    setLoadState('loading');
+    try {
+      const res = await fetchHelpers(f, s, p, PAGE_SIZE);
+      setHelpers((prev) => append ? [...prev, ...res.helpers] : res.helpers);
+      setTotal(res.total);
+      setLoadState('success');
+    } catch {
+      setLoadState('error');
+    }
   }, []);
 
-  // Reset pagination when filters change
+  // Initial load
   useEffect(() => {
-    setDisplayCount(PAGE_SIZE);
-  }, [filters, sort]);
+    load(filters, sort, 1);
+    setPage(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reload on filter / sort change (debounced 300 ms)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      load(filters, sort, 1);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [filters, sort, load]);
 
   const updateFilters = useCallback((partial: Partial<DirectoryFilters>) => {
     setFilters((prev) => ({ ...prev, ...partial }));
@@ -289,21 +309,17 @@ const HelpersDirectoryPage: React.FC = () => {
     setFilters(DEFAULT_FILTERS);
   }, []);
 
-  const filtered = useMemo(
-    () => applySort(applyFilters(mockHelpers, filters), sort),
-    [filters, sort],
-  );
-
-  const displayed = filtered.slice(0, displayCount);
-  const hasMore = displayCount < filtered.length;
+  const displayed        = helpers;
+  const hasMore          = helpers.length < total;
   const activeFilterCount = countActiveFilters(filters);
 
+  const handleShowMore = useCallback(() => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    load(filters, sort, nextPage, true);
+  }, [filters, sort, page, load]);
+
   const handleMessage = useCallback((id: string) => {
-    /**
-     * API INTEGRATION POINT:
-     *   navigate(`/helpers/${id}?openChat=true`)
-     *   or open a global chat widget pre-addressed to this helper
-     */
     window.location.href = `/helpers/${id}`;
   }, []);
 
@@ -336,7 +352,7 @@ const HelpersDirectoryPage: React.FC = () => {
           <SortControls
             value={sort}
             onChange={setSort}
-            resultCount={filtered.length}
+            resultCount={total}
           />
         </div>
       </div>
@@ -370,7 +386,7 @@ const HelpersDirectoryPage: React.FC = () => {
               <SortControls
                 value={sort}
                 onChange={setSort}
-                resultCount={filtered.length}
+                resultCount={total}
               />
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>
@@ -381,7 +397,7 @@ const HelpersDirectoryPage: React.FC = () => {
             </div>
 
             {/* Grid */}
-            {loadState === 'loading' ? (
+            {loadState === 'loading' && displayed.length === 0 ? (
               <div
                 className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
                 aria-busy="true"
@@ -391,7 +407,18 @@ const HelpersDirectoryPage: React.FC = () => {
                   <CardSkeleton key={i} />
                 ))}
               </div>
-            ) : filtered.length === 0 ? (
+            ) : loadState === 'error' ? (
+              <div className="text-center py-16 text-gray-400">
+                <p className="text-lg font-medium text-white mb-2">Something went wrong</p>
+                <p className="text-sm mb-4">We couldn't load helpers right now. Please try again.</p>
+                <button
+                  onClick={() => load(filters, sort, 1)}
+                  className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : displayed.length === 0 ? (
               <EmptyState
                 query={filters.query}
                 hasFilters={activeFilterCount > 0}
@@ -402,7 +429,7 @@ const HelpersDirectoryPage: React.FC = () => {
                 <div
                   className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
                   role="list"
-                  aria-label={`${filtered.length} helpers found`}
+                  aria-label={`${total} helpers found`}
                 >
                   {displayed.map((helper) => (
                     <div key={helper.id} role="listitem">
@@ -415,23 +442,24 @@ const HelpersDirectoryPage: React.FC = () => {
                 {hasMore && (
                   <div className="flex justify-center pt-4">
                     <button
-                      onClick={() => setDisplayCount((n) => n + PAGE_SIZE)}
-                      className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium"
-                      aria-label={`Load more helpers (${filtered.length - displayCount} remaining)`}
+                      onClick={handleShowMore}
+                      disabled={loadState === 'loading'}
+                      className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium disabled:opacity-50"
+                      aria-label={`Load more helpers (${total - displayed.length} remaining)`}
                     >
-                      Show more helpers
+                      {loadState === 'loading' ? 'Loading…' : 'Show more helpers'}
                       <ChevronDown className="w-4 h-4" aria-hidden="true" />
                       <span className="text-gray-500 text-xs">
-                        ({filtered.length - displayCount} more)
+                        ({total - displayed.length} more)
                       </span>
                     </button>
                   </div>
                 )}
 
                 {/* All loaded indicator */}
-                {!hasMore && filtered.length > PAGE_SIZE && (
+                {!hasMore && displayed.length > PAGE_SIZE && (
                   <p className="text-center text-xs text-gray-600 pt-2">
-                    All {filtered.length} helpers shown
+                    All {displayed.length} helpers shown
                   </p>
                 )}
               </>
