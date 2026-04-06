@@ -41,6 +41,7 @@ const lifeDashboardRoutes = require('./routes/lifeDashboard');
 const diditRoutes = require('./routes/didit');
 const businessRoutes = require('./routes/businesses');
 const supportRoutes = require('./routes/support');
+const chatRoutes    = require('./routes/chat');
 const geoRoutes     = require('./routes/geo');
 
 const app = express();
@@ -158,6 +159,7 @@ app.use('/api/geo',     geoRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
+app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
 // ── PRODUCTION STATIC SERVING ────────────────────────────────
