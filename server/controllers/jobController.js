@@ -1,54 +1,135 @@
 const pool = require('../db');
+const { scoreAndMatch } = require('../services/matchService');
 
-// Create a new job
+// ── Privacy: fuzz coordinates by +/- 2 miles for public feed ─────────────────
+const FUZZ_MILES   = 2;
+const MILES_TO_DEG = 1 / 69.0;
+function fuzzCoords(lat, lng) {
+  if (!lat || !lng) return { lat: null, lng: null };
+  return {
+    lat: parseFloat((parseFloat(lat) + (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG).toFixed(6)),
+    lng: parseFloat((parseFloat(lng) + (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG).toFixed(6)),
+  };
+}
+
+// Create a new job (wizard publish)
 exports.createJob = async (req, res) => {
   try {
     const {
-      title, description, category, category_name,
-      job_type, budget_min, budget_max,
+      title, description,
+      category_id, category_name, category,
+      budget_type, budget_min, budget_max,
+      urgency, site_access, job_type_label, notes,
       location_address, location_city, location_state, location_zip,
       location_lat, location_lng,
-      priority, scheduled_date,
-      media_urls
+      requirements, media_urls,
+      // Legacy fields kept for backward compat
+      job_type, priority, scheduled_date,
     } = req.body;
 
-    // Map client fields: client sends 'category' but DB uses category_name
-    const finalCategoryName = category_name || category || null;
-    const finalCategory = category || null;
-
-    // Handle media: uploaded files or provided URLs
-    let images = [];
-    if (req.files && req.files.length > 0) {
-      images = req.files.map(f => f.path || f.location || f.filename);
-    } else if (media_urls) {
-      images = typeof media_urls === 'string' ? JSON.parse(media_urls) : (Array.isArray(media_urls) ? media_urls : []);
+    // ── Validate required fields ──────────────────────────────────────────
+    const errs = {};
+    if (!title || title.trim().length < 10)       errs.title       = 'Title must be at least 10 characters';
+    if (!description || description.trim().length < 50) errs.description = 'Description must be at least 50 characters';
+    if (!location_city)                            errs.location    = 'Location is required';
+    if (Object.keys(errs).length) {
+      return res.status(400).json({ error: 'validation_failed', fields: errs });
     }
 
-    const result = await pool.query(
+    // ── Resolve category ──────────────────────────────────────────────────
+    const finalCategoryId   = category_id   || null;
+    const finalCategoryName = category_name || category || null;
+
+    // ── Resolve media ─────────────────────────────────────────────────────
+    let mediaArr = [];
+    if (req.files && req.files.length > 0) {
+      mediaArr = req.files.map(f => f.path || f.location || f.filename);
+    } else if (media_urls) {
+      mediaArr = typeof media_urls === 'string'
+        ? JSON.parse(media_urls)
+        : (Array.isArray(media_urls) ? media_urls : []);
+    }
+
+    // ── Resolve budget ────────────────────────────────────────────────────
+    const resolvedBudgetType = budget_type || 'open';
+    const resolvedBudgetMin  = resolvedBudgetType !== 'open' ? (budget_min  || null) : null;
+    const resolvedBudgetMax  = resolvedBudgetType !== 'open' ? (budget_max  || null) : null;
+    const isUrgent           = (urgency === 'asap') || (priority === 'urgent');
+
+    // ── Fuzz public coords ────────────────────────────────────────────────
+    const approx = fuzzCoords(location_lat, location_lng);
+
+    // ── Serialise requirements ────────────────────────────────────────────
+    let reqJson = '[]';
+    if (requirements) {
+      reqJson = typeof requirements === 'string' ? requirements : JSON.stringify(requirements);
+    }
+
+    // ── Build location_point expression ──────────────────────────────────
+    const hasGeo = location_lat && location_lng;
+
+    const { rows } = await pool.query(
       `INSERT INTO jobs (
-        client_id, title, description, category_id, category_name,
-        job_type, status, budget_min, budget_max,
-        location_address, location_city, location_state, location_zip,
-        location_lat, location_lng,
-        is_urgent, scheduled_start_at,
-        media_urls
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,'published',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
-      ) RETURNING *`,
+          client_id, title, description,
+          category_id, category_name,
+          budget_type, budget_min, budget_max,
+          urgency, is_urgent,
+          site_access, job_type_label, notes,
+          location_address, location_city, location_state, location_zip,
+          location_lat, location_lng,
+          location_point,
+          location_approx_lat, location_approx_lng,
+          requirements, media_urls,
+          status, expires_at
+       )
+       VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+          $11,$12,$13,$14,$15,$16,$17,$18,$19,
+          ${hasGeo ? `ST_SetSRID(ST_MakePoint($19::float,$18::float),4326)::geography` : 'NULL'},
+          $20,$21,$22,$23,
+          'published', now() + interval '30 days'
+       )
+       RETURNING *`,
       [
-        req.user.id, title, description, null, finalCategoryName,
-        job_type || 'tier1_intro', budget_min || null, budget_max || null,
-        location_address || null, location_city || null, location_state || null,
-        location_zip || null, location_lat || null, location_lng || null,
-        priority === 'urgent', scheduled_date || null,
-        images
+        req.user.id, title.trim(), description.trim(),
+        finalCategoryId, finalCategoryName,
+        resolvedBudgetType, resolvedBudgetMin, resolvedBudgetMax,
+        urgency || 'flexible', isUrgent,
+        site_access || 'easy', job_type_label || job_type || 'one_time', notes || null,
+        location_address || null, location_city, location_state || null, location_zip || null,
+        location_lat  || null, location_lng || null,
+        approx.lat, approx.lng,
+        reqJson, mediaArr,
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    const job = rows[0];
+
+    // ── Synchronous match scoring ─────────────────────────────────────────
+    let matchResult = { total: 0, notified: 0 };
+    try {
+      matchResult = await scoreAndMatch(job);
+    } catch (matchErr) {
+      // Never fail the publish because of match scoring
+      console.error('Match scoring error (non-fatal):', matchErr.message);
+    }
+
+    // ── Clear the user's draft ────────────────────────────────────────────
+    try {
+      await pool.query(
+        `DELETE FROM job_drafts WHERE client_id = $1`,
+        [req.user.id]
+      );
+    } catch (_) { /* non-fatal */ }
+
+    return res.status(201).json({
+      ...job,
+      match_count:  matchResult.total    || 0,
+      notify_count: matchResult.notified || 0,
+    });
   } catch (err) {
     console.error('Create job error:', err);
-    res.status(500).json({ error: 'Failed to create job: ' + err.message, detail: err.message });
+    res.status(500).json({ error: 'Failed to create job: ' + err.message });
   }
 };
 
