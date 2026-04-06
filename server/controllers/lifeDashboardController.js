@@ -343,7 +343,7 @@ exports.getSavedHelpers = async (req, res) => {
       SELECT
         sh.id, sh.helper_id, sh.note, sh.created_at,
         u.first_name, LEFT(u.last_name, 1) || '.' AS last_name,
-        u.avg_rating, u.completed_jobs,
+        hp.avg_rating, hp.completed_jobs_count AS completed_jobs,
         hp.bio, hp.categories
       FROM saved_helpers sh
       JOIN users u ON u.id = sh.helper_id

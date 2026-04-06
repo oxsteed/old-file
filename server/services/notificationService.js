@@ -18,7 +18,7 @@ exports.sendNotification = async ({
   try {
     // Get user prefs
     const { rows: prefRows } = await db.query(`
-      SELECT np.*, u.email, u.first_name, u.status,
+      SELECT np.*, u.email, u.first_name, u.is_banned,
              hp.push_token AS helper_push_token
       FROM users u
       LEFT JOIN notification_preferences np ON np.user_id = u.id
@@ -30,7 +30,7 @@ exports.sendNotification = async ({
     const prefs     = prefRows[0];
     const userEmail = prefs.email;
     const firstName = prefs.first_name;
-    const isBanned  = prefs.status === 'banned';
+    const isBanned  = !!prefs.is_banned;
     const token     = pushToken || prefs.helper_push_token;
 
     // ── 1. Save to DB (in-app) ────────────────────────────────
