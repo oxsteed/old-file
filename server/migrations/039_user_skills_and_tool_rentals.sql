@@ -6,7 +6,7 @@
 -- A user can list skills they offer for hire (used by both customers and helpers)
 CREATE TABLE IF NOT EXISTS user_skills (
   id            SERIAL PRIMARY KEY,
-  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   skill_name    VARCHAR(200) NOT NULL,
   category      VARCHAR(100),
   hourly_rate   NUMERIC(10,2),          -- null = negotiable
@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_user_skills_avail ON user_skills(is_available) WH
 -- A user can list tools/equipment they own and offer for rental
 CREATE TABLE IF NOT EXISTS tool_rentals (
   id              SERIAL PRIMARY KEY,
-  user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name            VARCHAR(200) NOT NULL,
   category        VARCHAR(100),
   description     TEXT,
