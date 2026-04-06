@@ -59,15 +59,18 @@ async function authenticate(req, res, next) {
 
     const { rows } = await pool.query(
       `SELECT
-         id, first_name, last_name, email, phone, role,
-         email_verified, is_verified,
-         onboarding_status, onboarding_completed,
-         contact_completed, profile_completed,
-         tier_selected, w9_completed, terms_accepted,
-         membership_tier, id_verified, background_check_passed,
-         city, state, zip_code
-       FROM users
-       WHERE id = $1`,
+         u.id, u.first_name, u.last_name, u.email, u.phone, u.role,
+         u.email_verified, u.is_verified,
+         u.onboarding_status, u.onboarding_completed,
+         u.contact_completed, u.profile_completed,
+         u.tier_selected, u.w9_completed, u.terms_accepted,
+         u.membership_tier, u.id_verified, u.background_check_passed,
+         u.city, u.state, u.zip_code,
+         u.display_name_preference,
+         b.business_name
+       FROM users u
+       LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
+       WHERE u.id = $1`,
       [decoded.id]
     );
 

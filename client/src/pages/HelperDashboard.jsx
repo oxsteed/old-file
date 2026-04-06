@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import useSubscription from '../hooks/useSubscription';
 import useLifeDashboard from '../hooks/useLifeDashboard';
@@ -89,6 +89,7 @@ export default function HelperDashboard() {
   const [myBids, setMyBids] = useState([]);
   const [nearbyJobs, setNearbyJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [welcomeMsg] = useState(location.state?.message||null);
   const [tab, setTab] = useState('pulse');
 
@@ -114,21 +115,26 @@ export default function HelperDashboard() {
   const [goalForm, setGoalForm] = useState({title:'',goal_type:'financial',target_value:'',icon:'🎯'});
   const [checklistForm, setChecklistForm] = useState({title:'',due_date:''});
 
+  const retryLoad = useCallback(async()=>{
+    setLoading(true);
+    setError(false);
+    try{
+      const p = [api.get('/verification/background-check/status'),api.get('/verification/identity/status'),api.get('/notifications')];
+      if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));}
+      const r = await Promise.allSettled(p);
+      const anyFailed = r.some(res=>res.status==='rejected');
+      if(anyFailed) setError(true);
+      setVerification({backgroundCheck:r[0].status==='fulfilled'?r[0].value.data?.backgroundCheck||null:null,identity:r[1].status==='fulfilled'?r[1].value.data?.identity||null:null});
+      if(r[2].status==='fulfilled'){const n=r[2].value.data?.notifications||r[2].value.data||[];setNotifications(Array.isArray(n)?n:[]);}
+      if(isOnboardingComplete){
+        if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
+        if(r[4]?.status==='fulfilled'){const j=r[4].value.data?.jobs||r[4].value.data||[];setNearbyJobs(Array.isArray(j)?j:[]);}
+      }
+    }catch(e){console.error(e);setError(true);}finally{setLoading(false);}
+  },[isOnboardingComplete]);
+
   useEffect(()=>{
-    const fetchAll = async()=>{
-      try{
-        const p = [api.get('/verification/background-check/status'),api.get('/verification/identity/status'),api.get('/notifications')];
-        if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));}
-        const r = await Promise.allSettled(p);
-        setVerification({backgroundCheck:r[0].status==='fulfilled'?r[0].value.data?.backgroundCheck||null:null,identity:r[1].status==='fulfilled'?r[1].value.data?.identity||null:null});
-        if(r[2].status==='fulfilled'){const n=r[2].value.data?.notifications||r[2].value.data||[];setNotifications(Array.isArray(n)?n:[]);}
-        if(isOnboardingComplete){
-          if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
-          if(r[4]?.status==='fulfilled'){const j=r[4].value.data?.jobs||r[4].value.data||[];setNearbyJobs(Array.isArray(j)?j:[]);}
-        }
-      }catch(e){console.error(e);}finally{setLoading(false);}
-    };
-    fetchAll();
+    retryLoad();
     if(isOnboardingComplete){life.fetchSummary();life.fetchCommunity();life.fetchExpenses();life.fetchBudgets();life.fetchGoals();life.fetchChecklist();}
   },[isOnboardingComplete]);
 
@@ -145,6 +151,12 @@ export default function HelperDashboard() {
   // Derived
   const hr=new Date().getHours();
   const greeting=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+  const displayName = (() => {
+    const pref = user?.display_name_preference || 'first_name';
+    if (pref === 'full_name') return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+    if (pref === 'business_name') return user?.business_name || user?.first_name || '';
+    return user?.first_name || '';
+  })();
   const isProActive=subscription?.status==='active';
   const showOnboarding=!isOnboardingComplete;
   const unreadNotifs=notifications.filter(n=>!n.read&&!n.read_at).length;
@@ -174,7 +186,7 @@ export default function HelperDashboard() {
         <div className="flex items-start justify-between mb-1">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-bold">{showOnboarding?`Welcome, ${user?.first_name||'Helper'}!`:`${greeting}, ${user?.first_name||'Helper'}.`}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">{showOnboarding?`Welcome, ${displayName||'Helper'}!`:`${greeting}, ${displayName||'Helper'}.`}</h1>
               {!showOnboarding&&<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" className="animate-pulse"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>}
             </div>
             <p className="text-gray-500 mt-1 text-sm">{showOnboarding?'Finish setup to go live.':`${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} — Let's get to work.`}</p>
@@ -191,6 +203,12 @@ export default function HelperDashboard() {
 
         {/* ═══════ PULSE ═══════ */}
         {tab==='pulse'&&(<>
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
+              <span>⚠</span>
+              <span>Some data failed to load. <button onClick={retryLoad} className="underline hover:text-red-300">Retry</button></span>
+            </div>
+          )}
           {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/settings')}/></div>}
 
           {/* Life Pulse Score */}
@@ -274,17 +292,18 @@ export default function HelperDashboard() {
             </div>
 
             {/* Nearby jobs */}
-            {nearbyJobs.length>0&&(
-              <Card className="mb-6">
-                <CardHeader icon={IcoZap} title="Jobs Near You" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">View All →</Link>}/>
-                <div className="space-y-2">{nearbyJobs.slice(0,3).map(job=>(
-                  <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
-                    <div className="min-w-0 flex-1"><p className="text-white text-sm font-medium group-hover:text-orange-400 transition truncate">{job.title}</p><p className="text-xs text-gray-500 mt-0.5 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.distance_miles?` · ${job.distance_miles} mi`:''}</p></div>
-                    {(job.budget_min||job.budget_max)&&<span className="text-sm font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}
-                  </Link>
-                ))}</div>
-              </Card>
-            )}
+            <Card className="mb-6">
+              <CardHeader icon={IcoZap} title="Jobs Near You" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">View All →</Link>}/>
+              {nearbyJobs.length===0
+                ? <p className="text-gray-500 text-sm text-center py-6">No nearby jobs right now. Check back soon or <Link to="/jobs" className="text-orange-400 hover:text-orange-300">browse all jobs</Link>.</p>
+                : <div className="space-y-2">{nearbyJobs.slice(0,3).map(job=>(
+                    <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
+                      <div className="min-w-0 flex-1"><p className="text-white text-sm font-medium group-hover:text-orange-400 transition truncate">{job.title}</p><p className="text-xs text-gray-500 mt-0.5 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.distance_miles?` · ${job.distance_miles} mi`:''}</p></div>
+                      {(job.budget_min||job.budget_max)&&<span className="text-sm font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}
+                    </Link>
+                  ))}</div>
+              }
+            </Card>
 
             {/* Community Stats */}
             {life.community && (
@@ -404,7 +423,7 @@ export default function HelperDashboard() {
         {tab==='bids'&&(
           <div>
             <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">My Bids</h3><div className="flex gap-2"><Tag text={`${activeBids.length} active`} color="orange"/><Tag text={`${wonBids.length} won`} color="green"/></div></div>
-            {myBids.length===0?(<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">No bids yet.</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">Browse Jobs</Link></Card>)
+            {myBids.length===0?(<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">No bids yet. Browse available jobs to start bidding.</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">Browse Jobs</Link></Card>)
             :(<div className="space-y-2">{myBids.map(bid=>(
               <Link key={bid.id} to={`/jobs/${bid.job_id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
                 <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title||`Job #${bid.job_id}`}</p><p className="text-xs text-gray-500 mt-1">Bid: <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>

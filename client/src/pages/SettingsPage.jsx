@@ -42,6 +42,7 @@ export default function SettingsPage() {
           phone: u.phone || '',
           bio: u.bio || '',
           zipcode: u.zip_code || u.zipcode || '',
+          display_name_preference: u.display_name_preference || 'first_name',
         });
         setLoading(false);
       })
@@ -60,7 +61,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { first_name, last_name, ...updatableFields } = profile;
+      const { first_name, last_name, bio, ...updatableFields } = profile;
       await api.put('/auth/profile', updatableFields);
       toast.success('Profile updated');
     } catch (err) { toast.error(err.response?.data?.error || 'Failed to update'); }
@@ -224,6 +225,33 @@ export default function SettingsPage() {
             <label className="block text-sm text-gray-400 mb-1">Bio</label>
             <textarea className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white h-24" value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} />
           </div>
+
+          {/* Name display preference */}
+          <div className="mt-4">
+            <label className="block text-sm text-gray-400 mb-1">Display Name</label>
+            <p className="text-xs text-gray-500 mb-2">Choose how your name appears to others on the platform.</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'first_name',    label: 'First name only',  example: user?.first_name || 'Alex' },
+                { value: 'full_name',     label: 'Full name',        example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
+                { value: 'business_name', label: 'Business name',    example: 'Acme Services' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setProfile(p => ({ ...p, display_name_preference: opt.value }))}
+                  className={`flex flex-col items-start p-3 rounded-lg border text-left transition ${profile.display_name_preference === opt.value ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
+                >
+                  <span className="text-xs font-semibold text-white mb-1">{opt.label}</span>
+                  <span className="text-[11px] text-gray-400">{opt.example}</span>
+                </button>
+              ))}
+            </div>
+            {profile.display_name_preference === 'business_name' && (
+              <p className="text-xs text-orange-400 mt-2">⚠ If you have no business added, this falls back to your first name. Add a business below.</p>
+            )}
+          </div>
+
           <button type="submit" disabled={saving} className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition disabled:opacity-50">
             {saving ? 'Saving...' : 'Save Changes'}
           </button>

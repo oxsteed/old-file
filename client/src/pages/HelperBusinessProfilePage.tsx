@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { MessageCircle, X, ArrowUp } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -182,6 +182,7 @@ const SectionNav: React.FC = () => {
 // ── Main page component ───────────────────────────────────────────────────────
 const HelperBusinessProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const [data, setData] = useState<HelperProfileData | null>(null);
   const [loadState, setLoadState] = useState<LoadingState>('idle');
@@ -216,12 +217,9 @@ const HelperBusinessProfilePage: React.FC = () => {
   }, []);
 
   const handleBookNow = useCallback(() => {
-    /**
-     * API INTEGRATION POINT:
-     *   navigate(`/book/${data?.helper.id}`)
-     */
-    setChatOpen(true); // Open chat as a proxy until booking flow exists
-  }, []);
+    const params = new URLSearchParams({ helperId: id!, helperName: data?.helper.businessName || '' });
+    navigate(`/post-job?${params.toString()}`);
+  }, [id, data, navigate]);
 
   const handleOpenChat = useCallback(() => {
     setChatOpen(true);
