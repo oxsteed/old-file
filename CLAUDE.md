@@ -328,8 +328,13 @@ All items from the full production-readiness audit have been addressed. Recorded
 **10. Vite bundle analysis**
 - Run `npx vite-bundle-analyzer` to identify large chunks. `recharts` is likely a culprit — consider lazy-loading it only on pages that use charts.
 
-**11. Service worker / PWA**
-- Helpers work in the field and may have spotty connectivity. A PWA manifest + service worker with offline caching for the dashboard would improve the UX significantly.
+**11. Service worker / PWA** ✅ Done
+- `client/public/manifest.json` — app name, icons, shortcuts, theme color.
+- `client/public/sw.js` — cache-first for static assets, network-first for API calls, navigation fallback to app shell or `offline.html`.
+- `client/public/offline.html` — branded offline page with retry button.
+- `client/index.html` — `<link rel="manifest">` + apple-touch-icon added.
+- `client/src/main.jsx` — SW registered on `window.load`.
+- **Remaining:** add real icon PNGs (`client/public/icons/icon-192.png`, `icon-512.png`) — placeholder paths referenced but files not present (non-breaking; install prompt won't show without valid icons).
 
 **12. Referral system**
 - `REFERRAL_REWARD_TYPE` env var exists. The `referral_code` column is populated on register. A referral tracking page and reward-grant logic has not been implemented.

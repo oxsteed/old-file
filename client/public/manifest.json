@@ -1,0 +1,40 @@
+{
+  "name": "OxSteed",
+  "short_name": "OxSteed",
+  "description": "Find local verified helpers for handyman services, tool rental, and more.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#F97316",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Post a Job",
+      "short_name": "Post Job",
+      "url": "/post-job",
+      "description": "Post a new job for local helpers"
+    },
+    {
+      "name": "My Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View your dashboard"
+    }
+  ],
+  "categories": ["business", "utilities"],
+  "screenshots": []
+}
