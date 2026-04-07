@@ -1,6 +1,6 @@
 /* ============================================================
    OxSteed — HomePage (hp-*)
-   Palette: warm earth · Instrument Serif + Work Sans
+   Palette: orange brand · Instrument Serif + Work Sans
    ============================================================ */
 
 /* ── Tokens ─────────────────────────────────────────────── */
@@ -15,9 +15,9 @@
   --hp-text-muted:   #6e6c66;
   --hp-text-faint:   #b0aea9;
   --hp-text-inv:     #f9f8f4;
-  --hp-primary:      #01696f;
-  --hp-primary-h:    #0c4e54;
-  --hp-primary-bg:   #e8f2f2;
+  --hp-primary:      #F97316;
+  --hp-primary-h:    #ea6a0a;
+  --hp-primary-bg:   #fff3e8;
   --hp-amber:        #c07a10;
   --hp-amber-bg:     #fdf3e3;
   --hp-green:        #3d7520;
@@ -330,9 +330,9 @@
   --hp-text-muted:   #a8a49d;
   --hp-text-faint:   #6b6760;
   --hp-text-inv:     #f4f1ec;
-  --hp-primary:      #14a8ae;   /* slightly brighter teal for dark bg */
-  --hp-primary-h:    #0e8a90;
-  --hp-primary-bg:   rgba(20,168,174,0.12);
+  --hp-primary:      #F97316;   /* brand orange — consistent across light/dark */
+  --hp-primary-h:    #ea6a0a;
+  --hp-primary-bg:   rgba(249,115,22,0.12);
   --hp-amber:        #d4960a;
   --hp-amber-bg:     rgba(212,150,10,0.12);
   --hp-green:        #4f9a2e;
@@ -364,7 +364,7 @@
 .dark .hp-mock-bid > div:last-child > div:first-child { color: var(--hp-text); }
 
 /* Theme toggle on homepage nav */
-.dark .hp-nav .theme-toggle-track { background: #14a8ae; }
+.dark .hp-nav .theme-toggle-track { background: #F97316; }
 
 /* CTA inner box */
 .dark .hp-cta-inner {
