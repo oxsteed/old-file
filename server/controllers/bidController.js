@@ -104,3 +104,26 @@ exports.withdrawBid = async (req, res) => {
     res.status(500).json({ error: 'Failed to withdraw bid' });
   }
 };
+
+// Get recent bids (public, for homepage)
+exports.getRecentBids = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT b.id, b.amount, b.created_at,
+        j.title as job_title, j.location_city, j.location_state,
+        u.first_name, LEFT(u.last_name, 1) as last_initial,
+        hp.avg_rating, hp.is_licensed, hp.is_insured, hp.is_verified
+      FROM bids b
+      JOIN jobs j ON b.job_id = j.id
+      JOIN users u ON b.helper_id = u.id
+      LEFT JOIN helper_profiles hp ON hp.user_id = b.helper_id
+      WHERE b.status = 'pending' AND j.status IN ('published', 'matched')
+      ORDER BY b.created_at DESC
+      LIMIT 6`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get recent bids error:', err);
+    res.status(500).json({ error: 'Failed to fetch recent bids' });
+  }
+};
