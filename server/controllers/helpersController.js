@@ -438,4 +438,183 @@ async function getHelperStatus(req, res) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses };
+// ── GET /api/helpers/:id/availability ────────────────────────────────────────
+// Dynamic endpoint: returns live availability data (fetched client-side after page load)
+async function getHelperAvailability(req, res) {
+  try {
+    const { id } = req.params;
+    const { rows: [hp] } = await pool.query(
+      `SELECT hp.availability_json, hp.is_available_now, hp.response_time_hours
+       FROM helper_profiles hp
+       JOIN users u ON u.id = hp.user_id
+       WHERE hp.user_id = $1
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE`,
+      [id]
+    );
+    if (!hp) return res.status(404).json({ error: 'Helper not found' });
+
+    const avail = hp.availability_json || {};
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const schedule = DAY_NAMES.map((day) => {
+      const key = day.toLowerCase();
+      const dayData = avail[key] || avail[day] || null;
+      if (!dayData || dayData.closed) {
+        return { day, open: null, close: null, closed: true };
+      }
+      return {
+        day,
+        open: dayData.start || dayData.open || '9:00 AM',
+        close: dayData.end || dayData.close || '5:00 PM',
+        closed: false,
+      };
+    });
+
+    // Determine if currently within business hours
+    const now = new Date();
+    const todayIdx = now.getDay();
+    const todaySchedule = schedule[todayIdx];
+    const isOpenNow = !todaySchedule.closed && !!hp.is_available_now;
+
+    const online = socketService.isOnline(id);
+
+    return res.json({
+      schedule,
+      isAvailableNow: !!hp.is_available_now,
+      isOpenNow,
+      isOnline: online,
+      responseTime: formatResponseTime(hp.response_time_hours),
+      responseTimeHours: hp.response_time_hours,
+    });
+  } catch (err) {
+    console.error('[getHelperAvailability] error:', err);
+    return res.status(500).json({ error: 'Failed to load availability' });
+  }
+}
+
+// ── GET /api/helpers/:id/pricing ─────────────────────────────────────────────
+// Dynamic endpoint: returns current pricing info (fetched client-side after page load)
+async function getHelperPricing(req, res) {
+  try {
+    const { id } = req.params;
+    const { rows: [hp] } = await pool.query(
+      `SELECT hp.hourly_rate_min, hp.hourly_rate_max,
+             hp.rate_preference, hp.flat_rate_available,
+             hp.contact_for_pricing
+       FROM helper_profiles hp
+       JOIN users u ON u.id = hp.user_id
+       WHERE hp.user_id = $1
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE`,
+      [id]
+    );
+    if (!hp) return res.status(404).json({ error: 'Helper not found' });
+
+    // Fetch service-level pricing from helper_skills if available
+    const { rows: serviceRows } = await pool.query(
+      `SELECT hs.skill_name, hs.hourly_rate, hs.flat_rate,
+             c.name AS category_name
+       FROM helper_skills hs
+       JOIN categories c ON c.id = hs.category_id
+       WHERE hs.user_id = $1
+       ORDER BY c.name, hs.skill_name`,
+      [id]
+    );
+
+    const servicePricing = serviceRows.map((s) => ({
+      name: s.skill_name,
+      category: s.category_name,
+      hourlyRate: s.hourly_rate ? parseFloat(s.hourly_rate) : null,
+      flatRate: s.flat_rate ? parseFloat(s.flat_rate) : null,
+    }));
+
+    return res.json({
+      hourlyRateMin: hp.hourly_rate_min ? parseFloat(hp.hourly_rate_min) : null,
+      hourlyRateMax: hp.hourly_rate_max ? parseFloat(hp.hourly_rate_max) : null,
+      ratePreference: hp.rate_preference || 'hourly',
+      flatRateAvailable: !!hp.flat_rate_available,
+      contactForPricing: !!hp.contact_for_pricing,
+      servicePricing,
+    });
+  } catch (err) {
+    console.error('[getHelperPricing] error:', err);
+    return res.status(500).json({ error: 'Failed to load pricing' });
+  }
+}
+
+// ── GET /api/helpers/:id/slots ───────────────────────────────────────────────
+// Dynamic endpoint: returns available booking slots for the current week
+async function getHelperSlots(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Get helper's availability schedule
+    const { rows: [hp] } = await pool.query(
+      `SELECT hp.availability_json, hp.is_available_now
+       FROM helper_profiles hp
+       JOIN users u ON u.id = hp.user_id
+       WHERE hp.user_id = $1
+         AND u.deleted_at IS NULL
+         AND u.email_verified = TRUE`,
+      [id]
+    );
+    if (!hp) return res.status(404).json({ error: 'Helper not found' });
+
+    // Get existing bookings for this week to subtract from available slots
+    const now = new Date();
+    const weekEnd = new Date(now);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const { rows: bookedSlots } = await pool.query(
+      `SELECT j.scheduled_date, j.scheduled_time, j.estimated_hours
+       FROM jobs j
+       WHERE j.helper_id = $1
+         AND j.status IN ('accepted', 'in_progress')
+         AND j.scheduled_date >= $2
+         AND j.scheduled_date <= $3
+       ORDER BY j.scheduled_date, j.scheduled_time`,
+      [id, now.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]]
+    );
+
+    const avail = hp.availability_json || {};
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // Generate slots for the next 7 days
+    const slots = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + i);
+      const dayName = DAY_NAMES[date.getDay()];
+      const key = dayName.toLowerCase();
+      const dayData = avail[key] || avail[dayName] || null;
+
+      if (!dayData || dayData.closed) continue;
+
+      const dateStr = date.toISOString().split('T')[0];
+      const dayBookings = bookedSlots.filter(
+        (b) => b.scheduled_date && b.scheduled_date.toISOString().split('T')[0] === dateStr
+      );
+
+      slots.push({
+        date: dateStr,
+        dayName,
+        open: dayData.start || dayData.open || '9:00 AM',
+        close: dayData.end || dayData.close || '5:00 PM',
+        bookedCount: dayBookings.length,
+        hasOpenings: dayBookings.length < 4,
+      });
+    }
+
+    return res.json({
+      slots,
+      weekOf: now.toISOString().split('T')[0],
+      totalOpenDays: slots.length,
+      totalBookedSlots: bookedSlots.length,
+    });
+  } catch (err) {
+    console.error('[getHelperSlots] error:', err);
+    return res.status(500).json({ error: 'Failed to load slots' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots };
