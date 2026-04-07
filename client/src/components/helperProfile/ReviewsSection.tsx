@@ -64,6 +64,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
               src={review.authorAvatar}
               alt=""
               aria-hidden="true"
+              loading="lazy"
               className="w-9 h-9 rounded-full object-cover flex-shrink-0 bg-gray-700"
             />
           ) : (

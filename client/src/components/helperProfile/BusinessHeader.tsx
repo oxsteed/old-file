@@ -44,7 +44,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
           src={helper.coverImage}
           alt={`${helper.businessName} cover`}
           className="w-full h-full object-cover"
-          loading="eager"
+          loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-900/30 to-gray-900/90" />
       </div>
@@ -60,7 +60,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
                   src={helper.avatar}
                   alt={helper.ownerName}
                   className="w-full h-full object-cover"
-                  loading="eager"
+                  loading="lazy"
                 />
               </div>
               {helper.verified && (

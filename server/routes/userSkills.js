@@ -11,22 +11,25 @@ const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
 const pool    = require('../db');
 
-// GET /api/user-skills/lookup?q=plumb&limit=20
-router.get('/lookup', authenticate, async (req, res) => {
+// GET /api/user-skills/lookup?q=plumb&limit=20&offset=0
+// Public — no auth required (needed for job-post autocomplete)
+router.get('/lookup', async (req, res) => {
   try {
-    const { q = '', limit = 20 } = req.query;
+    const { q = '', limit = 20, offset = 0 } = req.query;
+    const limitN  = Math.min(Math.max(1, parseInt(limit)  || 20), 100);
+    const offsetN = Math.max(0, parseInt(offset) || 0);
     const result = await pool.query(
       `SELECT id, name, category
          FROM skills_lookup
         WHERE is_active = true
-          AND (name ILIKE $1 OR category ILIKE $1)
+          AND ($1 = '' OR name ILIKE $2 OR category ILIKE $2)
         ORDER BY name
-        LIMIT $2`,
-      [`%${q}%`, Math.min(parseInt(limit) || 20, 50)]
+        LIMIT $3 OFFSET $4`,
+      [q, `%${q}%`, limitN, offsetN]
     );
-    res.json({ skills: result.rows });
+    res.json({ skills: result.rows, limit: limitN, offset: offsetN });
   } catch (err) {
-    console.error('[userSkills] lookup error:', err.message);
+    require('../utils/logger').error('[userSkills] lookup error', err);
     res.status(500).json({ error: 'Failed to search skills' });
   }
 });
@@ -44,7 +47,7 @@ router.get('/me', authenticate, async (req, res) => {
     );
     res.json({ skills: result.rows });
   } catch (err) {
-    console.error('[userSkills] list error:', err.message);
+    require('../utils/logger').error('[userSkills] list error:', err.message);
     res.status(500).json({ error: 'Failed to fetch skills' });
   }
 });
@@ -87,7 +90,7 @@ router.post('/', authenticate, async (req, res) => {
 
     res.status(201).json({ skill: result.rows[0] });
   } catch (err) {
-    console.error('[userSkills] create error:', err.message);
+    require('../utils/logger').error('[userSkills] create error:', err.message);
     res.status(500).json({ error: 'Failed to save skill' });
   }
 });
@@ -129,7 +132,7 @@ router.put('/:id', authenticate, async (req, res) => {
     }
     res.json({ skill: result.rows[0] });
   } catch (err) {
-    console.error('[userSkills] update error:', err.message);
+    require('../utils/logger').error('[userSkills] update error:', err.message);
     res.status(500).json({ error: 'Failed to update skill' });
   }
 });
@@ -146,7 +149,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
     res.json({ deleted: true });
   } catch (err) {
-    console.error('[userSkills] delete error:', err.message);
+    require('../utils/logger').error('[userSkills] delete error:', err.message);
     res.status(500).json({ error: 'Failed to delete skill' });
   }
 });
