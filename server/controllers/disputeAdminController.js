@@ -72,7 +72,8 @@ exports.getDisputeDetail = async (req, res) => {
 exports.resolveDispute = async (req, res) => {
   try {
     const { disputeId } = req.params;
-    const { resolution, admin_notes } = req.body;
+    const { resolution, admin_notes, resolution_notes } = req.body;
+    const notes = admin_notes || resolution_notes || null; // accept both field names
     const adminId = req.user.id;
 
     if (!resolution) {
@@ -102,7 +103,7 @@ exports.resolveDispute = async (req, res) => {
           resolved_by = $3,
           resolved_at = NOW()
       WHERE id = $4
-    `, [resolution, admin_notes || null, adminId, disputeId]);
+    `, [resolution, notes, adminId, disputeId]);
 
     // Log admin action
     try {
@@ -111,7 +112,7 @@ exports.resolveDispute = async (req, res) => {
         action: 'resolve_dispute',
         targetType: 'dispute',
         targetId: disputeId,
-        details: { resolution, admin_notes }
+        details: { resolution, admin_notes: notes }
       });
     } catch (logErr) {
       console.error('Failed to log admin action:', logErr);

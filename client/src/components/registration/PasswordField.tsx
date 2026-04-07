@@ -58,6 +58,8 @@ export default function PasswordField({ value, onChange, error }: Props) {
           placeholder="Create a strong password"
           autoComplete="new-password"
           required
+          aria-invalid={!!error}
+          aria-describedby={error ? 'err-password' : undefined}
           className={`w-full py-3 pl-10 pr-10 bg-gray-800/50 border rounded-lg text-white text-sm placeholder-gray-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 ${
             error ? 'border-red-500 bg-red-900/20' : 'border-gray-700 hover:border-gray-600'
           }`}
@@ -116,8 +118,8 @@ export default function PasswordField({ value, onChange, error }: Props) {
 
       {/* Error */}
       {error && (
-        <p className="text-[11px] text-red-400 flex items-center gap-1 mt-0.5" role="alert">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <p id="err-password" className="text-[11px] text-red-400 flex items-center gap-1 mt-0.5" role="alert">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           {error}

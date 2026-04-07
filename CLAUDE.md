@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-07 (commit `cb458cd`)
+**Last updated:** 2026-04-07 (commit pending)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -295,8 +295,11 @@ All items from the full production-readiness audit have been addressed. Recorded
 - All 5 priority controller test files written: job, payment, bid, review, webhook.
 - setup.js Stripe mock expanded with subscriptions, accounts, accountLinks.
 
-**3. Admin panel polish**
-- The admin panel has 17 pages (all implemented), but some pages may have stale data shapes after the recent API changes. Spot-check `DisputeResolve`, `UserDetail`, and `Revenue` against current controller responses.
+**3. Admin panel polish** ✅ Done
+- `disputeAdminController.js` — `resolveDispute` now accepts both `admin_notes` and `resolution_notes` field names; `resolved_by` field populated.
+- `superAdminController.js` — `getUserDetail` normalizes `avg_rating→average_rating`, `completed_jobs_count→completed_jobs`, `stripe_charges_enabled→charges_enabled`, `stripe_payouts_enabled→payouts_enabled`; adds `recentPayouts` from payments table; returns `{ user, recentJobs, recentPayouts, recentReviews, billing: [] }`.
+- Added `GET /admin/super/revenue` → `getRevenueSummary` (stats: totalRevenue, subscriptionRevenue, jobFeeRevenue, refunds, growth%; transactions list). Matches `Revenue.jsx` shape.
+- Added `GET /admin/super/revenue/export` → `getRevenueExport` (CSV download, period-filtered).
 
 **4. Redis provisioning (ops, not code)**
 - Code is ready. Just needs `REDIS_URL` set in Coolify when a Redis instance is provisioned.
@@ -311,10 +314,11 @@ All items from the full production-readiness audit have been addressed. Recorded
 **6. Error boundary per-route** ✅ Done
 - `App.jsx`: every route element wrapped in `<Guarded>` (thin ErrorBoundary wrapper). Root boundary kept for catastrophic failures.
 
-**7. Accessibility pass**
-- Forms lack `aria-describedby` for validation errors.
-- Several modals are missing `role="dialog"` and `aria-modal="true"`.
-- Keyboard trap inside modals should use a focus-trap library.
+**7. Accessibility pass** ✅ Done (partial — highest-impact items)
+- `AccountForm.tsx` — all validated inputs now have `aria-invalid` + `aria-describedby` pointing to their `FieldError` id. `FieldError` accepts and renders an `id` prop.
+- `PasswordField.tsx` — `aria-invalid`, `aria-describedby="err-password"` on input; `id="err-password"` + `aria-hidden` on error SVG icon.
+- `ReviewModal.jsx` — fixed broken `<label>` tags (rendered as `abel`); added `role="dialog"` `aria-modal="true"` `aria-labelledby="review-modal-title"` to backdrop div; error div has `role="alert"`.
+- Keyboard trap and focus-trap library integration not added — requires a dependency (e.g. `focus-trap-react`) and testing across all modal contexts. Low-risk to defer.
 
 **8. Notification preferences** ✅ Done
 - `client/src/components/NotificationPreferences.jsx` — toggle UI grouped by In-App / Push / Email, auto-saves on change via `PUT /api/notifications/preferences`.
@@ -326,8 +330,10 @@ All items from the full production-readiness audit have been addressed. Recorded
 
 ### Low Priority / Nice to Have
 
-**10. Vite bundle analysis**
-- Run `npx vite-bundle-analyzer` to identify large chunks. `recharts` is likely a culprit — consider lazy-loading it only on pages that use charts.
+**10. Vite bundle analysis** ✅ Analyzed
+- `vite-bundle-visualizer` run. Main chunk ~600KB (gzip ~180KB), admin chunk ~501KB (gzip ~150KB).
+- Largest contributors: `recharts` (~180KB), `lucide-react` (~90KB tree-shaken), `stripe-js`.
+- Actionable: lazy-load `recharts` on `RevenueChart` and `Dashboard` pages only. Not implemented — safe to defer, app is functional. Do with: `const { LineChart } = await import('recharts')` or React.lazy on chart-heavy pages.
 
 **11. Service worker / PWA** ✅ Done
 - `client/public/manifest.json` — app name, icons, shortcuts, theme color.
