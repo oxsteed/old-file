@@ -303,19 +303,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* -- Stats strip -- */}
-      <section className="hp-stats">
-        <div className="hp-container">
-          <div className="hp-stats-grid">
-            <div className="hp-stat"><span className="hp-stat-num">Free</span><span className="hp-stat-label">to list your skills</span></div>
-            <div className="hp-stat-div" aria-hidden="true"/>
-            <div className="hp-stat"><span className="hp-stat-num">19+</span><span className="hp-stat-label">skill categories</span></div>
-            <div className="hp-stat-div" aria-hidden="true"/>
-            <div className="hp-stat"><span className="hp-stat-num">Nationwide</span><span className="hp-stat-label">available across the US</span></div>
-          </div>
-        </div>
-      </section>
-
       {/* -- Helper CTA -- */}
       <section className="hp-section hp-cta-section">
         <div className="hp-container">
