@@ -25,6 +25,7 @@ import HelperCard from '../components/helperDirectory/HelperCard';
 import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';
 import { DEFAULT_FILTERS, countActiveFilters } from '../types/helperDirectory';
 import { fetchHelpers } from '../api/helpers';
+import PageMeta from '../components/PageMeta';
 
 const PAGE_SIZE = 9;
 
@@ -325,6 +326,11 @@ const HelpersDirectoryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      <PageMeta
+        title="Find Local Helpers Near You"
+        description="Browse verified local helpers for electrical, plumbing, landscaping, handyman work and more. Compare bids and hire with confidence."
+        url="https://oxsteed.com/helpers"
+      />
       <Navbar />
 
       {/* Hero + search */}

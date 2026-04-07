@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import '../styles/HomePage.css';
 import ThemeToggle from '../components/ThemeToggle';
+import PageMeta from '../components/PageMeta';
 
 const CATEGORIES = [
   { slug: 'electrical',  icon: '⚡', name: 'Electrical',       desc: 'Wiring, panels, EV chargers' },
@@ -20,6 +21,11 @@ const CATEGORIES = [
 export default function HomePage() {
   return (
     <div className="hp-root">
+      <PageMeta
+        title="OxSteed — Hire Local Help Today"
+        description="Post a job, compare bids from verified local helpers, and pay securely with optional escrow. Free to start."
+        url="https://oxsteed.com"
+      />
       {/* -- Nav -- */}
       <nav className="hp-nav" aria-label="Main navigation">
         <Link to="/" className="hp-logo">

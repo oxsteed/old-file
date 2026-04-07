@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const logger = require('../utils/logger');
 
 let redisClient = null;
 let RedisStore = null;
@@ -17,20 +18,20 @@ if (process.env.REDIS_URL) {
       },
     });
     redisClient.connect()
-      .then(() => console.log('[RateLimit] Redis connected'))
+      .then(() => logger.info('Rate limiter: Redis connected'))
       .catch(err => {
-        console.warn('[RateLimit] Redis connect failed:', err.message);
+        logger.warn('Rate limiter: Redis connect failed — falling back to memory', { message: err.message });
         redisClient = null;
       });
-    redisClient.on('error', (err) => console.warn('[RateLimit] Redis error:', err.message));
-    console.log('[RateLimit] Using Redis store');
+    redisClient.on('error', (err) => logger.warn('Rate limiter: Redis error', { message: err.message }));
+    logger.info('Rate limiter: using Redis store');
   } catch (err) {
-    console.warn('[RateLimit] Redis store unavailable, falling back to memory:', err.message);
+    logger.warn('Rate limiter: Redis store unavailable — falling back to memory', { message: err.message });
     redisClient = null;
     RedisStore = null;
   }
 } else {
-  console.log('[RateLimit] REDIS_URL not set, using in-memory store');
+  logger.info('Rate limiter: REDIS_URL not set — using in-memory store (not suitable for multi-instance)');
 }
 
 // Helper to create a unique RedisStore per limiter

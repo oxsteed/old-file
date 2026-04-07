@@ -4,6 +4,7 @@ import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
 import '../styles/PostJobPage.css';
+import PageMeta from '../components/PageMeta';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -380,7 +381,12 @@ export default function PostJobPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="pjw-root">
-
+      <PageMeta
+        title="Post a Job"
+        description="Describe what you need done and get competitive bids from trusted local helpers within hours. Free to post."
+        url="https://oxsteed.com/post-job"
+        noIndex={true}
+      />
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav className="pjw-nav" aria-label="Main navigation">
         <Link to="/" className="pjw-nav-logo">

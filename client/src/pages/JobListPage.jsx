@@ -4,6 +4,7 @@ import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import TrustKeys from '../components/TrustKeys';
 import '../styles/JobListPage.css';
+import PageMeta from '../components/PageMeta';
 
 const CATEGORIES = [
   { name: 'Handyman', icon: '🛠️' },
@@ -32,6 +33,11 @@ export default function JobListPage() {
 
   return (
     <div className="job-list-page">
+      <PageMeta
+        title="Browse Open Jobs"
+        description="Find jobs in your area posted by homeowners and businesses. Bid on work that matches your skills and schedule."
+        url="https://oxsteed.com/jobs"
+      />
       {/* Navbar - matches HomePage */}
       <nav className="jlp-navbar">
         <Link to="/" className="jlp-logo">OxSteed</Link>

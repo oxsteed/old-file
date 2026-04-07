@@ -14,6 +14,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import PageMeta from '../components/PageMeta';
 import { MessageCircle, X, ArrowUp } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -255,6 +256,16 @@ const HelperBusinessProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      <PageMeta
+        title={helper.businessName || helper.ownerName}
+        description={
+          helper.tagline ||
+          `Hire ${helper.businessName || helper.ownerName} on OxSteed — verified local helper in ${helper.city || 'your area'}.`
+        }
+        image={helper.coverImage || helper.avatar}
+        url={`https://oxsteed.com/helpers/${id}`}
+        type="profile"
+      />
       <Navbar />
 
       {/* Business hero header */}
