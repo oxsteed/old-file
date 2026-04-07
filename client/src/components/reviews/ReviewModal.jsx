@@ -54,7 +54,8 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center
-                        bg-black/50 px-4">
+                        bg-black/50 px-4"
+          role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
 
             {done ? (
@@ -70,7 +71,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
             ) : (
               <>
                 <div className="flex items-center justify-between mb-5">
-                  <h3 className="font-bold text-gray-900 text-lg">
+                  <h3 id="review-modal-title" className="font-bold text-gray-900 text-lg">
                     Review {revieweeName}
                   </h3>
                   <button
@@ -84,8 +85,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Star rating */}
                   <div>
-                    abel className="block text-sm font-medium
-                                      text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2" id="rating-label">
                       Overall Rating
                     </label>
                     <div className="flex items-center gap-1">
@@ -119,14 +119,14 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
 
                   {/* Title */}
                   <div>
-                    abel className="block text-sm font-medium
-                                      text-gray-700 mb-1">
+                    <label htmlFor="review-title" className="block text-sm font-medium text-gray-700 mb-1">
                       Headline
                       <span className="text-gray-400 font-normal ml-1">
                         (optional)
                       </span>
                     </label>
                     <input
+                      id="review-title"
                       type="text"
                       value={title}
                       onChange={e => setTitle(e.target.value)}
@@ -140,14 +140,14 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
 
                   {/* Body */}
                   <div>
-                    abel className="block text-sm font-medium
-                                      text-gray-700 mb-1">
+                    <label htmlFor="review-body" className="block text-sm font-medium text-gray-700 mb-1">
                       Written Review
                       <span className="text-gray-400 font-normal ml-1">
                         (optional)
                       </span>
                     </label>
                     <textarea
+                      id="review-body"
                       value={body}
                       onChange={e => setBody(e.target.value)}
                       rows={4}
@@ -164,7 +164,9 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   </div>
 
                   {error && (
-                    <div className="bg-red-50 border border-red-200
+                    <div id="review-error"
+                      role="alert"
+                      className="bg-red-50 border border-red-200
                                     text-red-700 text-sm rounded-lg
                                     px-4 py-3">
                       {error}

@@ -2,6 +2,7 @@ const db = require('../db');
 const { logAdminAction } = require('../services/auditService');
 const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
+const logger = require('../utils/logger');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -119,21 +120,52 @@ exports.getUsers = async (req, res) => {
 exports.getUserDetail = async (req, res) => {
   try {
     const { userId } = req.params;
-    const hasHP = await tableExists('helper_profiles');
+    const hasHP   = await tableExists('helper_profiles');
     const hasSubs = await tableExists('subscriptions');
     const hasPlan = hasSubs && await tableExists('plans');
     const cols = ['u.*'];
     const joins = [];
     if (hasSubs) { joins.push("LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'"); cols.push('s.status AS sub_status, s.stripe_subscription_id, s.current_period_start, s.current_period_end, s.cancel_at_period_end'); }
     if (hasPlan) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); cols.push('p.slug AS plan_slug, p.name AS plan_name'); }
-    if (hasHP) { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); cols.push('hp.bio_short, hp.bio_long, hp.avg_rating, hp.total_reviews, hp.completed_jobs_count, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.hourly_rate_min, hp.hourly_rate_max, hp.service_city, hp.service_state, hp.stripe_account_id, hp.stripe_charges_enabled, hp.stripe_payouts_enabled'); }
+    if (hasHP)   { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); cols.push('hp.bio_short, hp.bio_long, hp.avg_rating, hp.total_reviews, hp.completed_jobs_count, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.hourly_rate_min, hp.hourly_rate_max, hp.service_city, hp.service_state, hp.stripe_account_id, hp.stripe_charges_enabled, hp.stripe_payouts_enabled'); }
     const { rows: userRows } = await db.query(`SELECT ${cols.join(', ')} FROM users u ${joins.join(' ')} WHERE u.id = $1`, [userId]);
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
-    let recentJobs = [], recentReviews = [];
-    if (await tableExists('jobs')) { const r = await db.query(`SELECT id, title, status, job_value, created_at FROM jobs WHERE client_id = $1 OR assigned_helper_id = $1 ORDER BY created_at DESC LIMIT 10`, [userId]); recentJobs = r.rows; }
-    if (await tableExists('reviews')) { const r = await db.query(`SELECT r.rating, r.comment, r.created_at, u.first_name || ' ' || u.last_name AS reviewer_name FROM reviews r JOIN users u ON r.reviewer_id = u.id WHERE r.reviewee_id = $1 ORDER BY r.created_at DESC LIMIT 5`, [userId]); recentReviews = r.rows; }
-    res.json({ user: userRows[0], recentJobs, recentReviews });
-  } catch (err) { console.error('getUserDetail error:', err); res.status(500).json({ error: 'Failed to fetch user detail.' }); }
+
+    const raw = userRows[0];
+    // Normalize field names to match what the admin UI expects
+    const user = {
+      ...raw,
+      average_rating:   raw.avg_rating,
+      completed_jobs:   raw.completed_jobs_count,
+      charges_enabled:  raw.stripe_charges_enabled,
+      payouts_enabled:  raw.stripe_payouts_enabled,
+    };
+
+    let recentJobs = [], recentReviews = [], recentPayouts = [];
+    if (await tableExists('jobs')) {
+      const r = await db.query(
+        `SELECT id, title, status, job_value AS final_price, created_at
+         FROM jobs WHERE client_id = $1 OR assigned_helper_id = $1
+         ORDER BY created_at DESC LIMIT 10`, [userId]);
+      recentJobs = r.rows;
+    }
+    if (await tableExists('reviews')) {
+      const r = await db.query(
+        `SELECT r.rating, r.comment, r.created_at, u2.first_name || ' ' || u2.last_name AS reviewer_name
+         FROM reviews r JOIN users u2 ON r.reviewer_id = u2.id
+         WHERE r.reviewee_id = $1 ORDER BY r.created_at DESC LIMIT 5`, [userId]);
+      recentReviews = r.rows;
+    }
+    if (await tableExists('payments')) {
+      const r = await db.query(
+        `SELECT j.title AS job_title, p.created_at AS completed_at, p.helper_amount_cents AS net_to_helper_cents
+         FROM payments p JOIN jobs j ON p.job_id = j.id
+         WHERE p.helper_id = $1 AND p.status = 'captured'
+         ORDER BY p.created_at DESC LIMIT 10`, [userId]);
+      recentPayouts = r.rows;
+    }
+    res.json({ user, recentJobs, recentPayouts, recentReviews, billing: [] });
+  } catch (err) { logger.error('getUserDetail error', { err }); res.status(500).json({ error: 'Failed to fetch user detail.' }); }
 };
 
 exports.toggleUserBan = async (req, res) => {
@@ -257,6 +289,117 @@ exports.issueManualRefund = async (req, res) => {
 
 exports.getPayouts = async (req, res) => {
   res.json({ payouts: [], page: 1, limit: 25, message: 'Payouts table pending migration.' });
+};
+
+exports.getRevenueSummary = async (req, res) => {
+  try {
+    const { period = '30d' } = req.query;
+    const intervalMap = {
+      '7d':  { interval: '7 days',   prev: '14 days'  },
+      '30d': { interval: '30 days',  prev: '60 days'  },
+      '90d': { interval: '90 days',  prev: '180 days' },
+      '1y':  { interval: '1 year',   prev: '2 years'  },
+    };
+    const { interval, prev } = intervalMap[period] || intervalMap['30d'];
+
+    const hasLedger = await tableExists('platform_ledger');
+    if (!hasLedger) {
+      return res.json({ stats: { totalRevenue: 0, subscriptionRevenue: 0, jobFeeRevenue: 0, refunds: 0, growth: 0 }, transactions: [] });
+    }
+
+    // Current period totals
+    const { rows: totals } = await db.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS total_revenue,
+        COALESCE(SUM(CASE WHEN source_type = 'subscription' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS subscription_revenue,
+        COALESCE(SUM(CASE WHEN source_type = 'job_fee' AND amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS job_fee_revenue,
+        COALESCE(SUM(CASE WHEN amount_cents < 0 THEN ABS(amount_cents) ELSE 0 END), 0)::float / 100 AS refunds
+      FROM platform_ledger
+      WHERE created_at >= now() - $1::interval
+    `, [interval]);
+
+    // Previous period for growth calc
+    const { rows: prevTotals } = await db.query(`
+      SELECT COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0)::float / 100 AS total_revenue
+      FROM platform_ledger
+      WHERE created_at >= now() - $1::interval AND created_at < now() - $2::interval
+    `, [prev, interval]);
+
+    const current = totals[0].total_revenue;
+    const previous = prevTotals[0].total_revenue;
+    const growth = previous > 0 ? ((current - previous) / previous) * 100 : 0;
+
+    // Recent transactions
+    const { rows: transactions } = await db.query(`
+      SELECT
+        pl.id AS _id,
+        pl.created_at AS "createdAt",
+        pl.source_type AS type,
+        pl.amount_cents::float / 100 AS amount,
+        CASE WHEN pl.amount_cents >= 0 THEN 'completed' ELSE 'refunded' END AS status,
+        u.email AS "userEmail",
+        json_build_object('name', u.first_name || ' ' || u.last_name) AS user
+      FROM platform_ledger pl
+      LEFT JOIN users u ON pl.user_id = u.id
+      WHERE pl.created_at >= now() - $1::interval
+      ORDER BY pl.created_at DESC
+      LIMIT 50
+    `, [interval]);
+
+    res.json({
+      stats: {
+        totalRevenue:        totals[0].total_revenue,
+        subscriptionRevenue: totals[0].subscription_revenue,
+        jobFeeRevenue:       totals[0].job_fee_revenue,
+        refunds:             totals[0].refunds,
+        growth:              Math.round(growth * 10) / 10,
+      },
+      transactions,
+    });
+  } catch (err) {
+    logger.error('getRevenueSummary error', { err });
+    res.status(500).json({ error: 'Failed to fetch revenue summary.' });
+  }
+};
+
+exports.getRevenueExport = async (req, res) => {
+  try {
+    const { period = '30d' } = req.query;
+    const intervalMap = { '7d': '7 days', '30d': '30 days', '90d': '90 days', '1y': '1 year' };
+    const interval = intervalMap[period] || '30 days';
+
+    const hasLedger = await tableExists('platform_ledger');
+    if (!hasLedger) {
+      res.setHeader('Content-Type', 'text/csv');
+      return res.send('date,type,amount,user_email\n');
+    }
+
+    const { rows } = await db.query(`
+      SELECT
+        pl.created_at AS date,
+        pl.source_type AS type,
+        (pl.amount_cents::float / 100)::text AS amount,
+        COALESCE(u.email, '') AS user_email
+      FROM platform_ledger pl
+      LEFT JOIN users u ON pl.user_id = u.id
+      WHERE pl.created_at >= now() - $1::interval
+      ORDER BY pl.created_at DESC
+    `, [interval]);
+
+    const headers = 'date,type,amount,user_email';
+    const csvRows = rows.map(r =>
+      [r.date, r.type, r.amount, r.user_email]
+        .map(v => (String(v || '').includes(',') ? `"${String(v).replace(/"/g, '""')}"` : String(v || '')))
+        .join(',')
+    );
+    const csv = [headers, ...csvRows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="revenue_${period}_${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    logger.error('getRevenueExport error', { err });
+    res.status(500).json({ error: 'Export failed.' });
+  }
 };
 
 // PLATFORM SETTINGS

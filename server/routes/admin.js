@@ -46,6 +46,8 @@ router.delete('/users/:userId',        requireSuperAdmin, superCtrl.deleteUser);
 // Financials
 router.get('/financials',            requireSuperAdmin, superCtrl.getFinancials);
 router.get('/payouts',               requireSuperAdmin, superCtrl.getPayouts);
+router.get('/super/revenue',         requireSuperAdmin, superCtrl.getRevenueSummary);
+router.get('/super/revenue/export',  requireSuperAdmin, superCtrl.getRevenueExport);
 router.post('/jobs/:jobId/refund',   requireSuperAdmin, superCtrl.issueManualRefund);
 
 // Platform settings

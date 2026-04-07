@@ -42,10 +42,10 @@ type FormErrors = Partial<Record<keyof FormState | 'general', string>>;
 // ── Helpers ──────────────────────────────────────────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function FieldError({ msg }: { msg?: string }) {
+function FieldError({ id, msg }: { id?: string; msg?: string }) {
   if (!msg) return null;
   return (
-    <p className="text-[11px] text-red-400 flex items-center gap-1 mt-0.5" role="alert">
+    <p id={id} className="text-[11px] text-red-400 flex items-center gap-1 mt-0.5" role="alert">
       <AlertCircle size={12} />
       {msg}
     </p>
@@ -294,8 +294,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 placeholder="Emile"
                 autoComplete="given-name"
                 required
+                aria-invalid={!!errors.firstName}
+                aria-describedby={errors.firstName ? 'err-firstName' : undefined}
               />
-              <FieldError msg={errors.firstName} />
+              <FieldError id="err-firstName" msg={errors.firstName} />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="lastName" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
@@ -310,8 +312,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 placeholder="Jean"
                 autoComplete="family-name"
                 required
+                aria-invalid={!!errors.lastName}
+                aria-describedby={errors.lastName ? 'err-lastName' : undefined}
               />
-              <FieldError msg={errors.lastName} />
+              <FieldError id="err-lastName" msg={errors.lastName} />
             </div>
           </div>
 
@@ -355,12 +359,14 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? 'err-email' : undefined}
               />
             </div>
             {emailAvailable === true && !errors.email && (
               <p className="text-[11px] text-green-500 mt-0.5">Email is available</p>
             )}
-            <FieldError msg={errors.email} />
+            <FieldError id="err-email" msg={errors.email} />
           </div>
 
           {/* ── Email verification ────────────────────── */}
@@ -404,9 +410,11 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 placeholder="+1 (555) 000-0000"
                 autoComplete="tel"
                 required
+                aria-invalid={!!errors.phone}
+                aria-describedby={errors.phone ? 'err-phone' : undefined}
               />
             </div>
-            <FieldError msg={errors.phone} />
+            <FieldError id="err-phone" msg={errors.phone} />
           </div>
 
           {/* ── Address ─────────────────────────────── */}
@@ -427,9 +435,11 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 placeholder="123 Main St, Springfield, OH"
                 autoComplete="street-address"
                 required
+                aria-invalid={!!errors.address}
+                aria-describedby={errors.address ? 'err-address' : undefined}
               />
             </div>
-            <FieldError msg={errors.address} />
+            <FieldError id="err-address" msg={errors.address} />
           </div>
 
           {/* ── Password ────────────────────────────── */}
