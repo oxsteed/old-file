@@ -286,6 +286,8 @@ function HomeSearch() {
 
 export default function HomePage() {
   const { preview, newCount } = useLiveBidsPreview();
+  const [skillsExpanded, setSkillsExpanded] = useState(false);
+  const skillsOverflowRef = useRef(null);
 
   const jobTitle  = preview?.jobTitle  ?? '…';
   const location  = preview?.location  ?? '—';
@@ -415,8 +417,10 @@ export default function HomePage() {
             <h2 className="hp-section-title">Browse by Skill</h2>
             <p className="hp-section-sub">Find a local expert for the exact job you need done.</p>
           </div>
+
+          {/* Preview: first 4 cards always visible */}
           <div className="hp-cat-grid">
-            {SKILL_TILES.map(tile => (
+            {SKILL_TILES.slice(0, 4).map(tile => (
               <Link key={tile.slug} to={`/helpers?skill=${tile.slug}`} className="hp-cat-card">
                 <span className="hp-cat-icon">{tile.icon}</span>
                 <div className="hp-cat-name">{tile.name}</div>
@@ -424,11 +428,61 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
-          <p className="hp-cat-note">
-            Don't see your skill?{' '}
-            <Link to="/register/customer" className="hp-text-link">Post a job</Link>
-            {' '}and let qualified helpers come to you.
-          </p>
+
+          {/* Overflow: remaining 15 cards + fallback note, animated */}
+          <div
+            id="hp-skills-overflow"
+            ref={skillsOverflowRef}
+            className="hp-skills-overflow"
+            style={{
+              maxHeight: skillsExpanded
+                ? (skillsOverflowRef.current?.scrollHeight ?? 9999) + 'px'
+                : '0px',
+              opacity: skillsExpanded ? 1 : 0,
+            }}
+            aria-hidden={!skillsExpanded}
+          >
+            <div className="hp-cat-grid" style={{ paddingTop: '1rem' }}>
+              {SKILL_TILES.slice(4).map(tile => (
+                <Link key={tile.slug} to={`/helpers?skill=${tile.slug}`} className="hp-cat-card">
+                  <span className="hp-cat-icon">{tile.icon}</span>
+                  <div className="hp-cat-name">{tile.name}</div>
+                  <div className="hp-cat-desc">{tile.desc}</div>
+                </Link>
+              ))}
+            </div>
+            <p className="hp-cat-note">
+              Don't see your skill?{' '}
+              <Link to="/register/customer" className="hp-text-link">Post a job</Link>
+              {' '}and let qualified helpers come to you.
+            </p>
+          </div>
+
+          {/* Toggle button */}
+          <div className="hp-skills-toggle-wrap">
+            <button
+              className="hp-skills-toggle"
+              onClick={() => setSkillsExpanded(e => !e)}
+              aria-expanded={skillsExpanded}
+              aria-controls="hp-skills-overflow"
+            >
+              {skillsExpanded ? 'Show fewer' : `Show ${SKILL_TILES.length - 4} more skills`}
+              <svg
+                className={`hp-skills-chevron${skillsExpanded ? ' hp-skills-chevron--up' : ''}`}
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </section>
 
