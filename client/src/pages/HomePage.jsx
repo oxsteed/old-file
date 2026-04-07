@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import '../styles/HomePage.css';
 import ThemeToggle from '../components/ThemeToggle';
 import PageMeta from '../components/PageMeta';
+import api from '../api/axios';
 
 const CATEGORIES = [
   { slug: 'electrical',  icon: '⚡', name: 'Electrical',       desc: 'Wiring, panels, EV chargers' },
@@ -18,7 +20,143 @@ const CATEGORIES = [
   { slug: 'general-labor',icon: '💪', name: 'General Labor',    desc: 'Any task you need done' },
 ];
 
+/** The real OxSteed brand icon (4-arrow clockwise ring with inner circle) */
+function OxSteedIcon({ size = 26 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 512 512"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect width="512" height="512" rx="88" fill="#16213e"/>
+      <path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316"/>
+      <path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316"/>
+      <path d="M 472 228 A 218 218 0 0 1 339 457 L 301 486 A 178 178 0 0 0 433 233 Z" fill="#F97316"/>
+      <path d="M 284 472 A 218 218 0 0 1 55 339 L 26 301 A 178 178 0 0 0 279 433 Z" fill="#F97316"/>
+      <circle cx="256" cy="256" r="145" fill="#F97316"/>
+      <text
+        x="256" y="236"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontFamily="Arial Black, Arial, Helvetica, system-ui, sans-serif"
+        fontWeight="900"
+        fontSize="90"
+        fill="#FFFFFF"
+      >OxS</text>
+      <polyline
+        points="131,305 172,305 184,295 194,268 204,326 214,297 224,305 381,305"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Fetches the 3 most recent open jobs + their latest bid amounts for the hero card */
+function useLiveBidsPreview() {
+  const [data, setData] = useState(null);   // { jobTitle, location, bids: [{name, badge, amt, stars}] }
+  const [newCount, setNewCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        // Fetch the most recent open jobs (public endpoint, no auth required)
+        const { data: jobsRes } = await api.get('/jobs?status=open&limit=10&sort=newest');
+        const jobs = jobsRes.jobs || jobsRes || [];
+        if (!jobs.length) return;
+
+        // Find the first job that has at least one bid
+        let chosenJob = null;
+        let liveBids = [];
+
+        for (const j of jobs) {
+          try {
+            const { data: bidsRes } = await api.get(`/bids/job/${j.id}`);
+            const bids = bidsRes.bids || bidsRes || [];
+            if (bids.length > 0) {
+              chosenJob = j;
+              liveBids = bids;
+              break;
+            }
+          } catch {
+            // job may have no bids endpoint access — skip
+          }
+        }
+
+        // Fall back to showing the newest job even if it has 0 bids
+        if (!chosenJob) {
+          chosenJob = jobs[0];
+        }
+
+        if (cancelled) return;
+
+        // Format bids for display (cap at 3)
+        const formattedBids = liveBids.slice(0, 3).map((b) => {
+          const helperName =
+            b.helper_name || b.helper?.name || b.bidder_name || 'Helper';
+          const initial = helperName.charAt(0).toUpperCase();
+          const firstLast =
+            helperName.split(' ').length >= 2
+              ? `${helperName.split(' ')[0].charAt(0)}. ${helperName.split(' ').slice(-1)[0]}`
+              : helperName;
+
+          const badge = b.is_licensed
+            ? '✓ Licensed'
+            : b.is_insured
+            ? '✓ Insured'
+            : '✓ Verified';
+
+          const amt =
+            b.amount != null
+              ? `$${Number(b.amount).toLocaleString()}`
+              : b.bid_amount != null
+              ? `$${Number(b.bid_amount).toLocaleString()}`
+              : '—';
+
+          const stars = Math.min(5, Math.max(1, Math.round(b.helper_rating || b.rating || 4)));
+
+          return { name: firstLast, initial, badge, amt, stars };
+        });
+
+        const location =
+          chosenJob.city && chosenJob.state
+            ? `${chosenJob.city}, ${chosenJob.state}`
+            : chosenJob.location || chosenJob.zip_code || 'Local area';
+
+        setData({
+          jobTitle: chosenJob.title || chosenJob.category || 'Local job',
+          location,
+          bids: formattedBids,
+        });
+        setNewCount(Math.min(liveBids.length, 9));
+      } catch {
+        // Silently fail — hero card just won't update
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  return { preview: data, newCount };
+}
+
 export default function HomePage() {
+  const { preview, newCount } = useLiveBidsPreview();
+
+  // Resolved display values — fall back to skeleton/placeholder while loading
+  const jobTitle  = preview?.jobTitle  ?? '…';
+  const location  = preview?.location  ?? '—';
+  const bids      = preview?.bids      ?? [];
+  const badgeLabel = newCount > 0 ? `${newCount} new` : 'Live';
+
   return (
     <div className="hp-root">
       <PageMeta
@@ -26,15 +164,11 @@ export default function HomePage() {
         description="Post a job, compare bids from verified local helpers, and pay securely with optional escrow. Free to start."
         url="https://oxsteed.com"
       />
+
       {/* -- Nav -- */}
       <nav className="hp-nav" aria-label="Main navigation">
         <Link to="/" className="hp-logo">
-          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <rect x="4" y="14" width="10" height="14" rx="2" fill="currentColor" opacity=".2"/>
-            <rect x="18" y="8" width="10" height="20" rx="2" fill="currentColor" opacity=".35"/>
-            <path d="M4 14 C4 8 14 4 16 4 C18 4 28 8 28 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-            <circle cx="16" cy="4" r="2.5" fill="currentColor"/>
-          </svg>
+          <OxSteedIcon size={26} />
           OxSteed
         </Link>
         <div className="hp-nav-links">
@@ -88,38 +222,52 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Hero decorative card */}
+        {/* Hero live bids card */}
         <div className="hp-hero-card" aria-hidden="true">
           <div className="hp-mock-card">
             <div className="hp-mock-header">
-              <span className="hp-mock-dot" style={{ background:'#01696f' }}/>
-              <span style={{ fontSize:'.75rem', fontWeight:600, color:'#6e6c66' }}>Live bids</span>
-              <span className="hp-mock-badge">3 new</span>
+              <span className="hp-mock-dot" style={{ background: '#01696f' }}/>
+              <span style={{ fontSize: '.75rem', fontWeight: 600, color: '#6e6c66' }}>Live bids</span>
+              <span className="hp-mock-badge">{badgeLabel}</span>
             </div>
             <div className="hp-mock-job">
-              <div className="hp-mock-job-title">Full kitchen rewire</div>
+              <div className="hp-mock-job-title">
+                {preview ? jobTitle : <span style={{ opacity: .4 }}>Loading…</span>}
+              </div>
               <div className="hp-mock-job-loc">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                Springfield, OH
+                {location}
               </div>
             </div>
-            {[
-              { name: 'R. Okonkwo', stars: 5, amt: '$820', badge: '✓ Licensed' },
-              { name: 'D. Carver',  stars: 5, amt: '$750', badge: '✓ Insured' },
-              { name: 'T. Novak',   stars: 4, amt: '$890', badge: '✓ Verified' },
-            ].map((b, i) => (
-              <div key={i} className="hp-mock-bid">
-                <div className="hp-mock-avatar">{b.name[0]}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize:'.8rem', fontWeight:600, color:'#26231c' }}>{b.name}</div>
-                  <div style={{ fontSize:'.7rem', color:'#01696f' }}>{b.badge}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize:'.875rem', fontWeight:700, color:'#26231c' }}>{b.amt}</div>
-                  <div style={{ fontSize:'.65rem', color:'#b0aea9', textAlign:'right' }}>{'★'.repeat(b.stars)}</div>
-                </div>
-              </div>
-            ))}
+
+            {bids.length > 0
+              ? bids.map((b, i) => (
+                  <div key={i} className="hp-mock-bid">
+                    <div className="hp-mock-avatar">{b.initial}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#26231c' }}>{b.name}</div>
+                      <div style={{ fontSize: '.7rem', color: '#01696f' }}>{b.badge}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '.875rem', fontWeight: 700, color: '#26231c' }}>{b.amt}</div>
+                      <div style={{ fontSize: '.65rem', color: '#b0aea9', textAlign: 'right' }}>{'★'.repeat(b.stars)}</div>
+                    </div>
+                  </div>
+                ))
+              : /* skeleton rows while loading */
+                [0, 1, 2].map(i => (
+                  <div key={i} className="hp-mock-bid" style={{ opacity: .35 }}>
+                    <div className="hp-mock-avatar" style={{ background: '#e0deda' }}>?</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#26231c' }}>—</div>
+                      <div style={{ fontSize: '.7rem', color: '#01696f' }}>✓ Verified</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '.875rem', fontWeight: 700, color: '#26231c' }}>—</div>
+                    </div>
+                  </div>
+                ))
+            }
           </div>
         </div>
       </section>
@@ -189,12 +337,7 @@ export default function HomePage() {
         <div className="hp-container">
           <div className="hp-footer-top">
             <Link to="/" className="hp-footer-logo">
-              <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                <rect x="4" y="14" width="10" height="14" rx="2" fill="currentColor" opacity=".3"/>
-                <rect x="18" y="8" width="10" height="20" rx="2" fill="currentColor" opacity=".5"/>
-                <path d="M4 14 C4 8 14 4 16 4 C18 4 28 8 28 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-                <circle cx="16" cy="4" r="2.5" fill="currentColor"/>
-              </svg>
+              <OxSteedIcon size={22} />
               OxSteed
             </Link>
             <div className="hp-footer-links">
