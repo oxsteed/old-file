@@ -34,6 +34,9 @@ import CTASection from '../components/helperProfile/CTASection';
 // Chat
 import ChatPanel from '../components/helperProfile/chat/ChatPanel';
 
+// Dynamic blocks (Issue #35) — fetched client-side after static shell renders
+import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
+
 // Types & API
 import type { HelperProfileData, LoadingState, Service } from '../types/helperProfile';
 import { fetchHelperProfile } from '../api/helpers';
@@ -211,6 +214,12 @@ const HelperBusinessProfilePage: React.FC = () => {
   // Service selection — placeholder for routing to booking flow
   const handleSelectService = useCallback((service: Service) => {
     /**
+
+  // Remove SSR static shell once React hydrates (Issue #35)
+  useEffect(() => {
+    const ssrShell = document.getElementById('ssr-shell');
+    if (ssrShell) ssrShell.remove();
+  }, []);
      * API INTEGRATION POINT:
      *   navigate(`/book/${data?.helper.id}?service=${service.id}`)
      */
@@ -311,6 +320,11 @@ const HelperBusinessProfilePage: React.FC = () => {
             </div>
 
             <PoliciesSection policies={policies} />
+
+                              {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
+                <AvailabilityBlock helperId={id!} />
+                <PricingBlock helperId={id!} />
+                <SlotsBlock helperId={id!} />
 
             <ReviewsSection
               reviews={reviews}
