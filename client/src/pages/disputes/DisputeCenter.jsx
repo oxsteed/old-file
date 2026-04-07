@@ -2,6 +2,8 @@ import { useEffect, useState }  from 'react';
 import { Link }                 from 'react-router-dom';
 import { AlertTriangle }        from 'lucide-react';
 import api                      from '../../api/axios';
+import Navbar                   from '../../components/Navbar';
+import Footer                   from '../../components/Footer';
 
 const STATUS_COLORS = {
   open:         'bg-yellow-100 text-yellow-700',
@@ -37,15 +39,21 @@ export default function DisputeCenter() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center
-                      text-gray-400">
-        Loading...
+      <div className="min-h-screen bg-gray-950 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center text-gray-400">
+          Loading...
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <Navbar />
+      <main className="flex-1">
+      <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-6">
         <AlertTriangle size={22} className="text-orange-500" />
         <div>
@@ -145,6 +153,9 @@ export default function DisputeCenter() {
           ))}
         </div>
       )}
+    </div>
+      </main>
+      <Footer />
     </div>
   );
 }

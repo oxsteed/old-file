@@ -4,6 +4,8 @@ import { Send, Upload, AlertTriangle } from 'lucide-react';
 import { useAuth }                     from '../../hooks/useAuth';
 import { useSocket }                   from '../../hooks/useSocket';
 import api                             from '../../api/axios';
+import Navbar                          from '../../components/Navbar';
+import Footer                          from '../../components/Footer';
 
 export default function DisputeDetail() {
   const { disputeId }            = useParams();
@@ -95,14 +97,22 @@ export default function DisputeDetail() {
   };
 
   if (loading) return (
-    <div className="max-w-4xl mx-auto px-4 py-16 text-center text-gray-400">
-      Loading dispute...
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <Navbar />
+      <div className="flex-1 flex items-center justify-center text-gray-400">
+        Loading dispute...
+      </div>
+      <Footer />
     </div>
   );
 
   if (error && !dispute) return (
-    <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-      <p className="text-red-500">{error}</p>
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <Navbar />
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-red-500">{error}</p>
+      </div>
+      <Footer />
     </div>
   );
 
@@ -111,7 +121,10 @@ export default function DisputeDetail() {
   const deadlinePassed = new Date(dispute.evidence_deadline) < new Date();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <Navbar />
+      <main className="flex-1">
+      <div className="max-w-4xl mx-auto px-4 py-8">
 
       {/* Header */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
@@ -470,6 +483,8 @@ export default function DisputeDetail() {
           </div>
         </div>
       </div>
+      </main>
+      <Footer />
     </div>
   );
 }
