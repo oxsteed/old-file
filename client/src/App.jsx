@@ -39,84 +39,68 @@ import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
 import SupportWidget from './components/SupportWidget';
 
+// Wraps each route element in its own error boundary so a crash in one page
+// doesn't blank the entire app — only that route shows an error.
+function Guarded({ children }) {
+  return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
 export default function App() {
   return (
     <HelmetProvider>
-          <ThemeProvider>
-    <ErrorBoundary>
-      <Router>
-        <AuthProvider>
-          <ScrollToTop />
-          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-          <TermsGate>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/do-not-sell" element={<DoNotSellPage />} />
-              <Route path="/security" element={<SecurityPage />} />
-              <Route path="/cookie-policy" element={<CookiePolicyPage />} />
-              <Route path="/accessibility" element={<AccessibilityPage />} />
-              <Route path="/register/customer" element={<CustomerRegister />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-              <Route path="/register/helper" element={<HelperRegister />} />
-        <Route path="/how-it-works" element={<HowItWorksPage />} />
-        <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <SmartDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/upgrade"
-                element={
-                  <ProtectedRoute>
-                    <UpgradePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/helper-dashboard"
-                element={
-                  <ProtectedRoute>
-                    <SmartDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/jobs" element={<JobListPage />} />
-              <Route path="/jobs/:id" element={<JobDetailPage />} />
-              <Route
-                path="/post-job"
-                element={
-                  <ProtectedRoute>
-                    <PostJobPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/settings/2fa" element={<ProtectedRoute><TwoFactorSetup /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-              <Route path="/profile/:id" element={<PublicProfile />} />
-              <Route path="/helpers" element={<HelpersDirectoryPage />} />
-              <Route path="/helpers/:id" element={<HelperBusinessProfilePage />} />
-              <Route path="/disputes" element={<ProtectedRoute><DisputeCenter /></ProtectedRoute>} />
-              <Route path="/disputes/:id" element={<ProtectedRoute><DisputeDetail /></ProtectedRoute>} />
-              <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-              <Route path="/messages/:conversationId" element={<ProtectedRoute><ConversationPage /></ProtectedRoute>} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </TermsGate>
-          <CookieConsent />
-          <SupportWidget />
-        </AuthProvider>
-      </Router>
-    </ErrorBoundary>
-                  </ThemeProvider>
+      <ThemeProvider>
+        {/* Root boundary catches catastrophic failures (Router, AuthProvider, etc.) */}
+        <ErrorBoundary>
+          <Router>
+            <AuthProvider>
+              <ScrollToTop />
+              <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+              <TermsGate>
+                <Routes>
+                  {/* ── Public routes ──────────────────────────────────── */}
+                  <Route path="/"                        element={<Guarded><HomePage /></Guarded>} />
+                  <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
+                  <Route path="/register/customer"       element={<Guarded><CustomerRegister /></Guarded>} />
+                  <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
+                  <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
+                  <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
+                  <Route path="/how-it-works"            element={<Guarded><HowItWorksPage /></Guarded>} />
+                  <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
+                  <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
+                  <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
+                  <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
+                  <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
+                  <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
+
+                  {/* ── Legal / policy pages ───────────────────────────── */}
+                  <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
+                  <Route path="/privacy"        element={<Guarded><PrivacyPage /></Guarded>} />
+                  <Route path="/do-not-sell"    element={<Guarded><DoNotSellPage /></Guarded>} />
+                  <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />
+                  <Route path="/cookie-policy"  element={<Guarded><CookiePolicyPage /></Guarded>} />
+                  <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
+
+                  {/* ── Authenticated routes ───────────────────────────── */}
+                  <Route path="/dashboard"      element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
+                  <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
+                  <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
+                  <Route path="/post-job"       element={<Guarded><ProtectedRoute><PostJobPage /></ProtectedRoute></Guarded>} />
+                  <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
+                  <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
+                  <Route path="/disputes"       element={<Guarded><ProtectedRoute><DisputeCenter /></ProtectedRoute></Guarded>} />
+                  <Route path="/disputes/:id"   element={<Guarded><ProtectedRoute><DisputeDetail /></ProtectedRoute></Guarded>} />
+                  <Route path="/messages"       element={<Guarded><ProtectedRoute><MessagesPage /></ProtectedRoute></Guarded>} />
+                  <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><ConversationPage /></ProtectedRoute></Guarded>} />
+
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </TermsGate>
+              <CookieConsent />
+              <SupportWidget />
+            </AuthProvider>
+          </Router>
+        </ErrorBoundary>
+      </ThemeProvider>
     </HelmetProvider>
   );
-              
 }

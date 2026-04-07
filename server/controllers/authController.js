@@ -12,6 +12,7 @@ const { sendOTPSMS } = require('../utils/sms');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = require('../utils/trial');
 const { validate, rules } = require('../utils/validate');
+const logger = require('../utils/logger');
 const SALT_ROUNDS = 12;
 
 function formatAuthUser(user) {
@@ -117,7 +118,7 @@ const { rows } = await pool.query(
 );
 res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
   } catch (err) {
-    console.error('Register error:', err);
+    logger.error('Register error', { err });
     res.status(500).json({ error: 'Registration failed' });
   }
 }
@@ -174,7 +175,7 @@ async function login(req, res) {
       refreshToken: tokens.refreshToken
     });
   } catch (err) {
-    console.error('Login error:', err);
+    logger.error('Login error', { err });
     res.status(500).json({ error: 'Login failed' });
   }
 }
@@ -238,7 +239,7 @@ async function loginWith2FA(req, res) {
       refreshToken: tokens.refreshToken
     });
   } catch (err) {
-    console.error('Login 2FA error:', err);
+    logger.error('Login 2FA error', { err });
     res.status(500).json({ error: 'Login failed' });
   }
 }
@@ -256,7 +257,7 @@ async function requestOTP(req, res) {
     else await sendOTPEmail(email, otp);
     res.json({ message: 'OTP sent' });
   } catch (err) {
-    console.error('OTP error:', err);
+    logger.error('OTP error', { err });
     res.status(500).json({ error: 'Failed to send OTP' });
   }
 }
@@ -279,7 +280,7 @@ async function verifyOTP(req, res) {
     );
     res.json({ message: 'Email verified' });
   } catch (err) {
-    console.error('Verify OTP error:', err);
+    logger.error('Verify OTP error', { err });
     res.status(500).json({ error: 'Verification failed' });
   }
 }
@@ -319,7 +320,7 @@ async function refreshToken(req, res) {
       refreshToken: tokens.refreshToken
     });
   } catch (err) {
-    console.error('Refresh error:', err);
+    logger.error('Refresh error', { err });
     res.status(500).json({ error: 'Token refresh failed' });
   }
 }
@@ -343,7 +344,7 @@ async function checkEmail(req, res) {
     if (rows.length > 0) return res.status(409).json({ available: false, error: 'Email already registered' });
     res.json({ available: true });
   } catch (err) {
-    console.error('Check email error:', err);
+    logger.error('Check email error', { err });
     res.status(500).json({ error: 'Failed to check email' });
   }
 }
@@ -355,7 +356,7 @@ async function checkZip(req, res) {
     if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code format' });
     res.json({ inMarket: true });
   } catch (err) {
-    console.error('Check zip error:', err);
+    logger.error('Check zip error', { err });
     res.status(500).json({ error: 'Failed to check zip code' });
   }
 }
@@ -371,7 +372,7 @@ async function addToWaitlist(req, res) {
     );
     res.json({ message: 'Added to waitlist' });
   } catch (err) {
-    console.error('Waitlist error:', err);
+    logger.error('Waitlist error', { err });
     res.status(500).json({ error: 'Failed to add to waitlist' });
   }
 }
@@ -400,7 +401,7 @@ async function startRegistration(req, res) {
 );
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
-    console.error('Start registration error:', err);
+    logger.error('Start registration error', { err });
     res.status(500).json({ error: 'Registration failed', detail: err.message });
   }
 }
@@ -426,7 +427,7 @@ async function acceptTerms(req, res) {
     await sendOTPEmail(pending.email, otp);
     res.json({ message: 'Terms accepted, OTP sent' });
   } catch (err) {
-    console.error('Accept terms error:', err);
+    logger.error('Accept terms error', { err });
     res.status(500).json({ error: 'Failed to accept terms' });
   }
 }
@@ -470,7 +471,7 @@ async function verifyRegistrationOTP(req, res) {
     );
     res.status(201).json({ user: formatAuthUser(user), ...tokens });
   } catch (err) {
-    console.error('Verify registration OTP error:', err);
+    logger.error('Verify registration OTP error', { err });
     res.status(500).json({ error: 'Verification failed' });
   }
 }
@@ -495,7 +496,7 @@ async function resendRegistrationOTP(req, res) {
     await sendOTPEmail(pending.email, otp);
     res.json({ message: 'OTP resent' });
   } catch (err) {
-    console.error('Resend OTP error:', err);
+    logger.error('Resend OTP error', { err });
     res.status(500).json({ error: 'Failed to resend OTP' });
   }
 }
@@ -538,7 +539,7 @@ async function forgotPassword(req, res) {
 
     return res.json(genericResponse);
   } catch (err) {
-    console.error('Forgot password error:', err);
+    logger.error('Forgot password error', { err });
     return res.status(500).json({ error: 'Failed to process password reset request' });
   }
 }
@@ -571,7 +572,7 @@ async function resetPassword(req, res) {
 
     return res.json({ message: 'Password reset successful.' });
   } catch (err) {
-    console.error('Reset password error:', err);
+    logger.error('Reset password error', { err });
     return res.status(500).json({ error: 'Failed to reset password' });
   }
 }
@@ -584,7 +585,7 @@ async function getMe(req, res) {
       user: formatAuthUser(req.user)
     });
   } catch (err) {
-    console.error('Get me error:', err);
+    logger.error('Get me error', { err });
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 }
@@ -609,7 +610,7 @@ async function updateProfile(req, res) {
     );
     res.json(rows[0]);
   } catch (err) {
-    console.error('Update profile error:', err);
+    logger.error('Update profile error', { err });
     res.status(500).json({ error: 'Failed to update profile' });
   }
 }
@@ -627,7 +628,7 @@ async function changePassword(req, res) {
     await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
-    console.error('Change password error:', err);
+    logger.error('Change password error', { err });
     res.status(500).json({ error: 'Failed to change password' });
   }
 }
@@ -647,7 +648,7 @@ async function getPublicProfile(req, res) {
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     res.json(rows[0]);
   } catch (err) {
-    console.error('Public profile error:', err);
+    logger.error('Public profile error', { err });
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 }
@@ -672,7 +673,7 @@ async function resendVerification(req, res) {
     await sendOTPEmail(rows[0].email, otp);
     res.json({ message: 'Verification email sent' });
   } catch (err) {
-    console.error('Resend verification error:', err);
+    logger.error('Resend verification error', { err });
     res.status(500).json({ error: 'Failed to send verification email' });
   }
 }

@@ -10,6 +10,7 @@ const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults } = require('../utils/trial');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { validate, rules } = require('../utils/validate');
+const logger = require('../utils/logger');
 
 async function pendingRegistrationsHasRoleColumn() {
   const { rows } = await pool.query(
@@ -42,7 +43,7 @@ async function getCategories(req, res) {
     );
     return res.json({ categories: rows });
   } catch (err) {
-    console.error('getCategories error:', err);
+    logger.error('getCategories error', { err });
     return res.status(500).json({ error: 'Failed to load categories' });
   }
 }
@@ -107,7 +108,7 @@ async function startRegistration(req, res) {
       token: result.rows[0].token,
     });
   } catch (err) {
-    console.error('startRegistration error:', err);
+    logger.error('startRegistration error:', { err });
     res.status(500).json({ error: 'Registration failed' });
   }
 }
@@ -202,7 +203,7 @@ async function verifyOTP(req, res) {
     if (client) {
       try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
     }
-    console.error('verifyOTP error:', err);
+    logger.error('verifyOTP error:', { err });
     res.status(500).json({ error: 'OTP verification failed' });
   } finally {
     if (client) client.release();
@@ -239,7 +240,7 @@ async function resendOTP(req, res) {
     await sendOTPEmail(rows[0].email, otp);
     res.json({ message: 'New OTP sent' });
   } catch (err) {
-    console.error('resendOTP error:', err);
+    logger.error('resendOTP error:', { err });
     res.status(500).json({ error: 'Resend OTP failed' });
   }
 }
@@ -294,7 +295,7 @@ async function completeRegistration(req, res) {
       ...tokens
     });
   } catch (err) {
-    console.error('completeRegistration (deprecated) error:', err);
+    logger.error('completeRegistration (deprecated) error:', { err });
     res.status(500).json({ error: 'Registration completion failed' });
   } finally {
     if (client) client.release();
@@ -338,7 +339,7 @@ async function submitOnboardingProfile(req, res) {
 
     res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
   } catch (err) {
-    console.error('submitOnboardingProfile error:', err);
+    logger.error('submitOnboardingProfile error:', { err });
     res.status(500).json({ error: 'Profile save failed' });
   }
 }
@@ -361,7 +362,7 @@ async function submitIdVerification(req, res) {
 
     res.json({ message: 'ID submitted for review', onboarding_step: 'id_submitted' });
   } catch (err) {
-    console.error('submitIdVerification error:', err);
+    logger.error('submitIdVerification error:', { err });
     res.status(500).json({ error: 'ID verification submission failed' });
   }
 }
@@ -384,7 +385,7 @@ async function submitBackgroundCheck(req, res) {
 
     res.json({ message: 'Background check submitted', onboarding_step: 'background_submitted' });
   } catch (err) {
-    console.error('submitBackgroundCheck error:', err);
+    logger.error('submitBackgroundCheck error:', { err });
     res.status(500).json({ error: 'Background check submission failed' });
   }
 }
@@ -433,7 +434,7 @@ async function getOnboardingStatus(req, res) {
       canAppearInSearch:       u.membership_tier === 'tier2' && u.onboarding_completed,
     });
   } catch (err) {
-    console.error('getOnboardingStatus error:', err);
+    logger.error('getOnboardingStatus error:', { err });
     res.status(500).json({ error: 'Failed to get onboarding status' });
   }
 }
@@ -467,7 +468,7 @@ async function submitProfile(req, res) {
 
     res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
   } catch (err) {
-    console.error('submitProfile error:', err);
+    logger.error('submitProfile error:', { err });
     res.status(500).json({ error: 'Profile save failed' });
   }
 }
@@ -491,7 +492,7 @@ async function updateContact(req, res) {
 
     res.json({ message: 'Contact updated' });
   } catch (err) {
-    console.error('updateContact error:', err);
+    logger.error('updateContact error:', { err });
     res.status(500).json({ error: 'Contact update failed' });
   }
 }
@@ -530,7 +531,7 @@ async function uploadProfilePhoto(req, res) {
     );
     res.json({ message: 'Photo uploaded', photoUrl });
   } catch (err) {
-    console.error('uploadProfilePhoto error:', err);
+    logger.error('uploadProfilePhoto error:', { err });
     res.status(500).json({ error: 'Photo upload failed' });
   }
 }
@@ -566,7 +567,7 @@ async function saveTier(req, res) {
 
     return res.json({ message: 'Tier saved', membership_tier: normalized });
   } catch (err) {
-    console.error('saveTier error:', err);
+    logger.error('saveTier error:', { err });
     return res.status(500).json({ error: 'Failed to save tier' });
   }
 }
@@ -617,7 +618,7 @@ async function saveW9(req, res) {
 
     return res.json({ message: 'W9 saved successfully' });
   } catch (err) {
-    console.error('saveW9 error:', err);
+    logger.error('saveW9 error:', { err });
     return res.status(500).json({ error: 'Failed to save W9 information' });
   }
 }
@@ -641,7 +642,7 @@ async function acceptTerms(req, res) {
     );
     return res.json({ message: 'Terms accepted' });
   } catch (err) {
-    console.error('acceptTerms helper error:', err);
+    logger.error('acceptTerms helper error:', { err });
     return res.status(500).json({ error: 'Failed to accept terms' });
   }
 }
@@ -665,7 +666,7 @@ async function finalizeRegistration(req, res) {
     }
     return res.json({ message: 'Helper registration finalized' });
   } catch (err) {
-    console.error('finalizeRegistration error:', err);
+    logger.error('finalizeRegistration error:', { err });
     return res.status(500).json({ error: 'Failed to finalize registration' });
   }
 }

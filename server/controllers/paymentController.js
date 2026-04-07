@@ -2,6 +2,7 @@ const pool = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { calculateTier3Fees } = require('../utils/feeCalculator');
 const { validate, rules } = require('../utils/validate');
+const logger = require('../utils/logger');
 
 /**
  * Payment Controller — Stripe Connect Direct Charges
@@ -50,7 +51,7 @@ exports.createConnectAccount = async (req, res) => {
     });
     res.json({ url: link.url, account_id: account.id });
   } catch (err) {
-    console.error('Create connect account error:', err);
+    logger.error('Create connect account error', { err });
     res.status(500).json({ error: 'Failed to create payment account' });
   }
 };
@@ -62,7 +63,7 @@ exports.getConnectStatus = async (req, res) => {
     if (!result.rows[0]) return res.json({ connected: false });
     res.json({ connected: true, ...result.rows[0] });
   } catch (err) {
-    console.error('Get connect status error:', err);
+    logger.error('Get connect status error', { err });
     res.status(500).json({ error: 'Failed to get account status' });
   }
 };
@@ -135,7 +136,7 @@ exports.createPaymentIntent = async (req, res) => {
 
     res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
   } catch (err) {
-    console.error('Create payment intent error:', err);
+    logger.error('Create payment intent error', { err });
     res.status(500).json({ error: 'Failed to create payment' });
   }
 };
@@ -180,12 +181,12 @@ exports.capturePayment = async (req, res) => {
         [job.rows[0].client_id, payment.rows[0].amount, 'Paid: ' + jobTitle]
       );
     } catch (autoLogErr) {
-      console.error('Auto-log earnings (non-critical):', autoLogErr.message);
+      logger.error('Auto-log earnings (non-critical)', { err: autoLogErr });
     }
 
     res.json({ message: 'Payment captured — funds released to helper' });
   } catch (err) {
-    console.error('Capture payment error:', err);
+    logger.error('Capture payment error', { err });
     res.status(500).json({ error: 'Failed to capture payment' });
   }
 };
@@ -219,7 +220,7 @@ exports.refundPayment = async (req, res) => {
 
     res.json({ message: 'Refund processed', refund_id: refund.id });
   } catch (err) {
-    console.error('Refund payment error:', err);
+    logger.error('Refund payment error', { err });
     res.status(500).json({ error: 'Failed to process refund' });
   }
 };
@@ -231,7 +232,7 @@ exports.getJobPayment = async (req, res) => {
     if (!result.rows[0]) return res.json(null);
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Get job payment error:', err);
+    logger.error('Get job payment error', { err });
     res.status(500).json({ error: 'Failed to fetch payment' });
   }
 };
@@ -247,7 +248,7 @@ exports.getMyPayments = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Get my payments error:', err);
+    logger.error('Get my payments error', { err });
     res.status(500).json({ error: 'Failed to fetch payments' });
   }
 };
