@@ -415,12 +415,12 @@ export default function HomePage() {
         <div className="hp-container">
           <div className="hp-section-head">
             <h2 className="hp-section-title">Browse by Skill</h2>
-            <p className="hp-section-sub">Find a local expert for the exact job you need done.</p>
+            <p className="hp-section-sub">Find a local helpers for the exact job you need done.</p>
           </div>
 
-          {/* Preview: first 4 cards always visible */}
+          {/* Preview: first 5 cards always visible */}
           <div className="hp-cat-grid">
-            {SKILL_TILES.slice(0, 4).map(tile => (
+            {SKILL_TILES.slice(0, 5).map(tile => (
               <Link key={tile.slug} to={`/helpers?skill=${tile.slug}`} className="hp-cat-card">
                 <span className="hp-cat-icon">{tile.icon}</span>
                 <div className="hp-cat-name">{tile.name}</div>
@@ -443,7 +443,7 @@ export default function HomePage() {
             aria-hidden={!skillsExpanded}
           >
             <div className="hp-cat-grid" style={{ paddingTop: '1rem' }}>
-              {SKILL_TILES.slice(4).map(tile => (
+              {SKILL_TILES.slice(5).map(tile => (
                 <Link key={tile.slug} to={`/helpers?skill=${tile.slug}`} className="hp-cat-card">
                   <span className="hp-cat-icon">{tile.icon}</span>
                   <div className="hp-cat-name">{tile.name}</div>
