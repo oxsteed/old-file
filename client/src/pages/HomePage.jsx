@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import '../styles/HomePage.css';
 import ThemeToggle from '../components/ThemeToggle';
 import PageMeta from '../components/PageMeta';
@@ -66,7 +66,7 @@ function OxSteedIcon({ size = 26 }) {
 
 /** Fetches the 3 most recent open jobs + their latest bid amounts for the hero card */
 function useLiveBidsPreview() {
-  const [data, setData] = useState(null);   // { jobTitle, location, bids: [{name, badge, amt, stars}] }
+  const [data, setData] = useState(null);
   const [newCount, setNewCount] = useState(0);
 
   useEffect(() => {
@@ -74,12 +74,10 @@ function useLiveBidsPreview() {
 
     async function load() {
       try {
-        // Fetch the most recent open jobs (public endpoint, no auth required)
         const { data: jobsRes } = await api.get('/jobs?status=open&limit=10&sort=newest');
         const jobs = jobsRes.jobs || jobsRes || [];
         if (!jobs.length) return;
 
-        // Find the first job that has at least one bid
         let chosenJob = null;
         let liveBids = [];
 
@@ -93,42 +91,23 @@ function useLiveBidsPreview() {
               break;
             }
           } catch {
-            // job may have no bids endpoint access — skip
+            // skip
           }
         }
 
-        // Fall back to showing the newest job even if it has 0 bids
-        if (!chosenJob) {
-          chosenJob = jobs[0];
-        }
-
+        if (!chosenJob) chosenJob = jobs[0];
         if (cancelled) return;
 
-        // Format bids for display (cap at 3)
         const formattedBids = liveBids.slice(0, 3).map((b) => {
-          const helperName =
-            b.helper_name || b.helper?.name || b.bidder_name || 'Helper';
+          const helperName = b.helper_name || b.helper?.name || b.bidder_name || 'Helper';
           const initial = helperName.charAt(0).toUpperCase();
           const firstLast =
             helperName.split(' ').length >= 2
               ? `${helperName.split(' ')[0].charAt(0)}. ${helperName.split(' ').slice(-1)[0]}`
               : helperName;
-
-          const badge = b.is_licensed
-            ? '✓ Licensed'
-            : b.is_insured
-            ? '✓ Insured'
-            : '✓ Verified';
-
-          const amt =
-            b.amount != null
-              ? `$${Number(b.amount).toLocaleString()}`
-              : b.bid_amount != null
-              ? `$${Number(b.bid_amount).toLocaleString()}`
-              : '—';
-
+          const badge = b.is_licensed ? '✓ Licensed' : b.is_insured ? '✓ Insured' : '✓ Verified';
+          const amt = b.amount != null ? `$${Number(b.amount).toLocaleString()}` : b.bid_amount != null ? `$${Number(b.bid_amount).toLocaleString()}` : '—';
           const stars = Math.min(5, Math.max(1, Math.round(b.helper_rating || b.rating || 4)));
-
           return { name: firstLast, initial, badge, amt, stars };
         });
 
@@ -137,14 +116,10 @@ function useLiveBidsPreview() {
             ? `${chosenJob.city}, ${chosenJob.state}`
             : chosenJob.location || chosenJob.zip_code || 'Local area';
 
-        setData({
-          jobTitle: chosenJob.title || chosenJob.category || 'Local job',
-          location,
-          bids: formattedBids,
-        });
+        setData({ jobTitle: chosenJob.title || chosenJob.category || 'Local job', location, bids: formattedBids });
         setNewCount(Math.min(liveBids.length, 9));
       } catch {
-        // Silently fail — hero card just won't update
+        // silently fail
       }
     }
 
@@ -155,10 +130,163 @@ function useLiveBidsPreview() {
   return { preview: data, newCount };
 }
 
+/** Homepage search bar with live skill autocomplete */
+function HomeSearch() {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const inputRef = useRef(null);
+  const listRef = useRef(null);
+
+  // Filter SKILL_TILES based on query
+  useEffect(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    const matches = SKILL_TILES.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.desc.toLowerCase().includes(q) ||
+        t.slug.includes(q)
+    );
+    setSuggestions(matches);
+    setOpen(matches.length > 0);
+    setActiveIdx(-1);
+  }, [query]);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    // If an active suggestion is selected use that slug, otherwise free-text search
+    if (activeIdx >= 0 && suggestions[activeIdx]) {
+      navigate(`/helpers?skill=${suggestions[activeIdx].slug}`);
+    } else {
+      navigate(`/helpers?q=${encodeURIComponent(q)}`);
+    }
+    setOpen(false);
+  }
+
+  function handleKeyDown(e) {
+    if (!open) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, -1));
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setActiveIdx(-1);
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault();
+      navigate(`/helpers?skill=${suggestions[activeIdx].slug}`);
+      setQuery(suggestions[activeIdx].name);
+      setOpen(false);
+    }
+  }
+
+  function handleSelect(tile) {
+    navigate(`/helpers?skill=${tile.slug}`);
+    setQuery('');
+    setOpen(false);
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onOutside(e) {
+      if (inputRef.current && !inputRef.current.closest('.hp-search-wrap').contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, []);
+
+  return (
+    <div className="hp-search-wrap" role="search">
+      <form className="hp-search-form" onSubmit={handleSubmit} autoComplete="off">
+        <label htmlFor="hp-search-input" className="sr-only">Search for a service or skill</label>
+        <span className="hp-search-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <input
+          ref={inputRef}
+          id="hp-search-input"
+          className="hp-search-input"
+          type="text"
+          placeholder="What do you need done? e.g. plumbing, lawn care…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          onKeyDown={handleKeyDown}
+          aria-autocomplete="list"
+          aria-controls="hp-search-suggestions"
+          aria-activedescendant={activeIdx >= 0 ? `hp-sugg-${activeIdx}` : undefined}
+          aria-expanded={open}
+        />
+        {query && (
+          <button
+            type="button"
+            className="hp-search-clear"
+            aria-label="Clear search"
+            onClick={() => { setQuery(''); setOpen(false); inputRef.current?.focus(); }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        )}
+        <button type="submit" className="hp-btn hp-btn-primary hp-search-btn">
+          Search
+        </button>
+      </form>
+
+      {open && (
+        <ul
+          id="hp-search-suggestions"
+          className="hp-search-suggestions"
+          ref={listRef}
+          role="listbox"
+          aria-label="Skill suggestions"
+        >
+          {suggestions.map((tile, i) => (
+            <li
+              key={tile.slug}
+              id={`hp-sugg-${i}`}
+              role="option"
+              aria-selected={i === activeIdx}
+              className={`hp-search-suggestion${i === activeIdx ? ' hp-search-suggestion--active' : ''}`}
+              onMouseDown={() => handleSelect(tile)}
+            >
+              <span className="hp-sugg-icon">{tile.icon}</span>
+              <span className="hp-sugg-text">
+                <span className="hp-sugg-name">{tile.name}</span>
+                <span className="hp-sugg-desc">{tile.desc}</span>
+              </span>
+              <span className="hp-sugg-arrow" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const { preview, newCount } = useLiveBidsPreview();
 
-  // Resolved display values — fall back to skeleton/placeholder while loading
   const jobTitle  = preview?.jobTitle  ?? '…';
   const location  = preview?.location  ?? '—';
   const bids      = preview?.bids      ?? [];
@@ -186,7 +314,6 @@ export default function HomePage() {
           <Link to="/register/customer" className="hp-btn hp-btn-primary">Post a Job</Link>
           <ThemeToggle />
         </div>
-        {/* Mobile nav */}
         <div className="hp-nav-mobile">
           <Link to="/register/customer" className="hp-btn hp-btn-primary" style={{ fontSize: '.8rem', padding: '.5rem 1rem' }}>Post a Job</Link>
         </div>
@@ -204,6 +331,10 @@ export default function HomePage() {
           <p className="hp-hero-sub">
             Describe what needs doing, set your own requirements, and let qualified local helpers bid. Compare proposals and pay securely with OxSteed. Free to start.
           </p>
+
+          {/* ── Search bar ── */}
+          <HomeSearch />
+
           <div className="hp-hero-ctas">
             <Link to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
               Post a Job
@@ -246,7 +377,6 @@ export default function HomePage() {
                 {location}
               </div>
             </div>
-
             {bids.length > 0
               ? bids.map((b, i) => (
                   <div key={i} className="hp-mock-bid">
@@ -261,8 +391,7 @@ export default function HomePage() {
                     </div>
                   </div>
                 ))
-              : /* skeleton rows while loading */
-                [0, 1, 2].map(i => (
+              : [0, 1, 2].map(i => (
                   <div key={i} className="hp-mock-bid" style={{ opacity: .35 }}>
                     <div className="hp-mock-avatar" style={{ background: '#e0deda' }}>?</div>
                     <div style={{ flex: 1 }}>
