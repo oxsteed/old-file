@@ -19,6 +19,8 @@ import StarRating from '../helperProfile/ui/StarRating';
 interface HelperCardProps {
   helper: HelperCardData;
   onMessage?: (id: string) => void;
+  /** When set, highlights the matching category on this card */
+  highlightCategory?: string;
 }
 
 function formatPrice(price: number, unit: string): string {
@@ -33,10 +35,16 @@ function memberYear(iso: string): string {
   return String(new Date(iso).getFullYear());
 }
 
-const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage }) => {
+const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCategory }) => {
+  const isExactMatch = !!(highlightCategory && helper.categories.includes(highlightCategory));
+
   return (
     <article
-      className="group bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-gray-600 transition-all hover:shadow-xl hover:shadow-black/30 flex flex-col"
+      className={`group bg-gray-900 border rounded-2xl overflow-hidden transition-all hover:shadow-xl hover:shadow-black/30 flex flex-col ${
+        isExactMatch
+          ? 'border-brand-700/70 hover:border-brand-500'
+          : 'border-gray-800 hover:border-gray-600'
+      }`}
       aria-label={`${helper.businessName} — helper profile card`}
     >
       {/* ── Top colour band + avatar ─────────────────────── */}
@@ -50,8 +58,19 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage }) => {
           </defs>
           <rect width="100%" height="100%" fill={`url(#dots-${helper.id})`} />
         </svg>
-        {/* Category color accent */}
-        <div className="absolute inset-y-0 left-0 w-1 bg-brand-500" aria-hidden="true" />
+        {/* Category color accent — brighter for exact matches */}
+        <div
+          className={`absolute inset-y-0 left-0 w-1 ${isExactMatch ? 'bg-brand-400' : 'bg-brand-500'}`}
+          aria-hidden="true"
+        />
+
+        {/* Exact match badge */}
+        {isExactMatch && (
+          <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
+            <Zap className="w-2.5 h-2.5" aria-hidden="true" />
+            Exact match
+          </span>
+        )}
 
         {/* Available today badge */}
         {helper.availableToday && (
@@ -128,7 +147,11 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage }) => {
           {helper.categories.slice(0, 3).map((cat) => (
             <span
               key={cat}
-              className="px-2 py-0.5 bg-gray-800 text-gray-300 rounded-full text-xs border border-gray-700"
+              className={`px-2 py-0.5 rounded-full text-xs border font-medium ${
+                highlightCategory && cat === highlightCategory
+                  ? 'bg-brand-900/50 text-brand-300 border-brand-700/70'
+                  : 'bg-gray-800 text-gray-300 border-gray-700'
+              }`}
             >
               {cat}
             </span>

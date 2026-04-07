@@ -5,19 +5,26 @@ import ThemeToggle from '../components/ThemeToggle';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 
-const CATEGORIES = [
-  { slug: 'electrical',  icon: '⚡', name: 'Electrical',       desc: 'Wiring, panels, EV chargers' },
-  { slug: 'plumbing',    icon: '🚿', name: 'Plumbing',         desc: 'Pipes, drains, water heaters' },
-  { slug: 'hvac',        icon: '❄️', name: 'HVAC',             desc: 'Install, repair, duct work' },
-  { slug: 'carpentry',   icon: '🪚', name: 'Carpentry',          desc: 'Trim, cabinets, custom builds' },
-  { slug: 'painting',    icon: '🖌️', name: 'Painting',          desc: 'Interior & exterior' },
-  { slug: 'roofing',     icon: '🏠', name: 'Roofing',           desc: 'Repair, replacement, gutters' },
-  { slug: 'flooring',    icon: '🪵', name: 'Flooring',          desc: 'Hardwood, tile, carpet' },
-  { slug: 'landscaping', icon: '🌿', name: 'Landscaping',       desc: 'Garden, lawn, tree care' },
-  { slug: 'moving',      icon: '🚚', name: 'Moving & Hauling',  desc: 'Local & long distance' },
-  { slug: 'cleaning',    icon: '✨', name: 'Home Cleaning',     desc: 'Deep clean, move-out, regular' },
-  { slug: 'handyman',    icon: '🔧', name: 'Handyman',          desc: 'Assembly, repairs, installs' },
-  { slug: 'general-labor',icon: '💪', name: 'General Labor',    desc: 'Any task you need done' },
+const SKILL_TILES = [
+  { slug: 'electrical',   icon: '⚡', name: 'Electrical',      desc: 'Outlets, panels, EV chargers' },
+  { slug: 'plumbing',     icon: '🚿', name: 'Plumbing',        desc: 'Leaks, drains, water heaters' },
+  { slug: 'hvac',         icon: '❄️', name: 'HVAC',            desc: 'AC, heating, duct work' },
+  { slug: 'carpentry',    icon: '🪚', name: 'Carpentry',       desc: 'Decks, trim, custom builds' },
+  { slug: 'painting',     icon: '🖌️', name: 'Painting',        desc: 'Interior & exterior' },
+  { slug: 'roofing',      icon: '🏠', name: 'Roofing',         desc: 'Repair, replacement, gutters' },
+  { slug: 'flooring',     icon: '🪵', name: 'Flooring',        desc: 'Hardwood, tile, carpet' },
+  { slug: 'landscaping',  icon: '🌿', name: 'Landscaping',     desc: 'Lawn, garden, tree care' },
+  { slug: 'moving',       icon: '🚚', name: 'Moving',          desc: 'Packing, loading, hauling' },
+  { slug: 'cleaning',     icon: '✨', name: 'Cleaning',        desc: 'Deep clean, move-out, regular' },
+  { slug: 'pest-control', icon: '🐛', name: 'Pest Control',    desc: 'Rodents, termites, insects' },
+  { slug: 'auto',         icon: '🚗', name: 'Auto Repair',     desc: 'Mobile mechanic, detailing' },
+  { slug: 'appliance',    icon: '🔌', name: 'Appliance Repair',desc: 'Washer, dryer, refrigerator' },
+  { slug: 'concrete',     icon: '🏗️', name: 'Concrete',        desc: 'Driveways, patios, slabs' },
+  { slug: 'welding',      icon: '⚙️', name: 'Welding',         desc: 'Metal fab, gates, structural' },
+  { slug: 'home-repair',  icon: '🔨', name: 'Home Repair',     desc: 'Drywall, fixtures, handyman' },
+  { slug: 'security',     icon: '🔒', name: 'Security',        desc: 'Cameras, alarms, smart home' },
+  { slug: 'pet-care',     icon: '🐾', name: 'Pet Care',        desc: 'Sitting, walking, grooming' },
+  { slug: 'tutoring',     icon: '📚', name: 'Tutoring',        desc: 'Math, reading, test prep' },
 ];
 
 /** The real OxSteed brand icon (4-arrow clockwise ring with inner circle) */
@@ -272,26 +279,26 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* -- Categories -- */}
+      {/* -- Browse by Skills -- */}
       <section className="hp-section">
         <div className="hp-container">
           <div className="hp-section-head">
-            <h2 className="hp-section-title">Browse by Category</h2>
-            <p className="hp-section-sub">Skilled local helpers across every trade and service.</p>
+            <h2 className="hp-section-title">Browse by Skill</h2>
+            <p className="hp-section-sub">Find a local expert for the exact job you need done.</p>
           </div>
           <div className="hp-cat-grid">
-            {CATEGORIES.map(cat => (
-              <Link key={cat.slug} to={`/jobs?category=${encodeURIComponent(cat.name)}`} className="hp-cat-card">
-                <span className="hp-cat-icon">{cat.icon}</span>
-                <div className="hp-cat-name">{cat.name}</div>
-                <div className="hp-cat-desc">{cat.desc}</div>
+            {SKILL_TILES.map(tile => (
+              <Link key={tile.slug} to={`/helpers?skill=${tile.slug}`} className="hp-cat-card">
+                <span className="hp-cat-icon">{tile.icon}</span>
+                <div className="hp-cat-name">{tile.name}</div>
+                <div className="hp-cat-desc">{tile.desc}</div>
               </Link>
             ))}
           </div>
           <p className="hp-cat-note">
-            Don't see what you need?{' '}
+            Don't see your skill?{' '}
             <Link to="/register/customer" className="hp-text-link">Post a job</Link>
-            {' '}and let helpers come to you.
+            {' '}and let qualified helpers come to you.
           </p>
         </div>
       </section>
@@ -302,7 +309,7 @@ export default function HomePage() {
           <div className="hp-stats-grid">
             <div className="hp-stat"><span className="hp-stat-num">Free</span><span className="hp-stat-label">to list your skills</span></div>
             <div className="hp-stat-div" aria-hidden="true"/>
-            <div className="hp-stat"><span className="hp-stat-num">12+</span><span className="hp-stat-label">service categories</span></div>
+            <div className="hp-stat"><span className="hp-stat-num">19+</span><span className="hp-stat-label">skill categories</span></div>
             <div className="hp-stat-div" aria-hidden="true"/>
             <div className="hp-stat"><span className="hp-stat-num">Nationwide</span><span className="hp-stat-label">available across the US</span></div>
           </div>

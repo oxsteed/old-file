@@ -10,7 +10,8 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { SlidersHorizontal, X, ChevronDown, Sparkles } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -23,7 +24,7 @@ import EmptyState from '../components/helperDirectory/EmptyState';
 import HelperCard from '../components/helperDirectory/HelperCard';
 
 import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';
-import { DEFAULT_FILTERS, countActiveFilters } from '../types/helperDirectory';
+import { DEFAULT_FILTERS, countActiveFilters, SKILL_TILES } from '../types/helperDirectory';
 import { fetchHelpers } from '../api/helpers';
 import PageMeta from '../components/PageMeta';
 
@@ -94,28 +95,35 @@ function applyFilters(helpers: HelperCardData[], f: DirectoryFilters): HelperCar
   });
 }
 
-function applySort(helpers: HelperCardData[], sort: SortOption): HelperCardData[] {
+function applySort(helpers: HelperCardData[], sort: SortOption, boostedCategory?: string): HelperCardData[] {
   const copy = [...helpers];
-  switch (sort) {
-    case 'highest_rated':
-      return copy.sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount);
-    case 'most_reviews':
-      return copy.sort((a, b) => b.reviewCount - a.reviewCount);
-    case 'lowest_price':
-      return copy.sort((a, b) => a.startingPrice - b.startingPrice);
-    case 'fastest_response':
-      return copy.sort((a, b) => a.responseMinutes - b.responseMinutes);
-    case 'newest':
-      return copy.sort((a, b) => new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime());
-    case 'best_match':
-    default:
-      // Best match: blend rating × review volume
-      return copy.sort((a, b) => {
+
+  const baseCompare = (a: HelperCardData, b: HelperCardData): number => {
+    switch (sort) {
+      case 'highest_rated':   return b.rating - a.rating || b.reviewCount - a.reviewCount;
+      case 'most_reviews':    return b.reviewCount - a.reviewCount;
+      case 'lowest_price':    return a.startingPrice - b.startingPrice;
+      case 'fastest_response':return a.responseMinutes - b.responseMinutes;
+      case 'newest':          return new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime();
+      case 'best_match':
+      default: {
+        // Blend rating × log(reviews) for Wilson-score-like ranking
         const scoreA = a.rating * Math.log1p(a.reviewCount);
         const scoreB = b.rating * Math.log1p(b.reviewCount);
         return scoreB - scoreA;
-      });
-  }
+      }
+    }
+  };
+
+  return copy.sort((a, b) => {
+    // When a skill tile is selected, exact-category matches float to the top
+    if (boostedCategory) {
+      const aMatch = a.categories.includes(boostedCategory) ? 0 : 1;
+      const bMatch = b.categories.includes(boostedCategory) ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+    }
+    return baseCompare(a, b);
+  });
 }
 
 // ── Card skeleton ─────────────────────────────────────────────────────────────
@@ -197,6 +205,91 @@ const FilterDrawer: React.FC<{
   );
 };
 
+// ── Skill tile grid ───────────────────────────────────────────────────────────
+const SkillTileGrid: React.FC<{
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}> = ({ selectedId, onSelect }) => (
+  <section className="bg-gray-900 border-b border-gray-800" aria-label="Browse by skill">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
+        Browse by skill
+      </p>
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+        {SKILL_TILES.map((tile) => {
+          const active = selectedId === tile.id;
+          return (
+            <button
+              key={tile.id}
+              onClick={() => onSelect(active ? null : tile.id)}
+              aria-pressed={active}
+              title={tile.desc}
+              className={`
+                flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border text-center transition-all
+                ${active
+                  ? 'bg-brand-500/20 border-brand-500 text-brand-300 shadow-sm shadow-brand-500/20'
+                  : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-800 hover:border-gray-600 hover:text-gray-200'
+                }
+              `}
+            >
+              <span className="text-xl leading-none" aria-hidden="true">{tile.icon}</span>
+              <span className="text-xs font-medium leading-tight">{tile.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  </section>
+);
+
+// ── Sub-skill chips strip (shown when a skill tile is selected) ────────────────
+const SubSkillStrip: React.FC<{
+  tile: (typeof SKILL_TILES)[number];
+  selectedSkills: string[];
+  onToggleSkill: (skill: string) => void;
+  onClearTile: () => void;
+}> = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => (
+  <div className="bg-gray-950 border-b border-gray-800">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3 flex-wrap">
+      <span className="text-xs font-semibold text-brand-400 whitespace-nowrap flex items-center gap-1.5">
+        <span aria-hidden="true">{tile.icon}</span>
+        {tile.label}
+      </span>
+      <span className="text-gray-700 text-xs" aria-hidden="true">—</span>
+      <p className="text-xs text-gray-500">Filter by specific job:</p>
+      <div className="flex flex-wrap gap-2">
+        {tile.subSkills.map((sk) => {
+          const active = selectedSkills.includes(sk);
+          return (
+            <button
+              key={sk}
+              onClick={() => onToggleSkill(sk)}
+              aria-pressed={active}
+              className={`
+                px-2.5 py-1 rounded-full text-xs font-medium border transition-colors
+                ${active
+                  ? 'bg-brand-500 border-brand-500 text-white'
+                  : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                }
+              `}
+            >
+              {sk}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        onClick={onClearTile}
+        className="ml-auto text-xs text-gray-600 hover:text-gray-400 flex items-center gap-1 transition-colors whitespace-nowrap"
+        aria-label="Clear skill filter"
+      >
+        <X className="w-3 h-3" aria-hidden="true" />
+        Clear
+      </button>
+    </div>
+  </div>
+);
+
 // ── Hero banner ───────────────────────────────────────────────────────────────
 const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => void }> = ({
   searchValue,
@@ -262,13 +355,15 @@ const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => vo
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
-  const [filters, setFilters]       = useState<DirectoryFilters>(DEFAULT_FILTERS);
-  const [sort, setSort]             = useState<SortOption>('best_match');
-  const [helpers, setHelpers]       = useState<HelperCardData[]>([]);
-  const [total, setTotal]           = useState(0);
-  const [page, setPage]             = useState(1);
-  const [loadState, setLoadState]   = useState<'loading' | 'success' | 'error'>('loading');
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters]           = useState<DirectoryFilters>(DEFAULT_FILTERS);
+  const [sort, setSort]                 = useState<SortOption>('best_match');
+  const [helpers, setHelpers]           = useState<HelperCardData[]>([]);
+  const [total, setTotal]               = useState(0);
+  const [page, setPage]                 = useState(1);
+  const [loadState, setLoadState]       = useState<'loading' | 'success' | 'error'>('loading');
+  const [drawerOpen, setDrawerOpen]     = useState(false);
+  const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
 
   // Debounce filter/sort changes so we don't fire on every keystroke
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -283,6 +378,19 @@ const HelpersDirectoryPage: React.FC = () => {
     } catch {
       setLoadState('error');
     }
+  }, []);
+
+  // Read ?skill=X URL param on first mount and pre-select the matching tile
+  useEffect(() => {
+    const skillParam = searchParams.get('skill');
+    if (skillParam) {
+      const tile = SKILL_TILES.find((t) => t.id === skillParam);
+      if (tile) {
+        setSelectedTileId(tile.id);
+        setFilters((f) => ({ ...f, categories: [tile.category] }));
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initial load
@@ -308,9 +416,35 @@ const HelpersDirectoryPage: React.FC = () => {
 
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
+    setSelectedTileId(null);
   }, []);
 
-  const displayed        = helpers;
+  const handleTileSelect = useCallback((tileId: string | null) => {
+    if (!tileId) {
+      setSelectedTileId(null);
+      setFilters((f) => ({ ...f, categories: [], skills: [] }));
+      return;
+    }
+    const tile = SKILL_TILES.find((t) => t.id === tileId);
+    if (!tile) return;
+    setSelectedTileId(tileId);
+    setFilters((f) => ({ ...f, categories: [tile.category], skills: [] }));
+  }, []);
+
+  const handleSubSkillToggle = useCallback((skill: string) => {
+    setFilters((f) => {
+      const next = f.skills.includes(skill)
+        ? f.skills.filter((s) => s !== skill)
+        : [...f.skills, skill];
+      return { ...f, skills: next };
+    });
+  }, []);
+
+  const selectedTile    = selectedTileId ? SKILL_TILES.find((t) => t.id === selectedTileId) ?? null : null;
+  const boostedCategory = selectedTile?.category;
+
+  // Client-side: float exact-category matches to the top when a skill tile is active
+  const displayed = boostedCategory ? applySort(helpers, sort, boostedCategory) : helpers;
   const hasMore          = helpers.length < total;
   const activeFilterCount = countActiveFilters(filters);
 
@@ -338,6 +472,29 @@ const HelpersDirectoryPage: React.FC = () => {
         searchValue={filters.query}
         onSearch={(q) => updateFilters({ query: q })}
       />
+
+      {/* Skill tile grid */}
+      <SkillTileGrid selectedId={selectedTileId} onSelect={handleTileSelect} />
+
+      {/* Sub-skill chips — shown when a tile is selected */}
+      {selectedTile && (
+        <SubSkillStrip
+          tile={selectedTile}
+          selectedSkills={filters.skills}
+          onToggleSkill={handleSubSkillToggle}
+          onClearTile={() => handleTileSelect(null)}
+        />
+      )}
+
+      {/* ZIP notice — shown when a skill is selected but no zip is entered */}
+      {selectedTile && !filters.zipCode && (
+        <div className="bg-gray-900/60 border-b border-gray-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-2 text-xs text-gray-500">
+            <MapPin className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" aria-hidden="true" />
+            Add your ZIP code in the sidebar to sort helpers by distance from you.
+          </div>
+        </div>
+      )}
 
       {/* Mobile filter bar */}
       <div className="lg:hidden sticky top-0 z-20 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-2.5 flex items-center gap-3">
@@ -429,6 +586,9 @@ const HelpersDirectoryPage: React.FC = () => {
                 query={filters.query}
                 hasFilters={activeFilterCount > 0}
                 onReset={resetFilters}
+                selectedCategory={selectedTile?.category}
+                maxDistance={filters.maxDistance}
+                onExpandRadius={() => updateFilters({ maxDistance: Math.min((filters.maxDistance || 25) * 2, 100) })}
               />
             ) : (
               <>
@@ -439,7 +599,11 @@ const HelpersDirectoryPage: React.FC = () => {
                 >
                   {displayed.map((helper) => (
                     <div key={helper.id} role="listitem">
-                      <HelperCard helper={helper} onMessage={handleMessage} />
+                      <HelperCard
+                        helper={helper}
+                        onMessage={handleMessage}
+                        highlightCategory={boostedCategory}
+                      />
                     </div>
                   ))}
                 </div>
