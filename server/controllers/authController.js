@@ -177,11 +177,10 @@ async function login(req, res) {
       });
     }
     const tokens = generateTokens(user);
-        const sessionDuration = rememberMe ? '30 days' : '7 days';
-    await pool.query(
-      `INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '${sessionDuration}')`,
-      [user.id, tokens.refreshToken]
-    );
+    const sessionSql = rememberMe
+      ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
+      : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
+    await pool.query(sessionSql, [user.id, tokens.refreshToken]);
     // Fetch tier from helper_profiles if helper, otherwise 'free'
     
     res.json({
@@ -264,7 +263,7 @@ async function loginWith2FA(req, res) {
 async function requestOTP(req, res) {
   try {
     const { email, phone } = req.body;
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await pool.query(
       'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
@@ -419,7 +418,7 @@ async function startRegistration(req, res) {
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
     logger.error('Start registration error', { err });
-    res.status(500).json({ error: 'Registration failed', detail: err.message });
+    res.status(500).json({ error: 'Registration failed' });
   }
 }
 
@@ -435,7 +434,7 @@ async function acceptTerms(req, res) {
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const userAgent = req.headers['user-agent'] || '';
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       'UPDATE pending_registrations SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6, otp_attempts = 0 WHERE token = $1',
@@ -521,7 +520,7 @@ async function resendRegistrationOTP(req, res) {
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
       return res.status(429).json({ error: 'Account locked' });
     }
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       'UPDATE pending_registrations SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0 WHERE token = $1',
@@ -584,9 +583,10 @@ async function resetPassword(req, res) {
     if (!token || !password) {
       return res.status(400).json({ error: 'Token and password are required' });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    }
+    const pwErrs = validate({ password }, {
+      password: [rules.required, rules.minLen(8), rules.maxLen(128)],
+    });
+    if (pwErrs) return res.status(400).json({ error: 'validation_failed', fields: pwErrs });
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const { rowCount } = await pool.query(
@@ -653,7 +653,10 @@ async function changePassword(req, res) {
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both passwords required' });
-    if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const pwErrs = validate({ newPassword }, {
+      newPassword: [rules.required, rules.minLen(8), rules.maxLen(128)],
+    });
+    if (pwErrs) return res.status(400).json({ error: 'validation_failed', fields: pwErrs });
     const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     const valid = await bcrypt.compare(currentPassword, rows[0].password_hash);
@@ -698,7 +701,7 @@ async function resendVerification(req, res) {
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     if (rows[0].email_verified) return res.status(400).json({ error: 'Email already verified' });
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE id = $3',

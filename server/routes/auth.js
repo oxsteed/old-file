@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { authLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const {
   register,
   login,
@@ -28,27 +29,31 @@ const {
   changePassword,
   resendVerification
 } = require('../controllers/authController');
+
 // Original routes
-router.post('/register', register);
-router.post('/login', login);
-router.post('/login/2fa', loginWith2FA);
-router.post('/otp/request', requestOTP);
-router.post('/otp/verify', verifyOTP);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
-router.post('/refresh', refreshToken);
+router.post('/register', authLimiter, register);
+router.post('/login', authLimiter, login);
+router.post('/login/2fa', authLimiter, loginWith2FA);
+router.post('/otp/request', authLimiter, requestOTP);
+router.post('/otp/verify', authLimiter, verifyOTP);
+router.post('/forgot-password', strictLimiter, forgotPassword);
+router.post('/reset-password', strictLimiter, resetPassword);
+router.post('/refresh', authLimiter, refreshToken);
 router.post('/logout', authenticate, logout);
+
 // Customer registration flow (3-step)
-router.post('/check-email', checkEmail);
+router.post('/check-email', authLimiter, checkEmail);
 router.post('/check-zip', checkZip);
 router.post('/waitlist', addToWaitlist);
-router.post('/register/start', startRegistration);
-router.post('/register/accept-terms', acceptTerms);
-router.post('/register/verify-otp', verifyRegistrationOTP);
-router.post('/register/resend-otp', resendRegistrationOTP);
+router.post('/register/start', authLimiter, startRegistration);
+router.post('/register/accept-terms', authLimiter, acceptTerms);
+router.post('/register/verify-otp', authLimiter, verifyRegistrationOTP);
+router.post('/register/resend-otp', authLimiter, resendRegistrationOTP);
+
 // Settings & Profile routes
 router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);
 router.post('/resend-verification', authenticate, resendVerification);
+
 module.exports = router;

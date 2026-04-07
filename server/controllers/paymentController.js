@@ -150,6 +150,9 @@ exports.capturePayment = async (req, res) => {
     if (!job.rows[0] || job.rows[0].status !== 'completed') {
       return res.status(400).json({ error: 'Job must be completed first' });
     }
+    if (job.rows[0].client_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
 
     const payment = await pool.query('SELECT * FROM payments WHERE job_id = $1 AND status = $2', [job_id, 'authorized']);
     if (!payment.rows[0]) return res.status(404).json({ error: 'No authorized payment found' });
@@ -191,9 +194,13 @@ exports.capturePayment = async (req, res) => {
   }
 };
 
-// Refund payment (on helper's connected account — helper bears refund as merchant of record)
+// Refund payment (on helper's connected account — admin only)
 exports.refundPayment = async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     const { payment_id, reason, amount, reverse_application_fee } = req.body;
 
     const payment = await pool.query('SELECT * FROM payments WHERE id = $1', [payment_id]);
@@ -225,12 +232,16 @@ exports.refundPayment = async (req, res) => {
   }
 };
 
-// Get payment for a job
+// Get payment for a job — only payer or payee may view
 exports.getJobPayment = async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM payments WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1', [req.params.job_id]);
     if (!result.rows[0]) return res.json(null);
-    res.json(result.rows[0]);
+    const p = result.rows[0];
+    if (p.payer_id !== req.user.id && p.payee_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    res.json(p);
   } catch (err) {
     logger.error('Get job payment error', { err });
     res.status(500).json({ error: 'Failed to fetch payment' });

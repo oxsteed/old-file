@@ -37,6 +37,15 @@ module.exports = function validateEnv() {
     process.exit(1);
   }
 
+  if (process.env.JWT_SECRET.length < 32) {
+    console.error('');
+    console.error('╔══════════════════════════════════════════════════════╗');
+    console.error('║  [FATAL] JWT_SECRET must be at least 32 characters   ║');
+    console.error('╚══════════════════════════════════════════════════════╝');
+    console.error('');
+    process.exit(1);
+  }
+
   OPTIONAL.forEach(([key, note]) => {
     if (!process.env[key]) {
       console.warn(`[env] ${key} not set — ${note}`);

@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-07
+**Last updated:** 2026-04-07 (security audit)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -299,6 +299,20 @@ All production-readiness audit items have been completed. Items are documented i
 9. PWA / service worker
 10. Referral system
 11. Didit integration test
+
+### Security Audit — 2026-04-07 (all fixed)
+- **CRITICAL** SQL injection via `sessionDuration` template literal in `login()` — replaced with two hardcoded SQL strings (`authController.js`)
+- **CRITICAL** JWT_SECRET minimum length not enforced — added 32-char check to `validateEnv.js`
+- **HIGH** OTP generated with `Math.random()` (4 locations) — replaced with `crypto.randomInt()` (`authController.js`)
+- **HIGH** IDOR: `getJobPayment` returned any payment by job_id — added payer/payee/admin check (`paymentController.js`)
+- **HIGH** Authorization bypass: `refundPayment` allowed any authenticated user to refund — now admin-only (`paymentController.js`)
+- **HIGH** `capturePayment` had no ownership check — now verifies `client_id === req.user.id` (`paymentController.js`)
+- **MEDIUM** `startRegistration` error leaked `err.message` to client — removed (`authController.js`)
+- **MEDIUM** `forgot-password` and `reset-password` had no rate limit — now behind `strictLimiter`; all OTP/register/login/refresh routes now behind `authLimiter` (`routes/auth.js`)
+- **MEDIUM** Referral `/validate` (public) had no rate limit — now behind `authLimiter` (`routes/referrals.js`)
+- **MEDIUM** File upload validated extension only, not MIME type; 50MB limit — now validates both ext + `file.mimetype`, limit reduced to 10MB (`middleware/upload.js`)
+- **MEDIUM** `changePassword` and `resetPassword` only checked `length >= 8` — now use `validate()` with `rules.minLen(8)` + `rules.maxLen(128)` (`authController.js`)
+- **MEDIUM** CSP `scriptSrc` included `'unsafe-inline'` — removed; Vite bundle does not emit inline scripts (`middleware/securityHeaders.js`)
 
 ---
 
