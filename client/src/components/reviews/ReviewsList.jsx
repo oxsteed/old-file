@@ -144,6 +144,7 @@ function ReviewCard({ review }) {
           <img
             src={review.reviewer_avatar || '/default-avatar.png'}
             alt=""
+            loading="lazy"
             className="w-9 h-9 rounded-full object-cover
                        border border-gray-200"
           />

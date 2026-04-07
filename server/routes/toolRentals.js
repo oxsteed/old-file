@@ -45,7 +45,7 @@ router.get('/browse', async (req, res) => {
     );
     res.json({ tools: result.rows });
   } catch (err) {
-    console.error('[toolRentals] browse error:', err.message);
+    require('../utils/logger').error('[toolRentals] browse error:', err.message);
     res.status(500).json({ error: 'Failed to fetch tools' });
   }
 });
@@ -62,7 +62,7 @@ router.get('/me', authenticate, async (req, res) => {
     );
     res.json({ tools: result.rows });
   } catch (err) {
-    console.error('[toolRentals] list error:', err.message);
+    require('../utils/logger').error('[toolRentals] list error:', err.message);
     res.status(500).json({ error: 'Failed to fetch your tools' });
   }
 });
@@ -119,7 +119,7 @@ router.post('/', authenticate, async (req, res) => {
 
     res.status(201).json({ tool: result.rows[0] });
   } catch (err) {
-    console.error('[toolRentals] create error:', err.message);
+    require('../utils/logger').error('[toolRentals] create error:', err.message);
     res.status(500).json({ error: 'Failed to create tool listing' });
   }
 });
@@ -195,7 +195,7 @@ router.put('/:id', authenticate, async (req, res) => {
 
     res.json({ tool: result.rows[0] });
   } catch (err) {
-    console.error('[toolRentals] update error:', err.message);
+    require('../utils/logger').error('[toolRentals] update error:', err.message);
     res.status(500).json({ error: 'Failed to update tool listing' });
   }
 });
@@ -212,7 +212,7 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
     res.json({ deleted: true });
   } catch (err) {
-    console.error('[toolRentals] delete error:', err.message);
+    require('../utils/logger').error('[toolRentals] delete error:', err.message);
     res.status(500).json({ error: 'Failed to delete tool listing' });
   }
 });

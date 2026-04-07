@@ -5,7 +5,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const path = require('path');
 const crypto = require('crypto');
 
-const BUCKET = process.env.S3_BUCKET || 'oxsteed-uploads';
+const BUCKET = process.env.AWS_S3_BUCKET || process.env.S3_BUCKET || 'oxsteed-uploads';
 
 // Only initialize S3 client if credentials are present
 let s3 = null;
@@ -18,7 +18,7 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
     },
   });
 } else {
-  console.warn('AWS credentials not set. File storage features disabled.');
+  require('./logger').warn('AWS credentials not set — file storage disabled');
 }
 
 function generateKey(folder, originalName) {
@@ -29,7 +29,7 @@ function generateKey(folder, originalName) {
 
 async function uploadFile(buffer, folder, originalName, contentType) {
   if (!s3) {
-    console.warn('File not uploaded - AWS S3 not configured');
+    require('./logger').warn('File not uploaded — S3 not configured');
     return null;
   }
   const key = generateKey(folder, originalName);
@@ -44,7 +44,7 @@ async function uploadFile(buffer, folder, originalName, contentType) {
 
 async function getSignedDownloadUrl(key, expiresIn = 3600) {
   if (!s3) {
-    console.warn('Signed URL not generated - AWS S3 not configured');
+    require('./logger').warn('Signed URL not generated — S3 not configured');
     return null;
   }
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
@@ -53,7 +53,7 @@ async function getSignedDownloadUrl(key, expiresIn = 3600) {
 
 async function deleteFile(key) {
   if (!s3) {
-    console.warn('File not deleted - AWS S3 not configured');
+    require('./logger').warn('File not deleted — S3 not configured');
     return;
   }
   await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));

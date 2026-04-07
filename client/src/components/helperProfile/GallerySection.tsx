@@ -115,6 +115,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
             <img
               src={images[lightboxIndex].url}
               alt={images[lightboxIndex].alt}
+              loading="lazy"
               className="max-h-[72vh] max-w-full rounded-xl object-contain shadow-2xl"
             />
             {images[lightboxIndex].caption && (
