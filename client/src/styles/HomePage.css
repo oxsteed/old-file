@@ -358,17 +358,6 @@
 .hp-link-arrow:hover { gap: .625rem; }
 
 /* ── Categories ──────────────────────────────────────────── */
-.skill-overflow {
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition: max-height 0.4s ease, opacity 0.3s ease;
-}
-
-.skill-overflow.expanded {
-  max-height: 600px; /* or use JS scrollHeight for precision */
-  opacity: 1;
-}
 .hp-cat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
