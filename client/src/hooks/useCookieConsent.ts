@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { bootConsentedScripts, initAnalytics, disableAnalytics, initMarketing, initFunctional } from '../utils/consentScripts';
 
 const COOKIE_KEY = 'oxsteed_cookie_consent';
 const CONSENT_VERSION = '2025-06-01';
@@ -39,6 +40,8 @@ export function useCookieConsent() {
         } else {
           setPreferences(parsed);
           setShowBanner(false);
+          // Re-initialize scripts that user previously consented to
+          bootConsentedScripts(parsed);
         }
       } else {
         setShowBanner(true);
@@ -61,9 +64,12 @@ export function useCookieConsent() {
     setShowBanner(false);
     setShowSettings(false);
 
-    // Remove non-consented cookies
-    if (!full.analytics) removeAnalyticsCookies();
-    if (!full.marketing) removeMarketingCookies();
+    // Load or disable scripts based on updated preferences
+    if (full.analytics)  initAnalytics();
+    else                 { disableAnalytics(); removeAnalyticsCookies(); }
+    if (full.marketing)  initMarketing();
+    else                 removeMarketingCookies();
+    if (full.functional) initFunctional();
   }, []);
 
   const acceptAll = useCallback(() => {

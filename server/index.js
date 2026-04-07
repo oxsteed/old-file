@@ -13,6 +13,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const pool = require('./db');
+const logger = require('./utils/logger');
 const socketService = require('./services/socketService');
 const { reloadFeeConfig } = require('./services/feeService');
 
@@ -85,15 +86,18 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   const userId = socket.userId;
   socket.join(`user_${userId}`);
-  console.log(`[Socket] User ${userId} connected (socket ${socket.id})`);
+  logger.debug('Socket connected', { userId, socketId: socket.id });
 
   socket.on('disconnect', () => {
-    console.log(`[Socket] Socket ${socket.id} disconnected`);
+    logger.debug('Socket disconnected', { socketId: socket.id });
   });
 });
 
 // Wire socket service so notificationService can broadcast
 socketService.init(io);
+
+// ── REQUEST LOGGING ──────────────────────────────────────────
+app.use(logger.requestMiddleware());
 
 // ── SECURITY ─────────────────────────────────────────────────
 app.use(securityHeaders);
@@ -130,7 +134,7 @@ app.get('/api/health', async (req, res) => {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   } catch (err) {
-    console.error('[Health] DB check failed:', err.message);
+    logger.error('Health DB check failed', { message: err.message });
     res.status(503).json({ status: 'degraded', error: 'database unreachable' });
   }
 });
@@ -188,14 +192,14 @@ if (process.env.NODE_ENV === 'production') {
 
 // ── ERROR HANDLER ────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error('Unhandled server error', err);
   res.status(500).json({ error: 'Something went wrong' });
 });
 
 httpServer.listen(PORT, async () => {
-  console.log(`OxSteed v2 server running on port ${PORT}`);
+  logger.info(`OxSteed v2 server running on port ${PORT}`, { env: process.env.NODE_ENV || 'development' });
   // Load fee config after DB is reachable
-  try { await reloadFeeConfig(); } catch (e) { console.warn('[FeeService] Initial load failed:', e.message); }
+  try { await reloadFeeConfig(); } catch (e) { logger.warn('FeeService initial load failed', { message: e.message }); }
 });
 
 // ── CRON JOBS ────────────────────────────────────────────────
@@ -204,13 +208,13 @@ startWeeklySummaryJob();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
-  console.log(`[Shutdown] ${signal} received. Closing server...`);
+  logger.info('Shutdown received', { signal });
   httpServer.close(() => {
-    console.log('[Shutdown] HTTP server closed');
+    logger.info('HTTP server closed');
     io.close(() => {
-      console.log('[Shutdown] Socket.IO closed');
+      logger.info('Socket.IO closed');
       pool.end(() => {
-        console.log('[Shutdown] DB pool drained');
+        logger.info('DB pool drained');
         process.exit(0);
       });
     });

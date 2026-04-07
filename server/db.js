@@ -12,13 +12,13 @@ const needsSsl = !dbUrl.includes('sslmode=disable') && process.env.NODE_ENV === 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: needsSsl ? { rejectUnauthorized: true } : false,
-  max: 20,
+  max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected database pool error:', err);
+  require('./utils/logger').error('Unexpected database pool error', err);
 });
 
 module.exports = pool;
