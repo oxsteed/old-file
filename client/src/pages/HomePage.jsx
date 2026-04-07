@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import '../styles/HomePage.css';
 import ThemeToggle from '../components/ThemeToggle';
@@ -26,6 +26,9 @@ const SKILL_TILES = [
   { slug: 'pet-care',     icon: '🐾', name: 'Pet Care',        desc: 'Sitting, walking, grooming' },
   { slug: 'tutoring',     icon: '📚', name: 'Tutoring',        desc: 'Math, reading, test prep' },
 ];
+
+const PREVIEW_COUNT = 4;
+const OVERFLOW_COUNT = SKILL_TILES.length - PREVIEW_COUNT;
 
 /** The real OxSteed brand icon (4-arrow clockwise ring with inner circle) */
 function OxSteedIcon({ size = 26 }) {
@@ -106,7 +109,9 @@ function useLiveBidsPreview() {
               ? `${helperName.split(' ')[0].charAt(0)}. ${helperName.split(' ').slice(-1)[0]}`
               : helperName;
           const badge = b.is_licensed ? '✓ Licensed' : b.is_insured ? '✓ Insured' : '✓ Verified';
-          const amt = b.amount != null ? `$${Number(b.amount).toLocaleString()}` : b.bid_amount != null ? `$${Number(b.bid_amount).toLocaleString()}` : '—';
+          const amt =
+            b.amount != null ? `$${Number(b.amount).toLocaleString()}` :
+            b.bid_amount != null ? `$${Number(b.bid_amount).toLocaleString()}` : '—';
           const stars = Math.min(5, Math.max(1, Math.round(b.helper_rating || b.rating || 4)));
           return { name: firstLast, initial, badge, amt, stars };
         });
@@ -119,7 +124,7 @@ function useLiveBidsPreview() {
         setData({ jobTitle: chosenJob.title || chosenJob.category || 'Local job', location, bids: formattedBids });
         setNewCount(Math.min(liveBids.length, 9));
       } catch {
-        // silently fail
+        // Silently fail
       }
     }
 
@@ -130,167 +135,33 @@ function useLiveBidsPreview() {
   return { preview: data, newCount };
 }
 
-/** Homepage search bar with live skill autocomplete */
-function HomeSearch() {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const inputRef = useRef(null);
-  const listRef = useRef(null);
-
-  // Filter SKILL_TILES based on query
-  useEffect(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
-    const matches = SKILL_TILES.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.desc.toLowerCase().includes(q) ||
-        t.slug.includes(q)
-    );
-    setSuggestions(matches);
-    setOpen(matches.length > 0);
-    setActiveIdx(-1);
-  }, [query]);
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    // If an active suggestion is selected use that slug, otherwise free-text search
-    if (activeIdx >= 0 && suggestions[activeIdx]) {
-      navigate(`/helpers?skill=${suggestions[activeIdx].slug}`);
-    } else {
-      navigate(`/helpers?q=${encodeURIComponent(q)}`);
-    }
-    setOpen(false);
-  }
-
-  function handleKeyDown(e) {
-    if (!open) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIdx((i) => Math.max(i - 1, -1));
-    } else if (e.key === 'Escape') {
-      setOpen(false);
-      setActiveIdx(-1);
-    } else if (e.key === 'Enter' && activeIdx >= 0) {
-      e.preventDefault();
-      navigate(`/helpers?skill=${suggestions[activeIdx].slug}`);
-      setQuery(suggestions[activeIdx].name);
-      setOpen(false);
-    }
-  }
-
-  function handleSelect(tile) {
-    navigate(`/helpers?skill=${tile.slug}`);
-    setQuery('');
-    setOpen(false);
-  }
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function onOutside(e) {
-      if (inputRef.current && !inputRef.current.closest('.hp-search-wrap').contains(e.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onOutside);
-    return () => document.removeEventListener('mousedown', onOutside);
-  }, []);
-
-  return (
-    <div className="hp-search-wrap" role="search">
-      <form className="hp-search-form" onSubmit={handleSubmit} autoComplete="off">
-        <label htmlFor="hp-search-input" className="sr-only">Search for a service or skill</label>
-        <span className="hp-search-icon" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-        </span>
-        <input
-          ref={inputRef}
-          id="hp-search-input"
-          className="hp-search-input"
-          type="text"
-          placeholder="What do you need done? e.g. plumbing, lawn care…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
-          onKeyDown={handleKeyDown}
-          aria-autocomplete="list"
-          aria-controls="hp-search-suggestions"
-          aria-activedescendant={activeIdx >= 0 ? `hp-sugg-${activeIdx}` : undefined}
-          aria-expanded={open}
-        />
-        {query && (
-          <button
-            type="button"
-            className="hp-search-clear"
-            aria-label="Clear search"
-            onClick={() => { setQuery(''); setOpen(false); inputRef.current?.focus(); }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        )}
-        <button type="submit" className="hp-btn hp-btn-primary hp-search-btn">
-          Search
-        </button>
-      </form>
-
-      {open && (
-        <ul
-          id="hp-search-suggestions"
-          className="hp-search-suggestions"
-          ref={listRef}
-          role="listbox"
-          aria-label="Skill suggestions"
-        >
-          {suggestions.map((tile, i) => (
-            <li
-              key={tile.slug}
-              id={`hp-sugg-${i}`}
-              role="option"
-              aria-selected={i === activeIdx}
-              className={`hp-search-suggestion${i === activeIdx ? ' hp-search-suggestion--active' : ''}`}
-              onMouseDown={() => handleSelect(tile)}
-            >
-              <span className="hp-sugg-icon">{tile.icon}</span>
-              <span className="hp-sugg-text">
-                <span className="hp-sugg-name">{tile.name}</span>
-                <span className="hp-sugg-desc">{tile.desc}</span>
-              </span>
-              <span className="hp-sugg-arrow" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 export default function HomePage() {
   const { preview, newCount } = useLiveBidsPreview();
 
-  const jobTitle  = preview?.jobTitle  ?? '…';
-  const location  = preview?.location  ?? '—';
-  const bids      = preview?.bids      ?? [];
+  const jobTitle   = preview?.jobTitle  ?? '…';
+  const location   = preview?.location  ?? '—';
+  const bids       = preview?.bids      ?? [];
   const badgeLabel = newCount > 0 ? `${newCount} new` : 'Live';
+
+  // Collapsible skills state
+  const [skillsExpanded, setSkillsExpanded] = useState(false);
+  const overflowRef = useRef(null);
+
+  function toggleSkills() {
+    const el = overflowRef.current;
+    if (!el) return;
+
+    if (!skillsExpanded) {
+      // Expand: set max-height to scrollHeight
+      el.style.maxHeight = el.scrollHeight + 'px';
+      el.style.opacity = '1';
+    } else {
+      // Collapse: animate back to 0
+      el.style.maxHeight = '0';
+      el.style.opacity = '0';
+    }
+    setSkillsExpanded(prev => !prev);
+  }
 
   return (
     <div className="hp-root">
@@ -331,10 +202,6 @@ export default function HomePage() {
           <p className="hp-hero-sub">
             Describe what needs doing, set your own requirements, and let qualified local helpers bid. Compare proposals and pay securely with OxSteed. Free to start.
           </p>
-
-          {/* ── Search bar ── */}
-          <HomeSearch />
-
           <div className="hp-hero-ctas">
             <Link to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
               Post a Job
@@ -415,8 +282,10 @@ export default function HomePage() {
             <h2 className="hp-section-title">Browse by Skill</h2>
             <p className="hp-section-sub">Find a local expert for the exact job you need done.</p>
           </div>
+
+          {/* Preview: first 4 cards — always visible */}
           <div className="hp-cat-grid">
-            {SKILL_TILES.map(tile => (
+            {SKILL_TILES.slice(0, PREVIEW_COUNT).map(tile => (
               <Link key={tile.slug} to={`/helpers?skill=${tile.slug}`} className="hp-cat-card">
                 <span className="hp-cat-icon">{tile.icon}</span>
                 <div className="hp-cat-name">{tile.name}</div>
@@ -424,11 +293,53 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
-          <p className="hp-cat-note">
-            Don't see your skill?{' '}
-            <Link to="/register/customer" className="hp-text-link">Post a job</Link>
-            {' '}and let qualified helpers come to you.
-          </p>
+
+          {/* Overflow: remaining cards — animated */}
+          <div
+            id="hp-skills-overflow"
+            ref={overflowRef}
+            className="hp-skills-overflow"
+            aria-hidden={!skillsExpanded}
+          >
+            <div className="hp-cat-grid hp-cat-grid--overflow">
+              {SKILL_TILES.slice(PREVIEW_COUNT).map(tile => (
+                <Link key={tile.slug} to={`/helpers?skill=${tile.slug}`} className="hp-cat-card">
+                  <span className="hp-cat-icon">{tile.icon}</span>
+                  <div className="hp-cat-name">{tile.name}</div>
+                  <div className="hp-cat-desc">{tile.desc}</div>
+                </Link>
+              ))}
+            </div>
+            <p className="hp-cat-note">
+              Don't see your skill?{' '}
+              <Link to="/register/customer" className="hp-text-link">Post a job</Link>
+              {' '}and let qualified helpers come to you.
+            </p>
+          </div>
+
+          {/* Toggle button */}
+          <div className="hp-skills-toggle-wrap">
+            <button
+              className="hp-skills-toggle"
+              onClick={toggleSkills}
+              aria-expanded={skillsExpanded}
+              aria-controls="hp-skills-overflow"
+            >
+              {skillsExpanded ? 'Show fewer' : `Show ${OVERFLOW_COUNT} more skills`}
+              <svg
+                className={`hp-skills-chevron${skillsExpanded ? ' hp-skills-chevron--up' : ''}`}
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
         </div>
       </section>
 
