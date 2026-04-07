@@ -45,9 +45,24 @@ OxSteed connects customers with local skilled helpers for jobs like home repair,
 
 exports.chatMessage = async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, pageContext } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
+    }
+
+    // 4. Page context awareness — append current page info to system prompt
+    let systemPrompt = SYSTEM_PROMPT;
+    if (pageContext?.path) {
+      const pathHint = pageContext.path.startsWith('/post-job')
+        ? 'The user is currently on the Post a Job page.'
+        : pageContext.path.startsWith('/helpers')
+        ? 'The user is currently browsing helpers.'
+        : pageContext.path.startsWith('/dashboard')
+        ? 'The user is currently in their Dashboard.'
+        : pageContext.path.startsWith('/subscription')
+        ? 'The user is currently on the Subscription page.'
+        : null;
+      if (pathHint) systemPrompt += `\n\n## Current Page Context\n${pathHint} Tailor your response to be relevant to what they are doing.`;
     }
 
     // Sanitize and limit conversation history
@@ -60,7 +75,7 @@ exports.chatMessage = async (req, res) => {
       .filter(m => m.content.trim());
 
     const ollamaMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...history,
     ];
 
