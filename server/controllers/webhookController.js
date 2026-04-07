@@ -1,7 +1,8 @@
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 if (!process.env.STRIPE_SECRET_KEY) {
-  console.error('[FATAL] STRIPE_SECRET_KEY is not set — Stripe webhooks will fail.');
+  logger.error('[FATAL] STRIPE_SECRET_KEY is not set — Stripe webhooks will fail.');
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
@@ -19,7 +20,7 @@ exports.stripeWebhook = async (req, res) => {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    logger.error('Webhook signature verification failed', { err });
     return res.status(400).json({ error: 'Invalid signature.' });
   }
 
@@ -46,7 +47,11 @@ exports.stripeWebhook = async (req, res) => {
           const planSlug = plans[0]?.slug || plans[0]?.tier_slug || 'pro';
           const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
           await db.query(
-            `UPDATE users SET tier = $1, subscription_status = 'active' WHERE id = $2`,
+            `UPDATE users
+             SET tier = $1,
+                 subscription_status = 'active',
+                 tier_selected = TRUE
+             WHERE id = $2`,
             [userTier, userId]
           );
           await recalculateBadges(userId);
@@ -130,7 +135,7 @@ exports.stripeWebhook = async (req, res) => {
              updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'`,
             [pi.id]
           );
-          console.log(`[Stripe] PaymentIntent ${pi.id} authorized — job ${jobId} funds held`);
+          logger.info(`[Stripe] PaymentIntent ${pi.id} authorized — job ${jobId} funds held`);
         }
         break;
       }
@@ -151,7 +156,7 @@ exports.stripeWebhook = async (req, res) => {
             `UPDATE jobs SET escrow_status = 'released', updated_at = NOW() WHERE id = $1`,
             [jobId]
           );
-          console.log(`[Stripe] PaymentIntent ${pi.id} captured — funds released for job ${jobId}`);
+          logger.info(`[Stripe] PaymentIntent ${pi.id} captured — funds released for job ${jobId}`);
         }
         break;
       }
@@ -172,7 +177,7 @@ exports.stripeWebhook = async (req, res) => {
             `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
             [jobId]
           );
-          console.warn(`[Stripe] PaymentIntent ${pi.id} failed for job ${jobId}: ${failureMsg}`);
+          logger.warn(`[Stripe] PaymentIntent ${pi.id} failed for job ${jobId}: ${failureMsg}`);
         }
         break;
       }
@@ -187,17 +192,17 @@ exports.stripeWebhook = async (req, res) => {
              updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
             [piId]
           );
-          console.log(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
+          logger.info(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
         }
         break;
       }
 
       default:
-        console.log(`Unhandled Stripe event: ${event.type}`);
+        logger.info(`Unhandled Stripe event: ${event.type}`);
     }
     res.json({ received: true });
   } catch (err) {
-    console.error('Webhook handler error:', err);
+    logger.error('Webhook handler error', { err });
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };
@@ -287,7 +292,7 @@ function verifySignatureOriginal(rawBody, receivedSignature, timestamp, secret) 
 exports.diditWebhook = async (req, res) => {
   const secret = process.env.DIDIT_WEBHOOK_SECRET;
   if (!secret) {
-    console.error('[Didit] DIDIT_WEBHOOK_SECRET not set');
+    logger.error('[Didit] DIDIT_WEBHOOK_SECRET not set');
     return res.status(500).json({ error: 'Webhook not configured.' });
   }
 
@@ -325,16 +330,16 @@ exports.diditWebhook = async (req, res) => {
   }
 
   if (!isValid) {
-    console.warn('[Didit] Invalid webhook signature');
+    logger.warn('[Didit] Invalid webhook signature');
     return res.status(401).json({ error: 'Invalid signature.' });
   }
 
-  console.log(`[Didit] Signature verified via ${method}`);
+  logger.info(`[Didit] Signature verified via ${method}`);
 
   // Handle test webhooks from Didit console
   const isTestWebhook = req.headers['x-didit-test-webhook'] === 'true';
   if (isTestWebhook || body.metadata?.test_webhook) {
-    console.log('[Didit] Test webhook received - signature valid');
+    logger.info('[Didit] Test webhook received - signature valid');
     return res.json({ received: true, test: true });
   }
 
@@ -383,7 +388,7 @@ exports.diditWebhook = async (req, res) => {
         }
 
         if (!identityHash) {
-          console.warn(`[Didit] No document_number for user ${userId} - skipping dedup`);
+          logger.warn('[Didit] No document_number — skipping dedup', { userId });
           await db.query(
             `UPDATE users
              SET identity_verified = TRUE,
@@ -405,7 +410,7 @@ exports.diditWebhook = async (req, res) => {
               `UPDATE users SET didit_status = 'duplicate' WHERE id = $1`,
               [userId]
             );
-            console.warn(`[Didit] Duplicate identity for user ${userId} - matches user ${existing[0].id}`);
+            logger.warn('[Didit] Duplicate identity detected', { userId, existingUserId: existing[0].id });
           } else {
             await db.query(
               `UPDATE users
@@ -423,12 +428,13 @@ exports.diditWebhook = async (req, res) => {
                ON CONFLICT DO NOTHING`,
               [userId]
             );
-            console.log(
-              `[Didit] Identity approved for user ${userId} - ${idVerification.full_name}, ` +
-              `doc: ${idVerification.document_type}, ` +
-              `liveness: ${livenessCheck.liveness_score}, ` +
-              `face match: ${faceMatch.face_match_score}`
-            );
+            logger.info('[Didit] Identity approved', {
+              userId,
+              name: idVerification.full_name,
+              docType: idVerification.document_type,
+              livenessScore: livenessCheck.liveness_score,
+              faceMatchScore: faceMatch.face_match_score,
+            });
           }
         }
       } else {
@@ -447,9 +453,9 @@ exports.diditWebhook = async (req, res) => {
              WHERE id = $1`,
             [userId]
           );
-          console.log(`[Didit] Identity approved for user ${userId} (via users.didit_session_id)`);
+          logger.info('[Didit] Identity approved (via didit_session_id fallback)', { userId });
         } else {
-          console.warn(`[Didit] No user found for session ${session_id}`);
+          logger.warn('[Didit] No user found for session', { session_id });
         }
       }
     } else if (normalizedStatus === 'declined') {
@@ -480,12 +486,12 @@ exports.diditWebhook = async (req, res) => {
         );
       }
     } else {
-      console.log(`[Didit] Unhandled status: ${status}`);
+      logger.info('[Didit] Unhandled status', { status });
     }
 
     res.json({ received: true });
   } catch (err) {
-    console.error('[Didit] Webhook handler error:', err);
+    logger.error('[Didit] Webhook handler error', { err });
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };

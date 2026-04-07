@@ -1,6 +1,7 @@
 const pool = require('../db');
 const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
+const logger = require('../utils/logger');
 
 // ── Privacy: fuzz coordinates by +/- 2 miles for public feed ─────────────────
 const FUZZ_MILES   = 2;
@@ -52,7 +53,7 @@ exports.createJob = async (req, res) => {
         .map(r => getPublicUrl(r.value));
       // If S3 not configured, log warning but don't fail the job creation
       const failed = uploads.filter(r => r.status === 'rejected' || !r.value).length;
-      if (failed > 0) console.warn(`[createJob] ${failed}/${req.files.length} media files not uploaded (S3 not configured?)`);
+      if (failed > 0) logger.warn(`[createJob] ${failed}/${req.files.length} media files not uploaded (S3 not configured?)`);
     } else if (media_urls) {
       mediaArr = typeof media_urls === 'string'
         ? JSON.parse(media_urls)
@@ -120,7 +121,7 @@ exports.createJob = async (req, res) => {
       matchResult = await scoreAndMatch(job);
     } catch (matchErr) {
       // Never fail the publish because of match scoring
-      console.error('Match scoring error (non-fatal):', matchErr.message);
+      logger.error('Match scoring error (non-fatal)', { err: matchErr });
     }
 
     // ── Clear the user's draft ────────────────────────────────────────────
@@ -137,7 +138,7 @@ exports.createJob = async (req, res) => {
       notify_count: matchResult.notified || 0,
     });
   } catch (err) {
-    console.error('Create job error:', err);
+    logger.error('Create job error', { err });
     res.status(500).json({ error: 'Failed to create job: ' + err.message });
   }
 };
@@ -213,7 +214,7 @@ exports.getJobs = async (req, res) => {
       limit: parseInt(limit)
     });
   } catch (err) {
-    console.error('Get jobs error:', err);
+    logger.error('Get jobs error', { err });
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
 };
@@ -241,7 +242,7 @@ exports.getJob = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    console.error('Get job error:', err);
+    logger.error('Get job error', { err });
     res.status(500).json({ error: 'Failed to fetch job' });
   }
 };
@@ -288,7 +289,7 @@ exports.updateJob = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    console.error('Update job error:', err);
+    logger.error('Update job error', { err });
     res.status(500).json({ error: 'Failed to update job' });
   }
 };
@@ -311,7 +312,7 @@ exports.cancelJob = async (req, res) => {
 
     res.json({ message: 'Job cancelled', job: rows[0] });
   } catch (err) {
-    console.error('Cancel job error:', err);
+    logger.error('Cancel job error', { err });
     res.status(500).json({ error: 'Failed to cancel job' });
   }
 };
@@ -337,7 +338,7 @@ exports.assignHelper = async (req, res) => {
 
     res.json({ message: 'Helper assigned', job: rows[0] });
   } catch (err) {
-    console.error('Assign helper error:', err);
+    logger.error('Assign helper error', { err });
     res.status(500).json({ error: 'Failed to assign helper' });
   }
 };
@@ -363,7 +364,7 @@ exports.startJob = async (req, res) => {
 
     res.json({ message: 'Job started', job: rows[0] });
   } catch (err) {
-    console.error('Start job error:', err);
+    logger.error('Start job error', { err });
     res.status(500).json({ error: 'Failed to start job' });
   }
 };
@@ -389,7 +390,7 @@ exports.completeJob = async (req, res) => {
 
     res.json({ message: 'Job completed', job: rows[0] });
   } catch (err) {
-    console.error('Complete job error:', err);
+    logger.error('Complete job error', { err });
     res.status(500).json({ error: 'Failed to complete job' });
   }
 };
@@ -409,7 +410,7 @@ exports.closeJob = async (req, res) => {
     }
     res.json({ message: 'Job closed', job: rows[0] });
   } catch (err) {
-    console.error('Close job error:', err);
+    logger.error('Close job error', { err });
     res.status(500).json({ error: 'Failed to close job' });
   }
 };
@@ -425,7 +426,7 @@ exports.getMyJobs = async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    console.error('Get my jobs error:', err);
+    logger.error('Get my jobs error', { err });
     res.status(500).json({ error: 'Failed to fetch your jobs' });
   }
 };

@@ -287,10 +287,9 @@ All items from the full production-readiness audit have been addressed. Recorded
 
 ### High Value — Do Next
 
-**1. Migrate controller `console.*` calls to `logger`**
-- ~206 calls remain across 26 files in `server/controllers/`.
-- Pattern: `const logger = require('../utils/logger'); logger.error('msg', err)`
-- The most important files (highest traffic, most error-prone): `authController.js`, `jobController.js`, `paymentController.js`, `webhookController.js`, `helperRegistrationController.js`.
+**1. Migrate controller `console.*` calls to `logger`** — priority files done ✅
+- 5 highest-traffic files migrated: `authController.js`, `jobController.js`, `paymentController.js`, `webhookController.js`, `helperRegistrationController.js`.
+- ~150 calls remain across ~21 other files in `server/controllers/`. Same pattern applies.
 
 **2. Expand test coverage** ✅ Done — 82 tests, all passing.
 - All 5 priority controller test files written: job, payment, bid, review, webhook.
@@ -309,8 +308,8 @@ All items from the full production-readiness audit have been addressed. Recorded
 - The app is a pure SPA. `PageMeta.jsx` updates meta tags at runtime, but crawlers that don't execute JS won't see them. Consider adding [vite-plugin-ssr](https://vite-plugin-ssr.com/) or moving to Next.js for the public-facing pages (`/`, `/helpers`, `/helpers/:id`).
 - Dashboard, PostJob, and all authenticated pages do not need SSR.
 
-**6. Error boundary per-route**
-- `ErrorBoundary` only exists at the app root. Add per-route boundaries so a crash in one page doesn't blank the entire app.
+**6. Error boundary per-route** ✅ Done
+- `App.jsx`: every route element wrapped in `<Guarded>` (thin ErrorBoundary wrapper). Root boundary kept for catastrophic failures.
 
 **7. Accessibility pass**
 - Forms lack `aria-describedby` for validation errors.
@@ -320,8 +319,9 @@ All items from the full production-readiness audit have been addressed. Recorded
 **8. Notification preferences**
 - `NotificationCenter.jsx` exists but there's no UI for users to configure which notifications they receive (email vs. push vs. both vs. none).
 
-**9. Helper onboarding flow completeness**
-- The `HelperRegister.tsx` multi-step flow (Step1–Step5) has been implemented, but Step 5 (Choose Plan) links to Stripe Checkout. Verify the post-checkout redirect lands on the helper dashboard with a success message and that `tier_selected = true` is set server-side on `checkout.session.completed`.
+**9. Helper onboarding flow completeness** ✅ Done
+- Verified: post-checkout redirect → `/helper-dashboard?subscribed=true` → toast + refresh.
+- Fixed: `checkout.session.completed` now sets `tier_selected = TRUE` in addition to `tier` + `subscription_status`. Prevents helper being stuck in onboarding if `saveTier` step failed before checkout.
 
 ### Low Priority / Nice to Have
 
@@ -339,8 +339,8 @@ All items from the full production-readiness audit have been addressed. Recorded
 **12. Referral system**
 - `REFERRAL_REWARD_TYPE` env var exists. The `referral_code` column is populated on register. A referral tracking page and reward-grant logic has not been implemented.
 
-**13. Didit integration test**
-- Didit webhook signature verification is implemented (`server/routes/didit.js`). Add a test that sends a mock signed Didit webhook event and verifies `didit_status` updates correctly in the DB.
+**13. Didit integration test** ✅ Done
+- `server/__tests__/didit.test.js` — 7 tests: signature missing/invalid, session not found, declined→failed, duplicate identity, approved→verified. All passing (89 total).
 
 ---
 
