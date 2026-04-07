@@ -21,6 +21,7 @@ const { reloadFeeConfig } = require('./services/feeService');
 const securityHeaders = require('./middleware/securityHeaders');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
+const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
 
 // ── ROUTES ───────────────────────────────────────────────────
 const authRoutes = require('./routes/auth');
@@ -188,6 +189,8 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, '../client/dist/admin.html'));
   });
 
+  // Pre-render helper profile pages with SEO shell + JSON-LD (Issue #35)
+  app.get('/helpers/*', prerenderHelperProfile);
   // Main SPA - catch-all for everything else
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
