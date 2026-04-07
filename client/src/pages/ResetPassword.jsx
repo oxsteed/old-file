@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, Lock } from 'lucide-react';
+import Footer from '../components/Footer';
 
 export default function ResetPasswordPage() {
   const { token } = useParams();
@@ -37,7 +38,8 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <main className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <Link to="/" className="text-3xl font-bold text-orange-500">OxSteed</Link>
@@ -111,6 +113,8 @@ export default function ResetPasswordPage() {
           </div>
         )}
       </div>
+      </main>
+      <Footer />
     </div>
   );
 }

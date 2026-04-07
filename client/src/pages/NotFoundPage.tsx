@@ -1,45 +1,43 @@
 import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 export default function NotFoundPage() {
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.code}>404</div>
-        <h1 style={styles.title}>Page Not Found</h1>
-        <p style={styles.message}>
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div style={styles.actions}>
-          <Link to="/" style={styles.homeBtn}>
-            Go to Homepage
-          </Link>
-          <button
-            onClick={() => window.history.back()}
-            style={styles.backBtn}
-          >
-            Go Back
-          </button>
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <Navbar />
+      <main className="flex-1 flex items-center justify-center px-5">
+        <div style={styles.card}>
+          <div style={styles.code}>404</div>
+          <h1 style={styles.title}>Page Not Found</h1>
+          <p style={styles.message}>
+            The page you're looking for doesn't exist or has been moved.
+          </p>
+          <div style={styles.actions}>
+            <Link to="/" style={styles.homeBtn}>
+              Go to Homepage
+            </Link>
+            <button
+              onClick={() => window.history.back()}
+              style={styles.backBtn}
+            >
+              Go Back
+            </button>
+          </div>
+          <p style={styles.help}>
+            Need help?{' '}
+            <a href="mailto:support@oxsteed.com" style={styles.link}>
+              support@oxsteed.com
+            </a>
+          </p>
         </div>
-        <p style={styles.help}>
-          Need help?{' '}
-          <a href="mailto:support@oxsteed.com" style={styles.link}>
-            support@oxsteed.com
-          </a>
-        </p>
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
-    minHeight: '100vh',
-    background: '#0b0e18',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
   card: {
     maxWidth: 480,
     width: '100%',
