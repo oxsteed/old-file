@@ -69,7 +69,7 @@ function formatAuthUser(user) {
 
 async function register(req, res) {
   try {
-    const { email, password, first_name, last_name, phone, role, language = 'en' } = req.body;
+    const { email, password, first_name, last_name, phone, role, language = 'en', ref } = req.body;
 
     const errs = validate(req.body, {
       email:      [rules.required, rules.email, rules.maxLen(254)],
@@ -90,18 +90,35 @@ const defaultOnboardingStatus = finalRole === 'helper' ? 'verified_pending_onboa
 const defaultMembershipTier = finalRole === 'helper' ? 'tier1' : null;
 const { trial_started_at, trial_ends_at } = trialDefaults();
 
+    // Resolve referrer from optional ?ref= code
+    let referrerId = null;
+    if (ref) {
+      const { rows: refRows } = await pool.query(
+        `SELECT id FROM users WHERE referral_code = $1`, [String(ref).trim()]
+      );
+      if (refRows.length) referrerId = refRows[0].id;
+    }
+
 const { rows } = await pool.query(
   `INSERT INTO users (email, password_hash, first_name, last_name, phone, role,
    preferred_language, referral_code, onboarding_status, membership_tier,
-   trial_started_at, trial_ends_at)
-   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+   trial_started_at, trial_ends_at, referred_by)
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
    RETURNING id, email, role`,
   [email.toLowerCase(), passwordHash, first_name, last_name, phone || null,
    finalRole, language || 'en', referralCode,
    defaultOnboardingStatus, defaultMembershipTier,
-   trial_started_at, trial_ends_at]
+   trial_started_at, trial_ends_at, referrerId]
 );
     const user = rows[0];
+
+    // Increment referrer's count
+    if (referrerId) {
+      pool.query(
+        `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`,
+        [referrerId]
+      ).catch(err => logger.error('Failed to increment referrals_count', { err }));
+    }
     const tokens = generateTokens(user);
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
@@ -379,7 +396,7 @@ async function addToWaitlist(req, res) {
 
 async function startRegistration(req, res) {
   try {
-    const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
+    const { email, password, firstName, lastName, phone, zip, ageConfirmed, ref } = req.body;
     if (!email || !password || !firstName || !lastName || !phone || !zip) {
       return res.status(400).json({ error: 'All fields required' });
     }
@@ -396,8 +413,8 @@ async function startRegistration(req, res) {
     const token = crypto.randomBytes(32).toString('hex');
     await pool.query('DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)', [email.toLowerCase(), 'customer']);
     await pool.query(
-  'INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed, role) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-  [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip, ageConfirmed, 'customer']
+  'INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed, role, referral_ref) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+  [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip, ageConfirmed, 'customer', ref || null]
 );
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
@@ -458,12 +475,29 @@ async function verifyRegistrationOTP(req, res) {
     }
     const referralCode = crypto.randomBytes(6).toString('hex');
     const { trial_started_at, trial_ends_at } = trialDefaults();
+
+    // Resolve referrer from pending.referral_ref
+    let referrerId = null;
+    if (pending.referral_ref) {
+      const { rows: refRows } = await pool.query(
+        `SELECT id FROM users WHERE referral_code = $1`, [pending.referral_ref]
+      );
+      if (refRows.length) referrerId = refRows[0].id;
+    }
+
     const userResult = await pool.query(
-      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code, trial_started_at, trial_ends_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13,$14,$15) RETURNING *',
-      [pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code, 'customer', pending.age_confirmed, pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode, trial_started_at, trial_ends_at]
+      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code, trial_started_at, trial_ends_at, referred_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *',
+      [pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code, 'customer', pending.age_confirmed, pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode, trial_started_at, trial_ends_at, referrerId]
     );
     const user = userResult.rows[0];
     await pool.query('DELETE FROM pending_registrations WHERE token = $1', [token]);
+
+    // Increment referrer count (non-fatal)
+    if (referrerId) {
+      pool.query(
+        `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`, [referrerId]
+      ).catch(err => logger.error('Failed to increment referrals_count', { err }));
+    }
     const tokens = generateTokens(user);
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
