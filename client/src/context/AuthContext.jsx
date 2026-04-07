@@ -118,8 +118,14 @@ export function AuthProvider({ children }) {
       try {
         await fetchMe();
       } catch (err) {
-        console.warn('Could not initialize auth session:', err?.response?.status || err?.message);
-        clearAuthState();
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          // Session is definitively invalid — clear it
+          clearAuthState();
+        } else {
+          // Network error or server unavailable — keep stored user, don't sign out
+          console.warn('Could not verify session (network issue?):', err?.message);
+        }
       } finally {
         if (mounted) {
           setLoading(false);
