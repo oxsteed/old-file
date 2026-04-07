@@ -113,6 +113,191 @@ const BUDGET_CFG = {
   open:   { min: 0,   max: 0,     step: 0,   defaultVal: 0,    labelMin: '',      labelMax: '',        fmt: () => 'Open to bids' },
 };
 
+// ─── Brand icon (matches homepage) ───────────────────────────────────────────
+function OxSteedIcon({ size = 26 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="512" height="512" rx="88" fill="#16213e"/>
+      <path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316"/>
+      <path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316"/>
+      <path d="M 472 228 A 218 218 0 0 1 339 457 L 301 486 A 178 178 0 0 0 433 233 Z" fill="#F97316"/>
+      <path d="M 284 472 A 218 218 0 0 1 55 339 L 26 301 A 178 178 0 0 0 279 433 Z" fill="#F97316"/>
+      <circle cx="256" cy="256" r="145" fill="#F97316"/>
+      <text x="256" y="236" textAnchor="middle" dominantBaseline="middle" fontFamily="Arial Black, Arial, Helvetica, system-ui, sans-serif" fontWeight="900" fontSize="90" fill="#FFFFFF">OxS</text>
+      <polyline points="131,305 172,305 184,295 194,268 204,326 214,297 224,305 381,305" fill="none" stroke="#FFFFFF" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// ─── Searchable category dropdown ────────────────────────────────────────────
+function CategorySelect({ value, onChange, error }) {
+  const [open, setOpen]         = React.useState(false);
+  const [search, setSearch]     = React.useState('');
+  const [activeIdx, setActiveIdx] = React.useState(-1);
+  const wrapRef  = React.useRef(null);
+  const inputRef = React.useRef(null);
+  const listRef  = React.useRef(null);
+
+  const allFlat = CATEGORIES.flatMap(g => g.options);
+
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return CATEGORIES;
+    return CATEGORIES
+      .map(g => ({
+        ...g,
+        options: g.options.filter(
+          o => o.name.toLowerCase().includes(q) || g.group.toLowerCase().includes(q)
+        ),
+      }))
+      .filter(g => g.options.length > 0);
+  }, [search]);
+
+  const filteredFlat = filtered.flatMap(g => g.options);
+
+  // Scroll active item into view
+  React.useEffect(() => {
+    if (activeIdx < 0 || !listRef.current) return;
+    const el = listRef.current.querySelector('[data-active="true"]');
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
+
+  // Close on outside click
+  React.useEffect(() => {
+    function onOutside(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+        setSearch('');
+      }
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, []);
+
+  function openDropdown() {
+    setOpen(true);
+    setSearch('');
+    setActiveIdx(-1);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function select(opt) {
+    onChange(opt.id, opt.name);
+    setOpen(false);
+    setSearch('');
+    setActiveIdx(-1);
+  }
+
+  function handleKeyDown(e) {
+    if (!open) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDropdown(); } return; }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx(i => Math.min(i + 1, filteredFlat.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx(i => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault();
+      select(filteredFlat[activeIdx]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setSearch('');
+    }
+  }
+
+  const selectedOpt = value ? allFlat.find(o => o.id === value) : null;
+
+  return (
+    <div className="pjw-cat-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={`pjw-cat-trigger${error ? ' has-error' : ''}${open ? ' is-open' : ''}`}
+        onClick={openDropdown}
+        onKeyDown={handleKeyDown}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={selectedOpt ? selectedOpt.name : 'Select a category'}
+      >
+        {selectedOpt
+          ? <span className="pjw-cat-value">{selectedOpt.name}</span>
+          : <span className="pjw-cat-placeholder">Select a category…</span>
+        }
+        <svg className="pjw-cat-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className="pjw-cat-dropdown" role="dialog" aria-label="Select category">
+          {/* Search input */}
+          <div className="pjw-cat-search-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              ref={inputRef}
+              type="text"
+              className="pjw-cat-search-input"
+              placeholder="Search categories…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setActiveIdx(-1); }}
+              onKeyDown={handleKeyDown}
+              aria-label="Filter categories"
+              aria-controls="pjw-cat-list"
+              aria-autocomplete="list"
+            />
+            {search && (
+              <button
+                type="button"
+                className="pjw-cat-search-clear"
+                onClick={() => { setSearch(''); setActiveIdx(-1); inputRef.current?.focus(); }}
+                aria-label="Clear search"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Options list */}
+          <ul id="pjw-cat-list" role="listbox" ref={listRef} className="pjw-cat-list" aria-label="Job categories">
+            {filteredFlat.length === 0 ? (
+              <li className="pjw-cat-empty" role="option" aria-disabled="true">
+                No categories match "{search}"
+              </li>
+            ) : (
+              filtered.map(g => (
+                <React.Fragment key={g.group}>
+                  <li className="pjw-cat-group-label" role="presentation">{g.group}</li>
+                  {g.options.map(opt => {
+                    const idx  = filteredFlat.indexOf(opt);
+                    const isActive = idx === activeIdx;
+                    return (
+                      <li
+                        key={opt.id}
+                        role="option"
+                        aria-selected={opt.id === value}
+                        data-active={isActive ? 'true' : undefined}
+                        className={`pjw-cat-option${opt.id === value ? ' is-selected' : ''}${isActive ? ' is-active' : ''}`}
+                        onMouseDown={() => select(opt)}
+                        onMouseEnter={() => setActiveIdx(idx)}
+                      >
+                        {opt.name}
+                        {opt.id === value && <CheckIcon size={12} />}
+                      </li>
+                    );
+                  })}
+                </React.Fragment>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Requirement metadata ─────────────────────────────────────────────────────
 const REQ_META = {
   license:         { label: 'License',          desc: 'State-issued trade license required' },
@@ -390,12 +575,7 @@ export default function PostJobPage() {
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <nav className="pjw-nav" aria-label="Main navigation">
         <Link to="/" className="pjw-nav-logo">
-          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <rect x="4" y="14" width="10" height="14" rx="2" fill="currentColor" opacity=".2"/>
-            <rect x="18" y="8" width="10" height="20" rx="2" fill="currentColor" opacity=".35"/>
-            <path d="M4 14 C4 8 14 4 16 4 C18 4 28 8 28 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-            <circle cx="16" cy="4" r="2.5" fill="currentColor"/>
-          </svg>
+          <OxSteedIcon size={26} />
           OxSteed
         </Link>
         <div className="pjw-nav-actions">
@@ -470,22 +650,12 @@ export default function PostJobPage() {
 
                 {/* Category */}
                 <div className="pjw-field">
-                  <label htmlFor="pjw-category">Category <span className="req">*</span></label>
-                  <select
-                    id="pjw-category" className={`pjw-select${errors.categoryId?' has-error':''}`}
+                  <label id="pjw-category-label">Category <span className="req">*</span></label>
+                  <CategorySelect
                     value={form.categoryId}
-                    onChange={e => {
-                      const opt = e.target.options[e.target.selectedIndex];
-                      handleCategoryChange(e.target.value, opt.text);
-                    }}
-                  >
-                    <option value="">Select a category…</option>
-                    {CATEGORIES.map(g => (
-                      <optgroup key={g.group} label={g.group}>
-                        {g.options.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
+                    onChange={handleCategoryChange}
+                    error={!!errors.categoryId}
+                  />
                   {errors.categoryId && <div className="pjw-field-error">{errors.categoryId}</div>}
                 </div>
 
