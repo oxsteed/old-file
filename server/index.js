@@ -50,6 +50,7 @@ const geoRoutes     = require('./routes/geo');
 const helperRoutes      = require('./routes/helpers');
 const userSkillsRoutes  = require('./routes/userSkills');
 const toolRentalsRoutes = require('./routes/toolRentals');
+const referralRoutes    = require('./routes/referrals');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -169,6 +170,7 @@ app.use('/api/geo',          geoRoutes);
 app.use('/api/helpers',      helperRoutes);
 app.use('/api/user-skills',  userSkillsRoutes);
 app.use('/api/tool-rentals', toolRentalsRoutes);
+app.use('/api/referrals',    referralRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');

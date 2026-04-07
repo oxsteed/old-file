@@ -316,8 +316,9 @@ All items from the full production-readiness audit have been addressed. Recorded
 - Several modals are missing `role="dialog"` and `aria-modal="true"`.
 - Keyboard trap inside modals should use a focus-trap library.
 
-**8. Notification preferences**
-- `NotificationCenter.jsx` exists but there's no UI for users to configure which notifications they receive (email vs. push vs. both vs. none).
+**8. Notification preferences** ✅ Done
+- `client/src/components/NotificationPreferences.jsx` — toggle UI grouped by In-App / Push / Email, auto-saves on change via `PUT /api/notifications/preferences`.
+- Added to SettingsPage between "Change Password" and "Your Data".
 
 **9. Helper onboarding flow completeness** ✅ Done
 - Verified: post-checkout redirect → `/helper-dashboard?subscribed=true` → toast + refresh.
@@ -336,8 +337,13 @@ All items from the full production-readiness audit have been addressed. Recorded
 - `client/src/main.jsx` — SW registered on `window.load`.
 - **Remaining:** add real icon PNGs (`client/public/icons/icon-192.png`, `icon-512.png`) — placeholder paths referenced but files not present (non-breaking; install prompt won't show without valid icons).
 
-**12. Referral system**
-- `REFERRAL_REWARD_TYPE` env var exists. The `referral_code` column is populated on register. A referral tracking page and reward-grant logic has not been implemented.
+**12. Referral system** ✅ Done
+- Migration `040_referral_referred_by.sql` — adds `referred_by` to users, `referral_ref` to pending_registrations.
+- `server/controllers/referralController.js` + `server/routes/referrals.js` — `GET /api/referrals/me` (code, share URL, stats, referred users list), `POST /api/referrals/validate` (public).
+- `authController.js` — both `register()` and `verifyRegistrationOTP()` accept `ref` param, resolve referrer, set `referred_by`, increment `referrals_count`.
+- `client/src/components/registration/AccountForm.tsx` — reads `?ref=` from URL and passes to registration start.
+- `client/src/components/ReferralPanel.jsx` — shareable link + copy button, stats grid, referred users list.
+- Added to SettingsPage as "Referral Program" section.
 
 **13. Didit integration test** ✅ Done
 - `server/__tests__/didit.test.js` — 7 tests: signature missing/invalid, session not found, declined→failed, duplicate identity, approved→verified. All passing (89 total).

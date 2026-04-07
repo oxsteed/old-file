@@ -7,6 +7,8 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import TrialBanner from '../components/TrialBanner';
 import useSubscription from '../hooks/useSubscription';
+import NotificationPreferences from '../components/NotificationPreferences';
+import ReferralPanel from '../components/ReferralPanel';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
@@ -465,6 +467,16 @@ export default function SettingsPage() {
           </div>
           <button type="submit" className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition">Update Password</button>
         </form>
+
+        {/* Notification Preferences */}
+        <NotificationPreferences />
+
+        {/* Referral Program */}
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
+          <h2 className="text-xl font-semibold mb-1">Referral Program</h2>
+          <p className="text-gray-400 text-sm mb-4">Invite friends to OxSteed and track your referrals.</p>
+          <ReferralPanel />
+        </div>
 
         {/* Data Export */}
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">

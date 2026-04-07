@@ -4,6 +4,7 @@
 // Orchestrates backend calls: register/start → accept-terms → verify-otp
 
 import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Briefcase, ChevronRight, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -53,6 +54,9 @@ function FieldError({ msg }: { msg?: string }) {
 
 // ── Component ────────────────────────────────────────────
 export default function AccountForm({ role, onSuccess }: Props) {
+  const [searchParams] = useSearchParams();
+  const referralRef = searchParams.get('ref') || undefined;
+
   // Form data
   const [form, setForm] = useState<FormState>({
     firstName: '',
@@ -115,6 +119,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
         phone: form.phone || '0000000000',
         zip: form.address?.match(/\d{5}/)?.[0] || '00000',
         ageConfirmed: true,
+        ...(referralRef ? { ref: referralRef } : {}),
       });
       const token = res.data.token;
       setRegistrationToken(token);
