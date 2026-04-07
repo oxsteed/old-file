@@ -46,7 +46,7 @@
 │   │   └── index.css     # Tailwind + CSS variable dual-palette theme system
 │   └── index.html        # static og/meta defaults (overridden per-page by PageMeta)
 └── server/
-    ├── __tests__/        # Jest test suite (30 tests, all passing)
+    ├── __tests__/        # Jest test suite (82 tests, all passing)
     ├── controllers/      # one file per domain
     ├── jobs/             # weeklySummary cron
     ├── middleware/        # auth, rateLimiter, sanitize, securityHeaders, etc.
@@ -194,17 +194,15 @@ server/__tests__/
 ├── setup.js           # pg, stripe, redis, socket mocks; JWT env; resetMocks()
 ├── auth.test.js       # register, login, refresh, logout (12 tests)
 ├── userSkills.test.js # lookup, CRUD with real JWT auth (13 tests)
-└── validate.test.js   # pure unit tests for all validate.js rules (9 tests)
+├── validate.test.js   # pure unit tests for all validate.js rules (9 tests)
+├── job.test.js        # list, get, create, cancel, me/list (11 tests)
+├── payment.test.js    # intent, capture, me, connect status (10 tests)
+├── bid.test.js        # create, list, update, withdraw (11 tests)
+├── review.test.js     # submit, user reviews, eligibility (6 tests)
+└── webhook.test.js    # all Stripe event types incl. payment_intent (10 tests)
 ```
 
-Run: `cd server && npm test`
-
-**Gaps to fill (in priority order):**
-1. `jobController` — createJob, getJobs, getJob, updateJobStatus
-2. `paymentController` — createPaymentIntent, capturePayment
-3. `bidController` — createBid, acceptBid
-4. `reviewController` — submitReview (the db.connect fix needs a regression test)
-5. `webhookController` — payment_intent events (mock Stripe event construction)
+Run: `cd server && npm test` — all 82 tests pass.
 
 ---
 
@@ -272,7 +270,7 @@ All items from the full production-readiness audit have been addressed. Recorded
 - [x] Structured logging — `server/utils/logger.js`; wired into `index.js`, `db.js`, `storage.js`, `rateLimiter.js`, new route files.
 - [x] DB pool `max` reduced from 20 → 10 (right-sized for Render/small VMs).
 - [x] Password reset URL — verified; uses `APP_URL || CLIENT_URL`.
-- [x] Jest test suite — 30 tests across auth, userSkills, validate. All passing.
+- [x] Jest test suite — 82 tests across auth, userSkills, validate, job, payment, bid, review, webhook. All passing.
 - [x] Redis rate limiting — already implemented; auto-detects `REDIS_URL`.
 
 ### Medium Priority (all done)
@@ -294,15 +292,9 @@ All items from the full production-readiness audit have been addressed. Recorded
 - Pattern: `const logger = require('../utils/logger'); logger.error('msg', err)`
 - The most important files (highest traffic, most error-prone): `authController.js`, `jobController.js`, `paymentController.js`, `webhookController.js`, `helperRegistrationController.js`.
 
-**2. Expand test coverage**
-- Current: 30 tests covering auth, userSkills CRUD, validate utility.
-- Missing (in priority order):
-  - `jobController` — createJob, getJobs, updateJobStatus
-  - `paymentController` — createPaymentIntent, capturePayment
-  - `bidController` — createBid, acceptBid
-  - `reviewController` — submitReview regression (the db.connect fix)
-  - `webhookController` — mock Stripe event construction for each payment_intent case
-- Use the existing `server/__tests__/setup.js` mock infrastructure (pg, stripe, redis all mocked).
+**2. Expand test coverage** ✅ Done — 82 tests, all passing.
+- All 5 priority controller test files written: job, payment, bid, review, webhook.
+- setup.js Stripe mock expanded with subscriptions, accounts, accountLinks.
 
 **3. Admin panel polish**
 - The admin panel has 17 pages (all implemented), but some pages may have stale data shapes after the recent API changes. Spot-check `DisputeResolve`, `UserDetail`, and `Revenue` against current controller responses.
