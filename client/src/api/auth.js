@@ -74,13 +74,11 @@ api.interceptors.response.use(
     }
 
     const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
-    const isMeRequest = originalRequest.url?.includes('/auth/me');
 
     if (
       error.response?.status !== 401 ||
       originalRequest._retry ||
-      isRefreshRequest ||
-      isMeRequest
+      isRefreshRequest
     ) {
       return Promise.reject(error);
     }
@@ -88,7 +86,7 @@ api.interceptors.response.use(
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       clearStoredSession();
-      window.location.replace('/login');
+      // Don't hard-redirect — let ProtectedRoute handle navigation
       return Promise.reject(error);
     }
 
@@ -113,7 +111,7 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       clearStoredSession();
-      window.location.replace('/login');
+      // Don't hard-redirect — let ProtectedRoute handle navigation
       return Promise.reject(refreshError);
     } finally {
       refreshPromise = null;

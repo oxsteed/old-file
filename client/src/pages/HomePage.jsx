@@ -4,6 +4,7 @@ import '../styles/HomePage.css';
 import ThemeToggle from '../components/ThemeToggle';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const SKILL_TILES = [
   { slug: 'electrical',   icon: '⚡', name: 'Electrical',      desc: 'Outlets, panels, EV chargers' },
@@ -286,6 +287,7 @@ function HomeSearch() {
 
 export default function HomePage() {
   const { preview, newCount } = useLiveBidsPreview();
+  const { user, logout } = useAuth();
   const [skillsExpanded, setSkillsExpanded] = useState(false);
   const skillsOverflowRef = useRef(null);
 
@@ -309,15 +311,37 @@ export default function HomePage() {
           OxSteed
         </Link>
         <div className="hp-nav-links">
-          <Link to="/login" className="hp-nav-link">Sign in</Link>
-          <Link to="/jobs" className="hp-nav-link">Browse Jobs</Link>
-          <Link to="/how-it-works" className="hp-nav-link">How It Works</Link>
-          <Link to="/register/helper" className="hp-btn hp-btn-ghost">List Your Skills</Link>
-          <Link to="/register/customer" className="hp-btn hp-btn-primary">Post a Job</Link>
+          {user ? (
+            <>
+              <Link to="/dashboard" className="hp-nav-link">Dashboard</Link>
+              <Link to="/jobs" className="hp-nav-link">Browse Jobs</Link>
+              {user.role === 'customer' && (
+                <Link to="/post-job" className="hp-nav-link">Post a Job</Link>
+              )}
+              <span className="hp-nav-link" style={{ opacity: 0.5, fontSize: '.75rem', textTransform: 'capitalize' }}>
+                {user.first_name || user.email?.split('@')[0]} · {user.role}
+              </span>
+              <button onClick={logout} className="hp-btn hp-btn-ghost" style={{ cursor: 'pointer' }}>
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="hp-nav-link">Sign in</Link>
+              <Link to="/jobs" className="hp-nav-link">Browse Jobs</Link>
+              <Link to="/how-it-works" className="hp-nav-link">How It Works</Link>
+              <Link to="/register/helper" className="hp-btn hp-btn-ghost">List Your Skills</Link>
+              <Link to="/register/customer" className="hp-btn hp-btn-primary">Post a Job</Link>
+            </>
+          )}
           <ThemeToggle />
         </div>
         <div className="hp-nav-mobile">
-          <Link to="/register/customer" className="hp-btn hp-btn-primary" style={{ fontSize: '.8rem', padding: '.5rem 1rem' }}>Post a Job</Link>
+          {user ? (
+            <Link to="/dashboard" className="hp-btn hp-btn-primary" style={{ fontSize: '.8rem', padding: '.5rem 1rem' }}>Dashboard</Link>
+          ) : (
+            <Link to="/register/customer" className="hp-btn hp-btn-primary" style={{ fontSize: '.8rem', padding: '.5rem 1rem' }}>Post a Job</Link>
+          )}
         </div>
       </nav>
 
@@ -338,13 +362,30 @@ export default function HomePage() {
           <HomeSearch />
 
           <div className="hp-hero-ctas">
-            <Link to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
-              Post a Job
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-            </Link>
-            <Link to="/jobs" className="hp-btn hp-btn-outline hp-btn-lg">
-              Browse Listings
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  to={user.role === 'helper' ? '/jobs' : '/post-job'}
+                  className="hp-btn hp-btn-primary hp-btn-lg"
+                >
+                  {user.role === 'helper' ? 'Browse Jobs' : 'Post a Job'}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                </Link>
+                <Link to="/dashboard" className="hp-btn hp-btn-outline hp-btn-lg">
+                  Go to Dashboard
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
+                  Post a Job
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                </Link>
+                <Link to="/jobs" className="hp-btn hp-btn-outline hp-btn-lg">
+                  Browse Listings
+                </Link>
+              </>
+            )}
           </div>
           <div className="hp-hero-trust">
             <span className="hp-trust-pill">
@@ -497,13 +538,22 @@ export default function HomePage() {
               </p>
             </div>
             <div className="hp-cta-actions">
-              <Link to="/register/helper" className="hp-btn hp-btn-primary hp-btn-lg">
-                List Your Skills
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-              </Link>
-              <Link to="/register/customer" className="hp-btn hp-btn-outline hp-btn-lg">
-                Post a Job Instead
-              </Link>
+              {user?.role === 'helper' ? (
+                <Link to="/dashboard" className="hp-btn hp-btn-primary hp-btn-lg">
+                  Go to Dashboard
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                </Link>
+              ) : (
+                <>
+                  <Link to={user ? '/dashboard' : '/register/helper'} className="hp-btn hp-btn-primary hp-btn-lg">
+                    {user ? 'View Dashboard' : 'List Your Skills'}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                  </Link>
+                  <Link to={user?.role === 'customer' ? '/post-job' : '/register/customer'} className="hp-btn hp-btn-outline hp-btn-lg">
+                    {user?.role === 'customer' ? 'Post a Job' : 'Post a Job Instead'}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -518,9 +568,13 @@ export default function HomePage() {
               OxSteed
             </Link>
             <div className="hp-footer-links">
-              <Link to="/login">Sign In</Link>
-              <Link to="/register/customer">Find Help</Link>
-              <Link to="/register/helper">List Your Skills</Link>
+              {user ? (
+                <Link to="/dashboard">Dashboard</Link>
+              ) : (
+                <Link to="/login">Sign In</Link>
+              )}
+              <Link to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>Find Help</Link>
+              <Link to={user?.role === 'helper' ? '/dashboard' : '/register/helper'}>List Your Skills</Link>
               <Link to="/how-it-works">How It Works</Link>
               <Link to="/about">About</Link>
             </div>
