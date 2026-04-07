@@ -1,6 +1,9 @@
 // OxSteed v2 - Express server entry point
 require('dotenv').config();
 
+// Validate required env vars before anything else loads
+require('./utils/validateEnv')();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');

@@ -8,6 +8,8 @@ const { sendOTPEmail } = require('../utils/email');
 const { encrypt, hashTIN, maskTIN } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults } = require('../utils/trial');
+const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { validate, rules } = require('../utils/validate');
 
 async function pendingRegistrationsHasRoleColumn() {
   const { rows } = await pool.query(
@@ -50,10 +52,16 @@ async function getCategories(req, res) {
 async function startRegistration(req, res) {
   try {
     const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
-    if (!email || !password || !firstName || !lastName || !phone || !zip)
-      return res.status(400).json({ error: 'Email, password, first name, last name, phone, and zip required' });
-    if (password.length < 8)
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const errs = validate(req.body, {
+      email:     [rules.required, rules.email, rules.maxLen(254)],
+      password:  [rules.required, rules.minLen(8), rules.maxLen(128)],
+      firstName: [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
+      lastName:  [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
+      phone:     [rules.required, rules.phone],
+      zip:       [rules.required, rules.zip],
+    });
+    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
     // Check for existing user
     const dup = await pool.query(
@@ -495,21 +503,32 @@ async function uploadProfilePhoto(req, res) {
     const userId = req.user.id;
     if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
 
-    const base64 = req.file.buffer.toString('base64');
-    const mimeType = req.file.mimetype;
-    const dataUrl = `data:${mimeType};base64,${base64}`;
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedMime.includes(req.file.mimetype)) {
+      return res.status(400).json({ error: 'Only JPEG, PNG, WebP, or GIF images allowed' });
+    }
+
+    // Upload to S3; fall back to base64 data-URL only if S3 is not configured
+    let photoUrl;
+    const s3Key = await uploadFile(req.file.buffer, 'avatars', req.file.originalname, req.file.mimetype);
+    if (s3Key) {
+      photoUrl = getPublicUrl(s3Key);
+    } else {
+      // S3 not configured — store compact base64 for dev/staging only
+      photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
 
     await pool.query(
-      'UPDATE users SET profile_photo_url = $1 WHERE id = $2 AND role = $3',
-      [dataUrl, userId, 'helper']
+      'UPDATE users SET profile_photo_url = $1, avatar_url = $1 WHERE id = $2',
+      [photoUrl, userId]
     );
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_photo_url)
        VALUES ($1, $2)
        ON CONFLICT (user_id) DO UPDATE SET profile_photo_url = $2, updated_at = NOW()`,
-      [userId, dataUrl]
+      [userId, photoUrl]
     );
-    res.json({ message: 'Photo uploaded', photoUrl: dataUrl });
+    res.json({ message: 'Photo uploaded', photoUrl });
   } catch (err) {
     console.error('uploadProfilePhoto error:', err);
     res.status(500).json({ error: 'Photo upload failed' });
