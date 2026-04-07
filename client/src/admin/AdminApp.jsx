@@ -21,6 +21,7 @@ import DisputeResolve  from './pages/DisputeResolve';
 import MarketZipCodes  from './pages/MarketZipCodes';
 import JobsList        from './pages/JobsList';
 import Moderation      from './pages/Moderation';
+import SkillsManager   from './pages/SkillsManager';
 import AdminLogin      from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
@@ -69,6 +70,7 @@ export default function AdminApp() {
           <Route path="disputes"           element={<Disputes />} />
           <Route path="disputes/:disputeId" element={<DisputeResolve />} />
           <Route path="markets"            element={<MarketZipCodes />} />
+          <Route path="skills"             element={<SkillsManager />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={

@@ -118,8 +118,10 @@ export default function Dashboard() {
   const [showToolModal, setShowToolModal] = useState(false);
   const [editingSkill, setEditingSkill] = useState(null);
   const [editingTool, setEditingTool] = useState(null);
-  const [skillLookup, setSkillLookup] = useState([]);
-  const [skillSearch, setSkillSearch] = useState('');
+  const [skillLookup,    setSkillLookup]    = useState([]);
+  const [skillSearch,    setSkillSearch]    = useState('');
+  const [catLookup,      setCatLookup]      = useState([]);
+  const [toolCatLookup,  setToolCatLookup]  = useState([]);
   const [skillForm, setSkillForm] = useState({ skill_name:'', category:'', hourly_rate:'', description:'', years_exp:'', is_available:true });
   const [toolForm, setToolForm] = useState({ name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' });
 
@@ -148,6 +150,22 @@ export default function Dashboard() {
     } catch { setSkillLookup([]); }
   }, []);
 
+  const searchCatLookup = useCallback(async (q) => {
+    if (!q || q.length < 1) { setCatLookup([]); return; }
+    try {
+      const res = await api.get('/user-skills/categories', { params: { q, limit: 10 } });
+      setCatLookup(res.data?.categories || []);
+    } catch { setCatLookup([]); }
+  }, []);
+
+  const searchToolCatLookup = useCallback(async (q) => {
+    if (!q || q.length < 1) { setToolCatLookup([]); return; }
+    try {
+      const res = await api.get('/tool-rentals/categories', { params: { q, limit: 10 } });
+      setToolCatLookup(res.data?.categories || []);
+    } catch { setToolCatLookup([]); }
+  }, []);
+
   // Fetch skills/tools when tab opens
   useEffect(() => {
     if (tab === 'skills') {
@@ -160,6 +178,7 @@ export default function Dashboard() {
     setEditingSkill(null);
     setSkillSearch('');
     setSkillLookup([]);
+    setCatLookup([]);
     setSkillForm({ skill_name:'', category:'', hourly_rate:'', description:'', years_exp:'', is_available:true });
     setShowSkillModal(true);
   };
@@ -197,6 +216,7 @@ export default function Dashboard() {
 
   const openAddTool = () => {
     setEditingTool(null);
+    setToolCatLookup([]);
     setToolForm({ name:'', category:'', description:'', daily_rate:'', hourly_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', is_available:true, requires_deposit:false, delivery_available:false, pickup_only:true, location_city:'', location_state:'' });
     setShowToolModal(true);
   };
@@ -975,7 +995,29 @@ export default function Dashboard() {
             )}
           </div>
 
-          <Input label="Category" placeholder="e.g. Electrical, Plumbing, HVAC" value={skillForm.category} onChange={e=>setSkillForm(p=>({...p,category:e.target.value}))}/>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <input
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              placeholder="e.g. Electrical, Plumbing, HVAC"
+              value={skillForm.category}
+              onChange={e => {
+                setSkillForm(p => ({ ...p, category: e.target.value }));
+                searchCatLookup(e.target.value);
+              }}
+              onBlur={() => setTimeout(() => setCatLookup([]), 150)}
+            />
+            {catLookup.length > 0 && (
+              <div className="mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {catLookup.map(c => (
+                  <button key={c} type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/60 hover:text-white transition"
+                    onClick={() => { setSkillForm(p => ({ ...p, category: c })); setCatLookup([]); }}
+                  >{c}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Hourly Rate ($/hr)" type="number" step="0.01" min="0" placeholder="0.00" value={skillForm.hourly_rate} onChange={e=>setSkillForm(p=>({...p,hourly_rate:e.target.value}))}/>
             <Input label="Years Experience" type="number" min="0" max="99" placeholder="0" value={skillForm.years_exp} onChange={e=>setSkillForm(p=>({...p,years_exp:e.target.value}))}/>
@@ -1000,7 +1042,29 @@ export default function Dashboard() {
             <Input label="Brand" placeholder="e.g. DeWalt, Milwaukee" value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
             <Input label="Model" placeholder="e.g. DWE7491RS" value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
           </div>
-          <Input label="Category" placeholder="e.g. Power Tools, Landscaping, Lifting" value={toolForm.category} onChange={e=>setToolForm(p=>({...p,category:e.target.value}))}/>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <input
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              placeholder="e.g. Power Tools, Landscaping, Lifting"
+              value={toolForm.category}
+              onChange={e => {
+                setToolForm(p => ({ ...p, category: e.target.value }));
+                searchToolCatLookup(e.target.value);
+              }}
+              onBlur={() => setTimeout(() => setToolCatLookup([]), 150)}
+            />
+            {toolCatLookup.length > 0 && (
+              <div className="mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {toolCatLookup.map(c => (
+                  <button key={c} type="button"
+                    className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/60 hover:text-white transition"
+                    onClick={() => { setToolForm(p => ({ ...p, category: c })); setToolCatLookup([]); }}
+                  >{c}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Daily Rate ($/day)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
             <Input label="Hourly Rate ($/hr)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.hourly_rate} onChange={e=>setToolForm(p=>({...p,hourly_rate:e.target.value}))}/>

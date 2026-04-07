@@ -11,6 +11,29 @@ const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
 const pool    = require('../db');
 
+// GET /api/user-skills/categories?q=elec&limit=20
+// Public — returns distinct categories from skills_lookup for autocomplete
+router.get('/categories', async (req, res) => {
+  try {
+    const { q = '', limit = 20 } = req.query;
+    const limitN = Math.min(Math.max(1, parseInt(limit) || 20), 50);
+    const result = await pool.query(
+      `SELECT DISTINCT category
+         FROM skills_lookup
+        WHERE is_active = true
+          AND category IS NOT NULL
+          AND ($1 = '' OR category ILIKE $2)
+        ORDER BY category
+        LIMIT $3`,
+      [q, `%${q}%`, limitN]
+    );
+    res.json({ categories: result.rows.map(r => r.category) });
+  } catch (err) {
+    require('../utils/logger').error('[userSkills] categories error', err);
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
 // GET /api/user-skills/lookup?q=plumb&limit=20&offset=0
 // Public — no auth required (needed for job-post autocomplete)
 router.get('/lookup', async (req, res) => {

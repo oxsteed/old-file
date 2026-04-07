@@ -115,7 +115,9 @@ export default function HelperDashboard() {
   const [showToolModal, setShowToolModal] = useState(false);
   const [editingSkill, setEditingSkill] = useState(null);
   const [editingTool, setEditingTool] = useState(null);
-  const [skillLookup, setSkillLookup] = useState([]);
+  const [skillLookup,   setSkillLookup]   = useState([]);
+  const [catLookup,     setCatLookup]     = useState([]);
+  const [toolCatLookup, setToolCatLookup] = useState([]);
   const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_experience:'', description:'', is_available:true };
   const emptyTool  = { name:'', category:'', description:'', daily_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', is_available_for_rent:true };
   const [skillForm, setSkillForm] = useState(emptySkill);
@@ -165,7 +167,26 @@ export default function HelperDashboard() {
 
   const openSkillLookup = async (q) => {
     if (q.length < 2) { setSkillLookup([]); return; }
-    try { const r = await api.get(`/user-skills/lookup?q=${encodeURIComponent(q)}&limit=8`); setSkillLookup(r.data || []); } catch { /**/ }
+    try {
+      const r = await api.get('/user-skills/lookup', { params: { q, limit: 8 } });
+      setSkillLookup(r.data?.skills || r.data || []);
+    } catch { /**/ }
+  };
+
+  const openCatLookup = async (q) => {
+    if (!q || q.length < 1) { setCatLookup([]); return; }
+    try {
+      const r = await api.get('/user-skills/categories', { params: { q, limit: 10 } });
+      setCatLookup(r.data?.categories || []);
+    } catch { setCatLookup([]); }
+  };
+
+  const openToolCatLookup = async (q) => {
+    if (!q || q.length < 1) { setToolCatLookup([]); return; }
+    try {
+      const r = await api.get('/tool-rentals/categories', { params: { q, limit: 10 } });
+      setToolCatLookup(r.data?.categories || []);
+    } catch { setToolCatLookup([]); }
   };
 
   // Modals
@@ -568,7 +589,21 @@ export default function HelperDashboard() {
               </div>
             )}
           </div>
-          <Input label="Category" placeholder="e.g. Plumbing, Electrical, Landscaping" value={skillForm.category} onChange={e=>setSkillForm(p=>({...p,category:e.target.value}))}/>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <input
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              placeholder="e.g. Plumbing, Electrical, Landscaping"
+              value={skillForm.category}
+              onChange={e=>{setSkillForm(p=>({...p,category:e.target.value}));openCatLookup(e.target.value);}}
+              onBlur={()=>setTimeout(()=>setCatLookup([]),150)}
+            />
+            {catLookup.length>0&&(
+              <div className="mt-1 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {catLookup.map(c=><button type="button" key={c} onClick={()=>{setSkillForm(p=>({...p,category:c}));setCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 transition">{c}</button>)}
+              </div>
+            )}
+          </div>
           <Input label="Hourly Rate ($, optional)" type="number" step="0.01" min="0" placeholder="0.00" value={skillForm.hourly_rate} onChange={e=>setSkillForm(p=>({...p,hourly_rate:e.target.value}))}/>
           <Input label="Years of Experience" type="number" min="0" max="50" placeholder="0" value={skillForm.years_experience} onChange={e=>setSkillForm(p=>({...p,years_experience:e.target.value}))}/>
           <div><label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Short Description (optional)</label><textarea className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" rows={2} placeholder="Brief overview of your experience" value={skillForm.description} onChange={e=>setSkillForm(p=>({...p,description:e.target.value}))}/></div>
@@ -584,7 +619,21 @@ export default function HelperDashboard() {
             <Input label="Brand" placeholder="DeWalt" value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
             <Input label="Model" placeholder="DCD777" value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
           </div>
-          <Input label="Category" placeholder="Power Tools, Hand Tools, Landscaping…" value={toolForm.category} onChange={e=>setToolForm(p=>({...p,category:e.target.value}))}/>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <input
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              placeholder="Power Tools, Hand Tools, Landscaping…"
+              value={toolForm.category}
+              onChange={e=>{setToolForm(p=>({...p,category:e.target.value}));openToolCatLookup(e.target.value);}}
+              onBlur={()=>setTimeout(()=>setToolCatLookup([]),150)}
+            />
+            {toolCatLookup.length>0&&(
+              <div className="mt-1 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {toolCatLookup.map(c=><button type="button" key={c} onClick={()=>{setToolForm(p=>({...p,category:c}));setToolCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 transition">{c}</button>)}
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Daily Rate ($)" type="number" step="0.01" min="0" required placeholder="25.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
             <Input label="Deposit ($, optional)" type="number" step="0.01" min="0" placeholder="50.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase,
   Flag, Shield, DollarSign, Settings,
     FileText, BarChart2, LogOut, TrendingUp,
-  AlertTriangle, ScrollText
+  AlertTriangle, ScrollText, Wrench
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -23,6 +23,7 @@ export default function AdminLayout() {
     { to: '/admin/jobs',       icon: Briefcase,       label: 'Jobs'        },
     { to: '/admin/reports',    icon: Flag,            label: 'Reports'     },
     { to: '/admin/moderation', icon: Shield,          label: 'Moderation'  },
+    { to: '/admin/skills',     icon: Wrench,          label: 'Skills'      },
   ];
 
   const superNav = [

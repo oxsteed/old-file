@@ -19,6 +19,47 @@ const TOOL_FIELDS = `
   location_city, location_state, created_at, updated_at
 `;
 
+// Seeded common tool categories (also merged with DB distinct values)
+const SEED_TOOL_CATEGORIES = [
+  'Power Tools','Hand Tools','Measuring & Layout','Cutting Tools',
+  'Drilling & Fastening','Sanding & Finishing','Welding & Metalwork',
+  'Plumbing Tools','Electrical Tools','HVAC Tools',
+  'Landscaping & Outdoor','Lawn & Garden','Pressure Washing',
+  'Concrete & Masonry','Flooring Tools','Painting Equipment',
+  'Scaffolding & Ladders','Lifting & Material Handling',
+  'Compressors & Air Tools','Generators & Power',
+  'Automotive & Mechanical','Trailers & Hauling',
+  'Safety Equipment','Cleaning Equipment','Diagnostic Equipment',
+];
+
+// GET /api/tool-rentals/categories?q=pow&limit=20
+// Public — returns merged list of seeded + DB categories for autocomplete
+router.get('/categories', async (req, res) => {
+  try {
+    const { q = '', limit = 25 } = req.query;
+    const limitN  = Math.min(Math.max(1, parseInt(limit) || 25), 50);
+    const term    = q.trim().toLowerCase();
+
+    // Fetch distinct categories already in the DB
+    const dbRes = await pool.query(
+      `SELECT DISTINCT category FROM tool_rentals
+        WHERE category IS NOT NULL AND category <> ''
+        ORDER BY category LIMIT 100`
+    ).catch(() => ({ rows: [] }));
+
+    const dbCats = dbRes.rows.map(r => r.category);
+    const merged = [...new Set([...SEED_TOOL_CATEGORIES, ...dbCats])];
+    const filtered = term
+      ? merged.filter(c => c.toLowerCase().includes(term))
+      : merged;
+
+    res.json({ categories: filtered.slice(0, limitN) });
+  } catch (err) {
+    require('../utils/logger').error('[toolRentals] categories error', err);
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
 // GET /api/tool-rentals/browse?category=&city=&limit=30
 router.get('/browse', async (req, res) => {
   try {
