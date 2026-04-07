@@ -168,7 +168,7 @@ export default function HomePage() {
     <div className="hp-root">
       <PageMeta
         title="OxSteed — Hire Local Help Today"
-        description="Post a job, compare bids from verified local helpers, and pay securely with optional escrow. Free to start."
+        description="Post a job, compare bids from verified local helpers, and pay securely via OxSteed. Free to start."
         url="https://oxsteed.com"
       />
 
@@ -202,7 +202,7 @@ export default function HomePage() {
             <em>Get it done.</em>
           </h1>
           <p className="hp-hero-sub">
-            Describe what needs doing, set your own requirements, and let qualified local helpers bid. Compare proposals and pay securely — with optional escrow protection. Free to start.
+            Describe what needs doing, set your own requirements, and let qualified local helpers bid. Compare proposals and pay securely with OxSteed. Free to start.
           </p>
           <div className="hp-hero-ctas">
             <Link to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
@@ -310,7 +310,7 @@ export default function HomePage() {
             <div className="hp-cta-text">
               <h2 className="hp-cta-title">Post your skills.<br /><em>Run your own business.</em></h2>
               <p className="hp-cta-desc">
-                List your services for free on your local board, or subscribe to Pro for priority placement and a verified badge. You set your own rates, hours, and service area.
+                List your services for free on your local board, or subscribe to Pro for priority placement. You set your own rates, hours, and service area.
               </p>
             </div>
             <div className="hp-cta-actions">
