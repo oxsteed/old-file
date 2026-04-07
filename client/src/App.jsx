@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -40,6 +41,7 @@ import SupportWidget from './components/SupportWidget';
 
 export default function App() {
   return (
+    <HelmetProvider>
           <ThemeProvider>
     <ErrorBoundary>
       <Router>
@@ -114,6 +116,7 @@ export default function App() {
       </Router>
     </ErrorBoundary>
                   </ThemeProvider>
+    </HelmetProvider>
   );
               
 }

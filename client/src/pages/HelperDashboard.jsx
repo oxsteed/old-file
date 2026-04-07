@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import BadgeDisplay from '../components/BadgeDisplay';
@@ -232,6 +233,7 @@ export default function HelperDashboard() {
 
   return(
     <div className="min-h-screen bg-gray-950 text-white">
+      <PageMeta title="Helper Dashboard" description="Manage your jobs, earnings, bids, and skills." noIndex={true} />
       <Navbar/>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

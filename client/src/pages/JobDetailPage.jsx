@@ -4,6 +4,7 @@ import useJobs from '../hooks/useJobs';
 import usePayments from '../hooks/usePayments';
 import useAuth from '../hooks/useAuth';
 import '../styles/JobDetailPage.css';
+import PageMeta from '../components/PageMeta';
 
 export default function JobDetailPage() {
   const { id } = useParams();
@@ -108,6 +109,12 @@ export default function JobDetailPage() {
 
   return (
     <div className="job-detail-page">
+      <PageMeta
+        title={job?.title ? `${job.title}` : 'Job Details'}
+        description={job?.description ? job.description.slice(0, 155) : 'View job details and submit a bid on OxSteed.'}
+        url={`https://oxsteed.com/jobs/${id}`}
+        noIndex={true}
+      />
       <button className="back-btn" onClick={() => navigate('/jobs')}>← Back to Jobs</button>
 
       <div className="job-detail-card">
