@@ -116,8 +116,84 @@ exports.stripeWebhook = async (req, res) => {
         }
         break;
       }
+      // ── Tier 3 direct-charge payment events ───────────────────────────
+      // These fire on connected accounts. Register them via a Connect webhook
+      // endpoint in the Stripe dashboard (listen for "Events on connected accounts").
+
+      case 'payment_intent.amount_capturable_updated': {
+        // Authorization succeeded — PaymentIntent is ready to capture after job completion.
+        const pi = event.data.object;
+        const jobId = pi.metadata?.job_id;
+        if (jobId) {
+          await db.query(
+            `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
+             updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'`,
+            [pi.id]
+          );
+          console.log(`[Stripe] PaymentIntent ${pi.id} authorized — job ${jobId} funds held`);
+        }
+        break;
+      }
+
+      case 'payment_intent.succeeded': {
+        // Capture completed — money is on its way to the helper.
+        const pi = event.data.object;
+        const jobId = pi.metadata?.job_id;
+        if (jobId) {
+          await db.query(
+            `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
+             captured_at = NOW(), released_at = NOW(), updated_at = NOW()
+             WHERE stripe_payment_intent_id = $1 AND status != 'captured'`,
+            [pi.id]
+          );
+          // Mark job escrow released
+          await db.query(
+            `UPDATE jobs SET escrow_status = 'released', updated_at = NOW() WHERE id = $1`,
+            [jobId]
+          );
+          console.log(`[Stripe] PaymentIntent ${pi.id} captured — funds released for job ${jobId}`);
+        }
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        // Authorization or capture failed.
+        const pi = event.data.object;
+        const jobId = pi.metadata?.job_id;
+        const failureMsg = pi.last_payment_error?.message || 'Payment failed';
+        if (jobId) {
+          await db.query(
+            `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
+             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
+            [pi.id]
+          );
+          // Re-open escrow on the job so client can retry
+          await db.query(
+            `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
+            [jobId]
+          );
+          console.warn(`[Stripe] PaymentIntent ${pi.id} failed for job ${jobId}: ${failureMsg}`);
+        }
+        break;
+      }
+
+      case 'charge.refunded': {
+        // Refund processed (full or partial).
+        const charge = event.data.object;
+        const piId = charge.payment_intent;
+        if (piId) {
+          await db.query(
+            `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
+             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
+            [piId]
+          );
+          console.log(`[Stripe] Charge refunded for PaymentIntent ${piId}`);
+        }
+        break;
+      }
+
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`Unhandled Stripe event: ${event.type}`);
     }
     res.json({ received: true });
   } catch (err) {

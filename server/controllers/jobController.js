@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { scoreAndMatch } = require('../services/matchService');
+const { uploadFile, getPublicUrl } = require('../utils/storage');
 
 // ── Privacy: fuzz coordinates by +/- 2 miles for public feed ─────────────────
 const FUZZ_MILES   = 2;
@@ -40,10 +41,18 @@ exports.createJob = async (req, res) => {
     const finalCategoryId   = category_id   || null;
     const finalCategoryName = category_name || category || null;
 
-    // ── Resolve media ─────────────────────────────────────────────────────
+    // ── Resolve media — upload files to S3 ───────────────────────────────
     let mediaArr = [];
     if (req.files && req.files.length > 0) {
-      mediaArr = req.files.map(f => f.path || f.location || f.filename);
+      const uploads = await Promise.allSettled(
+        req.files.map(f => uploadFile(f.buffer, 'jobs', f.originalname, f.mimetype))
+      );
+      mediaArr = uploads
+        .filter(r => r.status === 'fulfilled' && r.value)
+        .map(r => getPublicUrl(r.value));
+      // If S3 not configured, log warning but don't fail the job creation
+      const failed = uploads.filter(r => r.status === 'rejected' || !r.value).length;
+      if (failed > 0) console.warn(`[createJob] ${failed}/${req.files.length} media files not uploaded (S3 not configured?)`);
     } else if (media_urls) {
       mediaArr = typeof media_urls === 'string'
         ? JSON.parse(media_urls)

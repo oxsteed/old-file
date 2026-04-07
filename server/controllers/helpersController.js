@@ -50,7 +50,12 @@ async function listHelpers(req, res) {
     const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 9));
     const offset   = (pageNum - 1) * limitNum;
 
-    const conditions = ['u.deleted_at IS NULL', 'u.role = $1'];
+    const conditions = [
+      'u.deleted_at IS NULL',
+      'u.role = $1',
+      'u.email_verified = TRUE',
+      'u.onboarding_completed = TRUE',
+    ];
     const params     = ['helper'];
     let pIdx         = 2;
 
@@ -239,7 +244,7 @@ async function getHelperProfile(req, res) {
          hp.availability_json, hp.is_available_now
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
-       WHERE u.id = $1 AND u.deleted_at IS NULL`,
+       WHERE u.id = $1 AND u.deleted_at IS NULL AND u.email_verified = TRUE AND u.onboarding_completed = TRUE`,
       [id],
     );
 

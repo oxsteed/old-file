@@ -3,7 +3,13 @@ const { sendNotification } = require('../services/notificationService');
 
 // ─── SUBMIT REVIEW ────────────────────────────────────────────
 exports.submitReview = async (req, res) => {
-  const dbClient = await db.connect();
+  let dbClient;
+  try {
+    dbClient = await db.connect();
+  } catch (connErr) {
+    console.error('submitReview: DB connection failed:', connErr.message);
+    return res.status(503).json({ error: 'Database unavailable. Please try again.' });
+  }
   try {
     await dbClient.query('BEGIN');
 
@@ -106,7 +112,7 @@ exports.submitReview = async (req, res) => {
     console.error('submitReview error:', err);
     res.status(500).json({ error: 'Failed to submit review.' });
   } finally {
-    dbClient.release();
+    if (dbClient) dbClient.release();
   }
 };
 

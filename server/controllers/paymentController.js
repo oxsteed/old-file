@@ -1,6 +1,7 @@
 const pool = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { calculateTier3Fees } = require('../utils/feeCalculator');
+const { validate, rules } = require('../utils/validate');
 
 /**
  * Payment Controller — Stripe Connect Direct Charges
@@ -80,6 +81,9 @@ exports.getConnectStatus = async (req, res) => {
 exports.createPaymentIntent = async (req, res) => {
   try {
     const { job_id } = req.body;
+
+    const errs = validate(req.body, { job_id: [rules.required, rules.integer] });
+    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
     if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });

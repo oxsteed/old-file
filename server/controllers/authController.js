@@ -11,6 +11,7 @@ const { sendOTPEmail, sendPasswordResetEmail } = require('../utils/email');
 const { sendOTPSMS } = require('../utils/sms');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = require('../utils/trial');
+const { validate, rules } = require('../utils/validate');
 const SALT_ROUNDS = 12;
 
 function formatAuthUser(user) {
@@ -68,12 +69,15 @@ function formatAuthUser(user) {
 async function register(req, res) {
   try {
     const { email, password, first_name, last_name, phone, role, language = 'en' } = req.body;
-    if (!email || !password || !first_name || !last_name) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    }
+
+    const errs = validate(req.body, {
+      email:      [rules.required, rules.email, rules.maxLen(254)],
+      password:   [rules.required, rules.minLen(8), rules.maxLen(128)],
+      first_name: [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
+      last_name:  [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
+      phone:      [rules.phone],
+    });
+    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' });
@@ -121,7 +125,14 @@ res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
 // LOGIN - Updated to support 2FA
 async function login(req, res) {
   try {
-   const { email, password, rememberMe } = req.body;
+    const { email, password, rememberMe } = req.body;
+
+    const errs = validate(req.body, {
+      email:    [rules.required, rules.email],
+      password: [rules.required],
+    });
+    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
+
     const { rows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, password_hash, role, is_active,
               email_verified, is_verified,
@@ -493,9 +504,8 @@ async function resendRegistrationOTP(req, res) {
 async function forgotPassword(req, res) {
   try {
     const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
+    const errs = validate(req.body, { email: [rules.required, rules.email] });
+    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
     const normalizedEmail = email.toLowerCase().trim();
     const { rows } = await pool.query(
