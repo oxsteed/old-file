@@ -377,6 +377,48 @@
 .hp-cat-note { text-align: center; margin-top: 2rem; font-size: .875rem; color: var(--hp-text-muted); }
 .hp-text-link { color: var(--hp-primary); text-decoration: underline; }
 
+/* ── Skills collapsible overflow ─────────────────────────── */
+.hp-skills-overflow {
+  overflow: hidden;
+  transition: max-height 400ms cubic-bezier(0.16, 1, 0.3, 1),
+              opacity     300ms ease;
+}
+
+/* ── Skills toggle button ─────────────────────────────────── */
+.hp-skills-toggle-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+.hp-skills-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  padding: .5rem 1.25rem;
+  border-radius: var(--hp-radius-full);
+  border: 1px solid var(--hp-border);
+  background: var(--hp-surface-2);
+  color: var(--hp-text-muted);
+  font-size: .875rem;
+  font-weight: 500;
+  font-family: var(--hp-font-body);
+  cursor: pointer;
+  transition: background var(--hp-tr), border-color var(--hp-tr), color var(--hp-tr);
+  line-height: 1.4;
+}
+.hp-skills-toggle:hover {
+  background: var(--hp-bg-alt);
+  border-color: var(--hp-text-faint);
+  color: var(--hp-text);
+}
+.hp-skills-chevron {
+  flex-shrink: 0;
+  transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hp-skills-chevron--up {
+  transform: rotate(180deg);
+}
+
 /* ── Trust / Why OxSteed ─────────────────────────────────── */
 .hp-trust-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2rem; }
 @media (max-width: 720px) { .hp-trust-grid { grid-template-columns: 1fr; gap: 1.5rem; } }
