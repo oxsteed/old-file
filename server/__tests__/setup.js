@@ -52,11 +52,18 @@ jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(
 jest.mock('../services/socketService', () => ({ init: jest.fn(), emit: jest.fn() }));
 jest.mock('../services/feeService',    () => ({ reloadFeeConfig: jest.fn().mockResolvedValue(true), getFeeConfig: jest.fn().mockReturnValue({ platform_fee_pct: 10 }) }));
 jest.mock('stripe', () => {
-  return jest.fn().mockImplementation(() => ({
+  const mockInstance = {
     paymentIntents: { create: jest.fn(), capture: jest.fn() },
     customers:      { create: jest.fn(), retrieve: jest.fn() },
+    subscriptions:  { retrieve: jest.fn() },
+    accounts:       { create: jest.fn() },
+    accountLinks:   { create: jest.fn().mockResolvedValue({ url: 'https://stripe.com/onboard' }) },
     webhooks:       { constructEvent: jest.fn() },
-  }));
+  };
+  const stripe = jest.fn().mockImplementation(() => mockInstance);
+  // Expose instance so tests can import stripe() and get the same mock
+  stripe.__mockInstance = mockInstance;
+  return stripe;
 });
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
