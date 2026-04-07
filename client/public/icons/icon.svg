@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Rounded-square background -->
+  <rect width="512" height="512" rx="96" fill="#16213e"/>
+
+  <!-- Orange circle ring -->
+  <circle cx="256" cy="235" r="188" fill="none" stroke="#F97316" stroke-width="14"/>
+
+  <!-- OxS text — upper portion of circle -->
+  <text
+    x="256" y="258"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="Inter, system-ui, -apple-system, sans-serif"
+    font-weight="800"
+    font-size="118"
+    letter-spacing="-3"
+    fill="#FFFFFF"
+  >OxS</text>
+
+  <!-- ECG / heartbeat pulse line — lower portion of circle -->
+  <!--
+    Flat → small rise → sharp spike up → deep trough → return → flat
+    Spans the inside of the circle at y≈358
+  -->
+  <polyline
+    points="
+      82,358
+      152,358
+      172,333
+      188,383
+      204,318
+      220,383
+      236,358
+      426,358
+    "
+    fill="none"
+    stroke="#F97316"
+    stroke-width="11"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

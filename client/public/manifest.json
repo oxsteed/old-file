@@ -4,10 +4,16 @@
   "description": "Find local verified helpers for handyman services, tool rental, and more.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
+  "background_color": "#16213e",
   "theme_color": "#F97316",
   "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
