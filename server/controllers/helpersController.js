@@ -2,7 +2,8 @@
 // Public helper discovery endpoints — no authentication required.
 // Powers /helpers (directory) and /helpers/:id (profile page).
 
-const pool = require('../db');
+const pool          = require('../db');
+const socketService = require('../services/socketService');
 
 function formatResponseTime(hours) {
   if (!hours) return 'Varies';
@@ -350,9 +351,9 @@ async function getHelperProfile(req, res) {
       faqs: [],
       chatSession: {
         id:            `session_${id}`,
-        destination:   'oxsteed',
-        status:        'ai_assistant',
-        helperStatus:  'offline',
+        destination:   socketService.isOnline(id) ? 'helper' : 'helper',
+        status:        socketService.isOnline(id) ? 'live' : 'ai_assistant',
+        helperStatus:  socketService.isOnline(id) ? 'live' : 'ai_assistant',
         oxsteedStatus: 'ai_assistant',
         timeline:      [],
         typing:        null,
@@ -422,4 +423,19 @@ async function searchLicenses(req, res) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, searchSkills, searchLicenses };
+// GET /api/helpers/:id/status — real-time online status (no auth required)
+async function getHelperStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const online  = socketService.isOnline(id);
+    res.json({
+      helperId:     id,
+      online,
+      helperStatus: online ? 'live' : 'ai_assistant',
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get helper status' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses };

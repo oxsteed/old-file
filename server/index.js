@@ -87,9 +87,11 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   const userId = socket.userId;
   socket.join(`user_${userId}`);
+  socketService.trackConnect(userId, socket.id);
   logger.debug('Socket connected', { userId, socketId: socket.id });
 
   socket.on('disconnect', () => {
+    socketService.trackDisconnect(userId, socket.id);
     logger.debug('Socket disconnected', { socketId: socket.id });
   });
 });

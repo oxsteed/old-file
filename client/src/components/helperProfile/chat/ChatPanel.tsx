@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { X, MessageCircle, Building2 } from 'lucide-react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { X, MessageCircle, Building2, LogIn } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type {
   ChatSession,
   ChatDestination,
@@ -12,10 +13,14 @@ import StatusBadge from './StatusBadge';
 import HandoffBanner from './HandoffBanner';
 import ChatTimeline from './ChatTimeline';
 import MessageComposer from './MessageComposer';
+import api from '../../../api/axios';
+import { useAuth } from '../../../context/AuthContext';
+import { useSocket } from '../../../hooks/useSocket';
 
 interface ChatPanelProps {
   session: ChatSession;
   helperName: string;
+  helperId: string;
   /** Rendered in a sidebar — no close button */
   variant?: 'sidebar' | 'modal';
   onClose?: () => void;
@@ -23,9 +28,7 @@ interface ChatPanelProps {
 }
 
 /** Check if the most recent handoff event is unacknowledged */
-function getLastHandoff(
-  items: TimelineItem[],
-): TimelineEvent | null {
+function getLastHandoff(items: TimelineItem[]): TimelineEvent | null {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
     if (item.itemType === 'handoff') return item as TimelineEvent;
@@ -33,17 +36,13 @@ function getLastHandoff(
   return null;
 }
 
-function getHandoffAgentName(
-  destination: ChatDestination,
-  helperName: string,
-): string {
+function getHandoffAgentName(destination: ChatDestination, helperName: string): string {
   return destination === 'helper' ? helperName : 'OxSteed Support Agent';
 }
 
-// ── Offline / Message-mode empty state ────────────────────────────────────────
+// ── Offline / Message-mode empty state ───────────────────────────────────────
 const UnavailableState: React.FC<{ destination: ChatDestination; helperName: string }> = ({
-  destination,
-  helperName,
+  destination, helperName,
 }) => {
   const name = destination === 'helper' ? helperName : 'OxSteed Support';
   return (
@@ -61,7 +60,7 @@ const UnavailableState: React.FC<{ destination: ChatDestination; helperName: str
   );
 };
 
-// ── OxSteed context banner ─────────────────────────────────────────────────────
+// ── OxSteed context banner ────────────────────────────────────────────────────
 const DestinationContextBanner: React.FC<{
   destination: ChatDestination;
   helperName: string;
@@ -81,16 +80,81 @@ const DestinationContextBanner: React.FC<{
   );
 };
 
-// ── Main ChatPanel ─────────────────────────────────────────────────────────────
+// ── Sign-in prompt (shown to unauthenticated users when helper is live) ───────
+const SignInPrompt: React.FC<{ helperName: string }> = ({ helperName }) => (
+  <div className="mx-4 my-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl flex items-start gap-2.5">
+    <LogIn className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+    <div>
+      <p className="text-xs text-orange-200 leading-relaxed">
+        <span className="font-semibold">{helperName} is online.</span>{' '}
+        <Link to="/login" className="underline hover:text-orange-100">Sign in</Link>{' '}
+        to send a real message — AI is responding in the meantime.
+      </p>
+    </div>
+  </div>
+);
+
+// ── Main ChatPanel ────────────────────────────────────────────────────────────
 const ChatPanel: React.FC<ChatPanelProps> = ({
   session: initialSession,
   helperName,
+  helperId,
   variant = 'sidebar',
   onClose,
   className = '',
 }) => {
-  const [session, setSession] = useState<ChatSession>(initialSession);
+  const { user } = useAuth();
+  const { socket } = useSocket();
+
+  const [session,          setSession]          = useState<ChatSession>(initialSession);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
+  const [sending,          setSending]          = useState(false);
+  const [conversationId,   setConversationId]   = useState<string | null>(null);
+
+  // ── Live status polling ───────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    const checkStatus = async () => {
+      try {
+        const { data } = await api.get(`/helpers/${helperId}/status`);
+        if (cancelled) return;
+        setSession(prev => ({
+          ...prev,
+          helperStatus: data.helperStatus,
+          status: prev.destination === 'helper' ? data.helperStatus : prev.oxsteedStatus,
+        }));
+      } catch { /* silent */ }
+    };
+    checkStatus();
+    // Re-check every 30s while panel is mounted
+    const interval = setInterval(checkStatus, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [helperId]);
+
+  // ── Real-time: listen for helper replies via Socket.IO ───────────────────
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    const handleNewMessage = (payload: { conversationId: string; message: any }) => {
+      if (payload.conversationId !== conversationId) return;
+      const msg = payload.message;
+      const timelineMsg: ChatMessage = {
+        id:         String(msg.id),
+        itemType:   'message',
+        authorType: 'helper_human',
+        content:    msg.content,
+        timestamp:  msg.created_at || new Date().toISOString(),
+      };
+      setSession(prev => ({
+        ...prev,
+        typing:   null,
+        timeline: [...prev.timeline, timelineMsg],
+      }));
+    };
+
+    socket.on('message:new', handleNewMessage);
+    return () => { socket.off('message:new', handleNewMessage); };
+  }, [socket, conversationId]);
 
   const currentStatus =
     session.destination === 'helper' ? session.helperStatus : session.oxsteedStatus;
@@ -98,67 +162,114 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const lastHandoff = !handoffDismissed ? getLastHandoff(session.timeline) : null;
 
   const handleDestinationChange = useCallback((dest: ChatDestination) => {
-    setSession((prev) => ({ ...prev, destination: dest }));
-    setHandoffDismissed(false); // Re-show handoff banner for the new destination
+    setSession(prev => ({
+      ...prev,
+      destination: dest,
+      status: dest === 'helper' ? prev.helperStatus : prev.oxsteedStatus,
+    }));
+    setHandoffDismissed(false);
   }, []);
 
-  const handleSend = useCallback(
-    (text: string) => {
-      const userMsg: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        itemType: 'message',
-        authorType: 'user',
-        content: text,
-        timestamp: new Date().toISOString(),
-      };
+  const handleSend = useCallback(async (text: string) => {
+    if (sending) return;
 
-      // Simulate an AI reply after a short delay (mock behaviour)
-      setSession((prev) => ({
-        ...prev,
-        typing: { authorType: 'helper_ai', authorLabel: 'AI Assistant' },
-        timeline: [...prev.timeline, userMsg],
-      }));
+    // Optimistically add user message to timeline
+    const userMsg: ChatMessage = {
+      id:         `msg-${Date.now()}`,
+      itemType:   'message',
+      authorType: 'user',
+      content:    text,
+      timestamp:  new Date().toISOString(),
+    };
+    setSession(prev => ({
+      ...prev,
+      typing:   { authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai', authorLabel: 'AI Assistant' },
+      timeline: [...prev.timeline, userMsg],
+    }));
+    setSending(true);
 
-      setTimeout(() => {
-        const autoReply: ChatMessage = {
-          id: `msg-${Date.now()}-reply`,
-          itemType: 'message',
-          authorType:
-            session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai',
-          content:
-            session.destination === 'helper'
-              ? "Thanks for your message! Carlos will review and confirm shortly. In the meantime, is there anything else I can help clarify?"
-              : "Thanks for reaching out to OxSteed Support. A team member will review your message and follow up shortly.",
+    try {
+      const { data } = await api.post('/chat/profile-message', {
+        helperId,
+        destination: session.destination,
+        messages: [...session.timeline, userMsg]
+          .filter(i => i.itemType === 'message')
+          .map(i => {
+            const m = i as ChatMessage;
+            return {
+              role:    m.authorType === 'user' ? 'user' : 'assistant',
+              content: m.content,
+            };
+          }),
+      });
+
+      if (data.type === 'live') {
+        // Save conversationId so we can listen for real-time replies
+        if (data.conversationId) setConversationId(data.conversationId);
+
+        // Show "waiting for reply" status event
+        const waiting: TimelineEvent = {
+          id:        `evt-${Date.now()}`,
+          itemType:  'system',
+          eventType: 'message_sent',
+          content:   `Message sent — ${helperName} will reply shortly.`,
           timestamp: new Date().toISOString(),
         };
-
-        // Also add a status event for message_mode
-        const statusEvent: TimelineEvent | null =
-          currentStatus === 'message_mode'
-            ? {
-                id: `evt-${Date.now()}`,
-                itemType: 'system',
-                eventType: 'message_queued',
-                content: 'Message queued — reply expected within 4 hours',
-                timestamp: new Date().toISOString(),
-              }
-            : null;
-
-        setSession((prev) => ({
+        setSession(prev => ({
           ...prev,
-          typing: null,
-          timeline: [
-            ...prev.timeline,
-            autoReply,
-            ...(statusEvent ? [statusEvent] : []),
-          ],
+          typing:   null,
+          timeline: [...prev.timeline, waiting],
         }));
-      }, 1500);
-    },
-    [session.destination, currentStatus],
-  );
 
-  const isOffline = currentStatus === 'offline';
+      } else {
+        // AI reply
+        const aiMsg: ChatMessage = {
+          id:         `msg-${Date.now()}-reply`,
+          itemType:   'message',
+          authorType: data.authorType || (session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai'),
+          content:    data.reply || "I'm sorry, I couldn't generate a response. Please try again.",
+          timestamp:  new Date().toISOString(),
+        };
+
+        // If helper was actually online but user isn't auth'd, add a status note
+        const events: TimelineItem[] = [];
+        if (data.helperOnline && !user && session.destination === 'helper') {
+          const note: TimelineEvent = {
+            id:        `evt-${Date.now()}-note`,
+            itemType:  'system',
+            eventType: 'message_queued',
+            content:   `${helperName} is online — sign in to send them a direct message.`,
+            timestamp: new Date().toISOString(),
+          };
+          events.push(note);
+        }
+
+        setSession(prev => ({
+          ...prev,
+          typing:   null,
+          timeline: [...prev.timeline, aiMsg, ...events],
+        }));
+      }
+    } catch {
+      const errMsg: ChatMessage = {
+        id:         `msg-${Date.now()}-err`,
+        itemType:   'message',
+        authorType: 'oxsteed_ai',
+        content:    "Sorry, I'm having trouble right now. Please try again or contact support@oxsteed.com.",
+        timestamp:  new Date().toISOString(),
+      };
+      setSession(prev => ({
+        ...prev,
+        typing:   null,
+        timeline: [...prev.timeline, errMsg],
+      }));
+    } finally {
+      setSending(false);
+    }
+  }, [helperId, session, user, helperName, sending]);
+
+  const helperIsLive  = session.helperStatus === 'live';
+  const isOffline     = currentStatus === 'offline';
 
   return (
     <div
@@ -204,6 +315,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         helperName={helperName}
       />
 
+      {/* ── Sign-in prompt when helper is live but user isn't auth'd ── */}
+      {helperIsLive && !user && session.destination === 'helper' && (
+        <SignInPrompt helperName={helperName} />
+      )}
+
       {/* ── Handoff banner ─────────────────────────────────── */}
       {lastHandoff && (
         <HandoffBanner
@@ -222,26 +338,23 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       ) : (
         <ChatTimeline
           items={session.timeline.filter((item) => {
-            // For OxSteed destination, only show system messages that aren't
-            // helper-specific booking events (in a real app this filtering
-            // would come from the API)
-            if (session.destination === 'oxsteed') {
-              if (item.itemType === 'booking_event') return false;
-            }
+            if (session.destination === 'oxsteed' && item.itemType === 'booking_event') return false;
             return true;
           })}
           helperName={helperName}
-          typing={session.typing}
+          typing={sending ? session.typing : null}
         />
       )}
 
       {/* ── Composer ────────────────────────────────────────── */}
       <MessageComposer
-        status={currentStatus}
+        status={isOffline ? 'offline' : 'ai_assistant'}
         onSend={handleSend}
         placeholder={
           session.destination === 'oxsteed'
             ? 'Ask OxSteed support…'
+            : helperIsLive && user
+            ? `Message ${helperName} directly…`
             : undefined
         }
       />
@@ -249,7 +362,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       {/* ── Footer ──────────────────────────────────────────── */}
       <div className="px-4 py-2 bg-gray-950/40 border-t border-gray-800/50 flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
-          Secured by OxSteed · Conversations are monitored for safety
+          {helperIsLive && user
+            ? `${helperName} is online and will receive your message`
+            : 'AI assistant · Conversations monitored for safety'}
         </p>
       </div>
     </div>

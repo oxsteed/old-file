@@ -1,4 +1,5 @@
-const pool = require('../db');
+const pool          = require('../db');
+const socketService = require('../services/socketService');
 
 // Get all conversations for the current user
 const getConversations = async (req, res) => {
@@ -128,6 +129,16 @@ const sendMessage = async (req, res) => {
       'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
       [conversationId]
     );
+
+    // Notify the other party in real-time
+    const recipientId = conv.rows[0].customer_id === userId
+      ? conv.rows[0].helper_id
+      : conv.rows[0].customer_id;
+
+    socketService.broadcastToUser(recipientId, 'message:new', {
+      conversationId,
+      message: result.rows[0],
+    });
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

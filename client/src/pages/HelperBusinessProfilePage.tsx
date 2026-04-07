@@ -340,6 +340,7 @@ const HelperBusinessProfilePage: React.FC = () => {
                 <ChatPanel
                   session={chatSession}
                   helperName={helper.businessName}
+                  helperId={helper.id}
                   variant="sidebar"
                   className="h-full"
                 />
@@ -378,6 +379,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         <ChatPanel
           session={chatSession}
           helperName={helper.businessName}
+          helperId={helper.id}
           variant="modal"
           onClose={() => setChatOpen(false)}
           className="h-full"
