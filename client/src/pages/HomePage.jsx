@@ -5,6 +5,10 @@ import ThemeToggle from '../components/ThemeToggle';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 
+const [expanded, setExpanded] = useState(false);
+const PREVIEW_COUNT = 4;
+const previewSkills = skills.slice(0, PREVIEW_COUNT);
+const remainingSkills = skills.slice(PREVIEW_COUNT);
 const SKILL_TILES = [
   { slug: 'electrical',   icon: '⚡', name: 'Electrical',      desc: 'Outlets, panels, EV chargers' },
   { slug: 'plumbing',     icon: '🚿', name: 'Plumbing',        desc: 'Leaks, drains, water heaters' },
