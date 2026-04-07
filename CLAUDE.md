@@ -306,9 +306,9 @@ All production-readiness audit items have been completed. Items are documented i
 
 These require either an infrastructure action or an architectural decision — no code work pending.
 
-**Redis provisioning** — Code ready. Set `REDIS_URL` in Coolify (Upstash free tier recommended). No code changes needed.
 
-**PWA install icons** — Supply `client/public/icons/icon-192.png` and `icon-512.png`. The SVG icon (`icon.svg`) is present; the PNG fallbacks are referenced in `manifest.json` but missing. Install-to-homescreen prompt won't appear without them (non-breaking otherwise).
+
+
 
 **SSR / pre-rendering** — Pure SPA; `PageMeta.jsx` handles meta at runtime but JS-less crawlers won't see it. Only matters for `/`, `/helpers`, `/helpers/:id`. Options: `vite-plugin-ssr` or migrate public pages to Next.js. Dashboard and auth pages don't need it.
 
