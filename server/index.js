@@ -79,8 +79,14 @@ io.use((socket, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded.id;
-    next();
+    // Check if user is still active before allowing WebSocket
+      pool.query('SELECT is_active FROM users WHERE id = $1', [decoded.id]).then(({ rows }) => {
+        if (!rows[0] || !rows[0].is_active) {
+          return next(new Error('Account suspended'));
+        }
+        socket.userId = decoded.id;
+        next();
+      }).catch(() => next(new Error('Auth check failed')));
   } catch (err) {
     return next(new Error('Invalid token'));
   }
