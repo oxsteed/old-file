@@ -7,6 +7,7 @@ import '../styles/JobDetailPage.css';
 import PageMeta from '../components/PageMeta';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import PreferredHelperBanner from '../components/PreferredHelperBanner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const JOB_TYPE_MAP = {
@@ -277,7 +278,8 @@ export default function JobDetailPage() {
               {job.description}
             </div>
           </div>
-
+              <PreferredHelperBanner job={job} />
+          
           {/* Requirements */}
           {requirements.length > 0 && (
             <div className="jdp-card">
