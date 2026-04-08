@@ -52,6 +52,7 @@ const helperRoutes      = require('./routes/helpers');
 const userSkillsRoutes  = require('./routes/userSkills');
 const toolRentalsRoutes = require('./routes/toolRentals');
 const referralRoutes    = require('./routes/referrals');
+const plannedNeedsRoutes = require('./routes/plannedNeeds');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -174,6 +175,7 @@ app.use('/api/helpers',      helperRoutes);
 app.use('/api/user-skills',  userSkillsRoutes);
 app.use('/api/tool-rentals', toolRentalsRoutes);
 app.use('/api/referrals',    referralRoutes);
+app.use('/api/planned-needs', plannedNeedsRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
@@ -210,8 +212,10 @@ httpServer.listen(PORT, async () => {
 });
 
 // ── CRON JOBS ────────────────────────────────────────────────
-const { startWeeklySummaryJob } = require('./jobs/weeklySummary');
+const { startWeeklySummaryJob }      = require('./jobs/weeklySummary');
+const { startPlannedNeedsScheduler } = require('./jobs/plannedNeedsScheduler');
 startWeeklySummaryJob();
+startPlannedNeedsScheduler();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {

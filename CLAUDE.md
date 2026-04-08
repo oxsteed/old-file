@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-08 (live capture, admin expansion, job detail redesign)
+**Last updated:** 2026-04-08 (live capture, admin expansion, job detail redesign, planned needs system)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -250,6 +250,7 @@ Run: `cd server && npm test` — all 82 tests pass.
 | `/api/chat` | `routes/chat.js` | Required |
 | `/api/support` | `routes/support.js` | Mixed |
 | `/api/didit` | `routes/didit.js` | Didit webhook |
+| `/api/planned-needs` | `routes/plannedNeeds.js` | Required |
 
 ---
 
@@ -302,6 +303,25 @@ All production-readiness audit items have been completed. Items are documented i
 9. PWA / service worker
 10. Referral system
 11. Didit integration test
+
+### Session — 2026-04-08 (Planned Needs system)
+
+**Planned Needs** — `/planned-needs` page + full backend:
+
+- **DB migration** `041_planned_needs.sql`: `planned_needs` table with status lifecycle (`planned → funding → activating_soon → published → completed / cancelled / regenerated`), lead_time_days, recurrence (fixed/floating), published_job_id FK, reserved_amount for sinking fund tracking.
+- **Controller** `server/controllers/plannedNeedsController.js`: full CRUD + `cancelPlannedNeed` + `completePlannedNeed` (triggers auto-regeneration for recurring needs) + `getProjection` (Life Pulse projection engine with sinking fund math: `(cost − reserved) ÷ days_remaining × window_days`).
+- **Routes** `server/routes/plannedNeeds.js`: mounted at `/api/planned-needs`.
+- **Cron** `server/jobs/plannedNeedsScheduler.js`: daily 6am Eastern. Pass 1: marks `activating_soon` 1 day before lead-time triggers. Pass 2: auto-publishes job posts for needs where `(due_date − lead_time_days) ≤ today`, stores `published_job_id`.
+- **getDashboardSummary** updated to include `planned_needs` block: active_count, activating_soon_count, publishing_this_week, total_planned_cost, next_due_date.
+- **Frontend** `client/src/pages/PlannedNeedsPage.jsx` + `PlannedNeedsPage.css`: Life Pulse projection panel (8 windows), sinking fund meters per card, auto-publish queue banner, add/edit/cancel/complete modals, floating vs fixed recurrence UX.
+- **Router**: `/planned-needs` protected route added to `App.jsx`.
+
+**Key logic notes:**
+- Recurrence: `floating` → next due = completion_date + interval_days; `fixed` → next due = original due_date + interval_days.
+- Auto-publish creates a minimal job with `metadata.source = 'planned_need'` and `metadata.planned_need_id`.
+- Projection formula: income/expense baseline from last 90 days of `expenses` table; sinking fund per need prorated daily.
+- Category mapping: `car_care → Auto Repair`, `personal_care → General Labor`, `other → Other / Specify in Description`.
+- **Known gap**: `reserved_amount` is manually tracked (no automatic deduction from expenses). A future improvement could auto-increment it when a matching expense is logged.
 
 ### Session — 2026-04-08 (all merged to main)
 
