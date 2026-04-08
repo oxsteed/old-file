@@ -77,7 +77,20 @@ function useLiveBidsPreview() {
       try {
         const { data: jobsRes } = await api.get('/jobs?status=open&limit=10&sort=newest');
         const jobs = jobsRes.jobs || jobsRes || [];
-        if (!jobs.length) return;
+        if (!jobs.length) {
+          if (cancelled) return;
+          setData({
+            jobTitle: 'Kitchen sink replacement',
+            location: 'Local area',
+            bids: [
+              { name: 'Mike R.', initial: 'M', badge: '\u2713 Licensed', amt: '$185', stars: 5 },
+              { name: 'Sarah T.', initial: 'S', badge: '\u2713 Insured', amt: '$210', stars: 4 },
+              { name: 'James L.', initial: 'J', badge: '\u2713 Verified', amt: '$165', stars: 5 },
+            ],
+          });
+          setNewCount(3);
+          return;
+        }
 
         let chosenJob = null;
         let liveBids = [];
