@@ -99,7 +99,7 @@ export default function JobListPage() {
         <section className="jlp-hero">
           <h1>Find Local Services Near You</h1>
           <p className="jlp-hero-sub">
-            Browse available jobs or post your own. Connect with trusted local helpers in your area.
+            Browse available jobs or post your own. Connect with local helpers in your area.
           </p>
 
           {/* Filter Bar */}
@@ -349,21 +349,19 @@ export default function JobListPage() {
                 <div>
                   <div className="jlp-step-num">3</div>
                   <h3>Choose Your Helper</h3>
-                  <p>Filter by trust level — from community members to fully verified pros.</p>
+                  
                 </div>
                 <div>
                   <div className="jlp-step-num">4</div>
                   <h3>Get It Done</h3>
-                  <p>Pay directly or use OxSteed Escrow for added protection. Rate your helper when complete.</p>
+                  <p>Pay directly or pay via OxSteed for added protection. Rate your helper when complete.</p>
                 </div>
               </div>
               <div className="jlp-trust-section">
                 <h4>Choose your trust level</h4>
                 <div className="jlp-trust-badges">
                   <TrustKeys level="community" mode="card" />
-                  <TrustKeys level="verified" mode="card" />
-                  <TrustKeys level="pro" mode="card" />
-                  <TrustKeys level="protected" mode="card" />
+                  <TrustKeys level="pro" mode="card" /> 
                 </div>
               </div>
             </div>
@@ -378,7 +376,7 @@ export default function JobListPage() {
                 <div>
                   <div className="jlp-step-num">2</div>
                   <h3>Get Verified</h3>
-                  <p>Level up with ID verification and background checks to win more jobs.</p>
+                  <p>Level up with background checks to win more jobs.</p>
                 </div>
                 <div>
                   <div className="jlp-step-num">3</div>
@@ -388,16 +386,14 @@ export default function JobListPage() {
                 <div>
                   <div className="jlp-step-num">4</div>
                   <h3>Get Paid</h3>
-                  <p>Complete the job, collect payment directly or through OxSteed Escrow, and build your reputation.</p>
+                  <p>Complete the job, collect payment directly or through OxSteed, and build your reputation.</p>
                 </div>
               </div>
               <div className="jlp-trust-section">
                 <h4>Build your trust level</h4>
                 <div className="jlp-trust-badges">
                   <TrustKeys level="community" mode="card" />
-                  <TrustKeys level="verified" mode="card" />
-                  <TrustKeys level="pro" mode="card" />
-                  <TrustKeys level="protected" mode="card" />
+                  <TrustKeys level="pro" mode="card" /> 
                 </div>
               </div>
             </div>
