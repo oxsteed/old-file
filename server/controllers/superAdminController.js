@@ -263,6 +263,33 @@ exports.forceJobAction = async (req, res) => {
   } catch (err) { console.error('forceJobAction error:', err); res.status(500).json({ error: 'Failed to perform job action.' }); }
 };
 
+exports.deleteJob = async (req, res) => {
+  try {
+    if (!(await tableExists('jobs'))) return res.status(404).json({ error: 'Job not found.' });
+    const { jobId } = req.params;
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) return res.status(400).json({ error: 'A reason is required to delete a job.' });
+    const { rows } = await db.query('SELECT id, title, client_id FROM jobs WHERE id = $1', [jobId]);
+    if (!rows.length) return res.status(404).json({ error: 'Job not found.' });
+    // Hard delete — cascades to bids, payments if FK'd with ON DELETE CASCADE; otherwise clean up first
+    await db.query('DELETE FROM jobs WHERE id = $1', [jobId]);
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'job_deleted',
+        targetType: 'job',
+        targetId: jobId,
+        description: `[HARD DELETE] "${rows[0].title}" — ${reason.trim()}`,
+        req,
+      });
+    } catch(e) {}
+    res.json({ message: 'Job permanently deleted.' });
+  } catch (err) {
+    logger.error('deleteJob error', { err });
+    res.status(500).json({ error: 'Failed to delete job.' });
+  }
+};
+
 // FINANCIAL MANAGEMENT
 exports.getFinancials = async (req, res) => {
   try {
