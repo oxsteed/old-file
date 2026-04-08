@@ -21,9 +21,25 @@ export default {
           900: '#7C2D12',
           950: '#431407',
         },
+        /* Design system tokens as Tailwind utilities */
+        surface: {
+          DEFAULT: 'var(--color-surface)',
+          2: 'var(--color-surface-2)',
+          3: 'var(--color-surface-3)',
+        },
+        primary: {
+          DEFAULT: 'var(--color-primary)',
+          hover: 'var(--color-primary-hover)',
+          bg: 'var(--color-primary-bg)',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Instrument Serif', 'Georgia', 'serif'],
+      },
+      borderColor: {
+        DEFAULT: 'var(--color-border)',
+        strong: 'var(--color-border-strong)',
       },
     },
   },

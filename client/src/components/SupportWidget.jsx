@@ -428,7 +428,7 @@ export default function SupportWidget() {
         <button
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label="Open AI assistant"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg shadow-orange-500/30 font-semibold text-sm transition-all hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3.5 py-2.5 bg-orange-500/85 hover:bg-orange-600 text-white rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>

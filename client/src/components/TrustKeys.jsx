@@ -10,11 +10,12 @@ const KeyIcon = ({ size = 20 }) => (
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className="trust-key-icon"
+    style={{ color: 'var(--color-primary)' }}
   >
-    <circle cx="12" cy="7" r="5" stroke="#F5A623" strokeWidth="2" fill="none" />
-    <line x1="12" y1="12" x2="12" y2="22" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" />
-    <line x1="12" y1="17" x2="16" y2="17" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" />
-    <line x1="12" y1="20" x2="15" y2="20" stroke="#F5A623" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="12" cy="7" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
+    <line x1="12" y1="12" x2="12" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <line x1="12" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <line x1="12" y1="20" x2="15" y2="20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 

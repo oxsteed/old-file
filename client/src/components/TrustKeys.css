@@ -1,60 +1,65 @@
-/* TrustKeys - Universal Trust Badge Styles */
+/* TrustKeys Component — Theme-aware styling */
 
-/* Inline mode - next to helper names */
 .trust-keys-inline {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: 6px;
-  vertical-align: middle;
-}
-.trust-keys-none {
-  color: #4b5563;
-  font-size: 0.75rem;
-}
-.trust-key-icon {
-  filter: drop-shadow(0 0 2px rgba(245, 166, 35, 0.3));
 }
 
-/* Card mode - for tour sections and profiles */
+.trust-keys-none {
+  color: var(--color-text-faint);
+  font-size: 0.875rem;
+}
+
+.trust-key-icon {
+  flex-shrink: 0;
+}
+
+/* Card mode */
 .trust-keys-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1.25rem 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   min-width: 140px;
-  transition: all 0.3s;
+  transition: all var(--transition-base);
 }
 .trust-keys-card:hover {
-  border-color: #F5A623;
+  border-color: var(--color-primary);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
+
 .trust-keys-card-highlight {
-  border-color: #F5A623;
-  background: rgba(245, 166, 35, 0.08);
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
 }
+
 .trust-keys-card-icons {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 32px;
+  margin-bottom: var(--space-1);
 }
+
 .trust-keys-card-empty {
-  color: #4b5563;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
   font-style: italic;
 }
+
 .trust-keys-card-label {
   font-weight: 600;
-  font-size: 0.95rem;
-  color: #fff;
+  font-size: var(--text-sm);
+  color: var(--color-text);
 }
+
 .trust-keys-card-desc {
-  font-size: 0.8rem;
-  color: #6b7280;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
   text-align: center;
 }

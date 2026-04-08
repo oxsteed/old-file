@@ -1,94 +1,77 @@
 import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import PageShell from '../components/PageShell';
 
 export default function NotFoundPage() {
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
-      <Navbar />
-      <main className="flex-1 flex items-center justify-center px-5">
-        <div style={styles.card}>
-          <div style={styles.code}>404</div>
-          <h1 style={styles.title}>Page Not Found</h1>
-          <p style={styles.message}>
+    <PageShell>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'var(--space-8)',
+        minHeight: '60vh',
+      }}>
+        <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
+          <div style={{
+            fontSize: 120,
+            fontWeight: 800,
+            color: 'var(--color-primary)',
+            lineHeight: 1,
+            marginBottom: 'var(--space-2)',
+          }}>
+            404
+          </div>
+
+          <h1 style={{
+            color: 'var(--color-text)',
+            fontSize: 'var(--text-2xl)',
+            fontWeight: 600,
+            marginBottom: 'var(--space-3)',
+          }}>
+            Page Not Found
+          </h1>
+
+          <p style={{
+            color: 'var(--color-text-muted)',
+            fontSize: 'var(--text-base)',
+            lineHeight: 1.6,
+            marginBottom: 'var(--space-8)',
+          }}>
             The page you're looking for doesn't exist or has been moved.
           </p>
-          <div style={styles.actions}>
-            <Link to="/" style={styles.homeBtn}>
+
+          <div style={{
+            display: 'flex',
+            gap: 'var(--space-3)',
+            justifyContent: 'center',
+            marginBottom: 'var(--space-6)',
+          }}>
+            <Link to="/" className="ox-btn ox-btn-primary ox-btn-lg">
               Go to Homepage
             </Link>
             <button
               onClick={() => window.history.back()}
-              style={styles.backBtn}
+              className="ox-btn ox-btn-outline ox-btn-lg"
             >
               Go Back
             </button>
           </div>
-          <p style={styles.help}>
+
+          <p style={{
+            color: 'var(--color-text-faint)',
+            fontSize: 'var(--text-xs)',
+          }}>
             Need help?{' '}
-            <a href="mailto:support@oxsteed.com" style={styles.link}>
+            <a
+              href="mailto:support@oxsteed.com"
+              style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}
+            >
               support@oxsteed.com
             </a>
           </p>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </PageShell>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  card: {
-    maxWidth: 480,
-    width: '100%',
-    textAlign: 'center',
-  },
-  code: {
-    fontSize: 120,
-    fontWeight: 800,
-    color: '#f97316',
-    lineHeight: 1,
-    marginBottom: 8,
-  },
-  title: {
-    color: '#e5e7eb',
-    fontSize: 24,
-    fontWeight: 600,
-    marginBottom: 12,
-  },
-  message: {
-    color: '#9ca3af',
-    fontSize: 15,
-    lineHeight: 1.6,
-    marginBottom: 32,
-  },
-  actions: {
-    display: 'flex',
-    gap: 12,
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  homeBtn: {
-    background: '#f97316',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-    padding: '12px 28px',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-    textDecoration: 'none',
-  },
-  backBtn: {
-    background: 'transparent',
-    color: '#f97316',
-    border: '1px solid #f97316',
-    borderRadius: 8,
-    padding: '12px 28px',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  help: { color: '#6b7280', fontSize: 12 },
-  link: { color: '#f97316', textDecoration: 'underline' },
-};

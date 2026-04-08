@@ -1,11 +1,34 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
 
+/** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
+function OxSteedIcon({ size = 24 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 512 512"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect width="512" height="512" rx="88" fill="#16213e" />
+      <path d="M 40 285 A 218 218 0 0 1 173 55 L 211 26 A 178 178 0 0 0 80 279 Z" fill="#F97316" />
+      <path d="M 228 40 A 218 218 0 0 1 457 173 L 486 211 A 178 178 0 0 0 233 80 Z" fill="#F97316" />
+      <path d="M 472 228 A 218 218 0 0 1 339 457 L 301 486 A 178 178 0 0 0 433 233 Z" fill="#F97316" />
+      <path d="M 284 472 A 218 218 0 0 1 55 339 L 26 301 A 178 178 0 0 0 279 433 Z" fill="#F97316" />
+      <circle cx="256" cy="256" r="145" fill="#F97316" />
+      <text x="256" y="236" textAnchor="middle" dominantBaseline="middle" fontFamily="Arial Black, Arial, Helvetica, system-ui, sans-serif" fontWeight="900" fontSize="90" fill="#FFFFFF">OxS</text>
+      <polyline points="131,305 172,305 184,295 194,268 204,326 214,297 224,305 381,305" fill="none" stroke="#FFFFFF" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -31,106 +54,127 @@ export default function Navbar() {
     fetchCounts();
   }, [user]);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  const isActive = (path) => location.pathname === path;
+
   return (
     <nav
-      className="sticky top-0 z-50 backdrop-blur-lg border-b"
+      className="ox-navbar"
+      aria-label="Main navigation"
       style={{
-        background: 'var(--nav-bg)',
-        borderColor: 'var(--nav-border)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        background: 'var(--color-nav-bg)',
+        borderBottom: '1px solid var(--color-nav-border)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
+      <div className="ox-container">
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          height: '3.75rem',
+        }}>
           {/* Logo */}
           <Link
             to="/"
-            className="text-xl font-bold transition"
-            style={{ color: 'var(--app-brand)' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--app-brand-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--app-brand)')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              textDecoration: 'none',
+              color: 'var(--color-text)',
+              fontWeight: 700,
+              fontSize: 'var(--text-xl)',
+            }}
           >
-            OxSteed
+            <OxSteedIcon size={28} />
+            <span>OxSteed</span>
           </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden sm:flex items-center gap-3">
+          {/* Desktop nav links */}
+          <div className="ox-nav-desktop" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+          }}>
             {user ? (
               <>
-                <NavLink to="/jobs">Browse Jobs</NavLink>
-                <NavLink to="/post-job">Post a Job</NavLink>
-                <Link
-                  to="/messages"
-                  className="text-sm transition relative"
-                  style={{ color: 'var(--nav-link)' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--nav-link-hover)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--nav-link)')}
-                >
+                <NavLink to="/jobs" active={isActive('/jobs')}>Browse Jobs</NavLink>
+                <NavLink to="/post-job" active={isActive('/post-job')}>Post a Job</NavLink>
+                <NavLink to="/messages" active={isActive('/messages')}>
                   Messages
                   {unreadMsgs > 0 && (
-                    <span className="absolute -top-1 -right-3 bg-orange-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                    <span style={{
+                      marginLeft: '0.25rem',
+                      background: 'var(--color-primary)',
+                      color: '#fff',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: 'var(--radius-full)',
+                      lineHeight: 1.3,
+                    }}>
                       {unreadMsgs}
                     </span>
                   )}
-                </Link>
-                <div className="h-4 w-px" style={{ background: 'var(--app-border-solid)' }} />
-                <NavLink to="/dashboard">Dashboard</NavLink>
-                <NavLink to="/settings">Settings</NavLink>
-                <span className="text-xs px-2 py-1 rounded-full capitalize font-semibold" style={{ background: 'var(--app-brand-bg)', color: 'var(--app-brand)' }}>
+                </NavLink>
+                <Divider />
+                <NavLink to="/dashboard" active={isActive('/dashboard')}>Dashboard</NavLink>
+                <NavLink to="/settings" active={isActive('/settings')}>Settings</NavLink>
+                <span className="ox-badge ox-badge-primary" style={{ textTransform: 'capitalize' }}>
                   {user?.role}
                 </span>
                 <button
                   onClick={logout}
-                  className="text-sm font-medium transition text-red-400 hover:text-red-300"
+                  className="ox-btn ox-btn-ghost ox-btn-sm"
+                  style={{ color: 'var(--color-error)' }}
                 >
-                  Logout
+                  Sign Out
                 </button>
               </>
             ) : (
               <>
-                <NavLink to="/login">Sign in</NavLink>
-                <Link
-                  to="/jobs"
-                  className="px-4 py-2 border rounded-lg text-sm font-medium transition"
-                  style={{ borderColor: 'var(--app-brand)', color: 'var(--app-brand)' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'var(--app-brand)';
-                    e.currentTarget.style.color = '#fff';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'var(--app-brand)';
-                  }}
-                >
-                  Find Help
-                </Link>
-                <Link
-                  to="/register/helper"
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition"
-                  style={{ background: 'var(--app-brand)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--app-brand-hover)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--app-brand)')}
-                >
+                <NavLink to="/login" active={isActive('/login')}>Sign in</NavLink>
+                <NavLink to="/jobs" active={isActive('/jobs')}>Browse Jobs</NavLink>
+                <NavLink to="/how-it-works" active={isActive('/how-it-works')}>How It Works</NavLink>
+                <Link to="/register/helper" className="ox-btn ox-btn-secondary ox-btn-sm">
                   List Your Skills
+                </Link>
+                <Link to="/register/customer" className="ox-btn ox-btn-primary ox-btn-sm">
+                  Post a Job
                 </Link>
               </>
             )}
             <ThemeToggle />
           </div>
 
-          {/* Mobile: toggle + hamburger */}
-          <div className="sm:hidden flex items-center gap-3">
+          {/* Mobile: theme toggle + hamburger */}
+          <div className="ox-nav-mobile-controls" style={{
+            display: 'none',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+          }}>
             <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Toggle menu"
-              style={{ color: 'var(--nav-link)' }}
-              className="hover:opacity-80 transition"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileOpen}
+              className="ox-btn-icon"
+              style={{ color: 'var(--color-nav-link)' }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round">
                 {mobileOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <><line x1="6" y1="6" x2="18" y2="18" /><line x1="6" y1="18" x2="18" y2="6" /></>
                 ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>
                 )}
               </svg>
             </button>
@@ -139,69 +183,155 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="sm:hidden pb-4 space-y-1 border-t mt-1 pt-3" style={{ borderColor: 'var(--nav-border)' }}>
+          <div style={{
+            paddingBottom: 'var(--space-4)',
+            borderTop: '1px solid var(--color-border)',
+            marginTop: 'var(--space-1)',
+            paddingTop: 'var(--space-3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-1)',
+          }}>
             {user ? (
               <>
-                <MobileLink to="/dashboard" onClose={() => setMobileOpen(false)}>Dashboard</MobileLink>
-                <MobileLink to="/jobs" onClose={() => setMobileOpen(false)}>Browse Jobs</MobileLink>
-                <MobileLink to="/post-job" onClose={() => setMobileOpen(false)}>Post a Job</MobileLink>
-                <MobileLink to="/messages" onClose={() => setMobileOpen(false)}>
+                <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>Dashboard</MobileNavLink>
+                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>Browse Jobs</MobileNavLink>
+                <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>Post a Job</MobileNavLink>
+                <MobileNavLink to="/messages" onClick={() => setMobileOpen(false)}>
                   Messages {unreadMsgs > 0 && (
-                    <span className="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">{unreadMsgs}</span>
+                    <span style={{
+                      background: 'var(--color-primary)',
+                      color: '#fff',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: 'var(--radius-full)',
+                      marginLeft: '0.25rem',
+                    }}>{unreadMsgs}</span>
                   )}
-                </MobileLink>
-                <MobileLink to="/settings" onClose={() => setMobileOpen(false)}>Settings</MobileLink>
+                </MobileNavLink>
+                <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>Settings</MobileNavLink>
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
-                  className="block w-full text-left py-2 px-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition"
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: 'var(--text-sm)',
+                    color: 'var(--color-error)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'background var(--transition-fast)',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--color-error-bg)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  Logout
+                  Sign Out
                 </button>
               </>
             ) : (
               <>
-                <MobileLink to="/login" onClose={() => setMobileOpen(false)}>Sign in</MobileLink>
-                <MobileLink to="/jobs" onClose={() => setMobileOpen(false)}>Find Help</MobileLink>
-                <MobileLink to="/register/helper" onClose={() => setMobileOpen(false)} brand>
+                <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>Sign in</MobileNavLink>
+                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>Browse Jobs</MobileNavLink>
+                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>How It Works</MobileNavLink>
+                <MobileNavLink to="/register/helper" onClick={() => setMobileOpen(false)} highlight>
                   List Your Skills
-                </MobileLink>
-                <MobileLink to="/register/customer" onClose={() => setMobileOpen(false)}>
+                </MobileNavLink>
+                <MobileNavLink to="/register/customer" onClick={() => setMobileOpen(false)} primary>
                   Post a Job
-                </MobileLink>
+                </MobileNavLink>
               </>
             )}
           </div>
         )}
       </div>
+
+      {/* Responsive hide/show via CSS */}
+      <style>{`
+        @media (max-width: 768px) {
+          .ox-nav-desktop { display: none !important; }
+          .ox-nav-mobile-controls { display: flex !important; }
+        }
+      `}</style>
     </nav>
   );
 }
 
-function NavLink({ to, children }) {
+function NavLink({ to, children, active }) {
   return (
     <Link
       to={to}
-      className="text-sm transition"
-      style={{ color: 'var(--nav-link)' }}
-      onMouseEnter={e => (e.currentTarget.style.color = 'var(--nav-link-hover)')}
-      onMouseLeave={e => (e.currentTarget.style.color = 'var(--nav-link)')}
+      style={{
+        fontSize: 'var(--text-sm)',
+        fontWeight: active ? 600 : 500,
+        color: active ? 'var(--color-primary)' : 'var(--color-nav-link)',
+        textDecoration: 'none',
+        padding: '0.375rem 0.625rem',
+        borderRadius: 'var(--radius-md)',
+        transition: 'color var(--transition-fast), background var(--transition-fast)',
+        display: 'inline-flex',
+        alignItems: 'center',
+      }}
+      onMouseEnter={e => {
+        if (!active) {
+          e.currentTarget.style.color = 'var(--color-nav-link-hover)';
+          e.currentTarget.style.background = 'var(--color-surface-2)';
+        }
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.color = active ? 'var(--color-primary)' : 'var(--color-nav-link)';
+        e.currentTarget.style.background = 'transparent';
+      }}
     >
       {children}
     </Link>
   );
 }
 
-function MobileLink({ to, children, onClose, brand }) {
+function MobileNavLink({ to, children, onClick, highlight, primary }) {
+  const baseStyle = {
+    display: 'block',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: primary ? 600 : 500,
+    textDecoration: 'none',
+    transition: 'background var(--transition-fast), color var(--transition-fast)',
+    color: primary ? 'var(--color-primary-text)' : highlight ? 'var(--color-primary)' : 'var(--color-nav-link)',
+    background: primary ? 'var(--color-primary)' : 'transparent',
+    textAlign: primary ? 'center' : 'left',
+    marginTop: primary ? 'var(--space-2)' : 0,
+  };
+
   return (
     <Link
       to={to}
-      onClick={onClose}
-      className="block py-2 px-2 rounded-lg text-sm transition"
-      style={{ color: brand ? 'var(--app-brand)' : 'var(--nav-link)' }}
-      onMouseEnter={e => (e.currentTarget.style.color = brand ? 'var(--app-brand-hover)' : 'var(--nav-link-hover)')}
-      onMouseLeave={e => (e.currentTarget.style.color = brand ? 'var(--app-brand)' : 'var(--nav-link)')}
+      onClick={onClick}
+      style={baseStyle}
+      onMouseEnter={e => {
+        if (!primary) e.currentTarget.style.background = 'var(--color-surface-2)';
+        if (!primary) e.currentTarget.style.color = 'var(--color-nav-link-hover)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = primary ? 'var(--color-primary)' : 'transparent';
+        e.currentTarget.style.color = primary ? 'var(--color-primary-text)' : highlight ? 'var(--color-primary)' : 'var(--color-nav-link)';
+      }}
     >
       {children}
     </Link>
+  );
+}
+
+function Divider() {
+  return (
+    <div style={{
+      width: '1px',
+      height: '1rem',
+      background: 'var(--color-border-strong)',
+      flexShrink: 0,
+    }} />
   );
 }

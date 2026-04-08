@@ -5,33 +5,34 @@
 
 /* ── Tokens ─────────────────────────────────────────────── */
 .hp-root {
-  --hp-bg:           #f7f6f2;
-  --hp-bg-alt:       #f0ede8;
-  --hp-surface:      #faf9f6;
-  --hp-surface-2:    #ffffff;
-  --hp-divider:      #dcd9d4;
-  --hp-border:       #d1cdc6;
-  --hp-text:         #26231c;
-  --hp-text-muted:   #6e6c66;
-  --hp-text-faint:   #b0aea9;
-  --hp-text-inv:     #f9f8f4;
-  --hp-primary:      #F97316;
-  --hp-primary-h:    #ea6a0a;
-  --hp-primary-bg:   #fff3e8;
-  --hp-amber:        #c07a10;
-  --hp-amber-bg:     #fdf3e3;
-  --hp-green:        #3d7520;
-  --hp-green-bg:     #eaf3e4;
-  --hp-shadow-sm:    0 1px 3px rgba(38,35,28,.06);
-  --hp-shadow-md:    0 4px 14px rgba(38,35,28,.09);
-  --hp-shadow-lg:    0 14px 36px rgba(38,35,28,.13);
-  --hp-radius-md:    .625rem;
-  --hp-radius-lg:    .875rem;
-  --hp-radius-xl:    1.25rem;
-  --hp-radius-full:  9999px;
-  --hp-font-display: 'Instrument Serif', Georgia, serif;
-  --hp-font-body:    'Work Sans', system-ui, sans-serif;
-  --hp-tr:           180ms cubic-bezier(0.16,1,0.3,1);
+  /* Map hp tokens to the global design system */
+  --hp-bg:           var(--color-bg);
+  --hp-bg-alt:       var(--color-surface-2);
+  --hp-surface:      var(--color-surface);
+  --hp-surface-2:    var(--color-surface-raised, var(--color-surface));
+  --hp-divider:      var(--color-border);
+  --hp-border:       var(--color-border-strong);
+  --hp-text:         var(--color-text);
+  --hp-text-muted:   var(--color-text-muted);
+  --hp-text-faint:   var(--color-text-faint);
+  --hp-text-inv:     var(--color-primary-text);
+  --hp-primary:      var(--color-primary);
+  --hp-primary-h:    var(--color-primary-hover);
+  --hp-primary-bg:   var(--color-primary-bg);
+  --hp-amber:        var(--color-warning);
+  --hp-amber-bg:     var(--color-warning-bg);
+  --hp-green:        var(--color-success);
+  --hp-green-bg:     var(--color-success-bg);
+  --hp-shadow-sm:    var(--shadow-sm);
+  --hp-shadow-md:    var(--shadow-md);
+  --hp-shadow-lg:    var(--shadow-lg);
+  --hp-radius-md:    var(--radius-md);
+  --hp-radius-lg:    var(--radius-lg);
+  --hp-radius-xl:    var(--radius-xl);
+  --hp-radius-full:  var(--radius-full);
+  --hp-font-display: var(--font-display);
+  --hp-font-body:    var(--font-body);
+  --hp-tr:           var(--transition-base);
 
   font-family: var(--hp-font-body);
   background:  var(--hp-bg);
@@ -509,38 +510,16 @@
 /* ============================================================
    Dark-mode overrides for homepage
    ============================================================ */
-.dark .hp-root {
-  --hp-bg:           #1a1714;
-  --hp-bg-alt:       #211e1a;
-  --hp-surface:      #252119;
-  --hp-surface-2:    #2e2a24;
-  --hp-divider:      rgba(80,72,60,0.5);
-  --hp-border:       rgba(80,72,60,0.7);
-  --hp-text:         #f4f1ec;
-  --hp-text-muted:   #a8a49d;
-  --hp-text-faint:   #6b6760;
-  --hp-text-inv:     #f4f1ec;
-  --hp-primary:      #F97316;
-  --hp-primary-h:    #ea6a0a;
-  --hp-primary-bg:   rgba(249,115,22,0.12);
-  --hp-amber:        #d4960a;
-  --hp-amber-bg:     rgba(212,150,10,0.12);
-  --hp-green:        #4f9a2e;
-  --hp-green-bg:     rgba(79,154,46,0.12);
-  --hp-shadow-sm:    0 1px 3px rgba(0,0,0,0.3);
-  --hp-shadow-md:    0 4px 14px rgba(0,0,0,0.4);
-  --hp-shadow-lg:    0 14px 36px rgba(0,0,0,0.55);
-}
-
+/* Dark mode: All tokens now inherit from the global system automatically.
+   These overrides only handle homepage-specific structural styling in dark mode. */
 .dark .hp-nav {
-  background: rgba(26,23,20,0.9);
+  background: var(--color-nav-bg);
   border-bottom-color: var(--hp-divider);
 }
 .dark .hp-stats { background: var(--hp-primary); }
 .dark .hp-mock-card { background: var(--hp-surface-2); border-color: var(--hp-border); }
 .dark .hp-mock-bid > div:nth-child(2) > div:first-child { color: var(--hp-text); }
 .dark .hp-mock-bid > div:last-child > div:first-child { color: var(--hp-text); }
-.dark .hp-nav .theme-toggle-track { background: #F97316; }
 .dark .hp-cta-inner { background: var(--hp-surface-2); border-color: var(--hp-border); }
 
 /* Dark-mode search overrides */

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import '../styles/HomePage.css';
-import ThemeToggle from '../components/ThemeToggle';
+import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -297,6 +297,7 @@ export default function HomePage() {
   const badgeLabel = newCount > 0 ? `${newCount} new` : 'Live';
 
   return (
+    <PageShell>
     <div className="hp-root">
       <PageMeta
         title="OxSteed — Hire Local Help Today"
@@ -304,46 +305,7 @@ export default function HomePage() {
         url="https://oxsteed.com"
       />
 
-      {/* -- Nav -- */}
-      <nav className="hp-nav" aria-label="Main navigation">
-        <Link to="/" className="hp-logo">
-          <OxSteedIcon size={26} />
-          OxSteed
-        </Link>
-        <div className="hp-nav-links">
-          {user ? (
-            <>
-              <Link to="/dashboard" className="hp-nav-link">Dashboard</Link>
-              <Link to="/jobs" className="hp-nav-link">Browse Jobs</Link>
-              {user.role === 'customer' && (
-                <Link to="/post-job" className="hp-nav-link">Post a Job</Link>
-              )}
-              <span className="hp-nav-link" style={{ opacity: 0.5, fontSize: '.75rem', textTransform: 'capitalize' }}>
-                {user.first_name || user.email?.split('@')[0]} · {user.role}
-              </span>
-              <button onClick={logout} className="hp-btn hp-btn-ghost" style={{ cursor: 'pointer' }}>
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="hp-nav-link">Sign in</Link>
-              <Link to="/jobs" className="hp-nav-link">Browse Jobs</Link>
-              <Link to="/how-it-works" className="hp-nav-link">How It Works</Link>
-              <Link to="/register/helper" className="hp-btn hp-btn-ghost">List Your Skills</Link>
-              <Link to="/register/customer" className="hp-btn hp-btn-primary">Post a Job</Link>
-            </>
-          )}
-          <ThemeToggle />
-        </div>
-        <div className="hp-nav-mobile">
-          {user ? (
-            <Link to="/dashboard" className="hp-btn hp-btn-primary" style={{ fontSize: '.8rem', padding: '.5rem 1rem' }}>Dashboard</Link>
-          ) : (
-            <Link to="/register/customer" className="hp-btn hp-btn-primary" style={{ fontSize: '.8rem', padding: '.5rem 1rem' }}>Post a Job</Link>
-          )}
-        </div>
-      </nav>
+
 
       {/* -- Hero -- */}
       <section className="hp-hero">
@@ -559,41 +521,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* -- Footer -- */}
-      <footer className="hp-footer">
-        <div className="hp-container">
-          <div className="hp-footer-top">
-            <Link to="/" className="hp-footer-logo">
-              <OxSteedIcon size={22} />
-              OxSteed
-            </Link>
-            <div className="hp-footer-links">
-              {user ? (
-                <Link to="/dashboard">Dashboard</Link>
-              ) : (
-                <Link to="/login">Sign In</Link>
-              )}
-              <Link to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>Find Help</Link>
-              <Link to={user?.role === 'helper' ? '/dashboard' : '/register/helper'}>List Your Skills</Link>
-              <Link to="/how-it-works">How It Works</Link>
-              <Link to="/about">About</Link>
-            </div>
-          </div>
-          <div className="hp-footer-legal-links">
-            <Link to="/terms">Terms of Service</Link>
-            <Link to="/privacy">Privacy Policy</Link>
-            <Link to="/security">Security</Link>
-            <Link to="/cookie-policy">Cookie Policy</Link>
-            <Link to="/cookie-settings">Cookie Settings</Link>
-            <Link to="/do-not-sell">Do Not Sell My Info</Link>
-            <Link to="/accessibility">Accessibility</Link>
-          </div>
-          <p className="hp-footer-disclaimer">
-            PLEASE READ THE FULL <Link to="/terms">TERMS OF SERVICE</Link>. OxSteed LLC operates an online introduction platform and optional payment services. OxSteed is not a party to any service agreement between users unless both parties have affirmatively opted into Tier 3 Payment Protection for a specific job. All helpers are independent individuals or businesses — not employees, agents, or contractors of OxSteed. OxSteed does not control how helpers perform work, does not set prices, and does not dispatch helpers. Users are solely responsible for evaluating and selecting other users. OxSteed does not provide insurance of any kind.
-          </p>
-          <p className="hp-footer-copy">© 2026 OxSteed LLC · support@oxsteed.com</p>
-        </div>
-      </footer>
     </div>
+    </PageShell>
   );
 }

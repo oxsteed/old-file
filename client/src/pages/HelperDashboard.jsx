@@ -7,9 +7,8 @@ import BadgeDisplay from '../components/BadgeDisplay';
 import api from '../api/axios';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Navbar from '../components/Navbar';
+import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
-import Footer from '../components/Footer';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -250,12 +249,12 @@ export default function HelperDashboard() {
     ? [{id:'pulse',label:'Get Started'}]
     : [{id:'pulse',label:'My Pulse'},{id:'jobs',label:'Find Jobs'},{id:'earnings',label:'Earnings'},{id:'goals',label:'Goals'},{id:'bids',label:'My Bids'},{id:'skills',label:'Skills & Tools'}];
 
-  if(loading) return(<div className="min-h-screen bg-gray-950 text-white"><Navbar/><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div>);
+  if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
 
   return(
-    <div className="min-h-screen bg-gray-950 text-white">
+    <PageShell>
+    <div className="min-h-screen text-white">
       <PageMeta title="Helper Dashboard" description="Manage your jobs, earnings, bids, and skills." noIndex={true} />
-      <Navbar/>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Trial Banner */}
@@ -575,7 +574,6 @@ export default function HelperDashboard() {
           </div>
         )}
       </main>
-      <Footer/>
 
       {/* Modals */}
       <Modal open={showSkillModal} onClose={()=>{setShowSkillModal(false);setEditingSkill(null);setSkillLookup([]);}} title={editingSkill?'Edit Skill':'Add Skill'}>
@@ -673,6 +671,7 @@ export default function HelperDashboard() {
         </form>
       </Modal>
     </div>
+    </PageShell>
   );
 }
 

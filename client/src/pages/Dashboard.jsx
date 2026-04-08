@@ -5,8 +5,7 @@ import toast from 'react-hot-toast';
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import useLifeDashboard from '../hooks/useLifeDashboard';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -374,9 +373,9 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <PageShell>
+    <div className="min-h-screen text-white">
       <PageMeta title="My Dashboard" description="Manage your jobs, payments, and account." noIndex={true} />
-      <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Trial Banner */}
@@ -1095,5 +1094,6 @@ export default function Dashboard() {
         </form>
       </Modal>
     </div>
+    </PageShell>
   );
 }
