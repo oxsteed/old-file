@@ -164,20 +164,6 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* Trust Bar */}
-      <section className="bg-gray-900 border-y border-gray-800 py-12 px-4">
-        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div>
-            <p className="text-3xl font-bold text-orange-500 mb-1">Verified</p>
-            <p className="text-gray-400 text-sm">Helpers with identity checks</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-orange-500 mb-1">Local</p>
-            <p className="text-gray-400 text-sm">Helpers in your neighborhood</p>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section className="max-w-3xl mx-auto px-4 py-16">
         <div className="text-center mb-10">
