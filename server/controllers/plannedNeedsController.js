@@ -64,40 +64,8 @@ exports.listPlannedNeeds = async (req, res) => {
       conditions.push(`category = $${params.length}`);
     }
 
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(Math.min(parseInt(limit) || 100, 200), Math.max(parseInt(offset) || 0, 0));
 
-    const { rows } = await db.query(`
-      SELECT
-        pn.*,
-        CASE
-          WHEN pn.estimated_cost > 0 AND pn.due_date > CURRENT_DATE
-          THEN ROUND(
-            (pn.estimated_cost - pn.reserved_amount) /
-            GREATEST(pn.due_date - CURRENT_DATE, 1)
-            * 30, 2
-          )
-          ELSE 0
-        END AS sinking_fund_per_month,
-        (pn.due_date - CURRENT_DATE) AS days_until_due,
-        (pn.due_date - $2::int) AS activation_date
-      FROM planned_needs pn
-      WHERE ${conditions.join(' AND ')}
-      ORDER BY
-        CASE status
-          WHEN 'activating_soon' THEN 0
-          WHEN 'funding'         THEN 1
-          WHEN 'planned'         THEN 2
-          WHEN 'published'       THEN 3
-          WHEN 'completed'       THEN 4
-          WHEN 'cancelled'       THEN 5
-          WHEN 'regenerated'     THEN 6
-          ELSE 7
-        END,
-        due_date ASC
-      LIMIT $${params.length - 1} OFFSET $${params.length}
-    `, params);
-
-    // Re-query without the lead_time trick and compute in JS instead
     const { rows: needs } = await db.query(`
       SELECT
         pn.*,
@@ -160,6 +128,9 @@ exports.createPlannedNeed = async (req, res) => {
     }
     if (!VALID_RECURRENCE.includes(recurrence_type)) {
       return res.status(400).json({ error: 'Invalid recurrence_type.' });
+    }
+    if (recurrence_type !== 'none' && !recurrence_interval_days) {
+      return res.status(400).json({ error: 'recurrence_interval_days is required when recurrence is enabled.' });
     }
 
     const dueDate = new Date(due_date);
@@ -227,6 +198,11 @@ exports.updatePlannedNeed = async (req, res) => {
     }
     if (recurrence_type && !VALID_RECURRENCE.includes(recurrence_type)) {
       return res.status(400).json({ error: 'Invalid recurrence_type.' });
+    }
+    const effectiveRecurrence = recurrence_type || need.recurrence_type;
+    const effectiveInterval   = recurrence_interval_days !== undefined ? recurrence_interval_days : need.recurrence_interval_days;
+    if (effectiveRecurrence !== 'none' && !effectiveInterval) {
+      return res.status(400).json({ error: 'recurrence_interval_days is required when recurrence is enabled.' });
     }
 
     // Re-derive status if cost or lead_time changed
