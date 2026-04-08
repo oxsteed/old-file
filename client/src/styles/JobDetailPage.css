@@ -3,8 +3,7 @@
   max-width: 1100px;
   margin: 0 auto;
   padding: 1.5rem 1rem 4rem;
-  min-height: 100vh;
-  color: #e4e4e7;
+  color: var(--app-text, #e4e4e7);
 }
 
 /* Topbar */

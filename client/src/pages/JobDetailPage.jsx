@@ -5,6 +5,8 @@ import usePayments from '../hooks/usePayments';
 import useAuth from '../hooks/useAuth';
 import '../styles/JobDetailPage.css';
 import PageMeta from '../components/PageMeta';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const JOB_TYPE_MAP = {
@@ -205,6 +207,8 @@ export default function JobDetailPage() {
   const budget   = formatBudget(job);
 
   return (
+    <>
+    <Navbar />
     <div className="jdp-page">
       <PageMeta
         title={job.title || 'Job Details'}
@@ -627,5 +631,7 @@ export default function JobDetailPage() {
         </div>
       )}
     </div>
+    <Footer />
+    </>
   );
 }
