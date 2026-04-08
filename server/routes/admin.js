@@ -15,9 +15,11 @@ router.get('/reports',           requireAdmin, adminCtrl.getReports);
 router.put('/reports/:reportId', requireAdmin, adminCtrl.reviewReport);
 router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
 
-// Jobs (read + moderate)
-router.get('/jobs',                    requireAdmin, superCtrl.getJobs);
-router.post('/jobs/:jobId/action',     requireAdmin, superCtrl.forceJobAction);
+// Jobs (read + moderate — all admins)
+router.get('/jobs',                    requireAdmin,      superCtrl.getJobs);
+router.post('/jobs/:jobId/action',     requireAdmin,      superCtrl.forceJobAction);
+// Hard delete — super admin only
+router.delete('/jobs/:jobId',          requireSuperAdmin, superCtrl.deleteJob);
 
 // Content removal — bids and reviews (always logged for super-admin review)
 router.get('/content',                         requireAdmin, adminCtrl.getContent);

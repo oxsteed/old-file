@@ -533,3 +533,113 @@
 .jdp-not-found-icon { font-size: 3rem; margin-bottom: 1rem; }
 .jdp-not-found h2 { color: #fff; margin: 0 0 0.5rem; }
 .jdp-not-found p { color: #71717a; margin: 0 0 1.5rem; }
+
+/* ─── Light Mode Overrides ────────────────────────────────────────────────── */
+html:not(.dark) .jdp-card {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+html:not(.dark) .jdp-id { color: #9ca3af; }
+html:not(.dark) .jdp-chip {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+html:not(.dark) .jdp-chip-cat { background: rgba(234,88,12,.1); color: #c2410c; border-color: rgba(234,88,12,.2); }
+html:not(.dark) .jdp-hero-bid-count { color: #6b7280; }
+html:not(.dark) .jdp-title { color: #111827; }
+html:not(.dark) .jdp-meta-pill {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+html:not(.dark) .jdp-description { color: #374151; }
+html:not(.dark) .jdp-section-title { color: #111827; }
+html:not(.dark) .jdp-req-note { color: #6b7280; }
+html:not(.dark) .jdp-req-chip {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+html:not(.dark) .jdp-req-label { color: #111827; }
+html:not(.dark) .jdp-req-detail { color: #6b7280; }
+html:not(.dark) .jdp-media-thumb { background: #f3f4f6; }
+html:not(.dark) .jdp-media-audio { background: #f3f4f6; }
+html:not(.dark) .jdp-bid-submitted { color: #15803d; }
+html:not(.dark) .jdp-bid-card {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+html:not(.dark) .jdp-bid-card:hover { border-color: #ea580c; }
+html:not(.dark) .jdp-bid-card.accepted { background: rgba(22,163,74,.05); border-color: rgba(22,163,74,.3); }
+html:not(.dark) .jdp-bid-avatar-initials { background: rgba(234,88,12,.12); color: #c2410c; }
+html:not(.dark) .jdp-bid-helper-name { color: #111827; }
+html:not(.dark) .jdp-bid-helper-stats { color: #6b7280; }
+html:not(.dark) .jdp-bid-amount { color: #111827; }
+html:not(.dark) .jdp-bid-eta { color: #6b7280; }
+html:not(.dark) .jdp-bid-status { background: #f3f4f6; color: #6b7280; }
+html:not(.dark) .jdp-bid-status.accepted { background: rgba(22,163,74,.1); color: #15803d; }
+html:not(.dark) .jdp-bid-status.pending  { background: rgba(234,88,12,.1); color: #c2410c; }
+html:not(.dark) .jdp-bid-status.rejected { background: rgba(185,28,28,.08); color: #b91c1c; }
+html:not(.dark) .jdp-bid-message { color: #374151; }
+html:not(.dark) .jdp-bid-date { color: #9ca3af; }
+html:not(.dark) .jdp-empty-bids p { color: #6b7280; }
+html:not(.dark) .jdp-sidebar-budget-note { color: #6b7280; }
+html:not(.dark) .jdp-sidebar-title { color: #6b7280; }
+html:not(.dark) .jdp-detail-label { color: #9ca3af; }
+html:not(.dark) .jdp-detail-val { color: #111827; }
+html:not(.dark) .jdp-detail-sub { color: #6b7280; }
+html:not(.dark) .jdp-client-avatar { background: rgba(234,88,12,.1); color: #c2410c; }
+html:not(.dark) .jdp-client-name { color: #111827; }
+html:not(.dark) .jdp-client-label { color: #6b7280; }
+
+/* Bid form in light mode */
+html:not(.dark) .jdp-bid-error {
+  background: rgba(185,28,28,.06);
+  border-color: rgba(185,28,28,.2);
+  color: #b91c1c;
+}
+html:not(.dark) .jdp-field label { color: #374151; }
+html:not(.dark) .jdp-input-prefix {
+  background: #ffffff;
+  border-color: #d1d5db;
+}
+html:not(.dark) .jdp-input-prefix span {
+  background: #f9fafb;
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+html:not(.dark) .jdp-input-prefix input { color: #111827; }
+html:not(.dark) .jdp-field textarea {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #111827;
+}
+html:not(.dark) .jdp-field textarea:focus { border-color: #ea580c; }
+html:not(.dark) .jdp-char-count { color: #9ca3af; }
+
+/* Buttons stay readable */
+html:not(.dark) .jdp-btn-ghost { background: #f3f4f6; color: #374151; }
+html:not(.dark) .jdp-btn-ghost:hover { background: #e5e7eb; }
+
+/* Cancel modal */
+html:not(.dark) .jdp-modal {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+html:not(.dark) .jdp-modal h3 { color: #111827; }
+html:not(.dark) .jdp-modal p { color: #6b7280; }
+html:not(.dark) .jdp-modal-textarea {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+html:not(.dark) .jdp-modal-textarea:focus { border-color: #ea580c; }
+
+/* Not found */
+html:not(.dark) .jdp-not-found h2 { color: #111827; }
+html:not(.dark) .jdp-not-found p { color: #6b7280; }
+html:not(.dark) .jdp-upgrade-card h3 { color: #111827; }
+html:not(.dark) .jdp-upgrade-card p { color: #6b7280; }
+html:not(.dark) .jdp-action-card h3 { color: #111827; }
+html:not(.dark) .jdp-action-card p { color: #6b7280; }
+html:not(.dark) .jdp-skeleton-bar { background: rgba(0,0,0,.07); }
