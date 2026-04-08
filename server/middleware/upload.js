@@ -3,20 +3,40 @@ const path = require('path');
 
 const storage = multer.memoryStorage();
 
+// Allowed extension → allowed MIME types mapping
+const ALLOWED = {
+  '.jpg':  ['image/jpeg'],
+  '.jpeg': ['image/jpeg'],
+  '.png':  ['image/png'],
+  '.gif':  ['image/gif'],
+  '.webp': ['image/webp'],
+  '.pdf':  ['application/pdf'],
+  '.doc':  ['application/msword'],
+  '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  '.webm': ['video/webm'],
+  '.mp4':  ['video/mp4'],
+  '.mov':  ['video/quicktime'],
+  '.mp3':  ['audio/mpeg'],
+  '.wav':  ['audio/wav', 'audio/x-wav'],
+  '.ogg':  ['audio/ogg', 'video/ogg'],
+};
+
 const fileFilter = (req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.webm', '.mp4', '.mov', '.mp3', '.wav', '.ogg'];
   const ext = path.extname(file.originalname).toLowerCase();
-  if (allowed.includes(ext)) {
-    cb(null, true);
-  } else {
-    cb(new Error('File type not allowed'), false);
+  const allowedMimes = ALLOWED[ext];
+  if (!allowedMimes) {
+    return cb(new Error('File type not allowed'), false);
   }
+  if (!allowedMimes.includes(file.mimetype)) {
+    return cb(new Error('File type not allowed'), false);
+  }
+  cb(null, true);
 };
 
 const upload = multer({
   storage,
   fileFilter,
-    limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
 module.exports = upload;

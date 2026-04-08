@@ -16,7 +16,6 @@ const securityHeaders = helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        "'unsafe-inline'", // Required for React inline scripts
         'https://js.stripe.com',
         'https://www.googletagmanager.com',
         'https://www.google-analytics.com',
