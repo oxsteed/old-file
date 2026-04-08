@@ -66,7 +66,7 @@ async function authenticate(req, res, next) {
          u.tier_selected, u.w9_completed, u.terms_accepted,
          u.membership_tier, u.id_verified, u.background_check_passed,
          u.city, u.state, u.zip_code,
-         u.display_name_preference,
+         u.display_name_preference, u.is_active,
          b.business_name
        FROM users u
        LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
@@ -77,6 +77,9 @@ async function authenticate(req, res, next) {
     const user = rows[0];
     if (!user) {
       return res.status(401).json({ success: false, message: 'User no longer exists' });
+    }
+        if (!user.is_active) {
+      return res.status(403).json({ error: 'Account suspended' });
     }
 
     // Compute consistent onboarding_step matching authController.formatAuthUser
