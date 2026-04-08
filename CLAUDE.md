@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-08 (live capture, admin expansion, job detail redesign, planned needs system)
+**Last updated:** 2026-04-08 (live capture, admin expansion, job detail redesign, planned needs system, preferred helper integration)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -304,7 +304,7 @@ All production-readiness audit items have been completed. Items are documented i
 10. Referral system
 11. Didit integration test
 
-### Session — 2026-04-08 (Planned Needs system)
+### Session — 2026-04-08 (planned needs system, preferred helper integration)
 
 **Planned Needs** — `/planned-needs` page + full backend:
 
@@ -322,6 +322,13 @@ All production-readiness audit items have been completed. Items are documented i
 - Projection formula: income/expense baseline from last 90 days of `expenses` table; sinking fund per need prorated daily.
 - Category mapping: `car_care → Auto Repair`, `personal_care → General Labor`, `other → Other / Specify in Description`.
 - **Known gap**: `reserved_amount` is manually tracked (no automatic deduction from expenses). A future improvement could auto-increment it when a matching expense is logged.
+
+- **Preferred helper component integration (browser automation session):**
+
+- **QuickAddTemplates** `client/src/components/QuickAddTemplates.jsx`: integrated into PlannedNeedsPage add modal — shows common templates (oil change, dental, HVAC, etc.) for one-click form prefill.
+- **PlannedNeedHoldStatus** `client/src/components/PlannedNeedHoldStatus.jsx`: integrated into NeedCard in PlannedNeedsPage — shows 72h countdown timer for preferred helper response, "Broadcast Now" button to skip wait, "Add to Fund" quick-action. Displays for active needs with `preferred_helper_id` and `published` status.
+- **HelperOffersCard** `client/src/components/HelperOffersCard.jsx`: integrated into HelperDashboard — shows pending preferred helper offers with accept/decline actions. Appears after trial banner.
+- **PreferredHelperBanner** `client/src/components/PreferredHelperBanner.jsx`: integrated into JobDetailPage — shows contextual banner when a job has `held_for_helper_id` set (held for specific helper, broadcasting after timeout, etc.).
 
 ### Session — 2026-04-08 (all merged to main)
 
