@@ -78,8 +78,11 @@ exports.listPlannedNeeds = async (req, res) => {
             * 30, 2
           )
           ELSE 0
-        END AS sinking_fund_per_month
+        END AS sinking_fund_per_month,
+        ph.first_name AS preferred_helper_first_name,
+        ph.last_name  AS preferred_helper_last_name
       FROM planned_needs pn
+      LEFT JOIN users ph ON ph.id = pn.preferred_helper_id
       WHERE ${conditions.join(' AND ')}
       ORDER BY
         CASE status
@@ -118,6 +121,7 @@ exports.createPlannedNeed = async (req, res) => {
       lead_time_days = 7,
       recurrence_type = 'none',
       recurrence_interval_days,
+      preferred_helper_id,
       notes,
     } = req.body;
 
@@ -145,13 +149,15 @@ exports.createPlannedNeed = async (req, res) => {
     const { rows } = await db.query(`
       INSERT INTO planned_needs
         (user_id, title, description, category, status, due_date, estimated_cost,
-         lead_time_days, recurrence_type, recurrence_interval_days, notes)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         lead_time_days, recurrence_type, recurrence_interval_days,
+         preferred_helper_id, notes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *
     `, [
       userId, title, description || null, category, status, due_date,
       estimated_cost || null, parseInt(lead_time_days), recurrence_type,
-      recurrence_interval_days || null, notes || null,
+      recurrence_interval_days || null,
+      preferred_helper_id || null, notes || null,
     ]);
 
     res.status(201).json(rows[0]);
@@ -178,6 +184,7 @@ exports.updatePlannedNeed = async (req, res) => {
       lead_time_days,
       recurrence_type,
       recurrence_interval_days,
+      preferred_helper_id,
       reserved_amount,
       notes,
     } = req.body;
@@ -222,15 +229,16 @@ exports.updatePlannedNeed = async (req, res) => {
           lead_time_days           = COALESCE($9,  lead_time_days),
           recurrence_type          = COALESCE($10, recurrence_type),
           recurrence_interval_days = COALESCE($11, recurrence_interval_days),
-          reserved_amount          = COALESCE($12, reserved_amount),
-          notes                    = COALESCE($13, notes),
+          preferred_helper_id      = COALESCE($12, preferred_helper_id),
+          reserved_amount          = COALESCE($13, reserved_amount),
+          notes                    = COALESCE($14, notes),
           updated_at               = NOW()
       WHERE id = $1 AND user_id = $2
       RETURNING *
     `, [
       id, userId, title, description, category, newStatus, due_date,
       estimated_cost, lead_time_days, recurrence_type,
-      recurrence_interval_days, reserved_amount, notes,
+      recurrence_interval_days, preferred_helper_id, reserved_amount, notes,
     ]);
 
     res.json(rows[0]);
