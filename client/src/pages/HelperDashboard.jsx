@@ -9,6 +9,7 @@ import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-do
 import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
+import HelperOffersCard from '../components/HelperOffersCard';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -261,6 +262,9 @@ export default function HelperDashboard() {
         <div className="mb-5">
           <TrialBanner />
         </div>
+
+            {/* Preferred Helper Offers */}
+            <HelperOffersCard />
 
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
