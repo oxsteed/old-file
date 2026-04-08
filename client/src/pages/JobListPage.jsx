@@ -344,12 +344,12 @@ export default function JobListPage() {
                 <div>
                   <div className="jlp-step-num">2</div>
                   <h3>Compare & Choose</h3>
-                  <p>Review bids, check helper profiles, and pick the right fit — no obligation.</p>
+                  <p>Review bids, check helper profiles, compare offers, message helpers with questions.</p>
                 </div>
                 <div>
                   <div className="jlp-step-num">3</div>
                   <h3>Choose Your Helper</h3>
-                  
+                  <p>Pick the one that fits your budget and schedule. You stay in control the whole way.</p>
                 </div>
                 <div>
                   <div className="jlp-step-num">4</div>
