@@ -368,8 +368,10 @@ export default function Dashboard() {
     { id:'money', label:'Money' },
     { id:'home', label:'Home' },
     { id:'goals', label:'Goals' },
-    { id:'jobs', label:'My Jobs' },
+    { id:'personalcare', label:'Personal Care' },
+    { id:'carcare', label:'Car Care' },
     { id:'skills', label:'Skills & Tools' },
+    { id:'jobs', label:'My Jobs' },
   ];
 
   return (
@@ -401,9 +403,9 @@ export default function Dashboard() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 w-fit overflow-x-auto">
+        <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1">
           {tabs.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>
+            <button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>
           ))}
         </div>
 
@@ -963,7 +965,9 @@ export default function Dashboard() {
           </div>
         )}
 
-      </main>
+                {tab==='personalcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">💆</p><h3 className="font-semibold text-white text-lg mb-1">Personal Care</h3><p className="text-sm text-gray-500">Haircuts, massages, grooming, and wellness — coming soon.</p></Card>)}
+          {tab==='carcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">🚗</p><h3 className="font-semibold text-white text-lg mb-1">Car Care</h3><p className="text-sm text-gray-500">Oil changes, detailing, tire rotation, and mobile mechanics — coming soon.</p></Card>)}
+        </main>
       
 
       {/* ── MODALS ──────────────────────────────────────────────── */}
