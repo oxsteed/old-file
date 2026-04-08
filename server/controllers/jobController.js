@@ -153,7 +153,7 @@ exports.getJobs = async (req, res) => {
     } = req.query;
 
     const offset = (page - 1) * limit;
-    let conditions = [];
+    let conditions = [`u.is_active = true`];
     let params = [];
     let paramIdx = 1;
 
@@ -172,6 +172,8 @@ exports.getJobs = async (req, res) => {
     if (status) {
       conditions.push(`j.status = $${paramIdx++}`);
       params.push(status);
+    } else {
+      conditions.push(`j.status = 'published'`);
     }
     if (min_budget) {
       conditions.push(`j.budget_max >= $${paramIdx++}`);
@@ -204,7 +206,7 @@ exports.getJobs = async (req, res) => {
     `, [...params, limit, offset]);
 
     const { rows: countRows } = await pool.query(`
-      SELECT COUNT(*) FROM jobs j ${whereClause}
+            SELECT COUNT(*) FROM jobs j JOIN users u ON j.client_id = u.id ${whereClause}
     `, params);
 
     res.json({
