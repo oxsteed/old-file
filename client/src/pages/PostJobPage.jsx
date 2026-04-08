@@ -372,11 +372,13 @@ export default function PostJobPage() {
   const [form, setForm]     = useState(INIT);
   const [errors, setErrors] = useState({});
 
-  const photoInputRef  = useRef(null);
-  const cameraInputRef = useRef(null);
-  const videoInputRef  = useRef(null);
-  const audioInputRef  = useRef(null);
-  const draftTimer     = useRef(null);
+  const photoInputRef       = useRef(null);
+  const cameraInputRef      = useRef(null);
+  const videoInputRef       = useRef(null);
+  const videoCaptureRef     = useRef(null);
+  const audioInputRef       = useRef(null);
+  const audioCaptureRef     = useRef(null);
+  const draftTimer          = useRef(null);
 
   const set = useCallback((patch) => setForm(f => ({ ...f, ...patch })), []);
   const setReq = useCallback((key, patch) =>
@@ -460,8 +462,8 @@ export default function PostJobPage() {
     const allowed = form.mediaTab === 'photos'
       ? ['image/jpeg','image/png','image/webp','image/gif']
       : form.mediaTab === 'video'
-        ? ['video/mp4','video/quicktime','video/webm']
-        : ['audio/mpeg','audio/mp3','audio/wav','audio/ogg'];
+        ? ['video/mp4','video/quicktime','video/webm','video/x-m4v','video/3gpp']
+        : ['audio/mpeg','audio/mp3','audio/wav','audio/x-wav','audio/ogg','audio/webm','audio/aac','audio/x-aac'];
 
     const maxFiles = form.mediaTab === 'photos' ? 5 : 1;
     const valid = Array.from(files).filter(f => allowed.includes(f.type)).slice(0, maxFiles - form.mediaFiles.length);
@@ -746,25 +748,41 @@ export default function PostJobPage() {
                     </span>
                   </div>
 
-                  {/* Hidden file inputs */}
+                  {/* Hidden file inputs — upload */}
                   <input ref={photoInputRef}  type="file" accept="image/*"       multiple style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
                   <input ref={videoInputRef}  type="file" accept="video/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
                   <input ref={audioInputRef}  type="file" accept="audio/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
-                  <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
 
-                  {/* Camera button (photos only) */}
+                  {/* Hidden inputs — live capture */}
+                  <input ref={cameraInputRef}    type="file" accept="image/*"  capture="environment" style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
+                  <input ref={videoCaptureRef}   type="file" accept="video/*"  capture="camcorder"   style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
+                  <input ref={audioCaptureRef}   type="file" accept="audio/*"  capture="microphone"  style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
+
+                  {/* Live capture buttons */}
                   {form.mediaTab === 'photos' && (
                     <button type="button" className="pjw-camera-btn" onClick={() => cameraInputRef.current?.click()}>
                       📷 Take a Live Photo
                     </button>
                   )}
+                  {form.mediaTab === 'video' && form.mediaFiles.length === 0 && (
+                    <button type="button" className="pjw-camera-btn" onClick={() => videoCaptureRef.current?.click()}>
+                      🎥 Record a Video
+                    </button>
+                  )}
+                  {form.mediaTab === 'audio' && form.mediaFiles.length === 0 && (
+                    <button type="button" className="pjw-camera-btn" onClick={() => audioCaptureRef.current?.click()}>
+                      🎙 Record Audio
+                    </button>
+                  )}
 
                   {/* Previews */}
                   {form.mediaPreviews.length > 0 && (
-                    <div className="pjw-preview-grid">
+                    <div className={`pjw-preview-grid${form.mediaTab !== 'photos' ? ' pjw-preview-grid--media' : ''}`}>
                       {form.mediaPreviews.map((src, i) => (
-                        <div key={i} className="pjw-preview-item">
-                          <img src={src} alt={`Preview ${i + 1}`} />
+                        <div key={i} className={`pjw-preview-item${form.mediaTab === 'video' ? ' pjw-preview-item--video' : form.mediaTab === 'audio' ? ' pjw-preview-item--audio' : ''}`}>
+                          {form.mediaTab === 'photos' && <img src={src} alt={`Preview ${i + 1}`} />}
+                          {form.mediaTab === 'video'  && <video src={src} controls playsInline />}
+                          {form.mediaTab === 'audio'  && <audio src={src} controls />}
                           <button className="pjw-preview-remove" type="button" onClick={() => removeMedia(i)} aria-label="Remove">✕</button>
                         </div>
                       ))}
@@ -1081,9 +1099,13 @@ export default function PostJobPage() {
                   <div className="pjw-review-row">
                     <span className="pjw-review-label">Media</span>
                     <div className="pjw-review-value">
-                      <div className="pjw-preview-grid" style={{ maxWidth:'300px' }}>
+                      <div className={`pjw-preview-grid${form.mediaTab !== 'photos' ? ' pjw-preview-grid--media' : ''}`} style={{ maxWidth:'300px' }}>
                         {form.mediaPreviews.map((src,i) => (
-                          <div key={i} className="pjw-preview-item"><img src={src} alt={`Media ${i+1}`}/></div>
+                          <div key={i} className={`pjw-preview-item${form.mediaTab === 'video' ? ' pjw-preview-item--video' : form.mediaTab === 'audio' ? ' pjw-preview-item--audio' : ''}`}>
+                            {form.mediaTab === 'photos' && <img src={src} alt={`Media ${i+1}`} />}
+                            {form.mediaTab === 'video'  && <video src={src} controls playsInline />}
+                            {form.mediaTab === 'audio'  && <audio src={src} controls />}
+                          </div>
                         ))}
                       </div>
                     </div>

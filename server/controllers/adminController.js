@@ -326,3 +326,141 @@ exports.removeZipCodes = async (req, res) => {
     res.status(500).json({ error: 'Failed to remove zip codes.' });
   }
 };
+
+// ─── Content Management ───────────────────────────────────────
+// GET /admin/content?type=bids|reviews&page=1&limit=25&search=
+exports.getContent = async (req, res) => {
+  try {
+    const { type = 'bids', page = 1, limit = 25, search = '', status = '' } = req.query;
+    const offset = (Math.max(1, parseInt(page)) - 1) * Math.min(parseInt(limit) || 25, 100);
+
+    if (type === 'bids') {
+      if (!(await tableExists('bids'))) return res.json({ items: [], total: 0 });
+      const params = []; let paramIdx = 1; let conditions = [];
+      if (search) { conditions.push(`(b.message ILIKE $${paramIdx} OR j.title ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
+      if (status) { conditions.push(`b.status = $${paramIdx++}`); params.push(status); }
+      const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      const { rows } = await db.query(`
+        SELECT b.id, b.job_id, b.amount, b.message, b.status, b.created_at,
+               j.title AS job_title,
+               u.first_name || ' ' || u.last_name AS helper_name, u.email AS helper_email
+        FROM bids b
+        JOIN jobs j ON b.job_id = j.id
+        JOIN users u ON b.helper_id = u.id
+        ${wc}
+        ORDER BY b.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `, [...params, Math.min(parseInt(limit) || 25, 100), offset]);
+      const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM bids b JOIN jobs j ON b.job_id = j.id ${wc}`, params);
+      return res.json({ items: rows, total: parseInt(countRows[0].count), type: 'bids' });
+    }
+
+    if (type === 'reviews') {
+      if (!(await tableExists('reviews'))) return res.json({ items: [], total: 0 });
+      const params = []; let paramIdx = 1; let conditions = [];
+      if (search) { conditions.push(`(r.comment ILIKE $${paramIdx} OR j.title ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
+      if (status === 'hidden') conditions.push(`r.is_public = false`);
+      else if (status === 'visible') conditions.push(`r.is_public = true`);
+      const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      const { rows } = await db.query(`
+        SELECT r.id, r.job_id, r.rating, r.comment, r.is_public, r.created_at,
+               j.title AS job_title,
+               u_r.first_name || ' ' || u_r.last_name AS reviewer_name, u_r.email AS reviewer_email,
+               u_e.first_name || ' ' || u_e.last_name AS reviewee_name
+        FROM reviews r
+        JOIN jobs j ON r.job_id = j.id
+        JOIN users u_r ON r.reviewer_id = u_r.id
+        JOIN users u_e ON r.reviewee_id = u_e.id
+        ${wc}
+        ORDER BY r.created_at DESC
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `, [...params, Math.min(parseInt(limit) || 25, 100), offset]);
+      const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM reviews r JOIN jobs j ON r.job_id = j.id ${wc}`, params);
+      return res.json({ items: rows, total: parseInt(countRows[0].count), type: 'reviews' });
+    }
+
+    res.status(400).json({ error: 'type must be bids or reviews' });
+  } catch (err) {
+    console.error('getContent error:', err);
+    res.status(500).json({ error: 'Failed to fetch content.' });
+  }
+};
+
+// POST /admin/bids/:bidId/remove
+exports.removeBid = async (req, res) => {
+  try {
+    if (!(await tableExists('bids'))) return res.status(400).json({ error: 'Bids table not available.' });
+    const { bidId } = req.params;
+    const { reason } = req.body;
+    if (!reason?.trim()) return res.status(400).json({ error: 'Removal reason is required.' });
+    const { rows: before } = await db.query('SELECT b.*, j.title AS job_title FROM bids b JOIN jobs j ON b.job_id = j.id WHERE b.id = $1', [bidId]);
+    if (!before.length) return res.status(404).json({ error: 'Bid not found.' });
+    if (before[0].status === 'removed') return res.status(400).json({ error: 'Bid already removed.' });
+    await db.query(`UPDATE bids SET status = 'removed', updated_at = NOW() WHERE id = $1`, [bidId]);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'bid_removed',
+      targetType: 'bid',
+      targetId: bidId,
+      description: reason.trim(),
+      before: { status: before[0].status, job_title: before[0].job_title },
+      after:  { status: 'removed' },
+      req,
+    });
+    res.json({ message: 'Bid removed successfully.' });
+  } catch (err) {
+    console.error('removeBid error:', err);
+    res.status(500).json({ error: 'Failed to remove bid.' });
+  }
+};
+
+// POST /admin/reviews/:reviewId/remove
+exports.removeReview = async (req, res) => {
+  try {
+    if (!(await tableExists('reviews'))) return res.status(400).json({ error: 'Reviews table not available.' });
+    const { reviewId } = req.params;
+    const { reason } = req.body;
+    if (!reason?.trim()) return res.status(400).json({ error: 'Removal reason is required.' });
+    const { rows: before } = await db.query('SELECT r.*, j.title AS job_title FROM reviews r JOIN jobs j ON r.job_id = j.id WHERE r.id = $1', [reviewId]);
+    if (!before.length) return res.status(404).json({ error: 'Review not found.' });
+    if (!before[0].is_public) return res.status(400).json({ error: 'Review is already hidden.' });
+    await db.query(`UPDATE reviews SET is_public = false, updated_at = NOW() WHERE id = $1`, [reviewId]);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'review_removed',
+      targetType: 'review',
+      targetId: reviewId,
+      description: reason.trim(),
+      before: { is_public: true, rating: before[0].rating, job_title: before[0].job_title },
+      after:  { is_public: false },
+      req,
+    });
+    res.json({ message: 'Review hidden successfully.' });
+  } catch (err) {
+    console.error('removeReview error:', err);
+    res.status(500).json({ error: 'Failed to hide review.' });
+  }
+};
+
+// POST /admin/reviews/:reviewId/restore  (undo a hide)
+exports.restoreReview = async (req, res) => {
+  try {
+    if (!(await tableExists('reviews'))) return res.status(400).json({ error: 'Reviews table not available.' });
+    const { reviewId } = req.params;
+    const { rows } = await db.query('SELECT id, is_public FROM reviews WHERE id = $1', [reviewId]);
+    if (!rows.length) return res.status(404).json({ error: 'Review not found.' });
+    if (rows[0].is_public) return res.status(400).json({ error: 'Review is already visible.' });
+    await db.query(`UPDATE reviews SET is_public = true, updated_at = NOW() WHERE id = $1`, [reviewId]);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'review_restored',
+      targetType: 'review',
+      targetId: reviewId,
+      req,
+    });
+    res.json({ message: 'Review restored.' });
+  } catch (err) {
+    console.error('restoreReview error:', err);
+    res.status(500).json({ error: 'Failed to restore review.' });
+  }
+};

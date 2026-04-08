@@ -145,8 +145,15 @@
 .pjw-camera-btn { width: 100%; margin-top: .75rem; padding: .75rem 1rem; border: 1.5px solid var(--pjw-border); border-radius: var(--pjw-radius-md); background: var(--pjw-surface-2); color: var(--pjw-text-muted); font-family: var(--pjw-font-body); font-size: .875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .5rem; transition: border-color var(--pjw-transition), color var(--pjw-transition); }
 .pjw-camera-btn:hover { border-color: var(--pjw-primary); color: var(--pjw-primary); }
 .pjw-preview-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(90px,1fr)); gap: .5rem; margin-top: .75rem; }
+.pjw-preview-grid--media { grid-template-columns: 1fr; }
 .pjw-preview-item { position: relative; aspect-ratio: 1; border-radius: var(--pjw-radius-md); overflow: hidden; border: 1px solid var(--pjw-border); }
 .pjw-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Video preview: full width, natural aspect ratio */
+.pjw-preview-item--video { aspect-ratio: unset; background: #000; }
+.pjw-preview-item--video video { width: 100%; display: block; max-height: 280px; }
+/* Audio preview: auto height, padding for the controls bar */
+.pjw-preview-item--audio { aspect-ratio: unset; padding: .75rem; background: var(--pjw-surface-offset); display: flex; align-items: center; }
+.pjw-preview-item--audio audio { width: 100%; }
 .pjw-preview-remove { position: absolute; top: .25rem; right: .25rem; width: 20px; height: 20px; border-radius: var(--pjw-radius-full); background: rgba(38,35,28,.7); color: #fff; border: none; font-size: .75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
 /* ── Requirement toggles ────────────────────────────────── */
