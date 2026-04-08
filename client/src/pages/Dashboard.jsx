@@ -911,7 +911,7 @@ export default function Dashboard() {
         )}
 
       </main>
-      <Footer/>
+      
 
       {/* ── MODALS ──────────────────────────────────────────────── */}
       <Modal open={showExpenseModal} onClose={()=>setShowExpenseModal(false)} title="Log Transaction">
