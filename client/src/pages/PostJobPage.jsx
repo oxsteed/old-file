@@ -324,6 +324,13 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
   const [errMsg, setErrMsg] = React.useState('');
   const [elapsed, setElapsed] = React.useState(0);
 
+  // Attach stream to video element once it's in the DOM (phase === 'preview')
+  React.useEffect(() => {
+    if ((phase === 'preview' || phase === 'recording') && videoRef.current && streamRef.current && mode !== 'audio') {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [phase, mode]);
+
   React.useEffect(() => {
     let cancelled = false;
     async function start() {
@@ -335,9 +342,6 @@ function LiveCaptureModal({ mode, onCapture, onClose }) {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
-        if (videoRef.current && mode !== 'audio') {
-          videoRef.current.srcObject = stream;
-        }
         setPhase('preview');
       } catch (err) {
         if (cancelled) return;
@@ -745,8 +749,8 @@ export default function PostJobPage() {
     try {
       const fd = new FormData();
       fd.append('title',         form.title.trim());
-      fd.append('category_id',   form.categoryId);
-      fd.append('category_name', form.categoryName);
+      // category_id is a DB integer FK — frontend uses string slugs, so only send category_name
+      fd.append('category_name', form.categoryName || form.categoryId);
       fd.append('description',   form.description.trim());
       fd.append('location_city', form.locationCity || form.locationInput.split(',')[0]?.trim() || '');
       fd.append('location_state',form.locationState);
