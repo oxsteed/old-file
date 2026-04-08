@@ -44,8 +44,8 @@ export default function TermsOfService() {
             introduction platform that connects individuals seeking local
             assistance ("Customers") with independent individuals who offer
             their skills and labor ("Helpers"). OxSteed is a neutral
-            third-party platform - a broker and directory service - not an
-            employer, staffing agency, or general contractor.
+            third-party platform that provide a directory service. OxSteed is not an
+            employer, a staffing agency, or a general contractor.
           </p>
           <p className="mb-3">
             OxSteed does not employ Helpers, does not control how Helpers
@@ -74,13 +74,11 @@ export default function TermsOfService() {
             2. Eligibility
           </h2>
           <p className="mb-3">
-            You must be at least 18 years old and a legal resident of the
-            United States to create an account or use OxSteed. By creating
+            You must be at least 18 years old to create an account or use OxSteed. By creating
             an account, you represent and warrant that:
           </p>
           <ul className="list-disc ml-5 space-y-2 mb-3">
-            <li>You are at least 18 years of age;</li>
-            <li>You are a legal resident of the United States;</li>
+            <li>You are at least 18 years of age;</li> 
             <li>You have the legal capacity to enter into a binding agreement;</li>
             <li>You are not prohibited by law from using the platform;</li>
             <li>All information you provide during registration is accurate, current, and complete;</li>
@@ -92,9 +90,8 @@ export default function TermsOfService() {
             terminated.
           </p>
           <p className="text-xs bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-3 text-yellow-400">
-            <strong>Important:</strong> OxSteed is currently available only
-            within the United States. Users outside the U.S. are not
-            permitted to create accounts or use the platform.
+            <strong>Important:</strong> OxSteed is currently available
+            within the United States.
           </p>
         </section>
 
@@ -103,7 +100,7 @@ export default function TermsOfService() {
             3. Platform Tiers and Services
           </h2>
           <p className="mb-3">
-            OxSteed operates three distinct service tiers. Each tier has
+            OxSteed operates 2 distinct service tiers. Each tier has
             different features, fees, and legal implications.
           </p>
           <div className="space-y-4">
@@ -120,42 +117,23 @@ export default function TermsOfService() {
               </p>
             </div>
             <div className="border border-gray-700 rounded-xl p-4">
-              <h3 className="font-bold text-white mb-1">Tier 2 - Verified Subscription (Pro, $29/month)</h3>
+              <h3 className="font-bold text-white mb-1">Tier 2 - Verified Subscription (Pro, $14.99/month)</h3>
               <p className="mb-2">
                 Helpers who subscribe to Tier 2 gain access to: priority
-                placement in search results, a verified profile badge,
+                placement in search results, a verified pro-member badge,
                 optional background check certification, bid submission on
                 posted jobs, and push notification alerts for matching jobs.
               </p>
               <p>
-                Tier 2 subscriptions are billed monthly via Stripe.
-                Subscriptions renew automatically until cancelled. No money
-                from customer-to-helper transactions passes through OxSteed
-                at this tier unless the parties elect Tier 3 payment
-                protection.
-              </p>
-            </div>
-            <div className="border border-gray-700 rounded-xl p-4">
-              <h3 className="font-bold text-white mb-1">Tier 3 - Protected Payment (Broker, $79/month)</h3>
-              <p className="mb-2">
-                Tier 3 is an optional, voluntary payment protection service
-                that both the Customer and the Helper must affirmatively
-                elect. When elected, OxSteed facilitates payment through
-                Stripe Connect, holds funds in escrow until job completion
-                is confirmed, and provides a structured dispute resolution
-                process.
-              </p>
-              <p className="mb-2"><strong>Platform fees for Tier 3 transactions:</strong></p>
-              <ul className="list-disc ml-5 space-y-1 mb-2">
-                <li>Platform service fee: 10% of the agreed job value, minimum $5.00</li>
-                <li>Payment protection fee: 2% of the agreed job value (covers Stripe processing and escrow administration)</li>
-                <li>Broker mediation fee (if applicable): 5% of job value, applied only when a Tier 3 Broker Helper mediates the transaction</li>
-                <li>Total maximum platform take: up to 17% of agreed job value for brokered Tier 3 transactions</li>
-              </ul>
+                Tier 2 subscriptions are billed monthly through Stripe and renew automatically until cancelled. At this tier, customer-to-helper payments normally occur directly between the parties, and OxSteed does not route or control those funds.
+              </p>  
               <p>
-                Tier 3 does not make OxSteed a party to the service
+If both parties choose to use our optional payment service, OxSteed uses Stripe Connect to place a temporary authorization or charge on the customer’s payment method and to coordinate release of funds to the helper, who remains the merchant of record. Both the customer and the helper must confirm that the job is complete before funds are released, and OxSteed will process that release within 12 hours of confirmation, deducting a 7.1% platform fee from the job amount plus the helpers pay the stripe payment processing fees.
+              </p>
+              <p> 
+                Paying via does not make OxSteed a party to the service
                 agreement. OxSteed acts solely as a payment intermediary
-                and neutral escrow agent. Stripe, Inc. processes all
+                and a neutral agent. Stripe, Inc. processes all
                 payments as a licensed money transmitter.
               </p>
             </div>
@@ -220,8 +198,7 @@ export default function TermsOfService() {
           <ul className="space-y-3">
             <li><strong>Customer:</strong> Any individual or entity that creates an OxSteed account for the purpose of posting job listings or contacting Helpers to arrange services.</li>
             <li><strong>Helper (Tier 1 - Free):</strong> An independent individual who creates a free OxSteed profile to advertise their skills and availability. Helpers are not employees, agents, or contractors of OxSteed.</li>
-            <li><strong>Helper (Tier 2 - Pro Subscriber):</strong> A Helper who maintains an active Pro subscription, has completed optional identity and background verification, and may submit bids on posted jobs.</li>
-            <li><strong>Helper (Tier 3 - Broker):</strong> A Helper with an active Broker subscription who has connected a Stripe Express account, enabling protected payment transactions.</li>
+            <li><strong>Helper (Tier 2 - Pro Subscriber):</strong> A Helper who maintains an active Pro subscription, has completed identity and optional background verification, and may submit bids on posted jobs.</li>
             <li><strong>Independent Contractor Status:</strong> All Helpers, regardless of tier, are independent contractors. OxSteed does not set their work hours, require minimum availability, control their methods or tools, provide equipment, mandate specific rates, or guarantee any volume of work.</li>
           </ul>
         </section>
@@ -231,17 +208,9 @@ export default function TermsOfService() {
             6. Fees and Payment Terms
           </h2>
           <p className="mb-3">
-            <strong>Subscription Fees.</strong> Tier 2 (Pro) and Tier 3
-            (Broker) subscriptions are billed monthly. Subscription fees
+            <strong>Subscription Fees.</strong> Tier 2 (Pro) is billed monthly. Subscription fees
             are non-refundable except as required by applicable law.
             You may cancel at any time through your account dashboard.
-          </p>
-          <p className="mb-3">
-            <strong>Transaction Fees (Tier 3 only).</strong> When both
-            parties elect Tier 3 payment protection, OxSteed deducts its
-            platform service fee (10% of job value, minimum $5.00) plus a
-            2% payment protection fee before releasing the remaining
-            balance to the Helper. No fees are charged for Tier 1 connections.
           </p>
           <p className="mb-3">
             <strong>Tax Compliance.</strong> Helpers earning $600 or more
@@ -250,8 +219,8 @@ export default function TermsOfService() {
             to qualifying Helpers as required by law.
           </p>
           <p className="mb-3">
-            <strong>Refunds (Tier 3 escrow).</strong> Disputed funds held
-            in escrow will be released according to the dispute
+            <strong>Refunds .</strong> Disputed funds held
+            will be released according to the dispute
             resolution process described in Section 16.
           </p>
         </section>
@@ -261,7 +230,7 @@ export default function TermsOfService() {
             Background Checks, Verification, and FCRA Compliance </h2>
           <h2 className="mb-3">7.1 Optional Background Screening</h2>
           <p className="mb-3">
-            Tier 2 and Tier 3 Helpers may elect to complete a background check through <strong>Checkr, Inc.</strong>, OxSteed's third-party consumer reporting agency. Background checks are entirely voluntary. Completion of a background check does not guarantee employment, job awards, or continued platform access.
+            Tier 2 Helpers may elect to complete a background check through <strong>Checkr, Inc.</strong>, OxSteed's third-party consumer reporting agency. Background checks are entirely voluntary. Completion of a background check does not guarantee employment, job awards, or continued platform access.
           </p>
           <h2 className="mb-3">7.2 Fair Credit Reporting Act (FCRA) Disclosure</h2>
           <p className="mb-3">
@@ -287,20 +256,18 @@ export default function TermsOfService() {
           <p className="mb-3">
             Background check results are provided solely by <strong>Checkr, Inc.</strong>, which is subject to its own Terms of Service and Privacy Policy. <strong>OxSteed makes no representation or warranty that any background check result is complete, accurate, or current.</strong> OxSteed is not responsible for errors or omissions in Checkr's reports. Customers are solely responsible for conducting their own independent due diligence before engaging any Helper, regardless of badge status.
           </p>
-          <h2>7.5 Badge Expiration and Renewal</h2>
+          <h2>7.5 Background check Expiration and Renewal</h2>
           <p className="mb-3">
             Background check badges expire 12 months after the date of the underlying report and must be renewed to maintain verified status. OxSteed will notify you at least 30 days before your badge expires.
-          </p>
-          <h2>7.6 Verified Badge Limitations</h2>
-          <p className="mb-3">
-            The verified badge indicates only that a background check was completed at a specific point in time through Checkr. It does not:
-          </p>
-          <ul>
-            <li>Constitute OxSteed's endorsement of any Helper's skills, quality of work, or character;</li>
-            <li>Guarantee that a Helper holds any required professional license or insurance;</li>
-            <li>Reflect criminal activity, license changes, or other events occurring after the check date;</li>
-            <li>Create any warranty or guarantee by OxSteed regarding the Helper's fitness for any particular job.</li>
+          
+  
+         <ul>
+            <li>A backgroung check doesn't constitute OxSteed's endorsement of any Helper's skills, quality of work, or character;</li>
+            <li>A backgroung check doesn't guarantee that a Helper holds any required professional license or insurance;</li>
+            <li>A backgroung check doesn't reflect criminal activity, license changes, or other events occurring after the check date;</li>
+            <li>A backgroung check doesn't create any warranty or guarantee by OxSteed regarding the Helper's fitness for any particular job.</li>
           </ul>
+          </p> 
           <p className="mb-3">
             <strong>Do not rely solely on the verified badge when hiring a Helper.</strong> Always independently verify licenses, insurance, and references for any regulated trade or high-value job.
           </p></section>
@@ -414,7 +381,7 @@ export default function TermsOfService() {
           </p>
           <ul className="list-disc ml-5 space-y-2 mb-3">
             <li>Your right to access and use OxSteed ceases immediately;</li>
-            <li>Any pending Tier 3 escrow funds will be handled according to the dispute resolution process in Section 16;</li>
+            <li>Any pending held funds will be handled according to the dispute resolution process in Section 16;</li>
             <li>OxSteed may retain your data as required by law or for legitimate business purposes (e.g., tax records, dispute evidence);</li>
             <li>Provisions that by their nature should survive termination will survive, including Sections 8, 9, 11, 12, 13, 16, and 20.</li>
           </ul>
@@ -644,38 +611,39 @@ export default function TermsOfService() {
 
                 <section className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
-            16. OxSteed Pay — Tier 3 Escrow Payment Terms
+            16. OxSteed Pay — Payment Terms
           </h2>
           <h3 className="text-md font-semibold text-orange-300 mb-2">
             16.1 Mutual Opt-In Requirement
           </h3>
           <p className="mb-3">
-            OxSteed Pay (Tier 3 Payment Protection) is{' '}
+            OxSteed Pay is{' '}
             <strong>never automatic</strong>. It activates only when both
             the Customer and the Helper independently and affirmatively
-            elect Tier 3 for a specific, identified job. Neither party may
-            unilaterally activate Tier 3 on behalf of the other. Tier 3
+            elect to use it for a specific, identified job. Neither party may
+            unilaterally activate it on behalf of the other. OxSteed pay
             election is job-specific and does not apply to future jobs
             between the same parties.
           </p>
           <h3 className="text-md font-semibold text-orange-300 mb-2">
-            16.2 Nature of Escrow
+            16.2 Nature of Held Funds
           </h3>
           <p className="mb-3">
-            When Tier 3 is elected, the Customer submits payment to OxSteed
-            via Stripe Connect. These funds are held in escrow and{' '}
-            <strong>remain the Customer's property until released.</strong>{' '}
-            Escrowed funds are not OxSteed's assets and are not commingled
-            with OxSteed's operating funds.
+            When the Customer submits payment to the helpers via OxSteed through 
+  Stripe Connect for the limited purpose of holding those funds pending
+  completion of the job. These funds are held in a dedicated balance and{' '}
+  <strong>remain the Customer&apos;s property until they are released in
+  accordance with these Terms.</strong> Held funds are not OxSteed&apos;s
+  assets and are not commingled with OxSteed&apos;s operating funds.
           </p>
                             <h3 className="text-md font-semibold text-orange-300 mb-2">
             16.3 Fund Release Triggers
           </h3>
           <p className="mb-3">
-            Escrowed funds will be released to the Helper when:
+            Held funds will be released to the Helper when:
           </p>
           <ul className="list-disc ml-5 space-y-2 mb-3">
-            <li>Both the Customer <strong>and</strong> the Helper confirm job completion through the platform; or</li>
+            <li>Both the Customer <strong>and</strong> the Helper confirm job completion through the platform within 12 hours; or</li>
             <li>OxSteed issues a resolution decision in the Helper's favor following a dispute process; or</li>
             <li>The Customer fails to respond to a completion confirmation request within 48 hours of the Helper marking the job complete (funds auto-release after this window).</li>
           </ul>
@@ -683,7 +651,7 @@ export default function TermsOfService() {
             16.4 Refund Triggers
           </h3>
           <p className="mb-3">
-            Escrowed funds will be refunded to the Customer when:
+            Held funds will be refunded to the Customer when:
           </p>
           <ul className="list-disc ml-5 space-y-2 mb-3">
             <li>Both parties mutually agree to cancel the job before work begins;</li>
@@ -699,20 +667,17 @@ export default function TermsOfService() {
             releasing the net amount to the Helper:
           </p>
           <ul className="list-disc ml-5 space-y-2 mb-3">
-            <li><strong>Platform service fee:</strong> 10% of the agreed job value (minimum $5.00)</li>
-            <li><strong>Payment protection fee:</strong> 2% of the agreed job value (covers Stripe processing and escrow administration)</li>
-            <li><strong>Broker mediation fee (if applicable):</strong> 5% of job value, applied only when a Tier 3 Broker Helper is involved</li>
-            <li><strong>Maximum total platform deduction:</strong> 17% of agreed job value</li>
+            <li><strong>Platform service fee:</strong> 7.1% of the agreed job value (minimum $5.00)</li>
+        
           </ul>
           <p className="text-xs bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-3 text-yellow-400 mb-3">
-            <strong>All fees are disclosed to both parties before Tier 3
-            election is confirmed. No hidden fees will be charged.</strong>
+            <strong>All fees are disclosed to both parties. No hidden fees will be charged.</strong>
           </p>
                             <h3 className="text-md font-semibold text-orange-300 mb-2">
-            16.6 No Interest on Escrow Funds
+            16.6 No Interest on Held Funds
           </h3>
           <p className="mb-3">
-            OxSteed does not pay interest on escrowed funds to either party.
+            OxSteed does not pay interest on held funds to either party.
             Any interest or float accruing on escrow balances due to
             Stripe's payment processing timelines is retained by OxSteed
             as an administrative fee.
@@ -721,8 +686,8 @@ export default function TermsOfService() {
             16.7 Stripe Connected Account Agreement
           </h3>
           <p className="mb-3">
-            Tier 3 Helpers (Brokers) must connect a Stripe Express account
-            as a condition of Tier 3 eligibility. By connecting a Stripe
+             Helpers must connect a Stripe Express account
+            as a condition of eligibility to receive payment. By connecting a Stripe
             Express account, you agree to Stripe's{' '}
             <a href="https://stripe.com/legal/connect-account" className="text-orange-500 underline" target="_blank" rel="noopener noreferrer">
               Connected Account Agreement
@@ -732,24 +697,15 @@ export default function TermsOfService() {
             agreement with Stripe and is not responsible for Stripe's
             actions, errors, or service interruptions.
           </p>
-          <h3 className="text-md font-semibold text-orange-300 mb-2">
-            16.8 Tier 3 Does Not Create an Agency or Partnership
-          </h3>
-          <p className="mb-3">
-            OxSteed's role as escrow agent in Tier 3 transactions does not
-            make OxSteed a party to the underlying service agreement, an
-            employer of the Helper, an agent of either party, or a
-            guarantor of any outcome. OxSteed acts solely as a neutral
-            payment intermediary.
-          </p>
+          
           <h3 className="text-md font-semibold text-orange-300 mb-2">
             16.9 Platform Continuity
           </h3>
           <p className="mb-3">
             In the event OxSteed ceases operations, is acquired, or
-            undergoes a change of control while Tier 3 escrow funds are
-            held, OxSteed will make commercially reasonable efforts to
-            either release funds to the appropriate party, transfer escrow
+            undergoes a change of control
+              , OxSteed will make commercially reasonable efforts to
+            either release held funds to the appropriate party, transfer escrow
             obligations to a successor entity, or refund all held amounts
             within 30 days of the triggering event. Users will be notified
             by email.
@@ -777,10 +733,10 @@ export default function TermsOfService() {
             it, or decline all bids at their sole discretion.
           </p>
           <h3 className="text-md font-semibold text-orange-300 mb-2">
-            17.2 Helper Bids (Tier 2 and Tier 3)
+            17.2 Helper Bids 
           </h3>
           <p className="mb-3">
-            Tier 2 and Tier 3 Helpers may submit bids on posted job
+            Helpers may submit bids on posted job
             listings. By submitting a bid, you represent that:
           </p>
           <ul className="list-disc ml-5 space-y-2 mb-3">
@@ -789,10 +745,8 @@ export default function TermsOfService() {
             <li>You hold any licenses, permits, or certifications required to legally perform the work in the applicable jurisdiction.</li>
           </ul>
           <p className="mb-3">
-            Submitting a bid is an offer, not a contract. A contract for
-            services is formed only when a Customer accepts a bid and, if
-            Tier 3 is elected, when both parties complete the escrow setup
-            for that specific job.
+            Submitting a bid is an offer, not a contract.
+        
           </p>
           <h3 className="text-md font-semibold text-orange-300 mb-2">
             17.3 Cancellation of Active Bids
@@ -824,7 +778,7 @@ export default function TermsOfService() {
             privacy policies:
           </p>
           <ul className="list-disc ml-5 space-y-2 mb-3">
-            <li><strong>Stripe, Inc.</strong> — Payment processing and connected accounts (Tier 3 escrow)</li>
+            <li><strong>Stripe, Inc.</strong> — Payment processing and connected accounts </li>
             <li><strong>Checkr, Inc.</strong> — Background check and consumer reporting services</li>
             <li><strong>Resend</strong> — Transactional email delivery</li>
           </ul>
