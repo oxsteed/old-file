@@ -75,7 +75,7 @@ function useLiveBidsPreview() {
 
     async function load() {
       try {
-        const { data: jobsRes } = await api.get('/jobs?status=open&limit=10&sort=newest');
+        const { data: jobsRes } = await api.get('/jobs?status=published&limit=10&sort=newest');
         const jobs = jobsRes.jobs || jobsRes || [];
         if (!jobs.length) {
           if (cancelled) return;
