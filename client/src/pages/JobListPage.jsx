@@ -24,10 +24,20 @@ export default function JobListPage() {
   const { jobs, loading, error, pagination, fetchJobs } = useJobs();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [filters, setFilters] = useState({ category: '', city: '', sort: 'newest', page: 1 });
+
+  // Default state filter to the logged-in helper's state (persisted in localStorage)
+  const defaultState = user?.role === 'helper' && user?.state
+    ? user.state
+    : (localStorage.getItem('jlp_state_filter') || '');
+
+  const [filters, setFilters] = useState({ category: '', city: '', state: defaultState, sort: 'newest', page: 1 });
 
   useEffect(() => { fetchJobs(filters); }, [filters, fetchJobs]);
-  const handleFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+
+  const handleFilter = (key, value) => {
+    if (key === 'state') localStorage.setItem('jlp_state_filter', value);
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+  };
   const hasJobs = jobs && jobs.length > 0;
   const [tourView, setTourView] = useState('customer');
 
@@ -67,12 +77,27 @@ export default function JobListPage() {
             {CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
           <input type="text" placeholder="Enter your city..." value={filters.city} onChange={e => handleFilter('city', e.target.value)} />
+          <select value={filters.state} onChange={e => handleFilter('state', e.target.value)}>
+            <option value="">All States</option>
+            {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
           <select value={filters.sort} onChange={e => handleFilter('sort', e.target.value)}>
             <option value="newest">Newest First</option>
             <option value="budget_high">Budget: High to Low</option>
             <option value="budget_low">Budget: Low to High</option>
           </select>
         </div>
+        {filters.state && (
+          <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginTop:'0.75rem', fontSize:'0.85rem', color:'#fb923c' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Showing jobs in {filters.state}
+            <button onClick={() => handleFilter('state', '')} style={{ background:'none', border:'none', color:'#71717a', cursor:'pointer', fontSize:'0.75rem', textDecoration:'underline', padding:0 }}>
+              Show all states
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Category Pills */}
