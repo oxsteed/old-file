@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-07 (security audit)
+**Last updated:** 2026-04-08 (live capture, admin expansion, job detail redesign)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -216,6 +216,9 @@ Run: `cd server && npm test` — all 82 tests pass.
 | `CookieConsent` | `client/src/components/CookieConsent.tsx` | GDPR banner + settings panel. |
 | `TrialBanner` | `client/src/components/TrialBanner.tsx` | Shows trial days remaining for helpers. |
 | `ErrorBoundary` | `client/src/components/ErrorBoundary.tsx` | Wraps entire app. |
+| `LiveCaptureModal` | `client/src/pages/PostJobPage.jsx` (inline) | Modal using `getUserMedia` + `MediaRecorder` for real camera/mic capture. Photo: `canvas.toBlob()`; Video/Audio: `MediaRecorder` chunks → `File`. |
+| `ContentRemovals` | `client/src/admin/pages/ContentRemovals.jsx` | Admin page — remove bids/reviews with required reason, logged to `admin_audit_log`. |
+| `AdminAccounts` | `client/src/admin/pages/super/AdminAccounts.jsx` | Super-admin page — create/disable admin accounts, view per-admin activity, force logout. |
 
 ---
 
@@ -300,6 +303,39 @@ All production-readiness audit items have been completed. Items are documented i
 10. Referral system
 11. Didit integration test
 
+### Session — 2026-04-08 (all merged to main)
+
+**Live capture (PostJobPage):**
+- Replaced broken `<input capture="...">` approach (mobile-only hint, never worked on desktop) with `LiveCaptureModal` component using real browser APIs
+- Photo: `getUserMedia` → live `<video>` viewfinder → `canvas.toBlob()` → `File`
+- Video/Audio: `getUserMedia` → `MediaRecorder` with codec detection → chunked Blob → `File`
+- Bug fix: black viewfinder — `srcObject` was set before `<video>` element mounted; moved to a `useEffect` that watches `phase` state
+- Bug fix: `invalid input syntax for type integer` on job create — `category_id` column is `INTEGER` but frontend uses string slugs; removed `category_id` from FormData, rely on `category_name` only
+
+**Admin expansion:**
+- Regular admins can now remove bids (`status='removed'`) and hide reviews (`is_public=false`); reason required; every action logged to `admin_audit_log` (`adminController.js`: `getContent`, `removeBid`, `removeReview`, `restoreReview`)
+- Super-admin: `getAdminAccounts`, `createAdminAccount` (min 12-char temp password, bcrypt), `toggleAdminAccountStatus` (invalidates all sessions), `getAdminActivity`, `forceLogout`
+- Routes wired in `server/routes/admin.js` under `requireAdmin` and `requireSuperAdmin` guards
+- Admin UI: `ContentRemovals.jsx` (bids/reviews tabs, RemoveModal with required reason), `AdminAccounts.jsx` (create, disable/enable, activity drawer, force logout)
+- Nav entries added to `AdminLayout.jsx`; routes added to `AdminApp.jsx`
+
+**JobDetailPage redesign (`client/src/pages/JobDetailPage.jsx` + `JobDetailPage.css`):**
+- Two-column layout: main content left, sidebar right (budget, location, details, client card, owner actions)
+- Budget: correctly handles `open` (→ "Open to bids"), `hourly` (→ `$X/hr`), `fixed` (→ `$X – $Y`)
+- Job type: maps raw DB values (`tier1_intro`, `one_time`, etc.) to human labels
+- Urgency: colored chip (ASAP=red, This Week=orange, Flexible=green)
+- Requirements: parsed from JSON, shown as icon chips with detail (license type, coverage, etc.)
+- Media gallery: photo thumbnails with lightbox, inline `<video>` + `<audio>` players
+- Bid cards: helper avatar (initials fallback), star rating, jobs-completed count, message quoted
+- Cancel job: proper modal instead of `window.prompt()`
+- Skeleton loader and "job not found" empty state
+
+**JobListPage — location-based filtering:**
+- Added state dropdown (all 50 US states) to search bar
+- Auto-defaults to logged-in helper's `user.state` so local jobs show first
+- Persists in `localStorage` across sessions; "Showing jobs in [State]" badge with "Show all states" clear link
+- Backend `getJobs` already supported `?state=` param — no server change needed
+
 ### Security Audit — 2026-04-07 (all fixed)
 - **CRITICAL** SQL injection via `sessionDuration` template literal in `login()` — replaced with two hardcoded SQL strings (`authController.js`)
 - **CRITICAL** JWT_SECRET minimum length not enforced — added 32-char check to `validateEnv.js`
@@ -337,3 +373,6 @@ These require either an infrastructure action or an architectural decision — n
 - **Socket.IO auth:** The Socket.IO middleware verifies JWTs but does not check `is_active` or `deleted_at` on the user. A deactivated user with a valid (unexpired) token can still connect via WebSocket.
 - **`display_name_preference = 'business_name'`:** If a helper sets this but has no `business_name`, the display name falls back to `first_name`. The UI shows an empty string in one place — search for `user?.business_name ||` to audit.
 - **`POST /api/auth/logout` requires auth:** If a client's access token has already expired and the refresh fails, the client cannot call logout (gets 401). The session will expire naturally but is not explicitly invalidated. Consider accepting an unauthenticated logout that invalidates by refresh token alone.
+- **`jobs.category_id` is unused from frontend:** The DB column is `INTEGER REFERENCES categories(id)` but the frontend uses string slugs (`'electrical-full'`, etc.). PostJobPage intentionally omits `category_id` from the FormData and relies on `category_name` only. If a real categories table with integer IDs is ever added, wire it up in both PostJobPage and jobController.
+- **Admin audit log table:** `adminController.js` calls `logAdminAction()` which writes to `admin_audit_log`. Verify this table exists (check migrations). If it's missing, admin removal actions will throw a 500. Add a migration if needed.
+- **MediaRecorder MIME on Safari/iOS:** `video/webm` is not supported on Safari. `LiveCaptureModal` falls back to the browser's default MIME via `MediaRecorder.isTypeSupported()` — this works but produces `.webm` files with incorrect extension on Safari (which uses `video/mp4`). The uploaded file will still play but the extension may mismatch. Low priority for now.

@@ -263,6 +263,33 @@ exports.forceJobAction = async (req, res) => {
   } catch (err) { console.error('forceJobAction error:', err); res.status(500).json({ error: 'Failed to perform job action.' }); }
 };
 
+exports.deleteJob = async (req, res) => {
+  try {
+    if (!(await tableExists('jobs'))) return res.status(404).json({ error: 'Job not found.' });
+    const { jobId } = req.params;
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) return res.status(400).json({ error: 'A reason is required to delete a job.' });
+    const { rows } = await db.query('SELECT id, title, client_id FROM jobs WHERE id = $1', [jobId]);
+    if (!rows.length) return res.status(404).json({ error: 'Job not found.' });
+    // Hard delete — cascades to bids, payments if FK'd with ON DELETE CASCADE; otherwise clean up first
+    await db.query('DELETE FROM jobs WHERE id = $1', [jobId]);
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'job_deleted',
+        targetType: 'job',
+        targetId: jobId,
+        description: `[HARD DELETE] "${rows[0].title}" — ${reason.trim()}`,
+        req,
+      });
+    } catch(e) {}
+    res.json({ message: 'Job permanently deleted.' });
+  } catch (err) {
+    logger.error('deleteJob error', { err });
+    res.status(500).json({ error: 'Failed to delete job.' });
+  }
+};
+
 // FINANCIAL MANAGEMENT
 exports.getFinancials = async (req, res) => {
   try {
@@ -534,5 +561,154 @@ exports.deleteUser = async (req, res) => {
   } catch (err) {
     console.error('deleteUser error:', err);
     res.status(500).json({ error: 'Failed to delete user.' });
+  }
+};
+
+// ─── Admin Account Management (super_admin only) ───────────────
+
+// GET /admin/super/admin-accounts
+exports.getAdminAccounts = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT
+        u.id, u.first_name, u.last_name, u.email, u.role,
+        u.is_active, u.created_at, u.last_login_at,
+        (SELECT COUNT(*) FROM admin_audit_log WHERE admin_id = u.id) AS action_count,
+        (SELECT MAX(created_at) FROM admin_audit_log WHERE admin_id = u.id) AS last_action_at
+      FROM users u
+      WHERE u.role IN ('admin', 'super_admin')
+      ORDER BY u.role DESC, u.created_at ASC
+    `);
+    res.json({ admins: rows });
+  } catch (err) {
+    logger.error('getAdminAccounts error', { err });
+    res.status(500).json({ error: 'Failed to fetch admin accounts.' });
+  }
+};
+
+// POST /admin/super/admin-accounts  — create a new admin account
+exports.createAdminAccount = async (req, res) => {
+  try {
+    const bcrypt = require('bcrypt');
+    const { email, first_name, last_name, role = 'admin', temporary_password } = req.body;
+    if (!email || !first_name || !last_name || !temporary_password) {
+      return res.status(400).json({ error: 'email, first_name, last_name, and temporary_password are required.' });
+    }
+    if (!['admin', 'super_admin'].includes(role)) {
+      return res.status(400).json({ error: 'role must be admin or super_admin.' });
+    }
+    if (role === 'super_admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only super_admin can create another super_admin.' });
+    }
+    if (temporary_password.length < 12) {
+      return res.status(400).json({ error: 'Temporary password must be at least 12 characters.' });
+    }
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (existing.rows.length) return res.status(409).json({ error: 'Email already in use.' });
+
+    const passwordHash = await bcrypt.hash(temporary_password, 12);
+    const { rows } = await db.query(`
+      INSERT INTO users (email, password_hash, first_name, last_name, role, is_active, email_verified)
+      VALUES ($1, $2, $3, $4, $5, true, true)
+      RETURNING id, email, first_name, last_name, role, is_active, created_at
+    `, [email.toLowerCase(), passwordHash, first_name.trim(), last_name.trim(), role]);
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'admin_account_created',
+      targetType: 'user',
+      targetId: rows[0].id,
+      description: `Created ${role} account for ${email}`,
+      after: { email, role },
+      req,
+    });
+
+    res.status(201).json({ admin: rows[0], message: 'Admin account created. They must change their password on first login.' });
+  } catch (err) {
+    logger.error('createAdminAccount error', { err });
+    res.status(500).json({ error: 'Failed to create admin account.' });
+  }
+};
+
+// PUT /admin/super/admin-accounts/:id/status  — enable or disable an admin
+exports.toggleAdminAccountStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    // Cannot disable yourself
+    if (id === req.user.id) return res.status(400).json({ error: 'You cannot disable your own account.' });
+    const { rows } = await db.query('SELECT id, role, is_active, email FROM users WHERE id = $1 AND role IN (\'admin\',\'super_admin\')', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Admin account not found.' });
+    // Only super_admin can disable another super_admin
+    if (rows[0].role === 'super_admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Cannot change status of a super_admin account.' });
+    }
+    const newStatus = !rows[0].is_active;
+    await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2', [newStatus, id]);
+    // Invalidate all sessions for this admin
+    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [id]);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: newStatus ? 'admin_account_enabled' : 'admin_account_disabled',
+      targetType: 'user',
+      targetId: id,
+      description: reason || null,
+      before: { is_active: rows[0].is_active, email: rows[0].email },
+      after: { is_active: newStatus },
+      req,
+    });
+    res.json({ message: `Admin account ${newStatus ? 'enabled' : 'disabled'}.`, is_active: newStatus });
+  } catch (err) {
+    logger.error('toggleAdminAccountStatus error', { err });
+    res.status(500).json({ error: 'Failed to update admin account status.' });
+  }
+};
+
+// GET /admin/super/admin-activity/:adminId  — audit log filtered to one admin
+exports.getAdminActivity = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    const { page = 1, limit = 50 } = req.query;
+    const offset = (Math.max(1, parseInt(page)) - 1) * Math.min(parseInt(limit) || 50, 100);
+    const { rows } = await db.query(`
+      SELECT
+        al.*,
+        u.first_name || ' ' || u.last_name AS admin_name,
+        u.email AS admin_email,
+        u.role AS admin_role
+      FROM admin_audit_log al
+      JOIN users u ON al.admin_id = u.id
+      WHERE al.admin_id = $1
+      ORDER BY al.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [adminId, Math.min(parseInt(limit) || 50, 100), offset]);
+    const { rows: countRows } = await db.query('SELECT COUNT(*) FROM admin_audit_log WHERE admin_id = $1', [adminId]);
+    res.json({ log: rows, total: parseInt(countRows[0].count), page: parseInt(page) });
+  } catch (err) {
+    logger.error('getAdminActivity error', { err });
+    res.status(500).json({ error: 'Failed to fetch admin activity.' });
+  }
+};
+
+// POST /admin/super/force-logout/:userId  — invalidate all sessions for any user
+exports.forceLogout = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+    const { rows } = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'force_logout',
+      targetType: 'user',
+      targetId: userId,
+      description: reason || 'Sessions invalidated by super admin',
+      req,
+    });
+    res.json({ message: `All sessions for ${rows[0].email} have been invalidated.` });
+  } catch (err) {
+    logger.error('forceLogout error', { err });
+    res.status(500).json({ error: 'Failed to force logout.' });
   }
 };

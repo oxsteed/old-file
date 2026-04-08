@@ -15,13 +15,23 @@ router.get('/reports',           requireAdmin, adminCtrl.getReports);
 router.put('/reports/:reportId', requireAdmin, adminCtrl.reviewReport);
 router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
 
-// Jobs (read + moderate)
-router.get('/jobs',                    requireAdmin, superCtrl.getJobs);
-router.post('/jobs/:jobId/action',     requireAdmin, superCtrl.forceJobAction);
+// Jobs (read + moderate — all admins)
+router.get('/jobs',                    requireAdmin,      superCtrl.getJobs);
+router.post('/jobs/:jobId/action',     requireAdmin,      superCtrl.forceJobAction);
+// Hard delete — super admin only
+router.delete('/jobs/:jobId',          requireSuperAdmin, superCtrl.deleteJob);
 
-// Users (read-only for regular admin)
+// Content removal — bids and reviews (always logged for super-admin review)
+router.get('/content',                         requireAdmin, adminCtrl.getContent);
+router.post('/bids/:bidId/remove',             requireAdmin, adminCtrl.removeBid);
+router.post('/reviews/:reviewId/remove',       requireAdmin, adminCtrl.removeReview);
+router.post('/reviews/:reviewId/restore',      requireAdmin, adminCtrl.restoreReview);
+
+// Users — read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, superCtrl.getUserDetail);
+router.put('/users/:userId/name',  requireAdmin, superCtrl.updateUserName);
+router.post('/users/:userId/ban',  requireAdmin, superCtrl.toggleUserBan);
 
 // Market / Zip Code management
 router.get('/markets',                        requireAdmin, adminCtrl.getMarkets);
@@ -36,12 +46,17 @@ router.delete('/markets/:marketId/zip-codes', requireAdmin, adminCtrl.removeZipC
 router.get('/super/dashboard',     requireSuperAdmin, superCtrl.getDashboardStats);
 router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart);
 
-// User management (write)
-router.put('/users/:userId/name',    requireAdmin,      superCtrl.updateUserName);
-router.post('/users/:userId/ban',    requireSuperAdmin, superCtrl.toggleUserBan);
+// User management (privileged write)
 router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
-router.delete('/users/:userId',        requireSuperAdmin, superCtrl.deleteUser);
+router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
+router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
+
+// Admin account management (super_admin only)
+router.get('/super/admin-accounts',             requireSuperAdmin, superCtrl.getAdminAccounts);
+router.post('/super/admin-accounts',            requireSuperAdmin, superCtrl.createAdminAccount);
+router.put('/super/admin-accounts/:id/status',  requireSuperAdmin, superCtrl.toggleAdminAccountStatus);
+router.get('/super/admin-activity/:adminId',    requireSuperAdmin, superCtrl.getAdminActivity);
 
 // Financials
 router.get('/financials',            requireSuperAdmin, superCtrl.getFinancials);
@@ -55,10 +70,8 @@ router.get('/settings',              requireSuperAdmin, superCtrl.getSettings);
 router.put('/settings/:key',         requireSuperAdmin, superCtrl.updateSetting);
 router.put('/feature-flags/:key',    requireSuperAdmin, superCtrl.updateFeatureFlag);
 
-// Audit log
+// Audit log + export
 router.get('/audit-log',             requireSuperAdmin, superCtrl.getAuditLog);
-
-// Data export
 router.get('/export/:type',          requireSuperAdmin, superCtrl.exportData);
 
 // ══════════════════════════════════════════════════════════════
