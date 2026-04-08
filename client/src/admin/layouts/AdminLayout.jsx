@@ -3,8 +3,8 @@ import { useAuth }   from '../../hooks/useAuth';
 import {
   LayoutDashboard, Users, Briefcase,
   Flag, Shield, DollarSign, Settings,
-    FileText, BarChart2, LogOut, TrendingUp,
-  AlertTriangle, ScrollText, Wrench
+  FileText, BarChart2, LogOut, TrendingUp,
+  AlertTriangle, ScrollText, Wrench, Trash2, UserCog
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -18,21 +18,23 @@ export default function AdminLayout() {
   };
 
   const regularNav = [
-    { to: '/admin/dashboard',  icon: LayoutDashboard, label: 'Dashboard'   },
-    { to: '/admin/users',      icon: Users,           label: 'Users'       },
-    { to: '/admin/jobs',       icon: Briefcase,       label: 'Jobs'        },
-    { to: '/admin/reports',    icon: Flag,            label: 'Reports'     },
-    { to: '/admin/moderation', icon: Shield,          label: 'Moderation'  },
-    { to: '/admin/skills',     icon: Wrench,          label: 'Skills'      },
+    { to: '/admin/dashboard',        icon: LayoutDashboard, label: 'Dashboard'        },
+    { to: '/admin/users',            icon: Users,           label: 'Users'            },
+    { to: '/admin/jobs',             icon: Briefcase,       label: 'Jobs'             },
+    { to: '/admin/reports',          icon: Flag,            label: 'Reports'          },
+    { to: '/admin/moderation',       icon: Shield,          label: 'Moderation'       },
+    { to: '/admin/content-removals', icon: Trash2,          label: 'Content Removals' },
+    { to: '/admin/skills',           icon: Wrench,          label: 'Skills'           },
   ];
 
   const superNav = [
-    { to: '/admin/super/dashboard',  icon: BarChart2,    label: 'Super Dashboard' },
-    { to: '/admin/super/revenue',    icon: TrendingUp,   label: 'Revenue'         },
-    { to: '/admin/super/financials', icon: DollarSign,   label: 'Financials'      },
-    { to: '/admin/super/payouts',    icon: FileText,     label: 'Payouts'         },
-    { to: '/admin/super/settings',   icon: Settings,     label: 'Settings'        },
-    { to: '/admin/super/audit-log',  icon: ScrollText,   label: 'Audit Log'       },
+    { to: '/admin/super/dashboard',      icon: BarChart2,    label: 'Super Dashboard'  },
+    { to: '/admin/super/revenue',        icon: TrendingUp,   label: 'Revenue'          },
+    { to: '/admin/super/financials',     icon: DollarSign,   label: 'Financials'       },
+    { to: '/admin/super/payouts',        icon: FileText,     label: 'Payouts'          },
+    { to: '/admin/super/admin-accounts', icon: UserCog,      label: 'Admin Accounts'   },
+    { to: '/admin/super/settings',       icon: Settings,     label: 'Settings'         },
+    { to: '/admin/super/audit-log',      icon: ScrollText,   label: 'Audit Log'        },
   ];
 
   return (
