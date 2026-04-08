@@ -310,6 +310,227 @@ const REQ_META = {
 
 const STEP_LABELS = ['Job Details', 'Requirements', 'Budget & Timeline', 'Review & Post'];
 
+// ─── Live Capture Modal ──────────────────────────────────────────────────────
+// Uses MediaDevices API for real camera/mic capture (desktop + mobile).
+function LiveCaptureModal({ mode, onCapture, onClose }) {
+  const videoRef    = React.useRef(null);
+  const canvasRef   = React.useRef(null);
+  const streamRef   = React.useRef(null);
+  const recorderRef = React.useRef(null);
+  const chunksRef   = React.useRef([]);
+  const timerRef    = React.useRef(null);
+
+  const [phase, setPhase]   = React.useState('init'); // init | preview | recording | processing | error
+  const [errMsg, setErrMsg] = React.useState('');
+  const [elapsed, setElapsed] = React.useState(0);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function start() {
+      try {
+        const constraints =
+          mode === 'audio' ? { audio: true } :
+          mode === 'video' ? { video: { facingMode: 'user' }, audio: true } :
+                             { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current && mode !== 'audio') {
+          videoRef.current.srcObject = stream;
+        }
+        setPhase('preview');
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err.name === 'NotAllowedError'
+          ? 'Camera/microphone access denied. Allow it in your browser settings and try again.'
+          : err.name === 'NotFoundError'
+            ? 'No camera or microphone found on this device.'
+            : `Could not start capture: ${err.message}`;
+        setErrMsg(msg);
+        setPhase('error');
+      }
+    }
+    start();
+    return () => {
+      cancelled = true;
+      clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, [mode]);
+
+  function stopStream() {
+    clearInterval(timerRef.current);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+  }
+
+  function capturePhoto() {
+    const video  = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      stopStream();
+      onCapture(file);
+      onClose();
+    }, 'image/jpeg', 0.92);
+  }
+
+  function startRecording() {
+    const stream = streamRef.current;
+    const preferred = mode === 'video' ? 'video/webm;codecs=vp8,opus' : 'audio/webm;codecs=opus';
+    const options = MediaRecorder.isTypeSupported(preferred) ? { mimeType: preferred } : {};
+    const recorder = new MediaRecorder(stream, options);
+    chunksRef.current = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    recorder.onstop = () => {
+      const mimeType = recorder.mimeType || (mode === 'video' ? 'video/webm' : 'audio/webm');
+      const ext      = mode === 'video' ? 'webm' : 'webm';
+      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const file = new File([blob], `${mode}_${Date.now()}.${ext}`, { type: mimeType });
+      stopStream();
+      onCapture(file);
+      onClose();
+    };
+    recorder.start(100);
+    recorderRef.current = recorder;
+    setElapsed(0);
+    timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+    setPhase('recording');
+  }
+
+  function stopRecording() {
+    clearInterval(timerRef.current);
+    recorderRef.current?.stop();
+    setPhase('processing');
+  }
+
+  function fmt(s) {
+    return `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+  }
+
+  const title = mode === 'photo' ? '📷 Take a Live Photo'
+              : mode === 'video' ? '🎥 Record a Video'
+              :                    '🎙 Record Audio';
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+      <div style={{ background:'#18181b', borderRadius:'1rem', overflow:'hidden', width:'100%', maxWidth:'480px', boxShadow:'0 25px 60px rgba(0,0,0,0.6)' }}>
+
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem 1.25rem', borderBottom:'1px solid #3f3f46' }}>
+          <span style={{ color:'#fff', fontWeight:600, fontSize:'0.9375rem' }}>{title}</span>
+          <button onClick={() => { stopStream(); onClose(); }}
+            style={{ background:'none', border:'none', color:'#71717a', cursor:'pointer', fontSize:'1.25rem', lineHeight:1, padding:'0.25rem' }}>✕</button>
+        </div>
+
+        {/* Error */}
+        {phase === 'error' && (
+          <div style={{ padding:'2rem', textAlign:'center' }}>
+            <p style={{ color:'#f87171', marginBottom:'1.25rem', fontSize:'0.875rem', lineHeight:1.5 }}>{errMsg}</p>
+            <button onClick={() => { stopStream(); onClose(); }}
+              style={{ background:'#3f3f46', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.625rem 1.5rem', cursor:'pointer', fontSize:'0.875rem' }}>
+              Close
+            </button>
+          </div>
+        )}
+
+        {/* Initialising */}
+        {phase === 'init' && (
+          <div style={{ padding:'3rem', textAlign:'center', color:'#71717a', fontSize:'0.875rem' }}>Starting…</div>
+        )}
+
+        {/* Processing */}
+        {phase === 'processing' && (
+          <div style={{ padding:'3rem', textAlign:'center', color:'#71717a', fontSize:'0.875rem' }}>Processing…</div>
+        )}
+
+        {/* Photo: live viewfinder */}
+        {mode === 'photo' && phase === 'preview' && (
+          <>
+            <video ref={videoRef} autoPlay playsInline muted
+              style={{ width:'100%', display:'block', background:'#000', maxHeight:'340px', objectFit:'cover' }} />
+            <canvas ref={canvasRef} style={{ display:'none' }} />
+            <div style={{ display:'flex', gap:'0.75rem', padding:'1rem 1.25rem' }}>
+              <button onClick={capturePhoto}
+                style={{ flex:1, background:'#f97316', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer' }}>
+                📷 Snap Photo
+              </button>
+              <button onClick={() => { stopStream(); onClose(); }}
+                style={{ background:'#3f3f46', color:'#e4e4e7', border:'none', borderRadius:'0.5rem', padding:'0.75rem 1.25rem', cursor:'pointer', fontSize:'0.875rem' }}>
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Video: live preview + record controls */}
+        {mode === 'video' && (phase === 'preview' || phase === 'recording') && (
+          <>
+            <video ref={videoRef} autoPlay playsInline muted
+              style={{ width:'100%', display:'block', background:'#000', maxHeight:'300px', objectFit:'cover' }} />
+            <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'1rem 1.25rem' }}>
+              {phase === 'preview' && (
+                <button onClick={startRecording}
+                  style={{ flex:1, background:'#dc2626', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer' }}>
+                  ⏺ Start Recording
+                </button>
+              )}
+              {phase === 'recording' && (
+                <>
+                  <span style={{ color:'#f87171', fontVariantNumeric:'tabular-nums', fontWeight:600, minWidth:'3.5rem' }}>⏺ {fmt(elapsed)}</span>
+                  <button onClick={stopRecording}
+                    style={{ flex:1, background:'#3f3f46', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer' }}>
+                    ⏹ Stop
+                  </button>
+                </>
+              )}
+              <button onClick={() => { stopStream(); onClose(); }}
+                style={{ background:'#27272a', color:'#a1a1aa', border:'none', borderRadius:'0.5rem', padding:'0.75rem 1.25rem', cursor:'pointer', fontSize:'0.875rem' }}>
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Audio: mic controls only */}
+        {mode === 'audio' && (phase === 'preview' || phase === 'recording') && (
+          <div style={{ padding:'2.5rem 1.25rem', textAlign:'center' }}>
+            <div style={{ fontSize:'3.5rem', marginBottom:'0.75rem' }}>🎙</div>
+            {phase === 'preview' && (
+              <>
+                <p style={{ color:'#a1a1aa', fontSize:'0.875rem', marginBottom:'1.5rem' }}>Microphone ready</p>
+                <button onClick={startRecording}
+                  style={{ background:'#dc2626', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem 2rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer', display:'inline-block' }}>
+                  ⏺ Start Recording
+                </button>
+              </>
+            )}
+            {phase === 'recording' && (
+              <>
+                <p style={{ color:'#f87171', fontSize:'2rem', fontVariantNumeric:'tabular-nums', fontWeight:700, margin:'0 0 1.5rem' }}>⏺ {fmt(elapsed)}</p>
+                <button onClick={stopRecording}
+                  style={{ background:'#3f3f46', color:'#fff', border:'none', borderRadius:'0.5rem', padding:'0.75rem 2rem', fontWeight:600, fontSize:'0.9375rem', cursor:'pointer', display:'inline-block' }}>
+                  ⏹ Stop
+                </button>
+              </>
+            )}
+            <br />
+            <button onClick={() => { stopStream(); onClose(); }}
+              style={{ marginTop:'1.25rem', background:'none', color:'#71717a', border:'none', cursor:'pointer', fontSize:'0.875rem' }}>
+              Cancel
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 const INIT = {
   step: 1,
   title: '', categoryId: '', categoryName: '', description: '',
@@ -373,12 +594,11 @@ export default function PostJobPage() {
   const [errors, setErrors] = useState({});
 
   const photoInputRef       = useRef(null);
-  const cameraInputRef      = useRef(null);
   const videoInputRef       = useRef(null);
-  const videoCaptureRef     = useRef(null);
   const audioInputRef       = useRef(null);
-  const audioCaptureRef     = useRef(null);
   const draftTimer          = useRef(null);
+
+  const [liveCapture, setLiveCapture] = useState(null); // 'photo' | 'video' | 'audio' | null
 
   const set = useCallback((patch) => setForm(f => ({ ...f, ...patch })), []);
   const setReq = useCallback((key, patch) =>
@@ -753,24 +973,19 @@ export default function PostJobPage() {
                   <input ref={videoInputRef}  type="file" accept="video/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
                   <input ref={audioInputRef}  type="file" accept="audio/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
 
-                  {/* Hidden inputs — live capture */}
-                  <input ref={cameraInputRef}    type="file" accept="image/*"  capture="environment" style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
-                  <input ref={videoCaptureRef}   type="file" accept="video/*"  capture="camcorder"   style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
-                  <input ref={audioCaptureRef}   type="file" accept="audio/*"  capture="microphone"  style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
-
-                  {/* Live capture buttons */}
+                  {/* Live capture buttons — use real getUserMedia */}
                   {form.mediaTab === 'photos' && (
-                    <button type="button" className="pjw-camera-btn" onClick={() => cameraInputRef.current?.click()}>
+                    <button type="button" className="pjw-camera-btn" onClick={() => setLiveCapture('photo')}>
                       📷 Take a Live Photo
                     </button>
                   )}
                   {form.mediaTab === 'video' && form.mediaFiles.length === 0 && (
-                    <button type="button" className="pjw-camera-btn" onClick={() => videoCaptureRef.current?.click()}>
+                    <button type="button" className="pjw-camera-btn" onClick={() => setLiveCapture('video')}>
                       🎥 Record a Video
                     </button>
                   )}
                   {form.mediaTab === 'audio' && form.mediaFiles.length === 0 && (
-                    <button type="button" className="pjw-camera-btn" onClick={() => audioCaptureRef.current?.click()}>
+                    <button type="button" className="pjw-camera-btn" onClick={() => setLiveCapture('audio')}>
                       🎙 Record Audio
                     </button>
                   )}
@@ -1210,6 +1425,15 @@ export default function PostJobPage() {
 
         </div>{/* /two-col */}
       </main>
+
+      {/* ── Live Capture Modal ───────────────────────────────────────────── */}
+      {liveCapture && (
+        <LiveCaptureModal
+          mode={liveCapture}
+          onCapture={file => handleMediaFiles([file])}
+          onClose={() => setLiveCapture(null)}
+        />
+      )}
 
       {/* ── Success Overlay ──────────────────────────────────────────────── */}
       {form.submitted && form.submittedJob && (
