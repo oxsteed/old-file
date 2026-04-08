@@ -239,6 +239,19 @@ html.dark .pn-queue-banner {
   transition: width 0.4s ease;
 }
 
+/* Preferred helper row */
+.pn-preferred-helper {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+  font-size: 0.82rem;
+}
+.pn-ph-label { color: var(--muted-text); }
+.pn-ph-name  { font-weight: 600; color: var(--app-text); }
+.pn-ph-status { font-size: 0.7rem; }
+
 .pn-sinking-fund {
   font-size: 0.82rem;
   color: var(--muted-text);

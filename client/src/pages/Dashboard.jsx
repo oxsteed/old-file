@@ -493,10 +493,11 @@ export default function Dashboard() {
           {/* Quick actions */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             {[
-              {to:'/post-job',Ic:IcoPlus,l:'Post a Job',c:'text-orange-400'},
-              {to:'/helpers',Ic:IcoSearch,l:'Find Helpers',c:'text-blue-400'},
-              {to:'/messages',Ic:IcoChat,l:'Messages',c:'text-emerald-400',badge:unreadMsgs},
-              {to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'},
+              {to:'/post-job',       Ic:IcoPlus,   l:'Post a Job',      c:'text-orange-400'},
+              {to:'/helpers',        Ic:IcoSearch,  l:'Find Helpers',    c:'text-blue-400'},
+              {to:'/messages',       Ic:IcoChat,    l:'Messages',        c:'text-emerald-400', badge:unreadMsgs},
+              {to:'/planned-needs',  Ic:IcoClock,   l:'Planned Needs',   c:'text-purple-400',
+                badge: s?.planned_needs?.activating_soon_count || 0},
             ].map((a,i)=>(
               <Link key={i} to={a.to} className="relative bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                 <a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
@@ -504,6 +505,58 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
+
+          {/* Planned Needs snapshot */}
+          {(s?.planned_needs?.active_count > 0 || !loading) && (
+            <Card className="mb-6">
+              <CardHeader
+                icon={IcoClock}
+                title="Planned Needs"
+                right={
+                  <Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300 font-medium">
+                    Manage →
+                  </Link>
+                }
+              />
+              {loading ? (
+                <div className="h-12 bg-gray-800 rounded-xl animate-pulse" />
+              ) : s?.planned_needs?.active_count > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className="text-xl font-bold text-purple-400">{s.planned_needs.active_count}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Active</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className={`text-xl font-bold ${s.planned_needs.activating_soon_count > 0 ? 'text-orange-400' : 'text-gray-400'}`}>
+                      {s.planned_needs.activating_soon_count}
+                    </p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Publishing Soon</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className="text-xl font-bold text-emerald-400">
+                      ${parseFloat(s.planned_needs.total_planned_cost || 0).toLocaleString(undefined,{maximumFractionDigits:0})}
+                    </p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Total Planned</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                    <p className="text-sm font-bold text-gray-300">
+                      {s.planned_needs.next_due_date
+                        ? new Date(s.planned_needs.next_due_date + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})
+                        : '—'}
+                    </p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Next Due</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
+                  <p className="text-sm text-gray-400">No planned needs yet — schedule future services and fund them gradually.</p>
+                  <Link to="/planned-needs" className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">
+                    + Add One
+                  </Link>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Active jobs preview */}
           {activeJobs.length > 0 && (
