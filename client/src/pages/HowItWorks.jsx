@@ -4,7 +4,7 @@ const CUSTOMER_STEPS = [
   {
     step: '1',
     title: 'Create a Free Account',
-    desc: 'Sign up take around 5 minutes. No credit card required.',
+    desc: 'Sign up in about 5 minutes. No credit card required.',
   },
   {
     step: '2',
@@ -27,7 +27,7 @@ const HELPER_STEPS = [
   {
     step: '1',
     title: 'Apply to Become a Helper',
-    desc: 'Complete our registration process.',
+    desc: 'Complete our quick registration process.',
   },
   {
     step: '2',
@@ -44,23 +44,23 @@ const HELPER_STEPS = [
 const FAQS = [
   {
     q: 'Is OxSteed free to use?',
-    a: 'Yes! Posting jobs as a customer is completely free. All users can sign up for free and bid on a limited number of jobs per month, or upgrade to a paid plan for unlimited access.',
+    a: 'Yes. Posting jobs as a customer is completely free. All users can sign up at no cost and bid on a limited number of jobs per month, or upgrade to a paid plan for expanded access.',
   },
   {
-    q: 'How does OxSteed verify it's users?',
-    a: 'Every users completes identity verification during registration. We also do background check  and collect tax information (W-9) for compliance if a user wish to receive payment via OxSteed. Customer reviews further build each helper\'s reputation over time.',
+    q: "How does OxSteed verify its users?",
+    a: "Every user completes identity verification during registration. We may also run background checks and collect tax information (such as a W-9) when a user chooses to receive payment via OxSteed. Customer reviews further build each helper's reputation over time.",
   },
   {
     q: 'What types of jobs can I post?',
-    a: 'Handyman, plumbing, electrical, cleaning, moving, painting, landscaping, yard work, tool rental, general labor, and more. If it\'s a local service task, you can post it on OxSteed.',
+    a: "Handyman, plumbing, electrical, cleaning, moving, painting, landscaping, yard work, tool rental, general labor, and more. If it's a local service task, you can post it on OxSteed.",
   },
   {
     q: 'How do I communicate with a helper or customer?',
-    a: 'Once a bid is accepted, both parties can message each other securely through OxSteed\'s built-in messaging system without the need to share personal phone numbers.',
+    a: "Once a bid is accepted, both parties can message each other securely through OxSteed's built-in messaging system without the need to share personal phone numbers.",
   },
   {
     q: 'What if something goes wrong?',
-    a: 'OxSteed has no control on how transaction are handle between customer and independante business owner, but we have a dispute resolution center. If there\'s an issue with a job, either party can open a dispute and our team will try to help mediate a fair resolution if possible.',
+    a: "OxSteed is a marketplace that connects customers with independent business owners and does not control how individual jobs are performed or paid for. If there's an issue with a job, either party can open a case in our dispute resolution center, and our team will try to help mediate a fair outcome when possible.",
   },
 ];
 
@@ -85,14 +85,14 @@ export default function HowItWorks() {
           How OxSteed Works
         </h1>
         <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-8">
-          OxSteed connects customers with local helpers. Whether you need work done or want to earn money in your community — we make it simple and easy to use.
+          OxSteed connects customers with local helpers. Whether you need work done or want to earn money in your community, we make it simple and easy to use.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link
             to="/register/customer"
             className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-full transition"
           >
-            Post a Job and It's Free
+            Post a Job — It’s Free
           </Link>
           <Link
             to="/register/helper"
