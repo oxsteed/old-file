@@ -495,7 +495,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             {[
               {to:'/post-job',Ic:IcoPlus,l:'Post a Job',c:'text-orange-400'},
-              {to:'/jobs',Ic:IcoSearch,l:'Find Helpers',c:'text-blue-400'},
+              {to:'/helpers',Ic:IcoSearch,l:'Find Helpers',c:'text-blue-400'},
               {to:'/messages',Ic:IcoChat,l:'Messages',c:'text-emerald-400',badge:unreadMsgs},
               {to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'},
             ].map((a,i)=>(
