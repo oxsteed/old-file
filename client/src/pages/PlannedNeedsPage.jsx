@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
+import QuickAddTemplates from '../components/QuickAddTemplates';
+import PlannedNeedHoldStatus from '../components/PlannedNeedHoldStatus';
 import '../styles/PlannedNeedsPage.css';
 
 // ── constants ──────────────────────────────────────────────────────────────
@@ -295,7 +297,7 @@ export default function PlannedNeedsPage() {
                   <NeedCard key={need.id} need={need}
                     onEdit={() => openEdit(need)}
                     onCancel={() => openCancel(need)}
-                    onComplete={() => openComplete(need)}
+                    onComplete={() => openComplete(need)} onUpdate={loadNeeds}
                   />
                 ))}
               </div>
@@ -323,6 +325,7 @@ export default function PlannedNeedsPage() {
           <div className="pn-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="pn-modal">
               <h2>{modal === 'add' ? 'Add Planned Need' : 'Edit Planned Need'}</h2>
+                {modal === 'add' && <QuickAddTemplates onSelect={(t) => setForm(f => ({ ...f, ...t }))} />}
 
               <div className="pn-form-group">
                 <label>Title *</label>
@@ -482,7 +485,7 @@ export default function PlannedNeedsPage() {
 }
 
 // ── NeedCard ───────────────────────────────────────────────────────────────
-function NeedCard({ need, onEdit, onCancel, onComplete }) {
+function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
   const cost     = parseFloat(need.estimated_cost || 0);
   const reserved = parseFloat(need.reserved_amount || 0);
   const fundPct  = cost > 0 ? Math.min(100, Math.round((reserved / cost) * 100)) : 0;
@@ -533,6 +536,9 @@ function NeedCard({ need, onEdit, onCancel, onComplete }) {
             )}
           </div>
         )}
+            {isActive && need.preferred_helper_id && need.status === 'published' && (
+      <PlannedNeedHoldStatus need={need} onUpdate={onUpdate} />
+    )}
 
         {cost > 0 && isActive && (
           <div className="pn-meter-wrap">
