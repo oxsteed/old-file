@@ -501,3 +501,286 @@ exports.getProjection = async (req, res) => {
     res.status(500).json({ error: 'Failed to generate projection.' });
   }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 2: HELPER ACCEPT preferred-helper request
+// ═══════════════════════════════════════════════════════════════════════════
+exports.helperAccept = async (req, res) => {
+  try {
+    const helperId = req.user.id;
+    const { id } = req.params; // planned_need id
+
+    const { rows: needs } = await db.query(
+      'SELECT * FROM planned_needs WHERE id = $1 AND preferred_helper_id = $2',
+      [id, helperId]
+    );
+    if (!needs.length) return res.status(404).json({ error: 'Planned need not found or you are not the preferred helper.' });
+    const need = needs[0];
+
+    if (need.preferred_helper_status !== 'pending') {
+      return res.status(400).json({ error: `Cannot accept: status is already '${need.preferred_helper_status}'.` });
+    }
+
+    // Update planned_need
+    await db.query(`
+      UPDATE planned_needs
+      SET preferred_helper_status = 'accepted', updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
+
+    // Notify customer
+    const { sendNotification } = require('../services/notificationService');
+    await sendNotification({
+      userId: need.user_id,
+      type: 'preferred_helper_accepted',
+      title: 'Your preferred helper accepted!',
+      body: `Your preferred helper accepted the job for "${need.title}".`,
+      data: { planned_need_id: need.id, job_id: need.published_job_id },
+      action_url: need.published_job_id ? `/jobs/${need.published_job_id}` : '/planned-needs',
+    });
+
+    res.json({ message: 'Accepted successfully.', planned_need_id: need.id });
+  } catch (err) {
+    console.error('helperAccept error:', err);
+    res.status(500).json({ error: 'Failed to accept.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 2: HELPER DECLINE preferred-helper request
+// ═══════════════════════════════════════════════════════════════════════════
+exports.helperDecline = async (req, res) => {
+  try {
+    const helperId = req.user.id;
+    const { id } = req.params;
+
+    const { rows: needs } = await db.query(
+      'SELECT * FROM planned_needs WHERE id = $1 AND preferred_helper_id = $2',
+      [id, helperId]
+    );
+    if (!needs.length) return res.status(404).json({ error: 'Not found or not preferred helper.' });
+    const need = needs[0];
+
+    if (need.preferred_helper_status !== 'pending') {
+      return res.status(400).json({ error: `Cannot decline: status is '${need.preferred_helper_status}'.` });
+    }
+
+    // Update planned_need
+    await db.query(`
+      UPDATE planned_needs
+      SET preferred_helper_status = 'declined', updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
+
+    // Clear the hold on the job so it's open to everyone
+    if (need.published_job_id) {
+      await db.query(`
+        UPDATE jobs
+        SET held_for_helper_id = NULL, hold_expires_at = NULL, updated_at = NOW()
+        WHERE id = $1
+      `, [need.published_job_id]);
+    }
+
+    // Notify customer
+    const { sendNotification } = require('../services/notificationService');
+    await sendNotification({
+      userId: need.user_id,
+      type: 'preferred_helper_declined',
+      title: 'Preferred helper declined',
+      body: `Your preferred helper declined "${need.title}". The job is now open to all helpers.`,
+      data: { planned_need_id: need.id, job_id: need.published_job_id },
+      action_url: need.published_job_id ? `/jobs/${need.published_job_id}` : '/planned-needs',
+    });
+
+    res.json({ message: 'Declined. Job is now open to all helpers.' });
+  } catch (err) {
+    console.error('helperDecline error:', err);
+    res.status(500).json({ error: 'Failed to decline.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 3: GET OFFERS FOR HELPER (jobs held for this helper)
+// ═══════════════════════════════════════════════════════════════════════════
+exports.getHelperOffers = async (req, res) => {
+  try {
+    const helperId = req.user.id;
+    const { rows } = await db.query(`
+      SELECT
+        pn.id, pn.title, pn.description, pn.category, pn.due_date,
+        pn.estimated_cost, pn.preferred_helper_status,
+        pn.helper_notified_at, pn.published_job_id,
+        j.id AS job_id, j.title AS job_title, j.status AS job_status,
+        j.held_for_helper_id, j.hold_expires_at,
+        u.first_name AS customer_first_name,
+        LEFT(u.last_name, 1) || '.' AS customer_last_initial
+      FROM planned_needs pn
+      JOIN users u ON u.id = pn.user_id
+      LEFT JOIN jobs j ON j.id = pn.published_job_id
+      WHERE pn.preferred_helper_id = $1
+        AND pn.preferred_helper_status = 'pending'
+      ORDER BY pn.helper_notified_at ASC
+    `, [helperId]);
+
+    // Add countdown info
+    const offers = rows.map(r => {
+      const notifiedAt = new Date(r.helper_notified_at);
+      const expiresAt = new Date(notifiedAt.getTime() + 72 * 60 * 60 * 1000);
+      const hoursRemaining = Math.max(0, (expiresAt - new Date()) / (1000 * 60 * 60));
+      return {
+        ...r,
+        expires_at: expiresAt.toISOString(),
+        hours_remaining: Math.round(hoursRemaining * 10) / 10,
+      };
+    });
+
+    res.json({ offers });
+  } catch (err) {
+    console.error('getHelperOffers error:', err);
+    res.status(500).json({ error: 'Failed to fetch offers.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 5: CUSTOMER BROADCAST NOW (cancel hold early)
+// ═══════════════════════════════════════════════════════════════════════════
+exports.broadcastNow = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const { rows: needs } = await db.query(
+      'SELECT * FROM planned_needs WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    if (!needs.length) return res.status(404).json({ error: 'Not found.' });
+    const need = needs[0];
+
+    if (need.preferred_helper_status !== 'pending') {
+      return res.status(400).json({ error: 'No active hold to cancel.' });
+    }
+
+    // Clear hold on job
+    if (need.published_job_id) {
+      await db.query(`
+        UPDATE jobs
+        SET held_for_helper_id = NULL, hold_expires_at = NULL, updated_at = NOW()
+        WHERE id = $1
+      `, [need.published_job_id]);
+    }
+
+    await db.query(`
+      UPDATE planned_needs
+      SET preferred_helper_status = 'broadcast', updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
+
+    res.json({ message: 'Job is now open to all helpers.' });
+  } catch (err) {
+    console.error('broadcastNow error:', err);
+    res.status(500).json({ error: 'Failed to broadcast.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 6: UPDATE RESERVED AMOUNT (add to sinking fund)
+// ═══════════════════════════════════════════════════════════════════════════
+exports.addToFund = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { amount } = req.body;
+
+    if (!amount || parseFloat(amount) <= 0) {
+      return res.status(400).json({ error: 'Amount must be positive.' });
+    }
+
+    const { rows } = await db.query(`
+      UPDATE planned_needs
+      SET reserved_amount = reserved_amount + $3,
+          updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+        AND status NOT IN ('cancelled', 'completed')
+      RETURNING *
+    `, [id, userId, parseFloat(amount)]);
+
+    if (!rows.length) return res.status(404).json({ error: 'Not found or not editable.' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('addToFund error:', err);
+    res.status(500).json({ error: 'Failed to update fund.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 8: GET COST HISTORY for a recurring need
+// ═══════════════════════════════════════════════════════════════════════════
+exports.getCostHistory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    // Get history across all generations of this need (parent chain)
+    const { rows } = await db.query(`
+      WITH RECURSIVE need_chain AS (
+        SELECT id, parent_need_id FROM planned_needs WHERE id = $1 AND user_id = $2
+        UNION ALL
+        SELECT pn.id, pn.parent_need_id
+        FROM planned_needs pn
+        JOIN need_chain nc ON pn.id = nc.parent_need_id
+      )
+      SELECT ch.actual_cost, ch.completed_at, ch.notes
+      FROM planned_need_cost_history ch
+      WHERE ch.planned_need_id IN (SELECT id FROM need_chain)
+      ORDER BY ch.completed_at DESC
+      LIMIT 20
+    `, [id, userId]);
+
+    // Compute smart estimate
+    const costs = rows.map(r => parseFloat(r.actual_cost)).filter(c => c > 0);
+    const smartEstimate = costs.length > 0
+      ? Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 100) / 100
+      : null;
+
+    res.json({ history: rows, smart_estimate: smartEstimate, sample_size: costs.length });
+  } catch (err) {
+    console.error('getCostHistory error:', err);
+    res.status(500).json({ error: 'Failed to fetch cost history.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 9: GET TEMPLATES (quick-add)
+// ═══════════════════════════════════════════════════════════════════════════
+exports.getTemplates = async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT * FROM planned_need_templates
+      WHERE is_active = true
+      ORDER BY sort_order ASC
+    `);
+    res.json({ templates: rows });
+  } catch (err) {
+    console.error('getTemplates error:', err);
+    res.status(500).json({ error: 'Failed to fetch templates.' });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 12: HELPER PREFERRED-BY COUNT (social proof)
+// ═══════════════════════════════════════════════════════════════════════════
+exports.getPreferredByCount = async (req, res) => {
+  try {
+    const helperId = req.params.helperId || req.user.id;
+    const { rows } = await db.query(`
+      SELECT COUNT(DISTINCT user_id) AS preferred_by_count
+      FROM planned_needs
+      WHERE preferred_helper_id = $1
+        AND status NOT IN ('cancelled')
+    `, [helperId]);
+    res.json({ preferred_by_count: parseInt(rows[0].preferred_by_count) });
+  } catch (err) {
+    console.error('getPreferredByCount error:', err);
+    res.status(500).json({ error: 'Failed to fetch count.' });
+  }
+};
