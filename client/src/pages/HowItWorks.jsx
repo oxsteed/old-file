@@ -4,7 +4,7 @@ const CUSTOMER_STEPS = [
   {
     step: '1',
     title: 'Create a Free Account',
-    desc: 'Sign up in under 2 minutes. No credit card required. Just your name, email, and a password.',
+    desc: 'Sign up take around 5 minutes. No credit card required.',
   },
   {
     step: '2',
@@ -19,7 +19,7 @@ const CUSTOMER_STEPS = [
   {
     step: '4',
     title: 'Hire with Confidence',
-    desc: 'Choose the best fit, communicate through our secure messaging, and get the job done. Leave a review when complete.',
+    desc: 'Choose the best fit, communicate through our messaging system, and get the job done. Leave a review when complete.',
   },
 ];
 
@@ -27,20 +27,15 @@ const HELPER_STEPS = [
   {
     step: '1',
     title: 'Apply to Become a Helper',
-    desc: 'Complete our 5-step registration including identity verification, background check consent, and service area setup.',
+    desc: 'Complete our registration process.',
   },
   {
     step: '2',
-    title: 'Choose Your Services & Plan',
-    desc: 'Select the categories you specialize in. Pick a free or premium plan to control how many jobs you can bid on.',
-  },
-  {
-    step: '3',
     title: 'Browse & Bid on Jobs',
     desc: 'See real jobs posted by customers in your area. Submit competitive bids and showcase your experience.',
   },
   {
-    step: '4',
+    step: '3',
     title: 'Get Hired & Get Paid',
     desc: 'Win jobs, complete the work, and build your reputation with reviews. Grow your local business on your schedule.',
   },
@@ -49,11 +44,11 @@ const HELPER_STEPS = [
 const FAQS = [
   {
     q: 'Is OxSteed free to use?',
-    a: 'Yes! Posting jobs as a customer is completely free. Helpers can sign up for free and bid on a limited number of jobs per month, or upgrade to a paid plan for unlimited access.',
+    a: 'Yes! Posting jobs as a customer is completely free. All users can sign up for free and bid on a limited number of jobs per month, or upgrade to a paid plan for unlimited access.',
   },
   {
-    q: 'How does OxSteed verify helpers?',
-    a: 'Every helper completes identity verification and consents to a background check during registration. We also collect tax information (W-9) for compliance. Customer reviews further build each helper\'s reputation over time.',
+    q: 'How does OxSteed verify it's users?',
+    a: 'Every users completes identity verification during registration. We also do background check  and collect tax information (W-9) for compliance if a user wish to receive payment via OxSteed. Customer reviews further build each helper\'s reputation over time.',
   },
   {
     q: 'What types of jobs can I post?',
@@ -61,11 +56,11 @@ const FAQS = [
   },
   {
     q: 'How do I communicate with a helper or customer?',
-    a: 'Once a bid is accepted, both parties can message each other securely through OxSteed\'s built-in messaging system — no need to share personal phone numbers.',
+    a: 'Once a bid is accepted, both parties can message each other securely through OxSteed\'s built-in messaging system without the need to share personal phone numbers.',
   },
   {
     q: 'What if something goes wrong?',
-    a: 'OxSteed has a dispute resolution center. If there\'s an issue with a job, either party can open a dispute and our team will help mediate a fair resolution.',
+    a: 'OxSteed has no control on how transaction are handle between customer and independante business owner, but we have a dispute resolution center. If there\'s an issue with a job, either party can open a dispute and our team will try to help mediate a fair resolution if possible.',
   },
 ];
 
@@ -90,14 +85,14 @@ export default function HowItWorks() {
           How OxSteed Works
         </h1>
         <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-8">
-          OxSteed connects customers with trusted local helpers. Whether you need work done or want to earn money in your community — we make it simple, safe, and fast.
+          OxSteed connects customers with local helpers. Whether you need work done or want to earn money in your community — we make it simple and easy to use.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link
             to="/register/customer"
             className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-full transition"
           >
-            Post a Job — It's Free
+            Post a Job and It's Free
           </Link>
           <Link
             to="/register/helper"
