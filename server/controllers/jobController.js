@@ -169,7 +169,7 @@ exports.getJobs = async (req, res) => {
       conditions.push(`j.location_state = $${paramIdx++}`);
       params.push(state);
     }
-    if (status) {
+    if (status && ['published','cancelled','completed','in_progress','draft','pending'].includes(status)) {
       conditions.push(`j.status = $${paramIdx++}`);
       params.push(status);
     } else {
