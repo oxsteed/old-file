@@ -1,0 +1,411 @@
+/* ── PlannedNeedsPage ─────────────────────────────────────── */
+.pn-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  color: var(--app-text);
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.pn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.pn-header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+.pn-header p {
+  font-size: 0.88rem;
+  color: var(--muted-text);
+  margin: 0.2rem 0 0;
+}
+.pn-add-btn {
+  padding: 0.6rem 1.25rem;
+  background: #F4A261;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.pn-add-btn:hover { background: #e08846; }
+
+/* ── Projection Panel ────────────────────────────────────── */
+.pn-projection {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.pn-projection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.pn-projection-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+.pn-window-tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.pn-window-tab {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.pn-window-tab:hover { background: var(--border-color); }
+.pn-window-tab.active {
+  background: #F4A261;
+  border-color: #F4A261;
+  color: #fff;
+  font-weight: 600;
+}
+.pn-projection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+.pn-proj-stat {
+  background: var(--app-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+.pn-proj-stat .label {
+  font-size: 0.75rem;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+.pn-proj-stat .value {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.pn-proj-stat .value.positive { color: #4ade80; }
+.pn-proj-stat .value.negative { color: #f87171; }
+.pn-proj-stat .value.neutral  { color: var(--app-text); }
+.pn-proj-stat .value.warn     { color: #F4A261; }
+.pn-proj-note {
+  font-size: 0.78rem;
+  color: var(--muted-text);
+  margin-top: 1rem;
+  text-align: center;
+}
+
+/* ── Auto-publish queue banner ───────────────────────────── */
+.pn-queue-banner {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 10px;
+  padding: 0.9rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.88rem;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+html.dark .pn-queue-banner {
+  background: rgba(244,162,97,0.12);
+  border-color: rgba(244,162,97,0.4);
+  color: #F4A261;
+}
+.pn-queue-banner strong { font-weight: 700; }
+
+/* ── Section heading ─────────────────────────────────────── */
+.pn-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.75rem;
+}
+
+/* ── Need cards ──────────────────────────────────────────── */
+.pn-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+}
+.pn-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 1rem;
+  align-items: start;
+}
+.pn-card.status-activating_soon { border-left: 4px solid #f97316; }
+.pn-card.status-funding          { border-left: 4px solid #F4A261; }
+.pn-card.status-planned          { border-left: 4px solid var(--muted-text); }
+.pn-card.status-published        { border-left: 4px solid #4ade80; }
+.pn-card.status-completed        { border-left: 4px solid #60a5fa; opacity: 0.7; }
+.pn-card.status-cancelled        { border-left: 4px solid #9ca3af; opacity: 0.55; }
+.pn-card.status-regenerated      { border-left: 4px solid #a78bfa; opacity: 0.7; }
+
+.pn-card-main {}
+.pn-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+.pn-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+.pn-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.pn-badge.cat-car_care      { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.pn-badge.cat-personal_care { background: rgba(236,72,153,0.15); color: #f472b6; }
+.pn-badge.cat-other         { background: rgba(156,163,175,0.15); color: var(--muted-text); }
+.pn-badge.st-planned          { background: rgba(156,163,175,0.15); color: var(--muted-text); }
+.pn-badge.st-funding          { background: rgba(244,162,97,0.15);  color: #F4A261; }
+.pn-badge.st-activating_soon  { background: rgba(249,115,22,0.15);  color: #f97316; }
+.pn-badge.st-published        { background: rgba(74,222,128,0.15);  color: #4ade80; }
+.pn-badge.st-completed        { background: rgba(96,165,250,0.15);  color: #60a5fa; }
+.pn-badge.st-cancelled        { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.pn-badge.st-regenerated      { background: rgba(167,139,250,0.15); color: #a78bfa; }
+
+.pn-card-meta {
+  font-size: 0.82rem;
+  color: var(--muted-text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.pn-card-meta span { white-space: nowrap; }
+
+/* Funding meter */
+.pn-meter-wrap {
+  margin-bottom: 0.5rem;
+}
+.pn-meter-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: var(--muted-text);
+  margin-bottom: 0.2rem;
+}
+.pn-meter-track {
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.pn-meter-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: #F4A261;
+  transition: width 0.4s ease;
+}
+
+.pn-sinking-fund {
+  font-size: 0.82rem;
+  color: var(--muted-text);
+}
+.pn-sinking-fund strong { color: var(--app-text); }
+
+/* Card actions */
+.pn-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-end;
+  min-width: 80px;
+}
+.pn-card-action-btn {
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--app-text);
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.pn-card-action-btn:hover { background: var(--border-color); }
+.pn-card-action-btn.danger {
+  border-color: rgba(239,68,68,0.4);
+  color: #f87171;
+}
+.pn-card-action-btn.danger:hover { background: rgba(239,68,68,0.1); }
+.pn-card-action-btn.primary {
+  background: #F4A261;
+  border-color: #F4A261;
+  color: #fff;
+  font-weight: 600;
+}
+.pn-card-action-btn.primary:hover { background: #e08846; border-color: #e08846; }
+
+/* Empty state */
+.pn-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted-text);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+}
+.pn-empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.pn-empty p { margin: 0.25rem 0; }
+
+/* ── Modal overlay ───────────────────────────────────────── */
+.pn-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.pn-modal {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.pn-modal h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+}
+.pn-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* ── Form fields ─────────────────────────────────────────── */
+.pn-form-group {
+  margin-bottom: 1rem;
+}
+.pn-form-group label {
+  display: block;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--muted-text);
+  margin-bottom: 0.35rem;
+}
+.pn-form-group input,
+.pn-form-group select,
+.pn-form-group textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.pn-form-group input:focus,
+.pn-form-group select:focus,
+.pn-form-group textarea:focus {
+  outline: none;
+  border-color: #F4A261;
+}
+.pn-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.pn-form-hint {
+  font-size: 0.76rem;
+  color: var(--muted-text);
+  margin-top: 0.25rem;
+}
+
+/* ── Button styles ───────────────────────────────────────── */
+.btn-primary {
+  padding: 0.55rem 1.2rem;
+  background: #F4A261;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover   { background: #e08846; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-ghost {
+  padding: 0.55rem 1.2rem;
+  background: transparent;
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-ghost:hover  { background: var(--border-color); }
+.btn-danger {
+  padding: 0.55rem 1.2rem;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger:hover { background: #dc2626; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .pn-card { grid-template-columns: 1fr; }
+  .pn-card-actions { flex-direction: row; align-items: flex-start; }
+  .pn-form-row { grid-template-columns: 1fr; }
+  .pn-projection-grid { grid-template-columns: 1fr 1fr; }
+}

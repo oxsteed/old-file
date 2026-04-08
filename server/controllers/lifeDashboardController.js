@@ -578,7 +578,7 @@ exports.getDashboardSummary = async (req, res) => {
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
 
-    const [expenseRes, goalsRes, homeRes, checklistRes, activityRes] = await Promise.allSettled([
+    const [expenseRes, goalsRes, homeRes, checklistRes, activityRes, plannedRes] = await Promise.allSettled([
       // Monthly income/expense totals
       db.query(`
         SELECT
@@ -629,13 +629,28 @@ exports.getDashboardSummary = async (req, res) => {
           (SELECT ROUND(AVG(rating), 1) FROM reviews WHERE reviewee_id = $1) AS avg_rating,
           (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1) AS review_count
       `, [userId]),
+
+      // Planned needs summary
+      db.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status IN ('planned','funding','activating_soon'))  AS active_count,
+          COUNT(*) FILTER (WHERE status = 'activating_soon')                         AS activating_soon_count,
+          COUNT(*) FILTER (WHERE (due_date - lead_time_days) <= CURRENT_DATE + 7
+                             AND status IN ('planned','funding','activating_soon'))   AS publishing_this_week,
+          COALESCE(SUM(estimated_cost) FILTER (
+            WHERE status IN ('planned','funding','activating_soon')), 0)              AS total_planned_cost,
+          MIN(due_date) FILTER (WHERE status IN ('planned','funding','activating_soon')) AS next_due_date
+        FROM planned_needs
+        WHERE user_id = $1
+      `, [userId]),
     ]);
 
-    const finances = expenseRes.status === 'fulfilled' ? expenseRes.value.rows[0] : {};
-    const goals = goalsRes.status === 'fulfilled' ? goalsRes.value.rows[0] : {};
-    const home = homeRes.status === 'fulfilled' ? homeRes.value.rows[0] : {};
+    const finances  = expenseRes.status  === 'fulfilled' ? expenseRes.value.rows[0]  : {};
+    const goals     = goalsRes.status    === 'fulfilled' ? goalsRes.value.rows[0]    : {};
+    const home      = homeRes.status     === 'fulfilled' ? homeRes.value.rows[0]     : {};
     const checklist = checklistRes.status === 'fulfilled' ? checklistRes.value.rows[0] : {};
-    const activity = activityRes.status === 'fulfilled' ? activityRes.value.rows[0] : {};
+    const activity  = activityRes.status === 'fulfilled' ? activityRes.value.rows[0] : {};
+    const planned   = plannedRes.status  === 'fulfilled' ? plannedRes.value.rows[0]  : {};
 
     // ── Life Pulse Score (0-100) ──────────────────────────────────────
     // Weighted score across 4 dimensions
@@ -710,6 +725,13 @@ exports.getDashboardSummary = async (req, res) => {
         jobs_completed: parseInt(activity.jobs_completed || 0),
         avg_rating: parseFloat(activity.avg_rating || 0),
         review_count: parseInt(activity.review_count || 0),
+      },
+      planned_needs: {
+        active_count:          parseInt(planned.active_count || 0),
+        activating_soon_count: parseInt(planned.activating_soon_count || 0),
+        publishing_this_week:  parseInt(planned.publishing_this_week || 0),
+        total_planned_cost:    parseFloat(planned.total_planned_cost || 0),
+        next_due_date:         planned.next_due_date || null,
       },
     });
   } catch (err) {
