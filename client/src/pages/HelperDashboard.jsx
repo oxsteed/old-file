@@ -248,7 +248,7 @@ export default function HelperDashboard() {
 
   const tabs = showOnboarding
     ? [{id:'pulse',label:'Get Started'}]
-    : [{id:'pulse',label:'My Pulse'},{id:'jobs',label:'Find Jobs'},{id:'earnings',label:'Earnings'},{id:'goals',label:'Goals'},{id:'bids',label:'My Bids'},{id:'skills',label:'Skills & Tools'}];
+    : [{id:'pulse',label:'My Pulse'},{id:'earnings',label:'Earnings'},{id:'jobs',label:'Find Jobs'},{id:'goals',label:'Goals'},{id:'personalcare',label:'Personal Care'},{id:'carcare',label:'Car Care'},{id:'skills',label:'Skills & Tools'},{id:'bids',label:'My Bids'}];
 
   if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
 
@@ -282,8 +282,8 @@ export default function HelperDashboard() {
 
         {/* Tabs */}
         {tabs.length>1&&(
-          <div className="flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 w-fit overflow-x-auto">
-            {tabs.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>))}
+          <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1">
+            {tabs.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>))}
           </div>
         )}
 
@@ -577,7 +577,9 @@ export default function HelperDashboard() {
             </Card>
           </div>
         )}
-      </main>
+                {tab==='personalcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">💆</p><h3 className="font-semibold text-white text-lg mb-1">Personal Care</h3><p className="text-sm text-gray-500">Haircuts, massages, grooming, and wellness — coming soon.</p></Card>)}
+          {tab==='carcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">🚗</p><h3 className="font-semibold text-white text-lg mb-1">Car Care</h3><p className="text-sm text-gray-500">Oil changes, detailing, tire rotation, and mobile mechanics — coming soon.</p></Card>)}
+        </main>
 
       {/* Modals */}
       <Modal open={showSkillModal} onClose={()=>{setShowSkillModal(false);setEditingSkill(null);setSkillLookup([]);}} title={editingSkill?'Edit Skill':'Add Skill'}>
