@@ -110,7 +110,7 @@ export default function AdminApp() {
             <AdminGuard superOnly><AdminAccounts /></AdminGuard>
           } />
           <Route path="super/search-logs" element={
-            <AdminGuard superOnly><SearchLogs /></AdminGuard>
+            <AdminGuard><SearchLogs /></AdminGuard>
           } />
           <Route path="super/permissions" element={
             <AdminGuard superOnly><PermissionGrants /></AdminGuard>

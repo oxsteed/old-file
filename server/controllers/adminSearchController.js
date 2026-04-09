@@ -163,7 +163,8 @@ exports.getSearchLogs = async (req, res) => {
       conditions.push(`sl.admin_id = $${params.length}`);
     }
     if (q) {
-      params.push(`%${q}%`);
+      const escapedQ = q.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+      params.push(`%${escapedQ}%`);
       conditions.push(`sl.query ILIKE $${params.length}`);
     }
 
