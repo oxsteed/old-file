@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-09 (support ticket system, admin dashboard fixes, planned-needs route fix)
+**Last updated:** 2026-04-09 (support ticket system, admin dashboard fixes, planned-needs route fix, unified Life Pulse engine)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -303,6 +303,24 @@ All production-readiness audit items have been completed. Items are documented i
 9. PWA / service worker
 10. Referral system
 11. Didit integration test
+
+### Session — 2026-04-09 (unified Life Pulse engine)
+
+**Unified Life Pulse engine** — `GET /api/life/pulse?window=X`:
+
+- **Controller** `server/controllers/lifePulseController.js`: single engine that powers both pages. Queries last 90 days of `expenses` + settled `payments` (OxSteed job income). Normalizes everything to a selected future horizon (`1w/2w/1m/3m/6m/1y/5y/10y`). Returns: `pulse_score` (0–100), `score_breakdown` (coverage/buffer/reliability/obligations), `projected_income`, `projected_fixed_expenses`, `sinking_fund_for_window`, `net_available`, `coverage_ratio`, `runway_months`, `income_reliability`, `auto_publishing_in_window`, per-need sinking fund breakdown, `shortfall_warnings`, and `alerts` (plain-language, e.g. "You'll be short by $800 for your June roof repair.").
+- **Score formula**: coverage×0.40 + buffer×0.25 + reliability×0.20 + obligations×0.15. Coverage based on forward-looking ratio over selected horizon; buffer on 90-day cumulative net as runway proxy; reliability on last-30d vs prior-60d income drop; obligations on avg funding % of active planned needs.
+- **Route** `server/routes/lifeDashboard.js`: `GET /pulse` added, served before all existing routes.
+- **Hook** `client/src/hooks/useLifeDashboard.js`: `fetchFinancialPulse(window)` + `financialPulse` state added and exported.
+- **Dashboard** `client/src/pages/Dashboard.jsx`: Life Pulse widget updated — fetches `/life/pulse?window=1m` on init, shows forward-looking financial score with coverage/buffer/reliability/obligations breakdown and inline alerts. Score ring color adapts (green/orange/yellow/red by threshold). Old goals/home/activity breakdown removed from this widget (those data points are still shown as their own cards on the page).
+- **PlannedNeedsPage** `client/src/pages/PlannedNeedsPage.jsx`: projection now fetches `/life/pulse` instead of `/planned-needs/projection`; default window changed from `1m` → `3m`; pulse score ring + breakdown row added above the metrics grid; alerts panel rendered below the grid. CSS added to `PlannedNeedsPage.css` (`.pn-pulse-score-row`, `.pn-pulse-ring`, `.pn-pulse-bd`, `.pn-alerts`, `.pn-alert-item`).
+- **Backward compatibility**: `/api/planned-needs/projection` still exists (unchanged). All existing `projection.*` field names are preserved in the new response.
+
+**Key design decisions:**
+- Runway uses 90-day cumulative net as a buffer proxy (no dedicated savings-balance column exists).
+- OxSteed job income (`payments.helper_payout` where `status IN ('captured','released')`) is merged into the income baseline so helpers who earn through the platform don't appear cash-poor.
+- Shortfall alerts are only emitted for needs due within 2× the selected window to avoid noisy far-future warnings.
+- The old `getDashboardSummary` pulse score (goals/home/activity composite) is still returned by `/api/life/summary` and is unchanged — the new engine is a separate, additive financial-health layer.
 
 ### Session — 2026-04-09 (admin dashboard fixes + full support ticket system)
 
