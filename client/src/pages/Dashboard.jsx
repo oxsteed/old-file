@@ -678,6 +678,16 @@ export default function Dashboard() {
               )}
             </Card>
           </div>
+
+                          {/* Planned Needs – sinking funds (merged from PlannedNeedsPage) */}
+              <Card>
+                <CardHeader icon={IcoDollar} title="Planned Needs (Sinking Funds)" right={
+                  <Btn variant="ghost" size="xs" onClick={() => toast('Coming soon: add a planned need')}>+ Add</Btn>
+                }/>
+                <p className="text-gray-500 text-sm px-4 pb-4">
+                  Track future home expenses here. Budget amounts are saved automatically and feed into your monthly summary above.
+                </p>
+              </Card>
         </>)}
 
         {/* ═══════ HOME TAB ═══════ */}
