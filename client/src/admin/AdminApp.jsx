@@ -24,6 +24,7 @@ import JobsList        from './pages/JobsList';
 import Moderation      from './pages/Moderation';
 import SkillsManager   from './pages/SkillsManager';
 import ContentRemovals from './pages/ContentRemovals';
+import SupportTickets  from './pages/SupportTickets';
 import AdminLogin      from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
@@ -74,6 +75,7 @@ export default function AdminApp() {
           <Route path="markets"             element={<MarketZipCodes />} />
           <Route path="skills"              element={<SkillsManager />} />
           <Route path="content-removals"    element={<ContentRemovals />} />
+          <Route path="support"             element={<SupportTickets />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={

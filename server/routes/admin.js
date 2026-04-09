@@ -2,6 +2,7 @@ const router          = require('express').Router();
 const { requireAdmin, requireSuperAdmin } = require('../middleware/adminAuth');
 const superCtrl       = require('../controllers/superAdminController');
 const adminCtrl       = require('../controllers/adminController');
+const supportCtrl     = require('../controllers/supportController');
 
 // ══════════════════════════════════════════════════════════════
 // REGULAR ADMIN — both admin and super_admin can access
@@ -73,6 +74,19 @@ router.put('/feature-flags/:key',    requireSuperAdmin, superCtrl.updateFeatureF
 // Audit log + export
 router.get('/audit-log',             requireSuperAdmin, superCtrl.getAuditLog);
 router.get('/export/:type',          requireSuperAdmin, superCtrl.exportData);
+
+// ══════════════════════════════════════════════════════════════
+// SUPPORT TICKETS (admin + super_admin)
+// ══════════════════════════════════════════════════════════════
+
+router.get('/support/stats',                          requireAdmin, supportCtrl.getStats);
+router.get('/support/tickets',                        requireAdmin, supportCtrl.listTickets);
+router.get('/support/tickets/:ticketId',              requireAdmin, supportCtrl.getTicketAdmin);
+router.post('/support/tickets/:ticketId/claim',       requireAdmin, supportCtrl.claimTicket);
+router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, supportCtrl.unclaimTicket);
+router.put('/support/tickets/:ticketId/status',       requireAdmin, supportCtrl.updateStatus);
+router.put('/support/tickets/:ticketId/priority',     requireAdmin, supportCtrl.updatePriority);
+router.post('/support/tickets/:ticketId/reply',       requireAdmin, supportCtrl.adminReply);
 
 // ══════════════════════════════════════════════════════════════
 // SKILLS & CATEGORIES LOOKUP MANAGEMENT (admin + super_admin)
