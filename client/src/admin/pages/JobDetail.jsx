@@ -176,7 +176,7 @@ export default function JobDetail() {
     </div>
   );
 
-  const isFlagged = job?.is_flagged;
+  const isFlagged = job?.admin_flagged === true;
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl">

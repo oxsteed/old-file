@@ -268,6 +268,8 @@ exports.forceJobAction = async (req, res) => {
     const { rows: jobRows } = await db.query('SELECT * FROM jobs WHERE id = $1', [jobId]);
     if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
     if (action === 'cancel' || action === 'remove') await db.query(`UPDATE jobs SET status = 'cancelled', updated_at = now() WHERE id = $1`, [jobId]);
+    if (action === 'flag')   await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1`, [jobId]);
+    if (action === 'unflag') await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1`, [jobId]);
     try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
     res.json({ message: `Job ${action} successful.` });
   } catch (err) { console.error('forceJobAction error:', err); res.status(500).json({ error: 'Failed to perform job action.' }); }
@@ -308,6 +310,7 @@ exports.getJobDetail = async (req, res) => {
     const { rows: jobRows } = await db.query(`
       SELECT
         j.*,
+        (j.metadata->>'admin_flagged') = 'true'   AS admin_flagged,
         u_c.first_name || ' ' || u_c.last_name AS client_name,
         u_c.email        AS client_email,
         u_h.id           AS helper_user_id,
