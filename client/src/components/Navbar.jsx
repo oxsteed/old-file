@@ -126,7 +126,6 @@ export default function Navbar() {
                     </span>
                   )}
                 </NavLink>
-                <NavLink to="/planned-needs" active={isActive('/planned-needs')}>Planned Needs</NavLink>
                 <Divider />
                 <NavLink to="/dashboard" active={isActive('/dashboard')}>Dashboard</NavLink>
                 <NavLink to="/settings" active={isActive('/settings')}>Settings</NavLink>
@@ -211,7 +210,6 @@ export default function Navbar() {
                     }}>{unreadMsgs}</span>
                   )}
                 </MobileNavLink>
-                <MobileNavLink to="/planned-needs" onClick={() => setMobileOpen(false)}>Planned Needs</MobileNavLink>
                 <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>Settings</MobileNavLink>
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}

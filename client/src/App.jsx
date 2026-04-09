@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
@@ -34,7 +34,7 @@ import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputeDetail from './pages/disputes/DisputeDetail';
 import MessagesPage from './pages/MessagesPage';
 import ConversationPage from './pages/ConversationPage';
-import PlannedNeedsPage from './pages/PlannedNeedsPage';
+
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
@@ -92,11 +92,10 @@ export default function App() {
                   <Route path="/disputes/:id"   element={<Guarded><ProtectedRoute><DisputeDetail /></ProtectedRoute></Guarded>} />
                   <Route path="/messages"       element={<Guarded><ProtectedRoute><MessagesPage /></ProtectedRoute></Guarded>} />
                   <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><ConversationPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/planned-needs"  element={<Guarded><ProtectedRoute><PlannedNeedsPage /></ProtectedRoute></Guarded>} />
-
+                                <Route path="/planned-needs" element={<Guarded><ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute></Guarded>} />
+                  
                   <Route path="*" element={<NotFoundPage />} />
                 </Routes>
-              </TermsGate>
               <CookieConsent />
               <SupportWidget />
             </AuthProvider>

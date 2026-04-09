@@ -678,7 +678,39 @@ export default function Dashboard() {
               )}
             </Card>
           </div>
-        </>)}
+
+                                        {/* Planned Needs – sinking funds (merged from PlannedNeedsPage) */}
+              <Card>
+                <CardHeader icon={IcoDollar} title="Planned Needs (Sinking Funds)" right={
+                  <Btn variant="ghost" size="xs" onClick={() => {
+                    const name = prompt('Category name (e.g. "Roof Repair")');
+                    if (!name) return;
+                    const target = prompt('Target amount ($)');
+                    if (!target) return;
+                    api.post('/api/planned-needs', { category: name, target_amount: parseFloat(target), monthly_contribution: 0 })
+                      .then(() => { toast.success('Planned need added'); life.refresh?.(); })
+                      .catch(() => toast.error('Failed to add'));
+                  }}>+ Add</Btn>
+                }/>
+                {(!life.plannedNeeds || life.plannedNeeds.length === 0) ? (
+                  <p className="text-gray-500 text-sm text-center py-8">No planned needs yet. Add one to start budgeting.</p>
+                ) : (
+                  <div className="space-y-4 px-4 pb-4">
+                    {life.plannedNeeds.map(pn => {
+                      const pct = pn.target_amount > 0 ? Math.min(100, (pn.saved_amount || 0) / pn.target_amount * 100) : 0;
+                      return (
+                        <div key={pn.id}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="font-medium text-white">{pn.category}</span>
+                            <span className="text-gray-500">${(pn.saved_amount||0).toFixed(0)} / ${pn.target_amount?.toFixed(0)}</span>
+                          </div>
+                          <ProgressBar pct={pct} color={pct>=100?'bg-green-500':'bg-blue-500'} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
 
         {/* ═══════ HOME TAB ═══════ */}
         {tab==='home' && (<>
