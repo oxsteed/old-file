@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
+import { useSocket } from '../../hooks/useSocket';
 import {
   Inbox, MessageSquare, User, Clock, AlertTriangle, CheckCircle,
   ChevronRight, Search, Filter, RefreshCw, Lock, Unlock,
@@ -390,6 +391,7 @@ export default function SupportTickets() {
   const [tickets,     setTickets]     = useState([]);
   const [stats,       setStats]       = useState(null);
   const [total,       setTotal]       = useState(0);
+    const { socket } = useSocket();
   const [loading,     setLoading]     = useState(true);
   const [selected,    setSelected]    = useState(null);
   const [showDetail,  setShowDetail]  = useState(false);
@@ -422,17 +424,14 @@ export default function SupportTickets() {
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
-  // Listen for real-time admin events
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.detail && ['support:new_ticket', 'support:ticket_updated',
-                        'support:ticket_claimed', 'support:user_reply'].includes(e.detail.event)) {
-        loadTickets();
-      }
-    };
-    window.addEventListener('socket:event', handler);
-    return () => window.removeEventListener('socket:event', handler);
-  }, [loadTickets]);
+    // Listen for real-time admin events via socket.io
+    useEffect(() => {
+      if (!socket) return;
+      const events = ['support:new_ticket', 'support:ticket_updated', 'support:ticket_claimed', 'support:user_reply'];
+      const handler = () => loadTickets();
+      events.forEach(evt => socket.on(evt, handler));
+      return () => events.forEach(evt => socket.off(evt, handler));
+    }, [socket, loadTickets]);
 
   const openTicket = (ticket) => {
     setSelected(ticket.id);
