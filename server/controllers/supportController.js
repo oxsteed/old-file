@@ -584,16 +584,22 @@ exports.adminReply = async (req, res) => {
 
     // Build UPDATE SET clause
     const sets = ['updated_at = NOW()'];
-    if (!ticket.first_response_at && !is_internal) sets.push('first_response_at = NOW()');
-    if (!is_internal && ticket.status === 'assigned') sets.push(`status = 'in_progress'`);
-    if (!is_internal && ticket.status === 'in_progress') sets.push(`status = 'waiting_user'`);
-    if (!ticket.assigned_to) {
-      sets.push(`assigned_to = '${req.user.id}'`, `assigned_at = NOW()`);
-      if (ticket.status === 'open') sets.push(`status = 'in_progress'`);
-    }
-    await db.query(
-      `UPDATE support_tickets SET ${sets.join(', ')} WHERE id = $1`,
-      [ticket.id]
+      const updateParams = [];
+      let paramIdx = 1;
+      if (!ticket.first_response_at && !is_internal) sets.push('first_response_at = NOW()');
+      if (!is_internal && ticket.status === 'assigned') sets.push(`status = 'in_progress'`);
+      if (!is_internal && ticket.status === 'in_progress') sets.push(`status = 'waiting_user'`);
+      if (!ticket.assigned_to) {
+        sets.push(`assigned_to = $${paramIdx++}`);
+        updateParams.push(req.user.id);
+        sets.push(`assigned_at = NOW()`);
+        if (ticket.status === 'open') sets.push(`status = 'in_progress'`);
+      }
+            updateParams.push(ticket.id);
+      await db.query(
+        `UPDATE support_tickets SET ${sets.join(', ')} WHERE id = $${paramIdx}`,
+        updateParams
+      )
     );
 
     if (!is_internal) {
