@@ -399,6 +399,7 @@ export default function Dashboard() {
   useEffect(() => {
     retryLoad();
     life.fetchSummary();
+    life.fetchFinancialPulse('1m'); // dashboard default: 30-day horizon
     life.fetchCommunity();
     life.fetchExpenses();
     life.fetchBudgets();
@@ -542,48 +543,68 @@ export default function Dashboard() {
               <span>Some data failed to load. <button onClick={retryLoad} className="underline hover:text-red-300">Retry</button></span>
             </div>
           )}
-          {/* Life Pulse Score */}
-          {s?.pulse_score !== undefined && (
-            <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-6">
-                <div className="relative w-20 h-20">
-                  <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-                    <circle cx="40" cy="40" r="34" fill="none" stroke="#1f2937" strokeWidth="6"/>
-                    <circle cx="40" cy="40" r="34" fill="none" stroke="#F97316" strokeWidth="6"
-                      strokeDasharray={`${(s.pulse_score / 100) * 213.6} 213.6`} strokeLinecap="round"
-                      className="transition-all duration-1000"/>
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-orange-400">{s.pulse_score}</span>
+          {/* Life Pulse Score — powered by the unified engine (30-day horizon) */}
+          {life.financialPulse && (() => {
+            const fp = life.financialPulse;
+            const score = fp.pulse_score;
+            const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
+            const breakdown = fp.score_breakdown || {};
+            return (
+              <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                  {/* Score ring + description */}
+                  <div className="flex items-center gap-6">
+                    <div className="relative w-20 h-20 shrink-0">
+                      <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+                        <circle cx="40" cy="40" r="34" fill="none" stroke="#1f2937" strokeWidth="6"/>
+                        <circle cx="40" cy="40" r="34" fill="none" stroke={scoreColor} strokeWidth="6"
+                          strokeDasharray={`${(score / 100) * 213.6} 213.6`} strokeLinecap="round"
+                          className="transition-all duration-1000"/>
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-bold" style={{ color: scoreColor }}>{score}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-0.5">Financial Pulse</p>
+                      <p className="text-[10px] text-gray-600 mb-1">Next 30 days</p>
+                      <p className="text-sm text-gray-400 max-w-xs">
+                        {score >= 80 ? 'Strong coverage, solid runway, reliable income.' :
+                         score >= 60 ? 'Good shape — watch sinking funds and upcoming expenses.' :
+                         score >= 40 ? 'Some gaps. Review coverage and buffer strength.' :
+                         'Needs attention. Income may not cover near-term obligations.'}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Breakdown */}
+                  <div className="grid grid-cols-4 gap-3 shrink-0">
+                    {[
+                      { l: 'Coverage',    v: breakdown.coverage,    c: 'text-emerald-400' },
+                      { l: 'Buffer',      v: breakdown.buffer,      c: 'text-blue-400'    },
+                      { l: 'Reliability', v: breakdown.reliability, c: 'text-purple-400'  },
+                      { l: 'Obligations', v: breakdown.obligations, c: 'text-orange-400'  },
+                    ].map((d, i) => (
+                      <div key={i} className="text-center">
+                        <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '—'}</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-1">Life Pulse Score</p>
-                  <p className="text-sm text-gray-400 max-w-xs">
-                    {s.pulse_score >= 80 ? "You're crushing it. Finances, goals, and home are all in great shape." :
-                     s.pulse_score >= 60 ? "Good momentum. A few areas could use attention — check your goals and home tasks." :
-                     s.pulse_score >= 40 ? "Room to grow. Focus on logging expenses and tackling overdue items." :
-                     "Let's get started. Add some goals and expenses to get your pulse moving."}
-                  </p>
-                </div>
+                {/* Alerts */}
+                {fp.alerts?.length > 0 && (
+                  <div className="mt-4 space-y-1.5 border-t border-gray-700/40 pt-4">
+                    {fp.alerts.map((alert, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-yellow-400">
+                        <span className="shrink-0 mt-0.5">⚠</span>
+                        <span>{alert}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              {s.pulse_breakdown && (
-                <div className="grid grid-cols-4 gap-4">
-                  {[
-                    {l:'Finances',v:s.pulse_breakdown.finances,c:'text-emerald-400'},
-                    {l:'Goals',v:s.pulse_breakdown.goals,c:'text-purple-400'},
-                    {l:'Home',v:s.pulse_breakdown.home,c:'text-blue-400'},
-                    {l:'Activity',v:s.pulse_breakdown.activity,c:'text-orange-400'},
-                  ].map((d,i)=>(
-                    <div key={i} className="text-center">
-                      <p className={`text-lg font-bold ${d.c}`}>{d.v}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            );
+          })()}
 
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

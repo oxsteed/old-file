@@ -1,6 +1,13 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/lifeDashboardController');
+const pulseCtrl = require('../controllers/lifePulseController');
+
+// ── Unified Life Pulse engine ────────────────────────────────────────────
+// GET /api/life/pulse?window=1m   (dashboard default)
+// GET /api/life/pulse?window=3m   (planned-needs default)
+// Valid windows: 1w 2w 1m 3m 6m 1y 5y 10y
+router.get('/pulse', authenticate, pulseCtrl.getLifePulse);
 
 // ── Dashboard summary (one-shot load) ────────────────────────────────────
 router.get('/summary', authenticate, ctrl.getDashboardSummary);

@@ -18,6 +18,20 @@ export default function useLifeDashboard() {
     }
   }, []);
 
+  // ── Unified Life Pulse engine ─────────────────────────────────────────
+  // window: '1w'|'2w'|'1m'|'3m'|'6m'|'1y'|'5y'|'10y'
+  const [financialPulse, setFinancialPulse] = useState(null);
+
+  const fetchFinancialPulse = useCallback(async (window = '1m') => {
+    try {
+      const { data } = await api.get(`/life/pulse?window=${window}`);
+      setFinancialPulse(data);
+      return data;
+    } catch (err) {
+      console.error('fetchFinancialPulse error:', err);
+    }
+  }, []);
+
   // ── Community stats ─────────────────────────────────────────────────
   const [community, setCommunity] = useState(null);
 
@@ -228,6 +242,9 @@ export default function useLifeDashboard() {
 
     // Summary
     summary, fetchSummary,
+
+    // Financial Pulse (unified engine)
+    financialPulse, fetchFinancialPulse,
 
     // Community
     community, fetchCommunity,

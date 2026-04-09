@@ -8,6 +8,7 @@ import '../styles/PlannedNeedsPage.css';
 
 // ── constants ──────────────────────────────────────────────────────────────
 const WINDOWS = ['1w','2w','1m','3m','6m','1y','5y','10y'];
+const DEFAULT_WINDOW = '3m';
 const WINDOW_LABELS = {
   '1w':'1 Week','2w':'2 Weeks','1m':'1 Month','3m':'3 Months',
   '6m':'6 Months','1y':'1 Year','5y':'5 Years','10y':'10 Years',
@@ -65,7 +66,7 @@ export default function PlannedNeedsPage() {
   const [needs, setNeeds] = useState([]);
   const [projection, setProjection] = useState(null);
   const [savedHelpers, setSavedHelpers] = useState([]);
-  const [window_, setWindow] = useState('1m');
+  const [window_, setWindow] = useState(DEFAULT_WINDOW);
   const [loading, setLoading] = useState(true);
   const [projLoading, setProjLoading] = useState(false);
 
@@ -87,7 +88,7 @@ export default function PlannedNeedsPage() {
   const loadProjection = useCallback(async (win) => {
     setProjLoading(true);
     try {
-      const { data } = await api.get(`/planned-needs/projection?window=${win}`);
+      const { data } = await api.get(`/life/pulse?window=${win}`);
       setProjection(data);
     } catch (e) { console.error(e); }
     finally { setProjLoading(false); }
@@ -222,6 +223,46 @@ export default function PlannedNeedsPage() {
             <p style={{ color:'var(--muted-text)', textAlign:'center', padding:'1rem 0' }}>Loading projection…</p>
           ) : projection ? (
             <>
+              {/* Score badge */}
+              {projection.pulse_score !== undefined && (() => {
+                const score = projection.pulse_score;
+                const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
+                const bd = projection.score_breakdown || {};
+                return (
+                  <div className="pn-pulse-score-row">
+                    <div className="pn-pulse-ring">
+                      <svg width="56" height="56" viewBox="0 0 56 56" style={{ transform:'rotate(-90deg)' }}>
+                        <circle cx="28" cy="28" r="23" fill="none" stroke="var(--border-color)" strokeWidth="4"/>
+                        <circle cx="28" cy="28" r="23" fill="none" stroke={scoreColor} strokeWidth="4"
+                          strokeDasharray={`${(score / 100) * 144.5} 144.5`} strokeLinecap="round"
+                          style={{ transition:'stroke-dasharray 0.8s ease' }}/>
+                      </svg>
+                      <span className="pn-pulse-ring-score" style={{ color: scoreColor }}>{score}</span>
+                    </div>
+                    <div className="pn-pulse-bd">
+                      {[
+                        { l:'Coverage',    v: bd.coverage },
+                        { l:'Buffer',      v: bd.buffer },
+                        { l:'Reliability', v: bd.reliability },
+                        { l:'Obligations', v: bd.obligations },
+                      ].map((d, i) => (
+                        <div key={i} className="pn-pulse-bd-item">
+                          <span className="pn-pulse-bd-val">{d.v ?? '—'}</span>
+                          <span className="pn-pulse-bd-label">{d.l}</span>
+                        </div>
+                      ))}
+                      {projection.runway_months !== null && projection.runway_months !== undefined && (
+                        <div className="pn-pulse-bd-item">
+                          <span className="pn-pulse-bd-val">{projection.runway_months}mo</span>
+                          <span className="pn-pulse-bd-label">Runway</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Financial metrics grid */}
               <div className="pn-projection-grid">
                 <div className="pn-proj-stat">
                   <div className="label">Projected Income</div>
@@ -258,9 +299,22 @@ export default function PlannedNeedsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Alerts */}
+              {projection.alerts?.length > 0 && (
+                <div className="pn-alerts">
+                  {projection.alerts.map((alert, i) => (
+                    <div key={i} className="pn-alert-item">
+                      <span className="pn-alert-icon">⚠</span>
+                      <span>{alert}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <p className="pn-proj-note">
-                Income &amp; expenses based on your last 90 days. Sinking funds:
-                <em> (cost − reserved) ÷ days remaining × {WINDOW_LABELS[window_]}</em>.
+                Income &amp; expenses based on your last 90 days, including settled OxSteed job earnings.
+                Sinking funds: <em>(cost − reserved) ÷ days remaining × {WINDOW_LABELS[window_]}</em>.
               </p>
             </>
           ) : (
