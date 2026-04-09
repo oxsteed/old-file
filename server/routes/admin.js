@@ -20,6 +20,7 @@ router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
 
 // Jobs (read + moderate — all admins)
 router.get('/jobs',                    requireAdmin,      superCtrl.getJobs);
+router.get('/jobs/:jobId',             requireAdmin,      superCtrl.getJobDetail);
 router.post('/jobs/:jobId/action',     requireAdmin,      superCtrl.forceJobAction);
 // Hard delete — super admin only
 router.delete('/jobs/:jobId',          requireSuperAdmin, superCtrl.deleteJob);
@@ -110,6 +111,9 @@ router.get('/permission-grants',          requireAdmin,      permCtrl.listGrants
 router.get('/permission-scopes',          requireAdmin,      permCtrl.getScopes);
 router.post('/super/permission-grants',   requireSuperAdmin, permCtrl.createGrant);
 router.delete('/super/permission-grants/:id', requireSuperAdmin, permCtrl.revokeGrant);
+
+// Create regular user — super-admin, or admin with create_users grant
+router.post('/super/users', requireAdmin, requirePermission('create_users'), superCtrl.createUser);
 
 // ══════════════════════════════════════════════════════════════
 // ADMIN → USER LIVE MESSAGING (super-admin only)
