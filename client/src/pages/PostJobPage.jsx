@@ -1242,9 +1242,8 @@ export default function PostJobPage() {
                     placeholder="Parking, access instructions, existing quotes, anything a helper should know…"
                     value={form.notes} onChange={e => set({ notes: e.target.value })} />
                 </div>
-              </div>
 
-                                              {/* Scheduling (future date) */}
+                {/* Scheduling (future date) */}
             <div className="pjw-field">
               <label>Schedule for Later <span className="hint">Optional</span></label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1307,6 +1306,7 @@ export default function PostJobPage() {
                 placeholder="Personal reminders, budget notes, etc."
                 value={form.privateNotes} onChange={e => set({ privateNotes: e.target.value })} />
             </div>
+              </div>
             )}
 
             {/* ═══ STEP 4 — Review & Post ══════════════════════════════ */}
