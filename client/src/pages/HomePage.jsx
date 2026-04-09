@@ -144,143 +144,315 @@ function useLiveBidsPreview() {
   return { preview: data, newCount };
 }
 
-/** Homepage search bar with live skill autocomplete */
+const SEARCH_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+);
+const PIN_ICON = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+  </svg>
+);
+const CLEAR_ICON = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+/**
+ * Homepage search bar — v2
+ *
+ * Features:
+ *  1. Mode toggle: "Find a Helper" navigates /helpers; "Browse Jobs" navigates /jobs
+ *  2. Location field with autocomplete from /api/geo/suggest; auto-detects via
+ *     browser geolocation (defaults to 60-mile radius)
+ *  3. "Available today" quick-toggle pill
+ *  4. Live DB skill autocomplete from /api/helpers/skills, falls back to
+ *     the hardcoded SKILL_TILES list
+ */
 function HomeSearch() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const inputRef = useRef(null);
-  const listRef = useRef(null);
 
-  // Filter SKILL_TILES based on query
+  // ── Mode ──────────────────────────────────────────────────────────────────
+  const [mode, setMode] = useState('helpers'); // 'helpers' | 'jobs'
+
+  // ── Query / skill autocomplete ────────────────────────────────────────────
+  const [query, setQuery]             = useState('');
+  const [skillSugg, setSkillSugg]     = useState([]);
+  const [skillsOpen, setSkillsOpen]   = useState(false);
+  const [skillIdx, setSkillIdx]       = useState(-1);
+
+  // ── Location ──────────────────────────────────────────────────────────────
+  const [locInput, setLocInput]       = useState('');
+  const [locCoords, setLocCoords]     = useState({ lat: null, lng: null });
+  const [locSugg, setLocSugg]         = useState([]);
+  const [locOpen, setLocOpen]         = useState(false);
+
+  // ── Available today toggle ────────────────────────────────────────────────
+  const [availToday, setAvailToday]   = useState(false);
+
+  const wrapRef     = useRef(null);
+  const queryRef    = useRef(null);
+  const locInputRef = useRef(null);
+
+  // ── Geolocation on mount (helpers mode) ──────────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords: { latitude: lat, longitude: lng } }) => {
+        setLocCoords({ lat, lng });
+        try {
+          const { data } = await api.get('/geo/reverse', { params: { lat, lng } });
+          setLocInput(data.display || 'Near you');
+        } catch {
+          setLocInput('Near you');
+        }
+      },
+      () => {},            // silently ignore denied / unavailable
+      { timeout: 5000, maximumAge: 600000 },
+    );
+  }, []);
+
+  // ── Skill autocomplete: instant local + deferred DB ───────────────────────
   useEffect(() => {
     const q = query.trim().toLowerCase();
-    if (!q) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
-    const matches = SKILL_TILES.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.desc.toLowerCase().includes(q) ||
-        t.slug.includes(q)
+    if (!q) { setSkillSugg([]); setSkillsOpen(false); return; }
+
+    const local = SKILL_TILES.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q) || t.slug.includes(q),
     );
-    setSuggestions(matches);
-    setOpen(matches.length > 0);
-    setActiveIdx(-1);
+    if (local.length) { setSkillSugg(local.slice(0, 8)); setSkillsOpen(true); }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get('/helpers/skills', { params: { q, limit: 8 } });
+        if (cancelled) return;
+        const dbSkills = (data.skills || []).map((s) => ({
+          slug: s.name.toLowerCase().replace(/[\s/]+/g, '-'),
+          icon: '🔍',
+          name: s.name,
+          desc: s.category || '',
+          fromDb: true,
+        }));
+        const dbNames = new Set(dbSkills.map((s) => s.name.toLowerCase()));
+        const combined = [
+          ...dbSkills,
+          ...local.filter((s) => !dbNames.has(s.name.toLowerCase())),
+        ].slice(0, 8);
+        setSkillSugg(combined);
+        setSkillsOpen(combined.length > 0);
+        setSkillIdx(-1);
+      } catch { /* keep local suggestions */ }
+    }, 220);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [query]);
+
+  // ── Location autocomplete ─────────────────────────────────────────────────
+  useEffect(() => {
+    const q = locInput.trim();
+    // Don't re-fetch if the value matches the already-resolved label
+    if (!q || q.length < 2 || (locCoords.lat !== null)) {
+      setLocSugg([]); setLocOpen(false); return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get('/geo/suggest', { params: { q } });
+        if (cancelled) return;
+        setLocSugg(data || []);
+        setLocOpen((data || []).length > 0);
+      } catch {}
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [locInput, locCoords.lat]);
+
+  // ── Close all dropdowns on outside click ──────────────────────────────────
+  useEffect(() => {
+    function handler(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setSkillsOpen(false);
+        setLocOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ── Helpers: build URLSearchParams from current state ─────────────────────
+  function buildHelperParams(overrideSlug) {
+    const p = new URLSearchParams();
+    if (overrideSlug) {
+      p.set('skill', overrideSlug);
+    } else if (skillIdx >= 0 && skillSugg[skillIdx]) {
+      p.set('skill', skillSugg[skillIdx].slug);
+    } else if (query.trim()) {
+      p.set('q', query.trim());
+    }
+    if (locCoords.lat !== null && locCoords.lng !== null) {
+      p.set('lat', locCoords.lat.toFixed(6));
+      p.set('lng', locCoords.lng.toFixed(6));
+      p.set('radius', '60');
+    }
+    if (availToday) p.set('availableToday', 'true');
+    return p;
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    // If an active suggestion is selected use that slug, otherwise free-text search
-    if (activeIdx >= 0 && suggestions[activeIdx]) {
-      navigate(`/helpers?skill=${suggestions[activeIdx].slug}`);
-    } else {
-      navigate(`/helpers?q=${encodeURIComponent(q)}`);
+    setSkillsOpen(false);
+    setLocOpen(false);
+    if (mode === 'jobs') {
+      const q = query.trim();
+      navigate(`/jobs${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+      return;
     }
-    setOpen(false);
+    navigate(`/helpers?${buildHelperParams().toString()}`);
   }
 
-  function handleKeyDown(e) {
-    if (!open) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIdx((i) => Math.max(i - 1, -1));
-    } else if (e.key === 'Escape') {
-      setOpen(false);
-      setActiveIdx(-1);
-    } else if (e.key === 'Enter' && activeIdx >= 0) {
-      e.preventDefault();
-      navigate(`/helpers?skill=${suggestions[activeIdx].slug}`);
-      setQuery(suggestions[activeIdx].name);
-      setOpen(false);
-    }
-  }
-
-  function handleSelect(tile) {
-    navigate(`/helpers?skill=${tile.slug}`);
+  function handleSelectSkill(tile) {
+    navigate(`/helpers?${buildHelperParams(tile.slug).toString()}`);
     setQuery('');
-    setOpen(false);
+    setSkillsOpen(false);
   }
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    function onOutside(e) {
-      if (inputRef.current && !inputRef.current.closest('.hp-search-wrap').contains(e.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onOutside);
-    return () => document.removeEventListener('mousedown', onOutside);
-  }, []);
+  function handleSelectLocation(loc) {
+    setLocInput(loc.display);
+    setLocCoords({ lat: loc.lat, lng: loc.lng });
+    setLocSugg([]);
+    setLocOpen(false);
+  }
+
+  function handleQueryKeyDown(e) {
+    if (!skillsOpen) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSkillIdx((i) => Math.min(i + 1, skillSugg.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSkillIdx((i) => Math.max(i - 1, -1)); }
+    else if (e.key === 'Escape') { setSkillsOpen(false); setSkillIdx(-1); }
+    else if (e.key === 'Enter' && skillIdx >= 0) { e.preventDefault(); handleSelectSkill(skillSugg[skillIdx]); }
+  }
 
   return (
-    <div className="hp-search-wrap" role="search">
+    <div className="hp-search-wrap" ref={wrapRef} role="search">
+
+      {/* ── Mode tabs ─────────────────────────────────────────────────────── */}
+      <div className="hp-search-tabs" role="tablist" aria-label="Search mode">
+        <button
+          type="button" role="tab" aria-selected={mode === 'helpers'}
+          className={`hp-search-tab${mode === 'helpers' ? ' hp-search-tab--active' : ''}`}
+          onClick={() => setMode('helpers')}
+        >
+          Find a Helper
+        </button>
+        <button
+          type="button" role="tab" aria-selected={mode === 'jobs'}
+          className={`hp-search-tab${mode === 'jobs' ? ' hp-search-tab--active' : ''}`}
+          onClick={() => setMode('jobs')}
+        >
+          Browse Jobs
+        </button>
+      </div>
+
+      {/* ── Search form ───────────────────────────────────────────────────── */}
       <form className="hp-search-form" onSubmit={handleSubmit} autoComplete="off">
-        <label htmlFor="hp-search-input" className="sr-only">Search for a service or skill</label>
-        <span className="hp-search-icon" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-        </span>
-        <input
-          ref={inputRef}
-          id="hp-search-input"
-          className="hp-search-input"
-          type="text"
-          placeholder="What do you need done? e.g. plumbing, lawn care…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
-          onKeyDown={handleKeyDown}
-          aria-autocomplete="list"
-          aria-controls="hp-search-suggestions"
-          aria-activedescendant={activeIdx >= 0 ? `hp-sugg-${activeIdx}` : undefined}
-          aria-expanded={open}
-        />
-        {query && (
+
+        {/* Query field */}
+        <div className="hp-search-field hp-search-field--query">
+          <span className="hp-search-icon">{SEARCH_ICON}</span>
+          <label htmlFor="hp-search-input" className="sr-only">
+            {mode === 'helpers' ? 'Search for a service or skill' : 'Search jobs'}
+          </label>
+          <input
+            ref={queryRef}
+            id="hp-search-input"
+            className="hp-search-input"
+            type="text"
+            placeholder={mode === 'helpers' ? 'e.g. plumbing, lawn care…' : 'Search jobs by keyword…'}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => skillSugg.length > 0 && setSkillsOpen(true)}
+            onKeyDown={handleQueryKeyDown}
+            aria-autocomplete="list"
+            aria-controls="hp-skill-sugg"
+            aria-activedescendant={skillIdx >= 0 ? `hp-sugg-${skillIdx}` : undefined}
+            aria-expanded={skillsOpen}
+          />
+          {query && (
+            <button type="button" className="hp-search-clear" aria-label="Clear search"
+              onClick={() => { setQuery(''); setSkillsOpen(false); queryRef.current?.focus(); }}>
+              {CLEAR_ICON}
+            </button>
+          )}
+        </div>
+
+        {/* Location field — helpers mode only */}
+        {mode === 'helpers' && (
+          <div className="hp-search-field hp-search-field--loc">
+            <span className="hp-search-icon">{PIN_ICON}</span>
+            <input
+              ref={locInputRef}
+              className="hp-search-input"
+              type="text"
+              placeholder="City or ZIP"
+              value={locInput}
+              onChange={(e) => { setLocInput(e.target.value); setLocCoords({ lat: null, lng: null }); }}
+              onFocus={() => locSugg.length > 0 && setLocOpen(true)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setLocOpen(false); }}
+              aria-label="Location"
+              aria-autocomplete="list"
+              aria-expanded={locOpen}
+            />
+            {locInput && (
+              <button type="button" className="hp-search-clear" aria-label="Clear location"
+                onClick={() => { setLocInput(''); setLocCoords({ lat: null, lng: null }); setLocSugg([]); setLocOpen(false); locInputRef.current?.focus(); }}>
+                {CLEAR_ICON}
+              </button>
+            )}
+            {locOpen && locSugg.length > 0 && (
+              <ul className="hp-search-suggestions hp-loc-suggestions" role="listbox" aria-label="Location suggestions">
+                {locSugg.map((loc, i) => (
+                  <li key={i} role="option" className="hp-search-suggestion" onMouseDown={() => handleSelectLocation(loc)}>
+                    <span className="hp-sugg-icon">📍</span>
+                    <span className="hp-sugg-text">
+                      <span className="hp-sugg-name">{loc.display}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Available today toggle — helpers mode only */}
+        {mode === 'helpers' && (
           <button
             type="button"
-            className="hp-search-clear"
-            aria-label="Clear search"
-            onClick={() => { setQuery(''); setOpen(false); inputRef.current?.focus(); }}
+            className={`hp-avail-toggle${availToday ? ' hp-avail-toggle--on' : ''}`}
+            onClick={() => setAvailToday((t) => !t)}
+            aria-pressed={availToday}
+            title="Show only helpers available today"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            <span className={`hp-avail-dot${availToday ? ' hp-avail-dot--on' : ''}`} aria-hidden="true" />
+            Today
           </button>
         )}
+
         <button type="submit" className="hp-btn hp-btn-primary hp-search-btn">
-          Search
+          {mode === 'jobs' ? 'Find Jobs' : 'Search'}
         </button>
       </form>
 
-      {open && (
-        <ul
-          id="hp-search-suggestions"
-          className="hp-search-suggestions"
-          ref={listRef}
-          role="listbox"
-          aria-label="Skill suggestions"
-        >
-          {suggestions.map((tile, i) => (
+      {/* ── Skill suggestions dropdown ────────────────────────────────────── */}
+      {skillsOpen && skillSugg.length > 0 && (
+        <ul id="hp-skill-sugg" className="hp-search-suggestions" role="listbox" aria-label="Skill suggestions">
+          {skillSugg.map((tile, i) => (
             <li
-              key={tile.slug}
+              key={`${tile.slug}-${i}`}
               id={`hp-sugg-${i}`}
               role="option"
-              aria-selected={i === activeIdx}
-              className={`hp-search-suggestion${i === activeIdx ? ' hp-search-suggestion--active' : ''}`}
-              onMouseDown={() => handleSelect(tile)}
+              aria-selected={i === skillIdx}
+              className={`hp-search-suggestion${i === skillIdx ? ' hp-search-suggestion--active' : ''}`}
+              onMouseDown={() => handleSelectSkill(tile)}
             >
               <span className="hp-sugg-icon">{tile.icon}</span>
               <span className="hp-sugg-text">

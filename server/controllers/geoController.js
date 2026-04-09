@@ -23,6 +23,52 @@ function cacheSet(key, value) {
 }
 
 /**
+ * GET /api/geo/reverse?lat=39.96&lng=-82.99
+ * Returns city + state for a lat/lng pair.
+ * Used by the homepage search to label a browser-detected location.
+ */
+exports.reverse = async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    if (isNaN(lat) || isNaN(lng)) return res.json({ city: '', state: '', display: '' });
+
+    if (!GOOGLE_MAPS_KEY) {
+      return res.json({ city: '', state: '', display: '' });
+    }
+
+    const cacheKey = `rev:${lat.toFixed(4)},${lng.toFixed(4)}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { data } = await axios.get(GEOCODE_BASE, {
+      params: { latlng: `${lat},${lng}`, result_type: 'locality', key: GOOGLE_MAPS_KEY },
+      timeout: 5000,
+    });
+
+    if (data.status !== 'OK' || !data.results?.length) {
+      return res.json({ city: '', state: '', display: '' });
+    }
+
+    const r = data.results[0];
+    const components = r.address_components || [];
+    const get  = (type) => components.find(c => c.types.includes(type))?.long_name  || '';
+    const getS = (type) => components.find(c => c.types.includes(type))?.short_name || '';
+
+    const city  = get('locality') || get('sublocality') || get('neighborhood') || '';
+    const state = getS('administrative_area_level_1') || '';
+    const display = city && state ? `${city}, ${state}` : city || state || '';
+
+    const result = { city, state, display };
+    cacheSet(cacheKey, result);
+    return res.json(result);
+  } catch (err) {
+    console.error('Geo reverse error:', err.message);
+    return res.json({ city: '', state: '', display: '' });
+  }
+};
+
+/**
  * GET /api/geo/suggest?q=Springfield%2C+OH
  * Returns up to 5 US location matches for a free-text query.
  * Used by the Post Job wizard to geocode the location input on blur.

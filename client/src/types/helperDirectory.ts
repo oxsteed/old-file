@@ -194,6 +194,9 @@ export interface DirectoryFilters {
   /** miles; 0 = any */
   maxDistance: number;
   zipCode: string;
+  /** Coordinates from browser geolocation or a geocoded location input */
+  lat: number | null;
+  lng: number | null;
   availableToday: boolean;
   backgroundChecked: boolean;
   verified: boolean;
@@ -209,6 +212,8 @@ export const DEFAULT_FILTERS: DirectoryFilters = {
   priceRange: null,
   maxDistance: 60,
   zipCode: '',
+  lat: null,
+  lng: null,
   availableToday: false,
   backgroundChecked: false,
   verified: false,

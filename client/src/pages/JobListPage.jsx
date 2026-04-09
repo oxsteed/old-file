@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import TrustKeys from '../components/TrustKeys';
@@ -60,19 +60,21 @@ export default function JobListPage() {
   const { jobs, loading, error, pagination, fetchJobs } = useJobs();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Default state filter to logged-in helper's state (persisted in localStorage)
   const defaultState = user?.role === 'helper' && user?.state
     ? user.state
     : (localStorage.getItem('jlp_state_filter') || '');
 
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState(() => ({
+    q: searchParams.get('q') || '',
     category: '',
     city: '',
     state: defaultState,
     sort: 'newest',
     page: 1,
-  });
+  }));
   const [tourView, setTourView] = useState('customer');
 
   useEffect(() => {
@@ -104,6 +106,15 @@ export default function JobListPage() {
 
           {/* Filter Bar */}
           <div className="jlp-filter-bar">
+            <input
+              type="search"
+              className="ox-input"
+              placeholder="Search jobs by keyword…"
+              value={filters.q}
+              onChange={e => handleFilter('q', e.target.value)}
+              aria-label="Search jobs"
+            />
+
             <select
               className="ox-select"
               value={filters.category}

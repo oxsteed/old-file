@@ -169,7 +169,7 @@
 .hp-search-wrap {
   position: relative;
   width: 100%;
-  max-width: 540px;
+  max-width: 680px;
   margin-bottom: 0;
   z-index: 10;
 }
@@ -311,6 +311,146 @@
 }
 .hp-search-suggestion:hover .hp-sugg-arrow,
 .hp-search-suggestion--active .hp-sugg-arrow { opacity: 1; color: var(--hp-primary); }
+
+/* ── Search v2: mode tabs ────────────────────────────────── */
+.hp-search-tabs {
+  display: flex;
+  gap: .25rem;
+  margin-bottom: .5rem;
+}
+
+.hp-search-tab {
+  padding: .3rem .9rem;
+  border-radius: var(--hp-radius-full);
+  border: 1.5px solid transparent;
+  background: transparent;
+  font-family: var(--hp-font-body);
+  font-size: .8125rem;
+  font-weight: 600;
+  color: var(--hp-text-muted);
+  cursor: pointer;
+  transition: background var(--hp-tr), color var(--hp-tr), border-color var(--hp-tr);
+}
+.hp-search-tab:hover { color: var(--hp-text); background: var(--hp-bg-alt); }
+.hp-search-tab--active {
+  background: var(--hp-primary-bg);
+  border-color: var(--hp-primary);
+  color: var(--hp-primary);
+}
+
+/* ── Search v2: multi-field form ─────────────────────────── */
+.hp-search-form {
+  flex-wrap: wrap; /* allow location row below on small screens */
+  padding: .3rem;
+  gap: 0;
+}
+
+/* Each input field within the form */
+.hp-search-field {
+  display: flex;
+  align-items: center;
+  flex: 3;
+  min-width: 0;
+  padding: 0 .5rem 0 .875rem;
+  position: relative;
+}
+.hp-search-field--query {
+  border-right: 1.5px solid var(--hp-divider);
+}
+.hp-search-field--loc {
+  flex: 2;
+  min-width: 120px;
+  border-right: 1.5px solid var(--hp-divider);
+}
+
+/* The search icon is now inside each field */
+.hp-search-field .hp-search-icon {
+  flex-shrink: 0;
+  margin-right: .375rem;
+}
+.hp-search-field .hp-search-input {
+  padding: .5rem 0;
+}
+.hp-search-field .hp-search-clear {
+  margin-left: .25rem;
+}
+
+/* Location suggestions positioned inside the loc field */
+.hp-loc-suggestions {
+  top: calc(100% + .25rem);
+  left: -.875rem;
+  right: -1.5rem;
+  min-width: 220px;
+}
+
+/* ── Search v2: Available today toggle ───────────────────── */
+.hp-avail-toggle {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .45rem .75rem;
+  margin: 0 .25rem;
+  border-radius: var(--hp-radius-full);
+  border: 1.5px solid transparent;
+  background: transparent;
+  font-family: var(--hp-font-body);
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--hp-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background var(--hp-tr), color var(--hp-tr), border-color var(--hp-tr);
+}
+.hp-avail-toggle:hover { background: var(--hp-bg-alt); color: var(--hp-text); }
+.hp-avail-toggle--on {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #065f46;
+}
+.dark .hp-avail-toggle--on {
+  background: rgba(16,185,129,.15);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.hp-avail-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hp-text-faint);
+  flex-shrink: 0;
+  transition: background var(--hp-tr);
+}
+.hp-avail-dot--on {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16,185,129,.25);
+}
+
+/* ── Responsive: stack fields on small screens ────────────── */
+@media (max-width: 560px) {
+  .hp-search-wrap { max-width: 100%; }
+
+  .hp-search-form {
+    flex-direction: column;
+    border-radius: var(--hp-radius-lg);
+    padding: .25rem;
+    gap: .25rem;
+  }
+
+  .hp-search-field,
+  .hp-search-field--loc {
+    width: 100%;
+    flex: none;
+    border-right: none;
+    border-bottom: 1.5px solid var(--hp-divider);
+    padding: .125rem .625rem;
+  }
+
+  .hp-avail-toggle { margin: .125rem .5rem; }
+
+  .hp-search-btn { width: 100%; justify-content: center; margin: .125rem .25rem .25rem; }
+}
 
 /* ── Sections ────────────────────────────────────────────── */
 .hp-section { padding: 5rem 0; }

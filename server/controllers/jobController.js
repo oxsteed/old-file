@@ -158,7 +158,7 @@ exports.createJob = async (req, res) => {
 exports.getJobs = async (req, res) => {
   try {
     const {
-      category, city, state, status,
+      category, city, state, status, q,
       min_budget, max_budget, sort,
       page = 1, limit = 20
     } = req.query;
@@ -167,6 +167,12 @@ exports.getJobs = async (req, res) => {
     let conditions = [`u.is_active = true`];
     let params = [];
     let paramIdx = 1;
+
+    if (q) {
+      conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx} OR j.category_name ILIKE $${paramIdx})`);
+      params.push(`%${q}%`);
+      paramIdx++;
+    }
 
     if (category) {
       conditions.push(`j.category_name = $${paramIdx++}`);
