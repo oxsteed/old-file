@@ -615,6 +615,34 @@ html:not(.dark) .focus\:border-orange-500:focus { border-color: #ea580c !importa
 html:not(.dark) ::placeholder { color: #94a3b8 !important; }
 html:not(.dark) .placeholder-gray-500::placeholder { color: #94a3b8 !important; }
 
+/* Admin panel — extra overrides for classes not covered above */
+html:not(.dark) .bg-gray-700  { background-color: #e2e8f0 !important; }
+html:not(.dark) .border-gray-600 { border-color: #cbd5e1 !important; }
+html:not(.dark) .hover\:bg-gray-600:hover { background-color: #cbd5e1 !important; }
+/* Status badge backgrounds */
+html:not(.dark) .bg-green-900  { background-color: #dcfce7 !important; }
+html:not(.dark) .bg-red-900    { background-color: #fee2e2 !important; }
+html:not(.dark) .bg-red-950    { background-color: #fff1f2 !important; }
+html:not(.dark) .bg-blue-900   { background-color: #dbeafe !important; }
+html:not(.dark) .bg-orange-900 { background-color: #ffedd5 !important; }
+html:not(.dark) .bg-purple-900 { background-color: #f3e8ff !important; }
+html:not(.dark) .bg-yellow-950 { background-color: #fefce8 !important; }
+html:not(.dark) .border-green-700  { border-color: #86efac !important; }
+html:not(.dark) .border-red-700    { border-color: #fca5a5 !important; }
+html:not(.dark) .border-red-800    { border-color: #fca5a5 !important; }
+html:not(.dark) .border-yellow-800 { border-color: #fde047 !important; }
+/* Badge text — WCAG contrast on light backgrounds */
+html:not(.dark) .text-green-300  { color: #15803d !important; }
+html:not(.dark) .text-red-300    { color: #b91c1c !important; }
+html:not(.dark) .text-blue-300   { color: #1d4ed8 !important; }
+html:not(.dark) .text-orange-300 { color: #c2410c !important; }
+html:not(.dark) .text-purple-300 { color: #7e22ce !important; }
+html:not(.dark) .text-yellow-400 { color: #a16207 !important; }
+html:not(.dark) .hover\:bg-red-950:hover { background-color: #fee2e2 !important; }
+html:not(.dark) .hover\:bg-red-800:hover { background-color: #fecaca !important; }
+html:not(.dark) .hover\:bg-green-800:hover { background-color: #bbf7d0 !important; }
+html:not(.dark) .hover\:bg-blue-800:hover  { background-color: #bfdbfe !important; }
+
 /* ═══════════════════════════════════════════════════════════════
    Utilities
    ═══════════════════════════════════════════════════════════════ */

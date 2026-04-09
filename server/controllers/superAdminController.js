@@ -123,22 +123,31 @@ exports.getUserDetail = async (req, res) => {
     const hasHP   = await tableExists('helper_profiles');
     const hasSubs = await tableExists('subscriptions');
     const hasPlan = hasSubs && await tableExists('plans');
+    const hasCA   = await tableExists('connect_accounts');
     const cols = ['u.*'];
     const joins = [];
     if (hasSubs) { joins.push("LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'"); cols.push('s.status AS sub_status, s.stripe_subscription_id, s.current_period_start, s.current_period_end, s.cancel_at_period_end'); }
     if (hasPlan) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); cols.push('p.slug AS plan_slug, p.name AS plan_name'); }
-    if (hasHP)   { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); cols.push('hp.bio_short, hp.bio_long, hp.avg_rating, hp.total_reviews, hp.completed_jobs_count, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.hourly_rate_min, hp.hourly_rate_max, hp.service_city, hp.service_state, hp.stripe_account_id, hp.stripe_charges_enabled, hp.stripe_payouts_enabled'); }
+    if (hasHP)   { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); cols.push('hp.bio_short, hp.bio_long, hp.avg_rating, hp.total_reviews, hp.completed_jobs_count, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.hourly_rate_min, hp.hourly_rate_max, hp.service_city, hp.service_state, hp.stripe_account_id AS hp_stripe_account_id, hp.stripe_charges_enabled AS hp_charges_enabled, hp.stripe_payouts_enabled AS hp_payouts_enabled'); }
+    // connect_accounts is the authoritative source for Stripe Connect status
+    if (hasCA)   { joins.push('LEFT JOIN connect_accounts ca ON ca.user_id = u.id'); cols.push('ca.stripe_account_id AS ca_stripe_account_id, ca.charges_enabled AS ca_charges_enabled, ca.payouts_enabled AS ca_payouts_enabled, ca.onboarding_complete AS ca_onboarding_complete'); }
     const { rows: userRows } = await db.query(`SELECT ${cols.join(', ')} FROM users u ${joins.join(' ')} WHERE u.id = $1`, [userId]);
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
 
     const raw = userRows[0];
-    // Normalize field names to match what the admin UI expects
+    // Normalize field names to match what the admin UI expects.
+    // connect_accounts is authoritative for Stripe Connect fields; fall back to
+    // helper_profiles for deployments that haven't migrated to connect_accounts.
     const user = {
       ...raw,
-      average_rating:   raw.avg_rating,
-      completed_jobs:   raw.completed_jobs_count,
-      charges_enabled:  raw.stripe_charges_enabled,
-      payouts_enabled:  raw.stripe_payouts_enabled,
+      avatar_url:          raw.profile_photo_url || null,
+      id_verified:         raw.identity_verified ?? raw.is_identity_verified ?? false,
+      stripe_account_id:   raw.ca_stripe_account_id   || raw.hp_stripe_account_id   || null,
+      charges_enabled:     raw.ca_charges_enabled      ?? raw.hp_charges_enabled      ?? false,
+      payouts_enabled:     raw.ca_payouts_enabled      ?? raw.hp_payouts_enabled      ?? false,
+      onboarding_complete: raw.ca_onboarding_complete  ?? false,
+      average_rating:      raw.avg_rating,
+      completed_jobs:      raw.completed_jobs_count,
     };
 
     let recentJobs = [], recentReviews = [], recentPayouts = [];
@@ -158,9 +167,10 @@ exports.getUserDetail = async (req, res) => {
     }
     if (await tableExists('payments')) {
       const r = await db.query(
-        `SELECT j.title AS job_title, p.created_at AS completed_at, p.helper_amount_cents AS net_to_helper_cents
+        `SELECT j.title AS job_title, p.created_at AS completed_at,
+                ROUND(COALESCE(p.helper_payout, 0) * 100)::INTEGER AS net_to_helper_cents
          FROM payments p JOIN jobs j ON p.job_id = j.id
-         WHERE p.helper_id = $1 AND p.status = 'captured'
+         WHERE p.payee_id = $1 AND p.status = 'captured'
          ORDER BY p.created_at DESC LIMIT 10`, [userId]);
       recentPayouts = r.rows;
     }

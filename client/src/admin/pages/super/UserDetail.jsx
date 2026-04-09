@@ -1,7 +1,8 @@
 import { useEffect, useState }  from 'react';
-import { useParams }            from 'react-router-dom';
+import { useParams, Link }      from 'react-router-dom';
 import { Shield, Ban, CheckCircle,
-         ExternalLink }         from 'lucide-react';
+         ExternalLink, AlertCircle,
+         ChevronLeft }          from 'lucide-react';
 import adminApi                 from '../../../lib/adminApi';
 import { useAuth }              from '../../../hooks/useAuth';
 
@@ -12,6 +13,7 @@ export default function UserDetail() {
   const isAdmin              = me?.role === 'admin' || me?.role === 'super_admin';
   const [data,    setData]   = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]  = useState(null);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState(null);
   const [nameForm, setNameForm] = useState({ first_name: '', last_name: '' });
@@ -20,12 +22,14 @@ export default function UserDetail() {
 
   const fetchUser = async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data: res } = await adminApi.get(`/admin/users/${userId}`);
       setData(res);
       setNameForm({ first_name: res.user?.first_name || '', last_name: res.user?.last_name || '' });
     } catch (err) {
-      console.error(err);
+      const msg = err.response?.data?.error || err.message || 'Failed to load user.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -92,32 +96,62 @@ export default function UserDetail() {
     <div className="p-8 text-center text-gray-500">Loading user...</div>
   );
 
-  if (!data) return (
-    <div className="p-8 text-center text-gray-500">User not found.</div>
+  if (error) return (
+    <div className="p-6 sm:p-8">
+      <div className="flex items-start gap-3 bg-red-950 border border-red-800
+                      rounded-xl p-4 text-red-300 max-w-lg">
+        <AlertCircle size={18} className="shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold text-sm">Failed to load user</p>
+          <p className="text-xs mt-1 text-red-400">{error}</p>
+          <button
+            onClick={fetchUser}
+            className="mt-3 text-xs underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    </div>
   );
+
+  if (!data) return null;
 
   const { user, recentJobs = [], recentPayouts = [], billing = [], recentReviews = [] } = data;
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-8 max-w-5xl">
+
+      {/* Back link */}
+      <Link
+        to="/admin/users"
+        className="inline-flex items-center gap-1 text-xs text-gray-500
+                   hover:text-gray-300 transition mb-4"
+      >
+        <ChevronLeft size={14} />
+        Back to Users
+      </Link>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between
+                      gap-4 mb-6 sm:mb-8">
+        <div className="flex items-start gap-3 sm:gap-4">
           <img
             src={user.avatar_url || '/default-avatar.png'}
             alt=""
-            className="w-16 h-16 rounded-2xl object-cover border border-gray-700"
+            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover
+                       border border-gray-700 shrink-0"
           />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-white">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-white">
                 {user.first_name} {user.last_name}
               </h1>
               {isAdmin && (
                 <button
                   onClick={() => { setShowNameEdit(v => !v); setNameForm({ first_name: user.first_name || '', last_name: user.last_name || '' }); }}
-                  className="text-xs px-2 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition"
+                  className="text-xs px-2 py-0.5 bg-gray-700 hover:bg-gray-600
+                             text-gray-300 rounded transition"
                   title="Edit name"
                 >
                   Edit
@@ -131,32 +165,38 @@ export default function UserDetail() {
                   onChange={e => setNameForm(f => ({ ...f, first_name: e.target.value }))}
                   placeholder="First name"
                   required
-                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm w-32 focus:outline-none focus:border-orange-500"
+                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded
+                             text-white text-sm w-28 focus:outline-none
+                             focus:border-orange-500"
                 />
                 <input
                   value={nameForm.last_name}
                   onChange={e => setNameForm(f => ({ ...f, last_name: e.target.value }))}
                   placeholder="Last name"
                   required
-                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm w-32 focus:outline-none focus:border-orange-500"
+                  className="px-2 py-1 bg-gray-700 border border-gray-600 rounded
+                             text-white text-sm w-28 focus:outline-none
+                             focus:border-orange-500"
                 />
                 <button
                   type="submit"
                   disabled={nameSaving}
-                  className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded font-semibold transition disabled:opacity-50"
+                  className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white
+                             text-xs rounded font-semibold transition disabled:opacity-50"
                 >
                   {nameSaving ? 'Saving…' : 'Save'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowNameEdit(false)}
-                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition"
+                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300
+                             text-xs rounded transition"
                 >
                   Cancel
                 </button>
               </form>
             )}
-            <p className="text-gray-400 text-sm">{user.email}</p>
+            <p className="text-gray-400 text-sm mt-0.5 truncate">{user.email}</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="px-2 py-0.5 bg-gray-700 text-gray-300
                                text-xs rounded-full capitalize">
@@ -193,7 +233,7 @@ export default function UserDetail() {
 
         {/* Super admin actions */}
         {isSuper && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 sm:shrink-0">
             <button
               onClick={() => doAction(
                 'ban',
@@ -255,7 +295,7 @@ export default function UserDetail() {
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
         {[
           { label: 'Rating',          value: user.average_rating
               ? `${parseFloat(user.average_rating).toFixed(1)} ★`
@@ -270,19 +310,19 @@ export default function UserDetail() {
         ].map(({ label, value }) => (
           <div key={label}
                className="bg-gray-800 border border-gray-700
-                          rounded-xl p-4">
+                          rounded-xl p-3 sm:p-4">
             <p className="text-xs text-gray-500 uppercase
                           tracking-wider mb-1">{label}</p>
-            <p className="text-xl font-bold text-white">{value}</p>
+            <p className="text-lg sm:text-xl font-bold text-white">{value}</p>
           </div>
         ))}
       </div>
 
       {/* Two-column detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 
         {/* Recent jobs */}
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-5">
           <h3 className="font-semibold text-white mb-4">Recent Jobs</h3>
           {recentJobs.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-4">
@@ -314,7 +354,7 @@ export default function UserDetail() {
                         ? 'bg-gray-700 text-gray-500'
                         : 'bg-blue-900 text-blue-400'
                     }`}>
-                                            {job.status}
+                      {job.status}
                     </span>
                   </div>
                 </div>
@@ -324,7 +364,7 @@ export default function UserDetail() {
         </div>
 
         {/* Billing history */}
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-5">
           <h3 className="font-semibold text-white mb-4">Billing History</h3>
           {billing.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-4">
@@ -378,7 +418,7 @@ export default function UserDetail() {
 
         {/* Recent payouts */}
         {recentPayouts.length > 0 && (
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-5">
             <h3 className="font-semibold text-white mb-4">Recent Payouts</h3>
             <div className="space-y-3">
               {recentPayouts.map((payout, i) => (
@@ -406,7 +446,7 @@ export default function UserDetail() {
 
         {/* Stripe account */}
         {isSuper && (
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-5">
             <h3 className="font-semibold text-white mb-4">Stripe Account</h3>
             <div className="space-y-3 text-sm">
               {[
@@ -424,9 +464,9 @@ export default function UserDetail() {
                      className="flex items-center justify-between
                                 border-b border-gray-700/50 pb-2
                                 last:border-0 last:pb-0">
-                  <span className="text-gray-400">{label}</span>
+                  <span className="text-gray-400 shrink-0">{label}</span>
                   <span className="text-white font-mono text-xs
-                                   truncate max-w-40 text-right">
+                                   truncate max-w-[9rem] sm:max-w-40 text-right ml-2">
                     {value}
                   </span>
                 </div>
