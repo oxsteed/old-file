@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-08 (live capture, admin expansion, job detail redesign, planned needs system, preferred helper integration)
+**Last updated:** 2026-04-09 (support ticket system, admin dashboard fixes)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -303,6 +303,34 @@ All production-readiness audit items have been completed. Items are documented i
 9. PWA / service worker
 10. Referral system
 11. Didit integration test
+
+### Session — 2026-04-09 (admin dashboard fixes + full support ticket system)
+
+**Admin dashboard fixes (PR #50, merged):**
+- "User not found" on super admin user detail — root cause was wrong column names in payments query (`helper_amount_cents`, `helper_id`); fixed to `helper_payout`, `payee_id`
+- Mobile responsiveness — added hamburger menu + slide-in overlay sidebar to `AdminLayout.jsx`
+- Theme toggle invisible — `ThemeProvider` was missing from `admin/main.jsx`; added wrapper
+- Theme toggle no visual effect — admin UI uses hardcoded dark Tailwind classes; added light-mode CSS overrides to `index.css`
+- Sidebar remounting — `SidebarContent` as inline component caused React remounts; converted to `renderSidebar()` plain function
+- Stripe onboarding wrong source — `connect_accounts` table now joined as authoritative source
+- `id_verified` `||` vs `??` — fixed boolean fallback for NOT NULL column
+
+**Support ticket system (migration 046, new files):**
+- **DB migration** `server/migrations/046_support_tickets.sql`: `support_tickets` + `support_messages` tables; `support_ticket_number_seq` for human-readable numbers starting at 1001; status workflow constraint (`open→assigned→in_progress→waiting_user→resolved→closed`); source/priority constraints; 6 indexes.
+- **Controller** `server/controllers/supportController.js`: public `submitSupportRequest` (creates ticket + first message, emails user, broadcasts to admins room); user auth `getMyTickets/getMyTicket/replyToMyTicket`; admin `listTickets` (with status/priority/assigned/search filters), `getTicketAdmin`, `claimTicket` (super-admin can steal), `unclaimTicket`, `updateStatus` (emails user on resolve), `updatePriority`, `adminReply` (internal notes vs public reply), `getStats`.
+- **Socket.IO** `server/services/socketService.js`: added `broadcastToAdmins(event, data)` using `io.to('admins')`. `server/index.js`: socket auth now also fetches `role`, stores as `socket.userRole`; admins/super_admins join `'admins'` room on connect.
+- **Routes** `server/routes/support.js`: added `authenticate`-gated user routes (`/my-tickets`, `/my-tickets/:id`, `/my-tickets/:id/reply`). `server/routes/admin.js`: added 8 support ticket admin endpoints under `requireAdmin`.
+- **Admin UI** `client/src/admin/pages/SupportTickets.jsx`: two-panel inbox (list left, conversation right); stats bar (open/mine/unassigned); filters (status, priority, assigned); claim/unclaim/take-over buttons; status quick-set; priority dropdown; public reply vs internal note toggle; Cmd+Enter to send; real-time refresh on socket events; mobile-responsive with back navigation.
+- **Nav** `AdminLayout.jsx`: "Support Tickets" item with `HeadphonesIcon` added to `REGULAR_NAV`.
+- **Router** `AdminApp.jsx`: `/admin/support` route added.
+- **SupportWidget** `SupportWidget.jsx`: escalation modal now captures `ticket_number` from API response and displays "Your ticket number is #XXXX" in the success state.
+
+**Key design decisions:**
+- Regular admins can only claim unassigned tickets and reply on their own; super-admins can take over any ticket and reply on closed ones.
+- `is_internal = true` messages never leave the admin panel (not emailed, not visible to users on `/my-tickets`).
+- Auto-claim: if an admin replies to an unassigned ticket, it's automatically assigned to them.
+- Status auto-transitions: `open→assigned` on claim; `assigned→in_progress` on first admin reply; `in_progress→waiting_user` on subsequent admin replies; `waiting_user→in_progress` on user reply.
+- `first_response_at` is set on first non-internal admin reply (SLA tracking).
 
 ### Session — 2026-04-08 (planned needs system, preferred helper integration)
 
