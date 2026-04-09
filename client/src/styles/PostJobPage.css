@@ -347,3 +347,37 @@ input.pjw-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 5
   padding: 1.5rem 1rem; text-align: center;
   font-size: .875rem; color: var(--pjw-text-muted);
 }
+
+
+   /* ── Pill group (recurrence toggle) ─────────────────────────────── */
+.pjw-pill-group {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+}
+.pjw-pill {
+  padding: .4rem .9rem; border-radius: var(--pjw-radius-sm);
+  border: 1px solid var(--pjw-border);
+  background: var(--pjw-surface); color: var(--pjw-text-muted);
+  font-size: .8rem; cursor: pointer;
+  transition: all var(--pjw-transition);
+}
+.pjw-pill:hover { border-color: var(--pjw-primary); color: var(--pjw-text); }
+.pjw-pill.is-active {
+  background: var(--pjw-primary); color: #fff;
+  border-color: var(--pjw-primary); font-weight: 500;
+}
+
+/* ── Autocomplete dropdown (preferred helper) ──────────────────── */
+.pjw-autocomplete {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  list-style: none; margin: .25rem 0 0; padding: .25rem 0;
+  background: var(--pjw-surface-2); border: 1px solid var(--pjw-border);
+  border-radius: var(--pjw-radius-sm); max-height: 12rem; overflow-y: auto;
+}
+.pjw-autocomplete li {
+  padding: .5rem .75rem; cursor: pointer; font-size: .85rem;
+  color: var(--pjw-text);
+}
+.pjw-autocomplete li:hover { background: var(--pjw-surface-offset); }
+
+/* ── Hint label ────────────────────────────────────────────────── */
+.hint { font-size: .75rem; color: var(--pjw-text-faint); font-weight: 400; }
