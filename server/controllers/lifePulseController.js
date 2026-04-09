@@ -141,14 +141,18 @@ exports.getLifePulse = async (req, res) => {
       `, [userId]),
 
       // 5. Recurring expenses/income — deduplicated to the most recent entry per
-      //    (type, category, frequency), then normalised to a monthly equivalent.
+      //    (type, category, description, frequency), then normalised to a monthly
+      //    equivalent. Including description prevents two distinct recurring entries
+      //    in the same category (e.g. Netflix + Spotify both in "Subscriptions")
+      //    from being collapsed into one. Entries with the same description are
+      //    still deduplicated so re-logging the same pattern doesn't double-count.
       //    Only active entries (within optional start/end date range) are included.
       db.query(`
         SELECT
           COALESCE(SUM(CASE WHEN type = 'income'  THEN monthly_eq ELSE 0 END), 0) AS recurring_income_monthly,
           COALESCE(SUM(CASE WHEN type = 'expense' THEN monthly_eq ELSE 0 END), 0) AS recurring_expense_monthly
         FROM (
-          SELECT DISTINCT ON (type, category, frequency)
+          SELECT DISTINCT ON (type, category, description, frequency)
             type,
             CASE frequency
               WHEN 'daily'      THEN amount * 30
@@ -166,7 +170,7 @@ exports.getLifePulse = async (req, res) => {
             AND frequency <> 'one_time'
             AND (recurring_start_date IS NULL OR recurring_start_date <= CURRENT_DATE)
             AND (recurring_end_date   IS NULL OR recurring_end_date   >= CURRENT_DATE)
-          ORDER BY type, category, frequency, occurred_at DESC
+          ORDER BY type, category, description, frequency, occurred_at DESC
         ) r
       `, [userId]),
 
