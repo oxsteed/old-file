@@ -28,6 +28,7 @@ function parseJsonList(raw) {
 //   query, categories (comma-separated), skills (comma-separated),
 //   verified, backgroundChecked, availableToday,
 //   minRating, minPrice, maxPrice,
+//   lat, lng, radius (miles, default 60) — haversine distance filter,
 //   sort (best_match|highest_rated|most_reviews|lowest_price|fastest_response|newest),
 //   page, limit
 async function listHelpers(req, res) {
@@ -45,6 +46,9 @@ async function listHelpers(req, res) {
       sort = 'best_match',
       page = 1,
       limit = 9,
+      lat,
+      lng,
+      radius,
     } = req.query;
 
     const pageNum  = Math.max(1, parseInt(page)  || 1);
@@ -98,6 +102,26 @@ async function listHelpers(req, res) {
     if (maxP > 0) {
       params.push(maxP);
       conditions.push(`(hp.hourly_rate_min <= $${pIdx++} OR hp.hourly_rate_min IS NULL)`);
+    }
+
+    const userLat = parseFloat(lat);
+    const userLng = parseFloat(lng);
+    const radiusMiles = parseFloat(radius) || 60;
+    if (!isNaN(userLat) && !isNaN(userLng)) {
+      params.push(userLat, userLng, radiusMiles);
+      // Helpers with no coords are included (they may still be local); only exclude
+      // helpers whose coords are known AND outside the radius.
+      conditions.push(`(
+        hp.service_lat IS NULL OR hp.service_lng IS NULL OR
+        3958.8 * acos(
+          GREATEST(-1.0, LEAST(1.0,
+            sin(radians($${pIdx}::float8))   * sin(radians(hp.service_lat::float8)) +
+            cos(radians($${pIdx}::float8))   * cos(radians(hp.service_lat::float8)) *
+            cos(radians(hp.service_lng::float8 - $${pIdx + 1}::float8))
+          ))
+        ) <= $${pIdx + 2}
+      )`);
+      pIdx += 3;
     }
 
     const whereClause = conditions.join(' AND ');

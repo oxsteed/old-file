@@ -10,7 +10,6 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -353,20 +352,68 @@ const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => vo
   </div>
 );
 
+// ── Derive initial filters + tile from URL params at component init time ───────
+// Using window.location.search so this runs synchronously before first render,
+// avoiding a double-load (one with defaults, one after reading params).
+function getInitialState(): { filters: DirectoryFilters; tileId: string | null } {
+  const params = new URLSearchParams(window.location.search);
+
+  const filters = { ...DEFAULT_FILTERS };
+  let tileId: string | null = null;
+
+  const skillParam = params.get('skill');
+  if (skillParam) {
+    const tile = SKILL_TILES.find((t) => t.id === skillParam);
+    if (tile) {
+      tileId = tile.id;
+      filters.categories = [tile.category];
+    } else {
+      // Slug doesn't match any tile (e.g. a DB-sourced skill that slipped through);
+      // convert to a free-text query so the search intent is not silently dropped.
+      filters.query = skillParam.replace(/-/g, ' ');
+    }
+  }
+
+  const qParam = params.get('q');
+  if (qParam) filters.query = qParam;
+
+  const latParam  = params.get('lat');
+  const lngParam  = params.get('lng');
+  const radParam  = params.get('radius');
+  if (latParam && lngParam) {
+    const lat = parseFloat(latParam);
+    const lng = parseFloat(lngParam);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      filters.lat = lat;
+      filters.lng = lng;
+    }
+  }
+  if (radParam) {
+    const r = parseFloat(radParam);
+    if (!isNaN(r) && r > 0) filters.maxDistance = r;
+  }
+
+  if (params.get('availableToday') === 'true') filters.availableToday = true;
+
+  return { filters, tileId };
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const [filters, setFilters]           = useState<DirectoryFilters>(DEFAULT_FILTERS);
+  // Parse URL params exactly once — destructure for both derived states.
+  const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
+  const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
   const [sort, setSort]                 = useState<SortOption>('best_match');
   const [helpers, setHelpers]           = useState<HelperCardData[]>([]);
   const [total, setTotal]               = useState(0);
   const [page, setPage]                 = useState(1);
   const [loadState, setLoadState]       = useState<'loading' | 'success' | 'error'>('loading');
   const [drawerOpen, setDrawerOpen]     = useState(false);
-  const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
+  const [selectedTileId, setSelectedTileId] = useState<string | null>(_initTileId);
 
-  // Debounce filter/sort changes so we don't fire on every keystroke
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Debounce filter/sort changes; skip debounce on first render for instant load
+  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstLoad  = useRef(true);
 
   const load = useCallback(async (f: DirectoryFilters, s: SortOption, p: number, append = false) => {
     setLoadState('loading');
@@ -380,28 +427,14 @@ const HelpersDirectoryPage: React.FC = () => {
     }
   }, []);
 
-  // Read ?skill=X URL param on first mount and pre-select the matching tile
+  // Single effect: immediate on first render, debounced on subsequent changes
   useEffect(() => {
-    const skillParam = searchParams.get('skill');
-    if (skillParam) {
-      const tile = SKILL_TILES.find((t) => t.id === skillParam);
-      if (tile) {
-        setSelectedTileId(tile.id);
-        setFilters((f) => ({ ...f, categories: [tile.category] }));
-      }
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      load(filters, sort, 1);
+      setPage(1);
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Initial load
-  useEffect(() => {
-    load(filters, sort, 1);
-    setPage(1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Reload on filter / sort change (debounced 300 ms)
-  useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(1);

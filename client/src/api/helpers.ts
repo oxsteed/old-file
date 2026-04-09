@@ -77,6 +77,11 @@ export async function fetchHelpers(
     params.minPrice = filters.priceRange[0];
     params.maxPrice = filters.priceRange[1];
   }
+  if (filters.lat !== null && filters.lng !== null) {
+    params.lat = filters.lat;
+    params.lng = filters.lng;
+    params.radius = filters.maxDistance || 60;
+  }
 
   const { data } = await api.get<HelperDirectoryResponse>('/helpers', { params });
   return data;
