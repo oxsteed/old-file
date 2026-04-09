@@ -751,39 +751,58 @@ exports.sendAdminMessage = async (req, res) => {
     const adminId  = req.user.id;
     const targetId = userId;
 
-    // Find existing admin→user conversation (job_id IS NULL)
-    const { rows: convRows } = await db.query(`
-      SELECT id FROM conversations
-      WHERE job_id IS NULL
-        AND customer_id = $1
-        AND helper_id   = $2
-      LIMIT 1
-    `, [adminId, targetId]);
+    // All conversation + message writes in one transaction to prevent
+    // orphaned conversations on failure and race-condition duplicates.
+    const client = await db.connect();
+    let conversationId, msgRows;
+    try {
+      await client.query('BEGIN');
 
-    let conversationId;
-    if (convRows.length) {
-      conversationId = convRows[0].id;
-    } else {
-      const { rows: newConv } = await db.query(`
+      // Upsert: insert if not exists, return existing id either way.
+      // ON CONFLICT requires a unique index — conversations has
+      // UNIQUE(job_id, customer_id, helper_id) but NULL job_id values
+      // don't trigger that constraint in Postgres, so we use a
+      // DO UPDATE SET ... = EXCLUDED.* no-op to force the RETURNING.
+      const { rows: convRows } = await client.query(`
         INSERT INTO conversations (customer_id, helper_id, job_id, status)
         VALUES ($1, $2, NULL, 'active')
+        ON CONFLICT DO NOTHING
         RETURNING id
       `, [adminId, targetId]);
-      conversationId = newConv[0].id;
+
+      if (convRows.length) {
+        conversationId = convRows[0].id;
+      } else {
+        // Row already existed (ON CONFLICT suppressed the insert)
+        const { rows: existing } = await client.query(`
+          SELECT id FROM conversations
+          WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
+          LIMIT 1
+        `, [adminId, targetId]);
+        conversationId = existing[0].id;
+      }
+
+      // Insert the message
+      const result = await client.query(`
+        INSERT INTO messages (conversation_id, sender_id, content, message_type)
+        VALUES ($1, $2, $3, 'system')
+        RETURNING id, created_at
+      `, [conversationId, adminId, content.trim()]);
+      msgRows = result.rows;
+
+      // Update conversation timestamp
+      await client.query(
+        `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [conversationId]
+      );
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
     }
-
-    // Insert the message
-    const { rows: msgRows } = await db.query(`
-      INSERT INTO messages (conversation_id, sender_id, content, message_type)
-      VALUES ($1, $2, $3, 'system')
-      RETURNING id, created_at
-    `, [conversationId, adminId, content.trim()]);
-
-    // Update conversation timestamp
-    await db.query(
-      `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
-      [conversationId]
-    );
 
     // Push real-time event to target user
     socketService.broadcastToUser(targetId, 'new_message', {

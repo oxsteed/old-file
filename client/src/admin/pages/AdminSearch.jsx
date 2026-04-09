@@ -279,7 +279,7 @@ export default function AdminSearch() {
           {ALL_TYPES.filter(t => types.includes(t)).map(t => {
             const { icon: Icon, label, color } = TYPE_META[t];
             const rows = results.results?.[t] || [];
-            if (!rows.length && results.total > 0) return null;
+            if (!rows.length) return null;
             return (
               <div key={t} className="mb-6 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-800">

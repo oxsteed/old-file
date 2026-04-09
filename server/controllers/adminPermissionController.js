@@ -17,7 +17,6 @@ const PERMISSION_SCOPES = {
   message_users:         'Send direct admin-to-user messages',
 };
 
-exports.PERMISSION_SCOPES = PERMISSION_SCOPES;
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);
 
 // ── List active grants (super-admin sees all; admin sees their own) ───────────
