@@ -711,6 +711,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </Card>
+        </>)}
 
         {/* ═══════ HOME TAB ═══════ */}
         {tab==='home' && (<>
