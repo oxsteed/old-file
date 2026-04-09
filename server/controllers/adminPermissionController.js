@@ -25,7 +25,7 @@ exports.listGrants = async (req, res) => {
   try {
     const { grantee_id, include_expired } = req.query;
 
-    const conditions = [`g.revoked_at IS NULL`];
+    const conditions = [];
     const params = [];
 
     if (!req.isSuper) {
@@ -38,6 +38,7 @@ exports.listGrants = async (req, res) => {
     }
 
     if (!include_expired || include_expired === 'false') {
+      conditions.push(`g.revoked_at IS NULL`);
       conditions.push(`g.expires_at > NOW()`);
     }
 
@@ -58,7 +59,7 @@ exports.listGrants = async (req, res) => {
       FROM admin_permission_grants g
       JOIN users grantor ON grantor.id = g.grantor_id
       JOIN users grantee ON grantee.id = g.grantee_id
-      WHERE ${conditions.join(' AND ')}
+      ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
       ORDER BY g.created_at DESC
       LIMIT 200
     `, params);
@@ -180,25 +181,6 @@ exports.getScopes = (req, res) => {
     description,
   }));
   res.json({ scopes });
-};
-
-// ── Utility: check if a given admin has a specific active permission ───────────
-// Used by middleware — returns true/false without throwing.
-
-exports.hasPermission = async (adminId, permission) => {
-  try {
-    const { rows } = await db.query(`
-      SELECT id FROM admin_permission_grants
-      WHERE grantee_id = $1
-        AND permissions ? $2
-        AND expires_at > NOW()
-        AND revoked_at IS NULL
-      LIMIT 1
-    `, [adminId, permission]);
-    return rows.length > 0;
-  } catch {
-    return false;
-  }
 };
 
 // ── Internal helper ───────────────────────────────────────────────────────────
