@@ -171,8 +171,10 @@ exports.getLifePulse = async (req, res) => {
       const remaining    = Math.max(0, cost - reserved);
       const daysToFund   = Math.max(daysUntilDue, 1);
       const dailyContrib = remaining / daysToFund;
-      // Only count the portion of the sinking fund that falls within this horizon
-      const daysInWindow = Math.min(windowDays, daysUntilDue);
+      // Only count the portion of the sinking fund that falls within this horizon.
+      // Use daysToFund (floored to 1) so needs due today aren't zeroed out —
+      // a need due today has its full remaining balance due immediately.
+      const daysInWindow = Math.min(windowDays, daysToFund);
       const windowCost   = dailyContrib * daysInWindow;
       const monthlyContrib = dailyContrib * 30;
 
