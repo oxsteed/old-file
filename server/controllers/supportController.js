@@ -593,7 +593,7 @@ exports.adminReply = async (req, res) => {
         sets.push(`assigned_to = $${paramIdx++}`);
         updateParams.push(req.user.id);
         sets.push(`assigned_at = NOW()`);
-        if (ticket.status === 'open') sets.push(`status = 'in_progress'`);
+        if (!is_internal && ticket.status === 'open') sets.push(`status = 'in_progress'`);
       }
             updateParams.push(ticket.id);
       await db.query(
