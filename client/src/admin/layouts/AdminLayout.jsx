@@ -1,18 +1,20 @@
 import { useState }           from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth }   from '../../hooks/useAuth';
+import { useTheme }  from '../../context/ThemeContext';
 import {
   LayoutDashboard, Users, Briefcase,
   Flag, Shield, DollarSign, Settings,
   FileText, BarChart2, LogOut, TrendingUp,
-  AlertTriangle, ScrollText, Wrench, Trash2, UserCog,
-  Menu, X
+  ScrollText, Wrench, Trash2, UserCog,
+  Menu, X, Sun, Moon
 } from 'lucide-react';
 
 export default function AdminLayout() {
-  const { user, logout } = useAuth();
-  const navigate         = useNavigate();
-  const isSuper          = user?.role === 'super_admin';
+  const { user, logout }     = useAuth();
+  const navigate             = useNavigate();
+  const { isDark, toggleTheme } = useTheme();
+  const isSuper              = user?.role === 'super_admin';
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -124,8 +126,16 @@ export default function AdminLayout() {
 
       {/* Bottom */}
       <div className="px-3 py-4 border-t border-gray-800">
-        <div className="px-3 py-2 mb-2">
+        <div className="px-3 py-2 mb-2 flex items-center justify-between">
           <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+          <button
+            onClick={toggleTheme}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white
+                       hover:bg-gray-700 transition-all shrink-0 ml-2"
+          >
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
         </div>
         <button
           onClick={handleLogout}
@@ -176,10 +186,18 @@ export default function AdminLayout() {
           >
             <Menu size={20} />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <img src="/logo.png" alt="" className="h-6 w-6" />
             <span className="font-bold text-white text-sm">OxSteed Admin</span>
           </div>
+          <button
+            onClick={toggleTheme}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white
+                       hover:bg-gray-700 transition-all"
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </header>
 
         <main className="flex-1 overflow-y-auto bg-gray-950">
