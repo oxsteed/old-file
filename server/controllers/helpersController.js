@@ -114,11 +114,11 @@ async function listHelpers(req, res) {
       conditions.push(`(
         hp.service_lat IS NULL OR hp.service_lng IS NULL OR
         3958.8 * acos(
-          LEAST(1.0,
+          GREATEST(-1.0, LEAST(1.0,
             sin(radians($${pIdx}::float8))   * sin(radians(hp.service_lat::float8)) +
             cos(radians($${pIdx}::float8))   * cos(radians(hp.service_lat::float8)) *
             cos(radians(hp.service_lng::float8 - $${pIdx + 1}::float8))
-          )
+          ))
         ) <= $${pIdx + 2}
       )`);
       pIdx += 3;

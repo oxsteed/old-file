@@ -192,21 +192,24 @@ function HomeSearch() {
   // ── Available today toggle ────────────────────────────────────────────────
   const [availToday, setAvailToday]   = useState(false);
 
-  const wrapRef     = useRef(null);
-  const queryRef    = useRef(null);
-  const locInputRef = useRef(null);
+  const wrapRef          = useRef(null);
+  const queryRef         = useRef(null);
+  const locInputRef      = useRef(null);
+  const userHasTypedLoc  = useRef(false);   // guard: don't overwrite after user types
 
   // ── Geolocation on mount (helpers mode) ──────────────────────────────────
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       async ({ coords: { latitude: lat, longitude: lng } }) => {
+        // Only apply the geocoded label if the user hasn't started typing
+        if (userHasTypedLoc.current) return;
         setLocCoords({ lat, lng });
         try {
           const { data } = await api.get('/geo/reverse', { params: { lat, lng } });
-          setLocInput(data.display || 'Near you');
+          if (!userHasTypedLoc.current) setLocInput(data.display || 'Near you');
         } catch {
-          setLocInput('Near you');
+          if (!userHasTypedLoc.current) setLocInput('Near you');
         }
       },
       () => {},            // silently ignore denied / unavailable
@@ -416,7 +419,7 @@ function HomeSearch() {
               type="text"
               placeholder="City or ZIP"
               value={locInput}
-              onChange={(e) => { setLocInput(e.target.value); setLocCoords({ lat: null, lng: null }); }}
+              onChange={(e) => { userHasTypedLoc.current = true; setLocInput(e.target.value); setLocCoords({ lat: null, lng: null }); }}
               onFocus={() => locSugg.length > 0 && setLocOpen(true)}
               onKeyDown={(e) => { if (e.key === 'Escape') setLocOpen(false); }}
               aria-label="Location"

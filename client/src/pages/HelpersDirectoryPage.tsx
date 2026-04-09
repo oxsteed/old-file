@@ -10,7 +10,6 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -401,7 +400,6 @@ function getInitialState(): { filters: DirectoryFilters; tileId: string | null }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
   // Parse URL params exactly once — destructure for both derived states.
   const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
   const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
