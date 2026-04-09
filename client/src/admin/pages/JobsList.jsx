@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Download, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
@@ -120,18 +121,21 @@ export default function JobsList() {
               <th className="text-left text-gray-400 font-medium px-4 py-3">BUDGET</th>
               <th className="text-left text-gray-400 font-medium px-4 py-3">STATUS</th>
               <th className="text-left text-gray-400 font-medium px-4 py-3">CREATED</th>
-              {isSuper && <th className="text-left text-gray-400 font-medium px-4 py-3">ACTIONS</th>}
+              <th className="text-left text-gray-400 font-medium px-4 py-3">ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={isSuper ? 7 : 6} className="text-center text-gray-400 py-12">Loading…</td></tr>
+              <tr><td colSpan={7} className="text-center text-gray-400 py-12">Loading…</td></tr>
             ) : jobs.length === 0 ? (
-              <tr><td colSpan={isSuper ? 7 : 6} className="text-center text-gray-400 py-12">No jobs found.</td></tr>
+              <tr><td colSpan={7} className="text-center text-gray-400 py-12">No jobs found.</td></tr>
             ) : jobs.map(job => (
               <tr key={job.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
                 <td className={`${col} text-white font-medium max-w-[200px]`}>
-                  <span className="block truncate">{job.title}</span>
+                  <Link to={`/admin/jobs/${job.id}`}
+                    className="block truncate hover:text-orange-300 transition-colors">
+                    {job.title}
+                  </Link>
                   <span className="text-gray-500 text-xs">{job.location_city}{job.location_state ? `, ${job.location_state}` : ''}</span>
                 </td>
                 <td className={`${col} text-gray-300`}>{job.client_name || 'N/A'}</td>
@@ -149,15 +153,28 @@ export default function JobsList() {
                 <td className={`${col} text-gray-400`}>
                   {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'N/A'}
                 </td>
-                {isSuper && (
+                {isSuper ? (
                   <td className={col}>
-                    <button
-                      onClick={() => { setDeleting(job); setDeleteReason(''); setDeleteError(''); }}
-                      className="flex items-center gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
-                      title="Permanently delete this job"
-                    >
-                      <Trash2 size={13} /> Delete
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <Link to={`/admin/jobs/${job.id}`}
+                        className="text-xs text-orange-400 hover:text-orange-300 font-medium transition">
+                        View →
+                      </Link>
+                      <button
+                        onClick={() => { setDeleting(job); setDeleteReason(''); setDeleteError(''); }}
+                        className="flex items-center gap-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
+                        title="Permanently delete this job"
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </div>
+                  </td>
+                ) : (
+                  <td className={col}>
+                    <Link to={`/admin/jobs/${job.id}`}
+                      className="text-xs text-orange-400 hover:text-orange-300 font-medium transition">
+                      View →
+                    </Link>
                   </td>
                 )}
               </tr>

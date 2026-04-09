@@ -15,6 +15,7 @@ const PERMISSION_SCOPES = {
   view_search_logs:      'View admin search audit log',
   manage_admin_accounts: 'Create and enable/disable admin accounts',
   message_users:         'Send direct admin-to-user messages',
+  create_users:          'Create new regular user accounts (customer/helper/broker)',
 };
 
 const VALID_PERMISSIONS = Object.keys(PERMISSION_SCOPES);

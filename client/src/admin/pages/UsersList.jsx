@@ -1,12 +1,123 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link }          from 'react-router-dom';
-import { Search, Filter, Download } from 'lucide-react';
+import { Search, Download, UserPlus, X } from 'lucide-react';
 import { useAuth }       from '../../hooks/useAuth';
 import adminApi          from '../../lib/adminApi';
 
-const ROLES   = ['','client','helper','both','broker'];
-const PLANS   = ['','starter','pro','elite','broker'];
+const ROLES    = ['','client','helper','both','broker'];
+const PLANS    = ['','starter','pro','elite','broker'];
 const STATUSES = ['','active','banned'];
+
+const NEW_ROLES = ['customer', 'helper', 'broker'];
+
+function CreateUserModal({ onClose, onCreated }) {
+  const [form, setForm]   = useState({ first_name: '', last_name: '', email: '', password: '', role: 'customer' });
+  const [error, setError] = useState('');
+  const [busy,  setBusy]  = useState(false);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError('');
+    try {
+      const { data } = await adminApi.post('/admin/super/users', form);
+      onCreated(data.user);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to create user.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={() => !busy && onClose()}>
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-white text-base">Create User Account</h3>
+          <button onClick={onClose} disabled={busy} className="text-gray-500 hover:text-white transition">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {[['first_name', 'First Name'], ['last_name', 'Last Name']].map(([k, label]) => (
+              <div key={k}>
+                <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
+                <input
+                  required
+                  value={form[k]}
+                  onChange={e => set(k, e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
+                             text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Email</label>
+            <input
+              type="email"
+              required
+              value={form.email}
+              onChange={e => set('email', e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
+                         text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">
+              Password <span className="text-gray-600">(min 8 chars)</span>
+            </label>
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={form.password}
+              onChange={e => set('password', e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
+                         text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Role</label>
+            <select
+              value={form.role}
+              onChange={e => set('role', e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm
+                         text-gray-300 focus:outline-none focus:border-orange-500"
+            >
+              {NEW_ROLES.map(r => (
+                <option key={r} value={r} className="capitalize">{r}</option>
+              ))}
+            </select>
+          </div>
+
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} disabled={busy}
+              className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300
+                         rounded-lg text-sm font-medium hover:bg-gray-700 transition disabled:opacity-50">
+              Cancel
+            </button>
+            <button type="submit" disabled={busy}
+              className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white
+                         rounded-lg text-sm font-semibold transition disabled:opacity-50">
+              {busy ? 'Creating…' : 'Create User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function UsersList() {
   const { user: me }     = useAuth();
@@ -19,6 +130,7 @@ export default function UsersList() {
   const [filters, setFilters] = useState({
     search: '', role: '', status: '', plan: '', page: 1
   });
+  const [showCreate, setShowCreate] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -67,17 +179,27 @@ export default function UsersList() {
             {total.toLocaleString()} total users
           </p>
         </div>
-        {isSuper && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-700
-                       text-gray-200 text-sm font-medium rounded-lg
-                       hover:bg-gray-600 transition"
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600
+                       text-white text-sm font-semibold rounded-lg transition"
           >
-            <Download size={15} />
-            Export CSV
+            <UserPlus size={15} />
+            Create User
           </button>
-        )}
+          {isSuper && (
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-700
+                         text-gray-200 text-sm font-medium rounded-lg
+                         hover:bg-gray-600 transition"
+            >
+              <Download size={15} />
+              Export CSV
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -269,6 +391,17 @@ export default function UsersList() {
           </div>
         )}
       </div>
+
+      {showCreate && (
+        <CreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(newUser) => {
+            setShowCreate(false);
+            setUsers(prev => [newUser, ...prev]);
+            setTotal(t => t + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

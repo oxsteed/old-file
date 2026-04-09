@@ -268,6 +268,8 @@ exports.forceJobAction = async (req, res) => {
     const { rows: jobRows } = await db.query('SELECT * FROM jobs WHERE id = $1', [jobId]);
     if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
     if (action === 'cancel' || action === 'remove') await db.query(`UPDATE jobs SET status = 'cancelled', updated_at = now() WHERE id = $1`, [jobId]);
+    if (action === 'flag')   await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1`, [jobId]);
+    if (action === 'unflag') await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1`, [jobId]);
     try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
     res.json({ message: `Job ${action} successful.` });
   } catch (err) { console.error('forceJobAction error:', err); res.status(500).json({ error: 'Failed to perform job action.' }); }
@@ -297,6 +299,115 @@ exports.deleteJob = async (req, res) => {
   } catch (err) {
     logger.error('deleteJob error', { err });
     res.status(500).json({ error: 'Failed to delete job.' });
+  }
+};
+
+exports.getJobDetail = async (req, res) => {
+  try {
+    if (!(await tableExists('jobs'))) return res.status(404).json({ error: 'Job not found.' });
+    const { jobId } = req.params;
+
+    const { rows: jobRows } = await db.query(`
+      SELECT
+        j.*,
+        (j.metadata->>'admin_flagged') = 'true'   AS admin_flagged,
+        u_c.first_name || ' ' || u_c.last_name AS client_name,
+        u_c.email        AS client_email,
+        u_h.id           AS helper_user_id,
+        u_h.first_name || ' ' || u_h.last_name AS helper_name,
+        u_h.email        AS helper_email
+      FROM jobs j
+      JOIN users u_c ON u_c.id = j.client_id
+      LEFT JOIN users u_h ON u_h.id = j.assigned_helper_id
+      WHERE j.id = $1
+    `, [jobId]);
+
+    if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
+    const job = jobRows[0];
+
+    let bids = [];
+    if (await tableExists('bids')) {
+      const r = await db.query(`
+        SELECT b.id, b.amount, b.status, b.message, b.created_at,
+               u.id AS helper_id,
+               u.first_name || ' ' || u.last_name AS helper_name,
+               u.email AS helper_email
+        FROM bids b
+        JOIN users u ON u.id = b.helper_id
+        WHERE b.job_id = $1
+        ORDER BY b.created_at ASC
+      `, [jobId]);
+      bids = r.rows;
+    }
+
+    let payment = null;
+    if (await tableExists('payments')) {
+      const r = await db.query(`
+        SELECT id, status, amount, helper_payout, platform_fee_cents,
+               stripe_payment_intent_id, created_at
+        FROM payments
+        WHERE job_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [jobId]);
+      payment = r.rows[0] || null;
+    }
+
+    res.json({ job, bids, payment });
+  } catch (err) {
+    logger.error('getJobDetail error', { err });
+    res.status(500).json({ error: 'Failed to fetch job detail.' });
+  }
+};
+
+exports.createUser = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const { first_name, last_name, email, password, role = 'customer' } = req.body;
+
+    const ALLOWED_ROLES = ['customer', 'helper', 'broker'];
+    if (!first_name?.trim()) return res.status(400).json({ error: 'first_name is required.' });
+    if (!last_name?.trim())  return res.status(400).json({ error: 'last_name is required.' });
+    if (!email?.trim())      return res.status(400).json({ error: 'email is required.' });
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+    if (!ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ error: `role must be one of: ${ALLOWED_ROLES.join(', ')}.` });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const { rows: existing } = await db.query(
+      'SELECT id FROM users WHERE email = $1', [normalizedEmail]
+    );
+    if (existing.length) return res.status(409).json({ error: 'An account with this email already exists.' });
+
+    const bcrypt = require('bcrypt');
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const { rows } = await db.query(`
+      INSERT INTO users (first_name, last_name, email, password_hash, role,
+                         is_active, email_verified, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, true, true, NOW(), NOW())
+      RETURNING id, first_name, last_name, email, role, is_active, email_verified, created_at
+    `, [first_name.trim(), last_name.trim(), normalizedEmail, passwordHash, role]);
+
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_created',
+        targetType: 'user',
+        targetId: rows[0].id,
+        description: `Admin-created ${role} account for ${normalizedEmail}`,
+        after: { role, email: normalizedEmail },
+        req,
+      });
+    } catch(e) {}
+
+    res.status(201).json({ user: rows[0] });
+  } catch (err) {
+    logger.error('createUser error', { err });
+    res.status(500).json({ error: 'Failed to create user.' });
   }
 };
 
