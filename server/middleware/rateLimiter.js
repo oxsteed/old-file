@@ -88,4 +88,18 @@ const strictLimiter = rateLimit({
   },
 });
 
-module.exports = { generalLimiter, authLimiter, strictLimiter };
+// AI chat limiter: 20 messages per 10 minutes per IP
+// Protects AI inference endpoints from abuse and runaway API costs.
+const chatLimiter = rateLimit({
+  ...createStoreOption('rl:chat:'),
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many messages sent. Please wait a few minutes before continuing.',
+    retryAfter: '10 minutes',
+  },
+});
+
+module.exports = { generalLimiter, authLimiter, strictLimiter, chatLimiter };

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { chatMessage, profileChatMessage } = require('../controllers/chatController');
 const { authenticate } = require('../middleware/auth');
+const { chatLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
 
 // Middleware: attach user if token present, but don't reject unauthenticated requests
@@ -11,12 +12,12 @@ const optionalAuth = (req, res, next) => {
 };
 
 // Public — no auth required for support chat
-router.post('/message', chatMessage);
+router.post('/message', chatLimiter, chatMessage);
 
 // POST /api/chat/profile-message
 // Auth optional — authenticated users get live routing when helper is online;
 // unauthenticated users get AI-only mode.
-router.post('/profile-message', optionalAuth, profileChatMessage);
+router.post('/profile-message', chatLimiter, optionalAuth, profileChatMessage);
 
 // POST /api/chat/feedback — thumbs up/down on AI replies (best-effort logging)
 router.post('/feedback', (req, res) => {
