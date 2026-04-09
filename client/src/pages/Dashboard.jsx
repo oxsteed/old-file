@@ -306,7 +306,7 @@ export default function Dashboard() {
   const addPcTask = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/life/home-tasks', { ...pcForm, section: 'personal_care', recurrence_days: pcForm.recurrence_days ? parseInt(pcForm.recurrence_days) : null });
+      await api.post('/life/home-tasks', { title: pcForm.title, description: pcForm.category, due_date: pcForm.due_date || null, urgency: pcForm.urgency, recurrence_days: pcForm.recurrence_days ? parseInt(pcForm.recurrence_days) : null, section: 'personal_care' });
       toast.success('Appointment added!');
       setPcForm({ title:'', category:'Medical', due_date:'', urgency:'medium', recurrence_days:'' });
       setShowPcModal(false);
@@ -340,7 +340,7 @@ export default function Dashboard() {
   const addCcTask = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/life/home-tasks', { ...ccForm, section: 'car_care', recurrence_days: ccForm.recurrence_days ? parseInt(ccForm.recurrence_days) : null });
+      await api.post('/life/home-tasks', { title: ccForm.title, description: [ccForm.category, ccForm.description].filter(Boolean).join(': '), due_date: ccForm.due_date || null, urgency: ccForm.urgency, recurrence_days: ccForm.recurrence_days ? parseInt(ccForm.recurrence_days) : null, section: 'car_care' });
       toast.success('Service added!');
       setCcForm({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'' });
       setShowCcModal(false);
@@ -1193,7 +1193,7 @@ export default function Dashboard() {
               {[
                 {label:'Overdue',     value:personalCareTasks.filter(t=>t.due_date&&new Date(t.due_date+'T00:00:00')<new Date()&&!t.is_completed).length, color:'text-red-400'},
                 {label:'This Week',   value:personalCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const d=new Date(t.due_date+'T00:00:00'),n=new Date();return d>=n&&d<=new Date(n.getTime()+7*864e5);}).length, color:'text-orange-400'},
-                {label:'Upcoming',    value:personalCareTasks.length, color:'text-blue-400'},
+                {label:'Total Pending',value:personalCareTasks.length, color:'text-blue-400'},
                 {label:'Recurring',   value:personalCareTasks.filter(t=>t.recurrence_days).length, color:'text-purple-400'},
               ].map((s,i)=>(
                 <Card key={i} className="!p-3 text-center">
@@ -1274,7 +1274,7 @@ export default function Dashboard() {
               {[
                 {label:'Overdue',   value:carCareTasks.filter(t=>t.due_date&&new Date(t.due_date+'T00:00:00')<new Date()&&!t.is_completed).length, color:'text-red-400'},
                 {label:'This Week', value:carCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const d=new Date(t.due_date+'T00:00:00'),n=new Date();return d>=n&&d<=new Date(n.getTime()+7*864e5);}).length, color:'text-orange-400'},
-                {label:'Upcoming',  value:carCareTasks.length, color:'text-blue-400'},
+                {label:'Total Pending',value:carCareTasks.length, color:'text-blue-400'},
                 {label:'Recurring', value:carCareTasks.filter(t=>t.recurrence_days).length, color:'text-purple-400'},
               ].map((s,i)=>(
                 <Card key={i} className="!p-3 text-center">
