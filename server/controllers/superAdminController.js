@@ -135,10 +135,13 @@ exports.getUserDetail = async (req, res) => {
     // Normalize field names to match what the admin UI expects
     const user = {
       ...raw,
-      average_rating:   raw.avg_rating,
-      completed_jobs:   raw.completed_jobs_count,
-      charges_enabled:  raw.stripe_charges_enabled,
-      payouts_enabled:  raw.stripe_payouts_enabled,
+      avatar_url:        raw.profile_photo_url || null,
+      id_verified:       raw.identity_verified || raw.is_identity_verified || false,
+      onboarding_complete: raw.onboarding_completed || false,
+      average_rating:    raw.avg_rating,
+      completed_jobs:    raw.completed_jobs_count,
+      charges_enabled:   raw.stripe_charges_enabled,
+      payouts_enabled:   raw.stripe_payouts_enabled,
     };
 
     let recentJobs = [], recentReviews = [], recentPayouts = [];
@@ -158,9 +161,10 @@ exports.getUserDetail = async (req, res) => {
     }
     if (await tableExists('payments')) {
       const r = await db.query(
-        `SELECT j.title AS job_title, p.created_at AS completed_at, p.helper_amount_cents AS net_to_helper_cents
+        `SELECT j.title AS job_title, p.created_at AS completed_at,
+                ROUND(COALESCE(p.helper_payout, 0) * 100)::INTEGER AS net_to_helper_cents
          FROM payments p JOIN jobs j ON p.job_id = j.id
-         WHERE p.helper_id = $1 AND p.status = 'captured'
+         WHERE p.payee_id = $1 AND p.status = 'captured'
          ORDER BY p.created_at DESC LIMIT 10`, [userId]);
       recentPayouts = r.rows;
     }
