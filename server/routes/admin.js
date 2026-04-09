@@ -1,8 +1,10 @@
 const router          = require('express').Router();
-const { requireAdmin, requireSuperAdmin } = require('../middleware/adminAuth');
+const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
 const superCtrl       = require('../controllers/superAdminController');
 const adminCtrl       = require('../controllers/adminController');
 const supportCtrl     = require('../controllers/supportController');
+const searchCtrl      = require('../controllers/adminSearchController');
+const permCtrl        = require('../controllers/adminPermissionController');
 
 // ══════════════════════════════════════════════════════════════
 // REGULAR ADMIN — both admin and super_admin can access
@@ -87,6 +89,33 @@ router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, supportCtrl.
 router.put('/support/tickets/:ticketId/status',       requireAdmin, supportCtrl.updateStatus);
 router.put('/support/tickets/:ticketId/priority',     requireAdmin, supportCtrl.updatePriority);
 router.post('/support/tickets/:ticketId/reply',       requireAdmin, supportCtrl.adminReply);
+
+// ══════════════════════════════════════════════════════════════
+// SEARCH ENGINE (admin + super_admin)
+// ══════════════════════════════════════════════════════════════
+
+// Global search — all admins (results logged automatically)
+router.get('/search',                  requireAdmin, searchCtrl.search);
+
+// Search audit log — super-admin or admins with view_search_logs permission
+router.get('/super/search-logs',       requireAdmin, requirePermission('view_search_logs'), searchCtrl.getSearchLogs);
+router.get('/super/search-stats',      requireAdmin, requirePermission('view_search_logs'), searchCtrl.getSearchStats);
+
+// ══════════════════════════════════════════════════════════════
+// PERMISSION GRANTS (super-admin manages; admins view own)
+// ══════════════════════════════════════════════════════════════
+
+// Super-admin bypasses requirePermission automatically (see adminAuth.js)
+router.get('/permission-grants',          requireAdmin,      permCtrl.listGrants);
+router.get('/permission-scopes',          requireAdmin,      permCtrl.getScopes);
+router.post('/super/permission-grants',   requireSuperAdmin, permCtrl.createGrant);
+router.delete('/super/permission-grants/:id', requireSuperAdmin, permCtrl.revokeGrant);
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN → USER LIVE MESSAGING (super-admin only)
+// ══════════════════════════════════════════════════════════════
+
+router.post('/super/users/:userId/message', requireSuperAdmin, superCtrl.sendAdminMessage);
 
 // ══════════════════════════════════════════════════════════════
 // SKILLS & CATEGORIES LOOKUP MANAGEMENT (admin + super_admin)

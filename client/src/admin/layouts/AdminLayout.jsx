@@ -1,4 +1,4 @@
-import { useState }           from 'react';
+import { useState, useRef }  from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth }   from '../../hooks/useAuth';
 import { useTheme }  from '../../context/ThemeContext';
@@ -8,6 +8,7 @@ import {
   FileText, BarChart2, LogOut, TrendingUp,
   ScrollText, Wrench, Trash2, UserCog,
   Menu, X, Sun, Moon, HeadphonesIcon,
+  Search, Key, ClipboardList,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -19,16 +20,19 @@ const REGULAR_NAV = [
   { to: '/admin/content-removals', icon: Trash2,          label: 'Content Removals' },
   { to: '/admin/skills',           icon: Wrench,          label: 'Skills'           },
   { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },
+  { to: '/admin/search',           icon: Search,          label: 'Search'           },
 ];
 
 const SUPER_NAV = [
-  { to: '/admin/super/dashboard',      icon: BarChart2,  label: 'Super Dashboard'  },
-  { to: '/admin/super/revenue',        icon: TrendingUp, label: 'Revenue'          },
-  { to: '/admin/super/financials',     icon: DollarSign, label: 'Financials'       },
-  { to: '/admin/super/payouts',        icon: FileText,   label: 'Payouts'          },
-  { to: '/admin/super/admin-accounts', icon: UserCog,    label: 'Admin Accounts'   },
-  { to: '/admin/super/settings',       icon: Settings,   label: 'Settings'         },
-  { to: '/admin/super/audit-log',      icon: ScrollText, label: 'Audit Log'        },
+  { to: '/admin/super/dashboard',      icon: BarChart2,     label: 'Super Dashboard'  },
+  { to: '/admin/super/revenue',        icon: TrendingUp,    label: 'Revenue'          },
+  { to: '/admin/super/financials',     icon: DollarSign,    label: 'Financials'       },
+  { to: '/admin/super/payouts',        icon: FileText,      label: 'Payouts'          },
+  { to: '/admin/super/admin-accounts', icon: UserCog,       label: 'Admin Accounts'   },
+  { to: '/admin/super/permissions',    icon: Key,           label: 'Permissions'      },
+  { to: '/admin/super/search-logs',    icon: ClipboardList, label: 'Search Logs'      },
+  { to: '/admin/super/settings',       icon: Settings,      label: 'Settings'         },
+  { to: '/admin/super/audit-log',      icon: ScrollText,    label: 'Audit Log'        },
 ];
 
 const navClass = ({ isActive }) =>
@@ -53,6 +57,8 @@ export default function AdminLayout() {
   const { isDark, toggleTheme } = useTheme();
   const isSuper                 = user?.role === 'super_admin';
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const searchRef = useRef(null);
 
   const handleLogout = async () => {
     await logout();
@@ -60,6 +66,15 @@ export default function AdminLayout() {
   };
 
   const closeSidebar = () => setSidebarOpen(false);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const q = searchInput.trim();
+    if (q.length < 2) return;
+    navigate(`/admin/search?q=${encodeURIComponent(q)}`);
+    setSearchInput('');
+    closeSidebar();
+  };
 
   // Plain function (not a component) — avoids remount on every render
   const renderSidebar = () => (
@@ -180,10 +195,26 @@ export default function AdminLayout() {
           >
             <Menu size={20} />
           </button>
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2">
             <img src="/logo.png" alt="" className="h-6 w-6" />
             <span className="font-bold text-white text-sm">OxSteed Admin</span>
           </div>
+          {/* Mobile search bar */}
+          <form onSubmit={handleSearchSubmit} className="flex-1 mx-1">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2
+                                           text-gray-500 pointer-events-none" />
+              <input
+                ref={searchRef}
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search…"
+                className="w-full pl-8 pr-2 py-1.5 bg-gray-800 border border-gray-700
+                           rounded-lg text-xs text-white placeholder-gray-500
+                           focus:outline-none focus:border-orange-500"
+              />
+            </div>
+          </form>
           <button
             onClick={toggleTheme}
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -193,6 +224,25 @@ export default function AdminLayout() {
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </header>
+
+        {/* Desktop search bar */}
+        <div className="hidden lg:flex items-center px-4 py-2.5 bg-gray-900
+                        border-b border-gray-800 shrink-0">
+          <form onSubmit={handleSearchSubmit} className="w-full max-w-sm">
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2
+                                           text-gray-500 pointer-events-none" />
+              <input
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search users, jobs, messages…"
+                className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700
+                           rounded-lg text-xs text-white placeholder-gray-500
+                           focus:outline-none focus:border-orange-500"
+              />
+            </div>
+          </form>
+        </div>
 
         <main className="flex-1 overflow-y-auto bg-gray-950">
           <Outlet />

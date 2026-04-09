@@ -2,7 +2,8 @@ import { useEffect, useState }  from 'react';
 import { useParams, Link }      from 'react-router-dom';
 import { Shield, Ban, CheckCircle,
          ExternalLink, AlertCircle,
-         ChevronLeft }          from 'lucide-react';
+         ChevronLeft, MessageSquare,
+         X, Loader2 }           from 'lucide-react';
 import adminApi                 from '../../../lib/adminApi';
 import { useAuth }              from '../../../hooks/useAuth';
 
@@ -19,6 +20,9 @@ export default function UserDetail() {
   const [nameForm, setNameForm] = useState({ first_name: '', last_name: '' });
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [nameSaving, setNameSaving] = useState(false);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [msgText,     setMsgText]     = useState('');
+  const [msgSending,  setMsgSending]  = useState(false);
 
   const fetchUser = async () => {
     setLoading(true);
@@ -267,6 +271,16 @@ export default function UserDetail() {
               Verify ID
             </button>
 
+            <button
+              onClick={() => setShowMsgModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-900
+                         text-indigo-300 hover:bg-indigo-800 rounded-lg text-xs
+                         font-semibold transition"
+            >
+              <MessageSquare size={13} />
+              Message
+            </button>
+
             <select
               onChange={e => e.target.value && changeRole(e.target.value)}
               defaultValue=""
@@ -475,6 +489,95 @@ export default function UserDetail() {
           </div>
         )}
       </div>
+
+      {/* Message modal */}
+      {showMsgModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center
+                        p-4 bg-black/60">
+          <div className="w-full max-w-md bg-gray-900 border border-gray-700
+                          rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4
+                            border-b border-gray-800">
+              <h2 className="font-semibold text-white flex items-center gap-2 text-sm">
+                <MessageSquare size={15} className="text-indigo-400" />
+                Message {user.first_name}
+              </h2>
+              <button
+                onClick={() => { setShowMsgModal(false); setMsgText(''); }}
+                className="text-gray-500 hover:text-white transition p-1"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!msgText.trim()) return;
+                setMsgSending(true);
+                try {
+                  await adminApi.post(`/admin/super/users/${user.id}/message`, {
+                    content: msgText.trim(),
+                  });
+                  setMessage({ type: 'success', text: `Message sent to ${user.first_name}.` });
+                  setShowMsgModal(false);
+                  setMsgText('');
+                } catch (err) {
+                  setMessage({
+                    type: 'error',
+                    text: err.response?.data?.error || 'Failed to send message.',
+                  });
+                } finally {
+                  setMsgSending(false);
+                }
+              }}
+              className="p-5"
+            >
+              <p className="text-xs text-gray-400 mb-3">
+                This message will appear in {user.first_name}'s inbox as a system message.
+                It is logged in the audit trail.
+              </p>
+              <textarea
+                autoFocus
+                required
+                rows={5}
+                maxLength={4000}
+                value={msgText}
+                onChange={e => setMsgText(e.target.value)}
+                placeholder={`Write a message to ${user.first_name}…`}
+                className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700
+                           rounded-lg text-sm text-white placeholder-gray-500
+                           focus:outline-none focus:border-indigo-500 resize-none"
+              />
+              <div className="flex items-center justify-between mt-1 mb-4">
+                <span className="text-xs text-gray-600">{msgText.length}/4000</span>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowMsgModal(false); setMsgText(''); }}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300
+                             text-sm rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={msgSending || !msgText.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600
+                             hover:bg-indigo-700 text-white text-sm font-semibold
+                             rounded-lg transition disabled:opacity-40"
+                >
+                  {msgSending
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <MessageSquare size={13} />
+                  }
+                  Send Message
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
