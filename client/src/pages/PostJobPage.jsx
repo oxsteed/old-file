@@ -603,6 +603,7 @@ export default function PostJobPage() {
 
   const [form, setForm]     = useState(INIT);
   const [errors, setErrors] = useState({});
+    const [helperHints, setHelperHints] = useState([]);
 
   const photoInputRef       = useRef(null);
   const videoInputRef       = useRef(null);
@@ -1270,14 +1271,35 @@ export default function PostJobPage() {
             </div>
 
             {/* Preferred helper */}
-            <div className="pjw-field">
+            <div className="pjw-field" style={{ position: 'relative' }}>
               <label htmlFor="pjw-preferred-helper">Preferred Helper <span className="hint">Optional</span></label>
               <input id="pjw-preferred-helper" className="pjw-input"
                 placeholder="Search by name or leave blank"
                 value={form.preferredHelperName}
-                onChange={e => set({ preferredHelperName: e.target.value })} />
+                onChange={e => {
+                  const v = e.target.value;
+                  set({ preferredHelperName: v, preferredHelperId: '' });
+                  if (v.length >= 2) {
+                    api.get(`/api/helpers?query=${encodeURIComponent(v)}&limit=5`)
+                      .then(r => setHelperHints(r.data.helpers || []))
+                      .catch(() => setHelperHints([]));
+                  } else { setHelperHints([]); }
+                }}
+                onBlur={() => setTimeout(() => setHelperHints([]), 200)} />
+              {helperHints.length > 0 && (
+                <ul className="pjw-autocomplete">
+                  {helperHints.map(h => (
+                    <li key={h.id}
+                      onMouseDown={() => {
+                        set({ preferredHelperId: h.id, preferredHelperName: h.ownerName });
+                        setHelperHints([]);
+                      }}>
+                      {h.ownerName} {h.rating ? `★ ${h.rating}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-
             {/* Private notes */}
             <div className="pjw-field">
               <label htmlFor="pjw-private-notes">Private Notes <span className="hint">Only you can see this</span></label>
