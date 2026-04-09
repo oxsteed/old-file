@@ -93,6 +93,10 @@ const Modal = ({ open, onClose, title, children }) => {
   );
 };
 
+// Format a Date as YYYY-MM-DD in local time (avoids UTC-shift from toISOString())
+const localDateStr = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Dashboard() {
   const { user } = useAuth();
@@ -330,7 +334,7 @@ export default function Dashboard() {
     try {
       const due = new Date();
       due.setDate(due.getDate() + (template.recurrence_days || 30));
-      await api.post('/life/home-tasks', { title: template.title, description: template.category, urgency: template.urgency, recurrence_days: template.recurrence_days, due_date: due.toISOString().split('T')[0], section: 'personal_care' });
+      await api.post('/life/home-tasks', { title: template.title, description: template.category, urgency: template.urgency, recurrence_days: template.recurrence_days, due_date: localDateStr(due), section: 'personal_care' });
       toast.success(`${template.title} added!`);
       fetchPersonalCareTasks();
     } catch { toast.error('Failed to add.'); }
@@ -364,7 +368,7 @@ export default function Dashboard() {
     try {
       const due = new Date();
       due.setDate(due.getDate() + (template.recurrence_days || 90));
-      await api.post('/life/home-tasks', { title: template.title, description: template.category, urgency: template.urgency, recurrence_days: template.recurrence_days, due_date: due.toISOString().split('T')[0], section: 'car_care' });
+      await api.post('/life/home-tasks', { title: template.title, description: template.category, urgency: template.urgency, recurrence_days: template.recurrence_days, due_date: localDateStr(due), section: 'car_care' });
       toast.success(`${template.title} added!`);
       fetchCarCareTasks();
     } catch { toast.error('Failed to add.'); }
@@ -1191,8 +1195,8 @@ export default function Dashboard() {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                {label:'Overdue',     value:personalCareTasks.filter(t=>t.due_date&&new Date(t.due_date+'T00:00:00')<new Date()&&!t.is_completed).length, color:'text-red-400'},
-                {label:'This Week',   value:personalCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const d=new Date(t.due_date+'T00:00:00'),n=new Date();return d>=n&&d<=new Date(n.getTime()+7*864e5);}).length, color:'text-orange-400'},
+                {label:'Overdue',     value:personalCareTasks.filter(t=>t.due_date&&t.due_date<localDateStr()&&!t.is_completed).length, color:'text-red-400'},
+                {label:'This Week',   value:personalCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const end=localDateStr(new Date(Date.now()+7*864e5));return t.due_date>=localDateStr()&&t.due_date<=end;}).length, color:'text-orange-400'},
                 {label:'Total Pending',value:personalCareTasks.length, color:'text-blue-400'},
                 {label:'Recurring',   value:personalCareTasks.filter(t=>t.recurrence_days).length, color:'text-purple-400'},
               ].map((s,i)=>(
@@ -1239,7 +1243,7 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-2">
                   {personalCareTasks.map(t=>{
-                    const overdue=t.due_date&&new Date(t.due_date+'T00:00:00')<new Date()&&!t.is_completed;
+                    const overdue=t.due_date&&t.due_date<localDateStr()&&!t.is_completed;
                     const recLabel=t.recurrence_days===7?'weekly':t.recurrence_days===30?'monthly':t.recurrence_days===180?'every 6 mo':t.recurrence_days===365?'annually':t.recurrence_days?`every ${t.recurrence_days}d`:null;
                     return (
                       <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
@@ -1272,8 +1276,8 @@ export default function Dashboard() {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                {label:'Overdue',   value:carCareTasks.filter(t=>t.due_date&&new Date(t.due_date+'T00:00:00')<new Date()&&!t.is_completed).length, color:'text-red-400'},
-                {label:'This Week', value:carCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const d=new Date(t.due_date+'T00:00:00'),n=new Date();return d>=n&&d<=new Date(n.getTime()+7*864e5);}).length, color:'text-orange-400'},
+                {label:'Overdue',   value:carCareTasks.filter(t=>t.due_date&&t.due_date<localDateStr()&&!t.is_completed).length, color:'text-red-400'},
+                {label:'This Week', value:carCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const end=localDateStr(new Date(Date.now()+7*864e5));return t.due_date>=localDateStr()&&t.due_date<=end;}).length, color:'text-orange-400'},
                 {label:'Total Pending',value:carCareTasks.length, color:'text-blue-400'},
                 {label:'Recurring', value:carCareTasks.filter(t=>t.recurrence_days).length, color:'text-purple-400'},
               ].map((s,i)=>(
@@ -1320,7 +1324,7 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-2">
                   {carCareTasks.map(t=>{
-                    const overdue=t.due_date&&new Date(t.due_date+'T00:00:00')<new Date()&&!t.is_completed;
+                    const overdue=t.due_date&&t.due_date<localDateStr()&&!t.is_completed;
                     const recLabel=t.recurrence_days===90?'quarterly':t.recurrence_days===180?'every 6 mo':t.recurrence_days===365?'annually':t.recurrence_days===14?'biweekly':t.recurrence_days===30?'monthly':t.recurrence_days?`every ${t.recurrence_days}d`:null;
                     return (
                       <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
