@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-09 (recurring frequency fields for Money/Personal Care/Car Care/Budget; Life Pulse normalization)
+**Last updated:** 2026-04-09 (admin search engine + audit log, scoped time-limited permission grants, admin→user live messaging)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -347,6 +347,35 @@ All production-readiness audit items have been completed. Items are documented i
 - Budget modal: "Monthly Limit" → "Budget Amount + Period" with inline monthly-equivalent preview.
 - Transaction list: frequency badge shown for recurring entries.
 - Budget list: period label appended to limit display (e.g., "$100/mo (yearly)").
+
+### Session — 2026-04-09 (admin search engine, permission grants, live messaging)
+
+**Admin search engine (`GET /api/admin/search`):**
+- **Controller** `server/controllers/adminSearchController.js`: parallel `ILIKE` queries against `users`, `jobs`, `messages`. Caps at 10 results per type (30 total). Non-blocking fire-and-forget logging to `admin_search_log`. Returns `{query, entity_types, total, results}`.
+- **Search audit log** `getSearchLogs()` + `getSearchStats()`: paginated log viewer with admin/query filters; stats with top-10 queries and top-10 searchers over 30 days.
+- **Migration** `server/migrations/049_admin_search_and_permissions.sql`: `admin_search_log` table (GIN index on query), `admin_permission_grants` table (JSONB permissions, partial index on active grants).
+
+**Scoped time-limited permission grants:**
+- **Controller** `server/controllers/adminPermissionController.js`: 11 PERMISSION_SCOPES (`view_financials`, `export_data`, `manage_settings`, `view_audit_log`, `issue_refunds`, `verify_users`, `delete_users`, `delete_jobs`, `view_search_logs`, `manage_admin_accounts`, `message_users`). CRUD: `listGrants`, `createGrant` (validates scope, future expiry ≤ 1yr, grantee must be role='admin'), `revokeGrant`, `getScopes`, `hasPermission()`.
+- **Middleware** `server/middleware/adminAuth.js`: added `requirePermission(scope)` factory — super-admins bypass automatically; regular admins checked against active non-expired non-revoked grants using PostgreSQL `permissions ? $2` JSONB containment.
+- **Frontend** `client/src/admin/pages/super/PermissionGrants.jsx`: grant list (active/expired toggle), create-grant modal (admin picker, checkbox permissions, datetime-local expiry, notes), revoke button with confirm.
+
+**Admin→user live messaging (`POST /api/admin/super/users/:userId/message`):**
+- **Controller** `server/controllers/superAdminController.js` `sendAdminMessage`: finds or creates a job-less conversation (`job_id IS NULL`, admin as `customer_id`), inserts a `system` type message, emits `new_message` Socket.IO event to target user via `broadcastToUser`, logs to `admin_audit_log`. Max 4000 chars.
+- **Frontend** `client/src/admin/pages/super/UserDetail.jsx`: added "Message" button (indigo) in super-admin actions; opens modal with textarea, character counter, send/cancel actions. Disabled for admin accounts.
+
+**Frontend wiring:**
+- `AdminLayout.jsx`: search bar in both desktop (top bar below sidebar header) and mobile header; new nav items: "Search" (all admins), "Permissions" + "Search Logs" (super-admin).
+- `AdminApp.jsx`: routes `/admin/search`, `/admin/super/search-logs`, `/admin/super/permissions`.
+- `AdminSearch.jsx`: search page with type filter toggles (users/jobs/messages), URL-driven (`?q=`), result sections per entity type, empty/loading states.
+- `SearchLogs.jsx`: stats bar + top-queries/top-admins tabs + paginated log table with filters.
+
+**Routes added to `server/routes/admin.js`:**
+- `GET /admin/search` — all admins
+- `GET /admin/super/search-logs` + `/super/search-stats` — `requirePermission('view_search_logs')` (super bypasses)
+- `GET /admin/permission-grants` + `GET /admin/permission-scopes` — all admins (admins see own)
+- `POST /admin/super/permission-grants` + `DELETE /admin/super/permission-grants/:id` — super-admin only
+- `POST /admin/super/users/:userId/message` — super-admin only
 
 ### Session — 2026-04-09 (admin dashboard fixes + full support ticket system)
 

@@ -722,3 +722,125 @@ exports.forceLogout = async (req, res) => {
     res.status(500).json({ error: 'Failed to force logout.' });
   }
 };
+
+// POST /admin/super/users/:userId/message  — send a direct message to any user
+// Creates or re-uses a job-less conversation between the admin and the target user.
+exports.sendAdminMessage = async (req, res) => {
+  const socketService = require('../services/socketService');
+  try {
+    const { userId } = req.params;
+    const { content } = req.body;
+
+    if (!content?.trim()) {
+      return res.status(400).json({ error: 'Message content is required.' });
+    }
+    if (content.length > 4000) {
+      return res.status(400).json({ error: 'Message must be 4000 characters or fewer.' });
+    }
+
+    // Verify target user exists and is not an admin
+    const { rows: targetRows } = await db.query(
+      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      [userId]
+    );
+    if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
+    if (['admin', 'super_admin'].includes(targetRows[0].role)) {
+      return res.status(400).json({ error: 'Cannot send messages to admin accounts.' });
+    }
+
+    const adminId  = req.user.id;
+    const targetId = userId;
+
+    // All conversation + message writes in one transaction to prevent
+    // orphaned conversations on failure and race-condition duplicates.
+    const client = await db.connect();
+    let conversationId, msgRows;
+    try {
+      await client.query('BEGIN');
+
+      // Find-or-create the admin→user conversation.
+      // ON CONFLICT DO NOTHING cannot be used here because PostgreSQL's
+      // UNIQUE constraint treats NULL job_id values as distinct, so every
+      // INSERT would succeed and create a new conversation.
+      // Instead, lock any existing row first (FOR UPDATE serializes
+      // concurrent callers), then insert only if none was found.
+      const { rows: existing } = await client.query(`
+        SELECT id FROM conversations
+        WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
+        LIMIT 1
+        FOR UPDATE
+      `, [adminId, targetId]);
+
+      if (existing.length) {
+        conversationId = existing[0].id;
+      } else {
+        const { rows: newConv } = await client.query(`
+          INSERT INTO conversations (customer_id, helper_id, job_id, status)
+          VALUES ($1, $2, NULL, 'active')
+          RETURNING id
+        `, [adminId, targetId]);
+        conversationId = newConv[0].id;
+      }
+
+      // Insert the message
+      const result = await client.query(`
+        INSERT INTO messages (conversation_id, sender_id, content, message_type)
+        VALUES ($1, $2, $3, 'system')
+        RETURNING id, created_at
+      `, [conversationId, adminId, content.trim()]);
+      msgRows = result.rows;
+
+      // Update conversation timestamp
+      await client.query(
+        `UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [conversationId]
+      );
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
+    // Push real-time event to target user
+    socketService.broadcastToUser(targetId, 'new_message', {
+      conversation_id: conversationId,
+      message: {
+        id:              msgRows[0].id,
+        conversation_id: conversationId,
+        sender_id:       adminId,
+        content:         content.trim(),
+        message_type:    'system',
+        is_read:         false,
+        created_at:      msgRows[0].created_at,
+      },
+      sender: {
+        id:         req.user.id,
+        first_name: req.user.first_name,
+        last_name:  req.user.last_name,
+        role:       req.user.role,
+      },
+    });
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'admin_message_sent',
+      targetType: 'user',
+      targetId,
+      description: `Admin message sent to ${targetRows[0].email}`,
+      after: { conversation_id: conversationId, message_id: msgRows[0].id, preview: content.slice(0, 100) },
+      req,
+    });
+
+    res.status(201).json({
+      conversation_id: conversationId,
+      message_id:      msgRows[0].id,
+      created_at:      msgRows[0].created_at,
+    });
+  } catch (err) {
+    logger.error('sendAdminMessage error', { err });
+    res.status(500).json({ error: 'Failed to send message.' });
+  }
+};

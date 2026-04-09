@@ -3,16 +3,18 @@ import { useAuth } from '../hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
 
 // Super Admin pages
-import SuperDashboard   from './pages/super/Dashboard';
-import UserDetail       from './pages/super/UserDetail';
-import Financials       from './pages/super/Financials';
-import PlatformSettings from './pages/super/PlatformSettings';
-import AuditLog         from './pages/super/AuditLog';
-import FeeConfig        from './pages/super/FeeConfig';
-import PricingConfig    from './pages/super/PricingConfig';
-import Revenue          from './pages/super/Revenue';
-import Payouts          from './pages/super/Payouts';
-import AdminAccounts    from './pages/super/AdminAccounts';
+import SuperDashboard    from './pages/super/Dashboard';
+import UserDetail        from './pages/super/UserDetail';
+import Financials        from './pages/super/Financials';
+import PlatformSettings  from './pages/super/PlatformSettings';
+import AuditLog          from './pages/super/AuditLog';
+import FeeConfig         from './pages/super/FeeConfig';
+import PricingConfig     from './pages/super/PricingConfig';
+import Revenue           from './pages/super/Revenue';
+import Payouts           from './pages/super/Payouts';
+import AdminAccounts     from './pages/super/AdminAccounts';
+import SearchLogs        from './pages/super/SearchLogs';
+import PermissionGrants  from './pages/super/PermissionGrants';
 
 // Shared admin pages
 import UsersList       from './pages/UsersList';
@@ -25,6 +27,7 @@ import Moderation      from './pages/Moderation';
 import SkillsManager   from './pages/SkillsManager';
 import ContentRemovals from './pages/ContentRemovals';
 import SupportTickets  from './pages/SupportTickets';
+import AdminSearch     from './pages/AdminSearch';
 import AdminLogin      from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
@@ -76,6 +79,7 @@ export default function AdminApp() {
           <Route path="skills"              element={<SkillsManager />} />
           <Route path="content-removals"    element={<ContentRemovals />} />
           <Route path="support"             element={<SupportTickets />} />
+          <Route path="search"              element={<AdminSearch />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={
@@ -104,6 +108,12 @@ export default function AdminApp() {
           } />
           <Route path="super/admin-accounts" element={
             <AdminGuard superOnly><AdminAccounts /></AdminGuard>
+          } />
+          <Route path="super/search-logs" element={
+            <AdminGuard><SearchLogs /></AdminGuard>
+          } />
+          <Route path="super/permissions" element={
+            <AdminGuard superOnly><PermissionGrants /></AdminGuard>
           } />
         </Route>
 
