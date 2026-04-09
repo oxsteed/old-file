@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-09 (support ticket system, admin dashboard fixes, planned-needs route fix, unified Life Pulse engine)
+**Last updated:** 2026-04-09 (recurring frequency fields for Money/Personal Care/Car Care/Budget; Life Pulse normalization)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -321,6 +321,32 @@ All production-readiness audit items have been completed. Items are documented i
 - OxSteed job income (`payments.helper_payout` where `status IN ('captured','released')`) is merged into the income baseline so helpers who earn through the platform don't appear cash-poor.
 - Shortfall alerts are only emitted for needs due within 2× the selected window to avoid noisy far-future warnings.
 - The old `getDashboardSummary` pulse score (goals/home/activity composite) is still returned by `/api/life/summary` and is unchanged — the new engine is a separate, additive financial-health layer.
+
+### Session — 2026-04-09 (recurring frequency + budget period support)
+
+**Migration** `server/migrations/047_recurring_frequency.sql`:
+- `expenses`: added `frequency` (one_time/daily/weekly/bi_weekly/monthly/quarterly/yearly), `is_recurring` bool, `recurring_start_date`, `recurring_end_date`.
+- `home_tasks`: added `frequency`, `is_recurring`, `estimated_cost` (for personal_care/car_care financial integration), `recurring_start_date`, `recurring_end_date`.
+- `budget_categories`: added `period` (daily/weekly/bi_weekly/monthly/quarterly/yearly, default monthly). `monthly_limit` always stores the monthly-normalized value.
+
+**`server/controllers/lifeDashboardController.js`**:
+- `createExpense` / `updateExpense`: accept + persist all new frequency/recurring fields.
+- `upsertBudget`: accepts `period_amount` + `period`; normalizes to `monthly_limit` via `PERIOD_TO_MONTHLY` map. Legacy `monthly_limit` field still accepted for backward compat.
+- `createHomeTask` / `updateHomeTask`: accept + persist frequency, is_recurring, estimated_cost, start/end dates. Derives `recurrence_days` from named `frequency` for backward compat.
+
+**`server/controllers/lifePulseController.js`**:
+- Baseline query split into **non-recurring** (90-day sum ÷ 90) + **recurring** (most-recent entry per type/category/frequency, normalized to monthly).
+- New query for recurring `home_tasks` with `estimated_cost` (personal_care + car_care) — their monthly equivalents are added to the expense baseline.
+- Combined formula: `avgDailyIncome = (one_time_90d / 90) + (recurring_monthly / 30)`. Score becomes more accurate for users with annual/quarterly income or expenses that were under-represented with naive averaging.
+
+**`client/src/pages/Dashboard.jsx`**:
+- All 4 modals updated: Log Transaction, Personal Care, Car Care, Budget.
+- Frequency dropdown (One-time/Daily/Weekly/Bi-weekly/Monthly/Quarterly/Yearly) and Recurring toggle on Money, Personal Care, Car Care.
+- Recurring toggle shows optional start/end date inputs.
+- Estimated Cost field on Personal Care and Car Care (feeds Life Pulse).
+- Budget modal: "Monthly Limit" → "Budget Amount + Period" with inline monthly-equivalent preview.
+- Transaction list: frequency badge shown for recurring entries.
+- Budget list: period label appended to limit display (e.g., "$100/mo (yearly)").
 
 ### Session — 2026-04-09 (admin dashboard fixes + full support ticket system)
 

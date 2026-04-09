@@ -85,9 +85,9 @@ exports.getLifePulse = async (req, res) => {
     }
 
     // ── parallel queries ───────────────────────────────────────────────────
-    const [baselineRes, reliabilityRes, oxsteedRes, needsRes] = await Promise.all([
+    const [baselineRes, reliabilityRes, oxsteedRes, needsRes, recurringRes, taskRecurringRes] = await Promise.all([
 
-      // 1. 90-day income and expense totals (baseline for daily averages)
+      // 1. 90-day one-time income and expense totals (non-recurring entries only)
       db.query(`
         SELECT
           COALESCE(SUM(amount) FILTER (WHERE type = 'income'),  0) AS income_90d,
@@ -95,9 +95,10 @@ exports.getLifePulse = async (req, res) => {
         FROM expenses
         WHERE user_id = $1
           AND occurred_at >= CURRENT_DATE - INTERVAL '90 days'
+          AND (is_recurring IS NOT TRUE)
       `, [userId]),
 
-      // 2. Reliability: last 30d vs prior 60d (days 31–90) income
+      // 2. Reliability: last 30d vs prior 60d (days 31–90) income — all entries
       db.query(`
         SELECT
           COALESCE(SUM(amount) FILTER (
@@ -138,22 +139,91 @@ exports.getLifePulse = async (req, res) => {
           AND due_date >= CURRENT_DATE
         ORDER BY due_date ASC
       `, [userId]),
+
+      // 5. Recurring expenses/income — deduplicated to the most recent entry per
+      //    (type, category, frequency), then normalised to a monthly equivalent.
+      //    Only active entries (within optional start/end date range) are included.
+      db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN type = 'income'  THEN monthly_eq ELSE 0 END), 0) AS recurring_income_monthly,
+          COALESCE(SUM(CASE WHEN type = 'expense' THEN monthly_eq ELSE 0 END), 0) AS recurring_expense_monthly
+        FROM (
+          SELECT DISTINCT ON (type, category, frequency)
+            type,
+            CASE frequency
+              WHEN 'daily'      THEN amount * 30
+              WHEN 'weekly'     THEN amount * (30.0 / 7)
+              WHEN 'bi_weekly'  THEN amount * (30.0 / 14)
+              WHEN 'monthly'    THEN amount
+              WHEN 'quarterly'  THEN amount / 3.0
+              WHEN 'yearly'     THEN amount / 12.0
+              ELSE                   amount
+            END AS monthly_eq
+          FROM expenses
+          WHERE user_id = $1
+            AND is_recurring = TRUE
+            AND frequency IS NOT NULL
+            AND frequency <> 'one_time'
+            AND (recurring_start_date IS NULL OR recurring_start_date <= CURRENT_DATE)
+            AND (recurring_end_date   IS NULL OR recurring_end_date   >= CURRENT_DATE)
+          ORDER BY type, category, frequency, occurred_at DESC
+        ) r
+      `, [userId]),
+
+      // 6. Recurring home-task costs (personal_care + car_care) with a frequency and
+      //    estimated_cost — deduplicated per (section, title, frequency).
+      //    These represent predictable periodic expenses (gym, oil change, etc.)
+      //    and are added to the expense baseline so the score stays accurate.
+      db.query(`
+        SELECT
+          COALESCE(SUM(monthly_eq), 0) AS task_expense_monthly
+        FROM (
+          SELECT DISTINCT ON (section, title, frequency)
+            CASE frequency
+              WHEN 'daily'      THEN estimated_cost * 30
+              WHEN 'weekly'     THEN estimated_cost * (30.0 / 7)
+              WHEN 'bi_weekly'  THEN estimated_cost * (30.0 / 14)
+              WHEN 'monthly'    THEN estimated_cost
+              WHEN 'quarterly'  THEN estimated_cost / 3.0
+              WHEN 'yearly'     THEN estimated_cost / 12.0
+              ELSE                   0
+            END AS monthly_eq
+          FROM home_tasks
+          WHERE user_id = $1
+            AND is_recurring = TRUE
+            AND section IN ('personal_care', 'car_care')
+            AND estimated_cost IS NOT NULL AND estimated_cost > 0
+            AND frequency IS NOT NULL AND frequency <> 'one_time'
+            AND (recurring_start_date IS NULL OR recurring_start_date <= CURRENT_DATE)
+            AND (recurring_end_date   IS NULL OR recurring_end_date   >= CURRENT_DATE)
+          ORDER BY section, title, frequency, created_at DESC
+        ) t
+      `, [userId]),
     ]);
 
-    const baseline    = baselineRes.rows[0];
-    const reliability = reliabilityRes.rows[0];
-    const oxsteed     = oxsteedRes.rows[0];
-    const rawNeeds    = needsRes.rows;
+    const baseline       = baselineRes.rows[0];
+    const reliability    = reliabilityRes.rows[0];
+    const oxsteed        = oxsteedRes.rows[0];
+    const rawNeeds       = needsRes.rows;
+    const recurringRow   = recurringRes.rows[0];
+    const taskRow        = taskRecurringRes.rows[0];
 
     // ── 1. Daily averages ───────────────────────────────────────────────────
     const income90d     = parseFloat(baseline.income_90d);
     const expense90d    = parseFloat(baseline.expense_90d);
     const oxsteedIncome = parseFloat(oxsteed.oxsteed_income_90d);
 
+    // Monthly equivalents from recurring entries (expenses table + home tasks)
+    const recurringIncomeMonthly  = parseFloat(recurringRow.recurring_income_monthly);
+    const recurringExpenseMonthly = parseFloat(recurringRow.recurring_expense_monthly)
+                                  + parseFloat(taskRow.task_expense_monthly);
+
     // Merge OxSteed settled earnings into the income baseline
     const totalIncome90d  = income90d + oxsteedIncome;
-    const avgDailyIncome  = totalIncome90d / 90;
-    const avgDailyExpense = expense90d / 90;
+    // Daily averages: one-time transactions averaged over 90 days
+    //                + recurring patterns normalised from their monthly equivalent
+    const avgDailyIncome  = (totalIncome90d / 90) + (recurringIncomeMonthly  / 30);
+    const avgDailyExpense = (expense90d     / 90) + (recurringExpenseMonthly / 30);
 
     // ── 2. Window projections ───────────────────────────────────────────────
     const projectedIncome   = round2(avgDailyIncome  * windowDays);
