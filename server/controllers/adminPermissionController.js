@@ -1,5 +1,6 @@
 'use strict';
 const db = require('../db');
+const { logAdminAction } = require('../services/auditService');
 
 // ── Permission scopes catalogue ───────────────────────────────────────────────
 const PERMISSION_SCOPES = {
@@ -120,12 +121,14 @@ exports.createGrant = async (req, res) => {
     `, [grantorId, grantee_id, JSON.stringify(permissions), expiresAt, notes || null]);
 
     // Audit log
-    await logAdminAction(req, {
+    await logAdminAction({
+      adminId: req.user.id,
       action: 'permission_grant_create',
       targetType: 'admin_permission_grant',
       targetId: grantee_id,
       description: `Granted [${permissions.join(', ')}] to ${granteeRows[0].email} until ${expiresAt.toISOString()}`,
       after: { grant_id: rows[0].id, permissions, expires_at: expiresAt },
+      req,
     });
 
     res.status(201).json({ grant: rows[0] });
@@ -158,12 +161,14 @@ exports.revokeGrant = async (req, res) => {
       [id, req.user.id]
     );
 
-    await logAdminAction(req, {
+    await logAdminAction({
+      adminId: req.user.id,
       action: 'permission_grant_revoke',
       targetType: 'admin_permission_grant',
       targetId: existing[0].grantee_id,
       description: `Revoked grant #${id} from ${existing[0].grantee_email}`,
       before: { permissions: existing[0].permissions, expires_at: existing[0].expires_at },
+      req,
     });
 
     res.json({ message: 'Grant revoked.' });
@@ -183,21 +188,3 @@ exports.getScopes = (req, res) => {
   res.json({ scopes });
 };
 
-// ── Internal helper ───────────────────────────────────────────────────────────
-
-async function logAdminAction(req, { action, targetType, targetId, description, before, after }) {
-  try {
-    await db.query(`
-      INSERT INTO admin_audit_log
-        (admin_id, action, target_type, target_id, description, ip_address, user_agent, before_state, after_state)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-    `, [
-      req.user.id, action, targetType, targetId || null, description,
-      req.ip || null, req.headers['user-agent'] || null,
-      before ? JSON.stringify(before) : null,
-      after  ? JSON.stringify(after)  : null,
-    ]);
-  } catch (err) {
-    console.error('logAdminAction error:', err);
-  }
-}

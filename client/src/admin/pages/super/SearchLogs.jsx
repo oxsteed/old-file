@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Search, BarChart2, Loader2 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
@@ -33,13 +33,17 @@ function StatsBar({ stats }) {
 }
 
 export default function SearchLogs() {
-  const [logs,    setLogs]    = useState([]);
-  const [stats,   setStats]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [total,   setTotal]   = useState(0);
-  const [offset,  setOffset]  = useState(0);
-  const [filters, setFilters] = useState({ q: '', admin_id: '' });
-  const [topTab,  setTopTab]  = useState('queries'); // 'queries' | 'admins'
+  const [logs,         setLogs]         = useState([]);
+  const [stats,        setStats]        = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [total,        setTotal]        = useState(0);
+  const [offset,       setOffset]       = useState(0);
+  // inputFilters: live text box values (updated on every keystroke)
+  const [inputFilters, setInputFilters] = useState({ q: '', admin_id: '' });
+  // filters: debounced values that actually trigger the API call
+  const [filters,      setFilters]      = useState({ q: '', admin_id: '' });
+  const [topTab,       setTopTab]       = useState('queries'); // 'queries' | 'admins'
+  const debounceRef = useRef(null);
 
   const LIMIT = 50;
 
@@ -76,9 +80,14 @@ export default function SearchLogs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset, filters]);
 
+  // Debounce text filter input — only commit to `filters` after 400ms idle
   const handleFilterChange = (key, val) => {
-    setOffset(0);
-    setFilters(f => ({ ...f, [key]: val }));
+    setInputFilters(f => ({ ...f, [key]: val }));
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setOffset(0);
+      setFilters(f => ({ ...f, [key]: val }));
+    }, 400);
   };
 
   const totalPages = Math.ceil(total / LIMIT);
@@ -190,7 +199,7 @@ export default function SearchLogs() {
         <input
           type="text"
           placeholder="Filter by query text…"
-          value={filters.q}
+          value={inputFilters.q}
           onChange={e => handleFilterChange('q', e.target.value)}
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
                      text-sm text-white placeholder-gray-500
@@ -199,7 +208,7 @@ export default function SearchLogs() {
         <input
           type="text"
           placeholder="Filter by admin ID…"
-          value={filters.admin_id}
+          value={inputFilters.admin_id}
           onChange={e => handleFilterChange('admin_id', e.target.value)}
           className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg
                      text-sm text-white placeholder-gray-500

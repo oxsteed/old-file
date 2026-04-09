@@ -28,7 +28,9 @@ exports.search = async (req, res) => {
     return res.status(400).json({ error: `Valid types: ${ALL_ENTITY_TYPES.join(', ')}` });
   }
 
-  const ilike = `%${rawQuery}%`;
+  // Escape ILIKE special characters so % and _ in the input match literally
+  const escaped = rawQuery.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+  const ilike = `%${escaped}%`;
 
   try {
     // ── Run all searches in parallel ─────────────────────────────────────────
