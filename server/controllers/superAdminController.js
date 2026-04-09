@@ -758,28 +758,28 @@ exports.sendAdminMessage = async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Upsert: insert if not exists, return existing id either way.
-      // ON CONFLICT requires a unique index — conversations has
-      // UNIQUE(job_id, customer_id, helper_id) but NULL job_id values
-      // don't trigger that constraint in Postgres, so we use a
-      // DO UPDATE SET ... = EXCLUDED.* no-op to force the RETURNING.
-      const { rows: convRows } = await client.query(`
-        INSERT INTO conversations (customer_id, helper_id, job_id, status)
-        VALUES ($1, $2, NULL, 'active')
-        ON CONFLICT DO NOTHING
-        RETURNING id
+      // Find-or-create the admin→user conversation.
+      // ON CONFLICT DO NOTHING cannot be used here because PostgreSQL's
+      // UNIQUE constraint treats NULL job_id values as distinct, so every
+      // INSERT would succeed and create a new conversation.
+      // Instead, lock any existing row first (FOR UPDATE serializes
+      // concurrent callers), then insert only if none was found.
+      const { rows: existing } = await client.query(`
+        SELECT id FROM conversations
+        WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
+        LIMIT 1
+        FOR UPDATE
       `, [adminId, targetId]);
 
-      if (convRows.length) {
-        conversationId = convRows[0].id;
-      } else {
-        // Row already existed (ON CONFLICT suppressed the insert)
-        const { rows: existing } = await client.query(`
-          SELECT id FROM conversations
-          WHERE job_id IS NULL AND customer_id = $1 AND helper_id = $2
-          LIMIT 1
-        `, [adminId, targetId]);
+      if (existing.length) {
         conversationId = existing[0].id;
+      } else {
+        const { rows: newConv } = await client.query(`
+          INSERT INTO conversations (customer_id, helper_id, job_id, status)
+          VALUES ($1, $2, NULL, 'active')
+          RETURNING id
+        `, [adminId, targetId]);
+        conversationId = newConv[0].id;
       }
 
       // Insert the message
