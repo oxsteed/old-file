@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-09 (support ticket system, admin dashboard fixes)
+**Last updated:** 2026-04-09 (support ticket system, admin dashboard fixes, planned-needs route fix)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -342,7 +342,7 @@ All production-readiness audit items have been completed. Items are documented i
 - **Cron** `server/jobs/plannedNeedsScheduler.js`: daily 6am Eastern. Pass 1: marks `activating_soon` 1 day before lead-time triggers. Pass 2: auto-publishes job posts for needs where `(due_date − lead_time_days) ≤ today`, stores `published_job_id`.
 - **getDashboardSummary** updated to include `planned_needs` block: active_count, activating_soon_count, publishing_this_week, total_planned_cost, next_due_date.
 - **Frontend** `client/src/pages/PlannedNeedsPage.jsx` + `PlannedNeedsPage.css`: Life Pulse projection panel (8 windows), sinking fund meters per card, auto-publish queue banner, add/edit/cancel/complete modals, floating vs fixed recurrence UX.
-- **Router**: `/planned-needs` protected route added to `App.jsx`.
+- **Router**: `/planned-needs` protected route in `App.jsx` — was incorrectly set to `<Navigate to="/dashboard">` (PlannedNeedsPage was never imported); fixed to render `PlannedNeedsPage` properly.
 
 **Key logic notes:**
 - Recurrence: `floating` → next due = completion_date + interval_days; `fixed` → next due = original due_date + interval_days.
