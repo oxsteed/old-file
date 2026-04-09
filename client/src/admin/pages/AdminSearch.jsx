@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, Link }            from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams, Link }                    from 'react-router-dom';
 import { Search, User, Briefcase, MessageSquare, Loader2 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 
@@ -129,6 +129,9 @@ export default function AdminSearch() {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
   const [types,   setTypes]   = useState(['users', 'jobs', 'messages']);
+  // Track whether we've completed the initial mount so the types effect
+  // doesn't fire a duplicate search alongside the searchParams effect.
+  const initialMountRef = useRef(true);
 
   const ALL_TYPES = ['users', 'jobs', 'messages'];
 
@@ -149,7 +152,7 @@ export default function AdminSearch() {
     }
   }, []);
 
-  // Run search when URL param changes
+  // Run search when URL param changes (also handles initial mount)
   useEffect(() => {
     const q = searchParams.get('q') || '';
     setInput(q);
@@ -157,6 +160,9 @@ export default function AdminSearch() {
     if (q.trim().length >= 2) {
       doSearch(q, types);
     }
+    // After the first run, mark mount as complete so the types effect
+    // knows not to duplicate this call.
+    initialMountRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -173,8 +179,10 @@ export default function AdminSearch() {
     });
   };
 
-  // Re-run search when types change (if we have a query)
+  // Re-run search when types change — but skip the initial mount to avoid
+  // firing a duplicate request alongside the searchParams effect above.
   useEffect(() => {
+    if (initialMountRef.current) return;
     if (query.trim().length >= 2) {
       doSearch(query, types);
     }

@@ -112,7 +112,6 @@ exports.search = async (req, res) => {
             FROM messages m
             JOIN users s ON s.id = m.sender_id
             WHERE m.content ILIKE $1
-              AND m.deleted_at IS NULL
             ORDER BY m.created_at DESC
             LIMIT $2
           `, [ilike, MAX_PER_TYPE])
