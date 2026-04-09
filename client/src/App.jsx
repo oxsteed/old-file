@@ -95,13 +95,14 @@ export default function App() {
                                 <Route path="/planned-needs" element={<Guarded><ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute></Guarded>} />
                   
                   <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-              <CookieConsent />
-              <SupportWidget />
-            </AuthProvider>
+                          </Routes>
+                        </TermsGate>
+        <CookieConsent />
+        <SupportWidget />
+        </AuthProvider>
           </Router>
-        </ErrorBoundary>
-      </ThemeProvider>
+      </ErrorBoundary>
+    </ThemeProvider>
     </HelmetProvider>
   );
 }
