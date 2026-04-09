@@ -572,7 +572,8 @@ exports.adminReply = async (req, res) => {
       });
     }
 
-    const adminName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Support Team';
+    const adminName =
+      `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Support Team';
 
     const { rows: [msg] } = await db.query(
       `INSERT INTO support_messages
@@ -584,27 +585,38 @@ exports.adminReply = async (req, res) => {
 
     // Build UPDATE SET clause
     const sets = ['updated_at = NOW()'];
-      const updateParams = [];
-      let paramIdx = 1;
-      if (!ticket.first_response_at && !is_internal) sets.push('first_response_at = NOW()');
-      if (!is_internal && ticket.status === 'assigned') sets.push(`status = 'in_progress'`);
-      if (!is_internal && ticket.status === 'in_progress') sets.push(`status = 'waiting_user'`);
-      if (!ticket.assigned_to) {
-        sets.push(`assigned_to = $${paramIdx++}`);
-        updateParams.push(req.user.id);
-        sets.push(`assigned_at = NOW()`);
-        if (!is_internal && ticket.status === 'open') sets.push(`status = 'in_progress'`);
+    const updateParams = [];
+    let paramIdx = 1;
+
+    if (!ticket.first_response_at && !is_internal) {
+      sets.push('first_response_at = NOW()');
+    }
+    if (!is_internal && ticket.status === 'assigned') {
+      sets.push(`status = 'in_progress'`);
+    }
+    if (!is_internal && ticket.status === 'in_progress') {
+      sets.push(`status = 'waiting_user'`);
+    }
+    if (!ticket.assigned_to) {
+      sets.push(`assigned_to = $${paramIdx++}`);
+      updateParams.push(req.user.id);
+      sets.push(`assigned_at = NOW()`);
+      if (!is_internal && ticket.status === 'open') {
+        sets.push(`status = 'in_progress'`);
       }
-            updateParams.push(ticket.id);
-      await db.query(
-        `UPDATE support_tickets SET ${sets.join(', ')} WHERE id = $${paramIdx}`,
-        updateParams
-      )
+    }
+
+    updateParams.push(ticket.id);
+    await db.query(
+      `UPDATE support_tickets SET ${sets.join(', ')} WHERE id = $${paramIdx}`,
+      updateParams
     );
 
     if (!is_internal) {
       notifyUser(ticket.user_id, 'support:admin_reply', {
-        ticket_id: ticket.id, ticket_number: ticket.ticket_number, subject: ticket.subject,
+        ticket_id: ticket.id,
+        ticket_number: ticket.ticket_number,
+        subject: ticket.subject,
       });
 
       sendEmail({
@@ -627,11 +639,14 @@ exports.adminReply = async (req, res) => {
     }
 
     notifyAdmins('support:ticket_updated', {
-      ticket_id: ticket.id, ticket_number: ticket.ticket_number,
+      ticket_id: ticket.id,
+      ticket_number: ticket.ticket_number,
     });
 
     logger.info('Admin replied to ticket', {
-      ticketId: ticket.id, adminId: req.user.id, isInternal: is_internal,
+      ticketId: ticket.id,
+      adminId: req.user.id,
+      isInternal: is_internal,
     });
 
     return res.status(201).json({ message: msg });
