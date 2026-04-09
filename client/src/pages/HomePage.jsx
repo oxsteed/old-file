@@ -222,7 +222,16 @@ function HomeSearch() {
     const local = SKILL_TILES.filter(
       (t) => t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q) || t.slug.includes(q),
     );
-    if (local.length) { setSkillSugg(local.slice(0, 8)); setSkillsOpen(true); }
+    // Bug fixes: reset index on every suggestion change; clear stale list immediately
+    // when no local matches so the old list doesn't linger during the DB fetch delay.
+    if (local.length) {
+      setSkillSugg(local.slice(0, 8));
+      setSkillsOpen(true);
+      setSkillIdx(-1);
+    } else {
+      setSkillSugg([]);
+      setSkillsOpen(false);
+    }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -281,12 +290,24 @@ function HomeSearch() {
   }, []);
 
   // ── Helpers: build URLSearchParams from current state ─────────────────────
-  function buildHelperParams(overrideSlug) {
+  // DB-sourced skills have dynamically generated slugs that won't match any
+  // SKILL_TILES id on the directory page, so route them via ?q= (text search)
+  // instead of ?skill= (tile lookup).
+  function addSkillOrQuery(p, tile) {
+    if (!tile) return;
+    if (tile.fromDb) {
+      p.set('q', tile.name);
+    } else {
+      p.set('skill', tile.slug);
+    }
+  }
+
+  function buildHelperParams(overrideTile) {
     const p = new URLSearchParams();
-    if (overrideSlug) {
-      p.set('skill', overrideSlug);
+    if (overrideTile) {
+      addSkillOrQuery(p, overrideTile);
     } else if (skillIdx >= 0 && skillSugg[skillIdx]) {
-      p.set('skill', skillSugg[skillIdx].slug);
+      addSkillOrQuery(p, skillSugg[skillIdx]);
     } else if (query.trim()) {
       p.set('q', query.trim());
     }
@@ -312,7 +333,7 @@ function HomeSearch() {
   }
 
   function handleSelectSkill(tile) {
-    navigate(`/helpers?${buildHelperParams(tile.slug).toString()}`);
+    navigate(`/helpers?${buildHelperParams(tile).toString()}`);
     setQuery('');
     setSkillsOpen(false);
   }

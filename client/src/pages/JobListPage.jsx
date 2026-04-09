@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
@@ -75,6 +75,9 @@ export default function JobListPage() {
     sort: 'newest',
     page: 1,
   }));
+  // Separate display state for the q input so we can debounce API calls
+  const [qInput, setQInput] = useState(searchParams.get('q') || '');
+  const qDebounceRef = useRef(null);
   const [tourView, setTourView] = useState('customer');
 
   useEffect(() => {
@@ -110,8 +113,13 @@ export default function JobListPage() {
               type="search"
               className="ox-input"
               placeholder="Search jobs by keyword…"
-              value={filters.q}
-              onChange={e => handleFilter('q', e.target.value)}
+              value={qInput}
+              onChange={e => {
+                const val = e.target.value;
+                setQInput(val);
+                if (qDebounceRef.current) clearTimeout(qDebounceRef.current);
+                qDebounceRef.current = setTimeout(() => handleFilter('q', val), 350);
+              }}
               aria-label="Search jobs"
             />
 

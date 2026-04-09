@@ -368,6 +368,10 @@ function getInitialState(): { filters: DirectoryFilters; tileId: string | null }
     if (tile) {
       tileId = tile.id;
       filters.categories = [tile.category];
+    } else {
+      // Slug doesn't match any tile (e.g. a DB-sourced skill that slipped through);
+      // convert to a free-text query so the search intent is not silently dropped.
+      filters.query = skillParam.replace(/-/g, ' ');
     }
   }
 
@@ -398,14 +402,16 @@ function getInitialState(): { filters: DirectoryFilters; tileId: string | null }
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const [filters, setFilters]           = useState<DirectoryFilters>(() => getInitialState().filters);
+  // Parse URL params exactly once — destructure for both derived states.
+  const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
+  const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
   const [sort, setSort]                 = useState<SortOption>('best_match');
   const [helpers, setHelpers]           = useState<HelperCardData[]>([]);
   const [total, setTotal]               = useState(0);
   const [page, setPage]                 = useState(1);
   const [loadState, setLoadState]       = useState<'loading' | 'success' | 'error'>('loading');
   const [drawerOpen, setDrawerOpen]     = useState(false);
-  const [selectedTileId, setSelectedTileId] = useState<string | null>(() => getInitialState().tileId);
+  const [selectedTileId, setSelectedTileId] = useState<string | null>(_initTileId);
 
   // Debounce filter/sort changes; skip debounce on first render for instant load
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
