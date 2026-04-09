@@ -140,11 +140,12 @@ function exportTranscript(messages) {
 
 // ── 3. Escalation modal ───────────────────────────────────────────────────────
 function EscalationModal({ messages, onClose }) {
-  const [sent,    setSent]    = useState(false);
-  const [name,    setName]    = useState('');
-  const [email,   setEmail]   = useState('');
-  const [desc,    setDesc]    = useState('');
-  const [sending, setSending] = useState(false);
+  const [sent,         setSent]         = useState(false);
+  const [ticketNumber, setTicketNumber] = useState(null);
+  const [name,         setName]         = useState('');
+  const [email,        setEmail]        = useState('');
+  const [desc,         setDesc]         = useState('');
+  const [sending,      setSending]      = useState(false);
 
   const transcript = messages
     .map(m => `${m.role === 'user' ? 'Customer' : 'AI'}: ${m.content}`)
@@ -154,13 +155,14 @@ function EscalationModal({ messages, onClose }) {
     e.preventDefault();
     setSending(true);
     try {
-      await api.post('/support/request', {
+      const { data } = await api.post('/support/request', {
         name,
         email,
         subject:  'Live support escalation from chat widget',
         message:  `${desc || '(No additional description provided)'}\n\n${'─'.repeat(40)}\nAI Chat History:\n${transcript}`,
         category: 'Chat Escalation',
       });
+      if (data?.ticket_number) setTicketNumber(data.ticket_number);
     } catch { /* still show success — user can email directly */ }
     setSent(true);
     setSending(false);
@@ -180,7 +182,14 @@ function EscalationModal({ messages, onClose }) {
               </svg>
             </div>
             <p className="text-white font-semibold">Request sent!</p>
-            <p className="text-gray-400 text-sm mt-1">Our support team will email you back soon.</p>
+            {ticketNumber ? (
+              <p className="text-gray-400 text-sm mt-1">
+                Your ticket number is <strong className="text-orange-400">#{ticketNumber}</strong>.
+                Check your email for confirmation.
+              </p>
+            ) : (
+              <p className="text-gray-400 text-sm mt-1">Our support team will email you back soon.</p>
+            )}
             <button onClick={onClose} className="mt-4 w-full py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-xl transition">
               Close
             </button>

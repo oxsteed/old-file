@@ -7,7 +7,7 @@ import {
   Flag, Shield, DollarSign, Settings,
   FileText, BarChart2, LogOut, TrendingUp,
   ScrollText, Wrench, Trash2, UserCog,
-  Menu, X, Sun, Moon
+  Menu, X, Sun, Moon, HeadphonesIcon,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -18,6 +18,7 @@ const REGULAR_NAV = [
   { to: '/admin/moderation',       icon: Shield,          label: 'Moderation'       },
   { to: '/admin/content-removals', icon: Trash2,          label: 'Content Removals' },
   { to: '/admin/skills',           icon: Wrench,          label: 'Skills'           },
+  { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },
 ];
 
 const SUPER_NAV = [

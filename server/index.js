@@ -80,11 +80,12 @@ io.use((socket, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Check if user is still active before allowing WebSocket
-      pool.query('SELECT is_active FROM users WHERE id = $1', [decoded.id]).then(({ rows }) => {
+      pool.query('SELECT is_active, role FROM users WHERE id = $1', [decoded.id]).then(({ rows }) => {
         if (!rows[0] || !rows[0].is_active) {
           return next(new Error('Account suspended'));
         }
-        socket.userId = decoded.id;
+        socket.userId   = decoded.id;
+        socket.userRole = rows[0].role;
         next();
       }).catch(() => next(new Error('Auth check failed')));
   } catch (err) {
@@ -95,8 +96,12 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   const userId = socket.userId;
   socket.join(`user_${userId}`);
+  // Admins join a shared room so support tickets can be broadcast to all staff
+  if (['admin', 'super_admin'].includes(socket.userRole)) {
+    socket.join('admins');
+  }
   socketService.trackConnect(userId, socket.id);
-  logger.debug('Socket connected', { userId, socketId: socket.id });
+  logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
   socket.on('disconnect', () => {
     socketService.trackDisconnect(userId, socket.id);
