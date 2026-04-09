@@ -47,11 +47,11 @@ function createStoreOption(prefix) {
   return {};
 }
 
-// General API rate limiter: 100 requests per 15 minutes per IP
+// General API rate limiter: 200 requests per 15 minutes per IP
 const generalLimiter = rateLimit({
   ...createStoreOption('rl:general:'),
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -60,12 +60,12 @@ const generalLimiter = rateLimit({
   },
 });
 
-// Auth rate limiter: 15 attempts per 15 minutes per IP
+// Auth rate limiter: 30 attempts per 15 minutes per IP
 // Protects login, register, OTP endpoints from brute-force
 const authLimiter = rateLimit({
   ...createStoreOption('rl:auth:'),
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -74,12 +74,12 @@ const authLimiter = rateLimit({
   },
 });
 
-// Strict limiter for sensitive operations: 5 per hour per IP
+// Strict limiter for sensitive operations: 10 per hour per IP
 // For password reset, account deletion, data export
 const strictLimiter = rateLimit({
   ...createStoreOption('rl:strict:'),
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
