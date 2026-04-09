@@ -552,6 +552,13 @@ const INIT = {
   },
   categorySuggestion: null,
   budgetType: 'open', budgetAmount: 800, budgetAmountHourly: 45,
+      // ── Scheduling & recurrence (merged from Planned Needs) ──
+    scheduledDate: '', scheduledTime: '',
+    recurrence: 'none', // none | weekly | biweekly | monthly
+    // ── Preferred helper ──
+    preferredHelperId: '', preferredHelperName: '',
+    // ── Private notes (only visible to poster) ──
+    privateNotes: '',
   urgency: 'this_week', notes: '',
   termsAccepted: false,
   submitting: false, submitted: false, submittedJob: null,
@@ -596,6 +603,7 @@ export default function PostJobPage() {
 
   const [form, setForm]     = useState(INIT);
   const [errors, setErrors] = useState({});
+    const [helperHints, setHelperHints] = useState([]);
 
   const photoInputRef       = useRef(null);
   const videoInputRef       = useRef(null);
@@ -1234,6 +1242,70 @@ export default function PostJobPage() {
                     placeholder="Parking, access instructions, existing quotes, anything a helper should know…"
                     value={form.notes} onChange={e => set({ notes: e.target.value })} />
                 </div>
+
+                {/* Scheduling (future date) */}
+            <div className="pjw-field">
+              <label>Schedule for Later <span className="hint">Optional</span></label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input type="date" className="pjw-input" value={form.scheduledDate}
+                  onChange={e => set({ scheduledDate: e.target.value })} />
+                <input type="time" className="pjw-input" value={form.scheduledTime}
+                  onChange={e => set({ scheduledTime: e.target.value })} />
+              </div>
+            </div>
+
+            {/* Recurrence */}
+            <div className="pjw-field">
+              <label>Recurrence</label>
+              <div className="pjw-pill-group" role="group" aria-label="Recurrence">
+                {[['none','One-time'],['weekly','Weekly'],['biweekly','Bi-weekly'],['monthly','Monthly']].map(([val,label]) =>
+                  <button key={val} type="button"
+                    className={`pjw-pill${form.recurrence===val?' is-active':''}`}
+                    onClick={() => set({ recurrence: val })}
+                    aria-pressed={form.recurrence===val}>
+                    {label}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Preferred helper */}
+            <div className="pjw-field" style={{ position: 'relative' }}>
+              <label htmlFor="pjw-preferred-helper">Preferred Helper <span className="hint">Optional</span></label>
+              <input id="pjw-preferred-helper" className="pjw-input"
+                placeholder="Search by name or leave blank"
+                value={form.preferredHelperName}
+                onChange={e => {
+                  const v = e.target.value;
+                  set({ preferredHelperName: v, preferredHelperId: '' });
+                  if (v.length >= 2) {
+                    api.get(`/api/helpers?query=${encodeURIComponent(v)}&limit=5`)
+                      .then(r => setHelperHints(r.data.helpers || []))
+                      .catch(() => setHelperHints([]));
+                  } else { setHelperHints([]); }
+                }}
+                onBlur={() => setTimeout(() => setHelperHints([]), 200)} />
+              {helperHints.length > 0 && (
+                <ul className="pjw-autocomplete">
+                  {helperHints.map(h => (
+                    <li key={h.id}
+                      onMouseDown={() => {
+                        set({ preferredHelperId: h.id, preferredHelperName: h.ownerName });
+                        setHelperHints([]);
+                      }}>
+                      {h.ownerName} {h.rating ? `★ ${h.rating}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {/* Private notes */}
+            <div className="pjw-field">
+              <label htmlFor="pjw-private-notes">Private Notes <span className="hint">Only you can see this</span></label>
+              <textarea id="pjw-private-notes" className="pjw-textarea" rows={2}
+                placeholder="Personal reminders, budget notes, etc."
+                value={form.privateNotes} onChange={e => set({ privateNotes: e.target.value })} />
+            </div>
               </div>
             )}
 

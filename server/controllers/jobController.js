@@ -27,6 +27,10 @@ exports.createJob = async (req, res) => {
       requirements, media_urls,
       // Legacy fields kept for backward compat
       job_type, priority, scheduled_date,
+            // New fields from Planned Needs merge
+      scheduled_time, recurrence,
+      preferred_helper_id, preferred_helper_name,
+      private_notes,
     } = req.body;
 
     // ── Validate required fields ──────────────────────────────────────────
@@ -91,12 +95,16 @@ exports.createJob = async (req, res) => {
           location_approx_lat, location_approx_lng,
           requirements, media_urls,
           status, expires_at
+                      scheduled_date, scheduled_time, recurrence,
+            preferred_helper_id, preferred_helper_name,
+            private_notes,
        )
        VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,$19,
           ${hasGeo ? `ST_SetSRID(ST_MakePoint($19::float,$18::float),4326)::geography` : 'NULL'},
           $20,$21,$22,$23,
+                      $24,$25,$26,$27,$28,$29,
           'published', now() + interval '30 days'
        )
        RETURNING *`,
@@ -110,6 +118,9 @@ exports.createJob = async (req, res) => {
         location_lat  || null, location_lng || null,
         approx.lat, approx.lng,
         reqJson, mediaArr,
+                scheduled_date || null, scheduled_time || null, recurrence || 'none',
+        preferred_helper_id || null, preferred_helper_name || null,
+        private_notes || null,
       ]
     );
 
