@@ -404,21 +404,30 @@ exports.removeSavedHelper = async (req, res) => {
 exports.getHomeTasks = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { completed } = req.query;
+    const { completed, section } = req.query;
 
-    let condition = 'WHERE user_id = $1';
-    if (completed === 'true') condition += ' AND is_completed = true';
-    else if (completed === 'false') condition += ' AND is_completed = false';
+    const conditions = ['user_id = $1'];
+    const params = [userId];
+
+    if (completed === 'true') conditions.push('is_completed = true');
+    else if (completed === 'false') conditions.push('is_completed = false');
+
+    if (section) {
+      params.push(section);
+      conditions.push(`section = $${params.length}`);
+    } else {
+      conditions.push(`section = 'home'`);
+    }
 
     const { rows } = await db.query(`
       SELECT * FROM home_tasks
-      ${condition}
+      WHERE ${conditions.join(' AND ')}
       ORDER BY
         is_completed ASC,
         CASE urgency WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
         due_date ASC NULLS LAST,
         created_at DESC
-    `, [userId]);
+    `, params);
 
     res.json({ home_tasks: rows });
   } catch (err) {
@@ -430,15 +439,17 @@ exports.getHomeTasks = async (req, res) => {
 exports.createHomeTask = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, description, due_date, recurrence_days, urgency = 'low' } = req.body;
+    const { title, description, due_date, recurrence_days, urgency = 'low', section = 'home' } = req.body;
 
     if (!title) return res.status(400).json({ error: 'Title is required.' });
+    const allowedSections = ['home', 'personal_care', 'car_care'];
+    const safeSection = allowedSections.includes(section) ? section : 'home';
 
     const { rows } = await db.query(`
-      INSERT INTO home_tasks (user_id, title, description, due_date, recurrence_days, urgency)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO home_tasks (user_id, title, description, due_date, recurrence_days, urgency, section)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [userId, title, description || null, due_date || null, recurrence_days || null, urgency]);
+    `, [userId, title, description || null, due_date || null, recurrence_days || null, urgency, safeSection]);
 
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -603,13 +614,13 @@ exports.getDashboardSummary = async (req, res) => {
         FROM goals WHERE user_id = $1
       `, [userId]),
 
-      // Overdue + upcoming home tasks
+      // Overdue + upcoming home tasks (section='home' only)
       db.query(`
         SELECT
           COUNT(*) FILTER (WHERE NOT is_completed AND due_date < CURRENT_DATE) AS overdue,
           COUNT(*) FILTER (WHERE NOT is_completed AND due_date >= CURRENT_DATE AND due_date <= CURRENT_DATE + INTERVAL '7 days') AS due_this_week,
           COUNT(*) FILTER (WHERE NOT is_completed) AS total_pending
-        FROM home_tasks WHERE user_id = $1
+        FROM home_tasks WHERE user_id = $1 AND section = 'home'
       `, [userId]),
 
       // Checklist stats
