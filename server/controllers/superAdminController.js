@@ -141,7 +141,7 @@ exports.getUserDetail = async (req, res) => {
     const user = {
       ...raw,
       avatar_url:          raw.profile_photo_url || null,
-      id_verified:         raw.identity_verified || raw.is_identity_verified || false,
+      id_verified:         raw.identity_verified ?? raw.is_identity_verified ?? false,
       stripe_account_id:   raw.ca_stripe_account_id   || raw.hp_stripe_account_id   || null,
       charges_enabled:     raw.ca_charges_enabled      ?? raw.hp_charges_enabled      ?? false,
       payouts_enabled:     raw.ca_payouts_enabled      ?? raw.hp_payouts_enabled      ?? false,
