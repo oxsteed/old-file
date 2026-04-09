@@ -282,7 +282,13 @@ exports.getLifePulse = async (req, res) => {
 
     // Runway: proxy from 90-day cumulative net (estimating built-up buffer).
     // Not a live savings balance, but a strong signal of recent cash trajectory.
-    const estimatedBuffer = totalIncome90d - expense90d; // positive = user has been saving
+    // Include recurring income/expense over the same 90-day window so the
+    // numerator is consistent with monthlyBurn (which uses avgDailyExpense,
+    // already incorporating recurring). Without this, a user whose salary is
+    // a recurring entry would show estimatedBuffer ≈ 0 while monthlyBurn
+    // correctly counts their expenses, collapsing runwayMonths to zero.
+    const estimatedBuffer = (totalIncome90d + recurringIncomeMonthly * 3)
+                          - (expense90d     + recurringExpenseMonthly * 3);
     const monthlyBurn     = avgDailyExpense * 30;
     const runwayMonths    = monthlyBurn > 0
       ? round1(Math.max(0, estimatedBuffer) / monthlyBurn)

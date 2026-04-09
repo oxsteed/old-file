@@ -1546,7 +1546,7 @@ export default function Dashboard() {
           </Select>
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
-            <button type="button" onClick={()=>setPcForm(p=>({...p,is_recurring:!p.is_recurring}))}
+            <button type="button" onClick={()=>setPcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
               className={`w-10 h-5 rounded-full transition-colors relative ${pcForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${pcForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
@@ -1587,7 +1587,7 @@ export default function Dashboard() {
           </Select>
           <div className="flex items-center gap-3">
             <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
-            <button type="button" onClick={()=>setCcForm(p=>({...p,is_recurring:!p.is_recurring}))}
+            <button type="button" onClick={()=>setCcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
               className={`w-10 h-5 rounded-full transition-colors relative ${ccForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${ccForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
