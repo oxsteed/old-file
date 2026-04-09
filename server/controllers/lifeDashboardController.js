@@ -61,10 +61,17 @@ exports.getExpenses = async (req, res) => {
   }
 };
 
+// Valid frequency values (kept in sync with DB constraint)
+const VALID_FREQUENCIES = ['one_time','daily','weekly','bi_weekly','monthly','quarterly','yearly'];
+
 exports.createExpense = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { type = 'expense', amount, category, description, occurred_at } = req.body;
+    const {
+      type = 'expense', amount, category, description, occurred_at,
+      frequency = 'one_time', is_recurring = false,
+      recurring_start_date, recurring_end_date,
+    } = req.body;
 
     if (!amount || !category) {
       return res.status(400).json({ error: 'Amount and category are required.' });
@@ -72,12 +79,20 @@ exports.createExpense = async (req, res) => {
     if (!['income', 'expense'].includes(type)) {
       return res.status(400).json({ error: 'Type must be income or expense.' });
     }
+    const safeFrequency = VALID_FREQUENCIES.includes(frequency) ? frequency : 'one_time';
 
     const { rows } = await db.query(`
-      INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO expenses
+        (user_id, type, amount, category, description, occurred_at,
+         frequency, is_recurring, recurring_start_date, recurring_end_date)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
-    `, [userId, type, amount, category, description || null, occurred_at || new Date()]);
+    `, [
+      userId, type, amount, category, description || null,
+      occurred_at || new Date(),
+      safeFrequency, is_recurring || false,
+      recurring_start_date || null, recurring_end_date || null,
+    ]);
 
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -90,7 +105,12 @@ exports.updateExpense = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { type, amount, category, description, occurred_at } = req.body;
+    const {
+      type, amount, category, description, occurred_at,
+      frequency, is_recurring, recurring_start_date, recurring_end_date,
+    } = req.body;
+
+    const safeFrequency = frequency && VALID_FREQUENCIES.includes(frequency) ? frequency : undefined;
 
     const { rows } = await db.query(`
       UPDATE expenses
@@ -99,10 +119,15 @@ exports.updateExpense = async (req, res) => {
           category = COALESCE($5, category),
           description = COALESCE($6, description),
           occurred_at = COALESCE($7, occurred_at),
+          frequency = COALESCE($8, frequency),
+          is_recurring = COALESCE($9, is_recurring),
+          recurring_start_date = COALESCE($10, recurring_start_date),
+          recurring_end_date = COALESCE($11, recurring_end_date),
           updated_at = now()
       WHERE id = $1 AND user_id = $2
       RETURNING *
-    `, [id, userId, type, amount, category, description, occurred_at]);
+    `, [id, userId, type, amount, category, description, occurred_at,
+        safeFrequency, is_recurring, recurring_start_date, recurring_end_date]);
 
     if (!rows.length) return res.status(404).json({ error: 'Expense not found.' });
     res.json(rows[0]);
@@ -204,22 +229,48 @@ exports.getBudgets = async (req, res) => {
   }
 };
 
+// Multiplier to convert a per-period amount into a monthly equivalent
+const PERIOD_TO_MONTHLY = {
+  daily:     30,
+  weekly:    30 / 7,
+  bi_weekly: 30 / 14,
+  monthly:   1,
+  quarterly: 1 / 3,
+  yearly:    1 / 12,
+};
+
 exports.upsertBudget = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { category, monthly_limit, color } = req.body;
+    // Accept either the legacy `monthly_limit` or the new `period_amount` + `period`.
+    // If period_amount is provided we normalise to a monthly value and store that.
+    const {
+      category, color,
+      period = 'monthly',
+      period_amount,
+      monthly_limit,
+    } = req.body;
 
-    if (!category || monthly_limit === undefined) {
-      return res.status(400).json({ error: 'Category and monthly_limit are required.' });
+    // Determine the raw amount — prefer period_amount over the legacy field
+    const rawAmount = period_amount !== undefined ? parseFloat(period_amount) : parseFloat(monthly_limit);
+
+    if (!category || isNaN(rawAmount) || rawAmount < 0) {
+      return res.status(400).json({ error: 'Category and a valid amount are required.' });
     }
 
+    const safePeriod = PERIOD_TO_MONTHLY[period] !== undefined ? period : 'monthly';
+    const normalizedMonthly = rawAmount * PERIOD_TO_MONTHLY[safePeriod];
+
     const { rows } = await db.query(`
-      INSERT INTO budget_categories (user_id, category, monthly_limit, color)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO budget_categories (user_id, category, monthly_limit, color, period)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (user_id, category) DO UPDATE
-      SET monthly_limit = $3, color = COALESCE($4, budget_categories.color), updated_at = now()
+      SET monthly_limit = $3,
+          color = COALESCE($4, budget_categories.color),
+          period = $5,
+          updated_at = now()
       RETURNING *
-    `, [userId, category, monthly_limit, color || '#F4A261']);
+    `, [userId, category, normalizedMonthly, color || '#F4A261', safePeriod]);
 
     res.json(rows[0]);
   } catch (err) {
@@ -436,20 +487,44 @@ exports.getHomeTasks = async (req, res) => {
   }
 };
 
+// Map named frequency to recurrence_days for backward compat with any cron/scheduler reading that column
+const FREQUENCY_DAYS = {
+  daily: 1, weekly: 7, bi_weekly: 14, monthly: 30,
+  quarterly: 91, yearly: 365, one_time: null,
+};
+
 exports.createHomeTask = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, description, due_date, recurrence_days, urgency = 'low', section = 'home' } = req.body;
+    const {
+      title, description, due_date, recurrence_days, urgency = 'low', section = 'home',
+      frequency, is_recurring = false, estimated_cost,
+      recurring_start_date, recurring_end_date,
+    } = req.body;
 
     if (!title) return res.status(400).json({ error: 'Title is required.' });
     const allowedSections = ['home', 'personal_care', 'car_care'];
     const safeSection = allowedSections.includes(section) ? section : 'home';
 
+    const safeFrequency = frequency && VALID_FREQUENCIES.includes(frequency) ? frequency : null;
+    // Derive recurrence_days from frequency if frequency provided, otherwise use explicit value
+    const effectiveRecurrenceDays = safeFrequency
+      ? FREQUENCY_DAYS[safeFrequency]
+      : (recurrence_days || null);
+
     const { rows } = await db.query(`
-      INSERT INTO home_tasks (user_id, title, description, due_date, recurrence_days, urgency, section)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO home_tasks
+        (user_id, title, description, due_date, recurrence_days, urgency, section,
+         frequency, is_recurring, estimated_cost, recurring_start_date, recurring_end_date)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
-    `, [userId, title, description || null, due_date || null, recurrence_days || null, urgency, safeSection]);
+    `, [
+      userId, title, description || null, due_date || null,
+      effectiveRecurrenceDays, urgency, safeSection,
+      safeFrequency, is_recurring || false,
+      estimated_cost ? parseFloat(estimated_cost) : null,
+      recurring_start_date || null, recurring_end_date || null,
+    ]);
 
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -462,9 +537,15 @@ exports.updateHomeTask = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { title, description, due_date, recurrence_days, urgency, is_completed } = req.body;
+    const {
+      title, description, due_date, recurrence_days, urgency, is_completed,
+      frequency, is_recurring, estimated_cost, recurring_start_date, recurring_end_date,
+    } = req.body;
 
-    const completedAt = is_completed === true ? 'now()' : 'NULL';
+    const safeFrequency = frequency && VALID_FREQUENCIES.includes(frequency) ? frequency : undefined;
+    const effectiveRecurrenceDays = safeFrequency
+      ? FREQUENCY_DAYS[safeFrequency]
+      : recurrence_days;
 
     const { rows } = await db.query(`
       UPDATE home_tasks
@@ -475,10 +556,17 @@ exports.updateHomeTask = async (req, res) => {
           urgency = COALESCE($7, urgency),
           is_completed = COALESCE($8, is_completed),
           completed_at = CASE WHEN $8 = true THEN now() WHEN $8 = false THEN NULL ELSE completed_at END,
+          frequency = COALESCE($9, frequency),
+          is_recurring = COALESCE($10, is_recurring),
+          estimated_cost = COALESCE($11, estimated_cost),
+          recurring_start_date = COALESCE($12, recurring_start_date),
+          recurring_end_date = COALESCE($13, recurring_end_date),
           updated_at = now()
       WHERE id = $1 AND user_id = $2
       RETURNING *
-    `, [id, userId, title, description, due_date, recurrence_days, urgency, is_completed]);
+    `, [id, userId, title, description, due_date, effectiveRecurrenceDays, urgency, is_completed,
+        safeFrequency, is_recurring, estimated_cost ? parseFloat(estimated_cost) : undefined,
+        recurring_start_date, recurring_end_date]);
 
     if (!rows.length) return res.status(404).json({ error: 'Home task not found.' });
     res.json(rows[0]);

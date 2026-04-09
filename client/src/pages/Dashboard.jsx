@@ -134,7 +134,7 @@ export default function Dashboard() {
 
   // Budget modal (replaces prompt)
   const [showBudgetModal, setShowBudgetModal] = useState(false);
-  const [budgetForm, setBudgetForm] = useState({ category:'', monthly_limit:'' });
+  const [budgetForm, setBudgetForm] = useState({ category:'', period_amount:'', period:'monthly' });
 
   // Goal update modal (replaces prompt)
   const [showGoalUpdateModal, setShowGoalUpdateModal] = useState(false);
@@ -145,13 +145,13 @@ export default function Dashboard() {
   const [personalCareTasks, setPersonalCareTasks] = useState([]);
   const [pcLoading, setPcLoading] = useState(false);
   const [showPcModal, setShowPcModal] = useState(false);
-  const [pcForm, setPcForm] = useState({ title:'', category:'Medical', due_date:'', urgency:'medium', recurrence_days:'' });
+  const [pcForm, setPcForm] = useState({ title:'', category:'Medical', due_date:'', urgency:'medium', recurrence_days:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'' });
 
   // Car Care
   const [carCareTasks, setCarCareTasks] = useState([]);
   const [ccLoading, setCcLoading] = useState(false);
   const [showCcModal, setShowCcModal] = useState(false);
-  const [ccForm, setCcForm] = useState({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'' });
+  const [ccForm, setCcForm] = useState({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'' });
 
   // Money tab — individual planned needs for sinking fund card
   const [moneyPlannedNeeds, setMoneyPlannedNeeds] = useState([]);
@@ -310,9 +310,21 @@ export default function Dashboard() {
   const addPcTask = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/life/home-tasks', { title: pcForm.title, description: pcForm.category, due_date: pcForm.due_date || null, urgency: pcForm.urgency, recurrence_days: pcForm.recurrence_days ? parseInt(pcForm.recurrence_days) : null, section: 'personal_care' });
+      await api.post('/life/home-tasks', {
+        title: pcForm.title,
+        description: pcForm.category,
+        due_date: pcForm.due_date || null,
+        urgency: pcForm.urgency,
+        recurrence_days: pcForm.recurrence_days ? parseInt(pcForm.recurrence_days) : null,
+        section: 'personal_care',
+        frequency: pcForm.frequency || null,
+        is_recurring: pcForm.is_recurring,
+        estimated_cost: pcForm.estimated_cost ? parseFloat(pcForm.estimated_cost) : null,
+        recurring_start_date: pcForm.is_recurring && pcForm.recurring_start_date ? pcForm.recurring_start_date : null,
+        recurring_end_date: pcForm.is_recurring && pcForm.recurring_end_date ? pcForm.recurring_end_date : null,
+      });
       toast.success('Appointment added!');
-      setPcForm({ title:'', category:'Medical', due_date:'', urgency:'medium', recurrence_days:'' });
+      setPcForm({ title:'', category:'Medical', due_date:'', urgency:'medium', recurrence_days:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'' });
       setShowPcModal(false);
       fetchPersonalCareTasks();
     } catch { toast.error('Failed to save.'); }
@@ -344,9 +356,21 @@ export default function Dashboard() {
   const addCcTask = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/life/home-tasks', { title: ccForm.title, description: [ccForm.category, ccForm.description].filter(Boolean).join(': '), due_date: ccForm.due_date || null, urgency: ccForm.urgency, recurrence_days: ccForm.recurrence_days ? parseInt(ccForm.recurrence_days) : null, section: 'car_care' });
+      await api.post('/life/home-tasks', {
+        title: ccForm.title,
+        description: [ccForm.category, ccForm.description].filter(Boolean).join(': '),
+        due_date: ccForm.due_date || null,
+        urgency: ccForm.urgency,
+        recurrence_days: ccForm.recurrence_days ? parseInt(ccForm.recurrence_days) : null,
+        section: 'car_care',
+        frequency: ccForm.frequency || null,
+        is_recurring: ccForm.is_recurring,
+        estimated_cost: ccForm.estimated_cost ? parseFloat(ccForm.estimated_cost) : null,
+        recurring_start_date: ccForm.is_recurring && ccForm.recurring_start_date ? ccForm.recurring_start_date : null,
+        recurring_end_date: ccForm.is_recurring && ccForm.recurring_end_date ? ccForm.recurring_end_date : null,
+      });
       toast.success('Service added!');
-      setCcForm({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'' });
+      setCcForm({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'' });
       setShowCcModal(false);
       fetchCarCareTasks();
     } catch { toast.error('Failed to save.'); }
@@ -375,7 +399,7 @@ export default function Dashboard() {
   };
 
   // Form state
-  const [expenseForm, setExpenseForm] = useState({ type:'expense', amount:'', category:'', description:'' });
+  const [expenseForm, setExpenseForm] = useState({ type:'expense', amount:'', category:'', description:'', frequency:'one_time', is_recurring:false, recurring_start_date:'', recurring_end_date:'' });
   const [goalForm, setGoalForm] = useState({ title:'', goal_type:'financial', target_value:'', icon:'🎯' });
   const [homeTaskForm, setHomeTaskForm] = useState({ title:'', due_date:'', urgency:'low', recurrence_days:'' });
   const [checklistForm, setChecklistForm] = useState({ title:'', due_date:'' });
@@ -428,9 +452,15 @@ export default function Dashboard() {
   const handleAddExpense = async (e) => {
     e.preventDefault();
     try {
-      await life.createExpense({ ...expenseForm, amount: parseFloat(expenseForm.amount) });
-      toast.success('Expense logged!');
-      setExpenseForm({ type:'expense', amount:'', category:'', description:'' });
+      await life.createExpense({
+        ...expenseForm,
+        amount: parseFloat(expenseForm.amount),
+        is_recurring: expenseForm.is_recurring,
+        recurring_start_date: expenseForm.is_recurring && expenseForm.recurring_start_date ? expenseForm.recurring_start_date : null,
+        recurring_end_date: expenseForm.is_recurring && expenseForm.recurring_end_date ? expenseForm.recurring_end_date : null,
+      });
+      toast.success(expenseForm.type === 'income' ? 'Income logged!' : 'Expense logged!');
+      setExpenseForm({ type:'expense', amount:'', category:'', description:'', frequency:'one_time', is_recurring:false, recurring_start_date:'', recurring_end_date:'' });
       setShowExpenseModal(false);
       life.fetchSummary();
       life.fetchExpenses();
@@ -793,7 +823,14 @@ export default function Dashboard() {
                     <div key={e.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/30 transition group">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-white truncate">{e.description||e.category}</p>
-                        <p className="text-xs text-gray-600 mt-0.5">{e.category} · {new Date(e.occurred_at).toLocaleDateString()}</p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {e.category} · {new Date(e.occurred_at).toLocaleDateString()}
+                          {e.is_recurring && e.frequency && e.frequency !== 'one_time' && (
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500/15 text-orange-400">
+                              {e.frequency.replace('_','-')}
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{e.type==='income'?'+':'-'}${parseFloat(e.amount).toFixed(2)}</span>
@@ -816,11 +853,12 @@ export default function Dashboard() {
                     const spent = parseFloat(b.spent||0);
                     const limit = parseFloat(b.monthly_limit);
                     const pct = limit>0?(spent/limit)*100:0;
+                    const periodLabel = b.period && b.period !== 'monthly' ? ` /mo (${b.period.replace('_','-')})` : '/mo';
                     return (
                       <div key={b.id}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="font-medium text-white">{b.category}</span>
-                          <span className="text-gray-500">${spent.toFixed(0)} / ${limit.toFixed(0)}</span>
+                          <span className="text-gray-500">${spent.toFixed(0)} / ${limit.toFixed(0)}{periodLabel}</span>
                         </div>
                         <ProgressBar pct={pct} color={pct>90?'bg-red-500':pct>70?'bg-yellow-500':'bg-emerald-500'}/>
                       </div>
@@ -1385,6 +1423,29 @@ export default function Dashboard() {
           <Input label="Amount ($)" type="number" step="0.01" min="0.01" required placeholder="0.00" value={expenseForm.amount} onChange={e=>setExpenseForm(p=>({...p,amount:e.target.value}))}/>
           <Input label="Category" required placeholder="e.g. Gas, Supplies, Gig Payment" value={expenseForm.category} onChange={e=>setExpenseForm(p=>({...p,category:e.target.value}))}/>
           <Input label="Description (optional)" placeholder="Quick note" value={expenseForm.description} onChange={e=>setExpenseForm(p=>({...p,description:e.target.value}))}/>
+          <Select label="Frequency" value={expenseForm.frequency} onChange={e=>setExpenseForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!=='one_time'}))}>
+            <option value="one_time">One-time</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="bi_weekly">Bi-weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </Select>
+          <div className="flex items-center gap-3">
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
+            <button type="button" onClick={()=>setExpenseForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&p.frequency==='one_time'?'monthly':p.frequency}))}
+              className={`w-10 h-5 rounded-full transition-colors relative ${expenseForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${expenseForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
+            </button>
+            <span className="text-xs text-gray-400">{expenseForm.is_recurring?'Yes':'No'}</span>
+          </div>
+          {expenseForm.is_recurring && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Start Date (optional)" type="date" value={expenseForm.recurring_start_date} onChange={e=>setExpenseForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+              <Input label="End Date (optional)" type="date" value={expenseForm.recurring_end_date} onChange={e=>setExpenseForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+            </div>
+          )}
           <Btn className="w-full py-3" type="submit">Save Transaction</Btn>
         </form>
       </Modal>
@@ -1422,13 +1483,28 @@ export default function Dashboard() {
       </Modal>
 
       {/* ── Budget Modal ── */}
-      <Modal open={showBudgetModal} onClose={()=>{setShowBudgetModal(false);setBudgetForm({category:'',monthly_limit:''})}} title="Set Monthly Budget">
-        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,monthly_limit:parseFloat(budgetForm.monthly_limit)});life.fetchBudgets();toast.success('Budget saved!');setShowBudgetModal(false);setBudgetForm({category:'',monthly_limit:''});}catch{toast.error('Failed to save budget.');}}} className="space-y-4">
+      <Modal open={showBudgetModal} onClose={()=>{setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'})}} title="Set Budget">
+        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success('Budget saved!');setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error('Failed to save budget.');}}} className="space-y-4">
           <Select label="Category" required value={budgetForm.category} onChange={e=>setBudgetForm(p=>({...p,category:e.target.value}))}>
             <option value="">Select a category...</option>
             {['Housing / Rent','Food & Dining','Transportation','Utilities','Healthcare','Entertainment','Shopping','Personal Care','Auto','Education','Subscriptions','Savings','Other'].map(c=><option key={c} value={c}>{c}</option>)}
           </Select>
-          <Input label="Monthly Limit ($)" type="number" step="0.01" min="1" required placeholder="0.00" value={budgetForm.monthly_limit} onChange={e=>setBudgetForm(p=>({...p,monthly_limit:e.target.value}))}/>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Budget Amount ($)" type="number" step="0.01" min="0.01" required placeholder="0.00" value={budgetForm.period_amount} onChange={e=>setBudgetForm(p=>({...p,period_amount:e.target.value}))}/>
+            <Select label="Period" value={budgetForm.period} onChange={e=>setBudgetForm(p=>({...p,period:e.target.value}))}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="bi_weekly">Bi-weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </Select>
+          </div>
+          {budgetForm.period_amount && budgetForm.period !== 'monthly' && (
+            <p className="text-xs text-gray-500">
+              ≈ ${(parseFloat(budgetForm.period_amount||0) * ({daily:30,weekly:30/7,bi_weekly:30/14,monthly:1,quarterly:1/3,yearly:1/12}[budgetForm.period]||1)).toFixed(2)}/month
+            </p>
+          )}
           <Btn className="w-full py-3" type="submit">Save Budget</Btn>
         </form>
       </Modal>
@@ -1459,7 +1535,30 @@ export default function Dashboard() {
           <Select label="Priority" value={pcForm.urgency} onChange={e=>setPcForm(p=>({...p,urgency:e.target.value}))}>
             <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
           </Select>
-          <Input label="Repeat Every (days, optional)" type="number" placeholder="30 = monthly · 365 = annually" value={pcForm.recurrence_days} onChange={e=>setPcForm(p=>({...p,recurrence_days:e.target.value}))}/>
+          <Select label="Frequency" value={pcForm.frequency} onChange={e=>setPcForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!==''&&e.target.value!=='one_time'}))}>
+            <option value="">One-time / unspecified</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="bi_weekly">Bi-weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </Select>
+          <div className="flex items-center gap-3">
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
+            <button type="button" onClick={()=>setPcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
+              className={`w-10 h-5 rounded-full transition-colors relative ${pcForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${pcForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
+            </button>
+            <span className="text-xs text-gray-400">{pcForm.is_recurring?'Yes':'No'}</span>
+          </div>
+          {pcForm.is_recurring && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Start Date (optional)" type="date" value={pcForm.recurring_start_date} onChange={e=>setPcForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+              <Input label="End Date (optional)" type="date" value={pcForm.recurring_end_date} onChange={e=>setPcForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+            </div>
+          )}
+          <Input label="Estimated Cost ($, optional)" type="number" step="0.01" min="0" placeholder="e.g. 25.00 — feeds into Life Pulse score" value={pcForm.estimated_cost} onChange={e=>setPcForm(p=>({...p,estimated_cost:e.target.value}))}/>
           <Btn className="w-full py-3" type="submit">Add Appointment</Btn>
         </form>
       </Modal>
@@ -1477,7 +1576,30 @@ export default function Dashboard() {
               <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
             </Select>
           </div>
-          <Input label="Repeat Every (days, optional)" type="number" placeholder="90 = quarterly · 365 = annually" value={ccForm.recurrence_days} onChange={e=>setCcForm(p=>({...p,recurrence_days:e.target.value}))}/>
+          <Select label="Frequency" value={ccForm.frequency} onChange={e=>setCcForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!==''&&e.target.value!=='one_time'}))}>
+            <option value="">One-time / unspecified</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="bi_weekly">Bi-weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </Select>
+          <div className="flex items-center gap-3">
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
+            <button type="button" onClick={()=>setCcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
+              className={`w-10 h-5 rounded-full transition-colors relative ${ccForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${ccForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
+            </button>
+            <span className="text-xs text-gray-400">{ccForm.is_recurring?'Yes':'No'}</span>
+          </div>
+          {ccForm.is_recurring && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Start Date (optional)" type="date" value={ccForm.recurring_start_date} onChange={e=>setCcForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+              <Input label="End Date (optional)" type="date" value={ccForm.recurring_end_date} onChange={e=>setCcForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+            </div>
+          )}
+          <Input label="Estimated Cost ($, optional)" type="number" step="0.01" min="0" placeholder="e.g. 45.00 — feeds into Life Pulse score" value={ccForm.estimated_cost} onChange={e=>setCcForm(p=>({...p,estimated_cost:e.target.value}))}/>
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Notes (optional)</label>
             <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder="Shop name, current mileage, etc." value={ccForm.description} onChange={e=>setCcForm(p=>({...p,description:e.target.value}))}/>
