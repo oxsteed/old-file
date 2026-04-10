@@ -213,8 +213,7 @@ exports.getJobs = async (req, res) => {
     const { rows } = await pool.query(`
       SELECT
         j.*,
-        u.first_name || ' ' || u.last_name AS client_name,
-        u.email AS client_email
+        u.first_name || ' ' || u.last_name AS client_name
       FROM jobs j
       JOIN users u ON j.client_id = u.id
       ${whereClause}
@@ -247,7 +246,6 @@ exports.getJob = async (req, res) => {
       SELECT
         j.*,
         u.first_name || ' ' || u.last_name AS client_name,
-        u.email AS client_email,
         h.first_name || ' ' || h.last_name AS helper_name
       FROM jobs j
       JOIN users u ON j.client_id = u.id

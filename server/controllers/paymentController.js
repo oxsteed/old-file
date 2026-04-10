@@ -59,7 +59,10 @@ exports.createConnectAccount = async (req, res) => {
 // Get Connect account status
 exports.getConnectStatus = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
+    const result = await pool.query(
+      'SELECT charges_enabled, payouts_enabled, onboarding_complete FROM connect_accounts WHERE user_id = $1',
+      [req.user.id]
+    );
     if (!result.rows[0]) return res.json({ connected: false });
     res.json({ connected: true, ...result.rows[0] });
   } catch (err) {
@@ -197,7 +200,7 @@ exports.capturePayment = async (req, res) => {
 // Refund payment (on helper's connected account — admin only)
 exports.refundPayment = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'super_admin'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
@@ -238,7 +241,7 @@ exports.getJobPayment = async (req, res) => {
     const result = await pool.query('SELECT * FROM payments WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1', [req.params.job_id]);
     if (!result.rows[0]) return res.json(null);
     const p = result.rows[0];
-    if (p.payer_id !== req.user.id && p.payee_id !== req.user.id && req.user.role !== 'admin') {
+    if (p.payer_id !== req.user.id && p.payee_id !== req.user.id && !['admin', 'super_admin'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Not authorized' });
     }
     res.json(p);
