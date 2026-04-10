@@ -125,7 +125,8 @@ exports.createJob = async (req, res) => {
     );
 
     // Strip exact GPS coordinates from the response — helpers see only fuzzy coords
-    const { location_lat, location_lng, location_point, ...safeJob } = rows[0];
+    // eslint-disable-next-line no-unused-vars
+    const { location_lat: _rlat, location_lng: _rlng, location_point: _rpt, ...safeJob } = rows[0];
 
     // ── Synchronous match scoring ─────────────────────────────────────────
     let matchResult = { total: 0, notified: 0 };
