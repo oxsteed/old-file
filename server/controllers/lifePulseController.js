@@ -1,5 +1,6 @@
 'use strict';
 const db = require('../db');
+const logger = require('../utils/logger');
 
 // ── constants ────────────────────────────────────────────────────────────────
 
@@ -425,7 +426,7 @@ exports.getLifePulse = async (req, res) => {
       alerts,
     });
   } catch (err) {
-    console.error('getLifePulse error:', err);
+    logger.error('getLifePulse error:', err);
     res.status(500).json({ error: 'Failed to compute Life Pulse.' });
   }
 };

@@ -1,12 +1,14 @@
+const logger = require('../utils/logger');
 // Phase  2 - Authentication & authorization middleware
 // OxSteed v2
 
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
-const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
+const JWT_SECRET         = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET  = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+const JWT_EXPIRES_IN      = process.env.JWT_EXPIRES_IN  || '15m';
+const REFRESH_EXPIRES_IN  = process.env.REFRESH_EXPIRES_IN || '7d';
 
 function generateTokens(user) {
   const accessToken = jwt.sign(
@@ -16,7 +18,7 @@ function generateTokens(user) {
   );
   const refreshToken = jwt.sign(
     { id: user.id, type: 'refresh' },
-    JWT_SECRET,
+    JWT_REFRESH_SECRET,
     { expiresIn: REFRESH_EXPIRES_IN }
   );
   return { accessToken, refreshToken };
@@ -117,7 +119,7 @@ function requireTier(...tiers) {
       }
       next();
     } catch (err) {
-      console.error('requireTier error:', err);
+      logger.error('requireTier error', { err });
       return res.status(500).json({ error: 'Failed to check tier' });
     }
   };
@@ -141,7 +143,7 @@ async function requireActiveSubscription(req, res, next) {
     }
     next();
   } catch (err) {
-    console.error('requireActiveSubscription error:', err);
+    logger.error('requireActiveSubscription error', { err });
     return res.status(500).json({ error: 'Failed to check subscription' });
   }
 }

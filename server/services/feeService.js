@@ -1,4 +1,5 @@
 const db = require('../db');
+const logger = require('../utils/logger');
 
 // In-memory cache — refreshed by admin setting changes
 let FEES = {
@@ -30,9 +31,9 @@ exports.reloadFeeConfig = async () => {
       };
       if (map[key]) FEES[map[key]] = parseFloat(value);
     });
-    console.log('[FeeService] Config reloaded:', FEES);
+    logger.info('[FeeService] Config reloaded:', FEES);
   } catch (err) {
-    console.error('[FeeService] Reload failed:', err.message);
+    logger.error('[FeeService] Reload failed:', err.message);
   }
 };
 

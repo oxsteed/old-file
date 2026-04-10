@@ -1,4 +1,5 @@
 const db = require('../db');
+const logger = require('../utils/logger');
 const { invalidateCache, DEFAULTS } = require('../utils/feeCalculator');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
@@ -104,7 +105,7 @@ exports.updateFeeConfig = async (req, res) => {
 
     res.json({ success: true, key, newValue });
   } catch (err) {
-    console.error('[FeeConfig] Update failed:', err);
+    logger.error('[FeeConfig] Update failed:', err);
     res.status(500).json({ error: 'Failed to update fee config.' });
   }
 };
@@ -152,10 +153,10 @@ async function syncSubscriptionToStripe(key, newCents) {
       [newPrice.id, newCents, planSlug]
     );
 
-    console.log(`[FeeConfig] Stripe price updated for ${planSlug}:`, newPrice.id);
+    logger.info(`[FeeConfig] Stripe price updated for ${planSlug}:`, newPrice.id);
   } catch (err) {
     // Log but don't fail the DB transaction
-    console.error('[FeeConfig] Stripe sync failed:', err.message);
+    logger.error('[FeeConfig] Stripe sync failed:', err.message);
   }
 }
 
@@ -226,7 +227,7 @@ exports.resetToDefaults = async (req, res) => {
     invalidateCache();
     res.json({ success: true, message: 'All fees reset to defaults.' });
   } catch (err) {
-    console.error('[FeeConfig] Reset failed:', err);
+    logger.error('[FeeConfig] Reset failed:', err);
     res.status(500).json({ error: 'Failed to reset fees.' });
   }
 };

@@ -1,4 +1,5 @@
 const db = require('../db');
+const logger = require('../utils/logger');
 
 /**
  * GET /api/jobs/draft
@@ -15,7 +16,7 @@ exports.getDraft = async (req, res) => {
     if (!rows.length) return res.json(null);
     return res.json(rows[0]);
   } catch (err) {
-    console.error('getDraft error:', err);
+    logger.error('getDraft error:', err);
     res.status(500).json({ error: 'Failed to load draft' });
   }
 };
@@ -45,7 +46,7 @@ exports.saveDraft = async (req, res) => {
 
     res.json({ draft_id: rows[0].id, saved_at: rows[0].updated_at });
   } catch (err) {
-    console.error('saveDraft error:', err);
+    logger.error('saveDraft error:', err);
     res.status(500).json({ error: 'Failed to save draft' });
   }
 };
@@ -62,7 +63,7 @@ exports.deleteDraft = async (req, res) => {
     );
     res.json({ deleted: true });
   } catch (err) {
-    console.error('deleteDraft error:', err);
+    logger.error('deleteDraft error:', err);
     res.status(500).json({ error: 'Failed to delete draft' });
   }
 };

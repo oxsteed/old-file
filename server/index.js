@@ -73,7 +73,7 @@ const io = new Server(httpServer, {
 
 // Socket.IO authentication middleware - verify JWT before allowing connection
 io.use((socket, next) => {
-  const token = socket.handshake.auth.token || socket.handshake.query.token;
+  const token = socket.handshake.auth.token; // Never accept tokens in query strings (log exposure)
   if (!token) {
     return next(new Error('Authentication required'));
   }
@@ -143,6 +143,15 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── INPUT SANITIZATION ───────────────────────────────────────
 app.use(sanitizeInputs);
+
+// ── REQUEST CORRELATION IDs ──────────────────────────────────
+// Unique ID on every request — makes log tracing trivial
+const crypto = require('crypto');
+app.use((req, res, next) => {
+  req.requestId = crypto.randomUUID();
+  res.setHeader('X-Request-Id', req.requestId);
+  next();
+});
 
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
@@ -223,14 +232,20 @@ httpServer.listen(PORT, async () => {
 });
 
 // ── CRON JOBS ────────────────────────────────────────────────
-const { startWeeklySummaryJob }      = require('./jobs/weeklySummary');
-const { startPlannedNeedsScheduler } = require('./jobs/plannedNeedsScheduler');
+const { startWeeklySummaryJob, weeklyJob }           = require('./jobs/weeklySummary');
+const { startCleanupJob, cleanupJob }                  = require('./jobs/cleanupJob');
+const { startPlannedNeedsScheduler, plannedNeedsJob }  = require('./jobs/plannedNeedsScheduler');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
+startCleanupJob();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
   logger.info('Shutdown received', { signal });
+  // Stop cron jobs first so they don't query a draining DB
+  try { if (weeklyJob) weeklyJob.stop(); } catch (_) {}
+  try { if (plannedNeedsJob) plannedNeedsJob.stop(); } catch (_) {}
+  try { if (cleanupJob) cleanupJob.stop(); } catch (_) {}
   httpServer.close(() => {
     logger.info('HTTP server closed');
     io.close(() => {
@@ -243,7 +258,7 @@ function shutdown(signal) {
   });
   // Force exit after 15s if graceful shutdown stalls
   setTimeout(() => {
-    console.error('[Shutdown] Forced exit after timeout');
+    logger.error('[Shutdown] Forced exit after timeout — killing process');
     process.exit(1);
   }, 15000);
 }

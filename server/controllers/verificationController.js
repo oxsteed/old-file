@@ -1,4 +1,5 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const logger = require('../utils/logger');
 const fetch = require('node-fetch');
 const db = require('../db');
 const { sendPush } = require('../utils/pushNotification');
@@ -82,7 +83,7 @@ exports.initiateBackgroundCheck = async (req, res) => {
 
     res.json({ status: 'invited', message: 'Background check initiated. Check your email.' });
   } catch (err) {
-    console.error('Background check error:', err.response?.data || err);
+    logger.error('Background check error:', err.response?.data || err);
     res.status(500).json({ error: 'Failed to initiate background check.' });
   }
 };
@@ -137,7 +138,7 @@ exports.checkrWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (err) {
-    console.error('Checkr webhook error:', err);
+    logger.error('Checkr webhook error:', err);
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };
@@ -180,7 +181,7 @@ exports.createIdentitySession = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    console.error('Identity session error:', err);
+    logger.error('Identity session error:', err);
     res.status(500).json({ error: 'Failed to create identity verification session.' });
   }
 };
@@ -222,7 +223,7 @@ exports.identityWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (err) {
-    console.error('Identity webhook error:', err);
+    logger.error('Identity webhook error:', err);
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };

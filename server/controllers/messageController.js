@@ -1,4 +1,5 @@
 const pool          = require('../db');
+const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 
 // Get all conversations for the current user
@@ -23,7 +24,7 @@ const getConversations = async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching conversations:', error);
+    logger.error('Error fetching conversations:', error);
     res.status(500).json({ error: 'Failed to fetch conversations' });
   }
 };
@@ -61,7 +62,7 @@ const getOrCreateConversation = async (req, res) => {
     );
     res.status(201).json(newConv.rows[0]);
   } catch (error) {
-    console.error('Error creating conversation:', error);
+    logger.error('Error creating conversation:', error);
     res.status(500).json({ error: 'Failed to create conversation' });
   }
 };
@@ -98,7 +99,7 @@ const getMessages = async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    logger.error('Error fetching messages:', error);
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 };
@@ -142,7 +143,7 @@ const sendMessage = async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error sending message:', error);
+    logger.error('Error sending message:', error);
     res.status(500).json({ error: 'Failed to send message' });
   }
 };

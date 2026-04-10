@@ -1,4 +1,5 @@
 const db            = require('../db');
+const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 
 // ─── SUBMIT REVIEW ────────────────────────────────────────────
@@ -7,7 +8,7 @@ exports.submitReview = async (req, res) => {
   try {
     dbClient = await db.connect();
   } catch (connErr) {
-    console.error('submitReview: DB connection failed:', connErr.message);
+    logger.error('submitReview: DB connection failed:', connErr.message);
     return res.status(503).json({ error: 'Database unavailable. Please try again.' });
   }
   try {
@@ -109,7 +110,7 @@ exports.submitReview = async (req, res) => {
         error: 'You have already reviewed this job.'
       });
     }
-    console.error('submitReview error:', err);
+    logger.error('submitReview error:', err);
     res.status(500).json({ error: 'Failed to submit review.' });
   } finally {
     if (dbClient) dbClient.release();
@@ -161,7 +162,7 @@ exports.getUserReviews = async (req, res) => {
       limit:   parseInt(limit)
     });
   } catch (err) {
-    console.error('getUserReviews error:', err);
+    logger.error('getUserReviews error:', err);
     res.status(500).json({ error: 'Failed to fetch reviews.' });
   }
 };
@@ -196,7 +197,7 @@ exports.getReviewEligibility = async (req, res) => {
 
     res.json({ eligible, already_reviewed, job_status: status });
   } catch (err) {
-    console.error('getReviewEligibility error:', err);
+    logger.error('getReviewEligibility error:', err);
     res.status(500).json({ error: 'Failed to check eligibility.' });
   }
 };
@@ -252,7 +253,7 @@ exports.adminHideReview = async (req, res) => {
 
     res.json({ message: 'Review hidden successfully.' });
   } catch (err) {
-    console.error('adminHideReview error:', err);
+    logger.error('adminHideReview error:', err);
     res.status(500).json({ error: 'Failed to hide review.' });
   }
 };
@@ -288,7 +289,7 @@ exports.respondToReview = async (req, res) => {
 
     res.json({ review: rows[0] });
   } catch (err) {
-    console.error('respondToReview error:', err);
+    logger.error('respondToReview error:', err);
     res.status(500).json({ error: 'Failed to respond to review.' });
   }
 };

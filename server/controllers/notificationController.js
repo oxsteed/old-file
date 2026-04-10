@@ -1,4 +1,5 @@
 const db = require('../db');
+const logger = require('../utils/logger');
 
 // ─── GET USER NOTIFICATIONS ───────────────────────────────────
 exports.getNotifications = async (req, res) => {
@@ -32,7 +33,7 @@ exports.getNotifications = async (req, res) => {
       limit: parseInt(limit)
     });
   } catch (err) {
-    console.error('getNotifications error:', err);
+    logger.error('getNotifications error:', err);
     res.status(500).json({ error: 'Failed to fetch notifications.' });
   }
 };
@@ -67,7 +68,7 @@ exports.markRead = async (req, res) => {
 
     res.json({ unread_count: parseInt(rows[0].count) });
   } catch (err) {
-    console.error('markRead error:', err);
+    logger.error('markRead error:', err);
     res.status(500).json({ error: 'Failed to mark notifications.' });
   }
 };
@@ -90,7 +91,7 @@ exports.getPreferences = async (req, res) => {
 
     res.json({ preferences: rows[0] });
   } catch (err) {
-    console.error('getPreferences error:', err);
+    logger.error('getPreferences error:', err);
     res.status(500).json({ error: 'Failed to fetch preferences.' });
   }
 };
@@ -131,7 +132,7 @@ exports.updatePreferences = async (req, res) => {
 
     res.json({ message: 'Preferences updated.' });
   } catch (err) {
-    console.error('updatePreferences error:', err);
+    logger.error('updatePreferences error:', err);
     res.status(500).json({ error: 'Failed to update preferences.' });
   }
 };
@@ -156,7 +157,7 @@ exports.registerPushToken = async (req, res) => {
 
     return res.json({ success: true, message: 'Push token registered.' });
   } catch (err) {
-    console.error('registerPushToken error:', err);
+    logger.error('registerPushToken error:', err);
     res.status(500).json({ error: 'Failed to register push token.' });
   }
 };

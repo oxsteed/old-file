@@ -1,29 +1,25 @@
 const helmet = require('helmet');
 
 /**
- * Security headers middleware using Helmet.js.
- * Configures CSP, HSTS, X-Frame-Options, and other security headers
+ * Security headers middleware.
+ * Wraps Helmet with a Permissions-Policy header appended after.
+ * CSP, HSTS, X-Frame-Options, and all other security headers
  * appropriate for the OxSteed marketplace platform.
- *
- * Usage in app.js:
- *   const securityHeaders = require('./middleware/securityHeaders');
- *   app.use(securityHeaders);
  */
-const securityHeaders = helmet({
-  // Content Security Policy
+const helmeted = helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: [
+      defaultSrc:  ["'self'"],
+      scriptSrc:   [
         "'self'",
         'https://js.stripe.com',
         'https://www.googletagmanager.com',
         'https://www.google-analytics.com',
       ],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      connectSrc: [
+      styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      imgSrc:      ["'self'", 'data:', 'https:', 'blob:'],
+      fontSrc:     ["'self'", 'https://fonts.gstatic.com'],
+      connectSrc:  [
         "'self'",
         'https://api.stripe.com',
         'https://verify.didit.me',
@@ -31,35 +27,44 @@ const securityHeaders = helmet({
         'https://www.google-analytics.com',
         process.env.CLIENT_URL || 'https://oxsteed.com',
       ],
-      frameSrc: ['https://js.stripe.com', 'https://hooks.stripe.com', 'https://verify.didit.me'],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"],
+      frameSrc:    ['https://js.stripe.com', 'https://hooks.stripe.com', 'https://verify.didit.me'],
+      objectSrc:   ["'none'"],
+      baseUri:     ["'self'"],
+      formAction:  ["'self'"],
       upgradeInsecureRequests: [],
     },
   },
-  // Strict Transport Security: 1 year, include subdomains
   strictTransportSecurity: {
-    maxAge: 31536000,
+    maxAge:           31536000,
     includeSubDomains: true,
-    preload: true,
+    preload:           true,
   },
-  // Prevent clickjacking
-  frameguard: { action: 'deny' },
-  // Prevent MIME type sniffing
-  noSniff: true,
-  // XSS filter (legacy browsers)
-  xssFilter: true,
-  // Referrer policy
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  // Hide X-Powered-By header
-  hidePoweredBy: true,
-  // DNS prefetch control
-  dnsPrefetchControl: { allow: false },
-  // IE no-open
-  ieNoOpen: true,
-  // Permissions policy
-  permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+  frameguard:                    { action: 'deny' },
+  noSniff:                       true,
+  xssFilter:                     true,
+  referrerPolicy:                { policy: 'strict-origin-when-cross-origin' },
+  hidePoweredBy:                 true,
+  dnsPrefetchControl:            { allow: false },
+  ieNoOpen:                      true,
+  permittedCrossDomainPolicies:  { permittedPolicies: 'none' },
 });
+
+// Permissions-Policy: lock down browser features not used by the platform
+function securityHeaders(req, res, next) {
+  helmeted(req, res, () => {
+    res.setHeader(
+      'Permissions-Policy',
+      [
+        'camera=()',
+        'microphone=()',
+        'geolocation=(self)',
+        'payment=(self "https://js.stripe.com")',
+        'usb=()',
+        'bluetooth=()',
+      ].join(', ')
+    );
+    next();
+  });
+}
 
 module.exports = securityHeaders;

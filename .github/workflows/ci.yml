@@ -7,31 +7,87 @@ on:
     branches: [main]
 
 jobs:
-  install-check:
-    name: Install Dependencies
+  install-and-audit:
+    name: Install & Audit Dependencies
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install server dependencies
         working-directory: server
-        run: npm install
+        run: npm ci
 
       - name: Install client dependencies
         working-directory: client
-        run: npm install
+        run: npm ci
+
+      - name: Audit server dependencies
+        working-directory: server
+        run: npm audit --audit-level=high
+
+      - name: Audit client dependencies
+        working-directory: client
+        run: npm audit --audit-level=high
+
+  test:
+    name: Run Test Suite
+    runs-on: ubuntu-latest
+    needs: install-and-audit
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: oxsteed_test
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+          POSTGRES_DB: oxsteed_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run migrations
+        working-directory: server
+        env:
+          DATABASE_URL: postgres://oxsteed_test:${{ secrets.TEST_DB_PASSWORD }}@localhost:5432/oxsteed_test
+        run: node migrate.js
+
+      - name: Run tests
+        working-directory: server
+        env:
+          NODE_ENV: test
+          DATABASE_URL:         postgres://oxsteed_test:${{ secrets.TEST_DB_PASSWORD }}@localhost:5432/oxsteed_test
+          JWT_SECRET:           ${{ secrets.TEST_JWT_SECRET }}
+          JWT_REFRESH_SECRET:   ${{ secrets.TEST_JWT_REFRESH_SECRET }}
+          ENCRYPTION_KEY:       ${{ secrets.TEST_ENCRYPTION_KEY }}
+          STRIPE_SECRET_KEY:    ${{ secrets.TEST_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.TEST_STRIPE_WEBHOOK_SECRET }}
+          RESEND_API_KEY:       test_resend_disabled
+        run: npm test
 
   deploy:
     name: Deploy to Coolify
     runs-on: ubuntu-latest
-    needs: install-check
+    needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:

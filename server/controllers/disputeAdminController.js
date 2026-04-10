@@ -1,4 +1,5 @@
 const db                    = require('../db');
+const logger = require('../utils/logger');
 const { sendNotification }  = require('../services/notificationService');
 const { logAdminAction }    = require('../services/auditService');
 
@@ -37,7 +38,7 @@ exports.getAllDisputes = async (req, res) => {
       totalPages: Math.ceil(countResult.rows[0].count / limit)
     });
   } catch (err) {
-    console.error('Get all disputes error:', err);
+    logger.error('Get all disputes error:', err);
     res.status(500).json({ error: 'Failed to fetch disputes' });
   }
 };
@@ -63,7 +64,7 @@ exports.getDisputeDetail = async (req, res) => {
 
     res.json({ dispute: rows[0] });
   } catch (err) {
-    console.error('Get dispute detail error:', err);
+    logger.error('Get dispute detail error:', err);
     res.status(500).json({ error: 'Failed to fetch dispute detail' });
   }
 };
@@ -115,7 +116,7 @@ exports.resolveDispute = async (req, res) => {
         details: { resolution, admin_notes: notes }
       });
     } catch (logErr) {
-      console.error('Failed to log admin action:', logErr);
+      logger.error('Failed to log admin action:', logErr);
     }
 
     // Notify the dispute opener
@@ -130,7 +131,7 @@ exports.resolveDispute = async (req, res) => {
         });
       }
     } catch (notifErr) {
-      console.error('Failed to send dispute notification:', notifErr);
+      logger.error('Failed to send dispute notification:', notifErr);
     }
 
     res.json({
@@ -138,7 +139,7 @@ exports.resolveDispute = async (req, res) => {
       dispute: { id: disputeId, status: 'resolved', resolution }
     });
   } catch (err) {
-    console.error('Resolve dispute error:', err);
+    logger.error('Resolve dispute error:', err);
     res.status(500).json({ error: 'Failed to resolve dispute' });
   }
 };
@@ -160,7 +161,7 @@ exports.updateAdminNotes = async (req, res) => {
 
     res.json({ message: 'Admin notes updated.' });
   } catch (err) {
-    console.error('Update admin notes error:', err);
+    logger.error('Update admin notes error:', err);
     res.status(500).json({ error: 'Failed to update admin notes' });
   }
 };
@@ -179,7 +180,7 @@ exports.getDisputeStats = async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Get dispute stats error:', err);
+    logger.error('Get dispute stats error:', err);
     res.status(500).json({ error: 'Failed to fetch dispute stats' });
   }
 };
@@ -219,7 +220,7 @@ exports.startReview = async (req, res) => {
         details: {}
       });
     } catch (logErr) {
-      console.error('Failed to log admin action:', logErr);
+      logger.error('Failed to log admin action:', logErr);
     }
 
     // Notify the dispute opener
@@ -235,7 +236,7 @@ exports.startReview = async (req, res) => {
         });
       }
     } catch (notifErr) {
-      console.error('Failed to send review notification:', notifErr);
+      logger.error('Failed to send review notification:', notifErr);
     }
 
     res.json({
@@ -243,7 +244,7 @@ exports.startReview = async (req, res) => {
       dispute: { id: disputeId, status: 'under_review' }
     });
   } catch (err) {
-    console.error('Start review error:', err);
+    logger.error('Start review error:', err);
     res.status(500).json({ error: 'Failed to start dispute review.' });
   }
 };

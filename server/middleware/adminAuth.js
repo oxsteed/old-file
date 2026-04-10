@@ -1,4 +1,5 @@
 const { verifyToken } = require('../services/authService');
+const logger = require('../utils/logger');
 const db              = require('../db');
 
 // ── Core admin authentication ─────────────────────────────────────────────────
@@ -92,7 +93,7 @@ exports.requirePermission = (permission) => async (req, res, next) => {
       error: `Permission '${permission}' required. Contact a super-admin to request access.`,
     });
   } catch (err) {
-    console.error('requirePermission error:', err);
+    logger.error('requirePermission error:', err);
     return res.status(500).json({ error: 'Permission check failed.' });
   }
 };

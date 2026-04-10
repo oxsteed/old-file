@@ -1,4 +1,5 @@
 const cron                 = require('node-cron');
+const logger = require('../utils/logger');
 const db                   = require('../db');
 const { sendNotification } = require('../services/notificationService');
 
@@ -6,9 +7,11 @@ const { sendNotification } = require('../services/notificationService');
  * Every Monday at 8am Eastern
  * Send each active helper their weekly earnings + job summary
  */
+let weeklyJob = null;
+
 const startWeeklySummaryJob = () => {
-  cron.schedule('0 8 * * 1', async () => {
-    console.log('[Cron] Running weekly summary emails...');
+  weeklyJob = cron.schedule('0 8 * * 1', async () => {
+    logger.info('[Cron] Running weekly summary emails...');
     try {
       const { rows: helpers } = await db.query(`
         SELECT
@@ -51,11 +54,11 @@ const startWeeklySummaryJob = () => {
         sent++;
       }
 
-      console.log(`[Cron] Weekly summaries sent: ${sent}`);
+      logger.info(`[Cron] Weekly summaries sent: ${sent}`);
     } catch (err) {
-      console.error('[Cron] Weekly summary error:', err);
+      logger.error('[Cron] Weekly summary error:', err);
     }
   }, { timezone: 'America/New_York' });
 };
 
-module.exports = { startWeeklySummaryJob };
+module.exports = { startWeeklySummaryJob, get weeklyJob() { return weeklyJob; } };

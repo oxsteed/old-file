@@ -2,6 +2,7 @@
 // One person, multiple businesses. Managed from dashboard.
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 // ── List user's businesses ──────────────────────────────
 async function listBusinesses(req, res) {
@@ -16,7 +17,7 @@ async function listBusinesses(req, res) {
     );
     return res.json({ businesses: rows });
   } catch (err) {
-    console.error('listBusinesses error:', err);
+    logger.error('listBusinesses error:', err);
     return res.status(500).json({ error: 'Failed to load businesses' });
   }
 }
@@ -55,7 +56,7 @@ async function addBusiness(req, res) {
 
     return res.status(201).json({ business: biz });
   } catch (err) {
-    console.error('addBusiness error:', err);
+    logger.error('addBusiness error:', err);
     return res.status(500).json({ error: 'Failed to add business' });
   }
 }
@@ -87,7 +88,7 @@ async function updateBusiness(req, res) {
     if (!biz) return res.status(404).json({ error: 'Business not found' });
     return res.json({ business: biz });
   } catch (err) {
-    console.error('updateBusiness error:', err);
+    logger.error('updateBusiness error:', err);
     return res.status(500).json({ error: 'Failed to update business' });
   }
 }
@@ -112,7 +113,7 @@ async function setPrimary(req, res) {
     if (!biz) return res.status(404).json({ error: 'Business not found' });
     return res.json({ business: biz });
   } catch (err) {
-    console.error('setPrimary error:', err);
+    logger.error('setPrimary error:', err);
     return res.status(500).json({ error: 'Failed to set primary business' });
   }
 }
@@ -128,7 +129,7 @@ async function deleteBusiness(req, res) {
     if (!rowCount) return res.status(404).json({ error: 'Business not found' });
     return res.json({ ok: true });
   } catch (err) {
-    console.error('deleteBusiness error:', err);
+    logger.error('deleteBusiness error:', err);
     return res.status(500).json({ error: 'Failed to delete business' });
   }
 }

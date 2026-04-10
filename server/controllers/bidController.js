@@ -1,4 +1,5 @@
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 // Create a bid on a job
 exports.createBid = async (req, res) => {
@@ -24,7 +25,7 @@ exports.createBid = async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Create bid error:', err);
+    logger.error('Create bid error:', err);
     res.status(500).json({ error: 'Failed to create bid' });
   }
 };
@@ -44,7 +45,7 @@ exports.getJobBids = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Get job bids error:', err);
+    logger.error('Get job bids error:', err);
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -61,7 +62,7 @@ exports.getMyBids = async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
-    console.error('Get my bids error:', err);
+    logger.error('Get my bids error:', err);
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -81,7 +82,7 @@ exports.updateBid = async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Update bid error:', err);
+    logger.error('Update bid error:', err);
     res.status(500).json({ error: 'Failed to update bid' });
   }
 };
@@ -100,7 +101,7 @@ exports.withdrawBid = async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Withdraw bid error:', err);
+    logger.error('Withdraw bid error:', err);
     res.status(500).json({ error: 'Failed to withdraw bid' });
   }
 };
@@ -123,7 +124,7 @@ exports.getRecentBids = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Get recent bids error:', err);
+    logger.error('Get recent bids error:', err);
     res.status(500).json({ error: 'Failed to fetch recent bids' });
   }
 };

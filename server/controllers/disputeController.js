@@ -1,4 +1,5 @@
 const db                    = require('../db');
+const logger = require('../utils/logger');
 const { sendNotification }  = require('../services/notificationService');
 
 const DISPUTE_REASONS = [
@@ -79,7 +80,7 @@ exports.openDispute = async (req, res) => {
         metadata: { disputeId: dispute.id, jobId }
       });
     } catch (notifErr) {
-      console.error('Failed to send dispute notification:', notifErr);
+      logger.error('Failed to send dispute notification:', notifErr);
     }
 
     res.status(201).json({
@@ -87,7 +88,7 @@ exports.openDispute = async (req, res) => {
       message: 'Dispute opened successfully.'
     });
   } catch (err) {
-    console.error('openDispute error:', err);
+    logger.error('openDispute error:', err);
     res.status(500).json({ error: 'Failed to open dispute.' });
   }
 };
@@ -124,7 +125,7 @@ exports.getDispute = async (req, res) => {
 
     res.json({ dispute });
   } catch (err) {
-    console.error('getDispute error:', err);
+    logger.error('getDispute error:', err);
     res.status(500).json({ error: 'Failed to fetch dispute.' });
   }
 };
@@ -147,7 +148,7 @@ exports.getMyDisputes = async (req, res) => {
 
     res.json({ disputes: rows });
   } catch (err) {
-    console.error('getMyDisputes error:', err);
+    logger.error('getMyDisputes error:', err);
     res.status(500).json({ error: 'Failed to fetch disputes.' });
   }
 };
@@ -197,7 +198,7 @@ exports.submitEvidence = async (req, res) => {
       disputeId
     });
   } catch (err) {
-    console.error('submitEvidence error:', err);
+    logger.error('submitEvidence error:', err);
     res.status(500).json({ error: 'Failed to submit evidence.' });
   }
 };
@@ -243,7 +244,7 @@ exports.sendDisputeMessage = async (req, res) => {
       disputeMessage: rows[0]
     });
   } catch (err) {
-    console.error('sendDisputeMessage error:', err);
+    logger.error('sendDisputeMessage error:', err);
     res.status(500).json({ error: 'Failed to send dispute message.' });
   }
 };

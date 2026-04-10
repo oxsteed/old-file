@@ -1,5 +1,6 @@
 'use strict';
 const db = require('../db');
+const logger = require('../utils/logger');
 
 // ── Valid entity types the search engine covers ───────────────────────────────
 const ALL_ENTITY_TYPES = ['users', 'jobs', 'messages'];
@@ -130,7 +131,7 @@ exports.search = async (req, res) => {
       `INSERT INTO admin_search_log (admin_id, query, entity_types, result_count, ip_address)
        VALUES ($1, $2, $3, $4, $5)`,
       [adminId, rawQuery, requestedTypes, totalCount, ipAddress]
-    ).catch(err => console.error('adminSearchLog insert error:', err));
+    ).catch(err => logger.error('adminSearchLog insert error:', err));
 
     res.json({
       query: rawQuery,
@@ -139,7 +140,7 @@ exports.search = async (req, res) => {
       results: { users, jobs, messages },
     });
   } catch (err) {
-    console.error('adminSearch error:', err);
+    logger.error('adminSearch error:', err);
     res.status(500).json({ error: 'Search failed.' });
   }
 };
@@ -206,7 +207,7 @@ exports.getSearchLogs = async (req, res) => {
       offset: pageOffset,
     });
   } catch (err) {
-    console.error('getSearchLogs error:', err);
+    logger.error('getSearchLogs error:', err);
     res.status(500).json({ error: 'Failed to fetch search logs.' });
   }
 };
@@ -259,7 +260,7 @@ exports.getSearchStats = async (req, res) => {
       top_admins: topAdmins,
     });
   } catch (err) {
-    console.error('getSearchStats error:', err);
+    logger.error('getSearchStats error:', err);
     res.status(500).json({ error: 'Failed to fetch search stats.' });
   }
 };

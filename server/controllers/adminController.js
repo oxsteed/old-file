@@ -1,4 +1,5 @@
 const db          = require('../db');
+const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { sendNotification } = require('../services/notificationService');
 
@@ -39,7 +40,7 @@ exports.getDashboardStats = async (req, res) => {
 
     res.json({ stats: rows[0] });
   } catch (err) {
-    console.error('admin getDashboardStats error:', err);
+    logger.error('admin getDashboardStats error:', err);
     res.status(500).json({ error: 'Failed to load stats.' });
   }
 };
@@ -78,7 +79,7 @@ exports.getReports = async (req, res) => {
       limit: parseInt(limit)
     });
   } catch (err) {
-    console.error('getReports error:', err);
+    logger.error('getReports error:', err);
     res.status(500).json({ error: 'Failed to fetch reports.' });
   }
 };
@@ -169,7 +170,7 @@ exports.reviewReport = async (req, res) => {
     res.json({ message: `Report ${action} successfully.` });
   } catch (err) {
     await dbClient.query('ROLLBACK');
-    console.error('reviewReport error:', err);
+    logger.error('reviewReport error:', err);
     res.status(500).json({ error: 'Failed to process report.' });
   } finally {
     dbClient.release();
@@ -212,7 +213,7 @@ exports.getModerationQueue = async (req, res) => {
     `);
     res.json({ queue: rows });
   } catch (err) {
-    console.error('getModerationQueue error:', err);
+    logger.error('getModerationQueue error:', err);
     res.status(500).json({ error: 'Failed to fetch moderation queue.' });
   }
 };
@@ -228,7 +229,7 @@ exports.getMarkets = async (req, res) => {
     );
     res.json({ markets: rows });
   } catch (err) {
-    console.error('getMarkets error:', err);
+    logger.error('getMarkets error:', err);
     res.status(500).json({ error: 'Failed to fetch markets.' });
   }
 };
@@ -277,7 +278,7 @@ exports.addZipCodes = async (req, res) => {
 
     res.json({ market: rows[0] });
   } catch (err) {
-    console.error('addZipCodes error:', err);
+    logger.error('addZipCodes error:', err);
     res.status(500).json({ error: 'Failed to add zip codes.' });
   }
 };
@@ -322,7 +323,7 @@ exports.removeZipCodes = async (req, res) => {
 
     res.json({ market: rows[0] });
   } catch (err) {
-    console.error('removeZipCodes error:', err);
+    logger.error('removeZipCodes error:', err);
     res.status(500).json({ error: 'Failed to remove zip codes.' });
   }
 };
@@ -381,7 +382,7 @@ exports.getContent = async (req, res) => {
 
     res.status(400).json({ error: 'type must be bids or reviews' });
   } catch (err) {
-    console.error('getContent error:', err);
+    logger.error('getContent error:', err);
     res.status(500).json({ error: 'Failed to fetch content.' });
   }
 };
@@ -409,7 +410,7 @@ exports.removeBid = async (req, res) => {
     });
     res.json({ message: 'Bid removed successfully.' });
   } catch (err) {
-    console.error('removeBid error:', err);
+    logger.error('removeBid error:', err);
     res.status(500).json({ error: 'Failed to remove bid.' });
   }
 };
@@ -437,7 +438,7 @@ exports.removeReview = async (req, res) => {
     });
     res.json({ message: 'Review hidden successfully.' });
   } catch (err) {
-    console.error('removeReview error:', err);
+    logger.error('removeReview error:', err);
     res.status(500).json({ error: 'Failed to hide review.' });
   }
 };
@@ -460,7 +461,7 @@ exports.restoreReview = async (req, res) => {
     });
     res.json({ message: 'Review restored.' });
   } catch (err) {
-    console.error('restoreReview error:', err);
+    logger.error('restoreReview error:', err);
     res.status(500).json({ error: 'Failed to restore review.' });
   }
 };

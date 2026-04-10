@@ -1,4 +1,5 @@
 const cron              = require('node-cron');
+const logger = require('../utils/logger');
 const db                = require('../db');
 const { sendNotification } = require('../services/notificationService');
 
@@ -18,9 +19,11 @@ const { sendNotification } = require('../services/notificationService');
  *   Jobs whose hold_expires_at has passed: clear held_for_helper_id,
  *   notify customer.
  */
+let plannedNeedsJob = null;
+
 const startPlannedNeedsScheduler = () => {
-  cron.schedule('0 6 * * *', async () => {
-    console.log('[Cron] Running planned needs scheduler...');
+  plannedNeedsJob = cron.schedule('0 6 * * *', async () => {
+    logger.info('[Cron] Running planned needs scheduler...');
 
     try {
       // ── Pass 1: activating_soon ───────────────────────────────────────
@@ -31,7 +34,7 @@ const startPlannedNeedsScheduler = () => {
           AND (due_date - lead_time_days - 1) = CURRENT_DATE
       `);
       if (soonCount > 0) {
-        console.log(`[Cron] Marked ${soonCount} need(s) as activating_soon`);
+        logger.info(`[Cron] Marked ${soonCount} need(s) as activating_soon`);
       }
 
       // ── Pass 2: auto-publish ────────────────────────────────────────
@@ -50,7 +53,7 @@ const startPlannedNeedsScheduler = () => {
         WHERE pn.status IN ('planned', 'funding', 'activating_soon')
           AND (pn.due_date - pn.lead_time_days) <= CURRENT_DATE
       `);
-      console.log(`[Cron] ${toPublish.length} need(s) ready to auto-publish`);
+      logger.info(`[Cron] ${toPublish.length} need(s) ready to auto-publish`);
 
       for (const need of toPublish) {
         try {
@@ -113,7 +116,7 @@ const startPlannedNeedsScheduler = () => {
               data:   { job_id: jobId, planned_need_id: need.id },
               action_url: `/jobs/${jobId}`,
             });
-            console.log(`[Cron] Published need ${need.id} -> job ${jobId} (held for helper ${need.preferred_helper_id})`);
+            logger.info(`[Cron] Published need ${need.id} -> job ${jobId} (held for helper ${need.preferred_helper_id})`);
           } else {
             // Broadcast immediately (no hold)
             await db.query(`
@@ -124,10 +127,10 @@ const startPlannedNeedsScheduler = () => {
                   updated_at       = NOW()
               WHERE id = $1
             `, [need.id, jobId]);
-            console.log(`[Cron] Published need ${need.id} -> job ${jobId} (${need.title})`);
+            logger.info(`[Cron] Published need ${need.id} -> job ${jobId} (${need.title})`);
           }
         } catch (innerErr) {
-          console.error(`[Cron] Failed to publish need ${need.id}:`, innerErr);
+          logger.error(`[Cron] Failed to publish need ${need.id}:`, innerErr);
         }
       }
 
@@ -146,7 +149,7 @@ const startPlannedNeedsScheduler = () => {
       `);
 
       if (expiredJobs.length > 0) {
-        console.log(`[Cron] ${expiredJobs.length} preferred-helper hold(s) expired`);
+        logger.info(`[Cron] ${expiredJobs.length} preferred-helper hold(s) expired`);
       }
 
       for (const row of expiredJobs) {
@@ -180,9 +183,9 @@ const startPlannedNeedsScheduler = () => {
               action_url: `/jobs/${row.job_id}`,
             });
           }
-          console.log(`[Cron] Expired hold on job ${row.job_id}, now open to all`);
+          logger.info(`[Cron] Expired hold on job ${row.job_id}, now open to all`);
         } catch (innerErr) {
-          console.error(`[Cron] Failed to expire hold on job ${row.job_id}:`, innerErr);
+          logger.error(`[Cron] Failed to expire hold on job ${row.job_id}:`, innerErr);
         }
       }
 
@@ -194,9 +197,9 @@ const startPlannedNeedsScheduler = () => {
           AND helper_notified_at <= NOW() - INTERVAL '72 hours'
       `);
 
-      console.log('[Cron] Planned needs scheduler complete.');
+      logger.info('[Cron] Planned needs scheduler complete.');
     } catch (err) {
-      console.error('[Cron] Planned needs scheduler error:', err);
+      logger.error('[Cron] Planned needs scheduler error:', err);
     }
   }, { timezone: 'America/New_York' });
 };
@@ -210,4 +213,4 @@ function categoryToJobName(category) {
   return map[category] || 'Other / Specify in Description';
 }
 
-module.exports = { startPlannedNeedsScheduler };
+module.exports = { startPlannedNeedsScheduler, get plannedNeedsJob() { return plannedNeedsJob; } };

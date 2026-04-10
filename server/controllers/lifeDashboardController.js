@@ -1,4 +1,5 @@
 const db = require('../db');
+const logger = require('../utils/logger');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPENSES
@@ -56,7 +57,7 @@ exports.getExpenses = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('getExpenses error:', err);
+    logger.error('getExpenses error:', err);
     res.status(500).json({ error: 'Failed to fetch expenses.' });
   }
 };
@@ -96,7 +97,7 @@ exports.createExpense = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('createExpense error:', err);
+    logger.error('createExpense error:', err);
     res.status(500).json({ error: 'Failed to create expense.' });
   }
 };
@@ -132,7 +133,7 @@ exports.updateExpense = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Expense not found.' });
     res.json(rows[0]);
   } catch (err) {
-    console.error('updateExpense error:', err);
+    logger.error('updateExpense error:', err);
     res.status(500).json({ error: 'Failed to update expense.' });
   }
 };
@@ -147,7 +148,7 @@ exports.deleteExpense = async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Expense not found.' });
     res.json({ message: 'Expense deleted.' });
   } catch (err) {
-    console.error('deleteExpense error:', err);
+    logger.error('deleteExpense error:', err);
     res.status(500).json({ error: 'Failed to delete expense.' });
   }
 };
@@ -188,7 +189,7 @@ exports.getExpenseSummary = async (req, res) => {
 
     res.json({ by_category: byCategory, trend });
   } catch (err) {
-    console.error('getExpenseSummary error:', err);
+    logger.error('getExpenseSummary error:', err);
     res.status(500).json({ error: 'Failed to get summary.' });
   }
 };
@@ -224,7 +225,7 @@ exports.getBudgets = async (req, res) => {
 
     res.json({ budgets: rows });
   } catch (err) {
-    console.error('getBudgets error:', err);
+    logger.error('getBudgets error:', err);
     res.status(500).json({ error: 'Failed to fetch budgets.' });
   }
 };
@@ -274,7 +275,7 @@ exports.upsertBudget = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    console.error('upsertBudget error:', err);
+    logger.error('upsertBudget error:', err);
     res.status(500).json({ error: 'Failed to save budget.' });
   }
 };
@@ -289,7 +290,7 @@ exports.deleteBudget = async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Budget not found.' });
     res.json({ message: 'Budget deleted.' });
   } catch (err) {
-    console.error('deleteBudget error:', err);
+    logger.error('deleteBudget error:', err);
     res.status(500).json({ error: 'Failed to delete budget.' });
   }
 };
@@ -315,7 +316,7 @@ exports.getGoals = async (req, res) => {
 
     res.json({ goals: rows });
   } catch (err) {
-    console.error('getGoals error:', err);
+    logger.error('getGoals error:', err);
     res.status(500).json({ error: 'Failed to fetch goals.' });
   }
 };
@@ -335,7 +336,7 @@ exports.createGoal = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('createGoal error:', err);
+    logger.error('createGoal error:', err);
     res.status(500).json({ error: 'Failed to create goal.' });
   }
 };
@@ -362,7 +363,7 @@ exports.updateGoal = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Goal not found.' });
     res.json(rows[0]);
   } catch (err) {
-    console.error('updateGoal error:', err);
+    logger.error('updateGoal error:', err);
     res.status(500).json({ error: 'Failed to update goal.' });
   }
 };
@@ -377,7 +378,7 @@ exports.deleteGoal = async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Goal not found.' });
     res.json({ message: 'Goal deleted.' });
   } catch (err) {
-    console.error('deleteGoal error:', err);
+    logger.error('deleteGoal error:', err);
     res.status(500).json({ error: 'Failed to delete goal.' });
   }
 };
@@ -405,7 +406,7 @@ exports.getSavedHelpers = async (req, res) => {
 
     res.json({ saved_helpers: rows });
   } catch (err) {
-    console.error('getSavedHelpers error:', err);
+    logger.error('getSavedHelpers error:', err);
     res.status(500).json({ error: 'Failed to fetch saved helpers.' });
   }
 };
@@ -428,7 +429,7 @@ exports.saveHelper = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('saveHelper error:', err);
+    logger.error('saveHelper error:', err);
     res.status(500).json({ error: 'Failed to save helper.' });
   }
 };
@@ -443,7 +444,7 @@ exports.removeSavedHelper = async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Saved helper not found.' });
     res.json({ message: 'Helper removed from saved list.' });
   } catch (err) {
-    console.error('removeSavedHelper error:', err);
+    logger.error('removeSavedHelper error:', err);
     res.status(500).json({ error: 'Failed to remove saved helper.' });
   }
 };
@@ -482,7 +483,7 @@ exports.getHomeTasks = async (req, res) => {
 
     res.json({ home_tasks: rows });
   } catch (err) {
-    console.error('getHomeTasks error:', err);
+    logger.error('getHomeTasks error:', err);
     res.status(500).json({ error: 'Failed to fetch home tasks.' });
   }
 };
@@ -528,7 +529,7 @@ exports.createHomeTask = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('createHomeTask error:', err);
+    logger.error('createHomeTask error:', err);
     res.status(500).json({ error: 'Failed to create home task.' });
   }
 };
@@ -571,7 +572,7 @@ exports.updateHomeTask = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Home task not found.' });
     res.json(rows[0]);
   } catch (err) {
-    console.error('updateHomeTask error:', err);
+    logger.error('updateHomeTask error:', err);
     res.status(500).json({ error: 'Failed to update home task.' });
   }
 };
@@ -586,7 +587,7 @@ exports.deleteHomeTask = async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Home task not found.' });
     res.json({ message: 'Home task deleted.' });
   } catch (err) {
-    console.error('deleteHomeTask error:', err);
+    logger.error('deleteHomeTask error:', err);
     res.status(500).json({ error: 'Failed to delete home task.' });
   }
 };
@@ -605,7 +606,7 @@ exports.getChecklist = async (req, res) => {
 
     res.json({ items: rows });
   } catch (err) {
-    console.error('getChecklist error:', err);
+    logger.error('getChecklist error:', err);
     res.status(500).json({ error: 'Failed to fetch checklist.' });
   }
 };
@@ -623,7 +624,7 @@ exports.createChecklistItem = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('createChecklistItem error:', err);
+    logger.error('createChecklistItem error:', err);
     res.status(500).json({ error: 'Failed to create checklist item.' });
   }
 };
@@ -646,7 +647,7 @@ exports.updateChecklistItem = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Item not found.' });
     res.json(rows[0]);
   } catch (err) {
-    console.error('updateChecklistItem error:', err);
+    logger.error('updateChecklistItem error:', err);
     res.status(500).json({ error: 'Failed to update checklist item.' });
   }
 };
@@ -661,7 +662,7 @@ exports.deleteChecklistItem = async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Item not found.' });
     res.json({ message: 'Item deleted.' });
   } catch (err) {
-    console.error('deleteChecklistItem error:', err);
+    logger.error('deleteChecklistItem error:', err);
     res.status(500).json({ error: 'Failed to delete checklist item.' });
   }
 };
@@ -834,7 +835,7 @@ exports.getDashboardSummary = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('getDashboardSummary error:', err);
+    logger.error('getDashboardSummary error:', err);
     res.status(500).json({ error: 'Failed to load dashboard summary.' });
   }
 };
@@ -893,7 +894,7 @@ exports.getCommunityStats = async (req, res) => {
       top_categories: topCategories,
     });
   } catch (err) {
-    console.error('getCommunityStats error:', err);
+    logger.error('getCommunityStats error:', err);
     res.status(500).json({ error: 'Failed to fetch community stats.' });
   }
 };

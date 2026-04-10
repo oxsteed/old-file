@@ -1,4 +1,5 @@
 const db = require('../db');
+const logger = require('../utils/logger');
 
 async function hasPlatformConfigTable() {
   const { rows } = await db.query(
@@ -34,7 +35,7 @@ exports.getPricing = async (req, res) => {
     res.json({ ...DEFAULT_PRICES, ...pricing });
   } catch (err) {
     // Table might not exist yet — return defaults
-    console.error('Config pricing error:', err.message);
+    logger.error('Config pricing error:', err.message);
     res.json(DEFAULT_PRICES);
   }
 };
@@ -61,7 +62,7 @@ exports.updatePricing = async (req, res) => {
     }
     res.json({ message: 'Pricing updated', updated: Object.fromEntries(entries) });
   } catch (err) {
-    console.error('Update pricing error:', err);
+    logger.error('Update pricing error:', err);
     res.status(500).json({ error: 'Failed to update pricing' });
   }
 };
