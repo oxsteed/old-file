@@ -43,6 +43,5 @@ ALTER TABLE platform_settings DROP CONSTRAINT IF EXISTS platform_settings_key_ke
 ALTER TABLE platform_settings ADD CONSTRAINT platform_settings_key_unique UNIQUE (key);
 
 -- 4. Secure admin_audit_log (M-62 refinement)
-ALTER TABLE admin_audit_log ALTER COLUMN admin_id SET NOT NULL;
 ALTER TABLE admin_audit_log ALTER COLUMN action SET NOT NULL;
 ALTER TABLE admin_audit_log ALTER COLUMN created_at SET DEFAULT NOW();
