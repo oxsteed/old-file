@@ -213,11 +213,15 @@ router.put('/skills-lookup/:id', requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/admin/skills-lookup/:id  — soft delete (sets is_active=false)
+// ?hard=true is a permanent hard delete — super-admin only
 router.delete('/skills-lookup/:id', requireAdmin, async (req, res) => {
   try {
     const { hard } = req.query;
     let result;
     if (hard === 'true') {
+      if (!req.isSuper) {
+        return res.status(403).json({ error: 'Hard delete requires super-admin access.' });
+      }
       result = await pool.query(
         `DELETE FROM skills_lookup WHERE id = $1 RETURNING id`, [req.params.id]
       );

@@ -20,12 +20,15 @@ router.post('/message', chatLimiter, chatMessage);
 router.post('/profile-message', chatLimiter, optionalAuth, profileChatMessage);
 
 // POST /api/chat/feedback — thumbs up/down on AI replies (best-effort logging)
-router.post('/feedback', (req, res) => {
+router.post('/feedback', chatLimiter, (req, res) => {
   const { value, messageContent, pageContext } = req.body;
   if (value === 'up' || value === 'down') {
+    // Sanitize path — only accept relative paths to prevent log injection
+    const rawPath = String(pageContext?.path || '');
+    const safePath = rawPath.startsWith('/') ? rawPath.slice(0, 200) : null;
     logger.info('[Chat] Feedback received', {
       value,
-      path:    pageContext?.path || null,
+      path:    safePath,
       preview: String(messageContent || '').slice(0, 80),
     });
   }

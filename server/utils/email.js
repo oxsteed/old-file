@@ -1,6 +1,8 @@
 // Phase 2 - Email utility (Resend API)
 // OxSteed v2
 
+const escapeHtml = require('./escapeHtml');
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.SMTP_FROM || 'noreply@oxsteed.com';
 const FROM_NAME = process.env.FROM_NAME || 'OxSteed';
@@ -60,11 +62,12 @@ async function sendEmail({ to, subject, text, html, from, fromName }) {
 }
 
 async function sendWelcomeEmail(user) {
+  const safeName = escapeHtml(user.first_name);
   return sendEmail({
     to: user.email,
     subject: 'Welcome to OxSteed!',
     text: `Hi ${user.first_name}, welcome to OxSteed! Your account has been created successfully.`,
-    html: `<p>Hi <strong>${user.first_name}</strong>,</p><p>Welcome to OxSteed! Your account has been created successfully.</p><p>You can now browse listings or post your skills on our platform.</p><p>- The OxSteed Team</p>`,
+    html: `<p>Hi <strong>${safeName}</strong>,</p><p>Welcome to OxSteed! Your account has been created successfully.</p><p>You can now browse listings or post your skills on our platform.</p><p>- The OxSteed Team</p>`,
   });
 }
 

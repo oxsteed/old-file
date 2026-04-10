@@ -26,12 +26,14 @@ function requireOnboardingStep(minimumStep) {
     const userIdx  = STEP_ORDER.indexOf(userStep);
     const minIdx   = STEP_ORDER.indexOf(minimumStep);
 
-    // If step is unknown, allow (be lenient)
-    if (userIdx === -1 || minIdx === -1) {
-      return next();
+    // If the required step is unknown, deny — never fail open on unknown requirements
+    if (minIdx === -1) {
+      return res.status(403).json({ error: 'Onboarding step check failed.' });
     }
+    // If the user's step is unknown, treat as the minimum (registered)
+    const effectiveUserIdx = userIdx === -1 ? 0 : userIdx;
 
-    if (userIdx < minIdx) {
+    if (effectiveUserIdx < minIdx) {
       return res.status(403).json({
         error: 'Onboarding incomplete',
         current_step: userStep,
@@ -53,12 +55,14 @@ function requireTier(minimumTier) {
     const userIdx  = TIER_ORDER.indexOf(userTier);
     const minIdx   = TIER_ORDER.indexOf(minimumTier);
 
-    // If tier is unknown, allow (be lenient)
-    if (userIdx === -1 || minIdx === -1) {
-      return next();
+    // If the required tier is unknown, deny — never fail open on unknown requirements
+    if (minIdx === -1) {
+      return res.status(403).json({ error: 'Tier check failed.' });
     }
+    // If the user's tier is unknown, treat as the lowest tier (free)
+    const effectiveUserIdx = userIdx === -1 ? 0 : userIdx;
 
-    if (userIdx < minIdx) {
+    if (effectiveUserIdx < minIdx) {
       return res.status(403).json({
         error: 'Membership tier insufficient',
         current_tier: userTier,

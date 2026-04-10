@@ -71,6 +71,9 @@ exports.submitSupportRequest = async (req, res) => {
   const allowedPriority = ['low', 'normal', 'high', 'urgent'];
   const safePriority = allowedPriority.includes(priority) ? priority : 'normal';
 
+  const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation'];
+  const safeCategory = allowedCategory.includes(category?.toLowerCase?.()) ? category.toLowerCase() : 'general';
+
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -97,7 +100,7 @@ exports.submitSupportRequest = async (req, res) => {
         name.trim(),
         email.trim().toLowerCase(),
         (subject?.trim() || 'Support Request').slice(0, 500),
-        category.slice(0, 100),
+        safeCategory,
         safePriority,
       ]
     );
@@ -291,17 +294,22 @@ exports.listTickets = async (req, res) => {
     const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
     const offsetN = Math.max(0, parseInt(offset) || 0);
 
+    const VALID_STATUSES   = ['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'];
+    const VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
+    const safeStatus   = VALID_STATUSES.includes(status)     ? status   : '';
+    const safePriority = VALID_PRIORITIES.includes(priority) ? priority : '';
+
     const conditions = [];
     const params     = [];
     let p = 1;
 
-    if (status) {
+    if (safeStatus) {
       conditions.push(`t.status = $${p++}`);
-      params.push(status);
+      params.push(safeStatus);
     }
-    if (priority) {
+    if (safePriority) {
       conditions.push(`t.priority = $${p++}`);
-      params.push(priority);
+      params.push(safePriority);
     }
     if (assigned === 'me') {
       conditions.push(`t.assigned_to = $${p++}`);

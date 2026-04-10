@@ -432,7 +432,7 @@ exports.issueManualRefund = async (req, res) => {
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
     const refund = await issueRefund(jobId, reason, amount_cents || null);
     res.json({ message: `Refund issued successfully.`, refundId: refund.id });
-  } catch (err) { console.error('issueManualRefund error:', err); res.status(500).json({ error: err.message || 'Refund failed.' }); }
+  } catch (err) { console.error('issueManualRefund error:', err); res.status(500).json({ error: 'Refund failed.' }); }
 };
 
 exports.getPayouts = async (req, res) => {

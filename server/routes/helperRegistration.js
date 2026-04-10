@@ -4,6 +4,7 @@ const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
+const { authLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
 
 const {
@@ -27,10 +28,10 @@ const {
 } = require('../controllers/helperRegistrationController');
 
 // Public (no auth)
-router.post('/start',       startRegistration);
-router.post('/verify-otp',  verifyOTP);
-router.post('/resend-otp',  resendOTP);
-router.post('/send-otp',    resendOTP);  // alias for frontend
+router.post('/start',       authLimiter, startRegistration);
+router.post('/verify-otp',  authLimiter, verifyOTP);
+router.post('/resend-otp',  authLimiter, resendOTP);
+router.post('/send-otp',    authLimiter, resendOTP);  // alias for frontend
 router.get('/categories',   getCategories);
 router.post('/complete',    completeRegistration);
 router.post('/tier',        authenticate, saveTier);

@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../db');
 const logger = require('../utils/logger');
+const escapeHtml = require('../utils/escapeHtml');
 
 // Cache the index.html template in production
 let cachedTemplate = null;
@@ -26,16 +27,6 @@ function getTemplate() {
   }
 }
 
-// Escape HTML entities to prevent XSS in injected content
-function escapeHtml(str) {
-  if (!str) return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 // Build JSON-LD structured data for the helper profile
 function buildJsonLd(helper, services, location) {

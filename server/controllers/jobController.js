@@ -125,7 +125,8 @@ exports.createJob = async (req, res) => {
     );
 
     // Strip exact GPS coordinates from the response — helpers see only fuzzy coords
-    const { location_lat, location_lng, location_point, ...safeJob } = rows[0];
+    // eslint-disable-next-line no-unused-vars
+    const { location_lat: _rlat, location_lng: _rlng, location_point: _rpt, ...safeJob } = rows[0];
 
     // ── Synchronous match scoring ─────────────────────────────────────────
     let matchResult = { total: 0, notified: 0 };
@@ -207,6 +208,10 @@ exports.getJobs = async (req, res) => {
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
+    const VALID_SORTS = ['', 'budget_high', 'budget_low', 'urgent', 'newest'];
+    if (sort && !VALID_SORTS.includes(sort)) {
+      return res.status(400).json({ error: `Invalid sort value. Allowed: ${VALID_SORTS.filter(Boolean).join(', ')}` });
+    }
     let orderBy = 'j.created_at DESC';
     if (sort === 'budget_high') orderBy = 'j.budget_max DESC NULLS LAST';
     if (sort === 'budget_low') orderBy = 'j.budget_min ASC NULLS LAST';
@@ -438,7 +443,20 @@ exports.closeJob = async (req, res) => {
 exports.getMyJobs = async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT * FROM jobs
+      SELECT
+        id, client_id, title, description,
+        category_id, category_name,
+        budget_type, budget_min, budget_max,
+        urgency, is_urgent, status,
+        site_access, job_type_label, notes,
+        location_address, location_city, location_state, location_zip,
+        location_approx_lat, location_approx_lng,
+        requirements, media_urls,
+        assigned_helper_id, preferred_helper_id, preferred_helper_name,
+        scheduled_date, scheduled_time, recurrence,
+        private_notes,
+        expires_at, created_at, updated_at
+      FROM jobs
       WHERE client_id = $1
       ORDER BY created_at DESC
     `, [req.user.id]);

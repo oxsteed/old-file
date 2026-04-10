@@ -51,7 +51,9 @@ async function sendJobAlertSMS(phone, jobTitle, jobId) {
     console.warn('Job alert SMS not sent - Twilio not configured');
     return { success: false, error: 'Twilio not configured' };
   }
-  const body = `New job posted on OxSteed: "${jobTitle}". View details: ${process.env.CLIENT_URL || 'https://oxsteed.com'}/jobs/${jobId}`;
+  // Strip control characters and cap length to prevent SMS injection
+  const safeTitle = String(jobTitle || '').replace(/[\r\n\t\x00-\x1F\x7F]/g, ' ').trim().slice(0, 100);
+  const body = `New job posted on OxSteed: "${safeTitle}". View details: ${process.env.CLIENT_URL || 'https://oxsteed.com'}/jobs/${jobId}`;
   return sendSMS(phone, body);
 }
 
