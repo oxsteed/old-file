@@ -219,7 +219,10 @@ exports.getJobs = async (req, res) => {
 
     const { rows } = await pool.query(`
       SELECT
-        j.*,
+        j.id, j.title, j.description, j.category_name, j.status,
+        j.budget_type, j.budget_min, j.budget_max, j.is_urgent,
+        j.location_city, j.location_state, j.location_approx_lat, j.location_approx_lng,
+        j.created_at, j.expires_at, j.bid_count,
         u.first_name || ' ' || u.last_name AS client_name
       FROM jobs j
       JOIN users u ON j.client_id = u.id
@@ -251,7 +254,12 @@ exports.getJob = async (req, res) => {
 
     const { rows } = await pool.query(`
       SELECT
-        j.*,
+        j.id, j.client_id, j.title, j.description, j.category_name, j.category_id,
+        j.budget_type, j.budget_min, j.budget_max, j.urgency, j.is_urgent, j.status,
+        j.location_city, j.location_state, j.location_zip,
+        j.location_approx_lat, j.location_approx_lng,
+        j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
+        j.created_at, j.expires_at,
         u.first_name || ' ' || u.last_name AS client_name,
         h.first_name || ' ' || h.last_name AS helper_name
       FROM jobs j

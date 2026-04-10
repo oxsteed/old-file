@@ -67,48 +67,58 @@ exports.getUsers = async (req, res) => {
     const offset = (page - 1) * limit;
     const params = [];
     let paramIdx = 1;
-    let conditions = [`u.role NOT IN ('admin','super_admin')`];
-    if (search) { conditions.push(`(u.first_name ILIKE $${paramIdx} OR u.last_name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
-    if (role) { conditions.push(`u.role = $${paramIdx++}`); params.push(role); }
-    if (status === 'active') conditions.push(`u.is_active = true`);
-    else if (status === 'banned') conditions.push(`u.is_active = false`);
+    
+    // Base exclusion: Never return administrative accounts via the standard user list.
+    // This is the single source of truth for the base WHERE clause.
+    const baseConditions = [`u.role NOT IN ('admin','super_admin')`];
+    
+    if (search) { baseConditions.push(`(u.first_name ILIKE $${paramIdx} OR u.last_name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
+    if (role) { baseConditions.push(`u.role = $${paramIdx++}`); params.push(role); }
+    if (status === 'active') baseConditions.push(`u.is_active = true`);
+    else if (status === 'banned') baseConditions.push(`u.is_active = false`);
+
     const allowedSorts = ['created_at','first_name','email'];
     const safeSort = allowedSorts.includes(sort) ? sort : 'created_at';
     const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
-    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     // Check which optional tables exist
     const [hasSubs, hasHP, hasJobs] = await Promise.all([
       tableExists('subscriptions'),
       tableExists('helper_profiles'),
       tableExists('jobs')
     ]);
-    const hasPlan = hasSubs && await tableExists('plans');
-    if (plan && hasPlan) { conditions.push(`p.slug = $${paramIdx++}`); params.push(plan); }
-    const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const hasPlanTable = hasSubs && await tableExists('plans');
+
+    if (plan && hasPlanTable) { baseConditions.push(`p.slug = $${paramIdx++}`); params.push(plan); }
+    
+    const finalWhereClause = `WHERE ${baseConditions.join(' AND ')}`;
+
     const selectCols = [
       'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.email_verified, u.subscription_status AS user_sub_status'
     ];
     const joins = [];
     if (hasSubs) { joins.push('LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = \'active\''); selectCols.push('s.status AS subscription_status, s.current_period_end'); }
     else { selectCols.push('NULL AS subscription_status, NULL AS current_period_end'); }
-    if (hasPlan) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); selectCols.push('p.slug AS plan_slug, p.name AS plan_name'); }
+    if (hasPlanTable) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); selectCols.push('p.slug AS plan_slug, p.name AS plan_name'); }
     else { selectCols.push('NULL AS plan_slug, NULL AS plan_name'); }
     if (hasHP) { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); selectCols.push('hp.avg_rating, hp.completed_jobs_count, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier'); }
     else { selectCols.push('NULL AS avg_rating, NULL AS completed_jobs_count, NULL AS total_reviews, NULL AS is_background_checked, NULL AS is_identity_verified, NULL AS helper_tier'); }
     if (hasJobs) { selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted"); selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper"); }
     else { selectCols.push('0 AS jobs_posted, 0 AS jobs_completed_as_helper'); }
+
     const { rows: users } = await db.query(`
       SELECT ${selectCols.join(', ')}
       FROM users u
       ${joins.join(' ')}
-      ${wc}
+      ${finalWhereClause}
       ORDER BY u.${safeSort} ${safeOrder}
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `, [...params, limit, offset]);
+
     const countJoins = hasSubs ? 'LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = \'active\'' : '';
-    const countJoins2 = hasPlan ? 'LEFT JOIN plans p ON p.id = s.plan_id' : '';
+    const countJoins2 = hasPlanTable ? 'LEFT JOIN plans p ON p.id = s.plan_id' : '';
     const { rows: countRows } = await db.query(`
-      SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${wc}
+      SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${finalWhereClause}
     `, params);
     res.json({ users, total: parseInt(countRows[0].count), page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(countRows[0].count / limit) });
   } catch (err) {
@@ -122,15 +132,27 @@ exports.getUserDetail = async (req, res) => {
     const { userId } = req.params;
     const hasHP   = await tableExists('helper_profiles');
     const hasSubs = await tableExists('subscriptions');
-    const hasPlan = hasSubs && await tableExists('plans');
+    const hasPlanTable = hasSubs && await tableExists('plans');
     const hasCA   = await tableExists('connect_accounts');
-    const cols = ['u.*'];
+    
+    // Explicit list of columns to retrieve. NEVER use SELECT * in production to 
+    // prevent leaking sensitive internal flags or secrets (e.g. password_hash, otp_secret).
+    const cols = [
+      'u.id', 'u.first_name', 'u.last_name', 'u.email', 'u.role', 'u.is_active', 
+      'u.phone', 'u.created_at', 'u.updated_at', 'u.email_verified', 'u.is_verified', 
+      'u.onboarding_status', 'u.onboarding_completed', 'u.contact_completed', 'u.profile_completed',
+      'u.tier_selected', 'u.w9_completed', 'u.terms_accepted', 'u.membership_tier', 'u.id_verified',
+      'u.background_check_passed', 'u.city', 'u.state', 'u.zip_code', 'u.profile_photo_url',
+      'u.didit_status', 'u.didit_verified_at', 'u.last_login_at'
+    ];
+    
     const joins = [];
     if (hasSubs) { joins.push("LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'"); cols.push('s.status AS sub_status, s.stripe_subscription_id, s.current_period_start, s.current_period_end, s.cancel_at_period_end'); }
-    if (hasPlan) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); cols.push('p.slug AS plan_slug, p.name AS plan_name'); }
+    if (hasPlanTable) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); cols.push('p.slug AS plan_slug, p.name AS plan_name'); }
     if (hasHP)   { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); cols.push('hp.bio_short, hp.bio_long, hp.avg_rating, hp.total_reviews, hp.completed_jobs_count, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.hourly_rate_min, hp.hourly_rate_max, hp.service_city, hp.service_state, hp.stripe_account_id AS hp_stripe_account_id, hp.stripe_charges_enabled AS hp_charges_enabled, hp.stripe_payouts_enabled AS hp_payouts_enabled'); }
     // connect_accounts is the authoritative source for Stripe Connect status
     if (hasCA)   { joins.push('LEFT JOIN connect_accounts ca ON ca.user_id = u.id'); cols.push('ca.stripe_account_id AS ca_stripe_account_id, ca.charges_enabled AS ca_charges_enabled, ca.payouts_enabled AS ca_payouts_enabled, ca.onboarding_complete AS ca_onboarding_complete'); }
+    
     const { rows: userRows } = await db.query(`SELECT ${cols.join(', ')} FROM users u ${joins.join(' ')} WHERE u.id = $1`, [userId]);
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
 
