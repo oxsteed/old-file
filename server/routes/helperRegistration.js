@@ -4,7 +4,7 @@ const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
-const upload = require('../middleware/upload');
+const { upload, validateMagicBytes } = require('../middleware/upload');
 
 const {
   startRegistration,
@@ -42,7 +42,7 @@ router.post('/payment',     authenticate, savePaymentStep);
 // Authenticated - profile + contact + photo (frontend Step4)
 router.post('/profile', authenticate, submitProfile);
 router.post('/update-contact', authenticate, updateContact);
-router.post('/profile-photo', authenticate, upload.single('photo'), uploadProfilePhoto);
+router.post('/profile-photo', authenticate, upload.single('photo'), validateMagicBytes, uploadProfilePhoto);
 
 // Authenticated + onboarding gated
 router.put('/onboarding/profile',

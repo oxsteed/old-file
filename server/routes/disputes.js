@@ -3,7 +3,7 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 const disputeCtrl = require('../controllers/disputeController');
 const adminDisputeCtrl = require('../controllers/disputeAdminController');
-const upload      = require('../middleware/upload');
+const { upload, validateMagicBytes } = require('../middleware/upload');
 
 // User: open and manage own disputes
 router.post('/jobs/:jobId',
@@ -24,6 +24,7 @@ router.get('/:disputeId',
 router.post('/:disputeId/evidence',
   authenticate,
   upload.array('files', 5),
+  validateMagicBytes,
   disputeCtrl.submitEvidence
 );
 

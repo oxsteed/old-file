@@ -1,7 +1,7 @@
 // Job routes with media upload support
 const router  = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const upload  = require('../middleware/upload');
+const { upload, validateMagicBytes } = require('../middleware/upload');
 
 const {
   createJob, getJobs, getJob, updateJob,
@@ -17,7 +17,7 @@ router.delete('/draft', authenticate, deleteDraft);
 
 // ── Protected specific routes ─────────────────────────────────────────────────
 router.get('/me/list', authenticate, getMyJobs);
-router.post('/',       authenticate, upload.array('media', 10), createJob);
+router.post('/',       authenticate, upload.array('media', 10), validateMagicBytes, createJob);
 router.post('/assign', authenticate, assignHelper);
 
 // ── Public ────────────────────────────────────────────────────────────────────

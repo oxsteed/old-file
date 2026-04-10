@@ -1,5 +1,6 @@
-const multer = require('multer');
-const path = require('path');
+const multer  = require('multer');
+const path    = require('path');
+const { fileTypeFromBuffer } = require('file-type');
 
 const storage = multer.memoryStorage();
 
@@ -21,6 +22,7 @@ const ALLOWED = {
   '.ogg':  ['audio/ogg', 'video/ogg'],
 };
 
+// First pass: reject obviously disallowed extensions/MIME types at upload time
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   const allowedMimes = ALLOWED[ext];
@@ -39,4 +41,47 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-module.exports = upload;
+/**
+ * Magic-byte validation middleware.
+ *
+ * Run this AFTER multer (multer must buffer the file first).
+ * Reads the actual file bytes and confirms the real type matches
+ * the claimed extension — catches renamed executables and other
+ * disguised files that slip past extension/MIME checks.
+ *
+ * Usage (in a route):
+ *   router.post('/upload', upload.single('file'), validateMagicBytes, handler);
+ *   router.post('/upload', upload.array('files'), validateMagicBytes, handler);
+ */
+async function validateMagicBytes(req, res, next) {
+  // Gather all uploaded files (single or array)
+  const files = req.files
+    ? (Array.isArray(req.files) ? req.files : Object.values(req.files).flat())
+    : (req.file ? [req.file] : []);
+
+  if (files.length === 0) return next();
+
+  for (const file of files) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedMimes = ALLOWED[ext];
+
+    // fileTypeFromBuffer reads the first bytes and returns the real type
+    const detected = await fileTypeFromBuffer(file.buffer);
+
+    if (!detected) {
+      // No recognisable magic bytes — could be a plain text file (.doc before
+      // Office XML era) or a genuinely unknown binary. Reject to be safe.
+      return res.status(400).json({ error: 'Could not verify file type' });
+    }
+
+    if (!allowedMimes.includes(detected.mime)) {
+      return res.status(400).json({
+        error: `File content does not match its extension (detected: ${detected.mime})`,
+      });
+    }
+  }
+
+  next();
+}
+
+module.exports = { upload, validateMagicBytes };
