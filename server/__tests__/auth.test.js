@@ -42,7 +42,7 @@ const MOCK_AUTH_USER = {
   tier_selected: true, w9_completed: false, terms_accepted: true,
   membership_tier: 'free', id_verified: false, background_check_passed: false,
   city: null, state: null, zip_code: null,
-  display_name_preference: 'first_name', business_name: null,
+  display_name_preference: 'first_name', business_name: null, is_active: true,
 };
 
 beforeEach(() => resetMocks());

@@ -10,9 +10,13 @@ jest.mock('../utils/storage', () => ({
   uploadFile:   jest.fn().mockResolvedValue('jobs/test-key.jpg'),
   getPublicUrl: jest.fn(key => `https://bucket.s3.amazonaws.com/${key}`),
 }));
-jest.mock('../middleware/upload', () => ({
-  array: () => (req, res, next) => { req.files = []; next(); },
-}));
+jest.mock('../middleware/upload', () => {
+  const noop = (req, res, next) => { req.files = []; next(); };
+  return {
+    upload: { array: () => noop, single: () => noop },
+    validateMagicBytes: (req, res, next) => next(),
+  };
+});
 
 const express = require('express');
 const request = require('supertest');
@@ -31,7 +35,7 @@ const MOCK_USER_CUSTOMER = {
   tier_selected: true, w9_completed: false, terms_accepted: true,
   membership_tier: 'free', id_verified: false, background_check_passed: false,
   city: 'Austin', state: 'TX', zip_code: '78701',
-  display_name_preference: 'first_name', business_name: null,
+  display_name_preference: 'first_name', business_name: null, is_active: true,
 };
 
 function buildApp() {
