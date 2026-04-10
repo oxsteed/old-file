@@ -253,52 +253,65 @@ async function getHelperProfile(req, res) {
   try {
     const { id } = req.params;
 
-    const { rows: [h] } = await pool.query(
-      `SELECT
-         u.id, u.first_name, u.last_name, u.created_at AS member_since,
-         hp.profile_headline, hp.bio_short, hp.bio_long,
-         hp.profile_photo_url,
-         hp.service_city, hp.service_state, hp.service_zip, hp.service_radius_miles,
-         hp.hourly_rate_min, hp.hourly_rate_max, hp.rate_preference,
-         hp.flat_rate_available, hp.contact_for_pricing,
-         hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
-         hp.response_time_hours,
-         hp.is_identity_verified, hp.is_background_checked,
-         hp.is_insured, hp.is_licensed,
-         hp.insurance_details, hp.license_details,
-         hp.availability_json, hp.is_available_now
-       FROM users u
-       JOIN helper_profiles hp ON hp.user_id = u.id
-       WHERE u.id = $1 AND u.deleted_at IS NULL AND u.email_verified = TRUE AND u.onboarding_completed = TRUE`,
-      [id],
-    );
+    const [helperRes, skillRes, reviewRes, svcRes, faqRes, polRes, galRes] = await Promise.all([
+      pool.query(
+        `SELECT
+           u.id, u.first_name, u.last_name, u.created_at AS member_since,
+           hp.profile_headline, hp.bio_short, hp.bio_long,
+           hp.profile_photo_url, hp.cover_photo_url,
+           hp.service_city, hp.service_state, hp.service_zip, hp.service_radius_miles,
+           hp.hourly_rate_min, hp.hourly_rate_max, hp.rate_preference,
+           hp.flat_rate_available, hp.contact_for_pricing,
+           hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
+           hp.response_time_hours, hp.response_rate,
+           hp.is_identity_verified, hp.is_background_checked,
+           hp.is_insured, hp.is_licensed,
+           hp.insurance_details, hp.license_details,
+           hp.availability_json, hp.is_available_now
+         FROM users u
+         JOIN helper_profiles hp ON hp.user_id = u.id
+         WHERE u.id = $1 AND u.deleted_at IS NULL AND u.email_verified = TRUE AND u.onboarding_completed = TRUE`,
+        [id],
+      ),
+      pool.query(
+        `SELECT hs.skill_name, c.name AS category_name
+         FROM helper_skills hs
+         JOIN categories c ON c.id = hs.category_id
+         WHERE hs.user_id = $1 ORDER BY c.name, hs.skill_name`,
+        [id],
+      ),
+      pool.query(
+        `SELECT r.id, r.rating, r.comment, r.created_at, r.response, r.response_at,
+                u.first_name, u.last_name
+         FROM reviews r JOIN users u ON u.id = r.reviewer_id
+         WHERE r.reviewee_id = $1 ORDER BY r.created_at DESC LIMIT 20`,
+        [id],
+      ),
+      pool.query(
+        `SELECT id, name, description, price, price_unit, duration, popular, category, sort_order
+         FROM helper_services WHERE user_id=$1 AND is_active=true ORDER BY sort_order,id`,
+        [id],
+      ),
+      pool.query(
+        `SELECT id, question, answer FROM helper_faqs WHERE user_id=$1 ORDER BY sort_order,id`,
+        [id],
+      ),
+      pool.query(
+        `SELECT id, title, content, icon FROM helper_policies WHERE user_id=$1 ORDER BY sort_order,id`,
+        [id],
+      ),
+      pool.query(
+        `SELECT id, url, caption FROM helper_gallery WHERE user_id=$1 ORDER BY sort_order,id`,
+        [id],
+      ),
+    ]);
 
+    const h = helperRes.rows[0];
     if (!h) return res.status(404).json({ error: 'Helper not found' });
 
-    // Skills + categories
-    const { rows: skillRows } = await pool.query(
-      `SELECT hs.skill_name, c.name AS category_name
-       FROM helper_skills hs
-       JOIN categories c ON c.id = hs.category_id
-       WHERE hs.user_id = $1
-       ORDER BY c.name, hs.skill_name`,
-      [id],
-    );
-    const categories = [...new Set(skillRows.map((r) => r.category_name))];
+    const categories = [...new Set(skillRes.rows.map((r) => r.category_name))];
 
-    // Reviews (most recent 20)
-    const { rows: reviewRows } = await pool.query(
-      `SELECT r.id, r.rating, r.comment, r.created_at, r.response, r.response_at,
-              u.first_name, u.last_name
-       FROM reviews r
-       JOIN users u ON u.id = r.reviewer_id
-       WHERE r.reviewee_id = $1
-       ORDER BY r.created_at DESC
-       LIMIT 20`,
-      [id],
-    );
-
-    const reviews = reviewRows.map((r) => ({
+    const reviews = reviewRes.rows.map((r) => ({
       id:          String(r.id),
       authorName:  `${r.first_name} ${r.last_name[0]}.`,
       rating:      r.rating,
@@ -308,6 +321,38 @@ async function getHelperProfile(req, res) {
       helpfulCount:0,
       verified:    true,
       helperReply: r.response ? { content: r.response, date: r.response_at } : undefined,
+    }));
+
+    const services = svcRes.rows.map((s) => ({
+      id:          String(s.id),
+      name:        s.name,
+      description: s.description || '',
+      price:       parseFloat(s.price) || 0,
+      priceUnit:   s.price_unit,
+      duration:    s.duration || '',
+      popular:     !!s.popular,
+      category:    s.category,
+    }));
+
+    const faqs = faqRes.rows.map((f) => ({
+      id:       String(f.id),
+      question: f.question,
+      answer:   f.answer,
+    }));
+
+    const policies = polRes.rows.map((p) => ({
+      id:      String(p.id),
+      title:   p.title,
+      content: p.content,
+      icon:    p.icon || 'file-text',
+    }));
+
+    const gallery = galRes.rows.map((g) => ({
+      id:      String(g.id),
+      url:     g.url,
+      caption: g.caption || '',
+      alt:     g.caption || 'Gallery photo',
+      type:    'photo',
     }));
 
     // Badges
@@ -348,19 +393,19 @@ async function getHelperProfile(req, res) {
         tagline:      h.profile_headline || '',
         bio:          h.bio_long || h.bio_short || '',
         avatar:       h.profile_photo_url || '',
-        coverImage:   '',
+        coverImage:   h.cover_photo_url   || '',
         rating:       parseFloat(h.avg_rating) || 0,
         reviewCount:  h.total_reviews          || 0,
         jobsCompleted:h.completed_jobs_count   || 0,
         memberSince:  h.member_since,
         verified:     !!h.is_identity_verified,
         responseTime: formatResponseTime(responseHours),
-        responseRate: 95,
+        responseRate: h.completed_jobs_count > 0 ? (h.response_rate || 0) : 0,
         badges,
         categories,
       },
-      services:  [],
-      gallery:   [],
+      services,
+      gallery,
       hours,
       location: {
         city:          h.service_city  || '',
@@ -370,12 +415,12 @@ async function getHelperProfile(req, res) {
         radiusUnit:    'miles',
         servesRemotely:false,
       },
-      policies: [],
+      policies,
       reviews,
-      faqs: [],
+      faqs,
       chatSession: {
         id:            `session_${id}`,
-        destination:   socketService.isOnline(id) ? 'helper' : 'helper',
+        destination:   'helper',
         status:        socketService.isOnline(id) ? 'live' : 'ai_assistant',
         helperStatus:  socketService.isOnline(id) ? 'live' : 'ai_assistant',
         oxsteedStatus: 'ai_assistant',

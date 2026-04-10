@@ -42,6 +42,9 @@ const FAQItem: React.FC<{ faq: FAQ; isOpen: boolean; onToggle: () => void }> = (
 const FAQSection: React.FC<FAQSectionProps> = ({ faqs }) => {
   const [openId, setOpenId] = useState<string | null>(faqs[0]?.id ?? null);
 
+  // Don't render section if there's nothing to show
+  if (!faqs || faqs.length === 0) return null;
+
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
 
   return (

@@ -7,9 +7,10 @@ interface CTASectionProps {
   helper: HelperProfile;
   onBookNow: () => void;
   onOpenChat: () => void;
+  hasServices?: boolean;
 }
 
-const CTASection: React.FC<CTASectionProps> = ({ helper, onBookNow, onOpenChat }) => (
+const CTASection: React.FC<CTASectionProps> = ({ helper, onBookNow, onOpenChat, hasServices = true }) => (
   <aside
     className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden"
     aria-label="Book this helper"
@@ -33,9 +34,15 @@ const CTASection: React.FC<CTASectionProps> = ({ helper, onBookNow, onOpenChat }
     {/* CTAs */}
     <div className="px-5 py-4 space-y-3">
       <button
-        onClick={onBookNow}
-        className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 active:scale-[0.98]"
-        aria-label="Book this helper now"
+        onClick={hasServices ? onBookNow : undefined}
+        disabled={!hasServices}
+        title={!hasServices ? 'This helper hasn\'t listed services yet — send them a message' : undefined}
+        className={`w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-white font-semibold text-sm transition-colors active:scale-[0.98] ${
+          hasServices
+            ? 'bg-brand-500 hover:bg-brand-600 shadow-lg shadow-brand-500/20 cursor-pointer'
+            : 'bg-gray-700 cursor-not-allowed opacity-60'
+        }`}
+        aria-label={hasServices ? 'Book this helper now' : 'Booking unavailable — no services listed'}
       >
         <CalendarCheck className="w-4 h-4" aria-hidden="true" />
         Book Now
@@ -58,7 +65,10 @@ const CTASection: React.FC<CTASectionProps> = ({ helper, onBookNow, onOpenChat }
       </li>
       <li className="flex items-center gap-2.5 text-xs text-gray-400">
         <Clock className="w-4 h-4 text-sky-400 flex-shrink-0" aria-hidden="true" />
-        Responds in {helper.responseTime} · {helper.responseRate}% response rate
+        {helper.responseTime && helper.responseTime.toLowerCase() !== 'varies'
+            ? `Responds in ${helper.responseTime}`
+            : 'Response time varies'}
+          {helper.jobsCompleted > 0 && ` · ${helper.responseRate}% response rate`}
       </li>
       <li className="flex items-center gap-2.5 text-xs text-gray-400">
         <Star className="w-4 h-4 text-orange-400 flex-shrink-0" aria-hidden="true" />

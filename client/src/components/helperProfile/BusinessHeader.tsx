@@ -33,19 +33,38 @@ const badgeColorMap: Record<Badge['variant'], string> = {
   new: 'bg-gray-800 text-gray-400 border border-gray-700',
 };
 
+// Initials avatar fallback
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOpenChat }) => {
   const memberYear = new Date(helper.memberSince).getFullYear();
+  const [coverError, setCoverError] = React.useState(false);
+  const [avatarError, setAvatarError] = React.useState(false);
 
   return (
     <header className="relative bg-gray-900 border-b border-gray-800">
       {/* Cover image */}
       <div className="relative h-48 sm:h-64 lg:h-72 overflow-hidden">
-        <img
-          src={helper.coverImage}
-          alt={`${helper.businessName} cover`}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
+        {!coverError && helper.coverImage ? (
+          <img
+            src={helper.coverImage}
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => setCoverError(true)}
+          />
+        ) : (
+          // Gradient fallback when cover image is missing or broken
+          <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-850 to-gray-900" aria-hidden="true" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-900/30 to-gray-900/90" />
       </div>
 
@@ -55,13 +74,20 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
             {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-gray-900 overflow-hidden shadow-xl bg-gray-800">
-                <img
-                  src={helper.avatar}
-                  alt={helper.ownerName}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-gray-900 overflow-hidden shadow-xl bg-gray-800 flex items-center justify-center">
+                {!avatarError && helper.avatar ? (
+                  <img
+                    src={helper.avatar}
+                    alt={helper.ownerName}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  <span className="text-2xl font-bold text-gray-400 select-none">
+                    {getInitials(helper.ownerName || helper.businessName)}
+                  </span>
+                )}
               </div>
               {helper.verified && (
                 <span
@@ -99,7 +125,9 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-gray-500" />
-                  Responds {helper.responseTime}
+                  {helper.responseTime && helper.responseTime.toLowerCase() !== 'varies'
+                    ? `Responds ${helper.responseTime}`
+                    : 'Response time varies'}
                 </span>
                 <span className="text-gray-600">·</span>
                 <span className="text-gray-500">Member since {memberYear}</span>
@@ -160,10 +188,14 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
             </div>
           )}
 
-          {/* Stats row */}
+          {/* Stats row — hide misleading stats when there's no real data */}
           <div className="grid grid-cols-3 gap-3 mt-5 sm:max-w-sm">
             <div className="bg-gray-800/60 rounded-xl p-3 text-center border border-gray-700/50">
-              <p className="text-xl font-bold text-white">{helper.rating.toFixed(1)}</p>
+              {helper.reviewCount > 0 ? (
+                <p className="text-xl font-bold text-white">{helper.rating.toFixed(1)}</p>
+              ) : (
+                <p className="text-xl font-bold text-gray-500">—</p>
+              )}
               <p className="text-xs text-gray-400 mt-0.5">Rating</p>
             </div>
             <div className="bg-gray-800/60 rounded-xl p-3 text-center border border-gray-700/50">
@@ -171,7 +203,11 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
               <p className="text-xs text-gray-400 mt-0.5">Jobs Done</p>
             </div>
             <div className="bg-gray-800/60 rounded-xl p-3 text-center border border-gray-700/50">
-              <p className="text-xl font-bold text-white">{helper.responseRate}%</p>
+              {helper.jobsCompleted > 0 ? (
+                <p className="text-xl font-bold text-white">{helper.responseRate}%</p>
+              ) : (
+                <p className="text-xl font-bold text-gray-500">New</p>
+              )}
               <p className="text-xs text-gray-400 mt-0.5">Response</p>
             </div>
           </div>
