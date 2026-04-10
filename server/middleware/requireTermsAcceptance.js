@@ -57,7 +57,7 @@ const requireTermsAcceptance = async (req, res, next) => {
     next();
   } catch (err) {
     console.error('requireTermsAcceptance error:', err);
-    next(); // fail open — don't block user on DB errors
+    return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
   }
 };
 

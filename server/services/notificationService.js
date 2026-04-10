@@ -166,22 +166,38 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
   }
 }
 
+// ─── HTML ESCAPING HELPER ─────────────────────────────────────
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#39;');
+}
+
 // ─── EMAIL TEMPLATE BUILDER ───────────────────────────────────
 function buildEmailTemplate({ firstName, title, body, action_url, buttonText, isBanned }) {
+  // action_url must be a relative path starting with '/' to prevent open redirect
+  const safeActionUrl = (action_url && typeof action_url === 'string' && action_url.startsWith('/'))
+    ? action_url
+    : null;
+
   const settingsUrl = isBanned
     ? null
     : `${process.env.CLIENT_URL}/settings/notifications`;
 
-  const ctaBlock = action_url ? `
+  const ctaBlock = safeActionUrl ? `
     <table cellpadding="0" cellspacing="0" role="presentation">
       <tr>
         <td style="border-radius:10px;background:#f97316;">
-          <a href="${process.env.CLIENT_URL}${action_url}"
+          <a href="${process.env.CLIENT_URL}${escapeHtml(safeActionUrl)}"
              style="display:inline-block;padding:14px 28px;
                     color:#ffffff;font-size:14px;
                     font-weight:600;text-decoration:none;
                     border-radius:10px;">
-            ${buttonText}
+            ${escapeHtml(buttonText)}
           </a>
         </td>
       </tr>
@@ -207,9 +223,9 @@ function buildEmailTemplate({ firstName, title, body, action_url, buttonText, is
             <span style="color:#ffffff;font-size:22px;font-weight:800;">OxSteed</span>
           </td></tr>
           <tr><td style="padding:36px 32px;">
-            <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">Hi ${firstName},</p>
-            <h1 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:700;">${title}</h1>
-            <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.6;">${body}</p>
+            <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">Hi ${escapeHtml(firstName)},</p>
+            <h1 style="margin:0 0 16px;color:#111827;font-size:22px;font-weight:700;">${escapeHtml(title)}</h1>
+            <p style="margin:0 0 28px;color:#4b5563;font-size:15px;line-height:1.6;">${escapeHtml(body)}</p>
             ${ctaBlock}
           </td></tr>
           <tr><td style="padding:20px 32px;border-top:1px solid #f3f4f6;">

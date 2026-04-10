@@ -124,12 +124,13 @@ exports.createJob = async (req, res) => {
       ]
     );
 
-    const job = rows[0];
+    // Strip exact GPS coordinates from the response — helpers see only fuzzy coords
+    const { location_lat, location_lng, location_point, ...safeJob } = rows[0];
 
     // ── Synchronous match scoring ─────────────────────────────────────────
     let matchResult = { total: 0, notified: 0 };
     try {
-      matchResult = await scoreAndMatch(job);
+      matchResult = await scoreAndMatch(rows[0]);
     } catch (matchErr) {
       // Never fail the publish because of match scoring
       logger.error('Match scoring error (non-fatal)', { err: matchErr });
@@ -144,13 +145,13 @@ exports.createJob = async (req, res) => {
     } catch (_) { /* non-fatal */ }
 
     return res.status(201).json({
-      ...job,
+      ...safeJob,
       match_count:  matchResult.total    || 0,
       notify_count: matchResult.notified || 0,
     });
   } catch (err) {
     logger.error('Create job error', { err });
-    res.status(500).json({ error: 'Failed to create job: ' + err.message });
+    res.status(500).json({ error: 'Failed to create job' });
   }
 };
 
@@ -160,9 +161,10 @@ exports.getJobs = async (req, res) => {
     const {
       category, city, state, status, q,
       min_budget, max_budget, sort,
-      page = 1, limit = 20
     } = req.query;
 
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const offset = (page - 1) * limit;
     let conditions = [`u.is_active = true`];
     let params = [];

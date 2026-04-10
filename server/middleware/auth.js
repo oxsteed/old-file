@@ -12,12 +12,12 @@ function generateTokens(user) {
   const accessToken = jwt.sign(
     { id: user.id, email: user.email, role: user.role },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
+    { expiresIn: JWT_EXPIRES_IN, algorithm: 'HS256' }
   );
   const refreshToken = jwt.sign(
     { id: user.id, type: 'refresh' },
     JWT_SECRET,
-    { expiresIn: REFRESH_EXPIRES_IN }
+    { expiresIn: REFRESH_EXPIRES_IN, algorithm: 'HS256' }
   );
   return { accessToken, refreshToken };
 }
@@ -55,7 +55,7 @@ async function authenticate(req, res, next) {
   }
   const token = header.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
     const { rows } = await pool.query(
       `SELECT
