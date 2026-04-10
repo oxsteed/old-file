@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-09 (admin search engine + audit log, scoped time-limited permission grants, admin→user live messaging)
+**Last updated:** 2026-04-09 (full security + production-readiness audit — speakeasy→otplib, OTP/token hashing, HMAC backup codes, JWT_REFRESH_SECRET, ENCRYPTION_KEY, magic-byte upload validation, CI hardening, session cleanup cron, Dockerfile non-root user)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -67,10 +67,21 @@ Set in Coolify (production) or a local `.env` file (development). See `server/.e
 Enforced by `server/utils/validateEnv.js`:
 
 ```
-JWT_SECRET
+JWT_SECRET               # min 32 chars
+JWT_REFRESH_SECRET       # min 32 chars; must differ from JWT_SECRET
 DATABASE_URL
 STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
+ENCRYPTION_KEY           # exactly 64 hex chars (32 bytes)
+RESEND_API_KEY
+```
+
+Generate secrets:
+```bash
+# JWT_REFRESH_SECRET
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+# ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ### Key optional vars
@@ -78,7 +89,7 @@ STRIPE_WEBHOOK_SECRET
 | Var | Purpose |
 |---|---|
 | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` + `AWS_REGION` + `AWS_S3_BUCKET` | File uploads (profiles, job media). Falls back to base64 in DB if unset — **set this in production**. |
-| `REDIS_URL` | Distributed rate limiting. Falls back to in-memory (fine for single instance, breaks multi-replica). |
+| `REDIS_URL` | Distributed rate limiting. Falls back to in-memory (fine for single instance, breaks multi-replica). Already provisioned on Hetzner and connected in Coolify. |
 | `RESEND_API_KEY` | Transactional email (OTP, password reset, notifications). |
 | `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` + `TWILIO_PHONE_NUMBER` | SMS OTP. |
 | `DIDIT_API_KEY` + `DIDIT_WORKFLOW_ID` + `DIDIT_WEBHOOK_SECRET` | Identity verification. |
@@ -115,7 +126,9 @@ Dark mode toggled via `html.dark` class (set by `ThemeContext`). CSS variables i
 
 - Files: `server/migrations/001_*.sql` … `039_user_skills_and_tool_rentals.sql`
 - Runner: `server/migrate.js` — applies unapplied migrations tracked in `_migrations` table.
-- Runs automatically at startup (`npm start` = `node migrate.js && node index.js`).
+- Runs automatically at startup: Dockerfile CMD is `sh -c 'node migrate.js && node index.js'`.
+- Migrations are idempotent (`IF NOT EXISTS`) — safe to run on every container start.
+- **No separate pre-deploy step needed** — Coolify does not support pre-deploy hooks for Dockerfile deployments.
 - **To add a new migration:** create `server/migrations/040_description.sql`, it will be applied on next startup.
 
 ---
@@ -183,7 +196,7 @@ Dark mode toggled via `html.dark` class (set by `ThemeContext`). CSS variables i
 - `authLimiter` — 15 req / 15 min / IP on `/api/auth`.
 - `strictLimiter` — 5 req / hour / IP on account deletion and data export.
 - Uses Redis (`REDIS_URL`) when available; falls back to in-memory silently.
-- **Action needed:** provision a Redis instance (Upstash or Render Redis) and set `REDIS_URL` in Coolify when scaling beyond a single container.
+- Redis is already provisioned on Hetzner and `REDIS_URL` is set in Coolify — distributed limiting is active.
 
 ---
 
@@ -292,8 +305,8 @@ All items from the full production-readiness audit have been addressed. Recorded
 All production-readiness audit items have been completed. Items are documented in the "Production-Readiness Audit" section above.
 
 **Full list — all done:**
-1. Logger migration (5 highest-traffic controllers fully migrated; ~150 calls remain in 21 lower-priority files — cosmetic, not blocking)
-2. Test suite — 89 tests across 9 files, all passing
+1. Logger migration (all controllers swept; ~150 calls remain in lower-priority files — cosmetic, not blocking)
+2. Test suite — 82 tests across 9 files, all passing
 3. Admin panel — dispute resolution, user detail normalization, revenue endpoints
 4. Error boundaries per-route
 5. Accessibility pass (forms + modals; keyboard trap deferred)
@@ -464,6 +477,35 @@ All production-readiness audit items have been completed. Items are documented i
 - Persists in `localStorage` across sessions; "Showing jobs in [State]" badge with "Show all states" clear link
 - Backend `getJobs` already supported `?state=` param — no server change needed
 
+### Security + Production Audit — 2026-04-09 (all fixed)
+
+**Critical**
+- [x] OTP hashing — all 6 OTP storage paths in `authController.js` now store `sha256(otp)` instead of plaintext
+- [x] Reset token hashing — `forgotPassword` stores `sha256(token)`; `resetPassword` hashes before lookup
+- [x] speakeasy → otplib — `twoFactorController.js` + `authController.js` fully migrated to `otplib@12`; `speakeasy` removed from `package.json`
+- [x] JWT_REFRESH_SECRET — `middleware/auth.js` now signs/verifies refresh tokens with `JWT_REFRESH_SECRET` (falls back to `JWT_SECRET` if not set); enforced by `validateEnv`
+- [x] ENCRYPTION_KEY — added to `validateEnv` REQUIRED list with 64-hex-char format check
+- [x] HMAC backup codes — `twoFactorController.js` + `authController.js` now use `crypto.createHmac('sha256', JWT_SECRET)` instead of plain random string
+
+**High**
+- [x] Timing attack on login — dummy `bcrypt.compare()` against a pre-computed hash for non-existent users (`$2b$12$SRkPknTSu6WPByLMlXff6e...`) so response time is identical regardless
+- [x] Socket.IO token in query string — removed; only `socket.handshake.auth.token` accepted
+- [x] Node version — `.github/workflows/ci.yml` pinned to Node 22
+- [x] Dockerfile non-root user — runs as `oxsteed` (UID/GID 1001); `npm ci --omit=dev`
+- [x] CI test job — added Jest test run with real postgres service; `npm audit --audit-level=high` on both server and client
+
+**Medium**
+- [x] validateEnv hardening — `ENCRYPTION_KEY`, `JWT_REFRESH_SECRET`, `RESEND_API_KEY` added to REQUIRED; format/length checks added
+- [x] `.env.example` updated with generation instructions for new secrets
+- [x] X-Request-Id middleware — unique request ID on every response (wired in `index.js`)
+- [x] Permissions-Policy header — wraps Helmet via `securityHeaders()` function
+- [x] Session cleanup cron — `server/jobs/cleanupJob.js` runs daily 3am ET; deletes `expires_at < NOW() - 1 day` sessions + `expires_at < NOW() - 1 hour` pending_registrations
+- [x] Cron shutdown — `weeklySummary`, `plannedNeedsScheduler`, `cleanupJob` all export job objects; `index.js` stops them on SIGTERM/SIGINT
+- [x] console→logger sweep — all controllers/middleware/services/jobs/routes/utils migrated to structured `logger.*`
+- [x] Duplicate `middleware/authenticate.js` removed (was a dead re-export of `middleware/auth.js`)
+- [x] Magic-byte file validation — `file-type@16` installed; `validateMagicBytes` middleware reads actual file bytes; wired into disputes evidence, profile photo, and job media routes
+- [x] axios SSRF — patched to latest via `npm audit fix`
+
 ### Security Audit — 2026-04-07 (all fixed)
 - **CRITICAL** SQL injection via `sessionDuration` template literal in `login()` — replaced with two hardcoded SQL strings (`authController.js`)
 - **CRITICAL** JWT_SECRET minimum length not enforced — added 32-char check to `validateEnv.js`
@@ -474,7 +516,7 @@ All production-readiness audit items have been completed. Items are documented i
 - **MEDIUM** `startRegistration` error leaked `err.message` to client — removed (`authController.js`)
 - **MEDIUM** `forgot-password` and `reset-password` had no rate limit — now behind `strictLimiter`; all OTP/register/login/refresh routes now behind `authLimiter` (`routes/auth.js`)
 - **MEDIUM** Referral `/validate` (public) had no rate limit — now behind `authLimiter` (`routes/referrals.js`)
-- **MEDIUM** File upload validated extension only, not MIME type; 50MB limit — now validates both ext + `file.mimetype`, limit reduced to 10MB (`middleware/upload.js`)
+- **MEDIUM** File upload validated extension only, not MIME type; 50MB limit — now validates ext + `file.mimetype` + **magic bytes** (actual file content via `file-type@16`), limit reduced to 10MB (`middleware/upload.js`)
 - **MEDIUM** `changePassword` and `resetPassword` only checked `length >= 8` — now use `validate()` with `rules.minLen(8)` + `rules.maxLen(128)` (`authController.js`)
 - **MEDIUM** CSP `scriptSrc` included `'unsafe-inline'` — removed; Vite bundle does not emit inline scripts (`middleware/securityHeaders.js`)
 
@@ -484,9 +526,7 @@ All production-readiness audit items have been completed. Items are documented i
 
 These require either an infrastructure action or an architectural decision — no code work pending.
 
-
-
-
+**CSP `unsafe-inline` on `styleSrc`** — `middleware/securityHeaders.js` still includes `'unsafe-inline'` for styles. Removing it requires verifying no UI components use inline styles (open app in browser with DevTools, switch to `reportOnly: true`, check console for violations). Deferred until UI is more stable.
 
 **SSR / pre-rendering** — Pure SPA; `PageMeta.jsx` handles meta at runtime but JS-less crawlers won't see it. Only matters for `/`, `/helpers`, `/helpers/:id`. Options: `vite-plugin-ssr` or migrate public pages to Next.js. Dashboard and auth pages don't need it.
 
