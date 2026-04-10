@@ -206,18 +206,17 @@ async function login(req, res) {
 async function loginWith2FA(req, res) {
   try {
     const { mfaToken, token, isBackupCode } = req.body;
-    let userId = req.body.userId; // fallback for backwards compatibility
-
-    if (mfaToken) {
-      try {
-        const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET || 'secret');
-        if (!decoded.isMfaToken) throw new Error('Invalid token type');
-        userId = decoded.id;
-      } catch (err) {
-        return res.status(401).json({ error: 'Invalid or expired MFA token' });
-      }
-    } else if (!userId) {
+    if (!mfaToken) {
       return res.status(400).json({ error: 'MFA token required' });
+    }
+
+    let userId;
+    try {
+      const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET || 'secret');
+      if (!decoded.isMfaToken) throw new Error('Invalid token type');
+      userId = decoded.id;
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired MFA token' });
     }
 
     if (!token) {
@@ -314,7 +313,7 @@ async function requestOTP(req, res) {
     if (userRows[0]) {
       const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
       await pool.query(
-        'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
+        'UPDATE users SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0, otp_locked_until = NULL WHERE email = $3',
         [hashedOtp, expiresAt, email.toLowerCase()]
       );
       if (phone) await sendOTPSMS(phone, otp);
@@ -364,7 +363,7 @@ async function verifyOTP(req, res) {
       return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
     await pool.query(
-      'UPDATE users SET email_verified = true, otp_code = NULL, otp_expires_at = NULL WHERE id = $1',
+      'UPDATE users SET email_verified = true, otp_code = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = NULL WHERE id = $1',
       [user.id]
     );
     res.json({ message: 'Email verified' });
@@ -377,6 +376,7 @@ async function verifyOTP(req, res) {
 async function refreshToken(req, res) {
   try {
     const { refreshToken: token } = req.body;
+    if (!token) return res.status(401).json({ error: 'Refresh token required' });
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
       'SELECT s.user_id FROM sessions s WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
