@@ -455,8 +455,8 @@ export default function SupportWidget() {
       {open && (
         <div
           className={isFullScreen
-            ? 'fixed inset-0 z-45'
-            : 'fixed inset-0 z-45 flex items-end justify-end p-4 sm:p-6 pointer-events-none'
+            ? 'fixed inset-0 z-[45]'
+            : 'fixed inset-0 z-[45] flex items-end justify-end p-4 sm:p-6 pointer-events-none'
           }
           onClick={isFullScreen ? undefined : (e => { if (e.target === e.currentTarget) setOpen(false); })}
         >
