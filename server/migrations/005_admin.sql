@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS feature_flags (
   updated_at    TIMESTAMPTZ DEFAULT now()
 );
 
-INSERT INTO feature_flags (key, enabled, description)
+INSERT INTO feature_flags (key, is_enabled, description)
 VALUES
   ('tool_rental',        false, 'Enable tool rental marketplace'),
   ('broker_flow',        true,  'Enable broker claim/assign flow'),

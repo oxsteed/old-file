@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS user_consents (
 
 -- Index for fast consent status lookups (used by middleware & routes)
 CREATE INDEX IF NOT EXISTS idx_user_consents_user_type
-        ON user_consents (user_id, consent_type, created_at DESC);
+        ON user_consents (user_id, consent_type, accepted_at DESC);
 
 -- Index for admin audit queries
 CREATE INDEX IF NOT EXISTS idx_user_consents_type_version

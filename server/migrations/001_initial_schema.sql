@@ -227,6 +227,8 @@ CREATE TABLE plans (
   stripe_price_id       VARCHAR(255),
   stripe_product_id     VARCHAR(255),
   is_active             BOOLEAN     NOT NULL DEFAULT true,
+  tier                  VARCHAR(50),
+  active                BOOLEAN     NOT NULL DEFAULT true,
   features              JSONB       NOT NULL DEFAULT '[]',
   sort_order            INTEGER     NOT NULL DEFAULT 0,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
