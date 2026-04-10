@@ -6,14 +6,15 @@ const OLLAMA_URL = (() => {
   if (!raw) return '';
   try {
     const u = new URL(raw);
-    // Only allow http/https to localhost or 127.x — not arbitrary internal hosts
+    // Only allow http/https to localhost or 127.0.0.1 — reject everything else
     const allowedHosts = ['localhost', '127.0.0.1', '::1'];
     if (!['http:', 'https:'].includes(u.protocol)) {
       logger.warn('[Chat] OLLAMA_URL has unsupported protocol — ignoring', { url: raw });
       return '';
     }
     if (!allowedHosts.includes(u.hostname)) {
-      logger.warn('[Chat] OLLAMA_URL hostname is not localhost — using as configured', { hostname: u.hostname });
+      logger.warn('[Chat] OLLAMA_URL hostname is not localhost — ignoring to prevent SSRF', { hostname: u.hostname });
+      return '';
     }
     return raw;
   } catch {
