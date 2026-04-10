@@ -12,8 +12,12 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/__tests__/**/*.test.js"],
-    "setupFiles": ["./__tests__/setup.js"],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
+    "setupFiles": [
+      "./__tests__/setup.js"
+    ],
     "testTimeout": 15000
   },
   "dependencies": {
@@ -30,11 +34,11 @@
     "jsonwebtoken": "^9.0.0",
     "multer": "2.1.1",
     "node-cron": "^3.0.3",
+    "otplib": "^13.4.0",
     "pg": "^8.11.0",
     "qrcode": "^1.5.3",
     "rate-limit-redis": "^4.2.0",
     "socket.io": "^4.7.0",
-    "speakeasy": "^2.0.0",
     "stripe": "^14.0.0",
     "twilio": "^4.19.0",
     "web-push": "^3.6.0"

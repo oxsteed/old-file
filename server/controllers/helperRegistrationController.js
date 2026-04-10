@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
 const { formatAuthUser } = require('./authController');
 const { sendOTPEmail } = require('../utils/email');
-const { encrypt, hashTIN, maskTIN } = require('../utils/encryption');
+const { encrypt, hashTIN, maskTIN, hashIP } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults } = require('../utils/trial');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
@@ -72,6 +72,7 @@ async function startRegistration(req, res) {
 
     const password_hash = await bcrypt.hash(password, 12);
     const otp = generateOTP();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otp_expires = otpExpiry();
 
     // Generate a unique token for this registration
@@ -93,13 +94,13 @@ async function startRegistration(req, res) {
             (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
           VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
           RETURNING token
-        `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires])
+        `, [token, email, password_hash, firstName, lastName, phone, zip, otpHash, otp_expires])
       : await pool.query(`
           INSERT INTO pending_registrations
             (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
           RETURNING token
-        `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
+        `, [token, email, password_hash, firstName, lastName, phone, zip, otpHash, otp_expires]);
 
     await sendOTPEmail(email, otp);
 
@@ -140,7 +141,8 @@ async function verifyOTP(req, res) {
 
     const reg = rows[0];
 
-    if (reg.otp_code !== null && reg.otp_code !== otp) {
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    if (reg.otp_code !== null && reg.otp_code !== otpHash) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Invalid OTP' });
     }
@@ -220,6 +222,7 @@ async function resendOTP(req, res) {
     }
 
     const otp = generateOTP();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otp_expires = otpExpiry();
 
     const lookup = token
@@ -231,7 +234,7 @@ async function resendOTP(req, res) {
        SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0
        WHERE ${lookup.where} AND role = 'helper'
        RETURNING email`,
-      [otp, otp_expires, lookup.value]
+      [otpHash, otp_expires, lookup.value]
     );
 
     if (!rows.length)
@@ -598,7 +601,7 @@ async function saveW9(req, res) {
         userId, legalName, businessName || null, taxClassification,
         maskTIN(sanitizedTIN).slice(-4), encrypt(sanitizedTIN),
         address, signatureData,
-        req.ip || 'unknown', req.headers['user-agent'] || '',
+        hashIP(req.ip || 'unknown'), req.headers['user-agent'] || '',
         new Date().getUTCFullYear()
       ]
     );
@@ -638,7 +641,7 @@ async function acceptTerms(req, res) {
            terms_acceptance_ua = $3,
            updated_at          = NOW()
        WHERE id = $4`,
-      [termsVersion, req.ip || 'unknown', req.headers['user-agent'] || '', userId]
+      [termsVersion, hashIP(req.ip || 'unknown'), req.headers['user-agent'] || '', userId]
     );
     return res.json({ message: 'Terms accepted' });
   } catch (err) {

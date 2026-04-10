@@ -4,12 +4,13 @@
 // OxSteed v2
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const speakeasy = require('speakeasy');
+const { authenticator } = require('otplib');
 const pool = require('../db');
 const { generateTokens } = require('../middleware/auth');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../utils/email');
 const { sendOTPSMS } = require('../utils/sms');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
+const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = require('../utils/trial');
 const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
@@ -168,19 +169,24 @@ async function login(req, res) {
     if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-    // 2FA check - totp_enabled may not exist yet if migration 022 hasn't run
     if (user.totp_enabled) {
+      const mfaToken = jwt.sign(
+        { id: user.id, isMfaToken: true },
+        process.env.JWT_SECRET || 'secret',
+        { expiresIn: '15m' }
+      );
       return res.status(200).json({
         requiresTwoFactor: true,
-        userId: user.id,
+        mfaToken: mfaToken,
         message: 'Please provide your 2FA code to complete login.'
       });
     }
     const tokens = generateTokens(user);
+    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const sessionSql = rememberMe
       ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
-    await pool.query(sessionSql, [user.id, tokens.refreshToken]);
+    await pool.query(sessionSql, [user.id, hashedRefresh]);
     // Fetch tier from helper_profiles if helper, otherwise 'free'
     
     res.json({
@@ -199,10 +205,35 @@ async function login(req, res) {
 // Complete login after 2FA verification
 async function loginWith2FA(req, res) {
   try {
-    const { userId, token, isBackupCode } = req.body;
-    if (!userId || !token) {
-      return res.status(400).json({ error: 'User ID and 2FA code required' });
+    const { mfaToken, token, isBackupCode } = req.body;
+    let userId = req.body.userId; // fallback for backwards compatibility
+
+    if (mfaToken) {
+      try {
+        const decoded = jwt.verify(mfaToken, process.env.JWT_SECRET || 'secret');
+        if (!decoded.isMfaToken) throw new Error('Invalid token type');
+        userId = decoded.id;
+      } catch (err) {
+        return res.status(401).json({ error: 'Invalid or expired MFA token' });
+      }
+    } else if (!userId) {
+      return res.status(400).json({ error: 'MFA token required' });
     }
+
+    if (!token) {
+      return res.status(400).json({ error: '2FA code required' });
+    }
+
+    const { rows: auditRows } = await pool.query(
+      `SELECT COUNT(*) FROM two_factor_audit_log 
+       WHERE user_id = $1 AND success = false 
+       AND created_at > NOW() - INTERVAL '15 minutes'`,
+      [userId]
+    );
+    if (parseInt(auditRows[0].count) >= 5) {
+      return res.status(429).json({ error: 'Too many failed 2FA attempts. Please try again in 15 minutes.' });
+    }
+
     const { rows } = await pool.query(
       'SELECT id, email, role, is_active, totp_secret, totp_enabled, backup_codes FROM users WHERE id = $1',
       [userId]
@@ -214,29 +245,39 @@ async function loginWith2FA(req, res) {
     if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
     let verified = false;
     if (isBackupCode) {
-      const hashed = crypto.createHash('sha256').update(token.toLowerCase().trim()).digest('hex');
+      let matchedIndex = -1;
       const codes = user.backup_codes || [];
-      const idx = codes.indexOf(hashed);
-      if (idx !== -1) {
-        codes.splice(idx, 1);
+      for (let i = 0; i < codes.length; i++) {
+        if (await bcrypt.compare(token.toLowerCase().trim(), codes[i])) {
+          matchedIndex = i;
+          break;
+        }
+      }
+      if (matchedIndex !== -1) {
+        codes.splice(matchedIndex, 1);
         await pool.query('UPDATE users SET backup_codes = $1 WHERE id = $2', [codes, userId]);
         verified = true;
       }
     } else {
-      verified = speakeasy.totp.verify({
-        secret: user.totp_secret,
-        encoding: 'base32',
-        token: token,
-        window: 1
+      const decryptedSecret = decrypt(user.totp_secret);
+      authenticator.options = { window: 1 };
+      verified = authenticator.verify({
+        secret: decryptedSecret,
+        token: token
       });
     }
     if (!verified) {
+      await pool.query(
+        'INSERT INTO two_factor_audit_log (user_id, action, ip_address, user_agent, success) VALUES ($1, $2, $3, $4, $5)',
+        [userId, isBackupCode ? 'backup_code_failed' : 'totp_verify_failed', hashIP(req.ip), req.headers['user-agent'], false]
+      );
       return res.status(401).json({ error: 'Invalid 2FA code' });
     }
     const tokens = generateTokens(user);
+    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, tokens.refreshToken]
+      [user.id, hashedRefresh]
     );
         const { rows: fullRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
@@ -271,9 +312,10 @@ async function requestOTP(req, res) {
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     if (userRows[0]) {
+      const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
       await pool.query(
         'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
-        [otp, expiresAt, email.toLowerCase()]
+        [hashedOtp, expiresAt, email.toLowerCase()]
       );
       if (phone) await sendOTPSMS(phone, otp);
       else await sendOTPEmail(email, otp);
@@ -297,7 +339,10 @@ async function verifyOTP(req, res) {
     const user = rows[0];
     const expired = new Date(user.otp_expires_at) < new Date();
     const bufA = Buffer.from(user.otp_code || '');
-    const bufB = Buffer.from(typeof otp === 'string' ? otp : '');
+    const hashedIncomingOtp = (typeof otp === 'string' && otp.length > 0) 
+      ? crypto.createHash('sha256').update(otp).digest('hex') 
+      : '';
+    const bufB = Buffer.from(hashedIncomingOtp);
     const otpValid = bufA.length > 0 && bufA.length === bufB.length &&
       crypto.timingSafeEqual(bufA, bufB);
     if (!otpValid || expired) {
@@ -338,9 +383,10 @@ async function refreshToken(req, res) {
     if (!userRows[0]) return res.status(401).json({ error: 'User not found' });
     const user = userRows[0];
     const tokens = generateTokens(user);
+    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, tokens.refreshToken]
+      [user.id, hashedRefresh]
     );
     res.json({
       success: true,
@@ -445,13 +491,15 @@ async function acceptTerms(req, res) {
     if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
     const pending = rows[0];
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
-    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const rawIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const ip = hashIP(rawIp);
     const userAgent = req.headers['user-agent'] || '';
     const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       'UPDATE pending_registrations SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3, terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6, otp_attempts = 0 WHERE token = $1',
-      [token, termsVersion, ip, userAgent, otp, otpExpires]
+      [token, termsVersion, ip, userAgent, otpHash, otpExpires]
     );
     await sendOTPEmail(pending.email, otp);
     res.json({ message: 'Terms accepted, OTP sent' });
@@ -473,7 +521,8 @@ async function verifyRegistrationOTP(req, res) {
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
       return res.status(429).json({ error: 'Too many attempts. Try again later.', lockoutUntil: pending.otp_locked_until });
     }
-    if (pending.otp_code !== otp || new Date(pending.otp_expires_at) < new Date()) {
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    if (pending.otp_code !== hashedOTP || new Date(pending.otp_expires_at) < new Date()) {
       const newAttempts = pending.otp_attempts + 1;
       if (newAttempts >= 3) {
         await pool.query(
@@ -511,9 +560,10 @@ async function verifyRegistrationOTP(req, res) {
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
     }
     const tokens = generateTokens(user);
+    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, tokens.refreshToken]
+      [user.id, hashedRefresh]
     );
     res.status(201).json({ user: formatAuthUser(user), ...tokens });
   } catch (err) {
@@ -534,10 +584,11 @@ async function resendRegistrationOTP(req, res) {
       return res.status(429).json({ error: 'Account locked' });
     }
     const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
       'UPDATE pending_registrations SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0 WHERE token = $1',
-      [token, otp, otpExpires]
+      [token, otpHash, otpExpires]
     );
     await sendOTPEmail(pending.email, otp);
     res.json({ message: 'OTP resent' });

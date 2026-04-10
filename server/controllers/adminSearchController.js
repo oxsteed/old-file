@@ -1,5 +1,6 @@
 'use strict';
 const db = require('../db');
+const { hashIP } = require('../utils/encryption');
 
 // ── Valid entity types the search engine covers ───────────────────────────────
 const ALL_ENTITY_TYPES = ['users', 'jobs', 'messages'];
@@ -125,7 +126,8 @@ exports.search = async (req, res) => {
     const totalCount = users.length + jobs.length + messages.length;
 
     // ── Log the search (non-blocking) ────────────────────────────────────────
-    const ipAddress = req.ip || req.headers['x-forwarded-for'] || null;
+    const rawIpAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const ipAddress = hashIP(rawIpAddress);
     db.query(
       `INSERT INTO admin_search_log (admin_id, query, entity_types, result_count, ip_address)
        VALUES ($1, $2, $3, $4, $5)`,

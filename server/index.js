@@ -56,6 +56,10 @@ const plannedNeedsRoutes = require('./routes/plannedNeeds');
 
 const app = express();
 const httpServer = http.createServer(app);
+// SECURITY (H-34): trust proxy = 1
+// We trust only the first hop (the Render reverse proxy or AWS load balancer).
+// This ensures req.ip represents the real client IP (needed for rate limiting) 
+// and cannot be spoofed by sending a fake X-Forwarded-For header.
 app.set('trust proxy', 1); // Required for Render reverse proxy
 const PORT = process.env.PORT || 5000;
 
@@ -100,6 +104,12 @@ io.on('connection', (socket) => {
   if (['admin', 'super_admin'].includes(socket.userRole)) {
     socket.join('admins');
   }
+  
+  // SECURITY (H-28): Explicitly drop 'join' events from clients. 
+  // Room membership is determined strictly server-side through authentication 
+  // hooks above. We do not allow arbitrary clients to join rooms like 'admins'.
+  socket.on('join', () => {});
+
   socketService.trackConnect(userId, socket.id);
   logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
