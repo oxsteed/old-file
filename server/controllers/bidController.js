@@ -32,15 +32,28 @@ exports.createBid = async (req, res) => {
 // Get bids for a job
 exports.getJobBids = async (req, res) => {
   try {
+    // Only the job's client or an admin may view all bids
+    const jobCheck = await pool.query(
+      'SELECT client_id FROM jobs WHERE id = $1', [req.params.jobId]
+    );
+    if (!jobCheck.rows[0]) return res.status(404).json({ error: 'Job not found' });
+    const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+    const isClient = jobCheck.rows[0].client_id === req.user.id;
+
+    // Admins and the job client see all bids.
+    // Helpers see only their own bid (so the UI can compute hasAlreadyBid).
+    const helperFilter = (!isAdmin && !isClient) ? 'AND b.helper_id = $2' : '';
+    const params = helperFilter ? [req.params.jobId, req.user.id] : [req.params.jobId];
+
     const result = await pool.query(
       `SELECT b.*, u.first_name as helper_name, hp.profile_photo_url as helper_avatar, hp.avg_rating as helper_rating,
         (SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = b.helper_id AND status = 'completed') as jobs_completed
       FROM bids b
       JOIN users u ON b.helper_id = u.id
       LEFT JOIN helper_profiles hp ON hp.user_id = b.helper_id
-      WHERE b.job_id = $1
+      WHERE b.job_id = $1 ${helperFilter}
       ORDER BY b.created_at DESC`,
-      [req.params.job_id]
+      params
     );
     res.json(result.rows);
   } catch (err) {
