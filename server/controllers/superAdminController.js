@@ -343,7 +343,7 @@ exports.getJobDetail = async (req, res) => {
     let payment = null;
     if (await tableExists('payments')) {
       const r = await db.query(`
-        SELECT id, status, amount, helper_payout, platform_fee_cents,
+        SELECT id, status, amount, helper_payout, platform_fee,
                stripe_payment_intent_id, created_at
         FROM payments
         WHERE job_id = $1
