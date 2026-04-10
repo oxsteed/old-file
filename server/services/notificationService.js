@@ -2,6 +2,7 @@ const db                = require('../db');
 const { broadcastToUser } = require('./socketService');
 const { sendEmail }     = require('../utils/email');  // Resend — single email system
 const { Expo }          = require('expo-server-sdk');
+const escapeHtml        = require('../utils/escapeHtml');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
@@ -166,16 +167,7 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
   }
 }
 
-// ─── HTML ESCAPING HELPER ─────────────────────────────────────
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g,  '&amp;')
-    .replace(/</g,  '&lt;')
-    .replace(/>/g,  '&gt;')
-    .replace(/"/g,  '&quot;')
-    .replace(/'/g,  '&#39;');
-}
+
 
 // ─── EMAIL TEMPLATE BUILDER ───────────────────────────────────
 function buildEmailTemplate({ firstName, title, body, action_url, buttonText, isBanned }) {
