@@ -132,7 +132,8 @@ exports.getUserDetail = async (req, res) => {
       'u.onboarding_status', 'u.onboarding_completed', 'u.contact_completed', 'u.profile_completed',
       'u.tier_selected', 'u.w9_completed', 'u.terms_accepted', 'u.membership_tier', 'u.id_verified',
       'u.background_check_passed', 'u.city', 'u.state', 'u.zip_code',
-      'u.didit_status', 'u.didit_verified_at', 'u.last_login_at'
+      'u.didit_status', 'u.didit_verified_at', 'u.last_login_at',
+      'u.subscription_status', 'u.background_check_status', 'u.identity_verified'
     ];
 
     const joins = [];
