@@ -161,10 +161,15 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/services', helperOnly, async (req, res) => {
-  const { rows } = await pool.query(
-    'SELECT * FROM helper_services WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]
-  );
-  res.json(rows);
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM helper_services WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    logger.error('[helperProfile] GET /services', { err: err.message });
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
 });
 
 router.post('/services', helperOnly, generalLimiter, async (req, res) => {
@@ -225,11 +230,16 @@ router.put('/services/:id', helperOnly, generalLimiter, async (req, res) => {
 });
 
 router.delete('/services/:id', helperOnly, async (req, res) => {
-  const { rows: [r] } = await pool.query(
-    'DELETE FROM helper_services WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]
-  );
-  if (!r) return res.status(404).json({ error: 'Not found' });
-  res.json({ ok: true });
+  try {
+    const { rows: [r] } = await pool.query(
+      'DELETE FROM helper_services WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]
+    );
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('[helperProfile] DELETE /services/:id', { err: err.message });
+    res.status(500).json({ error: 'Failed to delete service' });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -237,8 +247,13 @@ router.delete('/services/:id', helperOnly, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/faqs', helperOnly, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM helper_faqs WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]);
-  res.json(rows);
+  try {
+    const { rows } = await pool.query('SELECT * FROM helper_faqs WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]);
+    res.json(rows);
+  } catch (err) {
+    logger.error('[helperProfile] GET /faqs', { err: err.message });
+    res.status(500).json({ error: 'Failed to fetch FAQs' });
+  }
 });
 
 router.post('/faqs', helperOnly, generalLimiter, async (req, res) => {
@@ -275,9 +290,14 @@ router.put('/faqs/:id', helperOnly, generalLimiter, async (req, res) => {
 });
 
 router.delete('/faqs/:id', helperOnly, async (req, res) => {
-  const { rows: [r] } = await pool.query('DELETE FROM helper_faqs WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
-  if (!r) return res.status(404).json({ error: 'Not found' });
-  res.json({ ok: true });
+  try {
+    const { rows: [r] } = await pool.query('DELETE FROM helper_faqs WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('[helperProfile] DELETE /faqs/:id', { err: err.message });
+    res.status(500).json({ error: 'Failed to delete FAQ' });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,8 +305,13 @@ router.delete('/faqs/:id', helperOnly, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/policies', helperOnly, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM helper_policies WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]);
-  res.json(rows);
+  try {
+    const { rows } = await pool.query('SELECT * FROM helper_policies WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]);
+    res.json(rows);
+  } catch (err) {
+    logger.error('[helperProfile] GET /policies', { err: err.message });
+    res.status(500).json({ error: 'Failed to fetch policies' });
+  }
 });
 
 router.post('/policies', helperOnly, generalLimiter, async (req, res) => {
@@ -324,9 +349,14 @@ router.put('/policies/:id', helperOnly, generalLimiter, async (req, res) => {
 });
 
 router.delete('/policies/:id', helperOnly, async (req, res) => {
-  const { rows: [r] } = await pool.query('DELETE FROM helper_policies WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
-  if (!r) return res.status(404).json({ error: 'Not found' });
-  res.json({ ok: true });
+  try {
+    const { rows: [r] } = await pool.query('DELETE FROM helper_policies WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('[helperProfile] DELETE /policies/:id', { err: err.message });
+    res.status(500).json({ error: 'Failed to delete policy' });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -334,8 +364,13 @@ router.delete('/policies/:id', helperOnly, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/gallery', helperOnly, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM helper_gallery WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]);
-  res.json(rows);
+  try {
+    const { rows } = await pool.query('SELECT * FROM helper_gallery WHERE user_id=$1 ORDER BY sort_order,id', [req.user.id]);
+    res.json(rows);
+  } catch (err) {
+    logger.error('[helperProfile] GET /gallery', { err: err.message });
+    res.status(500).json({ error: 'Failed to fetch gallery' });
+  }
 });
 
 router.post('/gallery', helperOnly, generalLimiter, async (req, res) => {
@@ -353,9 +388,14 @@ router.post('/gallery', helperOnly, generalLimiter, async (req, res) => {
 });
 
 router.delete('/gallery/:id', helperOnly, async (req, res) => {
-  const { rows: [r] } = await pool.query('DELETE FROM helper_gallery WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
-  if (!r) return res.status(404).json({ error: 'Not found' });
-  res.json({ ok: true });
+  try {
+    const { rows: [r] } = await pool.query('DELETE FROM helper_gallery WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('[helperProfile] DELETE /gallery/:id', { err: err.message });
+    res.status(500).json({ error: 'Failed to delete image' });
+  }
 });
 
 module.exports = router;
