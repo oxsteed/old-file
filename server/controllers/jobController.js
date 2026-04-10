@@ -454,6 +454,7 @@ exports.getMyJobs = async (req, res) => {
         requirements, media_urls,
         assigned_helper_id, preferred_helper_id, preferred_helper_name,
         scheduled_date, scheduled_time, recurrence,
+        private_notes,
         expires_at, created_at, updated_at
       FROM jobs
       WHERE client_id = $1
