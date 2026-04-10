@@ -142,10 +142,10 @@ exports.reviewReport = async (req, res) => {
       }
     }
 
-    if (action === 'warn_user' && report.reporter_id) {
+    if (action === 'warn_user' && report.target_id) {
       try {
         await sendNotification({
-          userId: report.reporter_id,
+          userId: report.target_id,
           type: 'content_warning',
           title: 'Content warning issued',
           body: 'A warning has been added to your account regarding reported content.',
