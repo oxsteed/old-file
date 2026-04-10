@@ -1,7 +1,7 @@
 // Two-Factor Authentication Controller (TOTP)
 // OxSteed v2
 const crypto = require('crypto');
-const { authenticator } = require('otplib');
+const { authenticator } = require('@otplib/v12-adapter');
 const bcrypt = require('bcrypt');
 const QRCode = require('qrcode');
 const pool = require('../db');

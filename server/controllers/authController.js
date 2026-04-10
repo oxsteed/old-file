@@ -4,7 +4,7 @@
 // OxSteed v2
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { authenticator } = require('otplib');
+const { authenticator } = require('@otplib/v12-adapter');
 const pool = require('../db');
 const { generateTokens } = require('../middleware/auth');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../utils/email');
@@ -362,12 +362,13 @@ async function verifyOTP(req, res) {
 async function refreshToken(req, res) {
   try {
     const { refreshToken: token } = req.body;
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
       'SELECT s.user_id FROM sessions s WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
-      [token]
+      [hashedToken]
     );
     if (!sessionRows[0]) return res.status(401).json({ error: 'Invalid refresh token' });
-    await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [token]);
+    await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [hashedToken]);
     const { rows: userRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role,
               email_verified, is_verified,
@@ -403,7 +404,10 @@ async function refreshToken(req, res) {
 async function logout(req, res) {
   try {
     const { refreshToken: token } = req.body;
-    await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [token]);
+    if (token) {
+      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+      await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [hashedToken]);
+    }
     res.json({ message: 'Logged out' });
   } catch (err) {
     res.status(500).json({ error: 'Logout failed' });
@@ -767,9 +771,10 @@ async function resendVerification(req, res) {
 
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
     await pool.query(
       'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE id = $3',
-      [otp, expiresAt, req.user.id]
+      [hashedOtp, expiresAt, req.user.id]
     );
     await sendOTPEmail(rows[0].email, otp);
     res.json({ message: 'Verification email sent' });
