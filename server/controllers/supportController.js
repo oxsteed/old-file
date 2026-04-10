@@ -277,6 +277,7 @@ exports.replyToMyTicket = async (req, res) => {
 
 /** GET /api/admin/support/tickets */
 exports.listTickets = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const {
       status   = '',
@@ -367,6 +368,7 @@ exports.listTickets = async (req, res) => {
 
 /** GET /api/admin/support/tickets/:ticketId */
 exports.getTicketAdmin = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const ticket = await fetchTicketRow(req.params.ticketId);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found.' });
@@ -392,6 +394,7 @@ exports.getTicketAdmin = async (req, res) => {
 
 /** POST /api/admin/support/tickets/:ticketId/claim */
 exports.claimTicket = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const { rows } = await db.query(
       `SELECT id, status, assigned_to, ticket_number FROM support_tickets WHERE id = $1`,
@@ -434,6 +437,7 @@ exports.claimTicket = async (req, res) => {
 
 /** POST /api/admin/support/tickets/:ticketId/unclaim */
 exports.unclaimTicket = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const { rows } = await db.query(
       `SELECT id, status, assigned_to, ticket_number FROM support_tickets WHERE id = $1`,
@@ -468,6 +472,7 @@ exports.unclaimTicket = async (req, res) => {
 
 /** PUT /api/admin/support/tickets/:ticketId/status  — body: { status } */
 exports.updateStatus = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   const allowed = ['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'];
   const { status } = req.body;
   if (!allowed.includes(status)) {
@@ -519,6 +524,7 @@ exports.updateStatus = async (req, res) => {
 
 /** PUT /api/admin/support/tickets/:ticketId/priority  — body: { priority } */
 exports.updatePriority = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   const allowed = ['low', 'normal', 'high', 'urgent'];
   const { priority } = req.body;
   if (!allowed.includes(priority)) {
@@ -548,6 +554,7 @@ exports.updatePriority = async (req, res) => {
  * is_internal = false → public reply, emails user
  */
 exports.adminReply = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   const { content, is_internal = false } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: 'Content is required.' });
 
@@ -658,6 +665,7 @@ exports.adminReply = async (req, res) => {
 
 /** GET /api/admin/support/stats */
 exports.getStats = async (req, res) => {
+  if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const { rows: byStatus } = await db.query(
       `SELECT status, COUNT(*) AS count FROM support_tickets GROUP BY status`

@@ -32,6 +32,15 @@ exports.createBid = async (req, res) => {
 // Get bids for a job
 exports.getJobBids = async (req, res) => {
   try {
+    // Only the job's client or an admin may view all bids
+    const jobCheck = await pool.query(
+      'SELECT client_id FROM jobs WHERE id = $1', [req.params.job_id]
+    );
+    if (!jobCheck.rows[0]) return res.status(404).json({ error: 'Job not found' });
+    const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+    if (jobCheck.rows[0].client_id !== req.user.id && !isAdmin) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
     const result = await pool.query(
       `SELECT b.*, u.first_name as helper_name, hp.profile_photo_url as helper_avatar, hp.avg_rating as helper_rating,
         (SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = b.helper_id AND status = 'completed') as jobs_completed

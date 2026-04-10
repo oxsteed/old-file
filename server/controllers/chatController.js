@@ -1,6 +1,6 @@
 const logger = require('../utils/logger');
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://ollama-api-p116fo3uwyxytib7ph3yleei:11434';
+const OLLAMA_URL = process.env.OLLAMA_URL || '';
 
 const SYSTEM_PROMPT = `You are OxSteed's AI assistant — friendly, concise, and knowledgeable about the OxSteed local services marketplace.
 

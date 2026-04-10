@@ -204,6 +204,9 @@ exports.getReviewEligibility = async (req, res) => {
 // ─── ADMIN: HIDE REVIEW ───────────────────────────────────────
 exports.adminHideReview = async (req, res) => {
   try {
+    if (!['admin', 'super_admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Admin access required.' });
+    }
     const adminId = req.user.id;
     const { id }  = req.params;
     const { reason } = req.body;
