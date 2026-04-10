@@ -23,12 +23,9 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS referral_conversions_count INTEGER   DEFAULT 0,
   ADD COLUMN IF NOT EXISTS admin_role             VARCHAR(20)   DEFAULT NULL;
 
--- Unique index on referral_code (safe if already exists)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code
-  ON users(referral_code) WHERE referral_code IS NOT NULL;
-
--- Market FK on users
-CREATE INDEX IF NOT EXISTS idx_users_market_id ON users(market_id);
+-- Note: idx_users_referral_code moved to 026_fix_auth_schema.sql
+-- (referral_code column is added in that migration)
+-- idx_users_market_id removed: market_id does not exist on the users table
 
 -- ─────────────────────────────────────────────────────────────
 -- SECTION 2: Unique columns on markets table
@@ -220,7 +217,7 @@ CREATE INDEX IF NOT EXISTS idx_notif_prefs_user ON notification_preferences(user
 
 CREATE TABLE IF NOT EXISTS dispute_evidence (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dispute_id      UUID REFERENCES disputes(id) ON DELETE CASCADE,
+  dispute_id      INTEGER REFERENCES disputes(id) ON DELETE CASCADE,
   submitted_by    UUID REFERENCES users(id) ON DELETE CASCADE,
   submitter_role  VARCHAR(20) NOT NULL, -- 'client'|'helper'|'admin'
   type            VARCHAR(20) DEFAULT 'text', -- 'text'|'image'|'video'|'document'
@@ -234,7 +231,7 @@ CREATE INDEX IF NOT EXISTS idx_evidence_dispute ON dispute_evidence(dispute_id);
 
 CREATE TABLE IF NOT EXISTS dispute_messages (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dispute_id      UUID REFERENCES disputes(id) ON DELETE CASCADE,
+  dispute_id      INTEGER REFERENCES disputes(id) ON DELETE CASCADE,
   sender_id       UUID REFERENCES users(id) ON DELETE CASCADE,
   sender_role     VARCHAR(20) NOT NULL, -- 'client'|'helper'|'admin'
   message         TEXT NOT NULL,

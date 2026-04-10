@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 CREATE TABLE IF NOT EXISTS feature_flags (
   id SERIAL PRIMARY KEY,
   key VARCHAR(100) UNIQUE NOT NULL,
-  enabled BOOLEAN DEFAULT false,
+  is_enabled BOOLEAN DEFAULT false,
   description TEXT,
   updated_by UUID REFERENCES users(id),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -42,7 +42,7 @@ INSERT INTO platform_settings (key, value, value_type, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- Seed default feature flags
-INSERT INTO feature_flags (key, enabled, description) VALUES
+INSERT INTO feature_flags (key, is_enabled, description) VALUES
   ('escrow_payments', true, 'Enable escrow payment protection for Tier 3 jobs'),
   ('broker_matching', false, 'Enable automatic broker matching for complex jobs'),
   ('push_notifications', true, 'Enable push notifications for mobile users'),

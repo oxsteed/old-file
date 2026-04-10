@@ -61,14 +61,14 @@ ON CONFLICT (key) DO NOTHING;
 -- ── Feature flags ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS feature_flags (
   key           VARCHAR(80) PRIMARY KEY,
-  enabled       BOOLEAN     DEFAULT false,
+  is_enabled    BOOLEAN     DEFAULT false,
   description   TEXT,
   rollout_pct   INT         DEFAULT 100,  -- % of users who see this feature
   updated_by    UUID        REFERENCES users(id),
   updated_at    TIMESTAMPTZ DEFAULT now()
 );
 
-INSERT INTO feature_flags (key, enabled, description)
+INSERT INTO feature_flags (key, is_enabled, description)
 VALUES
   ('tool_rental',        false, 'Enable tool rental marketplace'),
   ('broker_flow',        true,  'Enable broker claim/assign flow'),
