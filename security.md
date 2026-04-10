@@ -6,13 +6,13 @@
 
 ## Summary
 
-| Severity | Count | Status |
-|----------|-------|--------|
-| CRITICAL | 10    | ⬜ Pending |
-| HIGH     | 42    | ⬜ Pending |
-| MEDIUM   | 63    | ⬜ Pending |
-| LOW      | 51    | ⬜ Pending |
-| INFO     | 19    | ⬜ Pending |
+| Severity | Count | Fixed | Status |
+|----------|-------|-------|--------|
+| CRITICAL | 10    | 9     | C-01–C-05 fixed pre-audit; C-06/C-08/C-09/C-10 fixed 2026-04-10; C-07 (Dockerfile) already had non-root user |
+| HIGH     | 42    | 7     | H-07/H-16/H-22/H-23/H-24/H-25/H-29/H-30 fixed 2026-04-10; H-08/H-10/H-11/H-12 were already fixed |
+| MEDIUM   | 63    | 1     | M-30 (error leak in createJob) fixed 2026-04-10 |
+| LOW      | 51    | 0     | ⬜ Pending |
+| INFO     | 19    | 0     | ⬜ Pending |
 
 > **Status legend:** ⬜ Pending | 🔧 In Progress | ✅ Fixed | ⏭ Deferred
 
@@ -64,7 +64,7 @@
 - **File:** `controllers/jobController.js` → `getJobs()`
 - **Impact:** `NaN` from non-numeric input causes unexpected 500s; malformed queries.
 - **Fix:** `parseInt()` on `page` and `limit`; add input validation.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -80,7 +80,7 @@
 - **File:** `server/migrate.js`
 - **Impact:** TLS used but server cert not validated — MITM possible during migrations.
 - **Fix:** Change to `rejectUnauthorized: true`, matching `db.js` logic.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -88,7 +88,7 @@
 - **File:** `server/services/authService.js`
 - **Impact:** If deployed with placeholder secret, tokens can be forged — complete auth bypass.
 - **Fix:** Add startup guard; validate presence and minimum entropy; fail fast if missing.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -96,7 +96,7 @@
 - **File:** `server/.env.example`
 - **Impact:** Developers copy `sk_live_` values; accidental commit exposes production Stripe key.
 - **Fix:** Change to `sk_test_REPLACE_ME` and `pk_test_REPLACE_ME`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -135,7 +135,7 @@
 ### H-07 — `getMyPayments` constructs SQL column name from user input (fragile)
 - **File:** `controllers/paymentController.js` → `getMyPayments()`
 - **Fix:** Use separate queries instead of dynamic column names.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-08 — `refundPayment` role check excludes `super_admin`
 - **File:** `controllers/paymentController.js` → `refundPayment()`
@@ -180,7 +180,7 @@
 ### H-16 — `RETURNING *` exposes exact GPS coordinates in `createJob`
 - **File:** `controllers/jobController.js` → `createJob()`
 - **Fix:** Use `RETURNING` with explicit column list excluding exact coordinates.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-17 — SSRF risk via user-controlled `OLLAMA_URL`
 - **File:** `controllers/chatController.js`
@@ -210,22 +210,22 @@
 ### H-22 — IDOR: `getPreferredByCount` accepts helperId from URL without access control
 - **File:** `controllers/plannedNeedsController.js` → `getPreferredByCount()`
 - **Fix:** Remove `helperId` param override; always use `req.user.id`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-23 — JWT algorithm not pinned in `auth.js`
 - **File:** `server/middleware/auth.js` → `authenticate()`
 - **Fix:** Add `algorithms: ['HS256']` to `jwt.verify` options.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-24 — JWT algorithm not pinned in `adminAuth.js`
 - **File:** `server/middleware/adminAuth.js`
 - **Fix:** Audit `authService.verifyToken`; confirm or add algorithm pinning.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-25 — `requireTermsAcceptance` fails open on DB error
 - **File:** `server/middleware/requireTermsAcceptance.js`
 - **Fix:** Return `res.status(503)` on infrastructure errors instead of calling `next()`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-26 — `requireOnboardingStep` fails open on unknown step values
 - **File:** `server/middleware/helperOnboardingMiddleware.js`
@@ -245,12 +245,12 @@
 ### H-29 — Email template interpolates user-controlled data as raw HTML
 - **File:** `server/services/notificationService.js` → `buildEmailTemplate()`
 - **Fix:** HTML-encode `title`, `body`, and `firstName` before interpolation.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-30 — `action_url` interpolated into email `href` without sanitization
 - **File:** `server/services/notificationService.js` → `buildEmailTemplate()`
 - **Fix:** Assert `action_url` starts with `/`; HTML-encode before use.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-31 — Dockerfile uses `npm install` instead of `npm ci`
 - **File:** `Dockerfile`

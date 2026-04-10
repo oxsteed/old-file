@@ -771,7 +771,7 @@ exports.getTemplates = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 exports.getPreferredByCount = async (req, res) => {
   try {
-    const helperId = req.params.helperId || req.user.id;
+    const helperId = req.user.id;
     const { rows } = await db.query(`
       SELECT COUNT(DISTINCT user_id) AS preferred_by_count
       FROM planned_needs

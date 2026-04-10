@@ -255,11 +255,18 @@ exports.getJobPayment = async (req, res) => {
 exports.getMyPayments = async (req, res) => {
   try {
     const { role = 'payer' } = req.query;
-    const field = role === 'payee' ? 'payee_id' : 'payer_id';
-    const result = await pool.query(
-      `SELECT p.*, j.title as job_title FROM payments p JOIN jobs j ON p.job_id = j.id WHERE p.${field} = $1 ORDER BY p.created_at DESC`,
-      [req.user.id]
-    );
+    let result;
+    if (role === 'payee') {
+      result = await pool.query(
+        `SELECT p.*, j.title as job_title FROM payments p JOIN jobs j ON p.job_id = j.id WHERE p.payee_id = $1 ORDER BY p.created_at DESC`,
+        [req.user.id]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT p.*, j.title as job_title FROM payments p JOIN jobs j ON p.job_id = j.id WHERE p.payer_id = $1 ORDER BY p.created_at DESC`,
+        [req.user.id]
+      );
+    }
     res.json(result.rows);
   } catch (err) {
     logger.error('Get my payments error', { err });
