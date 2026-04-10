@@ -141,7 +141,7 @@ exports.getUserDetail = async (req, res) => {
       'u.phone', 'u.created_at', 'u.updated_at', 'u.email_verified', 'u.is_verified',
       'u.onboarding_status', 'u.onboarding_completed', 'u.contact_completed', 'u.profile_completed',
       'u.tier_selected', 'u.w9_completed', 'u.terms_accepted', 'u.membership_tier', 'u.id_verified',
-      'u.background_check_passed', 'u.city', 'u.state', 'u.zip_code', 'u.profile_photo_url',
+      'u.background_check_passed', 'u.city', 'u.state', 'u.zip_code',
       'u.didit_status', 'u.didit_verified_at', 'u.last_login_at',
       'u.subscription_status', 'u.background_check_status', 'u.identity_verified'
     ];
@@ -162,7 +162,7 @@ exports.getUserDetail = async (req, res) => {
     // helper_profiles for deployments that haven't migrated to connect_accounts.
     const user = {
       ...raw,
-      avatar_url:          raw.profile_photo_url || null,
+      avatar_url:          raw.hp_profile_photo_url || null,
       id_verified:         raw.identity_verified ?? raw.is_identity_verified ?? false,
       stripe_account_id:   raw.ca_stripe_account_id   || raw.hp_stripe_account_id   || null,
       charges_enabled:     raw.ca_charges_enabled      ?? raw.hp_charges_enabled      ?? false,
