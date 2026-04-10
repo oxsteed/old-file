@@ -9,13 +9,13 @@ const crypto  = require('crypto');
 const express = require('express');
 const request = require('supertest');
 
-const diditRoutes = require('../routes/didit');
+const { handleWebhook } = require('../controllers/diditController');
 
 function buildApp() {
   const app = express();
-  app.use('/api/didit/webhook', express.raw({ type: 'application/json' }));
-  app.use(express.json());
-  app.use('/api/didit', diditRoutes);
+  // Mirror production (index.js): mount the webhook handler directly with
+  // express.raw() so the body arrives as a Buffer — exactly like the real app.
+  app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), handleWebhook);
   return app;
 }
 
