@@ -271,6 +271,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const helperIsLive  = session.helperStatus === 'live';
   const isOffline     = currentStatus === 'offline';
 
+  // Inject a welcome message into an empty timeline so users know what to ask
+  const displayTimeline = React.useMemo(() => {
+    const msgs = session.timeline.filter((item) => {
+      if (session.destination === 'oxsteed' && item.itemType === 'booking_event') return false;
+      return true;
+    });
+    if (msgs.length > 0) return msgs;
+    // No messages yet — prepend a synthetic welcome bubble
+    const welcome: ChatMessage = {
+      id: 'welcome-msg',
+      itemType: 'message',
+      authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai',
+      content: session.destination === 'helper'
+        ? `Hi! I'm ${helperName}'s AI assistant. Ask me about their services, availability, or pricing — I'm happy to help.`
+        : "Hi! I'm OxSteed's support assistant. Ask me anything about how the platform works.",
+      timestamp: new Date().toISOString(),
+    };
+    return [welcome];
+  }, [session.timeline, session.destination, helperName]);
+
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
@@ -337,10 +357,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         />
       ) : (
         <ChatTimeline
-          items={session.timeline.filter((item) => {
-            if (session.destination === 'oxsteed' && item.itemType === 'booking_event') return false;
-            return true;
-          })}
+          items={displayTimeline}
           helperName={helperName}
           typing={sending ? session.typing : null}
         />

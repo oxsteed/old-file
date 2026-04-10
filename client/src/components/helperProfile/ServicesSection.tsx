@@ -22,6 +22,21 @@ function formatPrice(price: number, unit: PriceUnit): string {
 const categoryOrder = ['Landscaping', 'Cleaning', 'Painting', 'Home Repair'];
 
 const ServicesSection: React.FC<ServicesSectionProps> = ({ services, onSelectService }) => {
+  if (!services || services.length === 0) {
+    return (
+      <SectionCard
+        id="services"
+        title="Services & Pricing"
+        subtitle="All prices include labor. Materials billed separately if required."
+      >
+        <div className="py-6 text-center">
+          <p className="text-sm text-gray-500">This helper hasn't listed their services yet.</p>
+          <p className="text-xs text-gray-600 mt-1">Send them a message to ask about what they offer.</p>
+        </div>
+      </SectionCard>
+    );
+  }
+
   const grouped = categoryOrder.reduce<Record<string, Service[]>>((acc, cat) => {
     const items = services.filter((s) => s.category === cat);
     if (items.length) acc[cat] = items;
