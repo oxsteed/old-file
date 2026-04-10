@@ -2,14 +2,14 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { createSession, handleWebhook, getStatus } = require('../controllers/diditController');
+const { createSession, getStatus } = require('../controllers/diditController');
 
 // Authenticated: create session + check status
 router.post('/session',  authenticate, createSession);
 router.get('/status',    authenticate, getStatus);
 
-// Public: Didit webhook (verify signature in controller)
-// Mounted early in index.js (before express.json()) to preserve raw body for HMAC.
-router.post('/webhook', handleWebhook);
+// NOTE: The Didit webhook handler (handleWebhook) is intentionally NOT in this
+// router. It is mounted directly in index.js with express.raw() before
+// express.json() so it receives a raw Buffer for HMAC signature verification.
 
 module.exports = router;
