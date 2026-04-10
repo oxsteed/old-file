@@ -268,15 +268,16 @@ async function requestOTP(req, res) {
     const { rows: userRows } = await pool.query(
       'SELECT id FROM users WHERE email = $1', [email.toLowerCase()]
     );
-    if (!userRows[0]) return res.json({ message: 'OTP sent' });
     const otp = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    await pool.query(
-      'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
-      [otp, expiresAt, email.toLowerCase()]
-    );
-    if (phone) await sendOTPSMS(phone, otp);
-    else await sendOTPEmail(email, otp);
+    if (userRows[0]) {
+      await pool.query(
+        'UPDATE users SET otp_code = $1, otp_expires_at = $2 WHERE email = $3',
+        [otp, expiresAt, email.toLowerCase()]
+      );
+      if (phone) await sendOTPSMS(phone, otp);
+      else await sendOTPEmail(email, otp);
+    }
     res.json({ message: 'OTP sent' });
   } catch (err) {
     logger.error('OTP error', { err });
@@ -295,9 +296,10 @@ async function verifyOTP(req, res) {
     if (!rows[0]) return res.status(400).json({ error: 'Invalid or expired OTP' });
     const user = rows[0];
     const expired = new Date(user.otp_expires_at) < new Date();
-    const otpValid = user.otp_code && otp &&
-      user.otp_code.length === otp.length &&
-      crypto.timingSafeEqual(Buffer.from(user.otp_code), Buffer.from(otp));
+    const bufA = Buffer.from(user.otp_code || '');
+    const bufB = Buffer.from(typeof otp === 'string' ? otp : '');
+    const otpValid = bufA.length > 0 && bufA.length === bufB.length &&
+      crypto.timingSafeEqual(bufA, bufB);
     if (!otpValid || expired) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
