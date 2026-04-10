@@ -20,7 +20,10 @@ const iconMap: Record<string, React.ElementType> = {
   shield: Shield,
 };
 
-const PoliciesSection: React.FC<PoliciesSectionProps> = ({ policies }) => (
+const PoliciesSection: React.FC<PoliciesSectionProps> = ({ policies }) => {
+  if (!policies || policies.length === 0) return null;
+
+  return (
   <SectionCard id="policies" title="Policies">
     <dl className="space-y-4">
       {policies.map((policy) => {
@@ -42,6 +45,7 @@ const PoliciesSection: React.FC<PoliciesSectionProps> = ({ policies }) => (
       })}
     </dl>
   </SectionCard>
-);
+  );
+};
 
 export default PoliciesSection;

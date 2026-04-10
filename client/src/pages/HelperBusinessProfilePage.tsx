@@ -295,16 +295,18 @@ const HelperBusinessProfilePage: React.FC = () => {
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8">
           {/* ── Left column: profile sections ──────────────── */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Bio callout */}
-            <section
-              aria-labelledby="bio-heading"
-              className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
-            >
-              <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
-                About {helper.businessName}
-              </h2>
-              <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
-            </section>
+            {/* Bio callout — only render if bio exists */}
+            {helper.bio && (
+              <section
+                aria-labelledby="bio-heading"
+                className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
+              >
+                <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
+                  About {helper.businessName}
+                </h2>
+                <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
+              </section>
+            )}
 
             <ServicesSection
               services={services}
@@ -349,8 +351,9 @@ const HelperBusinessProfilePage: React.FC = () => {
                 helper={helper}
                 onBookNow={handleBookNow}
                 onOpenChat={handleOpenChat}
+                hasServices={services.length > 0}
               />
-              <div className="flex-1 min-h-0" style={{ height: '520px' }}>
+              <div className="flex-1 min-h-0" style={{ minHeight: '480px', height: '540px' }}>
                 <ChatPanel
                   session={chatSession}
                   helperName={helper.businessName}

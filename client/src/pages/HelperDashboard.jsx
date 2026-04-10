@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import HelperOffersCard from '../components/HelperOffersCard';
+import EditProfileTab from '../components/EditProfileTab';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -248,7 +249,7 @@ export default function HelperDashboard() {
 
   const tabs = showOnboarding
     ? [{id:'pulse',label:'Get Started'}]
-    : [{id:'pulse',label:'My Pulse'},{id:'earnings',label:'Earnings'},{id:'jobs',label:'Find Jobs'},{id:'goals',label:'Goals'},{id:'personalcare',label:'Personal Care'},{id:'carcare',label:'Car Care'},{id:'skills',label:'Skills & Tools'},{id:'bids',label:'My Bids'}];
+    : [{id:'pulse',label:'My Pulse'},{id:'editprofile',label:'Edit Profile'},{id:'earnings',label:'Earnings'},{id:'jobs',label:'Find Jobs'},{id:'goals',label:'Goals'},{id:'personalcare',label:'Personal Care'},{id:'carcare',label:'Car Care'},{id:'skills',label:'Skills & Tools'},{id:'bids',label:'My Bids'}];
 
   if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
 
@@ -518,6 +519,9 @@ export default function HelperDashboard() {
             ))}</div>)}
           </div>
         )}
+        {/* ═══════ EDIT PROFILE ═══════ */}
+        {tab==='editprofile'&&<EditProfileTab userId={user?.id}/>}
+
         {/* ═══════ SKILLS & TOOLS ═══════ */}
         {tab==='skills'&&(
           <div className="space-y-6">

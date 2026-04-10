@@ -437,7 +437,7 @@ export default function SupportWidget() {
         <button
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label="Open AI assistant"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3.5 py-2.5 bg-orange-500/85 hover:bg-orange-600 text-white rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
+          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-orange-500/85 hover:bg-orange-600 text-white rounded-full shadow-md shadow-orange-500/20 font-semibold text-xs transition-all hover:scale-105 active:scale-95 backdrop-blur-sm"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -455,8 +455,8 @@ export default function SupportWidget() {
       {open && (
         <div
           className={isFullScreen
-            ? 'fixed inset-0 z-50'
-            : 'fixed inset-0 z-50 flex items-end justify-end p-4 sm:p-6 pointer-events-none'
+            ? 'fixed inset-0 z-[45]'
+            : 'fixed inset-0 z-[45] flex items-end justify-end p-4 sm:p-6 pointer-events-none'
           }
           onClick={isFullScreen ? undefined : (e => { if (e.target === e.currentTarget) setOpen(false); })}
         >
@@ -479,8 +479,8 @@ export default function SupportWidget() {
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-gray-900"/>
                 </div>
                 <div>
-                  <p className="font-semibold text-white text-sm leading-none">OxSteed AI</p>
-                  <p className="text-[10px] text-green-400 mt-0.5">Online · usually instant</p>
+                  <p className="font-semibold text-white text-sm leading-none">OxSteed Platform Support</p>
+                  <p className="text-[10px] text-green-400 mt-0.5">Platform AI · usually instant</p>
                 </div>
               </div>
 
