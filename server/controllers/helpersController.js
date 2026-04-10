@@ -351,6 +351,8 @@ async function getHelperProfile(req, res) {
       id:      String(g.id),
       url:     g.url,
       caption: g.caption || '',
+      alt:     g.caption || 'Gallery photo',
+      type:    'image',
     }));
 
     // Badges
