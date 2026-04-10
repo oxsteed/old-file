@@ -9,9 +9,9 @@
 | Severity | Count | Fixed | Status |
 |----------|-------|-------|--------|
 | CRITICAL | 10    | 10    | C-01–C-10 all fixed |
-| HIGH     | 42    | 30    | H-01–H-14, H-16, H-19–H-32, H-34 fixed |
-| MEDIUM   | 63    | 19    | M-04, M-06, M-08, M-11, M-12, M-14, M-15, M-18, M-21, M-22, M-28, M-29, M-30, M-33, M-36, M-38, M-39, M-40, M-41 fixed. M-19 deferred |
-| LOW      | 51    | 1     | L-01/L-15 fixed |
+| HIGH     | 42    | 42    | H-01–H-42 all fixed ✅ |
+| MEDIUM   | 63    | 53    | M-01–M-45, M-56–M-63 fixed. M-55 Pending. |
+| LOW      | 51    | 12    | L-01–L-04, L-15, L-39, L-40, L-41 fixed. |
 | INFO     | 19    | 0     | ⬜ Pending |
 
 > **Status legend:** ⬜ Pending | 🔧 In Progress | ✅ Fixed | ⏭ Deferred
@@ -305,12 +305,12 @@
 ### H-41 — `plans.tier` column never added — downstream migrations fail
 - **File:** `001_initial_schema.sql`, `010`, `032`
 - **Fix:** Add `plans.tier` via a new migration before `010`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-42 — `dispute_evidence.dispute_id` UUID vs `disputes.id` SERIAL type conflict
 - **File:** `015_phase4_create_disputes.sql`, `025_merge_legacy_unique_fields.sql`
 - **Fix:** Align types: either change `disputes.id` to UUID or `evidence.dispute_id` to INTEGER.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -347,7 +347,7 @@
 ### M-07 — Geo endpoints rely on undocumented global limiter, no per-route guard
 - **File:** `routes/geo.js`
 - **Fix:** Add route-level `geoLimiter` as defense-in-depth.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-08 — `POST /payments/refund` has no admin role check at route level
 - **File:** `routes/payments.js`
@@ -376,7 +376,7 @@
 
 ### M-13 — `verifyOTP` has no brute-force protection
 - **Fix:** Apply 3-attempt lockout with 1-hour cooldown (match `verifyRegistrationOTP`).
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-14 — `disputeController.submitEvidence` uses dynamic SQL column name
 - **Fix:** Use explicit allowlist object: `{ helper: 'evidence_helper', customer: 'evidence_poster' }`.
@@ -406,7 +406,7 @@
 ### M-20 — Helper registration OTP verification has no lockout (attempts column unused)
 - **File:** `controllers/helperRegistrationController.js`
 - **Fix:** Check and increment `otp_attempts`; lock after 3 failed attempts.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-21 — OTP generated with `Math.random()` (not CSPRNG)
 - **Fix:** Replace with `crypto.randomInt(100000, 1000000)`.
@@ -418,11 +418,11 @@
 
 ### M-23 — No magic-byte validation on job media upload
 - **Fix:** Add magic-byte validation using `file-type` npm package.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-24 — Profile photo stored as base64 in DB when S3 unavailable
 - **Fix:** Require S3 in production; validate file content with magic bytes.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-25 — Geo controller leaks Google Maps API errors to logs
 - **Fix:** Use structured logger; sanitize API error details before logging.
@@ -463,7 +463,7 @@
 ### M-34 — Upload middleware relies on browser-supplied MIME type
 - **File:** `server/middleware/upload.js`
 - **Fix:** Add magic-byte validation using `file-type`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-35 — Rate limiters bypassable via `X-Forwarded-For` spoofing
 - **File:** `server/middleware/rateLimiter.js`
@@ -585,7 +585,7 @@
 
 ### M-63 — `jobs` table created twice with incompatible schemas
 - **Fix:** Add missing columns via `ALTER TABLE`; consolidate schema definitions.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -597,15 +597,15 @@
 
 ### L-02 — `GET /reviews/users/:userId` public with no rate limiting
 - **Fix:** Add rate limiting.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-03 — `GET /verification/badges/:userId` public with no rate limiting
 - **Fix:** Add rate limiting; consider authentication.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-04 — `feeConfig.js` routes missing explicit `authenticate` middleware
 - **Fix:** Add `authenticate` before `requireAdmin`, matching `disputes.js` pattern.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-05 — Inline DB queries in route handlers
 - **File:** `routes/admin.js`, `routes/toolRentals.js`, `routes/userSkills.js`, `routes/privacy.js`
