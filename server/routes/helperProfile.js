@@ -70,7 +70,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
     } = req.body;
 
     const VALID_RATE_PREFS = ['per_job', 'hourly', 'flat', 'negotiable'];
-    const safePref = VALID_RATE_PREFS.includes(rate_preference) ? rate_preference : null;
+    const safePref = VALID_RATE_PREFS.includes(rate_preference) ? rate_preference : undefined;
 
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_headline, bio_long, bio_short,
@@ -84,7 +84,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
          bio_short           = COALESCE($4,  helper_profiles.bio_short),
          hourly_rate_min     = COALESCE($5,  helper_profiles.hourly_rate_min),
          hourly_rate_max     = COALESCE($6,  helper_profiles.hourly_rate_max),
-         rate_preference     = $7,
+         rate_preference     = COALESCE($7,  helper_profiles.rate_preference),
          flat_rate_available = COALESCE($8,  helper_profiles.flat_rate_available),
          contact_for_pricing = COALESCE($9,  helper_profiles.contact_for_pricing),
          service_city        = COALESCE($10, helper_profiles.service_city),
