@@ -253,7 +253,7 @@ async function getHelperProfile(req, res) {
   try {
     const { id } = req.params;
 
-    const [helperRes, skillRes, reviewRes, svcRes, faqRes, polRes, galRes] = await Promise.all([
+    const [helperRes, skillRes, reviewRes, svcRes, faqRes, polRes, galRes, rateRes] = await Promise.all([
       pool.query(
         `SELECT
            u.id, u.first_name, u.last_name, u.created_at AS member_since,
@@ -302,6 +302,27 @@ async function getHelperProfile(req, res) {
       ),
       pool.query(
         `SELECT id, url, caption FROM helper_gallery WHERE user_id=$1 ORDER BY sort_order,id`,
+        [id],
+      ),
+      pool.query(
+        `SELECT
+           CASE WHEN total = 0 THEN NULL
+             ELSE ROUND((replied::FLOAT / total) * 100)::INTEGER
+           END AS response_rate
+         FROM (
+           SELECT
+             COUNT(DISTINCT c.id) AS total,
+             COUNT(DISTINCT CASE WHEN EXISTS(
+               SELECT 1 FROM messages m2
+               WHERE m2.conversation_id = c.id AND m2.sender_id = $1
+             ) THEN c.id END) AS replied
+           FROM conversations c
+           WHERE c.helper_id = $1
+             AND EXISTS(
+               SELECT 1 FROM messages m
+               WHERE m.conversation_id = c.id AND m.sender_id = c.customer_id
+             )
+         ) sub`,
         [id],
       ),
     ]);
@@ -400,7 +421,7 @@ async function getHelperProfile(req, res) {
         memberSince:  h.member_since,
         verified:     !!h.is_identity_verified,
         responseTime: formatResponseTime(responseHours),
-        responseRate: h.completed_jobs_count > 0 ? (h.response_rate || 0) : 0,
+        responseRate: rateRes.rows[0]?.response_rate ?? 0,
         badges,
         categories,
       },
