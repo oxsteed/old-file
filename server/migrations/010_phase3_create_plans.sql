@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS plans (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure columns exist that 001_initial_schema may have omitted (plans created there
+-- without tier/active; on a fresh DB the CREATE TABLE IF NOT EXISTS above is skipped).
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS tier   VARCHAR(20);
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+
 -- Seed plans
 INSERT INTO plans (name, slug, stripe_price_id, stripe_product_id, amount_cents, tier, features) VALUES
 ('Basic Verified', 'basic', 'price_basic_monthly', 'prod_basic', 1999, 'tier2_basic',
