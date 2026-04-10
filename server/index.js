@@ -13,6 +13,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const pool = require('./db');
+const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const socketService = require('./services/socketService');
 const { reloadFeeConfig } = require('./services/feeService');
@@ -230,10 +231,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ── ERROR HANDLER ────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  logger.error('Unhandled server error', err);
-  res.status(500).json({ error: 'Something went wrong' });
-});
+// Standardized Error Handler (L-02) to prevent leaking stack traces or internal details.
+app.use(errorHandler);
 
 httpServer.listen(PORT, async () => {
   logger.info(`OxSteed v2 server running on port ${PORT}`, { env: process.env.NODE_ENV || 'development' });
