@@ -1,19 +1,37 @@
 BEGIN;
 
-ALTER TABLE pending_registrations
-  ADD COLUMN IF NOT EXISTS user_id INTEGER,
-  ADD COLUMN IF NOT EXISTS account_created BOOLEAN NOT NULL DEFAULT FALSE;
-
+-- pending_registrations is created in migration 018; on a fresh database this
+-- migration runs first (alphabetical sort), so we guard with an existence check.
+-- Migration 029 handles user_id/account_created with the correct UUID type.
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'pending_registrations_user_id_fkey'
-      AND table_name = 'pending_registrations'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'pending_registrations'
   ) THEN
-    ALTER TABLE pending_registrations
-      ADD CONSTRAINT pending_registrations_user_id_fkey
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'pending_registrations' AND column_name = 'user_id'
+    ) THEN
+      ALTER TABLE pending_registrations ADD COLUMN user_id INTEGER;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'pending_registrations' AND column_name = 'account_created'
+    ) THEN
+      ALTER TABLE pending_registrations ADD COLUMN account_created BOOLEAN NOT NULL DEFAULT FALSE;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.table_constraints
+      WHERE constraint_name = 'pending_registrations_user_id_fkey'
+        AND table_name = 'pending_registrations'
+    ) THEN
+      ALTER TABLE pending_registrations
+        ADD CONSTRAINT pending_registrations_user_id_fkey
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
   END IF;
 END $$;
 
