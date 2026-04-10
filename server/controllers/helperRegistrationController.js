@@ -128,7 +128,7 @@ async function verifyOTP(req, res) {
 
     const { rows } = await client.query(
       `SELECT id, email, password_hash, first_name, last_name, phone, zip_code,
-              otp_code, otp_expires_at, user_id, account_created
+              otp_code, otp_expires_at, otp_attempts, otp_locked_until, user_id, account_created
        FROM pending_registrations
        WHERE token = $1 AND role = 'helper'`,
       [token]
@@ -141,14 +141,27 @@ async function verifyOTP(req, res) {
 
     const reg = rows[0];
 
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-    if (reg.otp_code !== null && reg.otp_code !== otpHash) {
+    if (reg.otp_locked_until && new Date(reg.otp_locked_until) > new Date()) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Invalid OTP' });
+      return res.status(429).json({ error: 'Account locked due to too many failed attempts. Try again in 1 hour.', lockUntil: reg.otp_locked_until });
     }
-    if (reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date()) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'OTP expired' });
+
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const expired = reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date();
+    
+    if (reg.otp_code !== otpHash || expired) {
+      const newAttempts = (reg.otp_attempts || 0) + 1;
+      if (newAttempts >= 3) {
+        await client.query(
+          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1",
+          [token, newAttempts]
+        );
+        await client.query('COMMIT');
+        return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
+      }
+      await client.query('UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1', [token, newAttempts]);
+      await client.query('COMMIT');
+      return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
 
     let userId;

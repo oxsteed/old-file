@@ -331,12 +331,17 @@ async function verifyOTP(req, res) {
   try {
     const { email, otp } = req.body;
     const { rows } = await pool.query(
-      'SELECT id, otp_code, otp_expires_at FROM users WHERE email = $1',
+      'SELECT id, otp_code, otp_expires_at, otp_attempts, otp_locked_until FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
-    // Return the same 400 for missing user to prevent account enumeration.
+    // Return same 400 for missing user to prevent account enumeration.
     if (!rows[0]) return res.status(400).json({ error: 'Invalid or expired OTP' });
     const user = rows[0];
+
+    if (user.otp_locked_until && new Date(user.otp_locked_until) > new Date()) {
+      return res.status(429).json({ error: 'Account locked due to too many failed attempts. Try again in 1 hour.', lockUntil: user.otp_locked_until });
+    }
+
     const expired = new Date(user.otp_expires_at) < new Date();
     const bufA = Buffer.from(user.otp_code || '');
     const hashedIncomingOtp = (typeof otp === 'string' && otp.length > 0) 
@@ -345,8 +350,18 @@ async function verifyOTP(req, res) {
     const bufB = Buffer.from(hashedIncomingOtp);
     const otpValid = bufA.length > 0 && bufA.length === bufB.length &&
       crypto.timingSafeEqual(bufA, bufB);
+
     if (!otpValid || expired) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      const newAttempts = (user.otp_attempts || 0) + 1;
+      if (newAttempts >= 3) {
+        await pool.query(
+          "UPDATE users SET otp_attempts = $1, otp_locked_until = NOW() + interval '1 hour' WHERE id = $2",
+          [newAttempts, user.id]
+        );
+        return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
+      }
+      await pool.query('UPDATE users SET otp_attempts = $1 WHERE id = $2', [newAttempts, user.id]);
+      return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
     await pool.query(
       'UPDATE users SET email_verified = true, otp_code = NULL, otp_expires_at = NULL WHERE id = $1',
