@@ -46,7 +46,8 @@ function decrypt(ciphertext) {
 }
 
 function hashTIN(tin) {
-  return crypto.createHash('sha256').update(tin).digest('hex');
+  const key = getKey();
+  return crypto.createHmac('sha256', key).update(tin).digest('hex');
 }
 
 function maskTIN(tin) {
@@ -54,4 +55,9 @@ function maskTIN(tin) {
   return '***-**-' + tin.slice(-4);
 }
 
-module.exports = { encrypt, decrypt, hashTIN, maskTIN };
+function hashIP(ipStr) {
+  if (!ipStr) return null;
+  return crypto.createHash('sha256').update(ipStr).digest('hex');
+}
+
+module.exports = { encrypt, decrypt, hashTIN, maskTIN, hashIP };

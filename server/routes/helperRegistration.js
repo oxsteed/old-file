@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const { authLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
 
 const {
   startRegistration,
@@ -43,7 +44,7 @@ router.post('/payment',     authenticate, savePaymentStep);
 // Authenticated - profile + contact + photo (frontend Step4)
 router.post('/profile', authenticate, submitProfile);
 router.post('/update-contact', authenticate, updateContact);
-router.post('/profile-photo', authenticate, upload.single('photo'), uploadProfilePhoto);
+router.post('/profile-photo', authenticate, upload.single('photo'), validateFileUpload, uploadProfilePhoto);
 
 // Authenticated + onboarding gated
 router.put('/onboarding/profile',

@@ -7,7 +7,13 @@ const OLLAMA_URL = (() => {
   try {
     const u = new URL(raw);
     // Only allow http/https to localhost or 127.0.0.1 — reject everything else
-    const allowedHosts = ['localhost', '127.0.0.1', '::1'];
+   const allowedHosts = [
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  'ollama-api',
+  'ollama-api-p116fo3uwyxytib7ph3yleei',
+];
     if (!['http:', 'https:'].includes(u.protocol)) {
       logger.warn('[Chat] OLLAMA_URL has unsupported protocol — ignoring', { url: raw });
       return '';

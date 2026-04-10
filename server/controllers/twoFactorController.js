@@ -1,12 +1,15 @@
 // Two-Factor Authentication Controller (TOTP)
 // OxSteed v2
 const crypto = require('crypto');
-const speakeasy = require('speakeasy');
+const { authenticator } = require('@otplib/v12-adapter');
+const bcrypt = require('bcrypt');
 const QRCode = require('qrcode');
 const pool = require('../db');
+const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 
 const APP_NAME = 'OxSteed';
 const BACKUP_CODE_COUNT = 8;
+const SALT_ROUNDS = 10;
 
 // Generate backup codes (8 random 8-char hex codes)
 function generateBackupCodes() {
@@ -18,14 +21,15 @@ function generateBackupCodes() {
 }
 
 // Hash a backup code for storage
-function hashCode(code) {
-  return crypto.createHash('sha256').update(code.toLowerCase().trim()).digest('hex');
+async function hashCode(code) {
+  return bcrypt.hash(code.toLowerCase().trim(), SALT_ROUNDS);
 }
 
 // Log 2FA action for audit trail
 async function log2FAAction(userId, action, req, success) {
   try {
-    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const rawIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const ip = hashIP(rawIp);
     const ua = req.headers['user-agent'] || '';
     await pool.query(
       'INSERT INTO two_factor_audit_log (user_id, action, ip_address, user_agent, success) VALUES ($1, $2, $3, $4, $5)',
@@ -46,24 +50,21 @@ async function setup2FA(req, res) {
       return res.status(400).json({ error: '2FA is already enabled. Disable it first to reconfigure.' });
     }
 
-    const secret = speakeasy.generateSecret({
-      name: `${APP_NAME} (${rows[0].email})`,
-      issuer: APP_NAME,
-      length: 32
-    });
+    const secretKey = authenticator.generateSecret(32);
+    const otpauthUrl = authenticator.keyuri(rows[0].email, APP_NAME, secretKey);
 
     // Store secret temporarily (not yet verified)
     await pool.query(
       'UPDATE users SET totp_secret = $1, totp_enabled = false WHERE id = $2',
-      [secret.base32, userId]
+      [encrypt(secretKey), userId]
     );
 
-    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+    const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
 
     await log2FAAction(userId, 'setup_initiated', req, true);
 
     res.json({
-      secret: secret.base32,
+      secret: secretKey,
       qrCode: qrCodeUrl,
       message: 'Scan the QR code with your authenticator app, then verify with a code.'
     });
@@ -88,11 +89,13 @@ async function verifySetup(req, res) {
       return res.status(400).json({ error: '2FA is already enabled.' });
     }
 
-    const verified = speakeasy.totp.verify({
-      secret: rows[0].totp_secret,
-      encoding: 'base32',
-      token: token,
-      window: 1
+    const decryptedSecret = decrypt(rows[0].totp_secret);
+    
+    // otplib options window config
+    authenticator.options = { window: 1 };
+    const verified = authenticator.verify({
+      secret: decryptedSecret,
+      token: token
     });
 
     if (!verified) {
@@ -102,7 +105,7 @@ async function verifySetup(req, res) {
 
     // Generate backup codes
     const backupCodes = generateBackupCodes();
-    const hashedCodes = backupCodes.map(c => hashCode(c));
+    const hashedCodes = await Promise.all(backupCodes.map(c => hashCode(c)));
 
     await pool.query(
       'UPDATE users SET totp_enabled = true, totp_verified_at = NOW(), backup_codes = $1 WHERE id = $2',
@@ -140,26 +143,31 @@ async function validate2FA(req, res) {
 
     // Try backup code first if flagged
     if (isBackupCode) {
-      const hashedInput = hashCode(token);
+      let matchedIndex = -1;
       const codes = rows[0].backup_codes || [];
-      const codeIndex = codes.indexOf(hashedInput);
-      if (codeIndex === -1) {
+      for (let i = 0; i < codes.length; i++) {
+        if (await bcrypt.compare(token.toLowerCase().trim(), codes[i])) {
+          matchedIndex = i;
+          break;
+        }
+      }
+      if (matchedIndex === -1) {
         await log2FAAction(userId, 'backup_code_failed', req, false);
         return res.status(400).json({ error: 'Invalid backup code' });
       }
       // Remove used backup code
-      codes.splice(codeIndex, 1);
+      codes.splice(matchedIndex, 1);
       await pool.query('UPDATE users SET backup_codes = $1 WHERE id = $2', [codes, userId]);
       await log2FAAction(userId, 'backup_code_used', req, true);
       return res.json({ valid: true, remainingBackupCodes: codes.length });
     }
 
     // Verify TOTP
-    const verified = speakeasy.totp.verify({
-      secret: rows[0].totp_secret,
-      encoding: 'base32',
-      token: token,
-      window: 1
+    const decryptedSecret = decrypt(rows[0].totp_secret);
+    authenticator.options = { window: 1 };
+    const verified = authenticator.verify({
+      secret: decryptedSecret,
+      token: token
     });
 
     if (!verified) {
@@ -189,11 +197,11 @@ async function disable2FA(req, res) {
       return res.status(400).json({ error: '2FA is not currently enabled' });
     }
 
-    const verified = speakeasy.totp.verify({
-      secret: rows[0].totp_secret,
-      encoding: 'base32',
-      token: token,
-      window: 1
+    const decryptedSecret = decrypt(rows[0].totp_secret);
+    authenticator.options = { window: 1 };
+    const verified = authenticator.verify({
+      secret: decryptedSecret,
+      token: token
     });
 
     if (!verified) {
@@ -248,11 +256,11 @@ async function regenerateBackupCodes(req, res) {
       return res.status(400).json({ error: '2FA is not enabled' });
     }
 
-    const verified = speakeasy.totp.verify({
-      secret: rows[0].totp_secret,
-      encoding: 'base32',
-      token: token,
-      window: 1
+    const decryptedSecret = decrypt(rows[0].totp_secret);
+    authenticator.options = { window: 1 };
+    const verified = authenticator.verify({
+      secret: decryptedSecret,
+      token: token
     });
 
     if (!verified) {
@@ -261,7 +269,7 @@ async function regenerateBackupCodes(req, res) {
     }
 
     const backupCodes = generateBackupCodes();
-    const hashedCodes = backupCodes.map(c => hashCode(c));
+    const hashedCodes = await Promise.all(backupCodes.map(c => hashCode(c)));
 
     await pool.query('UPDATE users SET backup_codes = $1 WHERE id = $2', [hashedCodes, userId]);
     await log2FAAction(userId, 'backup_codes_regenerated', req, true);

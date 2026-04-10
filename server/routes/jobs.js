@@ -1,7 +1,8 @@
-// Job routes with media upload support
 const router  = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const upload  = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
+const { generalLimiter } = require('../middleware/rateLimiter');
 
 const {
   createJob, getJobs, getJob, updateJob,
@@ -17,12 +18,12 @@ router.delete('/draft', authenticate, deleteDraft);
 
 // ── Protected specific routes ─────────────────────────────────────────────────
 router.get('/me/list', authenticate, getMyJobs);
-router.post('/',       authenticate, upload.array('media', 10), createJob);
+router.post('/',       authenticate, upload.array('media', 10), validateFileUpload, createJob);
 router.post('/assign', authenticate, assignHelper);
 
 // ── Public ────────────────────────────────────────────────────────────────────
-router.get('/',     getJobs);
-router.get('/:id',  getJob);
+router.get('/',     generalLimiter, getJobs);
+router.get('/:id',  generalLimiter, getJob);
 
 // ── Protected parameterized ───────────────────────────────────────────────────
 router.put('/:id',           authenticate, updateJob);

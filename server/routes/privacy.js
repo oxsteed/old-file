@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { strictLimiter } = require('../middleware/rateLimiter');
 /**
  * CCPA/CPRA Privacy Rights Routes
  * Provides data export, account deletion, and data portability
@@ -121,7 +122,7 @@ router.delete('/delete-account', authenticate, async (req, res) => {
   }
 });
 // GET /api/privacy/data-categories - List categories of data collected (CCPA disclosure)
-router.get('/data-categories', (req, res) => {
+router.get('/data-categories', strictLimiter, (req, res) => {
   res.json({
     categories: [
       { category: 'Identifiers', examples: 'Name, email, phone number, mailing address', purpose: 'Account creation and authentication' },

@@ -13,6 +13,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const pool = require('./db');
+const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const socketService = require('./services/socketService');
 const { reloadFeeConfig } = require('./services/feeService');
@@ -56,6 +57,10 @@ const plannedNeedsRoutes = require('./routes/plannedNeeds');
 
 const app = express();
 const httpServer = http.createServer(app);
+// SECURITY (H-34): trust proxy = 1
+// We trust only the first hop (the Render reverse proxy or AWS load balancer).
+// This ensures req.ip represents the real client IP (needed for rate limiting) 
+// and cannot be spoofed by sending a fake X-Forwarded-For header.
 app.set('trust proxy', 1); // Required for Render reverse proxy
 const PORT = process.env.PORT || 5000;
 
@@ -100,6 +105,12 @@ io.on('connection', (socket) => {
   if (['admin', 'super_admin'].includes(socket.userRole)) {
     socket.join('admins');
   }
+  
+  // SECURITY (H-28): Explicitly drop 'join' events from clients. 
+  // Room membership is determined strictly server-side through authentication 
+  // hooks above. We do not allow arbitrary clients to join rooms like 'admins'.
+  socket.on('join', () => {});
+
   socketService.trackConnect(userId, socket.id);
   logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
@@ -220,10 +231,8 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ── ERROR HANDLER ────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  logger.error('Unhandled server error', err);
-  res.status(500).json({ error: 'Something went wrong' });
-});
+// Standardized Error Handler (L-02) to prevent leaking stack traces or internal details.
+app.use(errorHandler);
 
 httpServer.listen(PORT, async () => {
   logger.info(`OxSteed v2 server running on port ${PORT}`, { env: process.env.NODE_ENV || 'development' });

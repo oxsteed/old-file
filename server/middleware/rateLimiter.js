@@ -102,4 +102,18 @@ const chatLimiter = rateLimit({
   },
 });
 
-module.exports = { generalLimiter, authLimiter, strictLimiter, chatLimiter };
+// Geo services limiter: 100 requests per 15 minutes per IP
+// Prevents scraping and map API cost spikes.
+const geoLimiter = rateLimit({
+  ...createStoreOption('rl:geo:'),
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Map service rate limit exceeded. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
+
+module.exports = { generalLimiter, authLimiter, strictLimiter, chatLimiter, geoLimiter };

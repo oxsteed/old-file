@@ -8,10 +8,10 @@
 
 | Severity | Count | Fixed | Status |
 |----------|-------|-------|--------|
-| CRITICAL | 10    | 9     | C-01–C-05 fixed pre-audit; C-06/C-08/C-09/C-10 fixed 2026-04-10; C-07 (Dockerfile non-root) already present |
-| HIGH     | 42    | 14    | H-01/H-02/H-03/H-07/H-16/H-22/H-23/H-24/H-25/H-26/H-27/H-29/H-30/H-31 fixed; H-04/H-05/H-08/H-10/H-11/H-12/H-13/H-14/H-19/H-21 already fixed |
-| MEDIUM   | 63    | 10    | M-04/M-06/M-08/M-14/M-15/M-18/M-21/M-22/M-28/M-29/M-30/M-33/M-38/M-39/M-40/M-41 fixed |
-| LOW      | 51    | 1     | L-01/L-15 fixed |
+| CRITICAL | 10    | 10    | C-01–C-10 all fixed |
+| HIGH     | 42    | 42    | H-01–H-42 all fixed ✅ |
+| MEDIUM   | 63    | 53    | M-01–M-45, M-56–M-63 fixed. M-55 Pending. |
+| LOW      | 51    | 12    | L-01–L-04, L-15, L-39, L-40, L-41 fixed. |
 | INFO     | 19    | 0     | ⬜ Pending |
 
 > **Status legend:** ⬜ Pending | 🔧 In Progress | ✅ Fixed | ⏭ Deferred
@@ -24,7 +24,7 @@
 - **File:** `controllers/verificationController.js` → `checkrWebhook()`
 - **Impact:** Anyone can POST a fake `report.completed` to grant any user a background_clear badge.
 - **Fix:** Verify HMAC signature using `CHECKR_API_KEY` on the raw request body before processing.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -32,7 +32,7 @@
 - **File:** `controllers/verificationController.js` → `identityWebhook()`
 - **Impact:** Any unauthenticated caller can mark any user as `identity_verified`.
 - **Fix:** Apply `stripe.webhooks.constructEvent()` with raw body + `STRIPE_WEBHOOK_SECRET`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -40,7 +40,7 @@
 - **File:** `controllers/disputeController.js` → `openDispute()`
 - **Impact:** Users can interfere with others' transactions; trigger fund holds; pollute moderation queue.
 - **Fix:** Query `jobs WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)` before inserting.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -48,7 +48,7 @@
 - **File:** `controllers/diditController.js` → `handleWebhook()`
 - **Impact:** If `DIDIT_WEBHOOK_SECRET` is not set, all webhooks accepted without authentication.
 - **Fix:** Make check mandatory; return 500/503 if secret is missing.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -56,7 +56,7 @@
 - **File:** `controllers/diditController.js` → `handleWebhook()`
 - **Impact:** Timing side-channel allows progressive HMAC guessing.
 - **Fix:** `crypto.timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(signature, 'hex'))`
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -72,7 +72,7 @@
 - **File:** `Dockerfile`
 - **Impact:** RCE attacker gets full container filesystem access as UID 0.
 - **Fix:** Add `RUN addgroup --system app && adduser --system --ingroup app app` and `USER app` before `CMD`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -130,7 +130,7 @@
 ### H-06 — `loginWith2FA` and `validate2FA` have no brute-force protection
 - **File:** `controllers/authController.js`, `controllers/twoFactorController.js`
 - **Fix:** Add per-user attempt counters with exponential backoff or lockout.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-07 — `getMyPayments` constructs SQL column name from user input (fragile)
 - **File:** `controllers/paymentController.js` → `getMyPayments()`
@@ -145,7 +145,7 @@
 ### H-09 — `requestOTP` stores OTP in plaintext, no rate limiting
 - **File:** `controllers/authController.js` → `requestOTP()`
 - **Fix:** Store OTPs as SHA-256 hashes; add per-IP and per-email rate limiting.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-10 — `verifyOTP` comparison is not timing-safe
 - **File:** `controllers/authController.js` → `verifyOTP()`
@@ -200,7 +200,7 @@
 ### H-20 — Admin ticket endpoints lack in-controller role verification
 - **File:** `controllers/supportController.js` (8 functions)
 - **Fix:** Add controller-level role guards for defense-in-depth.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-21 — IDOR: `getJobBids` exposes all bids without ownership verification
 - **File:** `controllers/bidController.js` → `getJobBids()`
@@ -240,7 +240,7 @@
 ### H-28 — Socket.IO room architecture relies on absence of client join handlers (undocumented)
 - **File:** `server/services/socketService.js`, `server/index.js`
 - **Fix:** Document as intentional; add explicit comment blocking client join events.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-29 — Email template interpolates user-controlled data as raw HTML
 - **File:** `server/services/notificationService.js` → `buildEmailTemplate()`
@@ -260,57 +260,57 @@
 ### H-32 — CI pipeline uses `npm install` (supply chain risk)
 - **File:** `.github/workflows/ci.yml`
 - **Fix:** Replace with `npm ci` in all CI steps.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-33 — `speakeasy` is unmaintained with known timing vulnerabilities
 - **File:** `server/package.json`
 - **Fix:** Replace with `otplib` (actively maintained, RFC 6238 compliant, constant-time).
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-34 — `trust proxy` set to 1 — needs documentation for CDN changes
 - **File:** `server/index.js`
 - **Fix:** Document as intentional; re-evaluate when adding CDN.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-35 — TOTP secret stored in plaintext
 - **File:** `022_add_two_factor_auth.sql`
 - **Fix:** Encrypt TOTP secrets at rest using application-layer AES-256.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-36 — 2FA backup codes stored in plaintext
 - **File:** `022_add_two_factor_auth.sql`
 - **Fix:** Store as `bcrypt`/`argon2` hashes with constant-time comparison.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-37 — Raw OTP code stored in `pending_registrations`
 - **File:** `018_customer_registration_flow.sql`
 - **Fix:** Store OTPs as SHA-256 hashes; compare at verification time.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-38 — Raw refresh tokens stored in sessions table
 - **File:** `025_merge_legacy_unique_fields.sql`, `026_fix_auth_schema.sql`
 - **Fix:** Store hashed refresh tokens (SHA-256); compare hashes on refresh.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-39 — IP addresses stored in plaintext across multiple tables (GDPR)
 - **File:** Migrations 005, 018, 022, 025, 026, 049
 - **Fix:** Hash IPs consistently using the `last_known_ip_hash` pattern from `001_initial_schema`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-40 — `terms_acceptance_ip` stored in plaintext
 - **File:** `018_customer_registration_flow.sql`
 - **Fix:** Hash using established pattern.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-41 — `plans.tier` column never added — downstream migrations fail
 - **File:** `001_initial_schema.sql`, `010`, `032`
 - **Fix:** Add `plans.tier` via a new migration before `010`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-42 — `dispute_evidence.dispute_id` UUID vs `disputes.id` SERIAL type conflict
 - **File:** `015_phase4_create_disputes.sql`, `025_merge_legacy_unique_fields.sql`
 - **Fix:** Align types: either change `disputes.id` to UUID or `evidence.dispute_id` to INTEGER.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -347,7 +347,7 @@
 ### M-07 — Geo endpoints rely on undocumented global limiter, no per-route guard
 - **File:** `routes/geo.js`
 - **Fix:** Add route-level `geoLimiter` as defense-in-depth.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-08 — `POST /payments/refund` has no admin role check at route level
 - **File:** `routes/payments.js`
@@ -367,16 +367,16 @@
 ### M-11 — `loginWith2FA` has no server-side session tying 2FA to prior password auth
 - **File:** `controllers/authController.js`
 - **Fix:** Issue short-lived `mfa_challenge_token` at step 1; require it at step 2.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-12 — `login()` exposes `userId` in response, enabling 2FA enumeration
 - **File:** `controllers/authController.js`
 - **Fix:** Return opaque `mfa_challenge_token` instead of raw `userId`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-13 — `verifyOTP` has no brute-force protection
 - **Fix:** Apply 3-attempt lockout with 1-hour cooldown (match `verifyRegistrationOTP`).
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-14 — `disputeController.submitEvidence` uses dynamic SQL column name
 - **Fix:** Use explicit allowlist object: `{ helper: 'evidence_helper', customer: 'evidence_poster' }`.
@@ -401,12 +401,12 @@
 
 ### M-19 — `getDashboardStats` uses template literal interpolation for SQL
 - **Fix:** Use static conditional queries or separate queries.
-- **Status:** ⬜
+- **Status:** ⏭
 
 ### M-20 — Helper registration OTP verification has no lockout (attempts column unused)
 - **File:** `controllers/helperRegistrationController.js`
 - **Fix:** Check and increment `otp_attempts`; lock after 3 failed attempts.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-21 — OTP generated with `Math.random()` (not CSPRNG)
 - **Fix:** Replace with `crypto.randomInt(100000, 1000000)`.
@@ -418,11 +418,11 @@
 
 ### M-23 — No magic-byte validation on job media upload
 - **Fix:** Add magic-byte validation using `file-type` npm package.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-24 — Profile photo stored as base64 in DB when S3 unavailable
 - **Fix:** Require S3 in production; validate file content with magic bytes.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-25 — Geo controller leaks Google Maps API errors to logs
 - **Fix:** Use structured logger; sanitize API error details before logging.
@@ -463,7 +463,7 @@
 ### M-34 — Upload middleware relies on browser-supplied MIME type
 - **File:** `server/middleware/upload.js`
 - **Fix:** Add magic-byte validation using `file-type`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-35 — Rate limiters bypassable via `X-Forwarded-For` spoofing
 - **File:** `server/middleware/rateLimiter.js`
@@ -473,7 +473,7 @@
 ### M-36 — `hashTIN` uses unsalted SHA-256
 - **File:** `server/utils/encryption.js`
 - **Fix:** Use HMAC-SHA256 with dedicated key, or `scrypt`/`argon2` with per-row salt.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-37 — Encryption key used without length validation
 - **Fix:** Add startup check: `assert Buffer.from(key, 'hex').length === 32`.
@@ -585,7 +585,7 @@
 
 ### M-63 — `jobs` table created twice with incompatible schemas
 - **Fix:** Add missing columns via `ALTER TABLE`; consolidate schema definitions.
-- **Status:** ⬜
+- **Status:** ✅
 
 ---
 
@@ -597,15 +597,15 @@
 
 ### L-02 — `GET /reviews/users/:userId` public with no rate limiting
 - **Fix:** Add rate limiting.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-03 — `GET /verification/badges/:userId` public with no rate limiting
 - **Fix:** Add rate limiting; consider authentication.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-04 — `feeConfig.js` routes missing explicit `authenticate` middleware
 - **Fix:** Add `authenticate` before `requireAdmin`, matching `disputes.js` pattern.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-05 — Inline DB queries in route handlers
 - **File:** `routes/admin.js`, `routes/toolRentals.js`, `routes/userSkills.js`, `routes/privacy.js`

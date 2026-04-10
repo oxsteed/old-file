@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
 const { formatAuthUser } = require('./authController');
 const { sendOTPEmail } = require('../utils/email');
-const { encrypt, hashTIN, maskTIN } = require('../utils/encryption');
+const { encrypt, hashTIN, maskTIN, hashIP } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults } = require('../utils/trial');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
@@ -72,6 +72,7 @@ async function startRegistration(req, res) {
 
     const password_hash = await bcrypt.hash(password, 12);
     const otp = generateOTP();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otp_expires = otpExpiry();
 
     // Generate a unique token for this registration
@@ -93,13 +94,13 @@ async function startRegistration(req, res) {
             (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
           VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
           RETURNING token
-        `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires])
+        `, [token, email, password_hash, firstName, lastName, phone, zip, otpHash, otp_expires])
       : await pool.query(`
           INSERT INTO pending_registrations
             (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
           RETURNING token
-        `, [token, email, password_hash, firstName, lastName, phone, zip, otp, otp_expires]);
+        `, [token, email, password_hash, firstName, lastName, phone, zip, otpHash, otp_expires]);
 
     await sendOTPEmail(email, otp);
 
@@ -127,7 +128,7 @@ async function verifyOTP(req, res) {
 
     const { rows } = await client.query(
       `SELECT id, email, password_hash, first_name, last_name, phone, zip_code,
-              otp_code, otp_expires_at, user_id, account_created
+              otp_code, otp_expires_at, otp_attempts, otp_locked_until, user_id, account_created
        FROM pending_registrations
        WHERE token = $1 AND role = 'helper'`,
       [token]
@@ -140,13 +141,27 @@ async function verifyOTP(req, res) {
 
     const reg = rows[0];
 
-    if (reg.otp_code !== null && reg.otp_code !== otp) {
+    if (reg.otp_locked_until && new Date(reg.otp_locked_until) > new Date()) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Invalid OTP' });
+      return res.status(429).json({ error: 'Account locked due to too many failed attempts. Try again in 1 hour.', lockUntil: reg.otp_locked_until });
     }
-    if (reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date()) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'OTP expired' });
+
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    const expired = reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date();
+    
+    if (reg.otp_code !== otpHash || expired) {
+      const newAttempts = (reg.otp_attempts || 0) + 1;
+      if (newAttempts >= 3) {
+        await client.query(
+          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1",
+          [token, newAttempts]
+        );
+        await client.query('COMMIT');
+        return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
+      }
+      await client.query('UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1', [token, newAttempts]);
+      await client.query('COMMIT');
+      return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
 
     let userId;
@@ -220,6 +235,7 @@ async function resendOTP(req, res) {
     }
 
     const otp = generateOTP();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otp_expires = otpExpiry();
 
     const lookup = token
@@ -231,7 +247,7 @@ async function resendOTP(req, res) {
        SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0
        WHERE ${lookup.where} AND role = 'helper'
        RETURNING email`,
-      [otp, otp_expires, lookup.value]
+      [otpHash, otp_expires, lookup.value]
     );
 
     if (!rows.length)
@@ -598,7 +614,7 @@ async function saveW9(req, res) {
         userId, legalName, businessName || null, taxClassification,
         maskTIN(sanitizedTIN).slice(-4), encrypt(sanitizedTIN),
         address, signatureData,
-        req.ip || 'unknown', req.headers['user-agent'] || '',
+        hashIP(req.ip || 'unknown'), req.headers['user-agent'] || '',
         new Date().getUTCFullYear()
       ]
     );
@@ -638,7 +654,7 @@ async function acceptTerms(req, res) {
            terms_acceptance_ua = $3,
            updated_at          = NOW()
        WHERE id = $4`,
-      [termsVersion, req.ip || 'unknown', req.headers['user-agent'] || '', userId]
+      [termsVersion, hashIP(req.ip || 'unknown'), req.headers['user-agent'] || '', userId]
     );
     return res.json({ message: 'Terms accepted' });
   } catch (err) {
