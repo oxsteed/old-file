@@ -293,7 +293,7 @@ export default function JobDetail() {
                   ['Status',        <Badge key="s" text={payment.status} colorClass={STATUS_COLOR[payment.status] || 'bg-gray-700 text-gray-300'} />],
                   ['Total Amount',  money(payment.amount)],
                   ['Helper Payout', money(payment.helper_payout)],
-                  ['Platform Fee',  payment.platform_fee != null ? money(payment.platform_fee) : '—'],
+                  ['Platform Fee',  payment.platform_fee_cents != null ? money(payment.platform_fee_cents / 100) : '—'],
                   ['Date',          ts(payment.created_at)],
                   ['Stripe PI',     payment.stripe_payment_intent_id
                     ? <span key="pi" className="font-mono text-xs text-gray-400 truncate">{payment.stripe_payment_intent_id}</span>
