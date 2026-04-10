@@ -352,7 +352,7 @@ async function getHelperProfile(req, res) {
       url:     g.url,
       caption: g.caption || '',
       alt:     g.caption || 'Gallery photo',
-      type:    'image',
+      type:    'photo',
     }));
 
     // Badges
