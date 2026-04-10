@@ -1,3 +1,5 @@
+const express = require('express');
+const router  = express.Router();
 const { suggest, reverse } = require('../controllers/geoController');
 const { geoLimiter } = require('../middleware/rateLimiter');
 
