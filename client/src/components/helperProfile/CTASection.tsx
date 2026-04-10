@@ -24,11 +24,15 @@ const CTASection: React.FC<CTASectionProps> = ({ helper, onBookNow, onOpenChat, 
         <span className="text-3xl font-bold text-white">$45</span>
         <span className="text-gray-400 text-sm">/hr</span>
       </div>
-      <div className="flex items-center gap-2 mt-1.5">
-        <StarRating rating={helper.rating} size="sm" />
-        <span className="text-sm font-semibold text-white">{helper.rating.toFixed(1)}</span>
-        <span className="text-gray-500 text-sm">({helper.reviewCount})</span>
-      </div>
+      {helper.reviewCount > 0 ? (
+        <div className="flex items-center gap-2 mt-1.5">
+          <StarRating rating={helper.rating} size="sm" />
+          <span className="text-sm font-semibold text-white">{helper.rating.toFixed(1)}</span>
+          <span className="text-gray-500 text-sm">({helper.reviewCount})</span>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500 mt-1.5">No reviews yet</p>
+      )}
     </div>
 
     {/* CTAs */}

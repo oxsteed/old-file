@@ -1,55 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import { ProgressBar, Card, CardHeader, Btn, Input, Textarea, Select } from './dashboardUI';
 
 const DAY_LABELS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const DEFAULT_AVAIL = Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
-
-// ── Shared UI (mirrors HelperDashboard) ──────────────────────────────────────
-const ProgressBar = ({ pct, color = 'bg-orange-500' }) => (
-  <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
-    <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-  </div>
-);
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-gray-900/60 border border-gray-700/40 rounded-2xl p-5 ${className}`}>{children}</div>
-);
-const CardHeader = ({ title }) => (
-  <div className="flex items-center justify-between mb-4">
-    <h3 className="font-semibold text-white text-sm">{title}</h3>
-  </div>
-);
-const Btn = ({ children, onClick, type = 'button', variant = 'primary', disabled, className = '' }) => {
-  const v = {
-    primary: 'bg-orange-500 hover:bg-orange-600 text-white',
-    secondary: 'bg-gray-800 hover:bg-gray-700 text-gray-300',
-    danger: 'bg-red-500/20 hover:bg-red-500/30 text-red-400',
-  };
-  return (
-    <button type={type} onClick={onClick} disabled={disabled}
-      className={`text-xs font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50 ${v[variant]} ${className}`}>
-      {children}
-    </button>
-  );
-};
-const Input = ({ label, ...r }) => (
-  <div>
-    {label && <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{label}</label>}
-    <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition" {...r} />
-  </div>
-);
-const Textarea = ({ label, ...r }) => (
-  <div>
-    {label && <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{label}</label>}
-    <textarea className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" {...r} />
-  </div>
-);
-const Select = ({ label, children, ...r }) => (
-  <div>
-    {label && <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{label}</label>}
-    <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition" {...r}>{children}</select>
-  </div>
-);
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EditProfileTab() {
