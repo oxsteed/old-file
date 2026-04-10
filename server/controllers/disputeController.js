@@ -31,6 +31,18 @@ exports.openDispute = async (req, res) => {
       });
     }
 
+    // Verify the requesting user is a party to this job
+    const { rows: jobRows } = await db.query(
+      `SELECT id FROM jobs WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)`,
+      [jobId, userId]
+    );
+
+    if (!jobRows.length) {
+      return res.status(403).json({
+        error: 'You are not a party to this job'
+      });
+    }
+
     // Check no existing open dispute for this job
     const { rows: existRows } = await db.query(
       `SELECT id FROM disputes WHERE job_id = $1 AND status NOT IN ('resolved','closed')`,
