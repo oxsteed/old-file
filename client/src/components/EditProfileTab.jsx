@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { ProgressBar, Card, CardHeader, Btn, Input, Textarea, Select } from './dashboardUI';
 
 const DAY_LABELS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-const DEFAULT_AVAIL = Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
+const buildDefaultAvail = () => Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EditProfileTab() {
@@ -15,7 +15,7 @@ export default function EditProfileTab() {
   const [core, setCore] = useState({
     profile_headline: '', bio_long: '', hourly_rate_min: '', hourly_rate_max: '',
     service_radius_miles: 10, service_city: '', service_state: '',
-    availability_json: DEFAULT_AVAIL, is_available_now: false,
+    availability_json: buildDefaultAvail(), is_available_now: false,
   });
   const [services,  setServices]  = useState([]);
   const [faqs,      setFaqs]      = useState([]);
@@ -39,7 +39,7 @@ export default function EditProfileTab() {
           service_radius_miles: d.service_radius_miles  || 10,
           service_city:         d.service_city          || '',
           service_state:        d.service_state         || '',
-          availability_json:    d.availability_json     || DEFAULT_AVAIL,
+          availability_json:    d.availability_json     || buildDefaultAvail(),
           is_available_now:     !!d.is_available_now,
         });
         setServices(d.services  || []);

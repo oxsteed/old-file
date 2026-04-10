@@ -508,7 +508,7 @@ export default function HelperDashboard() {
           </div>
         )}
         {/* ═══════ EDIT PROFILE ═══════ */}
-        {tab==='editprofile'&&<EditProfileTab userId={user?.id}/>}
+        {tab==='editprofile'&&<EditProfileTab/>}
 
         {/* ═══════ SKILLS & TOOLS ═══════ */}
         {tab==='skills'&&(
