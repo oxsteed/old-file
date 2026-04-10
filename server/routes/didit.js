@@ -9,6 +9,7 @@ router.post('/session',  authenticate, createSession);
 router.get('/status',    authenticate, getStatus);
 
 // Public: Didit webhook (verify signature in controller)
-router.post('/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+// Mounted early in index.js (before express.json()) to preserve raw body for HMAC.
+router.post('/webhook', handleWebhook);
 
 module.exports = router;

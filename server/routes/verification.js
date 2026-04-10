@@ -8,14 +8,18 @@ router.post('/background-check', authenticate, ctrl.initiateBackgroundCheck);
 router.get('/background-check/status', authenticate, ctrl.getBackgroundCheckStatus);
 
 // Checkr webhook (public - called by Checkr)
-router.post('/webhooks/checkr', express.raw({ type: 'application/json' }), ctrl.checkrWebhook);
+// Mounted early in index.js (before express.json()) to preserve raw body for HMAC.
+// This route definition is kept for clarity but the request is handled by the
+// app-level mount; if reached here the body would already be parsed.
+router.post('/webhooks/checkr', ctrl.checkrWebhook);
 
 // Stripe Identity verification (requires auth)
 router.post('/identity/session', authenticate, ctrl.createIdentitySession);
 router.get('/identity/status', authenticate, ctrl.getIdentityStatus);
 
 // Stripe Identity webhook (public - called by Stripe)
-router.post('/webhooks/identity', express.raw({ type: 'application/json' }), ctrl.identityWebhook);
+// Mounted early in index.js (before express.json()) to preserve raw body for HMAC.
+router.post('/webhooks/identity', ctrl.identityWebhook);
 
 // Badges
 router.get('/badges', authenticate, ctrl.getUserBadges);

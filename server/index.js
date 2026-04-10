@@ -131,6 +131,15 @@ app.use(cors({
 // during batch events and a 429 can cause Stripe to disable the endpoint.
 app.use('/api/webhooks', webhookRoutes);
 
+// Verification & Didit webhooks also need raw body for HMAC verification.
+// Must be mounted before express.json() to prevent body-parser from consuming
+// the request stream (same pattern as Stripe above).
+const verificationCtrl = require('./controllers/verificationController');
+const { handleWebhook: diditWebhook } = require('./controllers/diditController');
+app.post('/api/verification/webhooks/checkr', express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
+app.post('/api/verification/webhooks/identity', express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
+app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), diditWebhook);
+
 // ── RATE LIMITING ────────────────────────────────────────────
 app.use('/api/', generalLimiter);
 app.use('/api/auth', authLimiter);
