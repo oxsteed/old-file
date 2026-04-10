@@ -7,6 +7,7 @@ const REQUIRED = [
   'DATABASE_URL',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
+  'ENCRYPTION_KEY',
 ];
 
 // Missing these degrades features but doesn't break auth / payments

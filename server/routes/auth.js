@@ -43,8 +43,8 @@ router.post('/logout', authenticate, logout);
 
 // Customer registration flow (3-step)
 router.post('/check-email', authLimiter, checkEmail);
-router.post('/check-zip', checkZip);
-router.post('/waitlist', addToWaitlist);
+router.post('/check-zip', authLimiter, checkZip);
+router.post('/waitlist', authLimiter, addToWaitlist);
 router.post('/register/start', authLimiter, startRegistration);
 router.post('/register/accept-terms', authLimiter, acceptTerms);
 router.post('/register/verify-otp', authLimiter, verifyRegistrationOTP);

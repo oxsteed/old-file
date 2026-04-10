@@ -7,14 +7,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 
 # Install client dependencies and build
 COPY client/package*.json ./client/
-RUN cd client && npm install
+RUN cd client && npm ci
 
 COPY client/ ./client/
 RUN cd client && npm run build
 
 # Install server dependencies
 COPY server/package*.json ./server/
-RUN cd server && npm install --production
+RUN cd server && npm ci --omit=dev
 
 COPY server/ ./server/
 

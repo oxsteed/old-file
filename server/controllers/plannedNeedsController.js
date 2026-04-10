@@ -185,7 +185,6 @@ exports.updatePlannedNeed = async (req, res) => {
       recurrence_type,
       recurrence_interval_days,
       preferred_helper_id,
-      reserved_amount,
       notes,
     } = req.body;
 
@@ -230,15 +229,14 @@ exports.updatePlannedNeed = async (req, res) => {
           recurrence_type          = COALESCE($10, recurrence_type),
           recurrence_interval_days = COALESCE($11, recurrence_interval_days),
           preferred_helper_id      = COALESCE($12, preferred_helper_id),
-          reserved_amount          = COALESCE($13, reserved_amount),
-          notes                    = COALESCE($14, notes),
+          notes                    = COALESCE($13, notes),
           updated_at               = NOW()
       WHERE id = $1 AND user_id = $2
       RETURNING *
     `, [
       id, userId, title, description, category, newStatus, due_date,
       estimated_cost, lead_time_days, recurrence_type,
-      recurrence_interval_days, preferred_helper_id, reserved_amount, notes,
+      recurrence_interval_days, preferred_helper_id, notes,
     ]);
 
     res.json(rows[0]);

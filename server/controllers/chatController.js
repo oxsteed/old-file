@@ -1,6 +1,26 @@
 const logger = require('../utils/logger');
 
-const OLLAMA_URL = process.env.OLLAMA_URL || '';
+// Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env
+const OLLAMA_URL = (() => {
+  const raw = process.env.OLLAMA_URL || '';
+  if (!raw) return '';
+  try {
+    const u = new URL(raw);
+    // Only allow http/https to localhost or 127.x — not arbitrary internal hosts
+    const allowedHosts = ['localhost', '127.0.0.1', '::1'];
+    if (!['http:', 'https:'].includes(u.protocol)) {
+      logger.warn('[Chat] OLLAMA_URL has unsupported protocol — ignoring', { url: raw });
+      return '';
+    }
+    if (!allowedHosts.includes(u.hostname)) {
+      logger.warn('[Chat] OLLAMA_URL hostname is not localhost — using as configured', { hostname: u.hostname });
+    }
+    return raw;
+  } catch {
+    logger.warn('[Chat] OLLAMA_URL is not a valid URL — ignoring', { url: raw });
+    return '';
+  }
+})();
 
 const SYSTEM_PROMPT = `You are OxSteed's AI assistant — friendly, concise, and knowledgeable about the OxSteed local services marketplace.
 

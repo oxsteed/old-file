@@ -8,10 +8,10 @@
 
 | Severity | Count | Fixed | Status |
 |----------|-------|-------|--------|
-| CRITICAL | 10    | 9     | C-01–C-05 fixed pre-audit; C-06/C-08/C-09/C-10 fixed 2026-04-10; C-07 (Dockerfile) already had non-root user |
-| HIGH     | 42    | 7     | H-07/H-16/H-22/H-23/H-24/H-25/H-29/H-30 fixed 2026-04-10; H-08/H-10/H-11/H-12 were already fixed |
-| MEDIUM   | 63    | 1     | M-30 (error leak in createJob) fixed 2026-04-10 |
-| LOW      | 51    | 0     | ⬜ Pending |
+| CRITICAL | 10    | 9     | C-01–C-05 fixed pre-audit; C-06/C-08/C-09/C-10 fixed 2026-04-10; C-07 (Dockerfile non-root) already present |
+| HIGH     | 42    | 14    | H-01/H-02/H-03/H-07/H-16/H-22/H-23/H-24/H-25/H-26/H-27/H-29/H-30/H-31 fixed; H-04/H-05/H-08/H-10/H-11/H-12/H-13/H-14/H-19/H-21 already fixed |
+| MEDIUM   | 63    | 10    | M-04/M-06/M-08/M-14/M-15/M-18/M-21/M-22/M-28/M-29/M-30/M-33/M-38/M-39/M-40/M-41 fixed |
+| LOW      | 51    | 1     | L-01/L-15 fixed |
 | INFO     | 19    | 0     | ⬜ Pending |
 
 > **Status legend:** ⬜ Pending | 🔧 In Progress | ✅ Fixed | ⏭ Deferred
@@ -105,27 +105,27 @@
 ### H-01 — Public support ticket submission has no rate limiting
 - **File:** `routes/support.js` → `POST /request`
 - **Fix:** Apply `authLimiter` (or dedicated `supportLimiter`) to `POST /request`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-02 — Chat feedback endpoint has no auth or rate limiting
 - **File:** `routes/chat.js` → `POST /feedback`
 - **Fix:** Add rate limiting; validate/sanitize `pageContext.path`; restrict `value` to known enum.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-03 — Hard-delete of `skills_lookup` records not gated behind `requireSuperAdmin`
 - **File:** `routes/admin.js` → `DELETE /skills-lookup/:id`
 - **Fix:** Gate `?hard=true` path behind `requireSuperAdmin`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-04 — Checkr webhook route lacks raw-body preservation
 - **File:** `routes/verification.js` → `POST /webhooks/checkr`
 - **Fix:** Apply `express.raw({ type: 'application/json' })` and verify HMAC.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-05 — Stripe Identity webhook lacks raw-body preservation
 - **File:** `routes/verification.js` → `POST /webhooks/identity`
 - **Fix:** Apply `express.raw({ type: 'application/json' })` before handler.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-06 — `loginWith2FA` and `validate2FA` have no brute-force protection
 - **File:** `controllers/authController.js`, `controllers/twoFactorController.js`
@@ -140,7 +140,7 @@
 ### H-08 — `refundPayment` role check excludes `super_admin`
 - **File:** `controllers/paymentController.js` → `refundPayment()`
 - **Fix:** Change to `!['admin','super_admin'].includes(req.user.role)`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-09 — `requestOTP` stores OTP in plaintext, no rate limiting
 - **File:** `controllers/authController.js` → `requestOTP()`
@@ -150,32 +150,32 @@
 ### H-10 — `verifyOTP` comparison is not timing-safe
 - **File:** `controllers/authController.js` → `verifyOTP()`
 - **Fix:** `crypto.timingSafeEqual` after length-checking both buffers.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-11 — `reviewReport` sends warning to reporter instead of reported user
 - **File:** `controllers/adminController.js` → `reviewReport()`
 - **Fix:** Change notification target from `reporter_id` to the content creator's ID.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-12 — `getConnectStatus` returns all columns including internal Stripe keys
 - **File:** `controllers/paymentController.js` → `getConnectStatus()`
 - **Fix:** Select only `onboarding_complete`, `charges_enabled`, `payouts_enabled`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-13 — Client email returned in public job listing
 - **File:** `controllers/jobController.js` → `getJobs()`
 - **Fix:** Remove `u.email` from SELECT; return only non-PII fields in public feed.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-14 — Client email returned in single job fetch
 - **File:** `controllers/jobController.js` → `getJob()`
 - **Fix:** Include `client_email` only when requester is client or assigned helper.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-15 — `SELECT *` exposes sensitive fields in `getMyJobs`
 - **File:** `controllers/jobController.js` → `getMyJobs()`
 - **Fix:** Replace `SELECT *` with explicit column list.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-16 — `RETURNING *` exposes exact GPS coordinates in `createJob`
 - **File:** `controllers/jobController.js` → `createJob()`
@@ -185,17 +185,17 @@
 ### H-17 — SSRF risk via user-controlled `OLLAMA_URL`
 - **File:** `controllers/chatController.js`
 - **Fix:** Validate `OLLAMA_URL` at startup against an allowlist; use safe default.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-18 — Hardcoded internal service URL in source code
 - **File:** `controllers/chatController.js`
 - **Fix:** Remove hardcoded hostname; use empty string or localhost as fallback.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-19 — `adminHideReview` missing in-controller role verification
 - **File:** `controllers/reviewController.js` → `adminHideReview()`
 - **Fix:** Add in-controller role assertion for defense-in-depth.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-20 — Admin ticket endpoints lack in-controller role verification
 - **File:** `controllers/supportController.js` (8 functions)
@@ -205,7 +205,7 @@
 ### H-21 — IDOR: `getJobBids` exposes all bids without ownership verification
 - **File:** `controllers/bidController.js` → `getJobBids()`
 - **Fix:** Verify requester is job owner (`client_id`) or admin before returning bids.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-22 — IDOR: `getPreferredByCount` accepts helperId from URL without access control
 - **File:** `controllers/plannedNeedsController.js` → `getPreferredByCount()`
@@ -230,12 +230,12 @@
 ### H-26 — `requireOnboardingStep` fails open on unknown step values
 - **File:** `server/middleware/helperOnboardingMiddleware.js`
 - **Fix:** Deny (403) on unrecognized values.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-27 — `requireTier` fails open on unknown tier values
 - **File:** `server/middleware/helperOnboardingMiddleware.js`
 - **Fix:** Deny (403) on unrecognized tier values.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-28 — Socket.IO room architecture relies on absence of client join handlers (undocumented)
 - **File:** `server/services/socketService.js`, `server/index.js`
@@ -255,7 +255,7 @@
 ### H-31 — Dockerfile uses `npm install` instead of `npm ci`
 - **File:** `Dockerfile`
 - **Fix:** Replace with `npm ci --omit=dev` for server.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### H-32 — CI pipeline uses `npm install` (supply chain risk)
 - **File:** `.github/workflows/ci.yml`
@@ -332,7 +332,7 @@
 ### M-04 — Helper registration OTP endpoints have no rate limiting
 - **File:** `routes/helperRegistration.js`
 - **Fix:** Apply `authLimiter` to all helper registration OTP routes.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-05 — `POST /didit/webhook` no raw-body check at route level (duplicate endpoint)
 - **File:** `routes/didit.js`
@@ -342,7 +342,7 @@
 ### M-06 — Helper discovery routes have no rate limiting
 - **File:** `routes/helpers.js` (8 endpoints)
 - **Fix:** Add general API rate limiter to all helper discovery routes.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-07 — Geo endpoints rely on undocumented global limiter, no per-route guard
 - **File:** `routes/geo.js`
@@ -352,7 +352,7 @@
 ### M-08 — `POST /payments/refund` has no admin role check at route level
 - **File:** `routes/payments.js`
 - **Fix:** Add `requireAdmin` or `requireSuperAdmin` at route level.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-09 — `GET /jobs` accepts unvalidated query parameters
 - **File:** `routes/jobs.js`
@@ -380,11 +380,11 @@
 
 ### M-14 — `disputeController.submitEvidence` uses dynamic SQL column name
 - **Fix:** Use explicit allowlist object: `{ helper: 'evidence_helper', customer: 'evidence_poster' }`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-15 — `issueManualRefund` leaks internal Stripe error messages to client
 - **Fix:** Log full error server-side; return generic error to client.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-16 — `superAdminController.getUsers` has fragile WHERE clause construction
 - **Fix:** Refactor into single `conditions` array assembled before WHERE clause.
@@ -397,7 +397,7 @@
 
 ### M-18 — `requestOTP` does not confirm email exists before sending
 - **Fix:** Add `SELECT` check first, similar to `forgotPassword`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-19 — `getDashboardStats` uses template literal interpolation for SQL
 - **Fix:** Use static conditional queries or separate queries.
@@ -410,11 +410,11 @@
 
 ### M-21 — OTP generated with `Math.random()` (not CSPRNG)
 - **Fix:** Replace with `crypto.randomInt(100000, 1000000)`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-22 — Mass assignment: `reserved_amount` writable via `updatePlannedNeed`
 - **Fix:** Remove from `req.body` acceptance; only update via `addToFund()` or payment events.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-23 — No magic-byte validation on job media upload
 - **Fix:** Add magic-byte validation using `file-type` npm package.
@@ -438,15 +438,15 @@
 
 ### M-28 — Support ticket `category` not validated against allowlist
 - **Fix:** Validate `category` against an allowlist.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-29 — Admin `listTickets` status/priority filters not validated
 - **Fix:** Validate against allowlists; return 400 for unrecognized values.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-30 — `createJob` 500 error leaks raw PostgreSQL error message
 - **Fix:** Return generic message to client; log full error server-side only.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-31 — `bidController` uses `console.error` instead of structured logger
 - **Fix:** Switch to structured logger.
@@ -458,7 +458,7 @@
 
 ### M-33 — No JWT algorithm pinning in `generateTokens()`
 - **Fix:** Add `{ algorithm: 'HS256' }` to `jwt.sign` options.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-34 — Upload middleware relies on browser-supplied MIME type
 - **File:** `server/middleware/upload.js`
@@ -481,22 +481,22 @@
 
 ### M-38 — `ENCRYPTION_KEY` not in `validateEnv.js` required list
 - **Fix:** Add `ENCRYPTION_KEY` to the `REQUIRED` array.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-39 — Unescaped user data injected into JSON-LD block
 - **File:** `server/middleware/prerenderHelperProfile.js`
 - **Fix:** Replace `</script>` with `<\/script>` inside JSON strings.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-40 — Unsanitized user content in HTML email body
 - **File:** `server/utils/email.js`
 - **Fix:** HTML-escape all interpolated values before insertion.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-41 — User-controlled job title inserted into SMS body without sanitization
 - **File:** `server/utils/sms.js`
 - **Fix:** Strip control characters; cap length before use in message bodies.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### M-42 — `userModel.findById` returns `SELECT u.*` including sensitive fields
 - **Fix:** Enumerate non-sensitive columns explicitly.
@@ -593,7 +593,7 @@
 
 ### L-01 — `POST /auth/check-zip` and `POST /auth/waitlist` no rate limiting
 - **Fix:** Apply `authLimiter`.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-02 — `GET /reviews/users/:userId` public with no rate limiting
 - **Fix:** Add rate limiting.
@@ -651,7 +651,7 @@
 
 ### L-15 — `getJobs` unvalidated sort parameter falls back silently
 - **Fix:** Return 400 for unrecognized sort values.
-- **Status:** ⬜
+- **Status:** ✅
 
 ### L-16 — Both client and helper can trigger job state transitions
 - **File:** `controllers/jobController.js`
