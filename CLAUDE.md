@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-09 (admin search engine + audit log, scoped time-limited permission grants, admin→user live messaging)
+**Last updated:** 2026-04-10 (security audit — PR #74 merged)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -491,6 +491,57 @@ These require either an infrastructure action or an architectural decision — n
 **SSR / pre-rendering** — Pure SPA; `PageMeta.jsx` handles meta at runtime but JS-less crawlers won't see it. Only matters for `/`, `/helpers`, `/helpers/:id`. Options: `vite-plugin-ssr` or migrate public pages to Next.js. Dashboard and auth pages don't need it.
 
 **Logger cleanup** — ~150 `console.*` calls remain in ~21 lower-priority controller files. Pattern: replace `console.error('msg', err)` with `logger.error('msg', { err })`. Do incrementally when touching those files.
+
+---
+
+## Security Audit — Session 2026-04-10 (for next AI session)
+
+> **For the next session:** The primary ongoing task is working through `security.md`. Read that file first — it is the authoritative tracker. Every finding has a status: ⬜ Pending, ✅ Fixed, ⏭ Deferred. Work top-down by severity. When you fix something, mark it ✅ in `security.md` and update the summary table counts. Commit `security.md` changes in the same commit as the code fix.
+
+### What was done in this session (PR #74, merged 2026-04-10)
+
+**New utility:** `server/utils/escapeHtml.js` — shared HTML escaping module; imported by `email.js`, `notificationService.js`, and `prerenderHelperProfile.js` (replaced three inline copies).
+
+**Fixes applied (see security.md for full detail):**
+- H-01: `authLimiter` on `POST /api/support/request`
+- H-02: `chatLimiter` + path sanitization on `POST /api/chat/feedback`
+- H-03: `?hard=true` skill delete gated behind `req.isSuper`
+- H-17/H-18: `OLLAMA_URL` validated at startup; non-localhost hostname now **blocks** (was warn-only — fixed after PR review)
+- H-26/H-27: `requireOnboardingStep` and `requireTier` now fail-secure (deny on unknown values)
+- H-31: Dockerfile `npm install` → `npm ci` / `npm ci --omit=dev`
+- M-04: `authLimiter` on helper registration OTP routes
+- M-06: `generalLimiter` on all 8 helper discovery routes
+- M-08: `requireAdmin` on `POST /payments/refund` (defense-in-depth)
+- M-15: `issueManualRefund` no longer leaks `err.message` to client
+- M-22: `reserved_amount` removed from user-writable `updatePlannedNeed` path
+- M-28/M-29: support ticket `category` and `listTickets` `status`/`priority` validated against allowlists
+- M-30: `createJob` 500 no longer leaks raw PostgreSQL error
+- M-38: `ENCRYPTION_KEY` added to `validateEnv.js` REQUIRED list
+- M-40/M-41: HTML-escape `first_name` in welcome email; sanitize `jobTitle` in SMS
+- L-01: `authLimiter` on `/auth/check-zip` and `/auth/waitlist`
+- L-15: `getJobs` returns 400 for unrecognized `sort` values
+- Regression fix: `private_notes` restored to `getMyJobs` explicit column list
+- Bug fix: duplicate `const location_lat` declaration in `createJob` (crashed server on startup)
+
+### Highest-priority remaining findings (pick up here)
+
+These are the next items to tackle in `security.md`, in order:
+
+1. **C-01** — Checkr webhook has no HMAC signature verification → `controllers/verificationController.js:checkrWebhook()`
+2. **C-02** — Stripe Identity webhook has no signature verification → `controllers/verificationController.js:identityWebhook()`
+3. **C-03** — Any authenticated user can open a dispute for any job → `controllers/disputeController.js:openDispute()` — add ownership check
+4. **C-04/C-05** — Didit webhook signature check is optional (bypassed if secret missing) + timing-unsafe comparison → `controllers/diditController.js`
+5. **H-06** — `loginWith2FA` and `validate2FA` have no brute-force protection
+6. **H-09** — `requestOTP` stores OTP in plaintext, no per-email rate limiting
+7. **H-20** — Admin ticket endpoints lack in-controller role verification (8 functions in `supportController.js`)
+8. **H-33** — `speakeasy` is unmaintained; replace with `otplib`
+9. **H-35/H-36** — TOTP secret and backup codes stored in plaintext
+10. **H-37/H-38** — Raw OTP + raw refresh tokens stored in DB (should be hashed)
+11. **M-11/M-12** — 2FA step-1/step-2 not tied by server-side session token (enables MFA bypass + userId enumeration)
+12. **M-19** — `getDashboardStats` uses template literal interpolation for SQL
+13. **M-36** — `hashTIN` uses unsalted SHA-256 (should be HMAC-SHA256 with dedicated key)
+
+The full list with file paths, descriptions, and fix guidance is in `security.md`. After fixing any item, mark it ✅ there and update the summary table.
 
 ---
 
