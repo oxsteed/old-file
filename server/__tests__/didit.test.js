@@ -13,24 +13,27 @@ const diditRoutes = require('../routes/didit');
 
 function buildApp() {
   const app = express();
+  app.use('/api/didit/webhook', express.raw({ type: 'application/json' }));
   app.use(express.json());
   app.use('/api/didit', diditRoutes);
   return app;
 }
 
-// Compute a valid Didit HMAC signature for a given body object
-function sign(body) {
+// Compute a valid Didit HMAC signature for a raw JSON string
+function sign(rawBody) {
   return crypto
     .createHmac('sha256', 'test-didit-secret')
-    .update(JSON.stringify(body))
+    .update(rawBody)
     .digest('hex');
 }
 
 function sendWebhook(app, body, signature) {
+  const raw = JSON.stringify(body);
   return request(app)
     .post('/api/didit/webhook')
-    .set('x-webhook-signature', signature ?? sign(body))
-    .send(body);
+    .set('Content-Type', 'application/json')
+    .set('x-webhook-signature', signature ?? sign(raw))
+    .send(raw);
 }
 
 beforeEach(() => resetMocks());
@@ -40,7 +43,8 @@ describe('POST /api/didit/webhook — signature', () => {
   test('returns 401 when signature header is missing', async () => {
     const res = await request(buildApp())
       .post('/api/didit/webhook')
-      .send({ session_id: 'sess_abc', status: 'approved' });
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ session_id: 'sess_abc', status: 'approved' }));
     expect(res.status).toBe(401);
     expect(res.body.error).toMatch(/Missing webhook signature/i);
   });
