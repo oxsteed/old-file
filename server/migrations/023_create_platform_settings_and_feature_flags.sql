@@ -41,8 +41,10 @@ INSERT INTO platform_settings (key, value, value_type, description) VALUES
   ('support_email', 'support@oxsteed.com', 'text', 'Platform support email address')
 ON CONFLICT (key) DO NOTHING;
 
--- Seed default feature flags
-INSERT INTO feature_flags (key, enabled, description) VALUES
+-- Seed default feature flags (use is_enabled — the column created by 001_initial_schema)
+ALTER TABLE feature_flags ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN DEFAULT false;
+
+INSERT INTO feature_flags (key, is_enabled, description) VALUES
   ('escrow_payments', true, 'Enable escrow payment protection for Tier 3 jobs'),
   ('broker_matching', false, 'Enable automatic broker matching for complex jobs'),
   ('push_notifications', true, 'Enable push notifications for mobile users'),

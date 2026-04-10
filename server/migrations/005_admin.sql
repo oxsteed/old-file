@@ -68,7 +68,11 @@ CREATE TABLE IF NOT EXISTS feature_flags (
   updated_at    TIMESTAMPTZ DEFAULT now()
 );
 
-INSERT INTO feature_flags (key, enabled, description)
+-- On fresh DBs, 001_initial_schema creates feature_flags with is_enabled (not enabled).
+-- Ensure is_enabled exists regardless of which migration created the table.
+ALTER TABLE feature_flags ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN DEFAULT false;
+
+INSERT INTO feature_flags (key, is_enabled, description)
 VALUES
   ('tool_rental',        false, 'Enable tool rental marketplace'),
   ('broker_flow',        true,  'Enable broker claim/assign flow'),
