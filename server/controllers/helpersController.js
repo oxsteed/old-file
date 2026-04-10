@@ -388,8 +388,8 @@ async function getHelperProfile(req, res) {
     return res.json({
       helper: {
         id:           h.id,
-        businessName: `${h.first_name} ${h.last_name}`,
-        ownerName:    `${h.first_name} ${h.last_name}`,
+        businessName: `${h.first_name} ${h.last_name}`.trim(),
+        ownerName:    `${h.first_name} ${h.last_name}`.trim(),
         tagline:      h.profile_headline || '',
         bio:          h.bio_long || h.bio_short || '',
         avatar:       h.profile_photo_url || '',
