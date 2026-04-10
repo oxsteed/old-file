@@ -25,7 +25,7 @@ async function pendingRegistrationsHasRoleColumn() {
 
 // ── helpers ──────────────────────────────────────────────
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 function otpExpiry() {
