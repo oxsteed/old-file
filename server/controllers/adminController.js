@@ -142,15 +142,55 @@ exports.reviewReport = async (req, res) => {
       }
     }
 
-    if (action === 'warn_user' && report.reporter_id) {
+    let notificationSent = false;
+    if (action === 'warn_user' && report.target_id) {
       try {
-        await sendNotification({
-          userId: report.reporter_id,
-          type: 'content_warning',
-          title: 'Content warning issued',
-          body: 'A warning has been added to your account regarding reported content.',
-        });
-      } catch(e) {}
+        let offendingUserId = null;
+
+        // Use db pool (not dbClient) for these read-only lookups so a failed
+        // query cannot abort the surrounding transaction.
+        switch (report.target_type) {
+          case 'user':
+            offendingUserId = report.target_id;
+            break;
+          case 'job': {
+            const { rows } = await db.query(
+              'SELECT client_id FROM jobs WHERE id = $1', [report.target_id]
+            );
+            offendingUserId = rows[0]?.client_id || null;
+            break;
+          }
+          case 'review': {
+            const { rows } = await db.query(
+              'SELECT reviewer_id FROM reviews WHERE id = $1', [report.target_id]
+            );
+            offendingUserId = rows[0]?.reviewer_id || null;
+            break;
+          }
+          case 'bid': {
+            const { rows } = await db.query(
+              'SELECT helper_id FROM bids WHERE id = $1', [report.target_id]
+            );
+            offendingUserId = rows[0]?.helper_id || null;
+            break;
+          }
+          default:
+            console.warn(`reviewReport: unknown target_type "${report.target_type}" for report ${report.id}, skipping notification`);
+        }
+
+        if (offendingUserId) {
+          await sendNotification({
+            userId: offendingUserId,
+            type: 'content_warning',
+            title: 'Content warning issued',
+            body: 'A warning has been added to your account regarding reported content.',
+          });
+          notificationSent = true;
+        }
+      } catch (e) {
+        console.warn('reviewReport: failed to send warn_user notification:', e.message);
+        // Do not re-throw — notification failure must not abort the report review.
+      }
     }
 
     await dbClient.query('COMMIT');
@@ -166,6 +206,14 @@ exports.reviewReport = async (req, res) => {
       });
     } catch(e) {}
 
+    if (action === 'warn_user') {
+      return res.json({
+        message: notificationSent
+          ? 'Report reviewed and warning notification sent.'
+          : 'Report reviewed. Warning notification could not be sent — content may have been deleted or the user was not found.',
+        notificationSent,
+      });
+    }
     res.json({ message: `Report ${action} successfully.` });
   } catch (err) {
     await dbClient.query('ROLLBACK');
