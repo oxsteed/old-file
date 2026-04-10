@@ -9,6 +9,6 @@ router.post('/session',  authenticate, createSession);
 router.get('/status',    authenticate, getStatus);
 
 // Public: Didit webhook (verify signature in controller)
-router.post('/webhook', handleWebhook);
+router.post('/webhook', express.raw({ type: 'application/json' }), handleWebhook);
 
 module.exports = router;

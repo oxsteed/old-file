@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const fetch = require('node-fetch');
 const db = require('../db');
@@ -90,7 +91,27 @@ exports.initiateBackgroundCheck = async (req, res) => {
 // Checkr webhook handler
 exports.checkrWebhook = async (req, res) => {
   try {
-    const { type, data } = req.body;
+    const secret = process.env.CHECKR_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('CHECKR_WEBHOOK_SECRET is not configured');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    const incomingSignature = req.headers['x-checkr-signature'];
+    if (!incomingSignature) {
+      return res.status(400).json({ error: 'Missing signature' });
+    }
+
+    const rawBody = req.body; // Buffer from express.raw()
+    const computed = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+
+    const computedBuf = Buffer.from(computed, 'utf8');
+    const incomingBuf = Buffer.from(incomingSignature, 'utf8');
+    if (computedBuf.length !== incomingBuf.length || !crypto.timingSafeEqual(computedBuf, incomingBuf)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    const { type, data } = JSON.parse(rawBody.toString());
 
     if (type === 'report.completed') {
       const reportId = data.object.id;
@@ -188,7 +209,26 @@ exports.createIdentitySession = async (req, res) => {
 // Stripe Identity webhook handler
 exports.identityWebhook = async (req, res) => {
   try {
-    const { type, data } = req.body;
+    const secret = process.env.STRIPE_IDENTITY_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('STRIPE_IDENTITY_WEBHOOK_SECRET is not configured');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    const sig = req.headers['stripe-signature'];
+    if (!sig) {
+      return res.status(400).json({ error: 'Missing signature' });
+    }
+
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err) {
+      console.error('Stripe signature verification failed:', err.message);
+      return res.status(400).json({ error: 'Webhook signature verification failed' });
+    }
+
+    const { type, data } = event;
 
     if (type === 'identity.verification_session.verified') {
       const sessionId = data.object.id;

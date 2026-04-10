@@ -1,6 +1,7 @@
 // server/controllers/diditController.js
 // Handles Didit identity verification callbacks and deduplication.
 
+const crypto = require('crypto');
 const pool = require('../db');
 
 const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
@@ -59,27 +60,33 @@ async function createSession(req, res) {
 // This is the enforcement point for one-person-one-account.
 async function handleWebhook(req, res) {
   try {
+    if (!DIDIT_WEBHOOK_SECRET) {
+      console.error('DIDIT_WEBHOOK_SECRET is not configured');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    const signature = req.headers['x-webhook-signature'] || req.headers['x-signature'];
+    if (!signature) {
+      return res.status(401).json({ error: 'Missing webhook signature' });
+    }
+
+    const rawBody = req.body; // Buffer from express.raw()
+    const expectedSig = crypto
+      .createHmac('sha256', DIDIT_WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest('hex');
+
+    const expectedBuf = Buffer.from(expectedSig, 'utf8');
+    const incomingBuf = Buffer.from(signature, 'utf8');
+    if (expectedBuf.length !== incomingBuf.length || !crypto.timingSafeEqual(expectedBuf, incomingBuf)) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
     const {
       session_id,
       status,          // 'approved' | 'declined' | 'review'
       identity_hash,   // unique biometric/document fingerprint from Didit
-    } = req.body;
-
-    // Verify webhook signature from Didit
-    if (DIDIT_WEBHOOK_SECRET) {
-      const signature = req.headers['x-webhook-signature'] || req.headers['x-signature'];
-      if (!signature) {
-        return res.status(401).json({ error: 'Missing webhook signature' });
-      }
-      const crypto = require('crypto');
-      const expectedSig = crypto
-        .createHmac('sha256', DIDIT_WEBHOOK_SECRET)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
-      if (signature !== expectedSig) {
-        return res.status(401).json({ error: 'Invalid webhook signature' });
-      }
-    }
+    } = JSON.parse(rawBody.toString());
 
     if (!session_id) {
       return res.status(400).json({ error: 'Missing session_id' });
