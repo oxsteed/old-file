@@ -134,22 +134,22 @@ exports.getUserDetail = async (req, res) => {
     const hasSubs = await tableExists('subscriptions');
     const hasPlanTable = hasSubs && await tableExists('plans');
     const hasCA   = await tableExists('connect_accounts');
-    
-    // Explicit list of columns to retrieve. NEVER use SELECT * in production to 
+    // Explicit list of columns to retrieve. NEVER use SELECT * in production to
     // prevent leaking sensitive internal flags or secrets (e.g. password_hash, otp_secret).
     const cols = [
-      'u.id', 'u.first_name', 'u.last_name', 'u.email', 'u.role', 'u.is_active', 
-      'u.phone', 'u.created_at', 'u.updated_at', 'u.email_verified', 'u.is_verified', 
+      'u.id', 'u.first_name', 'u.last_name', 'u.email', 'u.role', 'u.is_active',
+      'u.phone', 'u.created_at', 'u.updated_at', 'u.email_verified', 'u.is_verified',
       'u.onboarding_status', 'u.onboarding_completed', 'u.contact_completed', 'u.profile_completed',
       'u.tier_selected', 'u.w9_completed', 'u.terms_accepted', 'u.membership_tier', 'u.id_verified',
-      'u.background_check_passed', 'u.city', 'u.state', 'u.zip_code', 'u.profile_photo_url',
-      'u.didit_status', 'u.didit_verified_at', 'u.last_login_at'
+      'u.background_check_passed', 'u.city', 'u.state', 'u.zip_code',
+      'u.didit_status', 'u.didit_verified_at', 'u.last_login_at',
+      'u.subscription_status', 'u.background_check_status', 'u.identity_verified'
     ];
-    
+
     const joins = [];
     if (hasSubs) { joins.push("LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'"); cols.push('s.status AS sub_status, s.stripe_subscription_id, s.current_period_start, s.current_period_end, s.cancel_at_period_end'); }
     if (hasPlanTable) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); cols.push('p.slug AS plan_slug, p.name AS plan_name'); }
-    if (hasHP)   { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); cols.push('hp.bio_short, hp.bio_long, hp.avg_rating, hp.total_reviews, hp.completed_jobs_count, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.hourly_rate_min, hp.hourly_rate_max, hp.service_city, hp.service_state, hp.stripe_account_id AS hp_stripe_account_id, hp.stripe_charges_enabled AS hp_charges_enabled, hp.stripe_payouts_enabled AS hp_payouts_enabled'); }
+    if (hasHP)   { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); cols.push('hp.bio_short, hp.bio_long, hp.avg_rating, hp.total_reviews, hp.completed_jobs_count, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.hourly_rate_min, hp.hourly_rate_max, hp.service_city, hp.service_state, hp.profile_photo_url AS hp_profile_photo_url, hp.stripe_account_id AS hp_stripe_account_id, hp.stripe_charges_enabled AS hp_charges_enabled, hp.stripe_payouts_enabled AS hp_payouts_enabled'); }
     // connect_accounts is the authoritative source for Stripe Connect status
     if (hasCA)   { joins.push('LEFT JOIN connect_accounts ca ON ca.user_id = u.id'); cols.push('ca.stripe_account_id AS ca_stripe_account_id, ca.charges_enabled AS ca_charges_enabled, ca.payouts_enabled AS ca_payouts_enabled, ca.onboarding_complete AS ca_onboarding_complete'); }
     
@@ -162,7 +162,7 @@ exports.getUserDetail = async (req, res) => {
     // helper_profiles for deployments that haven't migrated to connect_accounts.
     const user = {
       ...raw,
-      avatar_url:          raw.profile_photo_url || null,
+      avatar_url:          raw.hp_profile_photo_url || null,
       id_verified:         raw.identity_verified ?? raw.is_identity_verified ?? false,
       stripe_account_id:   raw.ca_stripe_account_id   || raw.hp_stripe_account_id   || null,
       charges_enabled:     raw.ca_charges_enabled      ?? raw.hp_charges_enabled      ?? false,
@@ -266,12 +266,12 @@ exports.updateUserName = async (req, res) => {
 exports.getJobs = async (req, res) => {
   try {
     if (!(await tableExists('jobs'))) return res.json({ jobs: [], total: 0, page: 1, limit: 25, pages: 0 });
-    const { search, status, category_id, page = 1, limit = 25 } = req.query;
+    const { search, status, category, page = 1, limit = 25 } = req.query;
     const offset = (page - 1) * limit;
     const params = []; let paramIdx = 1; let conditions = [];
     if (search) { conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
     if (status) { conditions.push(`j.status = $${paramIdx++}`); params.push(status); }
-    if (category_id) { conditions.push(`j.category_id = $${paramIdx++}`); params.push(category_id); }
+    if (category) { conditions.push(`j.category_name = $${paramIdx++}`); params.push(category); }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT j.id, j.title, j.status, j.budget_min, j.budget_max, j.job_value, j.is_broker_mediated, j.created_at, j.bid_count, j.location_city, j.location_state, j.category_name, u_c.first_name || ' ' || u_c.last_name AS client_name, u_c.email AS client_email, u_h.first_name || ' ' || u_h.last_name AS helper_name FROM jobs j JOIN users u_c ON j.client_id = u_c.id LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id ${wc} ORDER BY j.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM jobs j ${wc}`, params);
