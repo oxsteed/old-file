@@ -144,12 +144,45 @@ exports.reviewReport = async (req, res) => {
 
     if (action === 'warn_user' && report.target_id) {
       try {
-        await sendNotification({
-          userId: report.target_id,
-          type: 'content_warning',
-          title: 'Content warning issued',
-          body: 'A warning has been added to your account regarding reported content.',
-        });
+        let offendingUserId = null;
+
+        switch (report.target_type) {
+          case 'user':
+            offendingUserId = report.target_id;
+            break;
+          case 'job': {
+            const { rows } = await dbClient.query(
+              'SELECT client_id FROM jobs WHERE id = $1', [report.target_id]
+            );
+            offendingUserId = rows[0]?.client_id || null;
+            break;
+          }
+          case 'review': {
+            const { rows } = await dbClient.query(
+              'SELECT reviewer_id FROM reviews WHERE id = $1', [report.target_id]
+            );
+            offendingUserId = rows[0]?.reviewer_id || null;
+            break;
+          }
+          case 'bid': {
+            const { rows } = await dbClient.query(
+              'SELECT helper_id FROM bids WHERE id = $1', [report.target_id]
+            );
+            offendingUserId = rows[0]?.helper_id || null;
+            break;
+          }
+          default:
+            console.warn(`reviewReport: unknown target_type "${report.target_type}" for report ${report.id}, skipping notification`);
+        }
+
+        if (offendingUserId) {
+          await sendNotification({
+            userId: offendingUserId,
+            type: 'content_warning',
+            title: 'Content warning issued',
+            body: 'A warning has been added to your account regarding reported content.',
+          });
+        }
       } catch(e) {}
     }
 
