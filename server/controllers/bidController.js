@@ -34,7 +34,7 @@ exports.getJobBids = async (req, res) => {
   try {
     // Only the job's client or an admin may view all bids
     const jobCheck = await pool.query(
-      'SELECT client_id FROM jobs WHERE id = $1', [req.params.job_id]
+      'SELECT client_id FROM jobs WHERE id = $1', [req.params.jobId]
     );
     if (!jobCheck.rows[0]) return res.status(404).json({ error: 'Job not found' });
     const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
@@ -49,7 +49,7 @@ exports.getJobBids = async (req, res) => {
       LEFT JOIN helper_profiles hp ON hp.user_id = b.helper_id
       WHERE b.job_id = $1
       ORDER BY b.created_at DESC`,
-      [req.params.job_id]
+      [req.params.jobId]
     );
     res.json(result.rows);
   } catch (err) {
