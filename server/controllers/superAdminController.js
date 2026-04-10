@@ -271,7 +271,7 @@ exports.getJobs = async (req, res) => {
     const params = []; let paramIdx = 1; let conditions = [];
     if (search) { conditions.push(`(j.title ILIKE $${paramIdx} OR j.description ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
     if (status) { conditions.push(`j.status = $${paramIdx++}`); params.push(status); }
-    if (category) { conditions.push(`j.category = $${paramIdx++}`); params.push(category); }
+    if (category) { conditions.push(`j.category_name = $${paramIdx++}`); params.push(category); }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT j.id, j.title, j.status, j.budget_min, j.budget_max, j.job_value, j.is_broker_mediated, j.created_at, j.bid_count, j.location_city, j.location_state, j.category_name, u_c.first_name || ' ' || u_c.last_name AS client_name, u_c.email AS client_email, u_h.first_name || ' ' || u_h.last_name AS helper_name FROM jobs j JOIN users u_c ON j.client_id = u_c.id LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id ${wc} ORDER BY j.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM jobs j ${wc}`, params);
