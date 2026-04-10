@@ -266,6 +266,7 @@ router.post('/faqs', helperOnly, generalLimiter, async (req, res) => {
     );
     res.status(201).json(faq);
   } catch (err) {
+    logger.error('[helperProfile] POST /faqs', { err: err.message });
     res.status(500).json({ error: 'Failed to add FAQ' });
   }
 });
@@ -285,6 +286,7 @@ router.put('/faqs/:id', helperOnly, generalLimiter, async (req, res) => {
     if (!f) return res.status(404).json({ error: 'Not found' });
     res.json(f);
   } catch (err) {
+    logger.error('[helperProfile] PUT /faqs/:id', { err: err.message });
     res.status(500).json({ error: 'Failed to update FAQ' });
   }
 });
@@ -324,6 +326,7 @@ router.post('/policies', helperOnly, generalLimiter, async (req, res) => {
     );
     res.status(201).json(pol);
   } catch (err) {
+    logger.error('[helperProfile] POST /policies', { err: err.message });
     res.status(500).json({ error: 'Failed to add policy' });
   }
 });
@@ -344,6 +347,7 @@ router.put('/policies/:id', helperOnly, generalLimiter, async (req, res) => {
     if (!p) return res.status(404).json({ error: 'Not found' });
     res.json(p);
   } catch (err) {
+    logger.error('[helperProfile] PUT /policies/:id', { err: err.message });
     res.status(500).json({ error: 'Failed to update policy' });
   }
 });
@@ -383,6 +387,7 @@ router.post('/gallery', helperOnly, generalLimiter, async (req, res) => {
     );
     res.status(201).json(img);
   } catch (err) {
+    logger.error('[helperProfile] POST /gallery', { err: err.message });
     res.status(500).json({ error: 'Failed to add image' });
   }
 });
