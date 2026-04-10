@@ -6,8 +6,12 @@ import {
 import RevenueChart from '../../components/RevenueChart';
 import StatCard     from '../../components/StatCard';
 import adminApi     from '../../../lib/adminApi';
+import { useAuth }  from '../../../hooks/useAuth';
 
 export default function SuperDashboard() {
+  const { user }  = useAuth();
+  const isSuper   = user?.role === 'super_admin';
+
   const [stats,   setStats]   = useState(null);
   const [mrr,     setMrr]     = useState(0);
   const [period,  setPeriod]  = useState('30d');
@@ -16,9 +20,11 @@ export default function SuperDashboard() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const { data } = await adminApi.get('/admin/super/dashboard');
+        // Super-admins get the full revenue dashboard; regular admins get the basic stats.
+        const endpoint = isSuper ? '/admin/super/dashboard' : '/admin/dashboard';
+        const { data } = await adminApi.get(endpoint);
         setStats(data.stats);
-        setMrr(data.mrr);
+        setMrr(data.mrr || 0);
       } catch (err) {
         console.error(err);
       } finally {
@@ -26,7 +32,7 @@ export default function SuperDashboard() {
       }
     };
     fetch();
-  }, []);
+  }, [isSuper]);
 
   if (loading) return <AdminLoader />;
 
