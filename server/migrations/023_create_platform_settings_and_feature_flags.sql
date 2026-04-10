@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 CREATE TABLE IF NOT EXISTS feature_flags (
   id SERIAL PRIMARY KEY,
   key VARCHAR(100) UNIQUE NOT NULL,
-  enabled BOOLEAN DEFAULT false,
+  is_enabled BOOLEAN DEFAULT false,
   description TEXT,
   updated_by UUID REFERENCES users(id),
   updated_at TIMESTAMPTZ DEFAULT NOW(),

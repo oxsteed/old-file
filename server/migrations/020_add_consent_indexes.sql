@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS user_consents (
     version       VARCHAR(20) NOT NULL,
     ip_hash       VARCHAR(64),
     user_agent    TEXT,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    accepted_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Index for fast consent status lookups (used by middleware & routes)

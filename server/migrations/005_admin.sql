@@ -61,7 +61,7 @@ ON CONFLICT (key) DO NOTHING;
 -- ── Feature flags ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS feature_flags (
   key           VARCHAR(80) PRIMARY KEY,
-  enabled       BOOLEAN     DEFAULT false,
+  is_enabled    BOOLEAN     DEFAULT false,
   description   TEXT,
   rollout_pct   INT         DEFAULT 100,  -- % of users who see this feature
   updated_by    UUID        REFERENCES users(id),
