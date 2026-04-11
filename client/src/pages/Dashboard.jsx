@@ -1548,6 +1548,88 @@ export default function Dashboard() {
               ))}
             </div>
 
+
+            {/* Quick templates */}
+            <Card>
+              <CardHeader icon={IcoCalendar} title="Quick Add"/>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  {title:'Annual Physical',     category:'Medical',       recurrence_days:365, urgency:'medium'},
+                  {title:'Dentist Checkup',     category:'Dental',        recurrence_days:180, urgency:'medium'},
+                  {title:'Eye Exam',            category:'Vision',        recurrence_days:365, urgency:'low'},
+                  {title:'Therapy Session',     category:'Mental Health', recurrence_days:7,   urgency:'medium'},
+                  {title:'Haircut',             category:'Grooming',      recurrence_days:30,  urgency:'low'},
+                  {title:'Prescription Refill', category:'Pharmacy',      recurrence_days:30,  urgency:'high'},
+                  {title:'Dermatologist',       category:'Medical',       recurrence_days:365, urgency:'low'},
+                  {title:'Gym / Workout',       category:'Fitness',       recurrence_days:3,   urgency:'low'},
+                ].map((t,i)=>(
+                  <button key={i} onClick={()=>quickAddPcTask(t)}
+                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition">
+                    {t.category==='Medical'?'🩺':t.category==='Dental'?'🦷':t.category==='Vision'?'👁️':t.category==='Mental Health'?'🧠':t.category==='Grooming'?'💇':t.category==='Pharmacy'?'💊':t.category==='Fitness'?'💪':'✨'} {t.title}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            {/* Appointment list */}
+            <Card>
+              <CardHeader icon={IcoHeart} title="My Health & Wellness" right={<Btn onClick={()=>setShowPcModal(true)}>+ Add</Btn>}/>
+              {pcLoading ? (
+                <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-14 bg-gray-800 rounded-xl animate-pulse"/>)}</div>
+              ) : personalCareTasks.length===0 ? (
+                <div className="text-center py-10">
+                  <p className="text-4xl mb-3">💆</p>
+                  <p className="text-gray-500 text-sm mb-1">No appointments tracked yet.</p>
+                  <p className="text-xs text-gray-600">Use the quick-add buttons above or add your own.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {personalCareTasks.map(t=>{
+                    const overdue=t.due_date&&t.due_date<localDateStr()&&!t.is_completed;
+                    const recLabel=t.recurrence_days===7?'weekly':t.recurrence_days===30?'monthly':t.recurrence_days===180?'every 6 mo':t.recurrence_days===365?'annually':t.recurrence_days?`every ${t.recurrence_days}d`:null;
+                    return (
+                      <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
+                        <button onClick={()=>togglePcTask(t)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                          {t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{t.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {t.description&&<span className="text-[10px] bg-gray-800/60 text-gray-400 px-1.5 py-0.5 rounded-full">{t.description}</span>}
+                            {t.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?'Overdue · ':''}{new Date(t.due_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>}
+                            {recLabel&&<span className="text-[10px] text-purple-400">↻ {recLabel}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Tag text={t.urgency} color={t.urgency==='high'?'red':t.urgency==='medium'?'orange':'gray'}/>
+                          <Link to="/post-job" className="text-[10px] text-orange-400 hover:text-orange-300 font-semibold whitespace-nowrap">Book →</Link>
+                          <button onClick={()=>deletePcTask(t.id)} className="text-gray-700 hover:text-red-400 transition"><IcoTrash size={13}/></button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+        {tab==='carcare' && (
+          <div className="space-y-5">
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                {label:'Overdue',   value:carCareTasks.filter(t=>t.due_date&&t.due_date<localDateStr()&&!t.is_completed).length, color:'text-red-400'},
+                {label:'This Week', value:carCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const end=localDateStr(new Date(Date.now()+7*864e5));return t.due_date>=localDateStr()&&t.due_date<=end;}).length, color:'text-orange-400'},
+                {label:'Total Pending',value:carCareTasks.length, color:'text-blue-400'},
+                {label:'Recurring', value:carCareTasks.filter(t=>t.recurrence_days).length, color:'text-purple-400'},
+              ].map((s,i)=>(
+                <Card key={i} className="!p-3 text-center">
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">{s.label}</p>
+                </Card>
+              ))}
+            </div>
+
             {/* My Garage */}
             <Card>
               <CardHeader icon={IcoCar} title="My Garage"
@@ -1704,88 +1786,6 @@ export default function Dashboard() {
                 </div>
               )}
             </Card>
-
-            {/* Quick templates */}
-            <Card>
-              <CardHeader icon={IcoCalendar} title="Quick Add"/>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  {title:'Annual Physical',     category:'Medical',       recurrence_days:365, urgency:'medium'},
-                  {title:'Dentist Checkup',     category:'Dental',        recurrence_days:180, urgency:'medium'},
-                  {title:'Eye Exam',            category:'Vision',        recurrence_days:365, urgency:'low'},
-                  {title:'Therapy Session',     category:'Mental Health', recurrence_days:7,   urgency:'medium'},
-                  {title:'Haircut',             category:'Grooming',      recurrence_days:30,  urgency:'low'},
-                  {title:'Prescription Refill', category:'Pharmacy',      recurrence_days:30,  urgency:'high'},
-                  {title:'Dermatologist',       category:'Medical',       recurrence_days:365, urgency:'low'},
-                  {title:'Gym / Workout',       category:'Fitness',       recurrence_days:3,   urgency:'low'},
-                ].map((t,i)=>(
-                  <button key={i} onClick={()=>quickAddPcTask(t)}
-                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition">
-                    {t.category==='Medical'?'🩺':t.category==='Dental'?'🦷':t.category==='Vision'?'👁️':t.category==='Mental Health'?'🧠':t.category==='Grooming'?'💇':t.category==='Pharmacy'?'💊':t.category==='Fitness'?'💪':'✨'} {t.title}
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            {/* Appointment list */}
-            <Card>
-              <CardHeader icon={IcoHeart} title="My Health & Wellness" right={<Btn onClick={()=>setShowPcModal(true)}>+ Add</Btn>}/>
-              {pcLoading ? (
-                <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-14 bg-gray-800 rounded-xl animate-pulse"/>)}</div>
-              ) : personalCareTasks.length===0 ? (
-                <div className="text-center py-10">
-                  <p className="text-4xl mb-3">💆</p>
-                  <p className="text-gray-500 text-sm mb-1">No appointments tracked yet.</p>
-                  <p className="text-xs text-gray-600">Use the quick-add buttons above or add your own.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {personalCareTasks.map(t=>{
-                    const overdue=t.due_date&&t.due_date<localDateStr()&&!t.is_completed;
-                    const recLabel=t.recurrence_days===7?'weekly':t.recurrence_days===30?'monthly':t.recurrence_days===180?'every 6 mo':t.recurrence_days===365?'annually':t.recurrence_days?`every ${t.recurrence_days}d`:null;
-                    return (
-                      <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                        <button onClick={()=>togglePcTask(t)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
-                          {t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{t.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            {t.description&&<span className="text-[10px] bg-gray-800/60 text-gray-400 px-1.5 py-0.5 rounded-full">{t.description}</span>}
-                            {t.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?'Overdue · ':''}{new Date(t.due_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>}
-                            {recLabel&&<span className="text-[10px] text-purple-400">↻ {recLabel}</span>}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Tag text={t.urgency} color={t.urgency==='high'?'red':t.urgency==='medium'?'orange':'gray'}/>
-                          <Link to="/post-job" className="text-[10px] text-orange-400 hover:text-orange-300 font-semibold whitespace-nowrap">Book →</Link>
-                          <button onClick={()=>deletePcTask(t.id)} className="text-gray-700 hover:text-red-400 transition"><IcoTrash size={13}/></button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-        {tab==='carcare' && (
-          <div className="space-y-5">
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                {label:'Overdue',   value:carCareTasks.filter(t=>t.due_date&&t.due_date<localDateStr()&&!t.is_completed).length, color:'text-red-400'},
-                {label:'This Week', value:carCareTasks.filter(t=>{if(!t.due_date||t.is_completed)return false;const end=localDateStr(new Date(Date.now()+7*864e5));return t.due_date>=localDateStr()&&t.due_date<=end;}).length, color:'text-orange-400'},
-                {label:'Total Pending',value:carCareTasks.length, color:'text-blue-400'},
-                {label:'Recurring', value:carCareTasks.filter(t=>t.recurrence_days).length, color:'text-purple-400'},
-              ].map((s,i)=>(
-                <Card key={i} className="!p-3 text-center">
-                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">{s.label}</p>
-                </Card>
-              ))}
-            </div>
-
             {/* Quick templates */}
             <Card>
               <CardHeader icon={IcoCalendar} title="Quick Add"/>
