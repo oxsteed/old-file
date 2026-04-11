@@ -151,7 +151,21 @@ export default function Dashboard() {
   const [carCareTasks, setCarCareTasks] = useState([]);
   const [ccLoading, setCcLoading] = useState(false);
   const [showCcModal, setShowCcModal] = useState(false);
-  const [ccForm, setCcForm] = useState({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'' });
+  const [ccForm, setCcForm] = useState({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', vehicle_id:'' });
+
+  // My Garage (NHTSA vehicle data)
+  const [garage,        setGarage]        = useState([]);
+  const [garageLoading, setGarageLoading] = useState(false);
+  const [garageFetched, setGarageFetched] = useState(false);
+  const [allMakes,      setAllMakes]      = useState([]);
+  const [makesFetched,  setMakesFetched]  = useState(false);
+  const [garageModels,  setGarageModels]  = useState([]);
+  const [garageModelsLoading, setGarageModelsLoading] = useState(false);
+  const [garageForm,    setGarageForm]    = useState({ makeSearch:'', selectedMake:null, modelSearch:'', selectedModel:null, year:'', nickname:'' });
+  const [showMakeDD,    setShowMakeDD]    = useState(false);
+  const [showModelDD,   setShowModelDD]   = useState(false);
+  const [garageAdding,  setGarageAdding]  = useState(false);
+  const [garageDeleteTarget, setGarageDeleteTarget] = useState(null);
 
   // Money tab — individual planned needs for sinking fund card
   const [moneyPlannedNeeds, setMoneyPlannedNeeds] = useState([]);
@@ -222,7 +236,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (tab === 'skills') { fetchMySkills(); fetchMyTools(); }
     if (tab === 'personalcare') fetchPersonalCareTasks();
-    if (tab === 'carcare') fetchCarCareTasks();
+    if (tab === 'carcare') { fetchCarCareTasks(); if (!garageFetched) fetchGarage(); }
     if (tab === 'money') {
       api.get('/planned-needs', { params: { status: 'planned,funding,activating_soon', limit: 10 } })
         .then(r => setMoneyPlannedNeeds(r.data?.planned_needs || []))
@@ -356,9 +370,13 @@ export default function Dashboard() {
   const addCcTask = async (e) => {
     e.preventDefault();
     try {
+      const vehiclePayload = ccForm.vehicle_id ? (() => {
+        const v = garage.find(g=>String(g.id)===String(ccForm.vehicle_id));
+        return v ? { vehicle_id: v.id, vehicle_label: v.nickname || `${v.make_name} ${v.model_name}` } : {};
+      })() : {};
       await api.post('/life/home-tasks', {
         title: ccForm.title,
-        description: [ccForm.category, ccForm.description].filter(Boolean).join(': '),
+        description: [ccForm.category, ccForm.description, vehiclePayload.vehicle_label].filter(Boolean).join(' · '),
         due_date: ccForm.due_date || null,
         urgency: ccForm.urgency,
         recurrence_days: ccForm.recurrence_days ? parseInt(ccForm.recurrence_days) : null,
@@ -370,7 +388,7 @@ export default function Dashboard() {
         recurring_end_date: ccForm.is_recurring && ccForm.recurring_end_date ? ccForm.recurring_end_date : null,
       });
       toast.success('Service added!');
-      setCcForm({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'' });
+      setCcForm({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', vehicle_id:'' });
       setShowCcModal(false);
       fetchCarCareTasks();
     } catch { toast.error('Failed to save.'); }
@@ -396,6 +414,67 @@ export default function Dashboard() {
       toast.success(`${template.title} added!`);
       fetchCarCareTasks();
     } catch { toast.error('Failed to add.'); }
+  };
+
+  // Garage handlers
+  const fetchGarage = useCallback(async () => {
+    setGarageLoading(true);
+    try {
+      const res = await api.get('/vehicles/my');
+      setGarage(res.data || []);
+      setGarageFetched(true);
+    } catch { /* silent */ }
+    finally { setGarageLoading(false); }
+  }, []);
+
+  const loadMakesForGarage = useCallback(async () => {
+    if (makesFetched) return;
+    try {
+      const res = await api.get('/vehicles/makes');
+      setAllMakes(res.data || []);
+      setMakesFetched(true);
+    } catch { /* silent */ }
+  }, [makesFetched]);
+
+  const loadModelsForGarage = useCallback(async (makeName) => {
+    if (!makeName) { setGarageModels([]); return; }
+    setGarageModelsLoading(true);
+    try {
+      const res = await api.get('/vehicles/models', { params: { make: makeName } });
+      setGarageModels(res.data || []);
+    } catch { setGarageModels([]); }
+    finally { setGarageModelsLoading(false); }
+  }, []);
+
+  const addToGarage = async () => {
+    const { selectedMake, selectedModel, year, nickname } = garageForm;
+    if (!selectedMake || !selectedModel) return;
+    setGarageAdding(true);
+    try {
+      const res = await api.post('/vehicles/my', {
+        make_id:    selectedMake.id,
+        make_name:  selectedMake.name,
+        model_id:   selectedModel.modelId,
+        model_name: selectedModel.modelName,
+        year:       year || undefined,
+        nickname:   nickname.trim() || undefined,
+      });
+      setGarage(prev => [res.data, ...prev]);
+      setGarageForm({ makeSearch:'', selectedMake:null, modelSearch:'', selectedModel:null, year:'', nickname:'' });
+      setGarageModels([]);
+      toast.success('Vehicle added!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add vehicle.');
+    } finally { setGarageAdding(false); }
+  };
+
+  const deleteFromGarage = async (id) => {
+    try {
+      await api.delete(`/vehicles/my/${id}`);
+      setGarage(prev => prev.filter(v => v.id !== id));
+      setGarageDeleteTarget(null);
+      toast.success('Removed.');
+    } catch { toast.error('Failed to remove.'); }
   };
 
   // Form state
@@ -1266,6 +1345,109 @@ export default function Dashboard() {
               ))}
             </div>
 
+            {/* My Garage */}
+            <Card>
+              <CardHeader icon={IcoCar} title="My Garage"
+                right={<span className="text-[10px] text-gray-600">NHTSA · free gov data</span>}/>
+
+              {/* Inline add form */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {/* Make picker */}
+                <div className="relative flex-1 min-w-[140px]">
+                  <input
+                    type="text"
+                    placeholder="Make (e.g. Toyota)"
+                    value={garageForm.makeSearch}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+                    onFocus={() => { loadMakesForGarage(); setShowMakeDD(true); }}
+                    onChange={e => { setGarageForm(p=>({...p, makeSearch:e.target.value, selectedMake:null})); setShowMakeDD(true); }}
+                    onBlur={() => setTimeout(()=>setShowMakeDD(false), 150)}
+                    autoComplete="off"
+                  />
+                  {showMakeDD && allMakes.filter(m=>!garageForm.makeSearch||m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).slice(0,60).length > 0 && (
+                    <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg max-h-48 overflow-y-auto shadow-xl text-sm">
+                      {allMakes.filter(m=>!garageForm.makeSearch||m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).slice(0,60).map(m=>(
+                        <li key={m.id} onMouseDown={()=>{ setGarageForm(p=>({...p,makeSearch:m.name,selectedMake:m,modelSearch:'',selectedModel:null})); setShowMakeDD(false); loadModelsForGarage(m.name); }}
+                          className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 truncate">{m.name}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Model picker */}
+                <div className="relative flex-1 min-w-[140px]">
+                  <input
+                    type="text"
+                    placeholder={!garageForm.selectedMake ? 'Select make first' : garageModelsLoading ? 'Loading…' : 'Model'}
+                    value={garageForm.modelSearch}
+                    disabled={!garageForm.selectedMake || garageModelsLoading}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition disabled:opacity-50"
+                    onFocus={() => garageForm.selectedMake && setShowModelDD(true)}
+                    onChange={e => { setGarageForm(p=>({...p, modelSearch:e.target.value, selectedModel:null})); setShowModelDD(true); }}
+                    onBlur={() => setTimeout(()=>setShowModelDD(false), 150)}
+                    autoComplete="off"
+                  />
+                  {showModelDD && garageModels.filter(m=>!garageForm.modelSearch||m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).length > 0 && (
+                    <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg max-h-48 overflow-y-auto shadow-xl text-sm">
+                      {garageModels.filter(m=>!garageForm.modelSearch||m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).map(m=>(
+                        <li key={m.modelId} onMouseDown={()=>{ setGarageForm(p=>({...p,modelSearch:m.modelName,selectedModel:m})); setShowModelDD(false); }}
+                          className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 truncate">{m.modelName}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Year */}
+                <select value={garageForm.year} onChange={e=>setGarageForm(p=>({...p,year:e.target.value}))}
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition w-24">
+                  <option value="">Year</option>
+                  {Array.from({length: new Date().getFullYear()-1885},(_,i)=>new Date().getFullYear()-i).map(y=><option key={y} value={y}>{y}</option>)}
+                </select>
+
+                {/* Nickname */}
+                <input type="text" placeholder='Nickname (optional)' value={garageForm.nickname} maxLength={80}
+                  onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition flex-1 min-w-[120px]"/>
+
+                <button onClick={addToGarage} disabled={garageAdding||!garageForm.selectedMake||!garageForm.selectedModel}
+                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                  {garageAdding ? 'Adding…' : '+ Add'}
+                </button>
+              </div>
+
+              {/* Saved vehicles */}
+              {garageLoading ? (
+                <div className="space-y-2">{[1,2].map(i=><div key={i} className="h-10 bg-gray-800 rounded-xl animate-pulse"/>)}</div>
+              ) : garage.length === 0 ? (
+                <p className="text-xs text-gray-600 text-center py-3">No vehicles saved yet — add one above.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {garage.map(v=>(
+                    <div key={v.id} className="flex items-center gap-2 bg-gray-800/70 border border-gray-700 rounded-xl px-3 py-2">
+                      <IcoCar size={13} cls="text-orange-400"/>
+                      <div className="leading-tight">
+                        <span className="text-sm text-white font-medium">{v.nickname || `${v.make_name} ${v.model_name}`}</span>
+                        {v.nickname && <span className="text-[10px] text-gray-500 ml-1.5">{v.make_name} {v.model_name}</span>}
+                        {v.year && <span className="text-[10px] text-orange-400 ml-1.5">{v.year}</span>}
+                      </div>
+                      <button onClick={()=>setGarageDeleteTarget(v)} className="text-gray-700 hover:text-red-400 transition ml-1"><IcoX size={12}/></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Delete confirm inline */}
+              {garageDeleteTarget && (
+                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
+                  <p className="text-sm text-red-300">Remove <strong>{garageDeleteTarget.nickname||`${garageDeleteTarget.make_name} ${garageDeleteTarget.model_name}`}</strong>?</p>
+                  <div className="flex gap-2">
+                    <button onClick={()=>setGarageDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">Cancel</button>
+                    <button onClick={()=>deleteFromGarage(garageDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">Remove</button>
+                  </div>
+                </div>
+              )}
+            </Card>
+
             {/* Quick templates */}
             <Card>
               <CardHeader icon={IcoCalendar} title="Quick Add"/>
@@ -1566,6 +1748,19 @@ export default function Dashboard() {
       {/* ── Car Care Task Modal ── */}
       <Modal open={showCcModal} onClose={()=>setShowCcModal(false)} title="Add Car Service">
         <form onSubmit={addCcTask} className="space-y-4">
+          {/* Link to a vehicle */}
+          {garage.length > 0 && (
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Vehicle (optional)</label>
+              <select value={ccForm.vehicle_id} onChange={e=>setCcForm(p=>({...p,vehicle_id:e.target.value}))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition">
+                <option value="">All vehicles / unspecified</option>
+                {garage.map(v=>(
+                  <option key={v.id} value={v.id}>{v.nickname || `${v.make_name} ${v.model_name}`}{v.year ? ` (${v.year})` : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <Input label="Service Name" required placeholder="e.g. Oil Change" value={ccForm.title} onChange={e=>setCcForm(p=>({...p,title:e.target.value}))}/>
           <Select label="Category" value={ccForm.category} onChange={e=>setCcForm(p=>({...p,category:e.target.value}))}>
             <option>Oil Change</option><option>Tires</option><option>Brakes</option><option>Inspection</option><option>Registration</option><option>Detailing</option><option>Battery</option><option>Fluids</option><option>AC / Heating</option><option>Other</option>
