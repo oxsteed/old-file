@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { twoFactorAPI } from '../../api/twoFactor';
 import toast from 'react-hot-toast';
 import { Shield, ShieldCheck, ShieldOff, ArrowLeft, Copy, RefreshCw } from 'lucide-react';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
 
 export default function TwoFactorSetup() {
   const [status, setStatus] = useState(null);
@@ -83,16 +85,22 @@ export default function TwoFactorSetup() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <div className="animate-spin h-8 w-8 border-2 border-orange-500 border-t-transparent rounded-full" />
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <Navbar />
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-orange-500 border-t-transparent rounded-full" />
+      </div>
+      <Footer />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 py-12 px-4">
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+      <Navbar />
+      <main className="flex-1 py-10 px-4">
       <div className="max-w-lg mx-auto">
-        <Link to="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition">
-          <ArrowLeft size={18} /> Back to Dashboard
+        <Link to="/settings" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition text-sm">
+          <ArrowLeft size={16} /> Back to Settings
         </Link>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
@@ -219,6 +227,8 @@ export default function TwoFactorSetup() {
           )}
         </div>
       </div>
+      </main>
+      <Footer />
     </div>
   );
 }
