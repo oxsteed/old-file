@@ -167,7 +167,7 @@ async function scoreAndMatch(job) {
   // Guard: cap array size before building dynamic SQL to prevent PG parameter
   // limit overflow (65535 max; each row uses 4 params). TOP_N_STORED=50 is
   // safely within bounds but this guard protects if TOP_N_STORED is raised (M-48).
-  const safeTop = top.slice(0, Math.min(top.length, 500));
+  const safeTop = top.slice(0, 500);
 
   const insertValues = safeTop.map((m, i) => {
     const base = i * 4;
