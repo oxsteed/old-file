@@ -26,6 +26,7 @@ import JobsList        from './pages/JobsList';
 import JobDetail       from './pages/JobDetail';
 import Moderation      from './pages/Moderation';
 import SkillsManager   from './pages/SkillsManager';
+import LicensesManager from './pages/LicensesManager';
 import ContentRemovals from './pages/ContentRemovals';
 import SupportTickets  from './pages/SupportTickets';
 import AdminSearch     from './pages/AdminSearch';
@@ -79,6 +80,7 @@ export default function AdminApp() {
           <Route path="disputes/:disputeId" element={<DisputeResolve />} />
           <Route path="markets"             element={<MarketZipCodes />} />
           <Route path="skills"              element={<SkillsManager />} />
+          <Route path="licenses"            element={<LicensesManager />} />
           <Route path="content-removals"    element={<ContentRemovals />} />
           <Route path="support"             element={<SupportTickets />} />
           <Route path="search"              element={<AdminSearch />} />

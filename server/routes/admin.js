@@ -237,4 +237,116 @@ router.delete('/skills-lookup/:id', requireAdmin, async (req, res) => {
   }
 });
 
+
+// ─── Licenses Lookup CRUD ─────────────────────────────────────────────────
+// Mirrors the skills-lookup block exactly for licenses_lookup table.
+
+// GET /api/admin/licenses-lookup?q=&category=&limit=50&offset=0
+router.get('/licenses-lookup', requireAdmin, async (req, res) => {
+  try {
+    const { q = '', category = '', limit = 50, offset = 0 } = req.query;
+    const limitN  = Math.min(Math.max(1, parseInt(limit)  || 50), 200);
+    const offsetN = Math.max(0, parseInt(offset) || 0);
+    const result = await pool.query(
+      `SELECT id, name, category, is_active
+         FROM licenses_lookup
+        WHERE ($1 = '' OR name ILIKE $2)
+          AND ($3 = '' OR category = $3)
+        ORDER BY name
+        LIMIT $4 OFFSET $5`,
+      [q, `%${q}%`, category, limitN, offsetN]
+    );
+    const count = await pool.query(
+      `SELECT COUNT(*) FROM licenses_lookup
+        WHERE ($1 = '' OR name ILIKE $2)
+          AND ($3 = '' OR category = $3)`,
+      [q, `%${q}%`, category]
+    );
+    res.json({ licenses: result.rows, total: parseInt(count.rows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch licenses' });
+  }
+});
+
+// GET /api/admin/licenses-lookup/categories
+router.get('/licenses-lookup/categories', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT category FROM licenses_lookup
+        WHERE category IS NOT NULL
+        ORDER BY category`
+    );
+    res.json({ categories: rows.map(r => r.category) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch license categories' });
+  }
+});
+
+// POST /api/admin/licenses-lookup
+router.post('/licenses-lookup', requireAdmin, async (req, res) => {
+  try {
+    const { name, category, is_active = true } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
+    let result;
+    try {
+      result = await pool.query(
+        `INSERT INTO licenses_lookup (name, category, is_active)
+         VALUES ($1, $2, $3) RETURNING *`,
+        [name.trim(), category?.trim() || null, is_active]
+      );
+    } catch (e) {
+      if (e.code === '23505') return res.status(409).json({ error: 'License name already exists' });
+      throw e;
+    }
+    res.status(201).json({ license: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create license' });
+  }
+});
+
+// PUT /api/admin/licenses-lookup/:id
+router.put('/licenses-lookup/:id', requireAdmin, async (req, res) => {
+  try {
+    const { name, category, is_active } = req.body;
+    const result = await pool.query(
+      `UPDATE licenses_lookup
+          SET name      = COALESCE($1, name),
+              category  = COALESCE($2, category),
+              is_active = COALESCE($3, is_active)
+        WHERE id = $4
+        RETURNING *`,
+      [name?.trim() || null, category?.trim() || null, is_active ?? null, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'License not found' });
+    res.json({ license: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update license' });
+  }
+});
+
+// DELETE /api/admin/licenses-lookup/:id  — soft delete (sets is_active=false)
+// ?hard=true is a permanent hard delete — super-admin only
+router.delete('/licenses-lookup/:id', requireAdmin, async (req, res) => {
+  try {
+    const { hard } = req.query;
+    let result;
+    if (hard === 'true') {
+      if (!req.isSuper) {
+        return res.status(403).json({ error: 'Hard delete requires super-admin access.' });
+      }
+      result = await pool.query(
+        `DELETE FROM licenses_lookup WHERE id = $1 RETURNING id`, [req.params.id]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE licenses_lookup SET is_active = false WHERE id = $1 RETURNING id`, [req.params.id]
+      );
+    }
+    if (!result.rows.length) return res.status(404).json({ error: 'License not found' });
+    res.json({ deleted: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete license' });
+  }
+});
+
 module.exports = router;
