@@ -1,166 +1,195 @@
-import { useEffect, useState } from 'react';
-import api                     from '../../api/axios';
+import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Bell } from 'lucide-react';
+import api from '../../api/axios';
+import toast from 'react-hot-toast';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
 
 const PREF_GROUPS = [
   {
+    key: 'in_app',
     label: 'In-App Notifications',
-    prefix: 'in_app',
+    description: 'Shown inside the app in your notification center.',
     prefs: [
-      { key: 'new_bid',          label: 'New bid on my job'       },
-      { key: 'bid_accepted',     label: 'My bid was accepted'     },
-      { key: 'job_started',      label: 'Job started'             },
-      { key: 'job_completed',    label: 'Job completed'           },
-      { key: 'payment_released', label: 'Payment released'        },
-      { key: 'new_review',       label: 'New review received'     },
-      { key: 'dispute_update',   label: 'Dispute updates'         },
-      { key: 'subscription',     label: 'Subscription updates'    },
-    ]
+      { key: 'in_app_new_bid',          label: 'New bid on my job'        },
+      { key: 'in_app_bid_accepted',     label: 'My bid was accepted'      },
+      { key: 'in_app_job_started',      label: 'Job started'              },
+      { key: 'in_app_job_completed',    label: 'Job completed'            },
+      { key: 'in_app_payment_released', label: 'Payment released'         },
+      { key: 'in_app_new_review',       label: 'New review received'      },
+      { key: 'in_app_dispute_update',   label: 'Dispute updates'          },
+      { key: 'in_app_subscription',     label: 'Subscription updates'     },
+    ],
   },
   {
+    key: 'push',
     label: 'Push Notifications',
-    prefix: 'push',
+    description: 'Alerts sent directly to your device.',
     prefs: [
-      { key: 'new_job_nearby',   label: 'New jobs near me'        },
-      { key: 'new_bid',          label: 'New bid on my job'       },
-      { key: 'bid_accepted',     label: 'My bid was accepted'     },
-      { key: 'payment_released', label: 'Payment released'        },
-      { key: 'dispute_update',   label: 'Dispute updates'         },
-    ]
+      { key: 'push_new_job_nearby',   label: 'New jobs near me'         },
+      { key: 'push_new_bid',          label: 'New bid on my job'        },
+      { key: 'push_bid_accepted',     label: 'My bid was accepted'      },
+      { key: 'push_payment_released', label: 'Payment released'         },
+      { key: 'push_dispute_update',   label: 'Dispute updates'          },
+    ],
   },
   {
+    key: 'email',
     label: 'Email Notifications',
-    prefix: 'email',
+    description: 'Messages sent to your registered email address.',
     prefs: [
-      { key: 'bid_accepted',     label: 'Bid accepted'            },
-      { key: 'payment_released', label: 'Payment released'        },
-      { key: 'subscription',     label: 'Subscription events'     },
-      { key: 'dispute_update',   label: 'Dispute updates'         },
-      { key: 'weekly_summary',   label: 'Weekly activity summary' },
-    ]
-  }
+      { key: 'email_bid_accepted',      label: 'Bid accepted'             },
+      { key: 'email_payment_released',  label: 'Payment released'         },
+      { key: 'email_subscription',      label: 'Subscription events'      },
+      { key: 'email_dispute_update',    label: 'Dispute updates'          },
+      { key: 'email_weekly_summary',    label: 'Weekly activity summary'  },
+    ],
+  },
 ];
 
+function Toggle({ checked, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-950 disabled:opacity-40 disabled:cursor-not-allowed ${
+        checked ? 'bg-orange-500' : 'bg-gray-700'
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition duration-200 ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
 export default function NotificationSettings() {
-  const [prefs,   setPrefs]   = useState({});
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
+  const [prefs,   setPrefs]   = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const { data } = await api.get('/notifications/preferences');
-        setPrefs(data.preferences);
-      } catch (err) {
-        console.error(err);
-      } finally {
+    api.get('/notifications/preferences')
+      .then(r => {
+        setPrefs(r.data?.preferences || {});
         setLoading(false);
-      }
-    };
-    fetch();
+      })
+      .catch(() => {
+        toast.error('Failed to load notification preferences');
+        setLoading(false);
+      });
   }, []);
 
-  const toggle = (key) => {
-    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
-    setSaved(false);
-  };
-
-  const savePrefs = async () => {
+  const handleToggle = useCallback(async (key, value) => {
+    setPrefs(prev => ({ ...prev, [key]: value }));
     setSaving(true);
     try {
-      // Only send boolean pref keys
-      const filtered = Object.fromEntries(
-        Object.entries(prefs).filter(([k]) =>
-          k.startsWith('in_app_') ||
-          k.startsWith('push_')   ||
-          k.startsWith('email_')
-        )
-      );
-      await api.put('/notifications/preferences', filtered);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      console.error(err);
+      await api.put('/notifications/preferences', { [key]: value });
+      toast.success('Preference saved');
+    } catch {
+      setPrefs(prev => ({ ...prev, [key]: !value }));
+      toast.error('Failed to save preference');
     } finally {
       setSaving(false);
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-8 text-center text-gray-400">Loading...</div>
-    );
-  }
+  }, []);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Notification Settings
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Choose how and when you receive notifications.
-          </p>
-        </div>
-        <button
-          onClick={savePrefs}
-          disabled={saving}
-          className={`px-5 py-2.5 rounded-xl text-sm font-semibold
-                      transition ${
-            saved
-              ? 'bg-green-500 text-white'
-              : 'bg-orange-500 text-white hover:bg-orange-600'
-          } disabled:opacity-50`}
-        >
-          {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Changes'}
-        </button>
-      </div>
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+      <Navbar />
 
-      <div className="space-y-6">
-        {PREF_GROUPS.map(group => (
-          <div key={group.label}
-               className="bg-white border border-gray-200 rounded-2xl p-6">
-            <h2 className="font-semibold text-gray-800 mb-4">
-              {group.label}
-            </h2>
-            <div className="space-y-4">
-              {group.prefs.map(pref => {
-                const fullKey = `${group.prefix}_${pref.key}`;
-                const enabled = prefs[fullKey] !== false;
-                return (
-                  <div key={fullKey}
-                       className="flex items-center justify-between gap-4">
-                    <label
-                      htmlFor={fullKey}
-                      className="text-sm text-gray-700 cursor-pointer"
-                    >
-                      {pref.label}
-                    </label>
-                    <button
-                      id={fullKey}
-                      type="button"
-                      onClick={() => toggle(fullKey)}
-                      className={`relative inline-flex h-6 w-11 shrink-0
-                                  rounded-full transition-colors duration-200
-                                  focus:outline-none ${
-                        enabled ? 'bg-orange-500' : 'bg-gray-200'
-                      }`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform
-                                        rounded-full bg-white shadow
-                                        transition-transform duration-200
-                                        mt-0.5 ${
-                        enabled ? 'translate-x-5' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  </div>
-                );
-              })}
+      <main className="flex-1">
+        <div className="max-w-2xl mx-auto px-4 py-10">
+
+          {/* Back link */}
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition text-sm"
+          >
+            <ArrowLeft size={16} />
+            Back to Settings
+          </Link>
+
+          {/* Page header */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
+              <Bell size={20} className="text-orange-400" />
             </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Notification Settings</h1>
+              <p className="text-sm text-gray-400 mt-0.5">
+                Choose how and when you receive notifications.
+              </p>
+            </div>
+            {saving && (
+              <span className="ml-auto flex items-center gap-1.5 text-xs text-orange-400">
+                <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Saving...
+              </span>
+            )}
           </div>
-        ))}
-      </div>
+
+          {/* Content */}
+          {loading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="animate-spin h-8 w-8 border-2 border-orange-500 border-t-transparent rounded-full" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {PREF_GROUPS.map((group) => (
+                <div
+                  key={group.key}
+                  className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden"
+                >
+                  {/* Group header */}
+                  <div className="px-6 py-4 border-b border-gray-800">
+                    <h2 className="text-base font-semibold text-white">{group.label}</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">{group.description}</p>
+                  </div>
+
+                  {/* Pref rows */}
+                  <div>
+                    {group.prefs.map((pref, idx) => {
+                      const enabled = prefs?.[pref.key] ?? true;
+                      return (
+                        <div
+                          key={pref.key}
+                          className={`flex items-center justify-between px-6 py-3.5 hover:bg-gray-800/40 transition-colors ${
+                            idx !== group.prefs.length - 1 ? 'border-b border-gray-800/60' : ''
+                          }`}
+                        >
+                          <label
+                            htmlFor={pref.key}
+                            className="text-sm text-gray-200 cursor-pointer select-none"
+                          >
+                            {pref.label}
+                          </label>
+                          <Toggle
+                            checked={enabled}
+                            onChange={(val) => handleToggle(pref.key, val)}
+                            disabled={saving}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }
