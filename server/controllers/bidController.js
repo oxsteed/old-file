@@ -1,4 +1,5 @@
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 // Create a bid on a job
 exports.createBid = async (req, res) => {
@@ -24,7 +25,7 @@ exports.createBid = async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Create bid error:', err);
+    logger.error('Create bid error', { err });
     res.status(500).json({ error: 'Failed to create bid' });
   }
 };
@@ -40,24 +41,35 @@ exports.getJobBids = async (req, res) => {
     const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
     const isClient = jobCheck.rows[0].client_id === req.user.id;
 
+    // Pagination — cap at 100 to prevent DoS on jobs with many bids
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit)  || 50));
+    const offset = Math.max(0,              parseInt(req.query.offset) || 0);
+
     // Admins and the job client see all bids.
     // Helpers see only their own bid (so the UI can compute hasAlreadyBid).
     const helperFilter = (!isAdmin && !isClient) ? 'AND b.helper_id = $2' : '';
-    const params = helperFilter ? [req.params.jobId, req.user.id] : [req.params.jobId];
+    const baseParams = helperFilter ? [req.params.jobId, req.user.id] : [req.params.jobId];
+    const paginationParams = [...baseParams, limit, offset];
+    const limitIdx  = baseParams.length + 1;
+    const offsetIdx = baseParams.length + 2;
 
     const result = await pool.query(
-      `SELECT b.*, u.first_name as helper_name, hp.profile_photo_url as helper_avatar, hp.avg_rating as helper_rating,
-        (SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = b.helper_id AND status = 'completed') as jobs_completed
+      `SELECT b.id, b.job_id, b.helper_id, b.amount, b.message, b.status,
+              b.eta_hours, b.created_at, b.updated_at,
+              u.first_name as helper_name, hp.profile_photo_url as helper_avatar,
+              hp.avg_rating as helper_rating,
+              (SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = b.helper_id AND status = 'completed') as jobs_completed
       FROM bids b
       JOIN users u ON b.helper_id = u.id
       LEFT JOIN helper_profiles hp ON hp.user_id = b.helper_id
       WHERE b.job_id = $1 ${helperFilter}
-      ORDER BY b.created_at DESC`,
-      params
+      ORDER BY b.created_at DESC
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      paginationParams
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Get job bids error:', err);
+    logger.error('Get job bids error', { err });
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -74,7 +86,7 @@ exports.getMyBids = async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
-    console.error('Get my bids error:', err);
+    logger.error('Get my bids error', { err });
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -94,7 +106,7 @@ exports.updateBid = async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Update bid error:', err);
+    logger.error('Update bid error', { err });
     res.status(500).json({ error: 'Failed to update bid' });
   }
 };
@@ -113,7 +125,7 @@ exports.withdrawBid = async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Withdraw bid error:', err);
+    logger.error('Withdraw bid error', { err });
     res.status(500).json({ error: 'Failed to withdraw bid' });
   }
 };
@@ -136,7 +148,7 @@ exports.getRecentBids = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Get recent bids error:', err);
+    logger.error('Get recent bids error', { err });
     res.status(500).json({ error: 'Failed to fetch recent bids' });
   }
 };

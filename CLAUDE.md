@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-10 (security audit — PR #74 merged)
+**Last updated:** 2026-04-11 (security audit batch 4 — all mediums closed)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -526,15 +526,53 @@ We continued the security audit remediation from `security.md` focusing on Encry
 - **H-38**: Hashed refresh tokens prior to storing/querying across all JWT handling operations inside the `sessions` Postgres table.
 - **H-39/H-40**: Standardized `hashIP` and strictly enforced its usage across `adminSearchLog`, `two_factor_audit_log`, `w9_records` inserts, and terms acceptance fields.
 
-### Highest-priority remaining findings (pick up here)
+### What was done in this session (Batch 4 Security Fixes — 2026-04-11)
 
-These are the next items to tackle in `security.md`, in order:
+**All CRITICAL and HIGH items are fixed. All MEDIUM items are now either fixed or intentionally deferred.**
 
-1. **H-41/H-42**: Investigate failed downstream migrations (e.g. `plans.tier` initialization) and structural database anomalies.
-2. **M-01/M-02/M-03/M-05** — Add auth/rate-limiting/raw-body checks to pending endpoints as listed in the tracker.
-3. Medium severity vulnerabilities around File Upload parsing (`M-23`, `M-24`).
+**Verified already fixed (marked ✅ in security.md):**
+- **M-03**: `GET /privacy/data-categories` already uses `strictLimiter`.
+- **M-05**: Didit webhook already handled with `express.raw()` directly in `index.js`.
+- **M-16**: `superAdminController.getUsers` already uses `baseConditions` array.
+- **M-17**: Didit webhook verifies HMAC on raw `req.body` Buffer.
+- **L-41**: `authService.verifyToken` already has `{ algorithms: ['HS256'] }`.
+- **L-45**: Dockerfile already uses `npm ci` for both client and server.
 
-The full list with file paths, descriptions, and fix guidance is in `security.md`. After fixing any item, mark it ✅ there and update the summary table.
+**Deferred with explanation (marked ⏭):**
+- **M-01/M-02**: Intentionally public endpoints (marketplace feed, homepage widget) — protected by `generalLimiter`, safe fields only.
+- **M-09**: Inline query validation in `getJobs` is sufficient (parameterized SQL, allowlisted sort/status).
+- **M-35**: `trust proxy = 1` already correctly configured for Render.
+- **M-46**: authService refactor is architectural, not a security regression.
+- **M-49**: Pool max=10 is intentional VM sizing.
+- **M-53/M-54/M-55**: EIN encryption, TIN naming, RLS — require infrastructure work.
+- **M-57–M-62**: Schema divergences — require DB inspection before migration.
+
+**New fixes applied:**
+- **M-25**: `geoController.js` — replaced `console.error` with `logger`; no longer logs Google Maps `error_message` (may contain key hints).
+- **M-26**: `bidController.getJobBids` — added `LIMIT`/`OFFSET` pagination, capped at 100.
+- **M-31**: `bidController.js` — all `console.error` → `logger.error`.
+- **M-32**: `chatController.profileChatMessage` — query now JOINs `helper_profiles` and gates on helper role; prevents conversations with non-helpers.
+- **M-37**: `utils/encryption.getKey()` — validates AES key is exactly 32 bytes with actionable error.
+- **M-42/M-43/M-44**: `userModel.findById`/`findByUsername` now use explicit safe column lists. `findByEmailSafe` added for non-auth callers.
+- **M-45**: `paymentModel.findByUserId` — explicit column list, excludes internal fee fields.
+- **M-47**: `feeService.js` — staleness guard: warns via logger if cache >24h old; reload failures don't reset timestamp.
+- **M-48**: `matchService.js` — `safeTop = top.slice(0, 500)` guard before dynamic SQL; removed dead `values`/`params` variables.
+- **M-50**: `weeklySummary.js` — uses `ROLES` constants; removed invalid `'both'` role.
+- **M-51**: `plannedNeedsScheduler.js` — `AND pn.published_job_id IS NULL` dedup guard on auto-publish query.
+- **M-52**: `notificationService.sendBulkNotification` — failed userIds logged via `logger.error`.
+- **M-56/M-59**: Migration `055_security_schema_fixes.sql` — indexes on OTP/session expiry columns; NOT NULL guard on `admin_audit_log.admin_id`.
+- **L-37/L-38**: `jobModel.getPublicFeed` — `limit` capped at 100; `radiusMiles` capped at 100.
+- **L-39**: `fuzzCoords` in `jobController.js` and `jobModel.js` — replaced `Math.random()` with `crypto.randomInt()`.
+- **L-40**: `utils/encryption.hashIP()` — strips `::ffff:` IPv6-mapped IPv4 prefix before hashing.
+- **I-09**: `helperRegistrationController.verifyOTP` — `crypto.timingSafeEqual` for OTP hash comparison.
+- **I-15**: `feeCalculator.js` — documented dead cache exports as legacy stubs.
+- **I-17**: `matchService.js` — `parseFloat()` added to WKT string coordinates.
+- **I-18**: Invalid `'both'` role removed from `weeklySummary.js`.
+
+### Remaining items in security.md
+
+Only LOW and INFO findings remain, most deferred. No HIGH or CRITICAL items are open.
+The full list with file paths is in `security.md`. After fixing any item, mark it ✅ there and update the summary table.
 
 ---
 

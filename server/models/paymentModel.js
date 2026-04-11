@@ -24,9 +24,15 @@ const PaymentModel = {
     return result.rows;
   },
 
+  // Returns only user-facing payment fields — excludes internal fee breakdowns
+  // and raw Stripe IDs that should not be surfaced to clients (M-45)
   async findByUserId(userId) {
     const result = await db.query(
-      'SELECT * FROM payments WHERE payer_id = $1 OR payee_id = $1 ORDER BY created_at DESC',
+      `SELECT id, job_id, payer_id, payee_id, amount, status,
+              helper_payout, created_at, updated_at
+       FROM payments
+       WHERE payer_id = $1 OR payee_id = $1
+       ORDER BY created_at DESC`,
       [userId]
     );
     return result.rows;

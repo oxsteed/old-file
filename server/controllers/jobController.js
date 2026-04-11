@@ -2,17 +2,7 @@ const pool = require('../db');
 const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
-
-// ── Privacy: fuzz coordinates by +/- 2 miles for public feed ─────────────────
-const FUZZ_MILES   = 2;
-const MILES_TO_DEG = 1 / 69.0;
-function fuzzCoords(lat, lng) {
-  if (!lat || !lng) return { lat: null, lng: null };
-  return {
-    lat: parseFloat((parseFloat(lat) + (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG).toFixed(6)),
-    lng: parseFloat((parseFloat(lng) + (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG).toFixed(6)),
-  };
-}
+const { fuzzCoords } = require('../models/jobModel');
 
 // Create a new job (wizard publish)
 exports.createJob = async (req, res) => {

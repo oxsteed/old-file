@@ -49,6 +49,7 @@ const startPlannedNeedsScheduler = () => {
         LEFT JOIN users ph ON ph.id = pn.preferred_helper_id
         WHERE pn.status IN ('planned', 'funding', 'activating_soon')
           AND (pn.due_date - pn.lead_time_days) <= CURRENT_DATE
+          AND pn.published_job_id IS NULL
       `);
       console.log(`[Cron] ${toPublish.length} need(s) ready to auto-publish`);
 

@@ -233,13 +233,26 @@ function buildEmailTemplate({ firstName, title, body, action_url, buttonText, is
 }
 
 // ─── BULK NOTIFICATION (e.g. platform announcements) ──────────
+const logger = require('../utils/logger');
 exports.sendBulkNotification = async ({ userIds, type, title, body, data = {} }) => {
   const results = await Promise.allSettled(
     userIds.map(userId =>
       exports.sendNotification({ userId, type, title, body, data })
     )
   );
-  const failed = results.filter(r => r.status === 'rejected').length;
-  console.log(`[Notification] Bulk sent: ${userIds.length - failed} ok, ${failed} failed`);
-  return { sent: userIds.length - failed, failed };
+  const failedIds = results
+    .map((r, i) => r.status === 'rejected' ? userIds[i] : null)
+    .filter(Boolean);
+
+  if (failedIds.length > 0) {
+    logger.error('[Notification] Bulk send partial failure', {
+      type,
+      total: userIds.length,
+      failed: failedIds.length,
+      failedUserIds: failedIds,
+    });
+  } else {
+    logger.info('[Notification] Bulk send complete', { type, sent: userIds.length });
+  }
+  return { sent: userIds.length - failedIds.length, failed: failedIds.length };
 };

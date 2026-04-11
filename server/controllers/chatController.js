@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { ROLES } = require('../constants/roles');
 
 // Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env
 const OLLAMA_URL = (() => {
@@ -195,14 +196,20 @@ exports.profileChatMessage = async (req, res) => {
       return res.status(400).json({ error: 'messages array is required' });
     }
 
-    // Fetch helper row
+    // Fetch helper row — only return data for actual helper accounts to prevent
+    // conversations being created with admin or customer accounts (M-32)
     const helperRes = await pool.query(
-      `SELECT id, first_name, last_name, profile_headline, bio_long, bio_short,
-              service_city, service_state, service_radius_miles,
-              is_identity_verified, is_background_checked,
-              avg_rating, completed_jobs_count
-         FROM users WHERE id = $1`,
-      [helperId]
+      `SELECT u.id, u.first_name, u.last_name,
+              hp.profile_headline, hp.bio_long, hp.bio_short,
+              hp.service_city, hp.service_state, hp.service_radius_miles,
+              hp.is_identity_verified, hp.is_background_checked,
+              hp.avg_rating, hp.completed_jobs_count
+         FROM users u
+         JOIN helper_profiles hp ON hp.user_id = u.id
+         WHERE u.id = $1
+           AND u.role IN ($2, $3, $4)
+           AND u.deleted_at IS NULL`,
+      [helperId, ROLES.HELPER_FREE, ROLES.HELPER_PRO, ROLES.HELPER_BROKER]
     );
     if (!helperRes.rows.length) return res.status(404).json({ error: 'Helper not found' });
     const helper = helperRes.rows[0];

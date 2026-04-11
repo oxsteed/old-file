@@ -18,7 +18,15 @@ if (!process.env.ENCRYPTION_KEY) {
 function getKey() {
   const secret = process.env.ENCRYPTION_KEY;
   if (!secret) throw new Error('ENCRYPTION_KEY env variable is required');
-  return Buffer.from(secret, 'hex');
+  const key = Buffer.from(secret, 'hex');
+  // AES-256 requires exactly 32 bytes (64 hex chars)
+  if (key.length !== KEY_LENGTH) {
+    throw new Error(
+      `ENCRYPTION_KEY must be ${KEY_LENGTH * 2} hex characters (${KEY_LENGTH} bytes). ` +
+      `Got ${key.length} bytes. Generate with: openssl rand -hex ${KEY_LENGTH}`
+    );
+  }
+  return key;
 }
 
 function encrypt(plaintext) {
@@ -57,7 +65,9 @@ function maskTIN(tin) {
 
 function hashIP(ipStr) {
   if (!ipStr) return null;
-  return crypto.createHash('sha256').update(ipStr).digest('hex');
+  // Normalize IPv6-mapped IPv4 addresses (::ffff:1.2.3.4 → 1.2.3.4) for consistent hashing
+  const normalized = ipStr.replace(/^::ffff:/i, '');
+  return crypto.createHash('sha256').update(normalized).digest('hex');
 }
 
 module.exports = { encrypt, decrypt, hashTIN, maskTIN, hashIP };
