@@ -16,6 +16,23 @@ const logger  = require('../utils/logger');
 
 const VALID_CATEGORIES = ['food', 'supply', 'gear', 'other'];
 
+// GET /api/helper-products/me  — own full list (must be before /:helperId)
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, helper_id, name, description, price_cents, category, image_url, is_available, created_at, updated_at
+         FROM helper_products
+        WHERE helper_id = $1
+        ORDER BY category, name`,
+      [req.user.id]
+    );
+    res.json({ products: rows });
+  } catch (err) {
+    logger.error('[helperProducts] GET /me error', { err: err.message });
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
 // GET /api/helper-products/:helperId  — public
 router.get('/:helperId', async (req, res) => {
   try {
@@ -29,23 +46,6 @@ router.get('/:helperId', async (req, res) => {
     res.json({ products: rows });
   } catch (err) {
     logger.error('[helperProducts] GET /:helperId error', { err: err.message });
-    res.status(500).json({ error: 'Failed to fetch products' });
-  }
-});
-
-// GET /api/helper-products/me  — own full list
-router.get('/me', authenticate, async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT id, helper_id, name, description, price_cents, category, image_url, is_available, created_at, updated_at
-         FROM helper_products
-        WHERE helper_id = $1
-        ORDER BY category, name`,
-      [req.user.id]
-    );
-    res.json({ products: rows });
-  } catch (err) {
-    logger.error('[helperProducts] GET /me error', { err: err.message });
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
