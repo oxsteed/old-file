@@ -383,8 +383,10 @@ const HelperBusinessProfilePage: React.FC = () => {
           Message
         </button>
         <button
-          onClick={handleBookNow}
-          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20"
+          onClick={services.length > 0 ? handleBookNow : undefined}
+          disabled={services.length === 0}
+          title={services.length === 0 ? "This helper hasn't listed services yet — send them a message." : undefined}
+          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Book this helper"
         >
           Book Now

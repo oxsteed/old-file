@@ -11,6 +11,7 @@ import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
+import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -38,19 +39,6 @@ const Tag = ({ text, color = 'orange' }) => {
   const m = { orange:'bg-orange-500/15 text-orange-400', green:'bg-emerald-500/15 text-emerald-400', red:'bg-red-500/15 text-red-400', gray:'bg-gray-700/40 text-gray-400', blue:'bg-blue-500/15 text-blue-400', purple:'bg-purple-500/15 text-purple-400' };
   return <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${m[color]||m.orange}`}>{text}</span>;
 };
-const ProgressBar = ({ pct, color = 'bg-orange-500' }) => (
-  <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{width:`${Math.min(pct,100)}%`}}/></div>
-);
-const Card = ({ children, className = '' }) => <div className={`bg-gray-900/60 border border-gray-700/40 rounded-2xl p-5 ${className}`}>{children}</div>;
-const CardHeader = ({ icon: Ic, title, right }) => (
-  <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2.5">{Ic&&<Ic size={18} cls="text-orange-400"/>}<h3 className="font-semibold text-white text-sm">{title}</h3></div>{right}</div>
-);
-const Btn = ({ children, onClick, variant='primary', className='', ...r }) => {
-  const v = {primary:'bg-orange-500 hover:bg-orange-600 text-white',secondary:'bg-gray-800 hover:bg-gray-700 text-gray-300',danger:'bg-red-500/20 hover:bg-red-500/30 text-red-400'};
-  return <button onClick={onClick} className={`text-xs font-semibold px-4 py-2 rounded-lg transition ${v[variant]} ${className}`} {...r}>{children}</button>;
-};
-const Input = ({label,...r})=>(<div>{label&&<label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{label}</label>}<input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition" {...r}/></div>);
-const Select = ({label,children,...r})=>(<div>{label&&<label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{label}</label>}<select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition" {...r}>{children}</select></div>);
 const Modal = ({open,onClose,title,children})=>{if(!open)return null;return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}><div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/><div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between mb-5"><h3 className="font-bold text-white">{title}</h3><button onClick={onClose} className="text-gray-500 hover:text-white transition"><IcoX size={18}/></button></div>{children}</div></div>);};
 
 // ── Onboarding (preserved) ────────────────────────────────────────────────
@@ -520,7 +508,7 @@ export default function HelperDashboard() {
           </div>
         )}
         {/* ═══════ EDIT PROFILE ═══════ */}
-        {tab==='editprofile'&&<EditProfileTab userId={user?.id}/>}
+        {tab==='editprofile'&&<EditProfileTab/>}
 
         {/* ═══════ SKILLS & TOOLS ═══════ */}
         {tab==='skills'&&(
