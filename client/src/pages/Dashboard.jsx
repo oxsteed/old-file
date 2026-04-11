@@ -166,6 +166,11 @@ export default function Dashboard() {
   const [showModelDD,   setShowModelDD]   = useState(false);
   const [garageAdding,  setGarageAdding]  = useState(false);
   const [garageDeleteTarget, setGarageDeleteTarget] = useState(null);
+  const [garageMode,     setGarageMode]     = useState('search'); // 'search' | 'vin'
+  const [vinInput,       setVinInput]        = useState('');
+  const [vinDecoding,    setVinDecoding]     = useState(false);
+  const [vinResult,      setVinResult]       = useState(null);   // decoded data
+  const [vinError,       setVinError]        = useState('');
 
   // Money tab — individual planned needs for sinking fund card
   const [moneyPlannedNeeds, setMoneyPlannedNeeds] = useState([]);
@@ -475,6 +480,46 @@ export default function Dashboard() {
       setGarageDeleteTarget(null);
       toast.success('Removed.');
     } catch { toast.error('Failed to remove.'); }
+  };
+
+  const decodeVin = async () => {
+    const vin = vinInput.trim().toUpperCase();
+    if (!vin) return;
+    setVinDecoding(true);
+    setVinResult(null);
+    setVinError('');
+    try {
+      const res = await api.get(`/vehicles/vin/${vin}`);
+      setVinResult(res.data);
+    } catch (err) {
+      setVinError(err.response?.data?.error || 'Could not decode VIN.');
+    } finally { setVinDecoding(false); }
+  };
+
+  const addVinVehicle = async () => {
+    if (!vinResult?.make) return;
+    setGarageAdding(true);
+    try {
+      // We need make_id — look it up from allMakes, or fall back to 0
+      await loadMakesForGarage();
+      const matchedMake = allMakes.find(m => m.name.toLowerCase() === vinResult.make.toLowerCase());
+      const res = await api.post('/vehicles/my', {
+        make_id:    matchedMake?.id || 0,
+        make_name:  vinResult.make,
+        model_id:   0,
+        model_name: vinResult.model || 'Unknown Model',
+        year:       vinResult.year  || undefined,
+        nickname:   garageForm.nickname.trim() || undefined,
+        notes:      vinResult.vin,
+      });
+      setGarage(prev => [res.data, ...prev]);
+      setVinInput('');
+      setVinResult(null);
+      setGarageForm(p => ({...p, nickname:''}));
+      toast.success('Vehicle added from VIN!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add vehicle.');
+    } finally { setGarageAdding(false); }
   };
 
   // Form state
@@ -1350,70 +1395,124 @@ export default function Dashboard() {
               <CardHeader icon={IcoCar} title="My Garage"
                 right={<span className="text-[10px] text-gray-600">NHTSA · free gov data</span>}/>
 
-              {/* Inline add form */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {/* Make picker */}
-                <div className="relative flex-1 min-w-[140px]">
-                  <input
-                    type="text"
-                    placeholder="Make (e.g. Toyota)"
-                    value={garageForm.makeSearch}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
-                    onFocus={() => { loadMakesForGarage(); setShowMakeDD(true); }}
-                    onChange={e => { setGarageForm(p=>({...p, makeSearch:e.target.value, selectedMake:null})); setShowMakeDD(true); }}
-                    onBlur={() => setTimeout(()=>setShowMakeDD(false), 150)}
-                    autoComplete="off"
-                  />
-                  {showMakeDD && allMakes.filter(m=>!garageForm.makeSearch||m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).slice(0,60).length > 0 && (
-                    <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg max-h-48 overflow-y-auto shadow-xl text-sm">
-                      {allMakes.filter(m=>!garageForm.makeSearch||m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).slice(0,60).map(m=>(
-                        <li key={m.id} onMouseDown={()=>{ setGarageForm(p=>({...p,makeSearch:m.name,selectedMake:m,modelSearch:'',selectedModel:null})); setShowMakeDD(false); loadModelsForGarage(m.name); }}
-                          className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 truncate">{m.name}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {/* Model picker */}
-                <div className="relative flex-1 min-w-[140px]">
-                  <input
-                    type="text"
-                    placeholder={!garageForm.selectedMake ? 'Select make first' : garageModelsLoading ? 'Loading…' : 'Model'}
-                    value={garageForm.modelSearch}
-                    disabled={!garageForm.selectedMake || garageModelsLoading}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition disabled:opacity-50"
-                    onFocus={() => garageForm.selectedMake && setShowModelDD(true)}
-                    onChange={e => { setGarageForm(p=>({...p, modelSearch:e.target.value, selectedModel:null})); setShowModelDD(true); }}
-                    onBlur={() => setTimeout(()=>setShowModelDD(false), 150)}
-                    autoComplete="off"
-                  />
-                  {showModelDD && garageModels.filter(m=>!garageForm.modelSearch||m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).length > 0 && (
-                    <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg max-h-48 overflow-y-auto shadow-xl text-sm">
-                      {garageModels.filter(m=>!garageForm.modelSearch||m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).map(m=>(
-                        <li key={m.modelId} onMouseDown={()=>{ setGarageForm(p=>({...p,modelSearch:m.modelName,selectedModel:m})); setShowModelDD(false); }}
-                          className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 truncate">{m.modelName}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {/* Year */}
-                <select value={garageForm.year} onChange={e=>setGarageForm(p=>({...p,year:e.target.value}))}
-                  className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition w-24">
-                  <option value="">Year</option>
-                  {Array.from({length: new Date().getFullYear()-1885},(_,i)=>new Date().getFullYear()-i).map(y=><option key={y} value={y}>{y}</option>)}
-                </select>
-
-                {/* Nickname */}
-                <input type="text" placeholder='Nickname (optional)' value={garageForm.nickname} maxLength={80}
-                  onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
-                  className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition flex-1 min-w-[120px]"/>
-
-                <button onClick={addToGarage} disabled={garageAdding||!garageForm.selectedMake||!garageForm.selectedModel}
-                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
-                  {garageAdding ? 'Adding…' : '+ Add'}
+              {/* Mode tabs */}
+              <div className="flex gap-1 mb-3 bg-gray-900 rounded-lg p-0.5 w-fit">
+                <button onClick={()=>{setGarageMode('search');setVinResult(null);setVinError('');}}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-md transition ${garageMode==='search'?'bg-gray-700 text-white':'text-gray-500 hover:text-gray-300'}`}>
+                  🔍 Search
+                </button>
+                <button onClick={()=>setGarageMode('vin')}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-md transition ${garageMode==='vin'?'bg-gray-700 text-white':'text-gray-500 hover:text-gray-300'}`}>
+                  📷 Scan / Enter VIN
                 </button>
               </div>
+
+              {garageMode === 'search' ? (
+                /* ── Search mode: make → model typeahead ─────────────── */
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="relative flex-1 min-w-[140px]">
+                    <input type="text" placeholder="Make (e.g. Toyota)"
+                      value={garageForm.makeSearch}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+                      onFocus={() => { loadMakesForGarage(); setShowMakeDD(true); }}
+                      onChange={e => { setGarageForm(p=>({...p, makeSearch:e.target.value, selectedMake:null})); setShowMakeDD(true); }}
+                      onBlur={() => setTimeout(()=>setShowMakeDD(false), 150)}
+                      autoComplete="off"/>
+                    {showMakeDD && allMakes.filter(m=>!garageForm.makeSearch||m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).slice(0,60).length > 0 && (
+                      <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg max-h-48 overflow-y-auto shadow-xl text-sm">
+                        {allMakes.filter(m=>!garageForm.makeSearch||m.name.toLowerCase().includes(garageForm.makeSearch.toLowerCase())).slice(0,60).map(m=>(
+                          <li key={m.id} onMouseDown={()=>{ setGarageForm(p=>({...p,makeSearch:m.name,selectedMake:m,modelSearch:'',selectedModel:null})); setShowMakeDD(false); loadModelsForGarage(m.name); }}
+                            className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 truncate">{m.name}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="relative flex-1 min-w-[140px]">
+                    <input type="text"
+                      placeholder={!garageForm.selectedMake ? 'Select make first' : garageModelsLoading ? 'Loading…' : 'Model'}
+                      value={garageForm.modelSearch}
+                      disabled={!garageForm.selectedMake || garageModelsLoading}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition disabled:opacity-50"
+                      onFocus={() => garageForm.selectedMake && setShowModelDD(true)}
+                      onChange={e => { setGarageForm(p=>({...p, modelSearch:e.target.value, selectedModel:null})); setShowModelDD(true); }}
+                      onBlur={() => setTimeout(()=>setShowModelDD(false), 150)}
+                      autoComplete="off"/>
+                    {showModelDD && garageModels.filter(m=>!garageForm.modelSearch||m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).length > 0 && (
+                      <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg max-h-48 overflow-y-auto shadow-xl text-sm">
+                        {garageModels.filter(m=>!garageForm.modelSearch||m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).map(m=>(
+                          <li key={m.modelId} onMouseDown={()=>{ setGarageForm(p=>({...p,modelSearch:m.modelName,selectedModel:m})); setShowModelDD(false); }}
+                            className="px-3 py-2 hover:bg-gray-800 cursor-pointer text-gray-200 truncate">{m.modelName}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <select value={garageForm.year} onChange={e=>setGarageForm(p=>({...p,year:e.target.value}))}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition w-24">
+                    <option value="">Year</option>
+                    {Array.from({length: new Date().getFullYear()-1885},(_,i)=>new Date().getFullYear()-i).map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <input type="text" placeholder='Nickname (optional)' value={garageForm.nickname} maxLength={80}
+                    onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition flex-1 min-w-[120px]"/>
+                  <button onClick={addToGarage} disabled={garageAdding||!garageForm.selectedMake||!garageForm.selectedModel}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                    {garageAdding ? 'Adding…' : '+ Add'}
+                  </button>
+                </div>
+              ) : (
+                /* ── VIN mode ────────────────────────────────────────── */
+                <div className="mb-3 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter 17-character VIN"
+                      value={vinInput}
+                      maxLength={17}
+                      onChange={e => { setVinInput(e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g,'')); setVinResult(null); setVinError(''); }}
+                      onKeyDown={e => e.key==='Enter' && vinInput.length===17 && decodeVin()}
+                      className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition font-mono tracking-widest uppercase"
+                    />
+                    <button onClick={decodeVin}
+                      disabled={vinDecoding || vinInput.length !== 17}
+                      className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                      {vinDecoding ? 'Decoding…' : 'Decode'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-600">
+                    VIN is usually on the driver-side dashboard (visible through windshield), door jamb sticker, or insurance/registration card.
+                    {typeof BarcodeDetector !== 'undefined' && ' Your browser supports camera scanning — use your phone camera app to scan the barcode and paste here.'}
+                  </p>
+                  {vinError && <p className="text-xs text-red-400">{vinError}</p>}
+                  {vinResult && vinResult.make && (
+                    <div className="bg-gray-800/80 border border-orange-500/30 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-white">
+                          {[vinResult.year, vinResult.make, vinResult.model].filter(Boolean).join(' ')}
+                        </p>
+                        <span className="text-[10px] text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full">NHTSA verified</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-400">
+                        {vinResult.bodyClass    && <span>Body: {vinResult.bodyClass}</span>}
+                        {vinResult.cylinders    && <span>Cylinders: {vinResult.cylinders}</span>}
+                        {vinResult.displacement && <span>Engine: {vinResult.displacement}L</span>}
+                        {vinResult.fuelType     && <span>Fuel: {vinResult.fuelType}</span>}
+                        {vinResult.driveType    && <span>Drive: {vinResult.driveType}</span>}
+                        {vinResult.trim         && <span>Trim: {vinResult.trim}</span>}
+                      </div>
+                      <p className="text-[10px] text-gray-600 font-mono">{vinResult.vin}</p>
+                      <div className="flex gap-2 pt-1">
+                        <input type="text" placeholder='Nickname (optional)' value={garageForm.nickname} maxLength={80}
+                          onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))}
+                          className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
+                        <button onClick={addVinVehicle} disabled={garageAdding}
+                          className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                          {garageAdding ? 'Adding…' : '+ Add to Garage'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Saved vehicles */}
               {garageLoading ? (

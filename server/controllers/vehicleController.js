@@ -212,3 +212,77 @@ exports.deleteVehicle = async (req, res) => {
     return res.status(500).json({ error: 'Failed to delete vehicle' });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// VIN DECODE — no auth required (public data)
+// ─────────────────────────────────────────────────────────────────────────
+
+const VIN_FIELDS = [
+  'Make','Model','Model Year','Body Class','Vehicle Type',
+  'Engine Number of Cylinders','Displacement (L)','Fuel Type - Primary',
+  'Drive Type','Transmission Style','Trim','Series','Manufacturer Name',
+  'Error Code','Error Text',
+];
+
+/**
+ * GET /api/vehicles/vin/:vin
+ * Decodes a 17-char VIN via NHTSA vPIC and returns a clean summary.
+ * Cached 24 h — same VIN always returns same data.
+ */
+exports.decodeVin = async (req, res) => {
+  try {
+    const vin = (req.params.vin || '').trim().toUpperCase();
+
+    // Basic format check — 17 alphanumeric chars, no I/O/Q
+    if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+      return res.status(400).json({ error: 'Invalid VIN — must be 17 characters (letters A–Z except I, O, Q and digits 0–9).' });
+    }
+
+    const cacheKey = `nhtsa:vin:${vin}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { data } = await axios.get(
+      `${NHTSA_BASE}/decodevin/${encodeURIComponent(vin)}?format=json`,
+      { timeout: 10000 }
+    );
+
+    // Flatten Results array into a map
+    const raw = {};
+    for (const r of (data.Results || [])) {
+      if (r.Value && r.Value !== 'null' && r.Variable) {
+        raw[r.Variable] = r.Value;
+      }
+    }
+
+    const errorCode = raw['Error Code'] || '0';
+    // Error code 0 = clean decode, 1 = decode with warnings, others = bad VIN
+    if (!['0', '1', '2', '4', '8', '14'].includes(errorCode) && !raw['Make']) {
+      return res.status(422).json({ error: raw['Error Text'] || 'VIN could not be decoded.' });
+    }
+
+    const result = {
+      vin,
+      make:         raw['Make']         || null,
+      model:        raw['Model']        || null,
+      year:         raw['Model Year']   || null,
+      bodyClass:    raw['Body Class']   || null,
+      vehicleType:  raw['Vehicle Type'] || null,
+      cylinders:    raw['Engine Number of Cylinders'] || null,
+      displacement: raw['Displacement (L)'] || null,
+      fuelType:     raw['Fuel Type - Primary'] || null,
+      driveType:    raw['Drive Type']   || null,
+      transmission: raw['Transmission Style'] || null,
+      trim:         raw['Trim']         || null,
+      manufacturer: raw['Manufacturer Name'] || null,
+      errorCode,
+      errorText:    raw['Error Text']   || null,
+    };
+
+    cacheSet(cacheKey, result);
+    return res.json(result);
+  } catch (err) {
+    logger.error('decodeVin error', { message: err.message });
+    return res.status(502).json({ error: 'Unable to decode VIN at this time.' });
+  }
+};

@@ -10,8 +10,9 @@ const { geoLimiter }   = require('../middleware/rateLimiter');
 const ctrl = require('../controllers/vehicleController');
 
 // ── NHTSA proxy — public, rate-limited same as geo ────────────────────────
-router.get('/makes',  geoLimiter, ctrl.getMakes);
-router.get('/models', geoLimiter, ctrl.getModels);
+router.get('/makes',      geoLimiter, ctrl.getMakes);
+router.get('/models',     geoLimiter, ctrl.getModels);
+router.get('/vin/:vin',   geoLimiter, ctrl.decodeVin);
 
 // ── User garage — authenticated ───────────────────────────────────────────
 router.get   ('/my',     authenticate, ctrl.listMyVehicles);
