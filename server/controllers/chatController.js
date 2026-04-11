@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { ROLES } = require('../constants/roles');
 
 // Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env
 const OLLAMA_URL = (() => {
@@ -206,9 +207,9 @@ exports.profileChatMessage = async (req, res) => {
          FROM users u
          JOIN helper_profiles hp ON hp.user_id = u.id
          WHERE u.id = $1
-           AND u.role IN ('helper', 'helper_pro', 'broker')
+           AND u.role IN ($2, $3, $4)
            AND u.deleted_at IS NULL`,
-      [helperId]
+      [helperId, ROLES.HELPER_FREE, ROLES.HELPER_PRO, ROLES.HELPER_BROKER]
     );
     if (!helperRes.rows.length) return res.status(404).json({ error: 'Helper not found' });
     const helper = helperRes.rows[0];
