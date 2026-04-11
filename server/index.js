@@ -55,6 +55,8 @@ const toolRentalsRoutes = require('./routes/toolRentals');
 const referralRoutes       = require('./routes/referrals');
 const plannedNeedsRoutes   = require('./routes/plannedNeeds');
 const helperProfileRoutes  = require('./routes/helperProfile');
+const helperProductsRoutes = require('./routes/helperProducts');
+const roleToggleRoutes     = require('./routes/roleToggle');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -209,6 +211,8 @@ app.use('/api/tool-rentals', toolRentalsRoutes);
 app.use('/api/referrals',    referralRoutes);
 app.use('/api/planned-needs', plannedNeedsRoutes);
 app.use('/api/helper-profile', helperProfileRoutes);
+app.use('/api/helper-products', helperProductsRoutes);
+app.use('/api/role-toggle',     roleToggleRoutes);
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
