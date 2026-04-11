@@ -394,8 +394,10 @@ export default function AdminSearch() {
     setError(null);
     try {
       // Fan out one request per type that needs a non-default page,
-      // or a single combined request when all pages are 1.
-      const allPage1 = Object.values(pageMap).every(p => p === 1);
+      // or a single combined request when all active pages are 1.
+      // Only check active (included) types — deactivated types may retain
+      // a stale page > 1 from a previous session without affecting this query.
+      const allPage1 = entityTypes.every(t => (pageMap[t] || 1) === 1);
 
       if (allPage1) {
         const { data } = await adminApi.get('/admin/search', {
@@ -441,13 +443,18 @@ export default function AdminSearch() {
     }
   }, []);
 
-  // Run search when URL param changes
+  // Run search when URL param changes.
+  // Always reset per-type pages to 1 here so that sidebar navigation
+  // (which bypasses handleSubmit) never carries stale page offsets into
+  // a new query.
   useEffect(() => {
     const q = searchParams.get('q') || '';
     setInput(q);
     setQuery(q);
     if (q.trim().length >= 2) {
-      doSearch(q, types, pages);
+      const freshPages = Object.fromEntries(ALL_TYPES.map(t => [t, 1]));
+      setPages(freshPages);
+      doSearch(q, types, freshPages);
     }
     initialMountRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
