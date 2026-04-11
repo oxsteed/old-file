@@ -291,7 +291,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.firstName}
                 onChange={(e) => set('firstName', e.target.value)}
                 className={`${inputBase} px-3 ${errors.firstName ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder="Emile"
+                placeholder="Toussaint"
                 autoComplete="given-name"
                 required
                 aria-invalid={!!errors.firstName}
@@ -309,7 +309,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.lastName}
                 onChange={(e) => set('lastName', e.target.value)}
                 className={`${inputBase} px-3 ${errors.lastName ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder="Jean"
+                placeholder="Louverture"
                 autoComplete="family-name"
                 required
                 aria-invalid={!!errors.lastName}
@@ -334,7 +334,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.businessName}
                 onChange={(e) => set('businessName', e.target.value)}
                 className={inputWithIcon}
-                placeholder="Acme LLC"
+                placeholder="My Business Name LLC"
                 autoComplete="organization"
               />
             </div>
