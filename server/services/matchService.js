@@ -195,7 +195,7 @@ async function scoreAndMatch(job) {
   // We return the notify count so the API response can surface it.
   const notifyCount = Math.min(safeTop.length, TOP_N_NOTIFY);
 
-  return { total: top.length, notified: notifyCount };
+  return { total: safeTop.length, notified: notifyCount };
 }
 
 module.exports = { scoreAndMatch };

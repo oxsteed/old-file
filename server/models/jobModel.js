@@ -17,6 +17,7 @@ const fuzzCoords = (lat, lng) => {
     lng: parseFloat((parseFloat(lng) + lngFuzz).toFixed(6)),
   };
 };
+exports.fuzzCoords = fuzzCoords;
 
 // --- Create Job ---
 exports.create = async ({

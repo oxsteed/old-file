@@ -1,26 +1,8 @@
-const crypto = require('crypto');
 const pool = require('../db');
 const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
-
-// ── Privacy: fuzz coordinates by +/- 2 miles for public feed ─────────────────
-// Uses crypto.randomInt() (CSPRNG) instead of Math.random() to prevent
-// statistical analysis of the fuzz distribution (L-39)
-const FUZZ_MILES   = 2;
-const MILES_TO_DEG = 1 / 69.0;
-function fuzzCoords(lat, lng) {
-  if (!lat || !lng) return { lat: null, lng: null };
-  // Generate random offset in [-1, +1) then scale by FUZZ_MILES degrees using CSPRNG
-  // crypto.randomInt(0, 4000) gives 0..3999; subtract 2000 and divide by 2000
-  // to get a value in [-1.0, +0.9995] ≈ [-1, +1], which × FUZZ_MILES = ±2 miles
-  const latFuzz = ((crypto.randomInt(0, 4000) - 2000) / 2000) * FUZZ_MILES * MILES_TO_DEG;
-  const lngFuzz = ((crypto.randomInt(0, 4000) - 2000) / 2000) * FUZZ_MILES * MILES_TO_DEG;
-  return {
-    lat: parseFloat((parseFloat(lat) + latFuzz).toFixed(6)),
-    lng: parseFloat((parseFloat(lng) + lngFuzz).toFixed(6)),
-  };
-}
+const { fuzzCoords } = require('../models/jobModel');
 
 // Create a new job (wizard publish)
 exports.createJob = async (req, res) => {
