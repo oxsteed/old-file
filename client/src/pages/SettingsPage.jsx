@@ -261,7 +261,7 @@ export default function SettingsPage() {
               {[
                 { value: 'first_name',    label: 'First name only',  example: user?.first_name || 'Alex' },
                 { value: 'full_name',     label: 'Full name',        example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
-                { value: 'business_name', label: 'Business name',    example: 'Acme Services' },
+                { value: 'business_name', label: 'Business name',    example: 'My Services LLC' },
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -435,7 +435,7 @@ export default function SettingsPage() {
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
                     value={bizForm.business_name}
                     onChange={e => setBizForm({ ...bizForm, business_name: e.target.value })}
-                    placeholder="Jack's Plumbing LLC"
+                    placeholder="Mika's Plumbing LLC"
                     required
                   />
                 </div>
