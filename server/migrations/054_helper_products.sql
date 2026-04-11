@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS helper_products (
   id           SERIAL PRIMARY KEY,
-  helper_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  helper_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name         VARCHAR(200) NOT NULL,
   description  TEXT NOT NULL DEFAULT '',
   price_cents  INTEGER NOT NULL CHECK (price_cents > 0),
