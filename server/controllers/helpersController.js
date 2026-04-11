@@ -60,6 +60,7 @@ async function listHelpers(req, res) {
       'u.role = $1',
       'u.email_verified = TRUE',
       'u.onboarding_completed = TRUE',
+      'COALESCE(hp.is_listed, TRUE) = TRUE',
     ];
     const params     = ['helper'];
     let pIdx         = 2;
@@ -707,4 +708,50 @@ async function getHelperSlots(req, res) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots };
+// ── PUT /api/helpers/me/listing ───────────────────────────────────────────
+// Toggle the logged-in helper's directory visibility (is_listed).
+// Body: { is_listed: boolean }
+async function toggleListing(req, res) {
+  try {
+    const { is_listed } = req.body;
+    if (typeof is_listed !== 'boolean') {
+      return res.status(400).json({ error: 'is_listed must be a boolean' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE helper_profiles
+       SET is_listed = $1, updated_at = NOW()
+       WHERE user_id = $2
+       RETURNING is_listed`,
+      [is_listed, req.user.id],
+    );
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Helper profile not found — switch to helper mode first' });
+    }
+
+    return res.json({ success: true, is_listed: rows[0].is_listed });
+  } catch (err) {
+    console.error('[toggleListing] error:', err);
+    return res.status(500).json({ error: 'Failed to update listing status' });
+  }
+}
+
+// ── GET /api/helpers/me/status ────────────────────────────────────────────
+// Returns the logged-in helper's own listing status.
+async function getMyListingStatus(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT is_listed FROM helper_profiles WHERE user_id = $1`,
+      [req.user.id],
+    );
+
+    const is_listed = rows[0] ? rows[0].is_listed : false;
+    return res.json({ is_listed });
+  } catch (err) {
+    console.error('[getMyListingStatus] error:', err);
+    return res.status(500).json({ error: 'Failed to fetch listing status' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus };

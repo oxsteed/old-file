@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-11 (security audit batch 4 — all mediums closed)
+**Last updated:** 2026-04-11 (role switching + helper offline toggle)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -477,6 +477,27 @@ All production-readiness audit items have been completed. Items are documented i
 - **MEDIUM** File upload validated extension only, not MIME type; 50MB limit — now validates both ext + `file.mimetype`, limit reduced to 10MB (`middleware/upload.js`)
 - **MEDIUM** `changePassword` and `resetPassword` only checked `length >= 8` — now use `validate()` with `rules.minLen(8)` + `rules.maxLen(128)` (`authController.js`)
 - **MEDIUM** CSP `scriptSrc` included `'unsafe-inline'` — removed; Vite bundle does not emit inline scripts (`middleware/securityHeaders.js`)
+
+---
+
+### Session — 2026-04-11 (role switching + helper offline toggle)
+
+**Customer ↔ Helper role switching** and **helper directory visibility toggle**:
+
+- **Migration** `server/migrations/056_role_switching_and_helper_listing.sql`: adds `is_listed BOOLEAN NOT NULL DEFAULT TRUE` to `helper_profiles`; partial index on `(user_id) WHERE is_listed = TRUE`.
+- **`POST /api/auth/switch-role`** (`authController.switchRole`): switches the authenticated user between `customer` and `helper`. Allowed transitions: `customer→helper`, `helper→customer`, `helper_pro→customer`, `broker→customer`. When switching TO helper: creates a `helper_profiles` row (`is_listed = FALSE` so the user controls when they appear in the directory), sets `onboarding_completed = TRUE` and `membership_tier = 'tier1'`. When switching BACK to customer: preserves the `helper_profiles` row intact. Invalidates all existing sessions and issues fresh tokens (JWT embeds the role). Returns `{ user, accessToken, refreshToken }`.
+- **`GET /api/helpers/me/listing`** + **`PUT /api/helpers/me/listing`** (`helpersController.getMyListingStatus` / `toggleListing`): get and toggle the logged-in helper's `is_listed` flag. Authenticated, helper-only (registered before public `/:id` wildcards in the router).
+- **`listHelpers()`** updated: added `COALESCE(hp.is_listed, TRUE) = TRUE` to directory query conditions so offline helpers are hidden.
+- **`server/middleware/auth.js`**: `authenticate` now LEFT JOINs `helper_profiles` to include `is_listed` in `req.user`; `formatAuthUser` exposes `is_listed` (defaults to `true` if no helper profile row yet).
+- **`AuthContext.jsx`**: added `switchRole(targetRole)` — calls `/auth/switch-role`, persists new tokens + updated user, returns updated user. `isHelper` now matches `['helper', 'helper_pro', 'broker']`.
+- **`SmartDashboard.jsx`**: renders `HelperDashboard` for any of `helper`, `helper_pro`, `broker` (previously only `helper`).
+- **`SettingsPage.jsx`**: new "Account Type" card shows current role badge, explains the switch, and has a confirmation flow before switching. Navigates to `/dashboard` and reloads after a successful switch.
+- **`HelperDashboard.jsx`**: online/offline pill button in the greeting header (top-right); shown only after onboarding is complete. Pings `GET /helpers/me/listing` on mount to get fresh status. Also shows a dismissible offline notice banner at the top with a "Go Online" button when the helper is hidden.
+
+**Key design decisions:**
+- Newly switched helpers start `is_listed = FALSE` — they opt in to visibility. This prevents a blank/incomplete profile from appearing in the directory.
+- Profile data (helper_profiles) is preserved across switches so helpers don't lose their setup if they temporarily switch to customer mode.
+- Fresh JWTs are issued on every role switch so the `role` claim in the token is always correct without requiring a separate login.
 
 ---
 

@@ -231,8 +231,20 @@ export function AuthProvider({ children }) {
     }
   }, [clearAuthState, fetchMe, persistSession]);
 
+  // Switch role between customer and helper.
+  // Returns the updated user object on success.
+  const switchRole = useCallback(async (targetRole) => {
+    const { data } = await api.post('/auth/switch-role', { target_role: targetRole });
+    // Store the fresh tokens issued by the server
+    persistTokens(data);
+    // Update the in-memory + localStorage user
+    const updatedUser = normalizeUserPayload(data);
+    if (updatedUser) persistUser(updatedUser);
+    return updatedUser;
+  }, [persistTokens, persistUser]);
+
   const onboardingComplete = isOnboardingComplete(user);
-  const isHelper = user?.role === 'helper';
+  const isHelper = ['helper', 'helper_pro', 'broker'].includes(user?.role);
   const isCustomer = user?.role === 'customer';
   const membershipTier = getMembershipTier(user);
   const needsOnboarding = isHelper && !onboardingComplete;
@@ -266,6 +278,7 @@ export function AuthProvider({ children }) {
     verifyOTP,
     refreshUser,
     refreshSession,
+    switchRole,
     clearAuthState,
     setUser: persistUser,
   }), [
@@ -290,6 +303,7 @@ export function AuthProvider({ children }) {
     verifyOTP,
     refreshUser,
     refreshSession,
+    switchRole,
     clearAuthState,
     persistUser,
   ]);

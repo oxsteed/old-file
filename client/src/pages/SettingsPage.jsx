@@ -10,9 +10,34 @@ import useSubscription from '../hooks/useSubscription';
 import NotificationPreferences from '../components/NotificationPreferences';
 import ReferralPanel from '../components/ReferralPanel';
 
+const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
+
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
+  const [switchingRole, setSwitchingRole] = useState(false);
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const isHelper = HELPER_ROLES.includes(user?.role);
+  const targetRole = isHelper ? 'customer' : 'helper';
+
+  const handleSwitchRole = async () => {
+    setSwitchingRole(true);
+    try {
+      await switchRole(targetRole);
+      setShowSwitchConfirm(false);
+      toast.success(
+        targetRole === 'helper'
+          ? 'Switched to Helper mode! Set up your profile and go online when ready.'
+          : 'Switched to Customer mode. Your helper profile is saved and waiting.',
+      );
+      // Navigate to the appropriate dashboard
+      navigate(targetRole === 'helper' ? '/dashboard' : '/dashboard', { replace: true });
+      window.location.reload(); // ensure SmartDashboard re-evaluates role
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to switch role');
+    }
+    setSwitchingRole(false);
+  };
   const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '' });
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [loading, setLoading] = useState(true);
@@ -483,6 +508,70 @@ export default function SettingsPage() {
           <h2 className="text-xl font-semibold mb-4">Your Data</h2>
           <p className="text-gray-400 mb-4">Download a copy of all your data as required by GDPR/CCPA.</p>
           <button onClick={() => { api.get('/privacy/export').then(r => { const blob = new Blob([JSON.stringify(r.data, null, 2)]); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my-data.json'; a.click(); toast.success('Data exported'); }).catch(() => toast.error('Export failed')); }} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">Export My Data</button>
+        </div>
+
+        {/* ══════════════════════════════════════════════════ */}
+        {/* Account Type / Role Switching                     */}
+        {/* ══════════════════════════════════════════════════ */}
+        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
+          <h2 className="text-xl font-semibold mb-1">Account Type</h2>
+          <p className="text-gray-400 text-sm mb-4">
+            {isHelper
+              ? 'You are currently a Helper — you can receive job offers and appear in the helper directory. Switch to Customer mode to browse and post jobs instead.'
+              : 'You are currently a Customer — you can post jobs and browse helpers. Switch to Helper mode to offer your services on OxSteed.'}
+          </p>
+
+          <div className="flex items-center gap-3 mb-4">
+            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isHelper ? 'bg-orange-500/15 text-orange-400' : 'bg-blue-500/15 text-blue-400'}`}>
+              {isHelper ? 'Helper' : 'Customer'}
+            </span>
+            <span className="text-gray-500 text-sm">Current role</span>
+          </div>
+
+          {!showSwitchConfirm ? (
+            <button
+              onClick={() => setShowSwitchConfirm(true)}
+              className={`px-5 py-2 rounded-lg font-medium transition text-sm ${isHelper ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+            >
+              {isHelper ? 'Switch to Customer Mode' : 'Switch to Helper Mode'}
+            </button>
+          ) : (
+            <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4">
+              {isHelper ? (
+                <>
+                  <p className="text-sm text-white font-semibold mb-1">Switch to Customer Mode?</p>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Your helper profile and all your data will be saved. You can switch back at any time.
+                    You will no longer appear in the helper directory while in Customer mode.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-white font-semibold mb-1">Switch to Helper Mode?</p>
+                  <p className="text-sm text-gray-400 mb-4">
+                    A helper profile will be created for you. You will start as <strong className="text-white">offline</strong> — you
+                    control when you appear in the directory using the online/offline toggle in your dashboard.
+                    You can switch back to Customer mode at any time.
+                  </p>
+                </>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSwitchRole}
+                  disabled={switchingRole}
+                  className={`px-5 py-2 rounded-lg font-medium transition text-sm disabled:opacity-50 ${isHelper ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+                >
+                  {switchingRole ? 'Switching...' : 'Yes, Switch'}
+                </button>
+                <button
+                  onClick={() => setShowSwitchConfirm(false)}
+                  className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Delete Account */}

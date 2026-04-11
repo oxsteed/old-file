@@ -27,7 +27,8 @@ const {
   getMe,
   updateProfile,
   changePassword,
-  resendVerification
+  resendVerification,
+  switchRole,
 } = require('../controllers/authController');
 
 // Original routes
@@ -55,5 +56,8 @@ router.get('/me', authenticate, getMe);
 router.put('/profile', authenticate, updateProfile);
 router.put('/change-password', authenticate, changePassword);
 router.post('/resend-verification', authenticate, resendVerification);
+
+// Role switching (customer ↔ helper)
+router.post('/switch-role', authenticate, switchRole);
 
 module.exports = router;

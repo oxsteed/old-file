@@ -67,9 +67,11 @@ async function authenticate(req, res, next) {
          u.membership_tier, u.id_verified, u.background_check_passed,
          u.city, u.state, u.zip_code,
          u.display_name_preference, u.is_active,
-         b.business_name
+         b.business_name,
+         hp.is_listed
        FROM users u
        LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
+       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
        WHERE u.id = $1`,
       [decoded.id]
     );
