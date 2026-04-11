@@ -167,6 +167,17 @@ export default function Dashboard() {
   const [garageAdding,  setGarageAdding]  = useState(false);
   const [garageDeleteTarget, setGarageDeleteTarget] = useState(null);
   const [garageMode,     setGarageMode]     = useState('search'); // 'search' | 'vin'
+
+  // My Properties (house lookup)
+  const [homes,          setHomes]          = useState([]);
+  const [homesLoaded,    setHomesLoaded]    = useState(false);
+  const [homeAddrInput,  setHomeAddrInput]  = useState('');
+  const [homeLookup,     setHomeLookup]     = useState(null);   // decoded result
+  const [homeLookupLoading, setHomeLookupLoading] = useState(false);
+  const [homeLookupError,   setHomeLookupError]   = useState('');
+  const [homeNickname,   setHomeNickname]   = useState('');
+  const [homeAdding,     setHomeAdding]     = useState(false);
+  const [homeDeleteTarget, setHomeDeleteTarget] = useState(null);
   const [vinInput,       setVinInput]        = useState('');
   const [vinDecoding,    setVinDecoding]     = useState(false);
   const [vinResult,      setVinResult]       = useState(null);   // decoded data
@@ -522,6 +533,56 @@ export default function Dashboard() {
     } finally { setGarageAdding(false); }
   };
 
+  const lookupHomeAddress = async () => {
+    const addr = homeAddrInput.trim();
+    if (!addr) return;
+    setHomeLookupLoading(true);
+    setHomeLookup(null);
+    setHomeLookupError('');
+    try {
+      const res = await api.get('/house/lookup', { params: { address: addr } });
+      setHomeLookup(res.data);
+    } catch (err) {
+      setHomeLookupError(err.response?.data?.error || 'Address not found.');
+    } finally { setHomeLookupLoading(false); }
+  };
+
+  const addHome = async () => {
+    if (!homeLookup) return;
+    setHomeAdding(true);
+    try {
+      const payload = {
+        address:    homeLookup.matchedAddress,
+        city:       homeLookup.city,
+        state:      homeLookup.state,
+        zip:        homeLookup.zip,
+        lat:        homeLookup.lat,
+        lng:        homeLookup.lng,
+        year_built: homeLookup.building?.yearBuilt ? parseInt(homeLookup.building.yearBuilt) : undefined,
+        flood_zone: homeLookup.flood?.zone || undefined,
+        osm_building_levels: homeLookup.building?.levels ? parseInt(homeLookup.building.levels) : undefined,
+        nickname:   homeNickname.trim() || undefined,
+      };
+      const res = await api.post('/house/my', payload);
+      setHomes(prev => [res.data, ...prev]);
+      setHomeLookup(null);
+      setHomeAddrInput('');
+      setHomeNickname('');
+      toast.success('Home added!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add home.');
+    } finally { setHomeAdding(false); }
+  };
+
+  const deleteHome = async (id) => {
+    try {
+      await api.delete(`/house/my/${id}`);
+      setHomes(prev => prev.filter(h => h.id !== id));
+      setHomeDeleteTarget(null);
+      toast.success('Removed.');
+    } catch { toast.error('Failed to remove.'); }
+  };
+
   // Form state
   const [expenseForm, setExpenseForm] = useState({ type:'expense', amount:'', category:'', description:'', frequency:'one_time', is_recurring:false, recurring_start_date:'', recurring_end_date:'' });
   const [goalForm, setGoalForm] = useState({ title:'', goal_type:'financial', target_value:'', icon:'🎯' });
@@ -553,6 +614,9 @@ export default function Dashboard() {
     life.fetchBudgets();
     life.fetchGoals();
     life.fetchHomeTasks({ completed: 'false', section: 'home' });
+    if (!homesLoaded) {
+      api.get('/house/my').then(r => { setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
+    }
     life.fetchChecklist();
     life.fetchSavedHelpers();
   }, []);
@@ -1030,6 +1094,100 @@ export default function Dashboard() {
 
         {/* ═══════ HOME TAB ═══════ */}
         {tab==='home' && (<>
+          {/* My Properties */}
+          <Card className="mb-5">
+            <CardHeader icon={IcoHome} title="My Properties"
+              right={<span className="text-[10px] text-gray-600">Census · OSM · FEMA</span>}/>
+
+            {/* Address lookup input */}
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Enter your address (e.g. 123 Main St, Springfield OH)"
+                value={homeAddrInput}
+                onChange={e => { setHomeAddrInput(e.target.value); setHomeLookup(null); setHomeLookupError(''); }}
+                onKeyDown={e => e.key==='Enter' && !homeLookupLoading && homeAddrInput.length>5 && lookupHomeAddress()}
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              />
+              <button onClick={lookupHomeAddress}
+                disabled={homeLookupLoading || homeAddrInput.trim().length < 5}
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                {homeLookupLoading ? 'Looking up…' : 'Look Up'}
+              </button>
+            </div>
+
+            {homeLookupError && <p className="text-xs text-red-400 mb-2">{homeLookupError}</p>}
+
+            {/* Lookup result */}
+            {homeLookup && (
+              <div className="bg-gray-800/80 border border-orange-500/30 rounded-xl p-3 mb-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-white leading-tight">{homeLookup.matchedAddress}</p>
+                  <span className="text-[10px] text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">Census verified</span>
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-400">
+                  {homeLookup.building?.yearBuilt  && <span>🏠 Built {homeLookup.building.yearBuilt}</span>}
+                  {homeLookup.building?.levels      && <span>📐 {homeLookup.building.levels} {parseInt(homeLookup.building.levels)===1?'story':'stories'}</span>}
+                  {homeLookup.building?.roofShape   && <span>🔺 {homeLookup.building.roofShape} roof</span>}
+                  {homeLookup.building?.buildingType && <span>🏗️ {homeLookup.building.buildingType}</span>}
+                  {homeLookup.flood && (
+                    <span className={homeLookup.flood.zone&&['A','AE','V','VE','AH','AO'].includes(homeLookup.flood.zone)?'text-red-400 font-semibold':'text-emerald-400'}>
+                      💧 {homeLookup.flood.label || `Flood Zone ${homeLookup.flood.zone}`}
+                    </span>
+                  )}
+                  {!homeLookup.building && !homeLookup.flood && (
+                    <span className="text-gray-600">No OSM/FEMA data yet for this address — you can still save it.</span>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <input type="text" placeholder='Nickname (optional — e.g. "Primary Home")'
+                    value={homeNickname} maxLength={80}
+                    onChange={e=>setHomeNickname(e.target.value)}
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
+                  <button onClick={addHome} disabled={homeAdding}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                    {homeAdding ? 'Saving…' : '+ Save Property'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Saved homes */}
+            {homes.length === 0 ? (
+              <p className="text-xs text-gray-600 text-center py-2">No properties saved yet. Enter an address above.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {homes.map(h=>(
+                  <div key={h.id} className="flex items-center gap-2 bg-gray-800/70 border border-gray-700 rounded-xl px-3 py-2 max-w-full">
+                    <IcoHome size={13} cls="text-orange-400 flex-shrink-0"/>
+                    <div className="leading-tight min-w-0">
+                      <span className="text-sm text-white font-medium truncate block">{h.nickname || h.address}</span>
+                      {h.nickname && <span className="text-[10px] text-gray-500 truncate block">{h.address}</span>}
+                      <div className="flex gap-2 flex-wrap">
+                        {h.year_built && <span className="text-[10px] text-orange-400">{h.year_built}</span>}
+                        {h.flood_zone && <span className={`text-[10px] ${['A','AE','V','VE'].includes(h.flood_zone)?'text-red-400':'text-emerald-400'}`}>Zone {h.flood_zone}</span>}
+                        {h.osm_building_levels && <span className="text-[10px] text-gray-500">{h.osm_building_levels}fl</span>}
+                      </div>
+                    </div>
+                    <button onClick={()=>setHomeDeleteTarget(h)} className="text-gray-700 hover:text-red-400 transition ml-1 flex-shrink-0"><IcoX size={12}/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {homeDeleteTarget && (
+              <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
+                <p className="text-sm text-red-300">Remove <strong>{homeDeleteTarget.nickname||homeDeleteTarget.address}</strong>?</p>
+                <div className="flex gap-2">
+                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">Cancel</button>
+                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">Remove</button>
+                </div>
+              </div>
+            )}
+          </Card>
+
           {/* Stats bar */}
           <div className="grid grid-cols-3 gap-3 mb-5">
             <Card className="!p-3 text-center">
