@@ -2,14 +2,13 @@ const db      = require('../db');
 const bcrypt = require('bcrypt');
 const crypto  = require('crypto');
 const { ROLES } = require('../constants/roles');
+const { hashIP } = require('../utils/encryption');
 
 const SALT_ROUNDS = 12;
 
 // ─── Hash Helpers ─────────────────────────────────────────────
-const hashPassword = (plain)  => bcrypt.hash(plain, SALT_ROUNDS);
-const hashIP       = (ip)     => ip
-  ? crypto.createHash('sha256').update(ip).digest('hex')
-  : null;
+const hashPassword = (plain) => bcrypt.hash(plain, SALT_ROUNDS);
+// hashIP imported from encryption.js — normalizes ::ffff: IPv6-mapped IPv4 before hashing (L-40)
 
 // ─── Find by ID ───────────────────────────────────────────────
 // Returns safe user fields — never includes password_hash, reset tokens,

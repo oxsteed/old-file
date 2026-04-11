@@ -11,11 +11,11 @@ const FUZZ_MILES   = 2;
 const MILES_TO_DEG = 1 / 69.0;
 function fuzzCoords(lat, lng) {
   if (!lat || !lng) return { lat: null, lng: null };
-  // Generate random offset in [-FUZZ_MILES, +FUZZ_MILES] degrees using CSPRNG
-  // crypto.randomInt(0, 4000) gives 0..3999; subtract 2000 and divide by 1000
-  // to get a value in [-2.0, +1.999] which is close enough to ±2 miles
-  const latFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
-  const lngFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
+  // Generate random offset in [-1, +1) then scale by FUZZ_MILES degrees using CSPRNG
+  // crypto.randomInt(0, 4000) gives 0..3999; subtract 2000 and divide by 2000
+  // to get a value in [-1.0, +0.9995] ≈ [-1, +1], which × FUZZ_MILES = ±2 miles
+  const latFuzz = ((crypto.randomInt(0, 4000) - 2000) / 2000) * FUZZ_MILES * MILES_TO_DEG;
+  const lngFuzz = ((crypto.randomInt(0, 4000) - 2000) / 2000) * FUZZ_MILES * MILES_TO_DEG;
   return {
     lat: parseFloat((parseFloat(lat) + latFuzz).toFixed(6)),
     lng: parseFloat((parseFloat(lng) + lngFuzz).toFixed(6)),

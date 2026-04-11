@@ -10,8 +10,8 @@ const MILES_TO_DEG = 1 / 69.0;
 
 const fuzzCoords = (lat, lng) => {
   if (!lat || !lng) return { lat: null, lng: null };
-  const latFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
-  const lngFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
+  const latFuzz = ((crypto.randomInt(0, 4000) - 2000) / 2000) * FUZZ_MILES * MILES_TO_DEG;
+  const lngFuzz = ((crypto.randomInt(0, 4000) - 2000) / 2000) * FUZZ_MILES * MILES_TO_DEG;
   return {
     lat: parseFloat((parseFloat(lat) + latFuzz).toFixed(6)),
     lng: parseFloat((parseFloat(lng) + lngFuzz).toFixed(6)),
