@@ -131,7 +131,7 @@ export default function NotificationSettings() {
                 return (
                   <div key={fullKey}
                        className="flex items-center justify-between gap-4">
-                    abel
+                    <label
                       htmlFor={fullKey}
                       className="text-sm text-gray-700 cursor-pointer"
                     >

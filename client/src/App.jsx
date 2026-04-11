@@ -26,6 +26,7 @@ import AboutPage from './pages/about';
 import ForgotPasswordPage from './pages/ForgotPassword';
 import ResetPasswordPage from './pages/ResetPassword';
 import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
+import NotificationSettings from './pages/Settings/Notifications';
 import SettingsPage from './pages/SettingsPage';
 import PublicProfile from './pages/PublicProfile';
 import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
@@ -89,6 +90,7 @@ export default function App() {
                   <Route path="/post-job"       element={<Guarded><ProtectedRoute><PostJobPage /></ProtectedRoute></Guarded>} />
                   <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
                   <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
+                  <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                   <Route path="/disputes"       element={<Guarded><ProtectedRoute><DisputeCenter /></ProtectedRoute></Guarded>} />
                   <Route path="/disputes/:id"   element={<Guarded><ProtectedRoute><DisputeDetail /></ProtectedRoute></Guarded>} />
                   <Route path="/messages"       element={<Guarded><ProtectedRoute><MessagesPage /></ProtectedRoute></Guarded>} />
