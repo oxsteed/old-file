@@ -5,7 +5,7 @@
 const router     = require('express').Router();
 const pool       = require('../db');
 const { authenticate } = require('../middleware/auth');
-const { requireRole }  = require('../middleware/requireRole');
+const requireRole      = require('../middleware/requireRole');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger     = require('../utils/logger');
 
