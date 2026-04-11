@@ -1,0 +1,422 @@
+/* ── CarCarePage ─────────────────────────────────────────────────────────── */
+
+.cc-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  color: var(--app-text);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.cc-header {
+  margin-bottom: 2rem;
+}
+.cc-header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+}
+.cc-header p {
+  font-size: 0.88rem;
+  color: var(--muted-text);
+  margin: 0;
+}
+.cc-header a {
+  color: #F4A261;
+  text-decoration: none;
+}
+.cc-header a:hover { text-decoration: underline; }
+
+/* ── Shared card ────────────────────────────────────────────────────────── */
+.cc-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+
+/* ── Add form ───────────────────────────────────────────────────────────── */
+.cc-add-form {
+  margin-bottom: 2.5rem;
+}
+.cc-add-form h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+}
+
+.cc-form-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.cc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+.cc-field-sm {
+  flex: 0 1 120px;
+  min-width: 100px;
+}
+.cc-field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cc-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+}
+.cc-field input,
+.cc-field select {
+  padding: 0.55rem 0.75rem;
+  background: var(--input-bg, var(--card-bg));
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--app-text);
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.cc-field input:focus,
+.cc-field select:focus {
+  outline: none;
+  border-color: #F4A261;
+}
+.cc-field input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Input wrapper for clear button ────────────────────────────────────── */
+.cc-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.cc-input-wrap input {
+  padding-right: 2rem;
+}
+.cc-clear-btn {
+  position: absolute;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--muted-text);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+.cc-clear-btn:hover { color: var(--app-text); }
+
+/* ── Dropdown ───────────────────────────────────────────────────────────── */
+.cc-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.cc-dropdown li {
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s;
+}
+.cc-dropdown li:hover {
+  background: var(--border-color);
+}
+
+/* ── Add button ─────────────────────────────────────────────────────────── */
+.cc-add-btn {
+  padding: 0.6rem 1.5rem;
+  background: #F4A261;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cc-add-btn:hover:not(:disabled) { background: #e08846; }
+.cc-add-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Error ──────────────────────────────────────────────────────────────── */
+.cc-error {
+  color: #f87171;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+/* ── Garage section ─────────────────────────────────────────────────────── */
+.cc-garage-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.cc-garage-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+.cc-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  background: #F4A261;
+  color: #fff;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cc-garage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.cc-empty {
+  padding: 2.5rem;
+  text-align: center;
+  color: var(--muted-text);
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+  font-size: 0.9rem;
+}
+
+/* ── Spinner ────────────────────────────────────────────────────────────── */
+.cc-spinner-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+.cc-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(244,162,97,0.2);
+  border-top-color: #F4A261;
+  border-radius: 50%;
+  animation: cc-spin 0.7s linear infinite;
+}
+@keyframes cc-spin { to { transform: rotate(360deg); } }
+
+/* ── Vehicle card ───────────────────────────────────────────────────────── */
+.cc-vehicle-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.85rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.1rem 1.1rem 0.85rem;
+  transition: border-color 0.15s;
+}
+.cc-vehicle-card:hover {
+  border-color: #F4A261;
+}
+.cc-vehicle-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.cc-vehicle-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.cc-nickname {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.cc-make-model {
+  font-size: 0.88rem;
+  color: var(--muted-text);
+}
+.cc-year-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  background: rgba(244,162,97,0.15);
+  color: #F4A261;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  align-self: flex-start;
+}
+.cc-vehicle-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.cc-nhtsa-tag {
+  font-size: 0.72rem;
+  color: var(--muted-text);
+  opacity: 0.65;
+}
+.cc-vehicle-notes {
+  font-size: 0.82rem;
+  color: var(--muted-text);
+  margin: 0;
+  white-space: pre-wrap;
+}
+.cc-vehicle-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.cc-action-btn {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--app-text);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cc-action-btn:hover { background: var(--border-color); }
+.cc-action-btn.danger { color: #f87171; border-color: #f87171; }
+.cc-action-btn.danger:hover { background: rgba(248,113,113,0.1); }
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.cc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.cc-modal {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 420px;
+}
+.cc-modal h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+}
+.cc-modal-vehicle-label {
+  font-size: 0.88rem;
+  color: var(--muted-text);
+  margin: 0 0 1.25rem;
+}
+.cc-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+.cc-form-group label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted-text);
+}
+.cc-form-group input,
+.cc-form-group select,
+.cc-form-group textarea {
+  padding: 0.55rem 0.75rem;
+  background: var(--input-bg, var(--card-bg));
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--app-text);
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.cc-form-group input:focus,
+.cc-form-group select:focus,
+.cc-form-group textarea:focus {
+  outline: none;
+  border-color: #F4A261;
+}
+.cc-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+/* Reuse existing global btn classes */
+.btn-ghost {
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--app-text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-ghost:hover { background: var(--border-color); }
+
+.btn-primary {
+  padding: 0.55rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background: #F4A261;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover:not(:disabled) { background: #e08846; }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-danger {
+  padding: 0.55rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger:hover:not(:disabled) { background: #dc2626; }
+.btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .cc-form-row { flex-direction: column; }
+  .cc-field { min-width: unset; }
+  .cc-field-sm { flex: 1 1 auto; }
+}
