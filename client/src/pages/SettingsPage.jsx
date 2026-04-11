@@ -336,7 +336,7 @@ export default function SettingsPage() {
                     onClick={() => createCheckout(plan.slug)}
                     className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm"
                   >
-                    Upgrade to {plan.name} — ${(plan.price / 100).toFixed(2)}/mo
+                    Upgrade to {plan.name} — ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? 'year' : 'mo'}
                   </button>
                 ))}
               </div>
