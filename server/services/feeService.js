@@ -13,7 +13,9 @@ let FEES = {
 // Track whether the config has ever been loaded from DB
 let _loadedFromDb = false;
 let _lastLoadAt   = 0;
-const STALE_WARN_MS = 24 * 60 * 60 * 1000; // warn if not refreshed in 24h
+let _staleWarnedAt = 0;
+const STALE_WARN_MS    = 24 * 60 * 60 * 1000; // warn if not refreshed in 24h
+const STALE_WARN_THROTTLE_MS = 60 * 60 * 1000; // re-warn at most once per hour
 
 // Load from DB on startup and on admin override
 exports.reloadFeeConfig = async () => {
@@ -38,6 +40,7 @@ exports.reloadFeeConfig = async () => {
     });
     _loadedFromDb = true;
     _lastLoadAt = Date.now();
+    _staleWarnedAt = 0; // reset so the warning can fire again if it goes stale
     logger.info('[FeeService] Config reloaded', { fees: FEES });
   } catch (err) {
     logger.error('[FeeService] Reload failed — using defaults', { message: err.message });
@@ -48,8 +51,10 @@ exports.reloadFeeConfig = async () => {
 // Called explicitly by server/index.js after startup (not at import time)
 
 exports.calculatePlatformFee = (amount, isBrokerMediated = false, planSlug = 'starter') => {
-  // Warn if cache is stale (not loaded from DB within the staleness threshold)
-  if (_loadedFromDb && Date.now() - _lastLoadAt > STALE_WARN_MS) {
+  // Warn if cache is stale — throttled to at most once per hour to avoid log floods
+  const now = Date.now();
+  if (_loadedFromDb && now - _lastLoadAt > STALE_WARN_MS && now - _staleWarnedAt > STALE_WARN_THROTTLE_MS) {
+    _staleWarnedAt = now;
     logger.warn('[FeeService] Fee config cache is stale — consider triggering a reload');
   }
   const rate = isBrokerMediated
