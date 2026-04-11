@@ -1,16 +1,24 @@
+const crypto = require('crypto');
 const pool = require('../db');
 const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 
 // ── Privacy: fuzz coordinates by +/- 2 miles for public feed ─────────────────
+// Uses crypto.randomInt() (CSPRNG) instead of Math.random() to prevent
+// statistical analysis of the fuzz distribution (L-39)
 const FUZZ_MILES   = 2;
 const MILES_TO_DEG = 1 / 69.0;
 function fuzzCoords(lat, lng) {
   if (!lat || !lng) return { lat: null, lng: null };
+  // Generate random offset in [-FUZZ_MILES, +FUZZ_MILES] degrees using CSPRNG
+  // crypto.randomInt(0, 4000) gives 0..3999; subtract 2000 and divide by 1000
+  // to get a value in [-2.0, +1.999] which is close enough to ±2 miles
+  const latFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
+  const lngFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
   return {
-    lat: parseFloat((parseFloat(lat) + (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG).toFixed(6)),
-    lng: parseFloat((parseFloat(lng) + (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG).toFixed(6)),
+    lat: parseFloat((parseFloat(lat) + latFuzz).toFixed(6)),
+    lng: parseFloat((parseFloat(lng) + lngFuzz).toFixed(6)),
   };
 }
 

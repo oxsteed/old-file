@@ -146,10 +146,15 @@ async function verifyOTP(req, res) {
       return res.status(429).json({ error: 'Account locked due to too many failed attempts. Try again in 1 hour.', lockUntil: reg.otp_locked_until });
     }
 
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-    const expired = reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date();
-    
-    if (reg.otp_code !== otpHash || expired) {
+    const otpHash  = crypto.createHash('sha256').update(otp).digest('hex');
+    const expired  = reg.otp_expires_at && new Date(reg.otp_expires_at) < new Date();
+    // Use timing-safe comparison to prevent timing attacks on the OTP hash (I-09)
+    const storedBuf   = Buffer.from(reg.otp_code || '', 'hex');
+    const computedBuf = Buffer.from(otpHash, 'hex');
+    const hashMatch   = storedBuf.length === computedBuf.length &&
+                        crypto.timingSafeEqual(storedBuf, computedBuf);
+
+    if (!hashMatch || expired) {
       const newAttempts = (reg.otp_attempts || 0) + 1;
       if (newAttempts >= 3) {
         await client.query(

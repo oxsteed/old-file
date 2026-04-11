@@ -134,5 +134,8 @@ exports.validateFeeBreakdown = (storedBreakdown, jobValueCents) => {
 
 // Export constants for use in other modules
 exports.FEES = FEES;
+// NOTE: DEFAULTS and invalidateCache are legacy stubs from an earlier DB-backed
+// cache design that was never fully implemented. They are retained for backward
+// compatibility but do nothing meaningful (I-15).
 exports.DEFAULTS = DEFAULTS;
 exports.invalidateCache = invalidateCache;

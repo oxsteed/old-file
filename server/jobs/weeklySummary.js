@@ -1,6 +1,7 @@
 const cron                 = require('node-cron');
 const db                   = require('../db');
 const { sendNotification } = require('../services/notificationService');
+const { ROLES }            = require('../constants/roles');
 
 /**
  * Every Monday at 8am Eastern
@@ -10,8 +11,8 @@ const startWeeklySummaryJob = () => {
   cron.schedule('0 8 * * 1', async () => {
     console.log('[Cron] Running weekly summary emails...');
     try {
-      const { rows: helpers } = await db.query(`
-        SELECT
+      const { rows: helpers } = await db.query(
+        `SELECT
           u.id, u.first_name, u.email,
           hp.earnings_mtd,
           hp.completed_jobs,
@@ -29,8 +30,9 @@ const startWeeklySummaryJob = () => {
         JOIN notification_preferences np ON np.user_id = u.id
         WHERE u.is_active = true
           AND np.email_weekly_summary = true
-          AND (u.role = 'helper' OR u.role = 'both' OR u.role = 'broker')
-      `);
+          AND u.role IN ($1, $2, $3)`,
+        [ROLES.HELPER_FREE, ROLES.HELPER_PRO, ROLES.HELPER_BROKER]
+      );
 
       let sent = 0;
       for (const helper of helpers) {

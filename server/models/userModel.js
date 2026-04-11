@@ -12,10 +12,22 @@ const hashIP       = (ip)     => ip
   : null;
 
 // ─── Find by ID ───────────────────────────────────────────────
+// Returns safe user fields — never includes password_hash, reset tokens,
+// or email verification tokens (M-42)
 exports.findById = async (id) => {
   const { rows } = await db.query(
     `SELECT
-       u.*,
+       u.id, u.email, u.first_name, u.last_name, u.phone,
+       u.role, u.is_active, u.is_banned, u.is_verified,
+       u.email_verified, u.onboarding_status, u.onboarding_completed,
+       u.contact_completed, u.profile_completed, u.tier_selected,
+       u.w9_completed, u.terms_accepted, u.membership_tier,
+       u.city, u.state, u.zip_code,
+       u.subscription_status, u.display_name_preference,
+       u.profile_photo_url, u.bio,
+       u.created_at, u.updated_at, u.last_login_at,
+       u.didit_status, u.didit_verified_at,
+       u.trial_started_at, u.trial_ends_at,
        hp.tier,
        hp.bio_short,
        hp.avg_rating,
@@ -43,7 +55,10 @@ exports.findById = async (id) => {
   return rows[0] ?? null;
 };
 
-// ─── Find by Email ────────────────────────────────────────────
+// ─── Find by Email (auth-only) ────────────────────────────────
+// Returns the full user row including password_hash.
+// ONLY use this in authentication flows (login, password reset).
+// For all other uses, call findByEmailSafe() which excludes credentials (M-43).
 exports.findByEmail = async (email) => {
   const { rows } = await db.query(
     `SELECT * FROM users
@@ -54,10 +69,31 @@ exports.findByEmail = async (email) => {
   return rows[0] ?? null;
 };
 
+// ─── Find by Email (safe, non-auth) ──────────────────────────
+// Excludes password_hash, reset tokens, and verification tokens.
+exports.findByEmailSafe = async (email) => {
+  const { rows } = await db.query(
+    `SELECT id, email, first_name, last_name, phone, role,
+            is_active, is_banned, is_verified, email_verified,
+            onboarding_status, subscription_status, profile_photo_url,
+            city, state, zip_code, created_at, updated_at
+     FROM users
+     WHERE LOWER(email) = LOWER($1)
+       AND deleted_at IS NULL`,
+    [email]
+  );
+  return rows[0] ?? null;
+};
+
 // ─── Find by Username ─────────────────────────────────────────
+// Returns only safe fields — excludes credentials (M-44)
 exports.findByUsername = async (username) => {
   const { rows } = await db.query(
-    `SELECT * FROM users
+    `SELECT id, email, first_name, last_name, phone, role,
+            is_active, is_banned, is_verified, email_verified,
+            onboarding_status, subscription_status, profile_photo_url,
+            city, state, zip_code, created_at, updated_at
+     FROM users
      WHERE LOWER(username) = LOWER($1)
        AND deleted_at IS NULL`,
     [username]

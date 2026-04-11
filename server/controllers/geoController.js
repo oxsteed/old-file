@@ -1,4 +1,5 @@
 const axios = require('axios');
+const logger = require('../utils/logger');
 
 const GOOGLE_MAPS_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GEOCODE_BASE    = 'https://maps.googleapis.com/maps/api/geocode/json';
@@ -63,7 +64,7 @@ exports.reverse = async (req, res) => {
     cacheSet(cacheKey, result);
     return res.json(result);
   } catch (err) {
-    console.error('Geo reverse error:', err.message);
+    logger.error('Geo reverse error', { message: err.message });
     return res.json({ city: '', state: '', display: '' });
   }
 };
@@ -99,7 +100,8 @@ exports.suggest = async (req, res) => {
     });
 
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      console.error('Google Maps API error:', data.status, data.error_message);
+      // Log status only — never log error_message as it may contain quota/key hints
+      logger.warn('Google Maps API non-OK status', { status: data.status });
       return res.json(parseFallback(q));
     }
 
@@ -123,7 +125,7 @@ exports.suggest = async (req, res) => {
     cacheSet(cacheKey, results);
     return res.json(results);
   } catch (err) {
-    console.error('Geocode suggest error:', err.message);
+    logger.error('Geocode suggest error', { message: err.message });
     // Graceful degradation — return manual parse
     return res.json(parseFallback(req.query.q || ''));
   }

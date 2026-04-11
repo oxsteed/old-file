@@ -1,17 +1,20 @@
+const crypto = require('crypto');
 const db = require('../db');
 const { calculateTier3Fees } = require('../utils/feeCalculator');
 
 // --- Privacy: Fuzz coordinates by +/-2 miles ---
+// Uses crypto.randomInt() (CSPRNG) instead of Math.random() to prevent
+// statistical analysis of the fuzz distribution (L-39)
 const FUZZ_MILES  = 2;
 const MILES_TO_DEG = 1 / 69.0;
 
 const fuzzCoords = (lat, lng) => {
   if (!lat || !lng) return { lat: null, lng: null };
-  const fuzzLat = (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG;
-  const fuzzLng = (Math.random() * 2 - 1) * FUZZ_MILES * MILES_TO_DEG;
+  const latFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
+  const lngFuzz = ((crypto.randomInt(0, 4000) - 2000) / 1000) * FUZZ_MILES * MILES_TO_DEG;
   return {
-    lat: parseFloat((parseFloat(lat) + fuzzLat).toFixed(6)),
-    lng: parseFloat((parseFloat(lng) + fuzzLng).toFixed(6)),
+    lat: parseFloat((parseFloat(lat) + latFuzz).toFixed(6)),
+    lng: parseFloat((parseFloat(lng) + lngFuzz).toFixed(6)),
   };
 };
 
@@ -294,6 +297,9 @@ exports.getPublicFeed = async ({
   page        = 1,
   limit       = 20,
 }) => {
+  // Cap inputs to prevent oversized queries and excessive map API calls (L-37, L-38)
+  limit       = Math.min(parseInt(limit) || 20, 100);
+  radiusMiles = Math.min(parseFloat(radiusMiles) || 25, 100);
   const params     = [];
   const conditions = [`j.status = 'published'`, `j.deleted_at IS NULL`];
 

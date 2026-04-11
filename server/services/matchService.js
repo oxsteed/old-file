@@ -78,7 +78,7 @@ async function scoreAndMatch(job) {
            )`,
     [
       job.location_point
-        || `SRID=4326;POINT(${job.location_lng} ${job.location_lat})`,
+        || `SRID=4326;POINT(${parseFloat(job.location_lng)} ${parseFloat(job.location_lat)})`,
       job.category_id || null,
       MAX_RADIUS_METERS,
     ]
@@ -164,25 +164,17 @@ async function scoreAndMatch(job) {
   // ── 4. Bulk-insert into job_matches ──────────────────────────────────────
   if (!top.length) return 0;
 
-  const values = top.map((m, i) => {
-    const base = i * 3;
-    return `($${base + 1}, $${base + 2}, $${base + 3})`;
-  }).join(', ');
+  // Guard: cap array size before building dynamic SQL to prevent PG parameter
+  // limit overflow (65535 max; each row uses 4 params). TOP_N_STORED=50 is
+  // safely within bounds but this guard protects if TOP_N_STORED is raised (M-48).
+  const safeTop = top.slice(0, Math.min(top.length, 500));
 
-  const params = top.flatMap(m => [
-    job.id,
-    m.helper_id,
-    // Store score + breakdown as a JSONB object so one column carries both
-    JSON.stringify({ score: m.match_score, breakdown: m.score_breakdown }),
-  ]);
-
-  // Re-shape: job_matches has (job_id, helper_id, match_score, score_breakdown)
-  const insertValues = top.map((m, i) => {
+  const insertValues = safeTop.map((m, i) => {
     const base = i * 4;
     return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
   }).join(', ');
 
-  const insertParams = top.flatMap(m => [
+  const insertParams = safeTop.flatMap(m => [
     job.id,
     m.helper_id,
     m.match_score,
@@ -201,7 +193,7 @@ async function scoreAndMatch(job) {
   // ── 5. Mark top NOTIFY helpers for push (future hook) ─────────────────────
   // In a full implementation this would enqueue push notifications.
   // We return the notify count so the API response can surface it.
-  const notifyCount = Math.min(top.length, TOP_N_NOTIFY);
+  const notifyCount = Math.min(safeTop.length, TOP_N_NOTIFY);
 
   return { total: top.length, notified: notifyCount };
 }
