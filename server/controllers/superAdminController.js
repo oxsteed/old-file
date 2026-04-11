@@ -407,12 +407,27 @@ exports.createUser = async (req, res) => {
     const bcrypt = require('bcrypt');
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // For helper accounts, mark onboarding as complete so ProtectedRoute
+    // doesn't bounce them to /register/helper on first login.
+    // Helpers created via the admin dashboard skip the self-serve wizard.
+    const isHelper = role === 'helper';
+    const onboardingCompleted = isHelper ? true : false;
+    const onboardingStatus    = isHelper ? 'onboarding_complete' : null;
+    const membershipTier      = isHelper ? 'tier1' : null;
+
     const { rows } = await db.query(`
       INSERT INTO users (first_name, last_name, email, password_hash, role,
-                         is_active, email_verified, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, true, true, NOW(), NOW())
+                         is_active, email_verified,
+                         onboarding_completed, onboarding_status,
+                         membership_tier,
+                         created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, true, true,
+              $6, $7,
+              $8,
+              NOW(), NOW())
       RETURNING id, first_name, last_name, email, role, is_active, email_verified, created_at
-    `, [first_name.trim(), last_name.trim(), normalizedEmail, passwordHash, role]);
+    `, [first_name.trim(), last_name.trim(), normalizedEmail, passwordHash, role,
+        onboardingCompleted, onboardingStatus, membershipTier]);
 
     try {
       await logAdminAction({
