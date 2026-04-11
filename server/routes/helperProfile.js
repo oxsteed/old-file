@@ -9,7 +9,7 @@ const requireRole      = require('../middleware/requireRole');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger     = require('../utils/logger');
 
-const helperOnly = [authenticate, requireRole('helper')];
+const helperOnly = [authenticate, requireRole('helper', 'helper_pro')];
 
 // ── GET /api/helper-profile/me ────────────────────────────────────────────────
 // Returns the helper's own full profile (for the dashboard editor).
