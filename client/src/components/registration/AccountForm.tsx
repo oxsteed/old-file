@@ -334,7 +334,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.businessName}
                 onChange={(e) => set('businessName', e.target.value)}
                 className={inputWithIcon}
-                placeholder="Acme LLC"
+                placeholder="My Business Name LLC"
                 autoComplete="organization"
               />
             </div>
