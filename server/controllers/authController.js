@@ -65,6 +65,7 @@ function formatAuthUser(user) {
     zip_code:              user.zip_code,
     display_name_preference: user.display_name_preference || 'first_name',
     business_name:         user.business_name || null,
+    is_listed:             user.is_listed !== undefined ? !!user.is_listed : true,
   };
 }
 
@@ -798,11 +799,95 @@ async function resendVerification(req, res) {
     res.status(500).json({ error: 'Failed to send verification email' });
   }
 }
+// Switch a user's role between customer and helper (and back).
+// Allowed transitions: customer ↔ helper
+// When switching to helper: creates a helper_profiles row (is_listed=FALSE so they
+// don't appear in the directory until they explicitly go online).
+// When switching back to customer: preserves the helper_profiles row so their
+// profile data is retained if they ever switch back.
+// Issues fresh tokens so the JWT role claim is correct immediately.
+async function switchRole(req, res) {
+  try {
+    const { target_role } = req.body;
+    const userId      = req.user.id;
+    const currentRole = req.user.role;
+
+    const ALLOWED = {
+      customer:   ['helper'],
+      helper:     ['customer'],
+      helper_pro: ['customer'],
+      broker:     ['customer'],
+    };
+
+    if (!ALLOWED[currentRole]?.includes(target_role)) {
+      return res.status(400).json({ error: `Cannot switch from "${currentRole}" to "${target_role}"` });
+    }
+
+    if (target_role === 'helper') {
+      // Ensure a helper_profiles row exists; is_listed starts FALSE so the helper
+      // chooses when to become visible in the directory.
+      await pool.query(
+        `INSERT INTO helper_profiles (user_id, is_listed)
+         VALUES ($1, FALSE)
+         ON CONFLICT (user_id) DO NOTHING`,
+        [userId],
+      );
+      await pool.query(
+        `UPDATE users
+         SET role = 'helper',
+             onboarding_completed = TRUE,
+             membership_tier = COALESCE(membership_tier, 'tier1'),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [userId],
+      );
+    } else {
+      // Switching back to customer — preserve the helper_profiles row.
+      await pool.query(
+        `UPDATE users SET role = 'customer', updated_at = NOW() WHERE id = $1`,
+        [userId],
+      );
+    }
+
+    // Re-fetch the updated user row (with helper profile for is_listed).
+    const { rows } = await pool.query(
+      `SELECT u.*, b.business_name, hp.is_listed
+       FROM users u
+       LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
+       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       WHERE u.id = $1`,
+      [userId],
+    );
+    const updatedUser = rows[0];
+
+    // Invalidate all existing sessions then issue a fresh token pair.
+    await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+    const tokens       = generateTokens(updatedUser);
+    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    await pool.query(
+      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
+      [updatedUser.id, hashedRefresh],
+    );
+
+    logger.info('Role switch', { userId, from: currentRole, to: target_role });
+    return res.json({
+      success: true,
+      user: formatAuthUser(updatedUser),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+  } catch (err) {
+    logger.error('Switch role error', { err });
+    res.status(500).json({ error: 'Failed to switch role' });
+  }
+}
+
 module.exports = {
   register, login, loginWith2FA, requestOTP, verifyOTP, refreshToken, logout,
   checkEmail, checkZip, addToWaitlist,
   startRegistration, acceptTerms, verifyRegistrationOTP, resendRegistrationOTP,
   forgotPassword, resetPassword,
   getMe, updateProfile, changePassword, getPublicProfile, resendVerification,
+  switchRole,
   formatAuthUser
 };

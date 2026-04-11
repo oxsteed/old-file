@@ -18,7 +18,7 @@ export default function SmartDashboard() {
     );
   }
 
-  if (user?.role === 'helper') {
+  if (['helper', 'helper_pro', 'broker'].includes(user?.role)) {
     return <HelperDashboard />;
   }
 

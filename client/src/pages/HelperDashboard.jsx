@@ -219,6 +219,30 @@ export default function HelperDashboard() {
   const toggleChecklist=async(item)=>{try{await life.updateChecklistItem(item.id,{is_completed:!item.is_completed});life.fetchSummary();}catch{toast.error('Failed.');}};
   const updateGoalProgress=async(goal,val)=>{try{const v=parseFloat(val);if(isNaN(v))return;await life.updateGoal(goal.id,{current_value:v,is_completed:goal.target_value&&v>=goal.target_value});life.fetchSummary();toast.success('Updated!');}catch{toast.error('Failed.');}};
 
+  // ── Online / offline toggle ───────────────────────────────────────────────
+  const [isListed, setIsListed] = useState(user?.is_listed !== false);
+  const [listingLoading, setListingLoading] = useState(false);
+
+  useEffect(() => {
+    // Sync with server in case user.is_listed is stale
+    api.get('/helpers/me/listing')
+      .then(r => setIsListed(!!r.data?.is_listed))
+      .catch(() => { /* non-critical */ });
+  }, []);
+
+  const handleToggleListing = async () => {
+    const next = !isListed;
+    setListingLoading(true);
+    try {
+      const { data } = await api.put('/helpers/me/listing', { is_listed: next });
+      setIsListed(!!data.is_listed);
+      toast.success(data.is_listed ? 'You are now online — visible in the helper directory.' : 'You are now offline — hidden from the directory.');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to update status');
+    }
+    setListingLoading(false);
+  };
+
   // Derived
   const hr=new Date().getHours();
   const greeting=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
@@ -257,7 +281,24 @@ export default function HelperDashboard() {
 
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
-        {/* Greeting */}
+        {/* Offline notice */}
+        {!showOnboarding && !isListed && (
+          <div className="mb-4 flex items-center justify-between gap-3 p-3 bg-gray-800/80 border border-gray-700 rounded-xl text-sm text-gray-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0"/>
+              <span>You are <strong className="text-white">offline</strong> — you are not visible in the helper directory right now.</span>
+            </div>
+            <button
+              onClick={handleToggleListing}
+              disabled={listingLoading}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+            >
+              Go Online
+            </button>
+          </div>
+        )}
+
+        {/* Greeting + Online/Offline toggle */}
         <div className="flex items-start justify-between mb-1">
           <div>
             <div className="flex items-center gap-3">
@@ -266,7 +307,25 @@ export default function HelperDashboard() {
             </div>
             <p className="text-gray-500 mt-1 text-sm">{showOnboarding?'Finish setup to go live.':`${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} — Let's get to work.`}</p>
           </div>
-          <BadgeDisplay badges={user?.badges} size="large"/>
+          <div className="flex flex-col items-end gap-2">
+            <BadgeDisplay badges={user?.badges} size="large"/>
+            {/* Online / Offline pill — only shown after onboarding is done */}
+            {!showOnboarding && (
+              <button
+                onClick={handleToggleListing}
+                disabled={listingLoading}
+                title={isListed ? 'Click to go offline (hide from directory)' : 'Click to go online (appear in directory)'}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all disabled:opacity-60 border ${
+                  isListed
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                    : 'bg-gray-700/60 border-gray-600 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isListed ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`}/>
+                {listingLoading ? 'Updating…' : isListed ? 'Online' : 'Offline'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
