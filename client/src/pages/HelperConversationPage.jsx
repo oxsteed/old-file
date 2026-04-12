@@ -11,26 +11,36 @@ function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+const TYPING_EMIT_COOLDOWN = 2000;
+
 export default function HelperConversationPage() {
   const { conversationId } = useParams();
-  const [messages, setMessages] = useState([]);
-  const [otherName, setOtherName] = useState('');
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [notFound, setNotFound] = useState(false);
+  const [messages, setMessages]             = useState([]);
+  const [otherName, setOtherName]           = useState('');
+  const [helperBusiness, setHelperBusiness] = useState('');
+  const [jobTitle, setJobTitle]             = useState('');
+  const [newMessage, setNewMessage]         = useState('');
+  const [loading, setLoading]               = useState(true);
+  const [sending, setSending]               = useState(false);
+  const [notFound, setNotFound]             = useState(false);
+  const [otherTyping, setOtherTyping]       = useState(false);
+  const [lastReadAt, setLastReadAt]         = useState(null);
+
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
+  const inputRef       = useRef(null);
+  const typingTimerRef = useRef(null);
+  const isTypingRef    = useRef(false);
+
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { socket } = useSocket();
+  const { socket, joinConversation, leaveConversation } = useSocket();
 
+  // ── Initial load ─────────────────────────────────────────────
   const fetchMessages = useCallback(async () => {
     try {
       const res = await api.get(`/messages/conversations/${conversationId}`);
       const data = Array.isArray(res.data) ? res.data : [];
       setMessages(data);
-      // Derive the other party's name from the first message not sent by us
       const other = data.find(m => m.sender_id !== user?.id);
       if (other?.sender_name) setOtherName(other.sender_name);
     } catch (err) {
@@ -47,13 +57,30 @@ export default function HelperConversationPage() {
     fetchMessages();
   }, [fetchMessages]);
 
-  // Auto-scroll to latest message
+  // Load conversation metadata for the header
+  useEffect(() => {
+    api.get(`/messages/conversations/${conversationId}/meta`)
+      .then(res => {
+        if (res.data.other_user_name) setOtherName(res.data.other_user_name);
+        if (res.data.helper_business_name) setHelperBusiness(res.data.helper_business_name);
+        if (res.data.job_title) setJobTitle(res.data.job_title);
+      })
+      .catch(() => {});
+  }, [conversationId]);
+
+  // ── Join / leave socket room ──────────────────────────────────
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+    joinConversation(conversationId);
+    return () => leaveConversation(conversationId);
+  }, [socket, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-scroll ───────────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, otherTyping]);
 
-  // Real-time: both message:new (helper's own sends bounce back) and
-  // profile_chat:new_message (inbound from customer)
+  // ── Real-time events ─────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
 
@@ -63,8 +90,13 @@ export default function HelperConversationPage() {
         if (prev.some(m => m.id === message.id)) return prev;
         return [...prev, message];
       });
+      if (message.sender_id !== user?.id && message.sender_name && !otherName) {
+        setOtherName(message.sender_name);
+      }
     };
 
+    // Inbound from customer via profile chat (also caught by handleNew above
+    // once they're in the same conversation room, but keep for fallback)
     const handleProfileNew = ({ conversationId: cid, message, senderName }) => {
       if (String(cid) !== String(conversationId)) return;
       const enriched = senderName && !message.sender_name
@@ -77,18 +109,71 @@ export default function HelperConversationPage() {
       });
     };
 
-    socket.on('message:new', handleNew);
-    socket.on('profile_chat:new_message', handleProfileNew);
-    return () => {
-      socket.off('message:new', handleNew);
-      socket.off('profile_chat:new_message', handleProfileNew);
+    const onTyping = ({ conversationId: cid }) => {
+      if (String(cid) !== String(conversationId)) return;
+      setOtherTyping(true);
     };
-  }, [socket, conversationId, otherName]);
 
+    const onStoppedTyping = ({ conversationId: cid }) => {
+      if (String(cid) !== String(conversationId)) return;
+      setOtherTyping(false);
+    };
+
+    const onMessagesRead = ({ conversationId: cid, readAt }) => {
+      if (String(cid) !== String(conversationId)) return;
+      setLastReadAt(readAt);
+    };
+
+    socket.on('message:new',             handleNew);
+    socket.on('profile_chat:new_message', handleProfileNew);
+    socket.on('user:typing',             onTyping);
+    socket.on('user:stopped_typing',     onStoppedTyping);
+    socket.on('messages:read',           onMessagesRead);
+
+    return () => {
+      socket.off('message:new',             handleNew);
+      socket.off('profile_chat:new_message', handleProfileNew);
+      socket.off('user:typing',             onTyping);
+      socket.off('user:stopped_typing',     onStoppedTyping);
+      socket.off('messages:read',           onMessagesRead);
+    };
+  }, [socket, conversationId, user?.id, otherName]);
+
+  // ── Typing indicator emit ─────────────────────────────────────
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+    if (!socket) return;
+    if (!isTypingRef.current) {
+      socket.emit('typing:start', conversationId);
+      isTypingRef.current = true;
+    }
+    clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      socket.emit('typing:stop', conversationId);
+      isTypingRef.current = false;
+    }, TYPING_EMIT_COOLDOWN);
+  };
+
+  const handleBlur = () => {
+    if (isTypingRef.current && socket) {
+      clearTimeout(typingTimerRef.current);
+      socket.emit('typing:stop', conversationId);
+      isTypingRef.current = false;
+    }
+  };
+
+  // ── Send ──────────────────────────────────────────────────────
   const handleSend = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     const content = newMessage.trim();
     if (!content || sending) return;
+
+    if (isTypingRef.current && socket) {
+      clearTimeout(typingTimerRef.current);
+      socket.emit('typing:stop', conversationId);
+      isTypingRef.current = false;
+    }
+
     setSending(true);
     setNewMessage('');
     try {
@@ -99,7 +184,7 @@ export default function HelperConversationPage() {
       });
     } catch (err) {
       console.error('[HelperConversation] Failed to send message:', err);
-      setNewMessage(content); // restore on failure
+      setNewMessage(content);
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -109,10 +194,16 @@ export default function HelperConversationPage() {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend(e);
+      handleSend();
     }
   };
 
+  // ── "Seen" indicator ──────────────────────────────────────────
+  const lastSentByMe = [...messages].reverse().find(m => m.sender_id === user?.id);
+  const showSeen = lastReadAt && lastSentByMe &&
+    new Date(lastReadAt) >= new Date(lastSentByMe.created_at);
+
+  // ── Render ────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-950">
@@ -156,11 +247,19 @@ export default function HelperConversationPage() {
             </svg>
             Back
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300 flex-shrink-0">
               {(otherName || '?').charAt(0).toUpperCase()}
             </div>
-            <h1 className="text-base font-semibold text-white">{otherName || 'Customer'}</h1>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold text-white truncate">{otherName || 'Customer'}</h1>
+              {helperBusiness && (
+                <p className="text-xs text-gray-500 truncate leading-tight">via {helperBusiness}</p>
+              )}
+              {jobTitle && (
+                <p className="text-xs text-orange-400/80 truncate leading-tight">Re: {jobTitle}</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -169,28 +268,43 @@ export default function HelperConversationPage() {
           {messages.length === 0 && (
             <p className="text-sm text-gray-600 text-center mt-8">No messages yet. Send the first reply below.</p>
           )}
+
           {messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
+            const isLastFromMe = showSeen && msg.id === lastSentByMe?.id;
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                 {!isMe && msg.sender_name && (
                   <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender_name}</span>
                 )}
-                <div
-                  className={`px-4 py-2.5 rounded-2xl max-w-xs text-sm leading-relaxed ${
-                    isMe
-                      ? 'bg-orange-500 text-white rounded-br-sm'
-                      : 'bg-gray-700/70 text-gray-100 rounded-bl-sm'
-                  }`}
-                >
+                <div className={`px-4 py-2.5 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
+                  isMe
+                    ? 'bg-orange-500 text-white rounded-br-sm'
+                    : 'bg-gray-700/70 text-gray-100 rounded-bl-sm'
+                }`}>
                   {msg.content}
                 </div>
-                <span className="text-[11px] text-gray-600 mt-1 px-1">
-                  {formatTime(msg.created_at)}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5 px-1">
+                  <span className="text-[11px] text-gray-600">{formatTime(msg.created_at)}</span>
+                  {isLastFromMe && (
+                    <span className="text-[11px] text-orange-400 font-medium">Seen</span>
+                  )}
+                </div>
               </div>
             );
           })}
+
+          {/* Typing indicator */}
+          {otherTyping && (
+            <div className="flex items-start">
+              <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-gray-700/70 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -200,9 +314,11 @@ export default function HelperConversationPage() {
             ref={inputRef}
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
             placeholder="Type a reply…"
+            maxLength={4000}
             className="flex-1 rounded-xl bg-gray-900 border border-gray-700 text-white placeholder-gray-600 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition"
           />
           <button

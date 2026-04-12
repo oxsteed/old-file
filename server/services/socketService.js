@@ -38,10 +38,16 @@ function broadcastToUser(userId, event, data) {
   io.to(`user_${userId}`).emit(event, data);
 }
 
+/** Emit to all sockets in a conversation room (both participants when both are online). */
+function broadcastToConversation(conversationId, event, data) {
+  if (!io) return;
+  io.to(`conv_${conversationId}`).emit(event, data);
+}
+
 /** Emit to all connected admins (any admin/super_admin socket in the 'admins' room). */
 function broadcastToAdmins(event, data) {
   if (!io) return;
   io.to('admins').emit(event, data);
 }
 
-module.exports = { init, trackConnect, trackDisconnect, isOnline, broadcastToUser, broadcastToAdmins };
+module.exports = { init, trackConnect, trackDisconnect, isOnline, broadcastToUser, broadcastToConversation, broadcastToAdmins };
