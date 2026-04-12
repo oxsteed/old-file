@@ -11,24 +11,27 @@ directly to them via Socket.IO instead of the AI assistant.
 ## What Was Changed
 
 ### 1. DB Migration — `server/migrations/059_add_helper_availability.sql`
+
+> **Note:** `helper_profiles` (not `helpers`) is the correct table, created in `019_helper_registration.sql`.
+> `is_available_now BOOLEAN` already exists on that table. This migration only adds the missing
+> `available_since` timestamp and a partial index.
+
 ```sql
--- Add availability toggle for helpers to indicate live chat readiness
-ALTER TABLE helpers
-  ADD COLUMN IF NOT EXISTS is_available BOOLEAN DEFAULT false,
+ALTER TABLE helper_profiles
   ADD COLUMN IF NOT EXISTS available_since TIMESTAMPTZ;
 
--- Partial index for fast browse filtering
-CREATE INDEX IF NOT EXISTS idx_helpers_is_available
-  ON helpers (is_available)
-  WHERE is_available = true;
+CREATE INDEX IF NOT EXISTS idx_helper_profiles_is_available_now
+  ON helper_profiles (is_available_now)
+  WHERE is_available_now = true;
 ```
 
 ---
 
 ### 2. Backend — `server/routes/helpers.js`
 
-- Added `COALESCE(h.is_available, false) as is_available` to public GET queries
-- Added `PATCH /helpers/me/availability` route to toggle availability
+- Use `is_available_now` (existing column) instead of `is_available`
+- Added `COALESCE(hp.is_available_now, false) as is_available_now` to public GET queries
+- Added `PATCH /helpers/me/availability` route to toggle `is_available_now` and set/clear `available_since`
 - Emits `helper_availability_changed` via Socket.IO on toggle
 
 ---
@@ -38,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_helpers_is_available
 - Added `onlineHelpers` Map for presence tracking
 - Added `helper_go_available` and `helper_go_unavailable` socket events
 - Added `typing` / `stop_typing` socket events
-- On disconnect: auto-sets helper unavailable in DB if no remaining sockets
+- On disconnect: auto-sets `is_available_now = false` and clears `available_since` in DB if no remaining sockets
 
 ---
 
@@ -53,7 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_helpers_is_available
 
 ### 5. Frontend — `client/src/pages/HelperProfile.jsx`
 
-- Reads `is_available` from helper fetch
+- Reads `is_available_now` from helper fetch
 - Listens for real-time `helper_availability_changed` socket events
 - Contact button routes to `/messages?to=...` (direct chat) when available
 - Shows green availability indicator on profile header
@@ -62,7 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_helpers_is_available
 
 ### 6. Frontend — `client/src/pages/BrowseHelpers.jsx`
 
-- Shows green dot next to helper name when `is_available === true`
+- Shows green dot next to helper name when `is_available_now === true`
 
 ---
 
@@ -72,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_helpers_is_available
 |-------|-----------|----------|
 | `helper_go_available` | client → server | `userId` |
 | `helper_go_unavailable` | client → server | `userId` |
-| `helper_availability_changed` | server → all clients | `{ helper_user_id, is_available }` |
+| `helper_availability_changed` | server → all clients | `{ helper_user_id, is_available_now }` |
 | `typing` | client → server | `{ sender_id, receiver_id }` |
 | `stop_typing` | client → server | `{ sender_id, receiver_id }` |
 | `user_typing` | server → client | `{ sender_id }` |
@@ -82,7 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_helpers_is_available
 
 ## Routing Logic
 
-- Helper **available** → "Contact Helper" navigates to `/messages?to={helper.user_id}` (direct Socket.IO chat)
+- Helper **available** (`is_available_now = true`) → "Contact Helper" navigates to `/messages?to={helper.user_id}` (direct Socket.IO chat)
 - Helper **unavailable** → message routes through AI assistant (existing behavior)
 
 ---
