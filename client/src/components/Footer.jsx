@@ -6,7 +6,8 @@ export default function Footer() {
   const { user } = useAuth();
   const year = new Date().getFullYear();
 
-  // Move the Google Translate widget (initialized in static HTML) into the footer slot
+  // Move the Google Translate widget (initialized in static HTML) into the footer slot.
+  // On unmount, return the node to document.body and re-hide it so it survives re-mounts.
   useEffect(() => {
     const source = document.getElementById('google_translate_element');
     const slot = document.getElementById('gt-footer-slot');
@@ -14,6 +15,13 @@ export default function Footer() {
       source.style.display = '';
       slot.appendChild(source);
     }
+    return () => {
+      const widget = document.getElementById('google_translate_element');
+      if (widget && widget.parentNode !== document.body) {
+        widget.style.display = 'none';
+        document.body.appendChild(widget);
+      }
+    };
   }, []);
 
   return (
