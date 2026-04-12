@@ -112,7 +112,12 @@ export default function Footer() {
           color: 'var(--color-text-faint)',
         }}>
           <p>&copy; {year} OxSteed LLC</p>
-          <p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+            {/* Google Translate */}
+            <div
+              id="google_translate_element"
+              style={{ fontSize: '0.78rem', opacity: 0.7 }}
+            />
             <a
               href="mailto:support@oxsteed.com"
               style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
@@ -121,7 +126,7 @@ export default function Footer() {
             >
               support@oxsteed.com
             </a>
-          </p>
+          </div>
         </div>
       </div>
     </footer>
