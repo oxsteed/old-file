@@ -141,9 +141,12 @@ io.on('connection', (socket) => {
   });
 
   // ── TYPING INDICATORS ─────────────────────────────────────────
-  // Forwarded only to the conv room (excluding sender) — no DB writes.
+  // Gate on room membership: the socket must have already joined conv_{id}
+  // via conversation:join (which verified DB membership).  This prevents any
+  // authenticated user from broadcasting typing events to arbitrary rooms they
+  // don't belong to — socket.to() does NOT require the sender to be in the room.
   socket.on('typing:start', (conversationId) => {
-    if (conversationId) {
+    if (conversationId && socket.rooms.has(`conv_${conversationId}`)) {
       socket.to(`conv_${conversationId}`).emit('user:typing', {
         conversationId,
         userId,
@@ -152,7 +155,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('typing:stop', (conversationId) => {
-    if (conversationId) {
+    if (conversationId && socket.rooms.has(`conv_${conversationId}`)) {
       socket.to(`conv_${conversationId}`).emit('user:stopped_typing', {
         conversationId,
         userId,

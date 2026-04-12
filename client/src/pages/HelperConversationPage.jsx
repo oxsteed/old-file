@@ -119,8 +119,9 @@ export default function HelperConversationPage() {
       setOtherTyping(false);
     };
 
-    const onMessagesRead = ({ conversationId: cid, readAt }) => {
+    const onMessagesRead = ({ conversationId: cid, readBy, readAt }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(readBy) === String(user?.id)) return; // ignore own read events
       setLastReadAt(readAt);
     };
 

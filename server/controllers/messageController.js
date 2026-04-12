@@ -18,7 +18,7 @@ const getConversations = async (req, res) => {
               -- helper's primary business name (useful when customer sees multiple conversations,
               -- or when a helper with multiple businesses reviews their inbox)
               hb.business_name AS helper_business_name,
-              COUNT(um.id) FILTER (WHERE um.is_read = FALSE AND um.sender_id != $1) AS unread_count
+              uc.cnt AS unread_count
        FROM conversations c
        LEFT JOIN users h  ON c.helper_id   = h.id
        LEFT JOIN users cu ON c.customer_id = cu.id
@@ -33,10 +33,13 @@ const getConversations = async (req, res) => {
          ORDER BY created_at DESC
          LIMIT 1
        ) lm ON TRUE
-       LEFT JOIN messages um ON um.conversation_id = c.id
+       -- unread count via lateral join — only scans unread rows, no full message join
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) AS cnt
+         FROM messages
+         WHERE conversation_id = c.id AND sender_id != $1 AND is_read = FALSE
+       ) uc ON TRUE
        WHERE (c.customer_id = $1 OR c.helper_id = $1) AND c.status = 'active'
-       GROUP BY c.id, h.first_name, h.last_name, cu.first_name, cu.last_name,
-                j.title, lm.content, lm.sender_id, hb.business_name
        ORDER BY c.last_message_at DESC NULLS LAST`,
       [userId]
     );

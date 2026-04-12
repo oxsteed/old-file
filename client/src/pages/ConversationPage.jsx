@@ -107,9 +107,11 @@ export default function ConversationPage() {
       setOtherTyping(false);
     };
 
-    // Other party read our messages
-    const onMessagesRead = ({ conversationId: cid, readAt }) => {
+    // Other party read our messages — ignore self-triggered events because
+    // broadcastToConversation() delivers to all room members including the reader.
+    const onMessagesRead = ({ conversationId: cid, readBy, readAt }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(readBy) === String(user?.id)) return; // own read action, not the other party
       setLastReadAt(readAt);
     };
 
