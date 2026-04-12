@@ -120,7 +120,7 @@ const MobileChatDrawer: React.FC<{
     if (delta > 0 && drawerRef.current) {
       // Remove the smooth-transition class while dragging so the drawer
       // follows the finger with zero lag — fixes Bugbot MEDIUM issue #3.
-      drawerRef.current.classList.add('dragging');
+      drawerRef.current.classList.add('ox-drawer-dragging');
       drawerRef.current.style.transform = `translateY(${Math.min(delta, 120)}px)`;
     }
   };
@@ -130,14 +130,14 @@ const MobileChatDrawer: React.FC<{
     isDragging.current = false;
     const delta = touchCurrentY.current - touchStartY.current;
     if (delta > 80) {
-      // Dismissing: do NOT remove the dragging class or clear the transform.
-      // Removing dragging would re-enable transition-transform, causing the
+      // Dismissing: do NOT remove the ox-drawer-dragging class or clear the
+      // transform. Removing it would re-enable transition-transform, causing the
       // drawer to animate back up (wrong direction) before onClose unmounts it.
       onClose();
     } else if (drawerRef.current) {
       // Snap back: re-enable the CSS transition, then clear the transform so
       // the drawer smoothly returns to its resting position.
-      drawerRef.current.classList.remove('dragging');
+      drawerRef.current.classList.remove('ox-drawer-dragging');
       drawerRef.current.style.transform = '';
     }
   };
@@ -157,8 +157,8 @@ const MobileChatDrawer: React.FC<{
         onClick={onClose}
         aria-hidden="true"
       />
-      {/* Drawer — transition-transform is the default; the 'dragging' class
-          removes it so there is no lag while the finger is down. */}
+      {/* Drawer — transition-transform is the default; the 'ox-drawer-dragging'
+          class removes it so there is no lag while the finger is down. */}
       <div
         ref={drawerRef}
         className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col shadow-2xl transition-transform duration-300"
@@ -183,9 +183,9 @@ const MobileChatDrawer: React.FC<{
         </div>
       </div>
 
-      {/* Inline style: remove transition-transform while dragging so there
-          is zero CSS lag. Scoped to this drawer only. */}
-      <style>{`.dragging { transition: none !important; }`}</style>
+      {/* Inline style: scoped to ox-drawer-dragging to avoid colliding with
+          any other component that uses the generic 'dragging' class name. */}
+      <style>{`.ox-drawer-dragging { transition: none !important; }`}</style>
     </div>
   );
 };
