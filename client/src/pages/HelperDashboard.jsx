@@ -213,9 +213,16 @@ export default function HelperDashboard() {
   // Real-time unread badge: increment on inbound messages from customers.
   useEffect(()=>{
     if(!socket) return;
-    const onProfileMsg = ()=> setUnreadMessages(prev => prev + 1);
-    socket.on('profile_chat:new_message', onProfileMsg);
-    return ()=> socket.off('profile_chat:new_message', onProfileMsg);
+    const inc = ()=> setUnreadMessages(prev => prev + 1);
+    // profile_chat:new_message — first contact from customer on helper's profile page
+    // message:new — follow-up via the standard /messages conversations path
+    // Both are emitted only to the recipient, so no sender-id guard needed.
+    socket.on('profile_chat:new_message', inc);
+    socket.on('message:new', inc);
+    return ()=>{
+      socket.off('profile_chat:new_message', inc);
+      socket.off('message:new', inc);
+    };
   },[socket]);
 
   useEffect(()=>{
