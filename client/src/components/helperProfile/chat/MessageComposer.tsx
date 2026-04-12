@@ -38,12 +38,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     }
   };
 
+  // On mobile, when the keyboard opens it can push content off-screen.
+  // scrollIntoView ensures the textarea stays visible above the keyboard.
+  const handleFocus = () => {
+    setTimeout(() => {
+      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 300);
+  };
+
   const submit = () => {
     const trimmed = text.trim();
     if (!trimmed || isDisabled) return;
     onSend(trimmed);
     setText('');
-    // Reset height
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
@@ -87,7 +94,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         >
           <Smile className="w-4 h-4" aria-hidden="true" />
         </button>
-        <span className="text-xs text-gray-600 ml-auto">Shift+Enter for new line</span>
+        <span className="text-xs text-gray-600 ml-auto hidden sm:block">Shift+Enter for new line</span>
       </div>
 
       {/* Input row */}
@@ -97,13 +104,14 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
           placeholder={placeholder ?? defaultPlaceholder}
           disabled={isDisabled}
           rows={1}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-colors disabled:cursor-not-allowed leading-relaxed"
           aria-label="Message input"
           aria-multiline="true"
-          style={{ minHeight: '40px', maxHeight: '120px' }}
+          style={{ minHeight: '40px', maxHeight: '120px', fontSize: '16px' }}
         />
         <button
           onClick={submit}

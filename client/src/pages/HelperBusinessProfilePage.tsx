@@ -12,7 +12,7 @@
  * API integration notes (see bottom of file).
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import { MessageCircle, X, ArrowUp } from 'lucide-react';
@@ -88,11 +88,44 @@ const MobileChatDrawer: React.FC<{
   onClose: () => void;
   children: React.ReactNode;
 }> = ({ open, onClose, children }) => {
-  // Prevent body scroll when drawer is open
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number>(0);
+  const touchCurrentY = useRef<number>(0);
+
+  // Lock body scroll when drawer is open
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
+
+  // Swipe-to-close: track touch on the drag handle
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchCurrentY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchCurrentY.current = e.touches[0].clientY;
+    const delta = touchCurrentY.current - touchStartY.current;
+    if (delta > 0 && drawerRef.current) {
+      // Visually drag the drawer down slightly for feedback
+      drawerRef.current.style.transform = `translateY(${Math.min(delta, 120)}px)`;
+      drawerRef.current.style.transition = 'none';
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const delta = touchCurrentY.current - touchStartY.current;
+    if (drawerRef.current) {
+      drawerRef.current.style.transform = '';
+      drawerRef.current.style.transition = '';
+    }
+    // If swiped down more than 80px, close
+    if (delta > 80) {
+      onClose();
+    }
+  };
 
   if (!open) return null;
 
@@ -110,10 +143,25 @@ const MobileChatDrawer: React.FC<{
         aria-hidden="true"
       />
       {/* Drawer */}
-      <div className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col h-[90vh] shadow-2xl">
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-gray-700" aria-hidden="true" />
+      <div
+        ref={drawerRef}
+        className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col shadow-2xl"
+        style={{ height: '90dvh' }}
+      >
+        {/* Drag handle — tappable + swipeable */}
+        <div
+          ref={dragHandleRef}
+          className="flex justify-center pt-3 pb-1 flex-shrink-0 cursor-pointer"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={onClose}
+          role="button"
+          aria-label="Close chat"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && onClose()}
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-600" aria-hidden="true" />
         </div>
         <div className="flex-1 overflow-hidden px-3 pb-3">
           {children}
@@ -138,7 +186,8 @@ const BackToTopButton: React.FC = () => {
   return (
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      className="fixed bottom-24 right-4 z-30 lg:bottom-8 w-10 h-10 rounded-full bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors shadow-lg flex items-center justify-center"
+      // Moved to left-4 so it never collides with the FAB (right side)
+      className="fixed bottom-24 left-4 z-30 lg:bottom-8 lg:left-auto lg:right-4 w-10 h-10 rounded-full bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors shadow-lg flex items-center justify-center"
       aria-label="Back to top"
     >
       <ArrowUp className="w-4 h-4" aria-hidden="true" />
@@ -193,6 +242,16 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
 
+  // Set scroll-padding-top so SectionNav anchor links don't hide under sticky bars
+  useEffect(() => {
+    // Approximate: Navbar (~64px) + SectionNav (~40px) + a little breathing room
+    const previous = document.documentElement.style.scrollPaddingTop;
+    document.documentElement.style.scrollPaddingTop = '112px';
+    return () => {
+      document.documentElement.style.scrollPaddingTop = previous;
+    };
+  }, []);
+
   const loadProfile = useCallback(async () => {
     setLoadState('loading');
     setError(null);
@@ -214,12 +273,6 @@ const HelperBusinessProfilePage: React.FC = () => {
   // Service selection — placeholder for routing to booking flow
   const handleSelectService = useCallback((service: Service) => {
     /**
-
-  // Remove SSR static shell once React hydrates (Issue #35)
-  useEffect(() => {
-    const ssrShell = document.getElementById('ssr-shell');
-    if (ssrShell) ssrShell.remove();
-  }, []);
      * API INTEGRATION POINT:
      *   navigate(`/book/${data?.helper.id}?service=${service.id}`)
      */
@@ -323,10 +376,10 @@ const HelperBusinessProfilePage: React.FC = () => {
 
             <PoliciesSection policies={policies} />
 
-                              {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
-                <AvailabilityBlock helperId={id!} />
-                <PricingBlock helperId={id!} />
-                <SlotsBlock helperId={id!} />
+            {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
+            <AvailabilityBlock helperId={id!} />
+            <PricingBlock helperId={id!} />
+            <SlotsBlock helperId={id!} />
 
             <ReviewsSection
               reviews={reviews}
@@ -336,8 +389,12 @@ const HelperBusinessProfilePage: React.FC = () => {
 
             <FAQSection faqs={faqs} />
 
-            {/* Bottom padding so mobile CTA bar doesn't cover content */}
-            <div className="h-20 lg:hidden" aria-hidden="true" />
+            {/*
+              Bottom padding so mobile CTA bar + FAB + iOS home indicator
+              don't obscure the last section. h-32 = 128px covers:
+                CTA bar ~64px + FAB position ~80px + safe area ~34px
+            */}
+            <div className="h-32 lg:hidden" aria-hidden="true" />
           </div>
 
           {/* ── Right column: CTA + Chat (desktop) ─────────── */}
@@ -369,14 +426,19 @@ const HelperBusinessProfilePage: React.FC = () => {
 
       <Footer />
 
-      {/* ── Mobile: sticky bottom CTA bar ───────────────────── */}
+      {/*
+        ── Mobile: sticky bottom CTA bar ──────────────────────────
+        env(safe-area-inset-bottom) ensures buttons aren't hidden
+        behind the iPhone home indicator.
+      */}
       <div
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 py-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         aria-label="Quick actions"
       >
         <button
           onClick={handleOpenChat}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors active:bg-gray-700"
           aria-label="Open chat with this helper"
         >
           <MessageCircle className="w-4 h-4" aria-hidden="true" />
@@ -386,7 +448,7 @@ const HelperBusinessProfilePage: React.FC = () => {
           onClick={services.length > 0 ? handleBookNow : undefined}
           disabled={services.length === 0}
           title={services.length === 0 ? "This helper hasn't listed services yet — send them a message." : undefined}
-          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed active:bg-brand-700"
           aria-label="Book this helper"
         >
           Book Now
@@ -405,11 +467,16 @@ const HelperBusinessProfilePage: React.FC = () => {
         />
       </MobileChatDrawer>
 
-      {/* ── Mobile chat FAB (alternative entry point) ────────── */}
+      {/*
+        ── Mobile chat FAB ────────────────────────────────────────
+        bottom-[76px] clears the CTA bar (~64px tall) on all phones.
+        Stays on the RIGHT side; BackToTop is now on the LEFT.
+      */}
       {!chatOpen && (
         <button
           onClick={handleOpenChat}
-          className="lg:hidden fixed bottom-20 right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-colors"
+          className="lg:hidden fixed right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-colors active:bg-brand-700"
+          style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
           aria-label="Open chat"
         >
           <MessageCircle className="w-5 h-5" aria-hidden="true" />

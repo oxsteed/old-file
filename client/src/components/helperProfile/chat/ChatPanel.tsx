@@ -21,7 +21,7 @@ interface ChatPanelProps {
   session: ChatSession;
   helperName: string;
   helperId: string;
-  /** Rendered in a sidebar — no close button */
+  /** 'sidebar' = embedded on desktop (no close btn). 'modal' = mobile drawer (shows close btn). */
   variant?: 'sidebar' | 'modal';
   onClose?: () => void;
   className?: string;
@@ -126,7 +126,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       } catch { /* silent */ }
     };
     checkStatus();
-    // Re-check every 30s while panel is mounted
     const interval = setInterval(checkStatus, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [helperId]);
@@ -173,7 +172,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const handleSend = useCallback(async (text: string) => {
     if (sending) return;
 
-    // Optimistically add user message to timeline
     const userMsg: ChatMessage = {
       id:         `msg-${Date.now()}`,
       itemType:   'message',
@@ -204,10 +202,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       });
 
       if (data.type === 'live') {
-        // Save conversationId so we can listen for real-time replies
         if (data.conversationId) setConversationId(data.conversationId);
-
-        // Show "waiting for reply" status event
         const waiting: TimelineEvent = {
           id:        `evt-${Date.now()}`,
           itemType:  'system',
@@ -220,9 +215,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           typing:   null,
           timeline: [...prev.timeline, waiting],
         }));
-
       } else {
-        // AI reply
         const aiMsg: ChatMessage = {
           id:         `msg-${Date.now()}-reply`,
           itemType:   'message',
@@ -230,8 +223,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           content:    data.reply || "I'm sorry, I couldn't generate a response. Please try again.",
           timestamp:  new Date().toISOString(),
         };
-
-        // If helper was actually online but user isn't auth'd, add a status note
         const events: TimelineItem[] = [];
         if (data.helperOnline && !user && session.destination === 'helper') {
           const note: TimelineEvent = {
@@ -243,7 +234,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           };
           events.push(note);
         }
-
         setSession(prev => ({
           ...prev,
           typing:   null,
@@ -271,14 +261,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const helperIsLive  = session.helperStatus === 'live';
   const isOffline     = currentStatus === 'offline';
 
-  // Inject a welcome message into an empty timeline so users know what to ask
   const displayTimeline = React.useMemo(() => {
     const msgs = session.timeline.filter((item) => {
       if (session.destination === 'oxsteed' && item.itemType === 'booking_event') return false;
       return true;
     });
     if (msgs.length > 0) return msgs;
-    // No messages yet — prepend a synthetic welcome bubble
     const welcome: ChatMessage = {
       id: 'welcome-msg',
       itemType: 'message',
@@ -290,6 +278,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     };
     return [welcome];
   }, [session.timeline, session.destination, helperName]);
+
+  // Whether to show the close button — always show it when variant is 'modal',
+  // even if onClose is undefined (fall back to a no-op so the button is never invisible)
+  const showCloseButton = variant === 'modal';
+  const handleClose = onClose ?? (() => {});
 
   return (
     <div
@@ -307,9 +300,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge status={currentStatus} />
-            {variant === 'modal' && onClose && (
+            {showCloseButton && (
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
                 aria-label="Close chat"
               >
