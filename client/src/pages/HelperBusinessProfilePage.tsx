@@ -117,11 +117,25 @@ const MobileChatDrawer: React.FC<{
     if (!isDragging.current) return;
     touchCurrentY.current = e.touches[0].clientY;
     const delta = touchCurrentY.current - touchStartY.current;
-    if (delta > 0 && drawerRef.current) {
-      // Remove the smooth-transition class while dragging so the drawer
-      // follows the finger with zero lag — fixes Bugbot MEDIUM issue #3.
+    if (!drawerRef.current) return;
+    if (delta > 0) {
+      // Disable CSS transition while finger is down so the drawer tracks
+      // the finger with zero lag.
       drawerRef.current.classList.add('ox-drawer-dragging');
       drawerRef.current.style.transform = `translateY(${Math.min(delta, 120)}px)`;
+    } else {
+      // Finger moved back above the start point — snap to resting position
+      // and re-enable transition so the snap feels smooth.
+      drawerRef.current.classList.remove('ox-drawer-dragging');
+      drawerRef.current.style.transform = '';
+    }
+  };
+
+  // Shared cleanup used by both touchend and touchcancel.
+  const snapBackDrawer = () => {
+    if (drawerRef.current) {
+      drawerRef.current.classList.remove('ox-drawer-dragging');
+      drawerRef.current.style.transform = '';
     }
   };
 
@@ -134,12 +148,20 @@ const MobileChatDrawer: React.FC<{
       // transform. Removing it would re-enable transition-transform, causing the
       // drawer to animate back up (wrong direction) before onClose unmounts it.
       onClose();
-    } else if (drawerRef.current) {
+    } else {
       // Snap back: re-enable the CSS transition, then clear the transform so
       // the drawer smoothly returns to its resting position.
-      drawerRef.current.classList.remove('ox-drawer-dragging');
-      drawerRef.current.style.transform = '';
+      snapBackDrawer();
     }
+  };
+
+  // touchcancel fires when the OS interrupts the touch sequence (incoming call,
+  // system gesture, etc.). Without this handler isDragging stays true, the
+  // ox-drawer-dragging class stays on, and the transform stays applied —
+  // leaving the drawer visually stuck until the next complete drag.
+  const handleHandleTouchCancel = () => {
+    isDragging.current = false;
+    snapBackDrawer();
   };
 
   if (!open) return null;
@@ -170,6 +192,7 @@ const MobileChatDrawer: React.FC<{
           onTouchStart={handleHandleTouchStart}
           onTouchMove={handleHandleTouchMove}
           onTouchEnd={handleHandleTouchEnd}
+          onTouchCancel={handleHandleTouchCancel}
           onClick={onClose}
           role="button"
           aria-label="Close chat"

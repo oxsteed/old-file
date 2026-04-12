@@ -43,14 +43,17 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
   const openRef = useRef(open);
   useEffect(() => { openRef.current = open; }, [open]);
 
-  // Close on outside click
+  // Close on outside click — guard on openRef so we skip the work (and a
+  // no-op setState) on every click when the dropdown is already closed.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (openRef.current && ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close on Escape — stopImmediatePropagation so no other document-level
   // Escape handler (e.g. SupportWidget) fires in the same dispatch.
