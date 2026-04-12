@@ -10,11 +10,17 @@ directly to them via Socket.IO instead of the AI assistant.
 
 ## What Was Changed
 
-### 1. DB Migration — `server/migrations/015_add_helper_availability.sql`
+### 1. DB Migration — `server/migrations/059_add_helper_availability.sql`
 ```sql
 -- Add availability toggle for helpers to indicate live chat readiness
-ALTER TABLE helpers ADD COLUMN IF NOT EXISTS is_available BOOLEAN DEFAULT false;
-ALTER TABLE helpers ADD COLUMN IF NOT EXISTS available_since TIMESTAMPTZ;
+ALTER TABLE helpers
+  ADD COLUMN IF NOT EXISTS is_available BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS available_since TIMESTAMPTZ;
+
+-- Partial index for fast browse filtering
+CREATE INDEX IF NOT EXISTS idx_helpers_is_available
+  ON helpers (is_available)
+  WHERE is_available = true;
 ```
 
 ---
@@ -78,3 +84,11 @@ ALTER TABLE helpers ADD COLUMN IF NOT EXISTS available_since TIMESTAMPTZ;
 
 - Helper **available** → "Contact Helper" navigates to `/messages?to={helper.user_id}` (direct Socket.IO chat)
 - Helper **unavailable** → message routes through AI assistant (existing behavior)
+
+---
+
+## Run the Migration
+
+```bash
+docker exec -it <server-container> node /app/server/migrate.js
+```
