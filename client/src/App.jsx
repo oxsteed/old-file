@@ -37,6 +37,8 @@ import MessagesPage from './pages/MessagesPage';
 import ConversationPage from './pages/ConversationPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
+import HelperInboxPage from './pages/HelperInboxPage';
+import HelperConversationPage from './pages/HelperConversationPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -94,20 +96,27 @@ export default function App() {
                   <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                   <Route path="/disputes"       element={<Guarded><ProtectedRoute><DisputeCenter /></ProtectedRoute></Guarded>} />
                   <Route path="/disputes/:id"   element={<Guarded><ProtectedRoute><DisputeDetail /></ProtectedRoute></Guarded>} />
+
+                  {/* ── Customer messaging ─────────────────────────────── */}
                   <Route path="/messages"       element={<Guarded><ProtectedRoute><MessagesPage /></ProtectedRoute></Guarded>} />
                   <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><ConversationPage /></ProtectedRoute></Guarded>} />
+
+                  {/* ── Helper messaging (profile-chat live delivery) ───── */}
+                  <Route path="/helper/messages" element={<Guarded><ProtectedRoute><HelperInboxPage /></ProtectedRoute></Guarded>} />
+                  <Route path="/helper/messages/:conversationId" element={<Guarded><ProtectedRoute><HelperConversationPage /></ProtectedRoute></Guarded>} />
+
                   <Route path="/planned-needs" element={<Guarded><ProtectedRoute><PlannedNeedsPage /></ProtectedRoute></Guarded>} />
                   <Route path="/car-care"      element={<Guarded><ProtectedRoute><CarCarePage /></ProtectedRoute></Guarded>} />
-                  
+
                   <Route path="*" element={<NotFoundPage />} />
-                          </Routes>
-                        </TermsGate>
-        <CookieConsent />
-        <SupportWidget />
-        </AuthProvider>
+                </Routes>
+              </TermsGate>
+              <CookieConsent />
+              <SupportWidget />
+            </AuthProvider>
           </Router>
-      </ErrorBoundary>
-    </ThemeProvider>
+        </ErrorBoundary>
+      </ThemeProvider>
     </HelmetProvider>
   );
 }
