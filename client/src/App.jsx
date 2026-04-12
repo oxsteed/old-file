@@ -35,6 +35,8 @@ import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputeDetail from './pages/disputes/DisputeDetail';
 import MessagesPage from './pages/MessagesPage';
 import ConversationPage from './pages/ConversationPage';
+import HelperInboxPage from './pages/HelperInboxPage';
+import HelperConversationPage from './pages/HelperConversationPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
 
@@ -96,6 +98,8 @@ export default function App() {
                   <Route path="/disputes/:id"   element={<Guarded><ProtectedRoute><DisputeDetail /></ProtectedRoute></Guarded>} />
                   <Route path="/messages"       element={<Guarded><ProtectedRoute><MessagesPage /></ProtectedRoute></Guarded>} />
                   <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><ConversationPage /></ProtectedRoute></Guarded>} />
+                  <Route path="/helper/messages" element={<Guarded><ProtectedRoute><HelperInboxPage /></ProtectedRoute></Guarded>} />
+                  <Route path="/helper/messages/:conversationId" element={<Guarded><ProtectedRoute><HelperConversationPage /></ProtectedRoute></Guarded>} />
                   <Route path="/planned-needs" element={<Guarded><ProtectedRoute><PlannedNeedsPage /></ProtectedRoute></Guarded>} />
                   <Route path="/car-care"      element={<Guarded><ProtectedRoute><CarCarePage /></ProtectedRoute></Guarded>} />
                   
