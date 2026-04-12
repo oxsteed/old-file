@@ -76,7 +76,7 @@ export default function HelperConversationPage() {
     const content = newMessage.trim();
     setNewMessage('');
     try {
-      const res = await api.post(`/messages/conversations/${conversationId}`, { content });
+      const res = await api.post(`/messages/conversations/${conversationId}/messages`, { content });
       setMessages(prev => {
         if (prev.some(m => m.id === res.data.id)) return prev;
         return [...prev, res.data];
