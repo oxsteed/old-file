@@ -4,19 +4,17 @@
  * Customer-facing helper/small-business profile page for OxSteed.
  *
  * Layout:
- *   - Desktop (lg+): 2-column grid. Left 7/12 = profile sections stacked.
- *                    Right 5/12 = sticky CTA card + embedded ChatPanel.
- *   - Mobile: single column, sticky mobile CTA bar at bottom,
- *             FAB triggers full-screen chat drawer.
+ * - Desktop (lg+): 2-column grid. Left 7/12 = profile sections stacked.
+ *   Right 5/12 = sticky CTA card + embedded ChatPanel.
+ * - Mobile: single column, sticky mobile CTA bar at bottom,
+ *   FAB triggers full-screen chat drawer.
  *
  * API integration notes (see bottom of file).
  */
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import { MessageCircle, X, ArrowUp } from 'lucide-react';
-
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -88,11 +86,33 @@ const MobileChatDrawer: React.FC<{
   onClose: () => void;
   children: React.ReactNode;
 }> = ({ open, onClose, children }) => {
+  const [startY, setStartY] = useState<number | null>(null);
+  const [currentY, setCurrentY] = useState(0);
+  const drawerRef = useRef<HTMLDivElement>(null);
+
   // Prevent body scroll when drawer is open
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY === null) return;
+    const deltaY = e.touches[0].clientY - startY;
+    if (deltaY > 0) setCurrentY(deltaY);
+  };
+
+  const handleTouchEnd = () => {
+    if (currentY > 100) {
+      onClose();
+    }
+    setStartY(null);
+    setCurrentY(0);
+  };
 
   if (!open) return null;
 
@@ -105,17 +125,30 @@ const MobileChatDrawer: React.FC<{
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
+      
       {/* Drawer */}
-      <div className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col h-[90vh] shadow-2xl">
+      <div 
+        ref={drawerRef}
+        className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col h-[90dvh] shadow-2xl transition-transform duration-300 ease-out border-t border-gray-800 pb-[env(safe-area-inset-bottom)]"
+        style={{ transform: `translateY(${currentY}px)` }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-gray-700" aria-hidden="true" />
-        </div>
-        <div className="flex-1 overflow-hidden px-3 pb-3">
+        <button 
+          className="flex justify-center pt-3 pb-2 flex-shrink-0 cursor-grab active:cursor-grabbing w-full group"
+          onClick={onClose}
+          aria-label="Close chat"
+        >
+          <div className="w-12 h-1.5 rounded-full bg-gray-800 group-hover:bg-gray-700 transition-colors" aria-hidden="true" />
+        </button>
+
+        <div className="flex-1 min-h-0 px-3 pb-3">
           {children}
         </div>
       </div>
@@ -138,7 +171,7 @@ const BackToTopButton: React.FC = () => {
   return (
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      className="fixed bottom-24 right-4 z-30 lg:bottom-8 w-10 h-10 rounded-full bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors shadow-lg flex items-center justify-center"
+      className="fixed bottom-[136px] right-4 z-30 lg:bottom-8 w-10 h-10 rounded-full bg-gray-800/90 backdrop-blur border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-all shadow-lg flex items-center justify-center active:scale-90"
       aria-label="Back to top"
     >
       <ArrowUp className="w-4 h-4" aria-hidden="true" />
@@ -148,16 +181,27 @@ const BackToTopButton: React.FC = () => {
 
 // ── Page nav anchors ──────────────────────────────────────────────────────────
 const PAGE_SECTIONS = [
-  { id: 'services',  label: 'Services'  },
-  { id: 'gallery',   label: 'Photos'    },
-  { id: 'reviews',   label: 'Reviews'   },
-  { id: 'faqs',      label: 'FAQs'      },
-  { id: 'policies',  label: 'Policies'  },
+  { id: 'services', label: 'Services' },
+  { id: 'gallery', label: 'Photos' },
+  { id: 'reviews', label: 'Reviews' },
+  { id: 'faqs', label: 'FAQs' },
+  { id: 'policies', label: 'Policies' },
 ];
 
 const SectionNav: React.FC = () => {
   const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const element = document.getElementById(id);
+    if (element) {
+      // Offset for sticky nav + section nav
+      const offset = 120;
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
   };
 
   return (
@@ -196,7 +240,6 @@ const HelperBusinessProfilePage: React.FC = () => {
   const loadProfile = useCallback(async () => {
     setLoadState('loading');
     setError(null);
-
     try {
       const profileData = await fetchHelperProfile(id!);
       setData(profileData);
@@ -213,16 +256,6 @@ const HelperBusinessProfilePage: React.FC = () => {
 
   // Service selection — placeholder for routing to booking flow
   const handleSelectService = useCallback((service: Service) => {
-    /**
-
-  // Remove SSR static shell once React hydrates (Issue #35)
-  useEffect(() => {
-    const ssrShell = document.getElementById('ssr-shell');
-    if (ssrShell) ssrShell.remove();
-  }, []);
-     * API INTEGRATION POINT:
-     *   navigate(`/book/${data?.helper.id}?service=${service.id}`)
-     */
     console.info('[OxSteed] Service selected for booking:', service.id, service.name);
   }, []);
 
@@ -275,6 +308,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         url={`https://oxsteed.com/helpers/${id}`}
         type="profile"
       />
+
       <Navbar />
 
       {/* Business hero header */}
@@ -323,10 +357,10 @@ const HelperBusinessProfilePage: React.FC = () => {
 
             <PoliciesSection policies={policies} />
 
-                              {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
-                <AvailabilityBlock helperId={id!} />
-                <PricingBlock helperId={id!} />
-                <SlotsBlock helperId={id!} />
+            {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
+            <AvailabilityBlock helperId={id!} />
+            <PricingBlock helperId={id!} />
+            <SlotsBlock helperId={id!} />
 
             <ReviewsSection
               reviews={reviews}
@@ -337,7 +371,7 @@ const HelperBusinessProfilePage: React.FC = () => {
             <FAQSection faqs={faqs} />
 
             {/* Bottom padding so mobile CTA bar doesn't cover content */}
-            <div className="h-20 lg:hidden" aria-hidden="true" />
+            <div className="h-32 lg:hidden" aria-hidden="true" />
           </div>
 
           {/* ── Right column: CTA + Chat (desktop) ─────────── */}
@@ -371,7 +405,7 @@ const HelperBusinessProfilePage: React.FC = () => {
 
       {/* ── Mobile: sticky bottom CTA bar ───────────────────── */}
       <div
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 py-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
         aria-label="Quick actions"
       >
         <button
@@ -409,7 +443,7 @@ const HelperBusinessProfilePage: React.FC = () => {
       {!chatOpen && (
         <button
           onClick={handleOpenChat}
-          className="lg:hidden fixed bottom-20 right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-colors"
+          className="lg:hidden fixed bottom-[88px] right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-all active:scale-95"
           aria-label="Open chat"
         >
           <MessageCircle className="w-5 h-5" aria-hidden="true" />
@@ -422,38 +456,3 @@ const HelperBusinessProfilePage: React.FC = () => {
 };
 
 export default HelperBusinessProfilePage;
-
-/*
- * ─────────────────────────────────────────────────────────────────────────────
- * API INTEGRATION NOTES
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * 1. PROFILE DATA  GET /api/helpers/:id/profile
- *    Returns: HelperProfile, services, gallery, hours, location, policies, faqs
- *    Replace: mock import in loadProfile()
- *
- * 2. REVIEWS       GET /api/helpers/:id/reviews?page=1&limit=10
- *    Supports pagination. Add a `nextPage` cursor to ReviewsSection props.
- *
- * 3. CHAT SESSION  POST /api/chat/sessions  { helperId }
- *    Returns: ChatSession with id, initialMessages, statuses
- *    Then connect via Socket.io: socket.join(session.id)
- *    Incoming events:
- *      - chat:message   → append ChatMessage to timeline
- *      - chat:event     → append TimelineEvent (booking, handoff, etc.)
- *      - chat:typing    → set typing indicator
- *      - chat:status    → update helperStatus / oxsteedStatus
- *
- * 4. SEND MESSAGE  POST /api/chat/sessions/:sessionId/messages  { content, attachments }
- *    Replace: the setTimeout mock in ChatPanel.handleSend()
- *
- * 5. BOOKING CTA   Navigate to /book/:helperId?service=:serviceId
- *    Replace: handleBookNow and handleSelectService callbacks
- *
- * 6. AUTH CONTEXT  Wrap page with useAuth() to pass userId to chat session
- *    so messages are attributed to the logged-in customer.
- *
- * 7. SEO / META    Add react-helmet-async <title> and <meta> tags using
- *    helper.businessName, helper.tagline, and helper.coverImage.
- * ─────────────────────────────────────────────────────────────────────────────
- */
