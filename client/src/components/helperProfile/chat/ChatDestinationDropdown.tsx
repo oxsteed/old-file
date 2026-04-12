@@ -35,6 +35,13 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // Ref mirrors open state so the keydown handler below can read it without
+  // being included in the dependency array. This keeps the listener registered
+  // once at a stable position in document's listener queue — re-registering on
+  // every open toggle would push it to the end, breaking stopImmediatePropagation
+  // ordering relative to other document-level Escape handlers (e.g. SupportWidget).
+  const openRef = useRef(open);
+  useEffect(() => { openRef.current = open; }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -45,22 +52,20 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close on Escape — stopImmediatePropagation when the dropdown itself is
-  // open so no other document-level Escape handler (e.g. SupportWidget) fires
-  // in the same event dispatch. stopPropagation() alone is insufficient here
-  // because it only stops propagation to ancestor nodes (window); sibling
-  // listeners registered on document still run. stopImmediatePropagation()
-  // prevents all remaining listeners on the same node from executing.
+  // Close on Escape — stopImmediatePropagation so no other document-level
+  // Escape handler (e.g. SupportWidget) fires in the same dispatch.
+  // Registered once ([] deps) to maintain a stable queue position; openRef
+  // provides current open state without causing re-registration.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) {
+      if (e.key === 'Escape' && openRef.current) {
         e.stopImmediatePropagation();
         setOpen(false);
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentStatus = destination === 'helper' ? helperStatus : oxsteedStatus;
   const currentLabel =

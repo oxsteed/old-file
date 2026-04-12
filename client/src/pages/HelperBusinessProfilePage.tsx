@@ -129,13 +129,16 @@ const MobileChatDrawer: React.FC<{
     if (!isDragging.current) return;
     isDragging.current = false;
     const delta = touchCurrentY.current - touchStartY.current;
-    if (drawerRef.current) {
-      // Re-enable CSS transition before snapping back or closing
+    if (delta > 80) {
+      // Dismissing: do NOT remove the dragging class or clear the transform.
+      // Removing dragging would re-enable transition-transform, causing the
+      // drawer to animate back up (wrong direction) before onClose unmounts it.
+      onClose();
+    } else if (drawerRef.current) {
+      // Snap back: re-enable the CSS transition, then clear the transform so
+      // the drawer smoothly returns to its resting position.
       drawerRef.current.classList.remove('dragging');
       drawerRef.current.style.transform = '';
-    }
-    if (delta > 80) {
-      onClose();
     }
   };
 
