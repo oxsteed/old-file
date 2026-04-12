@@ -88,10 +88,14 @@ const MobileChatDrawer: React.FC<{
   onClose: () => void;
   children: React.ReactNode;
 }> = ({ open, onClose, children }) => {
-  const dragHandleRef = useRef<HTMLDivElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const touchCurrentY = useRef<number>(0);
+  // Track whether the current touch sequence started on the drag handle.
+  // Only sequences that start there should move/dismiss the drawer.
+  // This prevents touch events inside ChatTimeline (scroll) from being
+  // captured by the dismiss logic — fixes Bugbot HIGH issue #1.
+  const isDragging = useRef<boolean>(false);
 
   // Lock body scroll when drawer is open
   useEffect(() => {
@@ -99,29 +103,37 @@ const MobileChatDrawer: React.FC<{
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  // Swipe-to-close: track touch on the drag handle
-  const handleTouchStart = (e: React.TouchEvent) => {
+  // ── Drag-handle touch handlers only ──────────────────────────────────────
+  // These are attached exclusively to the drag handle div. Touches that begin
+  // elsewhere (e.g. inside the scrollable ChatTimeline) never set isDragging,
+  // so they fall through to normal scroll behaviour.
+  const handleHandleTouchStart = (e: React.TouchEvent) => {
+    isDragging.current = true;
     touchStartY.current = e.touches[0].clientY;
     touchCurrentY.current = e.touches[0].clientY;
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleHandleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current) return;
     touchCurrentY.current = e.touches[0].clientY;
     const delta = touchCurrentY.current - touchStartY.current;
     if (delta > 0 && drawerRef.current) {
-      // Visually drag the drawer down slightly for feedback
+      // Remove the smooth-transition class while dragging so the drawer
+      // follows the finger with zero lag — fixes Bugbot MEDIUM issue #3.
+      drawerRef.current.classList.add('dragging');
       drawerRef.current.style.transform = `translateY(${Math.min(delta, 120)}px)`;
-      drawerRef.current.style.transition = 'none';
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleHandleTouchEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
     const delta = touchCurrentY.current - touchStartY.current;
     if (drawerRef.current) {
+      // Re-enable CSS transition before snapping back or closing
+      drawerRef.current.classList.remove('dragging');
       drawerRef.current.style.transform = '';
-      drawerRef.current.style.transition = '';
     }
-    // If swiped down more than 80px, close
     if (delta > 80) {
       onClose();
     }
@@ -142,19 +154,19 @@ const MobileChatDrawer: React.FC<{
         onClick={onClose}
         aria-hidden="true"
       />
-      {/* Drawer */}
+      {/* Drawer — transition-transform is the default; the 'dragging' class
+          removes it so there is no lag while the finger is down. */}
       <div
         ref={drawerRef}
-        className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col shadow-2xl"
+        className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col shadow-2xl transition-transform duration-300"
         style={{ height: '90dvh' }}
       >
         {/* Drag handle — tappable + swipeable */}
         <div
-          ref={dragHandleRef}
           className="flex justify-center pt-3 pb-1 flex-shrink-0 cursor-pointer"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handleHandleTouchStart}
+          onTouchMove={handleHandleTouchMove}
+          onTouchEnd={handleHandleTouchEnd}
           onClick={onClose}
           role="button"
           aria-label="Close chat"
@@ -167,6 +179,10 @@ const MobileChatDrawer: React.FC<{
           {children}
         </div>
       </div>
+
+      {/* Inline style: remove transition-transform while dragging so there
+          is zero CSS lag. Scoped to this drawer only. */}
+      <style>{`.dragging { transition: none !important; }`}</style>
     </div>
   );
 };

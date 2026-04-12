@@ -45,12 +45,19 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close on Escape
+  // Close on Escape — stopPropagation when the dropdown itself is open so the
+  // event does not bubble to parent layers (e.g. MobileChatDrawer) and
+  // inadvertently close both simultaneously — fixes Bugbot LOW issue #7.
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [open]);
 
   const currentStatus = destination === 'helper' ? helperStatus : oxsteedStatus;
   const currentLabel =
