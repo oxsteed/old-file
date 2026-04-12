@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
@@ -11,6 +11,7 @@ import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
+import { useSocket } from '../hooks/useSocket';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -186,12 +187,16 @@ export default function HelperDashboard() {
   const [goalForm, setGoalForm] = useState({title:'',goal_type:'financial',target_value:'',icon:'🎯'});
   const [checklistForm, setChecklistForm] = useState({title:'',due_date:''});
 
+  // Unread message count — shown as a badge on the Messages quick action.
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const { socket } = useSocket();
+
   const retryLoad = useCallback(async()=>{
     setLoading(true);
     setError(false);
     try{
       const p = [api.get('/verification/background-check/status'),api.get('/verification/identity/status'),api.get('/notifications')];
-      if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));}
+      if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));p.push(api.get('/messages/conversations'));}
       const r = await Promise.allSettled(p);
       const anyFailed = r.some(res=>res.status==='rejected');
       if(anyFailed) setError(true);
@@ -200,9 +205,25 @@ export default function HelperDashboard() {
       if(isOnboardingComplete){
         if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
         if(r[4]?.status==='fulfilled'){const j=r[4].value.data?.jobs||r[4].value.data||[];setNearbyJobs(Array.isArray(j)?j:[]);}
+        if(r[5]?.status==='fulfilled'){const convs=r[5].value.data||[];const total=convs.reduce((s,c)=>s+(parseInt(c.unread_count)||0),0);setUnreadMessages(total);}
       }
     }catch(e){console.error(e);setError(true);}finally{setLoading(false);}
   },[isOnboardingComplete]);
+
+  // Real-time unread badge: increment on inbound messages from customers.
+  useEffect(()=>{
+    if(!socket) return;
+    const inc = ()=> setUnreadMessages(prev => prev + 1);
+    // profile_chat:new_message — first contact from customer on helper's profile page
+    // message:new — follow-up via the standard /messages conversations path
+    // Both are emitted only to the recipient, so no sender-id guard needed.
+    socket.on('profile_chat:new_message', inc);
+    socket.on('message:new', inc);
+    return ()=>{
+      socket.off('profile_chat:new_message', inc);
+      socket.off('message:new', inc);
+    };
+  },[socket]);
 
   useEffect(()=>{
     retryLoad();
@@ -420,8 +441,14 @@ export default function HelperDashboard() {
 
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:'Find Jobs',c:'text-orange-400'},{to:'/messages',Ic:IcoChat,l:'Messages',c:'text-blue-400'},{to:'/disputes',Ic:IcoShield,l:'Disputes',c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'}].map((a,i)=>(
-                <Link key={i} to={a.to} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3"><a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span></Link>
+              {[{to:'/jobs',Ic:IcoBriefcase,l:'Find Jobs',c:'text-orange-400'},{to:'/helper/messages',Ic:IcoChat,l:'Messages',c:'text-blue-400',badge:unreadMessages},{to:'/disputes',Ic:IcoShield,l:'Disputes',c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'}].map((a,i)=>(
+                <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
+                  <div className="relative flex-shrink-0">
+                    <a.Ic size={18} cls={a.c}/>
+                    {!!a.badge&&<span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">{a.badge>99?'99+':a.badge}</span>}
+                  </div>
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
+                </Link>
               ))}
             </div>
 
