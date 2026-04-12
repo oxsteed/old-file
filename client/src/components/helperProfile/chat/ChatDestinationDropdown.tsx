@@ -45,13 +45,16 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close on Escape — stopPropagation when the dropdown itself is open so the
-  // event does not bubble to parent layers (e.g. MobileChatDrawer) and
-  // inadvertently close both simultaneously — fixes Bugbot LOW issue #7.
+  // Close on Escape — stopImmediatePropagation when the dropdown itself is
+  // open so no other document-level Escape handler (e.g. SupportWidget) fires
+  // in the same event dispatch. stopPropagation() alone is insufficient here
+  // because it only stops propagation to ancestor nodes (window); sibling
+  // listeners registered on document still run. stopImmediatePropagation()
+  // prevents all remaining listeners on the same node from executing.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && open) {
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         setOpen(false);
       }
     };
