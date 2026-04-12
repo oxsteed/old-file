@@ -1,9 +1,20 @@
 import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Footer() {
   const { user } = useAuth();
   const year = new Date().getFullYear();
+
+  // Move the Google Translate widget (initialized in static HTML) into the footer slot
+  useEffect(() => {
+    const source = document.getElementById('google_translate_element');
+    const slot = document.getElementById('gt-footer-slot');
+    if (source && slot) {
+      source.style.display = '';
+      slot.appendChild(source);
+    }
+  }, []);
 
   return (
     <footer
@@ -113,9 +124,9 @@ export default function Footer() {
         }}>
           <p>&copy; {year} OxSteed LLC</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-            {/* Google Translate */}
+            {/* Google Translate mount slot — widget node moved here after React mounts */}
             <div
-              id="google_translate_element"
+              id="gt-footer-slot"
               style={{ fontSize: '0.78rem', opacity: 0.7 }}
             />
             <a
