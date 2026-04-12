@@ -33,7 +33,7 @@ export default function HelperConversationPage() {
 
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { socket, joinConversation, leaveConversation } = useSocket();
+  const { socket, connected, joinConversation, leaveConversation } = useSocket();
 
   // ── Initial load ─────────────────────────────────────────────
   const fetchMessages = useCallback(async () => {
@@ -69,11 +69,14 @@ export default function HelperConversationPage() {
   }, [conversationId]);
 
   // ── Join / leave socket room ──────────────────────────────────
+  // `connected` is included so the room is rejoined on reconnect — Socket.IO
+  // drops all room memberships on disconnect, so we must re-emit conversation:join
+  // whenever the connection comes back up.
   useEffect(() => {
-    if (!socket || !conversationId) return;
+    if (!socket || !connected || !conversationId) return;
     joinConversation(conversationId);
     return () => leaveConversation(conversationId);
-  }, [socket, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [socket, connected, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-scroll ───────────────────────────────────────────────
   useEffect(() => {

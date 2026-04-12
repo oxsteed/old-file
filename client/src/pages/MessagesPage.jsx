@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -21,7 +20,6 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { socket } = useSocket();
 
   const fetchConversations = useCallback(async () => {
