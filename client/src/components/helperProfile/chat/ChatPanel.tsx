@@ -42,7 +42,8 @@ function getHandoffAgentName(destination: ChatDestination, helperName: string): 
 
 // ── Offline / Message-mode empty state ───────────────────────────────────────
 const UnavailableState: React.FC<{ destination: ChatDestination; helperName: string }> = ({
-  destination, helperName,
+  destination,
+  helperName,
 }) => {
   const name = destination === 'helper' ? helperName : 'OxSteed Support';
   return (
@@ -51,8 +52,8 @@ const UnavailableState: React.FC<{ destination: ChatDestination; helperName: str
         <MessageCircle className="w-6 h-6 text-gray-500" aria-hidden="true" />
       </div>
       <div>
-        <p className="text-sm font-medium text-white">{name} is offline</p>
-        <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+        <p className="text-white font-medium">{name} is offline</p>
+        <p className="text-gray-400 text-sm mt-1">
           Leave a message and they'll get back to you as soon as possible.
         </p>
       </div>
@@ -67,30 +68,24 @@ const DestinationContextBanner: React.FC<{
 }> = ({ destination, helperName }) => {
   if (destination === 'helper') return null;
   return (
-    <div
-      className="flex items-center gap-2 px-4 py-2.5 bg-violet-900/20 border-b border-violet-800/50"
-      aria-label="You are talking to OxSteed platform support"
-    >
-      <Building2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" aria-hidden="true" />
-      <p className="text-xs text-violet-300">
-        You are now talking to{' '}
-        <span className="font-semibold">OxSteed platform support</span>, not {helperName}.
-      </p>
+    <div className="px-4 py-2 bg-brand-500/10 border-b border-brand-500/20 text-[10px] text-brand-400 text-center uppercase tracking-wider font-semibold">
+      You are now talking to{' '}
+      <span className="text-brand-300">OxSteed platform support</span>, not {helperName}.
     </div>
   );
 };
 
 // ── Sign-in prompt (shown to unauthenticated users when helper is live) ───────
 const SignInPrompt: React.FC<{ helperName: string }> = ({ helperName }) => (
-  <div className="mx-4 my-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl flex items-start gap-2.5">
-    <LogIn className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
-    <div>
-      <p className="text-xs text-orange-200 leading-relaxed">
-        <span className="font-semibold">{helperName} is online.</span>{' '}
-        <Link to="/login" className="underline hover:text-orange-100">Sign in</Link>{' '}
-        to send a real message — AI is responding in the meantime.
-      </p>
-    </div>
+  <div className="px-4 py-2.5 bg-brand-500 text-white text-[11px] font-medium flex items-center justify-center gap-2">
+    <LogIn className="w-3.5 h-3.5" />
+    <span>
+      {helperName} is online. {' '}
+      <Link to="/login" className="underline decoration-white/50 hover:decoration-white">
+        Sign in
+      </Link>{' '}
+      to send a real message — AI is responding in the meantime.
+    </span>
   </div>
 );
 
@@ -106,10 +101,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const { user } = useAuth();
   const { socket } = useSocket();
 
-  const [session,          setSession]          = useState<ChatSession>(initialSession);
+  const [session, setSession] = useState(initialSession);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
-  const [sending,          setSending]          = useState(false);
-  const [conversationId,   setConversationId]   = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  // ── Keyboard support ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -123,12 +127,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           helperStatus: data.helperStatus,
           status: prev.destination === 'helper' ? data.helperStatus : prev.oxsteedStatus,
         }));
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
     };
+
     checkStatus();
     // Re-check every 30s while panel is mounted
     const interval = setInterval(checkStatus, 30_000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [helperId]);
 
   // ── Real-time: listen for helper replies via Socket.IO ───────────────────
@@ -138,27 +148,29 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     const handleNewMessage = (payload: { conversationId: string; message: any }) => {
       if (payload.conversationId !== conversationId) return;
       const msg = payload.message;
+      
       const timelineMsg: ChatMessage = {
-        id:         String(msg.id),
-        itemType:   'message',
+        id: String(msg.id),
+        itemType: 'message',
         authorType: 'helper_human',
-        content:    msg.content,
-        timestamp:  msg.created_at || new Date().toISOString(),
+        content: msg.content,
+        timestamp: msg.created_at || new Date().toISOString(),
       };
+
       setSession(prev => ({
         ...prev,
-        typing:   null,
+        typing: null,
         timeline: [...prev.timeline, timelineMsg],
       }));
     };
 
     socket.on('message:new', handleNewMessage);
-    return () => { socket.off('message:new', handleNewMessage); };
+    return () => {
+      socket.off('message:new', handleNewMessage);
+    };
   }, [socket, conversationId]);
 
-  const currentStatus =
-    session.destination === 'helper' ? session.helperStatus : session.oxsteedStatus;
-
+  const currentStatus = session.destination === 'helper' ? session.helperStatus : session.oxsteedStatus;
   const lastHandoff = !handoffDismissed ? getLastHandoff(session.timeline) : null;
 
   const handleDestinationChange = useCallback((dest: ChatDestination) => {
@@ -175,17 +187,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
     // Optimistically add user message to timeline
     const userMsg: ChatMessage = {
-      id:         `msg-${Date.now()}`,
-      itemType:   'message',
+      id: `msg-${Date.now()}`,
+      itemType: 'message',
       authorType: 'user',
-      content:    text,
-      timestamp:  new Date().toISOString(),
+      content: text,
+      timestamp: new Date().toISOString(),
     };
+
     setSession(prev => ({
       ...prev,
-      typing:   { authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai', authorLabel: 'AI Assistant' },
+      typing: { authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai', authorLabel: 'AI Assistant' },
       timeline: [...prev.timeline, userMsg],
     }));
+
     setSending(true);
 
     try {
@@ -197,7 +211,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           .map(i => {
             const m = i as ChatMessage;
             return {
-              role:    m.authorType === 'user' ? 'user' : 'assistant',
+              role: m.authorType === 'user' ? 'user' : 'assistant',
               content: m.content,
             };
           }),
@@ -206,70 +220,57 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       if (data.type === 'live') {
         // Save conversationId so we can listen for real-time replies
         if (data.conversationId) setConversationId(data.conversationId);
-
+        
         // Show "waiting for reply" status event
         const waiting: TimelineEvent = {
-          id:        `evt-${Date.now()}`,
-          itemType:  'system',
+          id: `evt-${Date.now()}`,
+          itemType: 'system',
           eventType: 'message_sent',
-          content:   `Message sent — ${helperName} will reply shortly.`,
+          content: `Message sent — ${helperName} will reply shortly.`,
           timestamp: new Date().toISOString(),
         };
-        setSession(prev => ({
-          ...prev,
-          typing:   null,
-          timeline: [...prev.timeline, waiting],
-        }));
-
+        setSession(prev => ({ ...prev, typing: null, timeline: [...prev.timeline, waiting] }));
       } else {
         // AI reply
         const aiMsg: ChatMessage = {
-          id:         `msg-${Date.now()}-reply`,
-          itemType:   'message',
+          id: `msg-${Date.now()}-reply`,
+          itemType: 'message',
           authorType: data.authorType || (session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai'),
-          content:    data.reply || "I'm sorry, I couldn't generate a response. Please try again.",
-          timestamp:  new Date().toISOString(),
+          content: data.reply || "I'm sorry, I couldn't generate a response. Please try again.",
+          timestamp: new Date().toISOString(),
         };
 
         // If helper was actually online but user isn't auth'd, add a status note
         const events: TimelineItem[] = [];
         if (data.helperOnline && !user && session.destination === 'helper') {
           const note: TimelineEvent = {
-            id:        `evt-${Date.now()}-note`,
-            itemType:  'system',
+            id: `evt-${Date.now()}-note`,
+            itemType: 'system',
             eventType: 'message_queued',
-            content:   `${helperName} is online — sign in to send them a direct message.`,
+            content: `${helperName} is online — sign in to send them a direct message.`,
             timestamp: new Date().toISOString(),
           };
           events.push(note);
         }
 
-        setSession(prev => ({
-          ...prev,
-          typing:   null,
-          timeline: [...prev.timeline, aiMsg, ...events],
-        }));
+        setSession(prev => ({ ...prev, typing: null, timeline: [...prev.timeline, aiMsg, ...events] }));
       }
     } catch {
       const errMsg: ChatMessage = {
-        id:         `msg-${Date.now()}-err`,
-        itemType:   'message',
+        id: `msg-${Date.now()}-err`,
+        itemType: 'message',
         authorType: 'oxsteed_ai',
-        content:    "Sorry, I'm having trouble right now. Please try again or contact support@oxsteed.com.",
-        timestamp:  new Date().toISOString(),
+        content: "Sorry, I'm having trouble right now. Please try again or contact support@oxsteed.com.",
+        timestamp: new Date().toISOString(),
       };
-      setSession(prev => ({
-        ...prev,
-        typing:   null,
-        timeline: [...prev.timeline, errMsg],
-      }));
+      setSession(prev => ({ ...prev, typing: null, timeline: [...prev.timeline, errMsg] }));
     } finally {
       setSending(false);
     }
   }, [helperId, session, user, helperName, sending]);
 
-  const helperIsLive  = session.helperStatus === 'live';
-  const isOffline     = currentStatus === 'offline';
+  const helperIsLive = session.helperStatus === 'live';
+  const isOffline = currentStatus === 'offline';
 
   // Inject a welcome message into an empty timeline so users know what to ask
   const displayTimeline = React.useMemo(() => {
@@ -277,13 +278,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       if (session.destination === 'oxsteed' && item.itemType === 'booking_event') return false;
       return true;
     });
+
     if (msgs.length > 0) return msgs;
+
     // No messages yet — prepend a synthetic welcome bubble
     const welcome: ChatMessage = {
       id: 'welcome-msg',
       itemType: 'message',
       authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai',
-      content: session.destination === 'helper'
+      content: session.destination === 'helper' 
         ? `Hi! I'm ${helperName}'s AI assistant. Ask me about their services, availability, or pricing — I'm happy to help.`
         : "Hi! I'm OxSteed's support assistant. Ask me anything about how the platform works.",
       timestamp: new Date().toISOString(),
@@ -292,48 +295,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [session.timeline, session.destination, helperName]);
 
   return (
-    <div
-      className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
-      aria-label="Chat panel"
-      role="region"
-    >
+    <div className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl ${className}`}>
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="px-4 pt-4 pb-3 border-b border-gray-800 space-y-3 flex-shrink-0">
+      <div className="flex-shrink-0 bg-gray-900/50 backdrop-blur-sm border-b border-gray-800">
         {/* Title row */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-brand-400" aria-hidden="true" />
             <h2 className="text-sm font-semibold text-white">Chat</h2>
-          </div>
-          <div className="flex items-center gap-2">
             <StatusBadge status={currentStatus} />
-            {variant === 'modal' && onClose && (
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-                aria-label="Close chat"
-              >
-                <X className="w-4 h-4" aria-hidden="true" />
-              </button>
-            )}
           </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              aria-label="Close chat"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Destination dropdown */}
-        <ChatDestinationDropdown
-          destination={session.destination}
-          helperName={helperName}
-          helperStatus={session.helperStatus}
-          oxsteedStatus={session.oxsteedStatus}
-          onChange={handleDestinationChange}
-        />
+        <div className="px-3 pb-3">
+          <ChatDestinationDropdown
+            value={session.destination}
+            onChange={handleDestinationChange}
+            helperName={helperName}
+          />
+        </div>
       </div>
 
       {/* ── Context banner (when OxSteed selected) ─────────── */}
-      <DestinationContextBanner
-        destination={session.destination}
-        helperName={helperName}
-      />
+      <DestinationContextBanner destination={session.destination} helperName={helperName} />
 
       {/* ── Sign-in prompt when helper is live but user isn't auth'd ── */}
       {helperIsLive && !user && session.destination === 'helper' && (
@@ -342,47 +335,42 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
       {/* ── Handoff banner ─────────────────────────────────── */}
       {lastHandoff && (
-        <HandoffBanner
-          destination={session.destination}
-          agentName={getHandoffAgentName(session.destination, helperName)}
+        <HandoffBanner 
+          event={lastHandoff} 
+          agentName={getHandoffAgentName(session.destination, helperName)} 
           onDismiss={() => setHandoffDismissed(true)}
         />
       )}
 
       {/* ── Timeline / Empty state ──────────────────────────── */}
-      {isOffline ? (
-        <UnavailableState
-          destination={session.destination}
-          helperName={helperName}
-        />
-      ) : (
-        <ChatTimeline
-          items={displayTimeline}
-          helperName={helperName}
-          typing={sending ? session.typing : null}
-        />
-      )}
+      <div className="flex-1 min-h-0 flex flex-col bg-gray-950/50">
+        {isOffline ? (
+          <UnavailableState destination={session.destination} helperName={helperName} />
+        ) : (
+          <ChatTimeline
+            items={displayTimeline}
+            typing={session.typing}
+            className="flex-1"
+          />
+        )}
+      </div>
 
       {/* ── Composer ────────────────────────────────────────── */}
-      <MessageComposer
-        status={isOffline ? 'offline' : 'ai_assistant'}
-        onSend={handleSend}
-        placeholder={
-          session.destination === 'oxsteed'
-            ? 'Ask OxSteed support…'
-            : helperIsLive && user
-            ? `Message ${helperName} directly…`
-            : undefined
-        }
-      />
+      <div className="flex-shrink-0 p-3 bg-gray-900/50 border-t border-gray-800">
+        <MessageComposer 
+          onSend={handleSend} 
+          disabled={sending} 
+          placeholder={isOffline ? "Leave a message..." : "Ask a question..."}
+        />
+      </div>
 
       {/* ── Footer ──────────────────────────────────────────── */}
-      <div className="px-4 py-2 bg-gray-950/40 border-t border-gray-800/50 flex-shrink-0">
-        <p className="text-xs text-gray-600 text-center">
-          {helperIsLive && user
-            ? `${helperName} is online and will receive your message`
+      <div className="px-4 py-2 bg-gray-900/80 border-t border-gray-800 flex items-center justify-between">
+        <span className="text-[10px] text-gray-500 font-medium">
+          {helperIsLive && user 
+            ? `${helperName} is online and will receive your message` 
             : 'AI assistant · Conversations monitored for safety'}
-        </p>
+        </span>
       </div>
     </div>
   );
