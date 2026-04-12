@@ -429,6 +429,18 @@ exports.createUser = async (req, res) => {
     `, [first_name.trim(), last_name.trim(), normalizedEmail, passwordHash, role,
         onboardingCompleted, onboardingStatus, membershipTier]);
 
+    // For helper accounts, ensure a helper_profiles row exists so that
+    // toggleListing (and any other helper-profile queries) never return 404.
+    // is_listed = false keeps the helper offline by default until they
+    // explicitly click "Go Online" after setting up their profile.
+    if (isHelper) {
+      await db.query(`
+        INSERT INTO helper_profiles (user_id, tier, is_listed, created_at, updated_at)
+        VALUES ($1, 'tier1', false, NOW(), NOW())
+        ON CONFLICT (user_id) DO NOTHING
+      `, [rows[0].id]);
+    }
+
     try {
       await logAdminAction({
         adminId,
