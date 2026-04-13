@@ -1,8 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../hooks/useSocket';
+import { useConversationChat } from '../hooks/useConversationChat';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -13,105 +10,16 @@ function formatTime(ts) {
 
 export default function HelperConversationPage() {
   const { conversationId } = useParams();
-  const [messages, setMessages] = useState([]);
-  const [otherName, setOtherName] = useState('');
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [notFound, setNotFound] = useState(false);
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { socket } = useSocket();
 
-  const fetchMessages = useCallback(async () => {
-    try {
-      const res = await api.get(`/messages/conversations/${conversationId}`);
-      const data = Array.isArray(res.data) ? res.data : [];
-      setMessages(data);
-      // Derive the other party's name from the first message not sent by us
-      const other = data.find(m => m.sender_id !== user?.id);
-      if (other?.sender_name) setOtherName(other.sender_name);
-    } catch (err) {
-      if (err.response?.status === 404 || err.response?.status === 403) {
-        setNotFound(true);
-      }
-      console.error('[HelperConversation] Failed to load messages:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [conversationId, user?.id]);
-
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
-
-  // Auto-scroll to latest message
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Real-time: both message:new (helper's own sends bounce back) and
-  // profile_chat:new_message (inbound from customer)
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleNew = ({ conversationId: cid, message }) => {
-      if (String(cid) !== String(conversationId)) return;
-      setMessages(prev => {
-        if (prev.some(m => m.id === message.id)) return prev;
-        return [...prev, message];
-      });
-    };
-
-    const handleProfileNew = ({ conversationId: cid, message, senderName }) => {
-      if (String(cid) !== String(conversationId)) return;
-      const enriched = senderName && !message.sender_name
-        ? { ...message, sender_name: senderName }
-        : message;
-      if (senderName && !otherName) setOtherName(senderName);
-      setMessages(prev => {
-        if (prev.some(m => m.id === enriched.id)) return prev;
-        return [...prev, enriched];
-      });
-    };
-
-    socket.on('message:new', handleNew);
-    socket.on('profile_chat:new_message', handleProfileNew);
-    return () => {
-      socket.off('message:new', handleNew);
-      socket.off('profile_chat:new_message', handleProfileNew);
-    };
-  }, [socket, conversationId, otherName]);
-
-  const handleSend = async (e) => {
-    e.preventDefault();
-    const content = newMessage.trim();
-    if (!content || sending) return;
-    setSending(true);
-    setNewMessage('');
-    try {
-      const res = await api.post(`/messages/conversations/${conversationId}`, { content });
-      setMessages(prev => {
-        if (prev.some(m => m.id === res.data.id)) return prev;
-        return [...prev, res.data];
-      });
-    } catch (err) {
-      console.error('[HelperConversation] Failed to send message:', err);
-      setNewMessage(content); // restore on failure
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(e);
-    }
-  };
+  const {
+    messages, otherName, helperBusiness, jobTitle,
+    newMessage, loading, sending, notFound,
+    otherTyping, showSeen, lastSentByMe,
+    messagesEndRef, inputRef,
+    handleInputChange, handleBlur, handleSend, handleKeyDown,
+    user,
+  } = useConversationChat(conversationId, { listenProfileChat: true });
 
   if (loading) {
     return (
@@ -144,7 +52,6 @@ export default function HelperConversationPage() {
     <div className="min-h-screen flex flex-col bg-gray-950">
       <Navbar />
       <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-6">
-
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <button
@@ -156,11 +63,19 @@ export default function HelperConversationPage() {
             </svg>
             Back
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300 flex-shrink-0">
               {(otherName || '?').charAt(0).toUpperCase()}
             </div>
-            <h1 className="text-base font-semibold text-white">{otherName || 'Customer'}</h1>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold text-white truncate">{otherName || 'Customer'}</h1>
+              {helperBusiness && (
+                <p className="text-xs text-gray-500 truncate leading-tight">via {helperBusiness}</p>
+              )}
+              {jobTitle && (
+                <p className="text-xs text-orange-400/80 truncate leading-tight">Re: {jobTitle}</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -171,26 +86,38 @@ export default function HelperConversationPage() {
           )}
           {messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
+            const isLastFromMe = showSeen && msg.id === lastSentByMe?.id;
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                 {!isMe && msg.sender_name && (
                   <span className="text-xs text-gray-500 mb-1 ml-1">{msg.sender_name}</span>
                 )}
-                <div
-                  className={`px-4 py-2.5 rounded-2xl max-w-xs text-sm leading-relaxed ${
-                    isMe
-                      ? 'bg-orange-500 text-white rounded-br-sm'
-                      : 'bg-gray-700/70 text-gray-100 rounded-bl-sm'
-                  }`}
-                >
+                <div className={`px-4 py-2.5 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
+                  isMe
+                    ? 'bg-orange-500 text-white rounded-br-sm'
+                    : 'bg-gray-700/70 text-gray-100 rounded-bl-sm'
+                }`}>
                   {msg.content}
                 </div>
-                <span className="text-[11px] text-gray-600 mt-1 px-1">
-                  {formatTime(msg.created_at)}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5 px-1">
+                  <span className="text-[11px] text-gray-600">{formatTime(msg.created_at)}</span>
+                  {isLastFromMe && (
+                    <span className="text-[11px] text-orange-400 font-medium">Seen</span>
+                  )}
+                </div>
               </div>
             );
           })}
+          {/* Typing indicator */}
+          {otherTyping && (
+            <div className="flex items-start">
+              <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-gray-700/70 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -200,9 +127,11 @@ export default function HelperConversationPage() {
             ref={inputRef}
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
             placeholder="Type a reply…"
+            maxLength={4000}
             className="flex-1 rounded-xl bg-gray-900 border border-gray-700 text-white placeholder-gray-600 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition"
           />
           <button
@@ -214,7 +143,6 @@ export default function HelperConversationPage() {
           </button>
         </form>
         <p className="text-xs text-gray-600 mt-1.5 text-right">Enter to send</p>
-
       </main>
       <Footer />
     </div>
