@@ -10,7 +10,7 @@ import {
   Award,
   Briefcase,
   MessageCircle,
-  CalendarCheck,
+  CalendarCheck, Building2,
   BadgeCheck,
 } from 'lucide-react';
 import type { HelperCardData } from '../../types/helperDirectory';
@@ -292,7 +292,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             }`}
             aria-label={`View ${helper.businessName} profile`}
           >
-            <CalendarCheck className="w-3.5 h-3.5" aria-hidden="true" />
+            {isBusiness ? <Building2 className="w-3.5 h-3.5" aria-hidden="true" /> : <CalendarCheck className="w-3.5 h-3.5" aria-hidden="true" />}
             {isBusiness ? 'View Business' : 'View & Book'}
           </Link>
         </div>

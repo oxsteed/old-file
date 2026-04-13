@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
@@ -9,6 +10,7 @@ export default function Footer() {
   const [vortexOpen, setVortexOpen] = useState(false);
 
   return (
+    <>
     <footer
       style={{
         borderTop: '1px solid var(--color-border)',
@@ -150,11 +152,13 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Vortex redeem modal */}
-      {vortexOpen && (
-        <VortexModal onClose={() => setVortexOpen(false)} />
-      )}
     </footer>
+    {/* Vortex redeem modal — portalled to body to avoid footer stacking context */}
+    {vortexOpen && createPortal(
+      <VortexModal onClose={() => setVortexOpen(false)} />,
+      document.body
+    )}
+    </>
   );
 }
 

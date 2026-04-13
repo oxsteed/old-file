@@ -275,13 +275,34 @@ function buildHelperSystemPrompt(helper, skills) {
 - If asked about things unrelated to this helper or OxSteed, politely redirect`;
 }
 
+function buildBusinessSystemPrompt(business, skills) {
+  const skillList = skills.length
+    ? skills.map(s => `${s.skill_name}${s.hourly_rate ? ` ($${parseFloat(s.hourly_rate).toFixed(0)}/hr)` : ''}`).join(', ')
+    : 'Not listed yet';
+
+  return `You are an AI assistant representing ${business.business_name}, a business on the OxSteed local services marketplace. Answer questions as if you are the business's virtual assistant — knowledgeable, helpful, and professional.
+
+## About This Business
+- Business name: ${business.business_name}
+- Description: ${business.description || 'A local service business available for hire.'}
+- Location: ${[business.address_city, business.address_state].filter(Boolean).join(', ') || 'Local area'}
+- Services offered: ${skillList}
+
+## Your Role
+- Answer questions about this business's services, availability, and pricing
+- If asked about booking or pricing specifics you don't know, invite the customer to send a message directly
+- Be warm, professional, and represent this business well
+- Keep responses concise (2-4 sentences unless detail is clearly needed)
+- If asked about things unrelated to this business or OxSteed, politely redirect`;
+}
+
 /**
  * POST /api/chat/profile-message
  * Handles messages sent from a helper's profile page.
  *
  * Routing logic:
- *   destination=helper  AND helper online AND customer authenticated
- *     → saves to conversations table + notifies helper via socket (live)
+ *   destination=helper  AND (helper OR any active rep) online AND customer authenticated
+ *     → saves to conversations table + notifies helper + all online reps via socket (live)
  *   otherwise
  *     → AI response using helper's profile as context
  */
@@ -345,8 +366,24 @@ exports.profileChatMessage = async (req, res) => {
     const helperOnline = socketService.isOnline(helperId);
     const userId = req.user?.id;
 
-    // ── Live mode: authenticated customer + helper online + destination=helper ──
-    if (destination === 'helper' && helperOnline && userId) {
+    // Check if any active rep for this business is online; also collect their IDs
+    // so we can notify them directly (FIX Bugbot #2)
+    let anyRepOnline = false;
+    let onlineRepIds = [];
+    if (resolvedBusinessId && !helperOnline) {
+      const repsRes = await pool.query(
+        `SELECT member_id FROM business_members
+         WHERE business_id = $1 AND status = 'active'`,
+        [resolvedBusinessId]
+      );
+      onlineRepIds = repsRes.rows
+        .map(r => r.member_id)
+        .filter(id => socketService.isOnline(id));
+      anyRepOnline = onlineRepIds.length > 0;
+    }
+
+    // ── Live mode: authenticated customer + (owner OR rep) online + destination=helper ──
+    if (destination === 'helper' && (helperOnline || anyRepOnline) && userId) {
       // Get or create conversation — scope by business_id when present
       const existingConv = await pool.query(
         resolvedBusinessId
@@ -405,18 +442,26 @@ exports.profileChatMessage = async (req, res) => {
         [conversationId]
       );
 
-      // Notify helper via socket
+      // Fetch sender info once for all socket emissions
       const senderRes = await pool.query(
         'SELECT first_name, last_name, profile_photo_url FROM users WHERE id = $1',
         [userId]
       ).catch(() => ({ rows: [] }));
       const sender = senderRes.rows[0];
 
-      socketService.broadcastToUser(helperId, 'profile_chat:new_message', {
+      const socketPayload = {
         conversationId,
         message:      msgRow.rows[0],
         senderName:   sender ? `${sender.first_name} ${sender.last_name}` : 'A customer',
         senderAvatar: sender?.profile_photo_url || null,
+      };
+
+      // FIX (Bugbot #2): notify the business owner AND all online reps, not just helperId.
+      // When owner is offline but reps are online, reps triggered the live routing —
+      // they must receive the socket event or the message silently disappears.
+      const notifyTargets = new Set([helperId, ...onlineRepIds]);
+      notifyTargets.forEach(targetId => {
+        socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
       });
 
       return res.json({
@@ -428,9 +473,25 @@ exports.profileChatMessage = async (req, res) => {
     }
 
     // ── AI mode: helper offline, unauthenticated, or destination=oxsteed ──
-    const systemPrompt = destination === 'oxsteed'
-      ? `You are OxSteed's customer support AI. Answer questions about the OxSteed platform — how to post jobs, payments, subscriptions, and policies. Be concise and helpful. For account-specific issues refer users to support@oxsteed.com.`
-      : buildHelperSystemPrompt(helper, skillsRes.rows);
+    let systemPrompt;
+    if (destination === 'oxsteed') {
+      systemPrompt = `You are OxSteed's customer support AI. Answer questions about the OxSteed platform — how to post jobs, payments, subscriptions, and policies. Be concise and helpful. For account-specific issues refer users to support@oxsteed.com.`;
+    } else if (resolvedBusinessId) {
+      // Build prompt from business profile instead of owner's personal profile
+      const bizProfile = await pool.query(
+        `SELECT business_name, description, address_city, address_state
+         FROM businesses WHERE id = $1 AND is_active = TRUE`,
+        [resolvedBusinessId]
+      );
+      const biz = bizProfile.rows[0];
+      if (biz) {
+        systemPrompt = buildBusinessSystemPrompt(biz, skillsRes.rows);
+      } else {
+        systemPrompt = buildHelperSystemPrompt(helper, skillsRes.rows);
+      }
+    } else {
+      systemPrompt = buildHelperSystemPrompt(helper, skillsRes.rows);
+    }
 
     const ollamaMessages = [
       { role: 'system', content: systemPrompt },

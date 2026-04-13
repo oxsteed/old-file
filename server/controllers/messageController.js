@@ -3,9 +3,19 @@ const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
 
 // Get all conversations for the current user (including business rep access)
+// Optional query params: ?business_id=<id> to filter by business
 const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
+    const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
+
+    const params = [userId];
+    let bizFilter = '';
+    if (filterBizId) {
+      params.push(filterBizId);
+      bizFilter = ` AND c.business_id = $${params.length}`;
+    }
+
     const result = await pool.query(
       `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
               c.last_message_at, c.created_at, c.updated_at,
@@ -52,9 +62,9 @@ const getConversations = async (req, res) => {
            SELECT 1 FROM business_members bm
            WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
          ))
-       ) AND c.status = 'active'
+       ) AND c.status = 'active'${bizFilter}
        ORDER BY c.last_message_at DESC NULLS LAST`,
-      [userId]
+      params
     );
     res.json(result.rows);
   } catch (error) {
@@ -307,6 +317,18 @@ const sendMessage = async (req, res) => {
     // Notify the appropriate recipient(s) via their personal room so inbox pages
     // update even when they're not currently in the conversation thread.
     const { customer_id, helper_id } = conv.rows[0];
+
+    // Collect all active rep IDs for this business conversation
+    let repIds = [];
+    if (business_id) {
+      const repsRes = await pool.query(
+        `SELECT member_id FROM business_members
+         WHERE business_id = $1 AND status = 'active'`,
+        [business_id]
+      );
+      repIds = repsRes.rows.map(r => r.member_id).filter(id => id !== userId);
+    }
+
     if (userId === customer_id) {
       // Customer sent — notify the helper/owner
       socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: messagePayload });
@@ -317,6 +339,13 @@ const sendMessage = async (req, res) => {
       // Rep sent — notify the customer; also ping the owner so they see it in their inbox
       socketService.broadcastToUser(customer_id, 'message:new', { conversationId, message: messagePayload });
       socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: messagePayload });
+    }
+
+    // Notify all other active reps so their inbox refreshes in real time
+    for (const repId of repIds) {
+      if (repId !== helper_id) { // owner already notified above
+        socketService.broadcastToUser(repId, 'message:new', { conversationId, message: messagePayload });
+      }
     }
 
     res.status(201).json(messagePayload);

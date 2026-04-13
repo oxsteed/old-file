@@ -11,19 +11,42 @@ export default function HelperInboxPage() {
   const [loading, setLoading] = useState(true);
   // Track conversation IDs that have arrived since the list was last refreshed
   const [newInbound, setNewInbound] = useState(new Set());
+  // Business filter for reps managing multiple businesses
+  const [businessFilter, setBusinessFilter] = useState('all');
+  const [managedBusinesses, setManagedBusinesses] = useState([]);
   const navigate = useNavigate();
   const { socket } = useSocket();
 
+  // Fetch businesses the user manages (owned + rep)
+  useEffect(() => {
+    (async () => {
+      try {
+        const [ownedRes, managedRes] = await Promise.all([
+          api.get('/businesses').catch(() => ({ data: { businesses: [] } })),
+          api.get('/businesses/managed').catch(() => ({ data: { businesses: [] } })),
+        ]);
+        const all = [
+          ...(ownedRes.data.businesses || []).map(b => ({ id: b.id, name: b.business_name })),
+          ...(managedRes.data.businesses || []).map(b => ({ id: b.id, name: b.business_name })),
+        ];
+        // Deduplicate by id
+        const seen = new Set();
+        setManagedBusinesses(all.filter(b => { if (seen.has(b.id)) return false; seen.add(b.id); return true; }));
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await api.get('/messages/conversations');
+      const params = businessFilter !== 'all' ? `?business_id=${businessFilter}` : '';
+      const res = await api.get(`/messages/conversations${params}`);
       setConversations(res.data);
     } catch (err) {
       console.error('[HelperInbox] Failed to load conversations:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [businessFilter]);
 
   useEffect(() => {
     fetchConversations();
@@ -77,7 +100,21 @@ export default function HelperInboxPage() {
     <div className="min-h-screen flex flex-col bg-gray-950">
       <Navbar />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold text-white mb-6">Messages</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-white">Messages</h1>
+          {managedBusinesses.length > 0 && (
+            <select
+              value={businessFilter}
+              onChange={e => { setBusinessFilter(e.target.value); setLoading(true); }}
+              className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-orange-500"
+            >
+              <option value="all">All conversations</option>
+              {managedBusinesses.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
 
         {conversations.length === 0 ? (
           <div className="bg-gray-900 border border-gray-700/50 rounded-2xl p-10 text-center">
@@ -116,9 +153,9 @@ export default function HelperInboxPage() {
                           {conv.other_user_name || 'Customer'}
                         </p>
                         {/* Show which of the helper's businesses this conversation is under */}
-                        {conv.helper_business_name && (
+                        {(conv.conversation_business_name || conv.helper_business_name) && (
                           <p className="text-xs text-gray-600 truncate leading-tight">
-                            via {conv.helper_business_name}
+                            via {conv.conversation_business_name || conv.helper_business_name}
                           </p>
                         )}
                       </div>

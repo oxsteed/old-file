@@ -103,7 +103,7 @@ function applySort(helpers: HelperCardData[], sort: SortOption, boostedCategory?
       case 'most_reviews':    return b.reviewCount - a.reviewCount;
       case 'lowest_price':    return a.startingPrice - b.startingPrice;
       case 'fastest_response':return a.responseMinutes - b.responseMinutes;
-      case 'newest':          return new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime();
+      case 'newest':          return (new Date(b.memberSince || 0).getTime() || 0) - (new Date(a.memberSince || 0).getTime() || 0);
       case 'best_match':
       default: {
         // Blend rating × log(reviews) for Wilson-score-like ranking
@@ -497,7 +497,27 @@ const HelpersDirectoryPage: React.FC = () => {
 
   // Client-side: float exact-category matches to the top, then mix in businesses
   const sortedHelpers = boostedCategory ? applySort(helpers, sort, boostedCategory) : helpers;
-  const displayed     = page === 1 ? mergeGridItems(sortedHelpers, businesses) : sortedHelpers;
+
+  // Filter businesses by active category/skill filters before merging.
+  // FIX (Bugbot #4): when sub-skills are active, businesses (which the server returns
+  // with skills: []) were always filtered out. Now businesses pass the skill filter
+  // if they match the parent category — sub-skill chips are a refinement for helpers,
+  // not a reason to hide entire businesses from the grid.
+  const filteredBusinesses = (() => {
+    const activeCategories = filters.categories ?? [];
+    const activeSkills = filters.skills ?? [];
+    if (activeCategories.length === 0 && activeSkills.length === 0) return businesses;
+    return businesses.filter((biz) => {
+      // Category gate: business must match at least one active category
+      if (activeCategories.length > 0 && !biz.categories.some((c: string) => activeCategories.includes(c))) return false;
+      // Sub-skill gate: skip for businesses since the server never populates biz.skills.
+      // A business matching the parent category is considered relevant even when
+      // sub-skill chips are active — the customer can still choose to contact them.
+      return true;
+    });
+  })();
+
+  const displayed = mergeGridItems(sortedHelpers, filteredBusinesses);
   const hasMore          = helpers.length < total;
   const activeFilterCount = countActiveFilters(filters);
 
