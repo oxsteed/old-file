@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
@@ -9,6 +10,10 @@ import {
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
+  listMembers, inviteMember, revokeMember,
+  listMyInvitations, acceptInvitation, declineInvitation,
+  listManagedBusinesses,
+  listVortexTokens, generateVortexToken, revokeVortexToken,
 } from '../api/businesses';
 import '../styles/BusinessHubPage.css';
 
@@ -33,7 +38,7 @@ function fmtMonth(m) {
 }
 
 // ── default forms ─────────────────────────────────────────────────────────────
-const DEFAULT_BIZ_FORM   = { name: '', description: '', website: '', phone: '', tax_rate: '' };
+const DEFAULT_BIZ_FORM   = { business_name: '', description: '', website: '', phone: '', tax_rate: '' };
 const DEFAULT_INV_FORM   = {
   client_name: '', client_email: '', client_company: '',
   due_date: '', invoice_tax_rate: '', notes: '', status: 'draft',
@@ -85,6 +90,17 @@ function BusinessHubInner() {
   const [taxLoading, setTaxLoading] = useState(false);
   const [goals, setGoals]           = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(false);
+
+  // team tab
+  const [members, setMembers]             = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [invitations, setInvitations]     = useState([]);
+  const [managedBiz, setManagedBiz]       = useState([]);
+
+  // vortex tokens
+  const [vortexTokens, setVortexTokens]   = useState([]);
+  const [tokenForm, setTokenForm]         = useState({ role: 'representative', expires_in: '7d' });
+  const [generatingToken, setGeneratingToken] = useState(false);
 
   // ── load businesses ──────────────────────────────────────────────────────
   const loadBusinesses = useCallback(async () => {
@@ -138,6 +154,24 @@ function BusinessHubInner() {
     finally { setGoalsLoading(false); }
   }, [bizId]);
 
+  const loadTeam = useCallback(async () => {
+    if (!bizId) return;
+    setMembersLoading(true);
+    try {
+      const [m, inv, managed, tokens] = await Promise.all([
+        listMembers(bizId),
+        listMyInvitations(),
+        listManagedBusinesses(),
+        listVortexTokens(bizId).catch(() => []),
+      ]);
+      setMembers(m);
+      setInvitations(inv);
+      setManagedBiz(managed);
+      setVortexTokens(tokens);
+    } catch { toast.error('Failed to load team'); }
+    finally { setMembersLoading(false); }
+  }, [bizId]);
+
   useEffect(() => {
     if (!bizId) return;
     if (tab === 'overview') loadOverview();
@@ -147,7 +181,8 @@ function BusinessHubInner() {
       loadGoals();
       loadOverview();
     }
-  }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals]);
+    else if (tab === 'team') loadTeam();
+  }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -155,6 +190,8 @@ function BusinessHubInner() {
     localStorage.setItem(LS_KEY, id);
     setAnalyticsLoading(true);
     setAnalytics(null); setInvoiceData(null); setTaxData(null); setGoals([]);
+    setMembersLoading(true);
+    setMembers([]);
   }
 
   // ── modal helpers ─────────────────────────────────────────────────────────
@@ -166,7 +203,7 @@ function BusinessHubInner() {
 
   // ── add business ──────────────────────────────────────────────────────────
   async function handleAddBiz() {
-    if (!form.name?.trim()) { setFormErr('Business name is required.'); return; }
+    if (!form.business_name?.trim()) { setFormErr('Business name is required.'); return; }
     setSaving(true);
     try {
       await createBusiness({ ...form, tax_rate: form.tax_rate ? parseFloat(form.tax_rate) : undefined });
@@ -280,6 +317,69 @@ function BusinessHubInner() {
     } catch { toast.error('Failed to delete goal'); }
   }
 
+  // ── team ──────────────────────────────────────────────────────────────────
+  async function handleInviteMember() {
+    if (!form.invite_email?.trim()) { setFormErr('Email is required.'); return; }
+    if (!form.invite_role) { setFormErr('Role is required.'); return; }
+    setSaving(true);
+    try {
+      const result = await inviteMember(bizId, { email: form.invite_email.trim(), role: form.invite_role });
+      toast.success(result.user_found ? 'Invitation sent' : 'Invite recorded — they'll see it when they sign up');
+      closeModal();
+      await loadTeam();
+    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed to send invite'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleRevokeMember(member) {
+    const label = member.status === 'pending' ? `Cancel invite to ${member.invite_email}?` : `Remove ${member.first_name || member.invite_email} from this business?`;
+    if (!window.confirm(label)) return;
+    try {
+      await revokeMember(bizId, member.id);
+      toast.success('Member removed');
+      await loadTeam();
+    } catch { toast.error('Failed to remove member'); }
+  }
+
+  async function handleAcceptInvitation(inv) {
+    try {
+      await acceptInvitation(inv.id);
+      toast.success(`Joined "${inv.business_name}"`);
+      await loadTeam();
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to accept'); }
+  }
+
+  async function handleDeclineInvitation(inv) {
+    try {
+      await declineInvitation(inv.id);
+      toast.success('Invitation declined');
+      await loadTeam();
+    } catch { toast.error('Failed to decline'); }
+  }
+
+  // ── vortex token handlers ─────────────────────────────────────────────────
+  async function handleGenerateToken() {
+    if (!bizId) return;
+    setGeneratingToken(true);
+    try {
+      await generateVortexToken(bizId, tokenForm);
+      toast.success('Vortex token generated');
+      const tokens = await listVortexTokens(bizId).catch(() => []);
+      setVortexTokens(tokens);
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to generate token'); }
+    finally { setGeneratingToken(false); }
+  }
+
+  async function handleRevokeToken(tokenId) {
+    if (!bizId) return;
+    try {
+      await revokeVortexToken(bizId, tokenId);
+      toast.success('Token revoked');
+      const tokens = await listVortexTokens(bizId).catch(() => []);
+      setVortexTokens(tokens);
+    } catch { toast.error('Failed to revoke token'); }
+  }
+
   // ── invoice line items helpers ────────────────────────────────────────────
   function addLineItem() {
     setForm(f => ({ ...f, line_items: [...(f.line_items || []), { description: '', quantity: 1, unit_price: '' }] }));
@@ -339,17 +439,28 @@ function BusinessHubInner() {
               <span className="bh-switcher-label">Business</span>
               <select value={bizId} onChange={e => handleSwitchBiz(e.target.value)}>
                 {businesses.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                  <option key={b.id} value={b.id}>{b.business_name}</option>
                 ))}
               </select>
               {currentBiz?.is_primary && <span className="bh-primary-tag">Primary</span>}
+              {bizId && (
+                <Link
+                  to={`/business/${bizId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bh-view-profile-link"
+                  title="View public profile"
+                >
+                  View Profile ↗
+                </Link>
+              )}
             </div>
 
             {/* Tabs */}
             <div className="bh-tabs">
-              {['overview', 'invoices', 'tax', 'goals'].map(t => (
+              {['overview', 'invoices', 'tax', 'goals', 'team'].map(t => (
                 <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
@@ -419,6 +530,26 @@ function BusinessHubInner() {
                 onDelete={handleDeleteGoal}
               />
             )}
+
+            {/* ── Team tab ─────────────────────────────────────────── */}
+            {tab === 'team' && (
+              membersLoading ? <p className="bh-loading">Loading team…</p> :
+              <TeamTab
+                members={members}
+                invitations={invitations}
+                managedBiz={managedBiz}
+                vortexTokens={vortexTokens}
+                tokenForm={tokenForm}
+                onTokenFormChange={(patch) => setTokenForm(f => ({ ...f, ...patch }))}
+                onGenerateToken={handleGenerateToken}
+                generatingToken={generatingToken}
+                onRevokeToken={handleRevokeToken}
+                onInvite={() => { setForm({ invite_email: '', invite_role: 'representative' }); setFormErr(''); setModal('invite-member'); }}
+                onRevoke={handleRevokeMember}
+                onAccept={handleAcceptInvitation}
+                onDecline={handleDeclineInvitation}
+              />
+            )}
           </>
         )}
 
@@ -427,7 +558,7 @@ function BusinessHubInner() {
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
               <h2>Add Business</h2>
-              <div className="bh-field"><label>Name *</label><input name="name" value={form.name || ''} onChange={fc} placeholder="My Service Co." /></div>
+              <div className="bh-field"><label>Name *</label><input name="business_name" value={form.business_name || ''} onChange={fc} placeholder="My Service Co." /></div>
               <div className="bh-field"><label>Description</label><textarea name="description" value={form.description || ''} onChange={fc} rows={2} /></div>
               <div className="bh-field-row">
                 <div className="bh-field"><label>Phone</label><input name="phone" value={form.phone || ''} onChange={fc} /></div>
@@ -576,6 +707,40 @@ function BusinessHubInner() {
               <div className="bh-modal-actions">
                 <button className="bh-btn" onClick={closeModal}>Cancel</button>
                 <button className="bh-btn primary" onClick={handleMarkTaxPaid} disabled={saving}>{saving ? 'Saving…' : 'Record Payment'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal: Invite Team Member ─────────────────────────────── */}
+        {modal === 'invite-member' && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="bh-modal">
+              <h2>Invite Team Member</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
+                Invite someone to represent or manage this business. They'll get a notification to accept.
+              </p>
+              <div className="bh-field">
+                <label>Email *</label>
+                <input
+                  type="email"
+                  name="invite_email"
+                  value={form.invite_email || ''}
+                  onChange={fc}
+                  placeholder="teammate@example.com"
+                />
+              </div>
+              <div className="bh-field">
+                <label>Role *</label>
+                <select name="invite_role" value={form.invite_role || 'representative'} onChange={fc}>
+                  <option value="representative">Representative — handles customer chat &amp; job acceptance</option>
+                  <option value="manager">Manager — full access to invoices, tax &amp; analytics</option>
+                </select>
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={closeModal}>Cancel</button>
+                <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving}>{saving ? 'Sending…' : 'Send Invite'}</button>
               </div>
             </div>
           </div>
@@ -822,6 +987,198 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Team tab ──────────────────────────────────────────────────────────────────
+function TeamTab({
+  members, invitations, managedBiz,
+  vortexTokens, tokenForm, onTokenFormChange, onGenerateToken, generatingToken, onRevokeToken,
+  onInvite, onRevoke, onAccept, onDecline,
+}) {
+  const ROLE_LABEL = { manager: 'Manager', representative: 'Representative' };
+
+  function copyToken(token) {
+    navigator.clipboard.writeText(token).then(() => {
+      // brief visual flash — no toast dependency needed for a simple copy
+      const el = document.getElementById(`vtx-${token.slice(0, 8)}`);
+      if (el) { el.textContent = 'Copied!'; setTimeout(() => { if (el) el.textContent = 'Copy'; }, 1500); }
+    });
+  }
+
+  const STATUS_COLOR = { active: '#4ade80', used: '#94a3b8', expired: '#f97316', revoked: '#ef4444' };
+
+  return (
+    <div className="bh-team">
+
+      {/* ── Pending invitations received by the logged-in user ─────────── */}
+      {invitations.length > 0 && (
+        <div className="bh-team-section">
+          <h3 className="bh-team-heading">Pending Invitations</h3>
+          <div className="bh-team-invites">
+            {invitations.map(inv => (
+              <div key={inv.id} className="bh-team-invite-card">
+                <div className="bh-team-invite-info">
+                  <span className="bh-team-invite-biz">{inv.business_name}</span>
+                  <span className="bh-team-invite-from">
+                    from {inv.owner_first_name} {inv.owner_last_name} · {ROLE_LABEL[inv.role] || inv.role}
+                  </span>
+                </div>
+                <div className="bh-team-invite-actions">
+                  <button className="bh-btn primary" onClick={() => onAccept(inv)}>Accept</button>
+                  <button className="bh-btn" onClick={() => onDecline(inv)}>Decline</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Businesses I manage as a representative / manager ──────────── */}
+      {managedBiz.length > 0 && (
+        <div className="bh-team-section">
+          <h3 className="bh-team-heading">Businesses I Manage</h3>
+          <div className="bh-team-managed">
+            {managedBiz.map(b => (
+              <div key={b.id} className="bh-team-managed-card">
+                {b.logo_url
+                  ? <img src={b.logo_url} alt="" className="bh-team-avatar" />
+                  : <div className="bh-team-avatar bh-team-avatar-init">{b.business_name[0]}</div>
+                }
+                <div>
+                  <p className="bh-team-managed-name">{b.business_name}</p>
+                  <p className="bh-team-managed-role">{ROLE_LABEL[b.role] || b.role} · owner: {b.owner_first_name} {b.owner_last_name}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Vortex token generator ────────────────────────────────────────── */}
+      <div className="bh-team-section">
+        <h3 className="bh-team-heading">Vortex — Self-Onboarding Tokens</h3>
+        <p className="bh-team-vortex-desc">
+          Generate a 64-character single-use token. Share it with a representative out-of-band — they click
+          "Vortex" in the footer after signing up, enter the token, and are instantly linked to this business.
+        </p>
+        <div className="bh-team-vortex-gen">
+          <select
+            className="bh-select"
+            value={tokenForm.role}
+            onChange={e => onTokenFormChange({ role: e.target.value })}
+          >
+            <option value="representative">Representative</option>
+            <option value="manager">Manager</option>
+          </select>
+          <select
+            className="bh-select"
+            value={tokenForm.expires_in}
+            onChange={e => onTokenFormChange({ expires_in: e.target.value })}
+          >
+            <option value="24h">Expires in 24 hours</option>
+            <option value="7d">Expires in 7 days</option>
+            <option value="30d">Expires in 30 days</option>
+            <option value="60d">Expires in 60 days</option>
+          </select>
+          <button className="bh-btn primary" onClick={onGenerateToken} disabled={generatingToken}>
+            {generatingToken ? 'Generating…' : '+ Generate Token'}
+          </button>
+        </div>
+
+        {vortexTokens.length > 0 && (
+          <div className="bh-vortex-tokens">
+            {vortexTokens.map(t => (
+              <div key={t.id} className={`bh-vortex-token-row bh-vortex-${t.status}`}>
+                <div className="bh-vortex-token-info">
+                  <code className="bh-vortex-code">{t.token.slice(0, 16)}…</code>
+                  <span className="bh-role-badge bh-role-representative" style={{ marginLeft: '0.5rem' }}>{ROLE_LABEL[t.role] || t.role}</span>
+                  <span className="bh-vortex-status" style={{ color: STATUS_COLOR[t.status] || 'inherit' }}>
+                    {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                  </span>
+                  {t.status === 'used' && t.used_by_first && (
+                    <span className="bh-vortex-used-by">Used by {t.used_by_first} {t.used_by_last}</span>
+                  )}
+                  {t.status === 'active' && (
+                    <span className="bh-vortex-expires">Expires {new Date(t.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  )}
+                </div>
+                <div className="bh-vortex-token-actions">
+                  {t.status === 'active' && (
+                    <>
+                      <button
+                        id={`vtx-${t.token.slice(0, 8)}`}
+                        className="bh-btn"
+                        onClick={() => copyToken(t.token)}
+                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                      >
+                        Copy
+                      </button>
+                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(t.id)}>Revoke</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Members of the currently selected business ─────────────────── */}
+      <div className="bh-team-section">
+        <div className="bh-team-heading-row">
+          <h3 className="bh-team-heading">Team Members</h3>
+          <button className="bh-btn primary" onClick={onInvite}>+ Invite</button>
+        </div>
+
+        {members.length === 0 ? (
+          <div className="bh-empty" style={{ padding: '2rem 0' }}>
+            <p>No team members yet. Invite a representative or manager to help run this business.</p>
+          </div>
+        ) : (
+          <table className="bh-team-table">
+            <thead>
+              <tr>
+                <th>Name / Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Since</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map(m => (
+                <tr key={m.id}>
+                  <td>
+                    <div className="bh-team-member-name">
+                      {m.first_name ? `${m.first_name} ${m.last_name}` : '—'}
+                    </div>
+                    <div className="bh-team-member-email">{m.member_email || m.invite_email}</div>
+                  </td>
+                  <td><span className={`bh-role-badge bh-role-${m.role}`}>{ROLE_LABEL[m.role] || m.role}</span></td>
+                  <td>
+                    <span className={`bh-status-badge bh-status-${m.status}`}>
+                      {m.status === 'pending' ? 'Invite sent' : 'Active'}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: '0.82rem', color: 'var(--muted-text)' }}>
+                    {m.accepted_at
+                      ? new Date(m.accepted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    }
+                  </td>
+                  <td>
+                    <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
+                      {m.status === 'pending' ? 'Cancel' : 'Remove'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

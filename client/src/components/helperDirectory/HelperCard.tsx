@@ -36,19 +36,23 @@ function memberYear(iso: string): string {
 }
 
 const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCategory }) => {
-  const isExactMatch = !!(highlightCategory && helper.categories.includes(highlightCategory));
+  const isBusiness    = helper.type === 'business';
+  const isExactMatch  = !!(highlightCategory && helper.categories.includes(highlightCategory));
+  const profileLink   = helper.profileUrl ?? `/helpers/${helper.id}`;
 
   return (
     <article
       className={`group bg-gray-900 border rounded-2xl overflow-hidden transition-all hover:shadow-xl hover:shadow-black/30 flex flex-col ${
-        isExactMatch
+        isBusiness
+          ? 'border-indigo-800/60 hover:border-indigo-500'
+          : isExactMatch
           ? 'border-brand-700/70 hover:border-brand-500'
           : 'border-gray-800 hover:border-gray-600'
       }`}
-      aria-label={`${helper.businessName} — helper profile card`}
+      aria-label={`${helper.businessName} — ${isBusiness ? 'business' : 'helper'} profile card`}
     >
       {/* ── Top colour band + avatar ─────────────────────── */}
-      <div className="relative h-20 bg-gradient-to-r from-gray-800 to-gray-750 overflow-hidden flex-shrink-0">
+      <div className={`relative h-20 overflow-hidden flex-shrink-0 ${isBusiness ? 'bg-gradient-to-r from-indigo-950 to-gray-900' : 'bg-gradient-to-r from-gray-800 to-gray-750'}`}>
         {/* Subtle geometric bg */}
         <svg className="absolute inset-0 w-full h-full opacity-10" aria-hidden="true">
           <defs>
@@ -58,14 +62,22 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           </defs>
           <rect width="100%" height="100%" fill={`url(#dots-${helper.id})`} />
         </svg>
-        {/* Category color accent — brighter for exact matches */}
+        {/* Category color accent */}
         <div
-          className={`absolute inset-y-0 left-0 w-1 ${isExactMatch ? 'bg-brand-400' : 'bg-brand-500'}`}
+          className={`absolute inset-y-0 left-0 w-1 ${isBusiness ? 'bg-indigo-400' : isExactMatch ? 'bg-brand-400' : 'bg-brand-500'}`}
           aria-hidden="true"
         />
 
+        {/* Business badge */}
+        {isBusiness && (
+          <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-900/70 text-indigo-300 border border-indigo-700 rounded-full text-xs font-medium backdrop-blur-sm">
+            <Briefcase className="w-2.5 h-2.5" aria-hidden="true" />
+            Business
+          </span>
+        )}
+
         {/* Exact match badge */}
-        {isExactMatch && (
+        {!isBusiness && isExactMatch && (
           <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
             <Zap className="w-2.5 h-2.5" aria-hidden="true" />
             Exact match
@@ -117,12 +129,17 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         {/* Name + meta */}
         <div>
           <Link
-            to={`/helpers/${helper.id}`}
-            className="font-semibold text-white text-base hover:text-brand-400 transition-colors line-clamp-1"
+            to={profileLink}
+            className={`font-semibold text-white text-base transition-colors line-clamp-1 ${isBusiness ? 'hover:text-indigo-400' : 'hover:text-brand-400'}`}
           >
             {helper.businessName}
           </Link>
-          <p className="text-gray-500 text-xs mt-0.5">{helper.ownerName} · Since {memberYear(helper.memberSince)}</p>
+          <p className="text-gray-500 text-xs mt-0.5">
+            {isBusiness
+              ? `Owner: ${helper.ownerName}`
+              : `${helper.ownerName}${helper.memberSince ? ` · Since ${memberYear(helper.memberSince)}` : ''}`
+            }
+          </p>
         </div>
 
         {/* Rating + jobs */}
@@ -269,12 +286,14 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             Message
           </button>
           <Link
-            to={`/helpers/${helper.id}`}
-            className="flex items-center justify-center gap-1.5 flex-[2] py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold transition-colors"
+            to={profileLink}
+            className={`flex items-center justify-center gap-1.5 flex-[2] py-2 rounded-xl text-white text-xs font-semibold transition-colors ${
+              isBusiness ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-brand-500 hover:bg-brand-600'
+            }`}
             aria-label={`View ${helper.businessName} profile`}
           >
             <CalendarCheck className="w-3.5 h-3.5" aria-hidden="true" />
-            View & Book
+            {isBusiness ? 'View Business' : 'View & Book'}
           </Link>
         </div>
       </div>

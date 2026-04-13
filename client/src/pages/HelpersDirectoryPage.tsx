@@ -398,6 +398,22 @@ function getInitialState(): { filters: DirectoryFilters; tileId: string | null }
   return { filters, tileId };
 }
 
+// ── Merge businesses into helpers grid at fixed positions ─────────────────────
+// Businesses are inserted at every 4th slot (positions 3, 7, 11…) so they
+// appear naturally mixed alongside individual helpers on page 1.
+function mergeGridItems(
+  helpers: HelperCardData[],
+  businesses: HelperCardData[],
+): HelperCardData[] {
+  if (businesses.length === 0) return helpers;
+  const result = [...helpers];
+  businesses.forEach((biz, i) => {
+    const insertAt = Math.min(3 + i * 4, result.length);
+    result.splice(insertAt, 0, biz);
+  });
+  return result;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
   // Parse URL params exactly once — destructure for both derived states.
@@ -405,6 +421,7 @@ const HelpersDirectoryPage: React.FC = () => {
   const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
   const [sort, setSort]                 = useState<SortOption>('best_match');
   const [helpers, setHelpers]           = useState<HelperCardData[]>([]);
+  const [businesses, setBusinesses]     = useState<HelperCardData[]>([]);
   const [total, setTotal]               = useState(0);
   const [page, setPage]                 = useState(1);
   const [loadState, setLoadState]       = useState<'loading' | 'success' | 'error'>('loading');
@@ -420,6 +437,8 @@ const HelpersDirectoryPage: React.FC = () => {
     try {
       const res = await fetchHelpers(f, s, p, PAGE_SIZE);
       setHelpers((prev) => append ? [...prev, ...res.helpers] : res.helpers);
+      // Businesses are only included on page 1 (first load / filter change)
+      if (!append) setBusinesses(res.businesses ?? []);
       setTotal(res.total);
       setLoadState('success');
     } catch {
@@ -476,8 +495,9 @@ const HelpersDirectoryPage: React.FC = () => {
   const selectedTile    = selectedTileId ? SKILL_TILES.find((t) => t.id === selectedTileId) ?? null : null;
   const boostedCategory = selectedTile?.category;
 
-  // Client-side: float exact-category matches to the top when a skill tile is active
-  const displayed = boostedCategory ? applySort(helpers, sort, boostedCategory) : helpers;
+  // Client-side: float exact-category matches to the top, then mix in businesses
+  const sortedHelpers = boostedCategory ? applySort(helpers, sort, boostedCategory) : helpers;
+  const displayed     = page === 1 ? mergeGridItems(sortedHelpers, businesses) : sortedHelpers;
   const hasMore          = helpers.length < total;
   const activeFilterCount = countActiveFilters(filters);
 
@@ -488,7 +508,12 @@ const HelpersDirectoryPage: React.FC = () => {
   }, [filters, sort, page, load]);
 
   const handleMessage = useCallback((id: string) => {
-    window.location.href = `/helpers/${id}`;
+    // Business cards have a string id prefixed with 'biz_'; route to business profile
+    if (id.startsWith('biz_')) {
+      window.location.href = `/business/${id.replace('biz_', '')}`;
+    } else {
+      window.location.href = `/helpers/${id}`;
+    }
   }, []);
 
   return (

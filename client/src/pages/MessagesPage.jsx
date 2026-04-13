@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { useSocket } from '../hooks/useSocket';
 import Navbar from '../components/Navbar';
@@ -10,7 +10,27 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const { socket } = useSocket();
+
+  // If caller passes ?helperId=&businessId= (e.g. from BusinessProfilePage),
+  // auto-create or find the matching conversation and redirect to it.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const helperId   = params.get('helperId');
+    const businessId = params.get('businessId');
+    if (!helperId) return;
+
+    api.post('/messages/conversations', {
+      helperId,
+      ...(businessId ? { businessId } : {}),
+    }).then(res => {
+      navigate(`/messages/${res.data.id}`, { replace: true });
+    }).catch(() => {
+      // If creating fails, just show the inbox
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchConversations = useCallback(async () => {
     try {

@@ -242,7 +242,58 @@ async function listHelpers(req, res) {
       };
     });
 
-    return res.json({ helpers: mapped, total: parseInt(count), page: pageNum });
+    // ── Businesses: fetch active businesses for the helpers grid ──────────────
+    // Businesses appear mixed into the directory alongside individual helpers.
+    // Only fetch on page 1 (they are always shown at their natural insertion point).
+    let businesses = [];
+    if (pageNum === 1) {
+      const { rows: bizRows } = await pool.query(
+        `SELECT
+           b.id, b.business_name, b.tagline, b.about,
+           b.profile_photo_url, b.cover_photo_url,
+           b.city, b.state,
+           b.avg_rating, b.total_reviews,
+           b.is_verified,
+           u.id AS owner_id, u.first_name AS owner_first, u.last_name AS owner_last
+         FROM businesses b
+         JOIN users u ON u.id = b.user_id
+         WHERE b.is_active = TRUE
+           AND b.business_name IS NOT NULL
+           AND b.business_name != ''
+         ORDER BY b.avg_rating DESC NULLS LAST, b.total_reviews DESC NULLS LAST
+         LIMIT 20`
+      );
+      businesses = bizRows.map((b) => ({
+        id:               `biz_${b.id}`,
+        businessId:       b.id,
+        type:             'business',
+        profileUrl:       `/business/${b.id}`,
+        businessName:     b.business_name,
+        ownerName:        `${b.owner_first} ${b.owner_last}`,
+        avatar:           b.profile_photo_url || '',
+        rating:           parseFloat(b.avg_rating) || 0,
+        reviewCount:      b.total_reviews          || 0,
+        jobsCompleted:    0,
+        verified:         !!b.is_verified,
+        backgroundChecked:false,
+        categories:       [],
+        skills:           [],
+        licenses:         [],
+        insurance:        [],
+        topServices:      [],
+        startingPrice:    0,
+        startingPriceUnit:'hour',
+        responseTime:     'Varies',
+        responseMinutes:  480,
+        city:             b.city  || '',
+        state:            b.state || '',
+        serviceRadius:    50,
+        availableToday:   false,
+        shortBio:         b.tagline || b.about || '',
+      }));
+    }
+
+    return res.json({ helpers: mapped, businesses, total: parseInt(count), page: pageNum });
   } catch (err) {
     console.error('[listHelpers] error:', err);
     return res.status(500).json({ error: 'Failed to load helpers' });

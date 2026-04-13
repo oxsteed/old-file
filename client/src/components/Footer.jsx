@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { redeemVortexToken } from '../api/businesses';
 
 export default function Footer() {
   const { user } = useAuth();
   const year = new Date().getFullYear();
+  const [vortexOpen, setVortexOpen] = useState(false);
 
   return (
     <footer
@@ -90,6 +93,7 @@ export default function Footer() {
           flexWrap: 'wrap',
           gap: 'var(--space-4)',
           marginBottom: 'var(--space-4)',
+          alignItems: 'center',
         }}>
           <LegalLink to="/terms">Terms of Service</LegalLink>
           <LegalLink to="/privacy">Privacy Policy</LegalLink>
@@ -97,6 +101,27 @@ export default function Footer() {
           <LegalLink to="/cookie-policy">Cookie Policy</LegalLink>
           <LegalLink to="/do-not-sell">Do Not Sell My Info</LegalLink>
           <LegalLink to="/accessibility">Accessibility</LegalLink>
+          {user && (
+            <button
+              onClick={() => setVortexOpen(true)}
+              style={{
+                background: 'none',
+                border: '1px solid var(--color-primary)',
+                borderRadius: '999px',
+                padding: '0.15rem 0.7rem',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                cursor: 'pointer',
+                letterSpacing: '0.04em',
+                transition: 'background var(--transition-fast)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              Vortex
+            </button>
+          )}
         </div>
 
         {/* Copyright */}
@@ -124,6 +149,11 @@ export default function Footer() {
           </p>
         </div>
       </div>
+
+      {/* Vortex redeem modal */}
+      {vortexOpen && (
+        <VortexModal onClose={() => setVortexOpen(false)} />
+      )}
     </footer>
   );
 }
@@ -161,5 +191,134 @@ function LegalLink({ to, children }) {
     >
       {children}
     </Link>
+  );
+}
+
+function VortexModal({ onClose }) {
+  const [token, setToken]   = useState('');
+  const [error, setError]   = useState('');
+  const [success, setSuccess] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleRedeem() {
+    setError('');
+    const t = token.trim();
+    if (t.length !== 64) {
+      setError('Token must be exactly 64 characters.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await redeemVortexToken(t);
+      setSuccess(result);
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Failed to redeem token.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const overlayStyle = {
+    position: 'fixed', inset: 0, zIndex: 9999,
+    background: 'rgba(0,0,0,0.7)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '1rem',
+  };
+  const boxStyle = {
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderRadius: '16px',
+    padding: '2rem',
+    width: '100%',
+    maxWidth: '480px',
+    color: 'var(--color-text)',
+  };
+
+  return (
+    <div style={overlayStyle} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={boxStyle}>
+        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>Vortex</h2>
+        <p style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', color: 'var(--color-text-muted)', lineHeight: 1.55 }}>
+          Enter a 64-character Vortex token shared by a business owner to join their team.
+        </p>
+
+        {!success ? (
+          <>
+            <input
+              type="text"
+              placeholder="Paste your 64-character token…"
+              value={token}
+              onChange={e => { setToken(e.target.value); setError(''); }}
+              maxLength={64}
+              style={{
+                width: '100%',
+                padding: '0.6rem 0.75rem',
+                border: '1px solid var(--color-border)',
+                borderRadius: '8px',
+                background: 'var(--color-bg)',
+                color: 'var(--color-text)',
+                fontFamily: 'monospace',
+                fontSize: '0.85rem',
+                letterSpacing: '0.04em',
+                boxSizing: 'border-box',
+                marginBottom: '0.5rem',
+              }}
+              autoComplete="off"
+              spellCheck="false"
+            />
+            <p style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)', margin: '0 0 1rem' }}>
+              {token.length} / 64 characters
+            </p>
+
+            {error && (
+              <p style={{ color: '#f87171', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>{error}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={onClose}
+                style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRedeem}
+                disabled={loading || token.trim().length !== 64}
+                style={{
+                  background: loading ? 'var(--color-primary-light)' : 'var(--color-primary)',
+                  border: 'none', borderRadius: '8px',
+                  padding: '0.5rem 1.25rem',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  opacity: loading || token.trim().length !== 64 ? 0.7 : 1,
+                }}
+              >
+                {loading ? 'Joining…' : 'Join Business'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✅</div>
+              <p style={{ fontWeight: 700, fontSize: '1.1rem', margin: '0 0 0.5rem' }}>
+                You've joined {success.business_name}!
+              </p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: '0 0 1.5rem' }}>
+                Role: <strong>{success.role}</strong>
+              </p>
+              <button
+                onClick={onClose}
+                style={{ background: 'var(--color-primary)', border: 'none', borderRadius: '8px', padding: '0.6rem 1.5rem', cursor: 'pointer', color: '#fff', fontWeight: 600, fontSize: '0.9rem' }}
+              >
+                Continue
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
