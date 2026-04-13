@@ -503,13 +503,8 @@ export default function SettingsPage() {
     </div>
   );
 
-  const tabNotifications = (
-    <div className="sp-card">
-      <h2 className="sp-card-title">Notification Preferences</h2>
-      <p className="sp-card-subtitle">Control how and when OxSteed contacts you.</p>
-      <NotificationPreferences />
-    </div>
-  );
+  // NotificationPreferences renders its own card wrapper with heading — render directly
+  const tabNotifications = <NotificationPreferences />;
 
   const tabReferral = (
     <div className="sp-card">
