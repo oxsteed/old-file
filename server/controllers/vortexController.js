@@ -147,19 +147,32 @@ async function listTokens(req, res) {
 
 // ── DELETE /api/businesses/:id/vortex-tokens/:tokenId ─────────────────────────
 // Owner or manager revokes a token before it has been used.
+//
+// Authorization rules (mirror listTokens visibility):
+//   • Owner   → may revoke any active token for the business
+//   • Manager → may only revoke tokens they personally created
+//               (created_by_id = req.user.id)
+//
+// A manager cannot revoke a token whose secret they cannot see — keeping
+// revoke permissions consistent with listTokens visibility.
 async function revokeToken(req, res) {
   try {
     const biz = await ownedOrManagedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
+    const isOwner = biz.user_id === req.user.id;
+
+    // Owners may revoke any token for the business.
+    // Managers may only revoke tokens they created themselves.
     const { rowCount } = await pool.query(
       `UPDATE business_invite_tokens
        SET is_revoked = TRUE
        WHERE id          = $1
          AND business_id = $2
          AND used_at IS NULL
-         AND is_revoked  = FALSE`,
-      [req.params.tokenId, biz.id]
+         AND is_revoked  = FALSE
+         AND ($3 OR created_by_id = $4)`,
+      [req.params.tokenId, biz.id, isOwner, req.user.id]
     );
 
     if (!rowCount) return res.status(404).json({ error: 'Token not found or already used/revoked' });

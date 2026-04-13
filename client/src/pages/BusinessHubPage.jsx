@@ -1090,37 +1090,57 @@ function TeamTab({
 
         {vortexTokens.length > 0 && (
           <div className="bh-vortex-tokens">
-            {vortexTokens.map(t => (
-              <div key={t.id} className={`bh-vortex-token-row bh-vortex-${t.status}`}>
-                <div className="bh-vortex-token-info">
-                  <code className="bh-vortex-code">{t.token.slice(0, 16)}…</code>
-                  <span className="bh-role-badge bh-role-representative" style={{ marginLeft: '0.5rem' }}>{ROLE_LABEL[t.role] || t.role}</span>
-                  <span className="bh-vortex-status" style={{ color: STATUS_COLOR[t.status] || 'inherit' }}>
-                    {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
-                  </span>
-                  {t.status === 'used' && t.used_by_first && (
-                    <span className="bh-vortex-used-by">Used by {t.used_by_first} {t.used_by_last}</span>
-                  )}
-                  {t.status === 'active' && (
-                    <span className="bh-vortex-expires">Expires {new Date(t.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                  )}
+            {vortexTokens.map(t => {
+              // t.token is NULL for active tokens the requesting manager did not create.
+              // Guard every access to prevent TypeError crashes.
+              const tokenStr = t.token ?? null;
+              const tokenHidden = t.status === 'active' && tokenStr === null;
+              const tokenPrefix = tokenStr ? tokenStr.slice(0, 16) : null;
+              const rowKey = t.id;
+
+              return (
+                <div key={rowKey} className={`bh-vortex-token-row bh-vortex-${t.status}`}>
+                  <div className="bh-vortex-token-info">
+                    {tokenHidden ? (
+                      <code className="bh-vortex-code bh-vortex-code--hidden" title="Created by another manager">
+                        ••••••••••••••••
+                      </code>
+                    ) : (
+                      <code className="bh-vortex-code">{tokenPrefix}…</code>
+                    )}
+                    <span className="bh-role-badge bh-role-representative" style={{ marginLeft: '0.5rem' }}>{ROLE_LABEL[t.role] || t.role}</span>
+                    <span className="bh-vortex-status" style={{ color: STATUS_COLOR[t.status] || 'inherit' }}>
+                      {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                    </span>
+                    {t.status === 'used' && t.used_by_first && (
+                      <span className="bh-vortex-used-by">Used by {t.used_by_first} {t.used_by_last}</span>
+                    )}
+                    {t.status === 'active' && (
+                      <span className="bh-vortex-expires">Expires {new Date(t.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    )}
+                    {t.created_by_first && (
+                      <span className="bh-vortex-creator" style={{ fontSize: '0.75rem', color: 'var(--muted-text)', marginLeft: '0.4rem' }}>
+                        by {t.created_by_first} {t.created_by_last}
+                      </span>
+                    )}
+                  </div>
+                  <div className="bh-vortex-token-actions">
+                    {t.status === 'active' && !tokenHidden && (
+                      <>
+                        <button
+                          className="bh-btn"
+                          onClick={() => copyToken(tokenStr, t.id)}
+                          style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                        >
+                          {copiedTokenId === t.id ? 'Copied!' : 'Copy'}
+                        </button>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(t.id)}>Revoke</button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="bh-vortex-token-actions">
-                  {t.status === 'active' && (
-                    <>
-                      <button
-                        className="bh-btn"
-                        onClick={() => copyToken(t.token, t.id)}
-                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
-                      >
-                        {copiedTokenId === t.id ? 'Copied!' : 'Copy'}
-                      </button>
-                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(t.id)}>Revoke</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
