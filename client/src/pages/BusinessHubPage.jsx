@@ -187,7 +187,7 @@ function BusinessHubInner() {
     try {
       const payload = {
         ...form,
-        invoice_tax_rate: form.invoice_tax_rate ? parseFloat(form.invoice_tax_rate) : undefined,
+        invoice_tax_rate: form.invoice_tax_rate !== '' && form.invoice_tax_rate != null ? parseFloat(form.invoice_tax_rate) : undefined,
         line_items: items.map(li => ({
           description: li.description,
           quantity: parseFloat(li.quantity) || 1,
@@ -256,7 +256,7 @@ function BusinessHubInner() {
       const payload = {
         ...form,
         target_value: parseFloat(form.target_value),
-        current_value: form.current_value ? parseFloat(form.current_value) : undefined,
+        current_value: form.current_value !== '' && form.current_value != null ? parseFloat(form.current_value) : undefined,
       };
       if (modal === 'add-goal') {
         await createGoal(bizId, payload);
@@ -457,7 +457,7 @@ function BusinessHubInner() {
                 <div className="bh-field"><label>Due Date *</label><input type="date" name="due_date" value={form.due_date || ''} onChange={fc} /></div>
               </div>
               <div className="bh-field-row">
-                <div className="bh-field"><label>Tax Rate (%)</label><input type="number" name="invoice_tax_rate" value={form.invoice_tax_rate || ''} onChange={fc} placeholder="0" min="0" max="100" step="0.01" /></div>
+                <div className="bh-field"><label>Tax Rate (%)</label><input type="number" name="invoice_tax_rate" value={form.invoice_tax_rate ?? ''} onChange={fc} placeholder="0" min="0" max="100" step="0.01" /></div>
                 <div className="bh-field">
                   <label>Status</label>
                   <select name="status" value={form.status || 'draft'} onChange={fc}>
@@ -552,7 +552,7 @@ function BusinessHubInner() {
               </div>
               <div className="bh-field-row">
                 <div className="bh-field"><label>Target Value *</label><input type="number" name="target_value" value={form.target_value || ''} onChange={fc} min="0" step="0.01" /></div>
-                <div className="bh-field"><label>Current Value</label><input type="number" name="current_value" value={form.current_value || ''} onChange={fc} min="0" step="0.01" /></div>
+                <div className="bh-field"><label>Current Value</label><input type="number" name="current_value" value={form.current_value ?? ''} onChange={fc} min="0" step="0.01" /></div>
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
@@ -600,7 +600,7 @@ function OverviewTab({ analytics }) {
     parseFloat(m.expenses) || 0,
     parseFloat(m.profit)   || 0,
   ]);
-  const maxVal = Math.max(...allVals, 1);
+  const maxVal = Math.max(...allVals.map(v => Math.abs(v)), 1);
 
   return (
     <>
