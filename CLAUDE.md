@@ -527,7 +527,7 @@ All production-readiness audit items have been completed. Items are documented i
 - **`client/src/hooks/useConversationChat.js`**: Shared hook for customer + helper thread pages; `messages:read` ignores self (`readBy`); clears typing only on inbound `message:new`; optional `listenProfileChat` for `profile_chat:new_message` (server does not emit `message:new` for profile-initiated threads).
 - **`client/src/utils/inboxTimeFormat.js`**: Shared `formatInboxTime` for `MessagesPage` + `HelperInboxPage`.
 
-**Session — 2026-04-13 (PR #99 Bugbot):** Fixed helper thread regression: `profile_chat:new_message` now handled in the hook when `listenProfileChat: true`. Gated typing clear on own message echo. Deduplicated inbox timestamp helper.
+**Session — 2026-04-13 (PR #99 Bugbot):** Fixed helper thread regression: `profile_chat:new_message` now handled in the hook when `listenProfileChat: true`. Gated typing clear on own message echo. Deduplicated inbox timestamp helper. Added message-id dedupe in `useConversationChat` before mark-as-read so duplicate `message:new` events (conversation room + user room) no longer trigger redundant full-fetch read-sync GETs.
 
 **Multi-business support:** `getConversations` and `getConversationMeta` join `businesses` on `is_primary = TRUE AND is_active = TRUE`. Business name is shown as a subtitle in all four views (customer inbox, customer thread, helper inbox, helper thread). Helpers with multiple businesses see "via [Business Name]" so they know which business identity a conversation is under.
 
