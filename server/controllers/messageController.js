@@ -90,10 +90,20 @@ const getOrCreateConversation = async (req, res) => {
     }
 
     const newConv = await pool.query(
-      'INSERT INTO conversations (customer_id, helper_id, job_id) VALUES ($1, $2, $3) RETURNING *',
+      'INSERT INTO conversations (customer_id, helper_id, job_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *',
       [userId, helperId, jobId || null]
     );
-    res.status(201).json(newConv.rows[0]);
+    if (newConv.rows.length) {
+      return res.status(201).json(newConv.rows[0]);
+    }
+    // Concurrent insert: fetch the row that already exists
+    const existing = await pool.query(
+      jobId
+        ? 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id = $3'
+        : 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL',
+      jobId ? [userId, helperId, jobId] : [userId, helperId]
+    );
+    res.json(existing.rows[0]);
   } catch (error) {
     logger.error('Error creating conversation', { err: error.message });
     res.status(500).json({ error: 'Failed to create conversation' });

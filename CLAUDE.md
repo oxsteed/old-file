@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-13 (chat AI OpenRouter + Ollama fallback)
+**Last updated:** 2026-04-13 (chat system audit + live-chat bug fixes)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -541,6 +541,29 @@ All production-readiness audit items have been completed. Items are documented i
 - 2s inactivity / blur / send → `typing:stop` → `user:stopped_typing` → bubble disappears
 - User sends → POST `/messages/conversations/:id` → server saves, emits `message:new` to conv room + recipient user room
 - Recipient opens thread → `getMessages` marks read → server emits `messages:read` to conv room → sender sees "Seen"
+
+### Session — 2026-04-13 (live-chat audit + bug fixes)
+
+Full audit of the customer↔helper real-time chat system. Four bugs found and fixed:
+
+1. **`useSocket.js` wrong fallback port** — socket connected to `localhost:4000` when `VITE_API_URL` was unset; server runs on `5000`. Fixed fallback to `5000`. (`client/src/hooks/useSocket.js`)
+
+2. **`chatController.profileChatMessage` — existingConv query too broad** — the `SELECT` that checked for an existing conversation used a bidirectional `OR` with no `job_id IS NULL` filter, so a profile-chat message could be routed into a job-linked conversation. Fixed to `customer_id = $1 AND helper_id = $2 AND job_id IS NULL`. (`server/controllers/chatController.js`)
+
+3. **Duplicate null-job conversations** — PostgreSQL's `UNIQUE(job_id, customer_id, helper_id)` from migration 024 does not prevent duplicates when `job_id IS NULL` (NULL ≠ NULL in unique constraints). Added migration `060_conversations_null_job_unique.sql` with a partial unique index `ON conversations (customer_id, helper_id) WHERE job_id IS NULL`. Both `chatController` and `messageController` now use `ON CONFLICT DO NOTHING` + retry-select to survive concurrent inserts gracefully.
+
+4. **Navbar Messages link always routed customers/helpers to `/messages`** — helpers were landing on the customer inbox. Fixed to use `isHelper ? '/helper/messages' : '/messages'` in both desktop and mobile nav. (`client/src/components/Navbar.jsx`)
+
+**What was verified as correct (no changes needed):**
+- Socket.IO auth middleware (JWT verify + `is_active` DB check) ✓
+- `conversation:join` server-side membership verification ✓
+- Typing indicator gating via `socket.rooms.has(...)` ✓
+- `getConversations` LATERAL join for unread count + last message ✓
+- `messages:read` emit only when rows were actually updated ✓
+- `appendMessageIfNew` dedup in hook ✓
+- `profile_chat:new_message` path in `ChatPanel` / helper inbox ✓
+- `getHelperStatus` endpoint using socket presence for live/AI routing ✓
+- `useConversationChat` shared hook (customer + helper pages) ✓
 
 ---
 

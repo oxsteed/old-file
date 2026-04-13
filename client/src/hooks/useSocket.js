@@ -22,7 +22,7 @@ export const useSocket = () => {
     const token = localStorage.getItem('oxsteed_token');
 
     socketInstance = io(
-      import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000',
+      import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
       {
         auth:            { token },
         transports:      ['websocket'],
