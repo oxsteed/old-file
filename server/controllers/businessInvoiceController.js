@@ -5,17 +5,9 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
+const { ownedBusiness } = require('../utils/businessOwnership');
 
 function round2(n) { return Math.round((n || 0) * 100) / 100; }
-
-// Ownership guard: returns the business row if owned by user, else null
-async function ownedBusiness(userId, bizId) {
-  const { rows } = await pool.query(
-    'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-    [bizId, userId]
-  );
-  return rows[0] || null;
-}
 
 // ── Compute totals from line items + tax rate ─────────────────────────────────
 function computeTotals(lineItems, invoiceTaxRate) {

@@ -3,15 +3,7 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
-
-// ── ownership guard ───────────────────────────────────────────────────────────
-async function ownedBusiness(userId, bizId) {
-  const { rows } = await pool.query(
-    'SELECT id, business_name FROM businesses WHERE id = $1 AND user_id = $2',
-    [bizId, userId]
-  );
-  return rows[0] || null;
-}
+const { ownedBusiness } = require('../utils/businessOwnership');
 
 // ── GET /api/businesses/:id/members ──────────────────────────────────────────
 // Owner lists all members (active + pending) for their business.

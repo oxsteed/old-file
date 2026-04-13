@@ -3,6 +3,7 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
+const { ownedBusiness } = require('../utils/businessOwnership');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -29,15 +30,6 @@ function currentQuarter() {
 }
 
 function round2(n) { return Math.round((n || 0) * 100) / 100; }
-
-// ── ownership guard ───────────────────────────────────────────────────────────
-async function ownedBusiness(userId, bizId) {
-  const { rows } = await pool.query(
-    'SELECT id, is_primary, tax_rate FROM businesses WHERE id = $1 AND user_id = $2',
-    [bizId, userId]
-  );
-  return rows[0] || null;
-}
 
 // ── List user's businesses ────────────────────────────────────────────────────
 async function listBusinesses(req, res) {
@@ -553,7 +545,6 @@ async function getBusinessPublicProfile(req, res) {
          u.id           AS owner_id,
          u.first_name   AS owner_first_name,
          u.last_name    AS owner_last_name,
-         u.email        AS owner_email,
          hp.profile_headline,
          hp.profile_photo_url,
          hp.cover_photo_url,
