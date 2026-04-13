@@ -84,6 +84,14 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     setOtherTyping(false);
   }, []);
 
+  const markConversationRead = useCallback(async () => {
+    try {
+      await api.get(`/messages/conversations/${conversationId}`);
+    } catch (_err) {
+      // Best effort: read state will be synced on next successful fetch.
+    }
+  }, [conversationId]);
+
   // ── Real-time events ─────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
@@ -92,7 +100,10 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       if (String(cid) !== String(conversationId)) return;
       // Only clear "other typing" when the message is from the other party.
       // Our own message echoes would incorrectly hide their typing indicator.
-      if (message.sender_id !== user?.id) clearOtherTyping();
+      if (message.sender_id !== user?.id) {
+        clearOtherTyping();
+        markConversationRead();
+      }
       setMessages(prev => {
         if (prev.some(m => m.id === message.id)) return prev;
         return [...prev, message];
@@ -106,7 +117,10 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       if (String(cid) !== String(conversationId)) return;
       const enriched =
         senderName && !message.sender_name ? { ...message, sender_name: senderName } : message;
-      if (enriched.sender_id !== user?.id) clearOtherTyping();
+      if (enriched.sender_id !== user?.id) {
+        clearOtherTyping();
+        markConversationRead();
+      }
       setMessages((prev) => {
         if (prev.some((m) => m.id === enriched.id)) return prev;
         return [...prev, enriched];
@@ -116,8 +130,9 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       }
     };
 
-    const onTyping = ({ conversationId: cid }) => {
+    const onTyping = ({ conversationId: cid, userId }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(userId) === String(user?.id)) return;
       setOtherTyping(true);
       // Auto-clear safety net: if typing:stop never arrives (e.g. user
       // disconnects mid-typing), clear the indicator after TYPING_AUTO_CLEAR_MS.
@@ -127,8 +142,9 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       }, TYPING_AUTO_CLEAR_MS);
     };
 
-    const onStoppedTyping = ({ conversationId: cid }) => {
+    const onStoppedTyping = ({ conversationId: cid, userId }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(userId) === String(user?.id)) return;
       clearOtherTyping();
     };
 
@@ -162,7 +178,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
         socket.off(event, handler);
       }
     };
-  }, [socket, conversationId, user?.id, clearOtherTyping, listenProfileChat]); // eslint-disable-line react-hooks/exhaustive-deps -- extraSocketEvents intentionally omitted (often new [] per render)
+  }, [socket, conversationId, user?.id, clearOtherTyping, markConversationRead, listenProfileChat]); // eslint-disable-line react-hooks/exhaustive-deps -- extraSocketEvents intentionally omitted (often new [] per render)
 
   // ── Typing indicator emit ─────────────────────────────────────
   const handleInputChange = (e) => {
