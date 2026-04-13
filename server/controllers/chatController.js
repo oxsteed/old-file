@@ -275,6 +275,27 @@ function buildHelperSystemPrompt(helper, skills) {
 - If asked about things unrelated to this helper or OxSteed, politely redirect`;
 }
 
+function buildBusinessSystemPrompt(business, skills) {
+  const skillList = skills.length
+    ? skills.map(s => `${s.skill_name}${s.hourly_rate ? ` ($${parseFloat(s.hourly_rate).toFixed(0)}/hr)` : ''}`).join(', ')
+    : 'Not listed yet';
+
+  return `You are an AI assistant representing ${business.business_name}, a business on the OxSteed local services marketplace. Answer questions as if you are the business's virtual assistant — knowledgeable, helpful, and professional.
+
+## About This Business
+- Business name: ${business.business_name}
+- Description: ${business.description || 'A local service business available for hire.'}
+- Location: ${[business.address_city, business.address_state].filter(Boolean).join(', ') || 'Local area'}
+- Services offered: ${skillList}
+
+## Your Role
+- Answer questions about this business's services, availability, and pricing
+- If asked about booking or pricing specifics you don't know, invite the customer to send a message directly
+- Be warm, professional, and represent this business well
+- Keep responses concise (2-4 sentences unless detail is clearly needed)
+- If asked about things unrelated to this business or OxSteed, politely redirect`;
+}
+
 /**
  * POST /api/chat/profile-message
  * Handles messages sent from a helper's profile page.
@@ -345,8 +366,19 @@ exports.profileChatMessage = async (req, res) => {
     const helperOnline = socketService.isOnline(helperId);
     const userId = req.user?.id;
 
-    // ── Live mode: authenticated customer + helper online + destination=helper ──
-    if (destination === 'helper' && helperOnline && userId) {
+    // Check if any active rep for this business is online
+    let anyRepOnline = false;
+    if (resolvedBusinessId && !helperOnline) {
+      const repsRes = await pool.query(
+        `SELECT member_id FROM business_members
+         WHERE business_id = $1 AND status = 'active'`,
+        [resolvedBusinessId]
+      );
+      anyRepOnline = repsRes.rows.some(r => socketService.isOnline(r.member_id));
+    }
+
+    // ── Live mode: authenticated customer + (owner OR rep) online + destination=helper ──
+    if (destination === 'helper' && (helperOnline || anyRepOnline) && userId) {
       // Get or create conversation — scope by business_id when present
       const existingConv = await pool.query(
         resolvedBusinessId
@@ -428,9 +460,25 @@ exports.profileChatMessage = async (req, res) => {
     }
 
     // ── AI mode: helper offline, unauthenticated, or destination=oxsteed ──
-    const systemPrompt = destination === 'oxsteed'
-      ? `You are OxSteed's customer support AI. Answer questions about the OxSteed platform — how to post jobs, payments, subscriptions, and policies. Be concise and helpful. For account-specific issues refer users to support@oxsteed.com.`
-      : buildHelperSystemPrompt(helper, skillsRes.rows);
+    let systemPrompt;
+    if (destination === 'oxsteed') {
+      systemPrompt = `You are OxSteed's customer support AI. Answer questions about the OxSteed platform — how to post jobs, payments, subscriptions, and policies. Be concise and helpful. For account-specific issues refer users to support@oxsteed.com.`;
+    } else if (resolvedBusinessId) {
+      // Build prompt from business profile instead of owner's personal profile
+      const bizProfile = await pool.query(
+        `SELECT business_name, description, address_city, address_state
+         FROM businesses WHERE id = $1 AND is_active = TRUE`,
+        [resolvedBusinessId]
+      );
+      const biz = bizProfile.rows[0];
+      if (biz) {
+        systemPrompt = buildBusinessSystemPrompt(biz, skillsRes.rows);
+      } else {
+        systemPrompt = buildHelperSystemPrompt(helper, skillsRes.rows);
+      }
+    } else {
+      systemPrompt = buildHelperSystemPrompt(helper, skillsRes.rows);
+    }
 
     const ollamaMessages = [
       { role: 'system', content: systemPrompt },

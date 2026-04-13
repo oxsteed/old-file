@@ -999,11 +999,12 @@ function TeamTab({
 }) {
   const ROLE_LABEL = { manager: 'Manager', representative: 'Representative' };
 
-  function copyToken(token) {
+  const [copiedTokenId, setCopiedTokenId] = useState(null);
+
+  function copyToken(token, tokenId) {
     navigator.clipboard.writeText(token).then(() => {
-      // brief visual flash — no toast dependency needed for a simple copy
-      const el = document.getElementById(`vtx-${token.slice(0, 8)}`);
-      if (el) { el.textContent = 'Copied!'; setTimeout(() => { if (el) el.textContent = 'Copy'; }, 1500); }
+      setCopiedTokenId(tokenId);
+      setTimeout(() => setCopiedTokenId(prev => prev === tokenId ? null : prev), 1500);
     });
   }
 
@@ -1108,12 +1109,11 @@ function TeamTab({
                   {t.status === 'active' && (
                     <>
                       <button
-                        id={`vtx-${t.token.slice(0, 8)}`}
                         className="bh-btn"
-                        onClick={() => copyToken(t.token)}
+                        onClick={() => copyToken(t.token, t.id)}
                         style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
                       >
-                        Copy
+                        {copiedTokenId === t.id ? 'Copied!' : 'Copy'}
                       </button>
                       <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(t.id)}>Revoke</button>
                     </>

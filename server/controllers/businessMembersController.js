@@ -109,6 +109,16 @@ async function revokeMember(req, res) {
     const biz = await ownedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
+    // Fetch member info before revoking so we can notify them
+    const memberRes = await pool.query(
+      `SELECT member_id, role FROM business_members
+       WHERE id = $1 AND business_id = $2 AND owner_id = $3 AND status != 'revoked'`,
+      [req.params.memberId, biz.id, req.user.id]
+    );
+
+    if (!memberRes.rows.length) return res.status(404).json({ error: 'Member not found' });
+    const member = memberRes.rows[0];
+
     const { rowCount } = await pool.query(
       `UPDATE business_members
        SET status = 'revoked'
@@ -120,6 +130,25 @@ async function revokeMember(req, res) {
     );
 
     if (!rowCount) return res.status(404).json({ error: 'Member not found' });
+
+    // Notify the revoked user
+    if (member.member_id) {
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, title, message, metadata)
+         VALUES ($1, 'rep_revoked', $2, $3, $4)`,
+        [
+          member.member_id,
+          `Removed from "${biz.business_name}"`,
+          `You have been removed as a ${member.role} from "${biz.business_name}".`,
+          JSON.stringify({
+            business_id: biz.id,
+            business_name: biz.business_name,
+            role: member.role,
+          }),
+        ]
+      );
+    }
+
     return res.json({ ok: true });
   } catch (err) {
     logger.error('revokeMember error', { err: err.message });
@@ -148,7 +177,7 @@ async function listMyInvitations(req, res) {
        FROM business_members bm
        JOIN businesses b ON b.id = bm.business_id
        JOIN users u      ON u.id = bm.owner_id
-       WHERE (bm.member_id = $1 OR bm.invite_email = $2)
+       WHERE (bm.member_id = $1 OR LOWER(bm.invite_email) = LOWER($2))
          AND bm.status    = 'pending'
        ORDER BY bm.invited_at DESC`,
       [req.user.id, normalizedEmail]

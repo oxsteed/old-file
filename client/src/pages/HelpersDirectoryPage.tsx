@@ -103,7 +103,7 @@ function applySort(helpers: HelperCardData[], sort: SortOption, boostedCategory?
       case 'most_reviews':    return b.reviewCount - a.reviewCount;
       case 'lowest_price':    return a.startingPrice - b.startingPrice;
       case 'fastest_response':return a.responseMinutes - b.responseMinutes;
-      case 'newest':          return new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime();
+      case 'newest':          return (new Date(b.memberSince || 0).getTime() || 0) - (new Date(a.memberSince || 0).getTime() || 0);
       case 'best_match':
       default: {
         // Blend rating × log(reviews) for Wilson-score-like ranking
@@ -497,7 +497,20 @@ const HelpersDirectoryPage: React.FC = () => {
 
   // Client-side: float exact-category matches to the top, then mix in businesses
   const sortedHelpers = boostedCategory ? applySort(helpers, sort, boostedCategory) : helpers;
-  const displayed     = page === 1 ? mergeGridItems(sortedHelpers, businesses) : sortedHelpers;
+
+  // Filter businesses by active category/skill filters before merging
+  const filteredBusinesses = (() => {
+    const activeCategories = filters.categories ?? [];
+    const activeSkills = filters.skills ?? [];
+    if (activeCategories.length === 0 && activeSkills.length === 0) return businesses;
+    return businesses.filter((biz) => {
+      if (activeCategories.length > 0 && !biz.categories.some((c: string) => activeCategories.includes(c))) return false;
+      if (activeSkills.length > 0 && !biz.skills.some((s: string) => activeSkills.includes(s))) return false;
+      return true;
+    });
+  })();
+
+  const displayed = mergeGridItems(sortedHelpers, filteredBusinesses);
   const hasMore          = helpers.length < total;
   const activeFilterCount = countActiveFilters(filters);
 

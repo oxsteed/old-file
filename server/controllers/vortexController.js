@@ -15,6 +15,22 @@ async function ownedBusiness(userId, bizId) {
   return rows[0] || null;
 }
 
+// ── ownership OR manager guard ───────────────────────────────────────────────
+async function ownedOrManagedBusiness(userId, bizId) {
+  // Check ownership first
+  const owned = await ownedBusiness(userId, bizId);
+  if (owned) return owned;
+  // Check if user is a manager-role member
+  const { rows } = await pool.query(
+    `SELECT b.id, b.business_name FROM businesses b
+     JOIN business_members bm ON bm.business_id = b.id
+     WHERE b.id = $1 AND b.is_active = TRUE
+       AND bm.member_id = $2 AND bm.role = 'manager' AND bm.status = 'active'`,
+    [bizId, userId]
+  );
+  return rows[0] || null;
+}
+
 // ── helper: check if user is business rep/manager ─────────────────────────────
 async function isBusinessMember(userId, bizId) {
   const { rows } = await pool.query(
@@ -25,10 +41,10 @@ async function isBusinessMember(userId, bizId) {
 }
 
 // ── POST /api/businesses/:id/vortex-tokens ────────────────────────────────────
-// Owner generates a new single-use Vortex token for a representative slot.
+// Owner or manager generates a new single-use Vortex token for a representative slot.
 async function generateToken(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
+    const biz = await ownedOrManagedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
     const { role = 'representative', expires_in = '7d' } = req.body;
@@ -62,10 +78,10 @@ async function generateToken(req, res) {
 }
 
 // ── GET /api/businesses/:id/vortex-tokens ─────────────────────────────────────
-// Owner lists all tokens (active, used, expired, revoked) for a business.
+// Owner or manager lists all tokens (active, used, expired, revoked) for a business.
 async function listTokens(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
+    const biz = await ownedOrManagedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
     const { rows } = await pool.query(
@@ -80,9 +96,9 @@ async function listTokens(req, res) {
          END AS status
        FROM business_invite_tokens t
        LEFT JOIN users u ON u.id = t.used_by_id
-       WHERE t.business_id = $1 AND t.owner_id = $2
+       WHERE t.business_id = $1
        ORDER BY t.created_at DESC`,
-      [biz.id, req.user.id]
+      [biz.id]
     );
 
     return res.json({ tokens: rows });
@@ -93,10 +109,10 @@ async function listTokens(req, res) {
 }
 
 // ── DELETE /api/businesses/:id/vortex-tokens/:tokenId ─────────────────────────
-// Owner revokes a token before it has been used.
+// Owner or manager revokes a token before it has been used.
 async function revokeToken(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
+    const biz = await ownedOrManagedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
     const { rowCount } = await pool.query(
@@ -104,10 +120,9 @@ async function revokeToken(req, res) {
        SET is_revoked = TRUE
        WHERE id          = $1
          AND business_id = $2
-         AND owner_id    = $3
          AND used_at IS NULL
          AND is_revoked  = FALSE`,
-      [req.params.tokenId, biz.id, req.user.id]
+      [req.params.tokenId, biz.id]
     );
 
     if (!rowCount) return res.status(404).json({ error: 'Token not found or already used/revoked' });
@@ -185,6 +200,15 @@ async function redeemToken(req, res) {
        ON CONFLICT DO NOTHING`,
       [record.business_id, record.owner_id, req.user.id, record.role, req.user.email || '']
     );
+
+    // Clean up any stale pending invite for the same (business_id, email)
+    if (req.user.email) {
+      await pool.query(
+        `DELETE FROM business_members
+         WHERE business_id = $1 AND LOWER(invite_email) = LOWER($2) AND status = 'pending'`,
+        [record.business_id, req.user.email]
+      );
+    }
 
     // Notify the business owner
     await pool.query(

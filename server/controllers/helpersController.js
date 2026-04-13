@@ -245,8 +245,45 @@ async function listHelpers(req, res) {
     // ── Businesses: fetch active businesses for the helpers grid ──────────────
     // Businesses appear mixed into the directory alongside individual helpers.
     // Only fetch on page 1 (they are always shown at their natural insertion point).
+    // Apply the same location/category filters from the main helpers search.
     let businesses = [];
     if (pageNum === 1) {
+      const bizConditions = [
+        'b.is_active = TRUE',
+        "b.business_name IS NOT NULL",
+        "b.business_name != ''",
+      ];
+      const bizParams = [];
+      let bIdx = 1;
+
+      // Location filter: use the owner's helper_profile lat/lng
+      if (!isNaN(userLat) && !isNaN(userLng)) {
+        bizParams.push(userLat, userLng, radiusMiles);
+        bizConditions.push(`(
+          hp.service_lat IS NULL OR hp.service_lng IS NULL OR
+          3958.8 * acos(
+            GREATEST(-1.0, LEAST(1.0,
+              sin(radians($${bIdx}::float8))   * sin(radians(hp.service_lat::float8)) +
+              cos(radians($${bIdx}::float8))   * cos(radians(hp.service_lat::float8)) *
+              cos(radians(hp.service_lng::float8 - $${bIdx + 1}::float8))
+            ))
+          ) <= $${bIdx + 2}
+        )`);
+        bIdx += 3;
+      }
+
+      // Category filter: check if owner has skills in the requested categories
+      if (categoryList.length > 0) {
+        bizParams.push(categoryList);
+        bizConditions.push(`EXISTS (
+          SELECT 1 FROM helper_skills hs
+          JOIN categories c ON c.id = hs.category_id
+          WHERE hs.user_id = b.user_id AND c.name = ANY($${bIdx})
+        )`);
+        bIdx++;
+      }
+
+      const bizWhere = bizConditions.join(' AND ');
       const { rows: bizRows } = await pool.query(
         `SELECT
            b.id, b.business_name, b.tagline, b.about,
@@ -257,12 +294,29 @@ async function listHelpers(req, res) {
            u.id AS owner_id, u.first_name AS owner_first, u.last_name AS owner_last
          FROM businesses b
          JOIN users u ON u.id = b.user_id
-         WHERE b.is_active = TRUE
-           AND b.business_name IS NOT NULL
-           AND b.business_name != ''
+         LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
+         WHERE ${bizWhere}
          ORDER BY b.avg_rating DESC NULLS LAST, b.total_reviews DESC NULLS LAST
-         LIMIT 20`
+         LIMIT 20`,
+        bizParams
       );
+
+      // Fetch categories for business owners so client-side filtering works
+      const bizOwnerIds = bizRows.map(b => b.owner_id);
+      let bizCategoriesByOwner = {};
+      if (bizOwnerIds.length > 0) {
+        const { rows: bizSkillRows } = await pool.query(
+          `SELECT hs.user_id, c.name AS category_name
+           FROM helper_skills hs
+           JOIN categories c ON c.id = hs.category_id
+           WHERE hs.user_id = ANY($1)`,
+          [bizOwnerIds]
+        );
+        for (const row of bizSkillRows) {
+          (bizCategoriesByOwner[row.user_id] ||= new Set()).add(row.category_name);
+        }
+      }
+
       businesses = bizRows.map((b) => ({
         id:               `biz_${b.id}`,
         businessId:       b.id,
@@ -276,7 +330,7 @@ async function listHelpers(req, res) {
         jobsCompleted:    0,
         verified:         !!b.is_verified,
         backgroundChecked:false,
-        categories:       [],
+        categories:       bizCategoriesByOwner[b.owner_id] ? [...bizCategoriesByOwner[b.owner_id]] : [],
         skills:           [],
         licenses:         [],
         insurance:        [],
