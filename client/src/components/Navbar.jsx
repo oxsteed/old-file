@@ -27,7 +27,7 @@ function OxSteedIcon({ size = 24 }) {
 }
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, isHelper } = useAuth();
   const location = useLocation();
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
@@ -109,7 +109,7 @@ export default function Navbar() {
               <>
                 <NavLink to="/jobs" active={isActive('/jobs')}>Browse Jobs</NavLink>
                 <NavLink to="/post-job" active={isActive('/post-job')}>Post a Job</NavLink>
-                <NavLink to="/messages" active={isActive('/messages')}>
+                <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
                   Messages
                   {unreadMsgs > 0 && (
                     <span style={{
@@ -197,7 +197,7 @@ export default function Navbar() {
                 <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>Dashboard</MobileNavLink>
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>Browse Jobs</MobileNavLink>
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>Post a Job</MobileNavLink>
-                <MobileNavLink to="/messages" onClick={() => setMobileOpen(false)}>
+                <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
                   Messages {unreadMsgs > 0 && (
                     <span style={{
                       background: 'var(--color-primary)',

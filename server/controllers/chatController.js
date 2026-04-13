@@ -327,8 +327,7 @@ exports.profileChatMessage = async (req, res) => {
       // Get or create conversation
       const existingConv = await pool.query(
         `SELECT id FROM conversations
-          WHERE (customer_id = $1 AND helper_id = $2)
-             OR (customer_id = $2 AND helper_id = $1)
+          WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL
           LIMIT 1`,
         [userId, helperId]
       );
@@ -339,11 +338,23 @@ exports.profileChatMessage = async (req, res) => {
       } else {
         const newConv = await pool.query(
           `INSERT INTO conversations (customer_id, helper_id)
-           VALUES ($1, $2) RETURNING id`,
+           VALUES ($1, $2)
+           ON CONFLICT DO NOTHING
+           RETURNING id`,
           [userId, helperId]
         );
-        conversationId = newConv.rows[0].id;
+        if (newConv.rows.length) {
+          conversationId = newConv.rows[0].id;
+        } else {
+          // Row was inserted concurrently — fetch it
+          const fetched = await pool.query(
+            `SELECT id FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL LIMIT 1`,
+            [userId, helperId]
+          );
+          conversationId = fetched.rows[0]?.id;
+        }
       }
+      if (!conversationId) return res.status(500).json({ error: 'Failed to resolve conversation' });
 
       // Save message
       const lastMsg = msgHistory[msgHistory.length - 1];
