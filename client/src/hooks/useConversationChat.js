@@ -116,8 +116,9 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       }
     };
 
-    const onTyping = ({ conversationId: cid }) => {
+    const onTyping = ({ conversationId: cid, userId: typingUserId }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(typingUserId) === String(user?.id)) return;
       setOtherTyping(true);
       // Auto-clear safety net: if typing:stop never arrives (e.g. user
       // disconnects mid-typing), clear the indicator after TYPING_AUTO_CLEAR_MS.
@@ -127,8 +128,9 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       }, TYPING_AUTO_CLEAR_MS);
     };
 
-    const onStoppedTyping = ({ conversationId: cid }) => {
+    const onStoppedTyping = ({ conversationId: cid, userId: typingUserId }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(typingUserId) === String(user?.id)) return;
       clearOtherTyping();
     };
 

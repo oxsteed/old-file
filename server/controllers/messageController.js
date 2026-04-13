@@ -211,20 +211,13 @@ const sendMessage = async (req, res) => {
     const senderName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim();
     const messagePayload = { ...result.rows[0], sender_name: senderName };
 
-    // Broadcast to the conversation room — both participants see it in real-time
-    // if they currently have the thread open.
-    socketService.broadcastToConversation(conversationId, 'message:new', {
-      conversationId,
-      message: messagePayload,
-    });
-
-    // Also notify the recipient's personal room so inbox pages update even when
-    // they're not currently in the conversation thread.
+    // Notify both the conversation room and recipient personal room in one emit.
+    // Socket.IO de-duplicates sockets that are in both rooms.
     const recipientId = conv.rows[0].customer_id === userId
       ? conv.rows[0].helper_id
       : conv.rows[0].customer_id;
 
-    socketService.broadcastToUser(recipientId, 'message:new', {
+    socketService.broadcastToConversationAndUser(conversationId, recipientId, 'message:new', {
       conversationId,
       message: messagePayload,
     });
