@@ -9,7 +9,7 @@ const TAX_DUE_DATES = {
   1: (yr) => `${yr}-04-15`,   // Q1: Jan–Mar
   2: (yr) => `${yr}-06-15`,   // Q2: Apr–May
   3: (yr) => `${yr}-09-15`,   // Q3: Jun–Aug
-  4: (yr + 1) => `${yr + 1}-01-15`, // Q4: Sep–Dec (due January of next year)
+  4: (yr) => `${yr + 1}-01-15`, // Q4: Sep–Dec (due January of next year)
 };
 
 // Quarter → income date range within a year
