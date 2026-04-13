@@ -301,8 +301,8 @@ function buildBusinessSystemPrompt(business, skills) {
  * Handles messages sent from a helper's profile page.
  *
  * Routing logic:
- *   destination=helper  AND helper online AND customer authenticated
- *     → saves to conversations table + notifies helper via socket (live)
+ *   destination=helper  AND (helper OR any active rep) online AND customer authenticated
+ *     → saves to conversations table + notifies helper + all online reps via socket (live)
  *   otherwise
  *     → AI response using helper's profile as context
  */
@@ -366,15 +366,20 @@ exports.profileChatMessage = async (req, res) => {
     const helperOnline = socketService.isOnline(helperId);
     const userId = req.user?.id;
 
-    // Check if any active rep for this business is online
+    // Check if any active rep for this business is online; also collect their IDs
+    // so we can notify them directly (FIX Bugbot #2)
     let anyRepOnline = false;
+    let onlineRepIds = [];
     if (resolvedBusinessId && !helperOnline) {
       const repsRes = await pool.query(
         `SELECT member_id FROM business_members
          WHERE business_id = $1 AND status = 'active'`,
         [resolvedBusinessId]
       );
-      anyRepOnline = repsRes.rows.some(r => socketService.isOnline(r.member_id));
+      onlineRepIds = repsRes.rows
+        .map(r => r.member_id)
+        .filter(id => socketService.isOnline(id));
+      anyRepOnline = onlineRepIds.length > 0;
     }
 
     // ── Live mode: authenticated customer + (owner OR rep) online + destination=helper ──
@@ -437,18 +442,26 @@ exports.profileChatMessage = async (req, res) => {
         [conversationId]
       );
 
-      // Notify helper via socket
+      // Fetch sender info once for all socket emissions
       const senderRes = await pool.query(
         'SELECT first_name, last_name, profile_photo_url FROM users WHERE id = $1',
         [userId]
       ).catch(() => ({ rows: [] }));
       const sender = senderRes.rows[0];
 
-      socketService.broadcastToUser(helperId, 'profile_chat:new_message', {
+      const socketPayload = {
         conversationId,
         message:      msgRow.rows[0],
         senderName:   sender ? `${sender.first_name} ${sender.last_name}` : 'A customer',
         senderAvatar: sender?.profile_photo_url || null,
+      };
+
+      // FIX (Bugbot #2): notify the business owner AND all online reps, not just helperId.
+      // When owner is offline but reps are online, reps triggered the live routing —
+      // they must receive the socket event or the message silently disappears.
+      const notifyTargets = new Set([helperId, ...onlineRepIds]);
+      notifyTargets.forEach(targetId => {
+        socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
       });
 
       return res.json({
