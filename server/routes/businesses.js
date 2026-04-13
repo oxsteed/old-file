@@ -15,6 +15,18 @@ const {
   updateInvoice, markInvoicePaid, deleteInvoice,
 } = require('../controllers/businessInvoiceController');
 
+const {
+  listMembers, inviteMember, revokeMember,
+  listMyInvitations, acceptInvitation, declineInvitation,
+  listManagedBusinesses,
+} = require('../controllers/businessMembersController');
+
+// ── Member invitations (must come before /:id routes) ─────────────────────────
+router.get('/invitations',                   authenticate, listMyInvitations);
+router.post('/invitations/:id/accept',       authenticate, acceptInvitation);
+router.post('/invitations/:id/decline',      authenticate, declineInvitation);
+router.get('/managed',                       authenticate, listManagedBusinesses);
+
 // ── Business CRUD ─────────────────────────────────────────────────────────────
 router.get('/',            authenticate, listBusinesses);
 router.post('/',           authenticate, addBusiness);
@@ -43,5 +55,10 @@ router.get('/:id/goals',                        authenticate, listGoals);
 router.post('/:id/goals',                       authenticate, createGoal);
 router.put('/:id/goals/:goalId',                authenticate, updateGoal);
 router.delete('/:id/goals/:goalId',             authenticate, deleteGoal);
+
+// ── Business team members ─────────────────────────────────────────────────────
+router.get('/:id/members',                      authenticate, listMembers);
+router.post('/:id/members',                     authenticate, inviteMember);
+router.delete('/:id/members/:memberId',         authenticate, revokeMember);
 
 module.exports = router;

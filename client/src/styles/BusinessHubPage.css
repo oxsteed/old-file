@@ -492,4 +492,127 @@
   .bh-line-item { grid-template-columns: 1fr; }
   .bh-chart { height: 180px; }
   .bh-chart-bars { height: 140px; }
+  .bh-team-table { font-size: 0.82rem; }
+  .bh-team-invite-card { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
 }
+
+/* ── Team tab ─────────────────────────────────────────────── */
+.bh-team { display: flex; flex-direction: column; gap: 2rem; }
+
+.bh-team-section { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 1.5rem; }
+
+.bh-team-heading { font-size: 1rem; font-weight: 600; margin: 0 0 1rem; }
+
+.bh-team-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.bh-team-heading-row .bh-team-heading { margin: 0; }
+
+/* Pending invitations received */
+.bh-team-invites { display: flex; flex-direction: column; gap: 0.75rem; }
+.bh-team-invite-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--app-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+.bh-team-invite-info { display: flex; flex-direction: column; gap: 0.2rem; }
+.bh-team-invite-biz { font-weight: 600; font-size: 0.95rem; }
+.bh-team-invite-from { font-size: 0.82rem; color: var(--muted-text); }
+.bh-team-invite-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+/* Managed businesses */
+.bh-team-managed { display: flex; flex-direction: column; gap: 0.75rem; }
+.bh-team-managed-card {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  background: var(--app-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.bh-team-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.bh-team-avatar-init {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--border-color);
+  color: var(--app-text);
+  font-weight: 700;
+  font-size: 1rem;
+}
+.bh-team-managed-name { font-weight: 600; margin: 0 0 0.15rem; font-size: 0.95rem; }
+.bh-team-managed-role { font-size: 0.8rem; color: var(--muted-text); margin: 0; }
+
+/* Members table */
+.bh-team-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.bh-team-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-text);
+  padding: 0 0.75rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.bh-team-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+.bh-team-table tr:last-child td { border-bottom: none; }
+.bh-team-member-name { font-weight: 500; }
+.bh-team-member-email { font-size: 0.78rem; color: var(--muted-text); margin-top: 0.1rem; }
+
+/* Role badges */
+.bh-role-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.bh-role-manager      { background: #312e81; color: #c7d2fe; }
+.bh-role-representative { background: #14532d; color: #bbf7d0; }
+
+/* Status badges */
+.bh-status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.bh-status-active  { background: #14532d; color: #bbf7d0; }
+.bh-status-pending { background: #78350f; color: #fde68a; }
+
+/* Danger small button */
+.bh-btn-danger-sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  background: transparent;
+  color: #f87171;
+  border: 1px solid #f87171;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.bh-btn-danger-sm:hover { background: rgba(248,113,113,0.1); }

@@ -9,6 +9,9 @@ import {
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
+  listMembers, inviteMember, revokeMember,
+  listMyInvitations, acceptInvitation, declineInvitation,
+  listManagedBusinesses,
 } from '../api/businesses';
 import '../styles/BusinessHubPage.css';
 
@@ -33,7 +36,7 @@ function fmtMonth(m) {
 }
 
 // ── default forms ─────────────────────────────────────────────────────────────
-const DEFAULT_BIZ_FORM   = { name: '', description: '', website: '', phone: '', tax_rate: '' };
+const DEFAULT_BIZ_FORM   = { business_name: '', description: '', website: '', phone: '', tax_rate: '' };
 const DEFAULT_INV_FORM   = {
   client_name: '', client_email: '', client_company: '',
   due_date: '', invoice_tax_rate: '', notes: '', status: 'draft',
@@ -85,6 +88,12 @@ function BusinessHubInner() {
   const [taxLoading, setTaxLoading] = useState(false);
   const [goals, setGoals]           = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(false);
+
+  // team tab
+  const [members, setMembers]             = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [invitations, setInvitations]     = useState([]);
+  const [managedBiz, setManagedBiz]       = useState([]);
 
   // ── load businesses ──────────────────────────────────────────────────────
   const loadBusinesses = useCallback(async () => {
@@ -138,6 +147,22 @@ function BusinessHubInner() {
     finally { setGoalsLoading(false); }
   }, [bizId]);
 
+  const loadTeam = useCallback(async () => {
+    if (!bizId) return;
+    setMembersLoading(true);
+    try {
+      const [m, inv, managed] = await Promise.all([
+        listMembers(bizId),
+        listMyInvitations(),
+        listManagedBusinesses(),
+      ]);
+      setMembers(m);
+      setInvitations(inv);
+      setManagedBiz(managed);
+    } catch { toast.error('Failed to load team'); }
+    finally { setMembersLoading(false); }
+  }, [bizId]);
+
   useEffect(() => {
     if (!bizId) return;
     if (tab === 'overview') loadOverview();
@@ -147,7 +172,8 @@ function BusinessHubInner() {
       loadGoals();
       loadOverview();
     }
-  }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals]);
+    else if (tab === 'team') loadTeam();
+  }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -166,7 +192,7 @@ function BusinessHubInner() {
 
   // ── add business ──────────────────────────────────────────────────────────
   async function handleAddBiz() {
-    if (!form.name?.trim()) { setFormErr('Business name is required.'); return; }
+    if (!form.business_name?.trim()) { setFormErr('Business name is required.'); return; }
     setSaving(true);
     try {
       await createBusiness({ ...form, tax_rate: form.tax_rate ? parseFloat(form.tax_rate) : undefined });
@@ -280,6 +306,46 @@ function BusinessHubInner() {
     } catch { toast.error('Failed to delete goal'); }
   }
 
+  // ── team ──────────────────────────────────────────────────────────────────
+  async function handleInviteMember() {
+    if (!form.invite_email?.trim()) { setFormErr('Email is required.'); return; }
+    if (!form.invite_role) { setFormErr('Role is required.'); return; }
+    setSaving(true);
+    try {
+      const result = await inviteMember(bizId, { email: form.invite_email.trim(), role: form.invite_role });
+      toast.success(result.user_found ? 'Invitation sent' : 'Invite recorded — they'll see it when they sign up');
+      closeModal();
+      await loadTeam();
+    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed to send invite'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleRevokeMember(member) {
+    const label = member.status === 'pending' ? `Cancel invite to ${member.invite_email}?` : `Remove ${member.first_name || member.invite_email} from this business?`;
+    if (!window.confirm(label)) return;
+    try {
+      await revokeMember(bizId, member.id);
+      toast.success('Member removed');
+      await loadTeam();
+    } catch { toast.error('Failed to remove member'); }
+  }
+
+  async function handleAcceptInvitation(inv) {
+    try {
+      await acceptInvitation(inv.id);
+      toast.success(`Joined "${inv.business_name}"`);
+      await loadTeam();
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to accept'); }
+  }
+
+  async function handleDeclineInvitation(inv) {
+    try {
+      await declineInvitation(inv.id);
+      toast.success('Invitation declined');
+      await loadTeam();
+    } catch { toast.error('Failed to decline'); }
+  }
+
   // ── invoice line items helpers ────────────────────────────────────────────
   function addLineItem() {
     setForm(f => ({ ...f, line_items: [...(f.line_items || []), { description: '', quantity: 1, unit_price: '' }] }));
@@ -339,7 +405,7 @@ function BusinessHubInner() {
               <span className="bh-switcher-label">Business</span>
               <select value={bizId} onChange={e => handleSwitchBiz(e.target.value)}>
                 {businesses.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                  <option key={b.id} value={b.id}>{b.business_name}</option>
                 ))}
               </select>
               {currentBiz?.is_primary && <span className="bh-primary-tag">Primary</span>}
@@ -347,9 +413,9 @@ function BusinessHubInner() {
 
             {/* Tabs */}
             <div className="bh-tabs">
-              {['overview', 'invoices', 'tax', 'goals'].map(t => (
+              {['overview', 'invoices', 'tax', 'goals', 'team'].map(t => (
                 <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
@@ -419,6 +485,20 @@ function BusinessHubInner() {
                 onDelete={handleDeleteGoal}
               />
             )}
+
+            {/* ── Team tab ─────────────────────────────────────────── */}
+            {tab === 'team' && (
+              membersLoading ? <p className="bh-loading">Loading team…</p> :
+              <TeamTab
+                members={members}
+                invitations={invitations}
+                managedBiz={managedBiz}
+                onInvite={() => { setForm({ invite_email: '', invite_role: 'representative' }); setFormErr(''); setModal('invite-member'); }}
+                onRevoke={handleRevokeMember}
+                onAccept={handleAcceptInvitation}
+                onDecline={handleDeclineInvitation}
+              />
+            )}
           </>
         )}
 
@@ -427,7 +507,7 @@ function BusinessHubInner() {
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
               <h2>Add Business</h2>
-              <div className="bh-field"><label>Name *</label><input name="name" value={form.name || ''} onChange={fc} placeholder="My Service Co." /></div>
+              <div className="bh-field"><label>Name *</label><input name="business_name" value={form.business_name || ''} onChange={fc} placeholder="My Service Co." /></div>
               <div className="bh-field"><label>Description</label><textarea name="description" value={form.description || ''} onChange={fc} rows={2} /></div>
               <div className="bh-field-row">
                 <div className="bh-field"><label>Phone</label><input name="phone" value={form.phone || ''} onChange={fc} /></div>
@@ -576,6 +656,40 @@ function BusinessHubInner() {
               <div className="bh-modal-actions">
                 <button className="bh-btn" onClick={closeModal}>Cancel</button>
                 <button className="bh-btn primary" onClick={handleMarkTaxPaid} disabled={saving}>{saving ? 'Saving…' : 'Record Payment'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal: Invite Team Member ─────────────────────────────── */}
+        {modal === 'invite-member' && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="bh-modal">
+              <h2>Invite Team Member</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
+                Invite someone to represent or manage this business. They'll get a notification to accept.
+              </p>
+              <div className="bh-field">
+                <label>Email *</label>
+                <input
+                  type="email"
+                  name="invite_email"
+                  value={form.invite_email || ''}
+                  onChange={fc}
+                  placeholder="teammate@example.com"
+                />
+              </div>
+              <div className="bh-field">
+                <label>Role *</label>
+                <select name="invite_role" value={form.invite_role || 'representative'} onChange={fc}>
+                  <option value="representative">Representative — handles customer chat &amp; job acceptance</option>
+                  <option value="manager">Manager — full access to invoices, tax &amp; analytics</option>
+                </select>
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={closeModal}>Cancel</button>
+                <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving}>{saving ? 'Sending…' : 'Send Invite'}</button>
               </div>
             </div>
           </div>
@@ -822,6 +936,115 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Team tab ──────────────────────────────────────────────────────────────────
+function TeamTab({ members, invitations, managedBiz, onInvite, onRevoke, onAccept, onDecline }) {
+  const ROLE_LABEL = { manager: 'Manager', representative: 'Representative' };
+
+  return (
+    <div className="bh-team">
+
+      {/* ── Pending invitations received by the logged-in user ─────────── */}
+      {invitations.length > 0 && (
+        <div className="bh-team-section">
+          <h3 className="bh-team-heading">Pending Invitations</h3>
+          <div className="bh-team-invites">
+            {invitations.map(inv => (
+              <div key={inv.id} className="bh-team-invite-card">
+                <div className="bh-team-invite-info">
+                  <span className="bh-team-invite-biz">{inv.business_name}</span>
+                  <span className="bh-team-invite-from">
+                    from {inv.owner_first_name} {inv.owner_last_name} · {ROLE_LABEL[inv.role] || inv.role}
+                  </span>
+                </div>
+                <div className="bh-team-invite-actions">
+                  <button className="bh-btn primary" onClick={() => onAccept(inv)}>Accept</button>
+                  <button className="bh-btn" onClick={() => onDecline(inv)}>Decline</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Businesses I manage as a representative / manager ──────────── */}
+      {managedBiz.length > 0 && (
+        <div className="bh-team-section">
+          <h3 className="bh-team-heading">Businesses I Manage</h3>
+          <div className="bh-team-managed">
+            {managedBiz.map(b => (
+              <div key={b.id} className="bh-team-managed-card">
+                {b.logo_url
+                  ? <img src={b.logo_url} alt="" className="bh-team-avatar" />
+                  : <div className="bh-team-avatar bh-team-avatar-init">{b.business_name[0]}</div>
+                }
+                <div>
+                  <p className="bh-team-managed-name">{b.business_name}</p>
+                  <p className="bh-team-managed-role">{ROLE_LABEL[b.role] || b.role} · owner: {b.owner_first_name} {b.owner_last_name}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Members of the currently selected business ─────────────────── */}
+      <div className="bh-team-section">
+        <div className="bh-team-heading-row">
+          <h3 className="bh-team-heading">Team Members</h3>
+          <button className="bh-btn primary" onClick={onInvite}>+ Invite</button>
+        </div>
+
+        {members.length === 0 ? (
+          <div className="bh-empty" style={{ padding: '2rem 0' }}>
+            <p>No team members yet. Invite a representative or manager to help run this business.</p>
+          </div>
+        ) : (
+          <table className="bh-team-table">
+            <thead>
+              <tr>
+                <th>Name / Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Since</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map(m => (
+                <tr key={m.id}>
+                  <td>
+                    <div className="bh-team-member-name">
+                      {m.first_name ? `${m.first_name} ${m.last_name}` : '—'}
+                    </div>
+                    <div className="bh-team-member-email">{m.member_email || m.invite_email}</div>
+                  </td>
+                  <td><span className={`bh-role-badge bh-role-${m.role}`}>{ROLE_LABEL[m.role] || m.role}</span></td>
+                  <td>
+                    <span className={`bh-status-badge bh-status-${m.status}`}>
+                      {m.status === 'pending' ? 'Invite sent' : 'Active'}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: '0.82rem', color: 'var(--muted-text)' }}>
+                    {m.accepted_at
+                      ? new Date(m.accepted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : new Date(m.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    }
+                  </td>
+                  <td>
+                    <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
+                      {m.status === 'pending' ? 'Cancel' : 'Remove'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

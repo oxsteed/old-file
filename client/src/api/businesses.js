@@ -30,3 +30,16 @@ export const listGoals       = (id)            => api.get(`/businesses/${id}/goa
 export const createGoal      = (id, payload)   => api.post(`/businesses/${id}/goals`, payload).then(r => r.data?.goal);
 export const updateGoal      = (id, goalId, p) => api.put(`/businesses/${id}/goals/${goalId}`, p).then(r => r.data?.goal);
 export const deleteGoal      = (id, goalId)    => api.delete(`/businesses/${id}/goals/${goalId}`).then(r => r.data);
+
+// ── Team members ──────────────────────────────────────────────────────────────
+export const listMembers         = (id)           => api.get(`/businesses/${id}/members`).then(r => r.data?.members || []);
+export const inviteMember        = (id, payload)  => api.post(`/businesses/${id}/members`, payload).then(r => r.data);
+export const revokeMember        = (id, memberId) => api.delete(`/businesses/${id}/members/${memberId}`).then(r => r.data);
+
+// ── Invitations (received by the logged-in user) ──────────────────────────────
+export const listMyInvitations   = ()             => api.get('/businesses/invitations').then(r => r.data?.invitations || []);
+export const acceptInvitation    = (id)           => api.post(`/businesses/invitations/${id}/accept`).then(r => r.data);
+export const declineInvitation   = (id)           => api.post(`/businesses/invitations/${id}/decline`).then(r => r.data);
+
+// ── Businesses I manage as a representative / manager ─────────────────────────
+export const listManagedBusinesses = ()           => api.get('/businesses/managed').then(r => r.data?.businesses || []);
