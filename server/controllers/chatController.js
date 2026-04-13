@@ -30,6 +30,118 @@ const OLLAMA_URL = (() => {
   }
 })();
 
+const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+/**
+ * Try OpenRouter (OpenAI-compatible chat completions). Requires OPENROUTER_API_KEY.
+ */
+async function fetchOpenRouterChat(model, messages) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    return { ok: false, error: 'OPENROUTER_API_KEY not set' };
+  }
+  const res = await fetch(OPENROUTER_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.65,
+      max_tokens: 400,
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    return { ok: false, error: `HTTP ${res.status}: ${errText.slice(0, 500)}` };
+  }
+  const data = await res.json();
+  let content = data.choices?.[0]?.message?.content;
+  if (content == null) content = '';
+  if (typeof content !== 'string') content = String(content);
+  const reply = content.trim();
+  if (!reply) {
+    return { ok: false, error: 'empty assistant content' };
+  }
+  return { ok: true, reply };
+}
+
+/**
+ * Try local Ollama /api/chat. Skipped when OLLAMA_URL is empty (SSRF-safe validation).
+ */
+async function fetchOllamaChat(messages, options) {
+  if (!OLLAMA_URL) {
+    return { ok: false, error: 'OLLAMA_URL not configured' };
+  }
+  const model = process.env.OLLAMA_MODEL || 'qwen2.5:3b';
+  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      options,
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    return { ok: false, error: `HTTP ${res.status}: ${errText.slice(0, 500)}` };
+  }
+  const data = await res.json();
+  const reply = (data.message?.content || '').trim();
+  if (!reply) {
+    return { ok: false, error: 'empty assistant content' };
+  }
+  return { ok: true, reply };
+}
+
+/**
+ * Multi-provider fallback: OpenRouter → OpenRouter auto → Ollama → OpenRouter Tongyi.
+ * @param {Array<{role:string,content:string}>} messages - full message list including system
+ * @param {object} ollamaOptions - passed to Ollama `options` (temperature, num_predict, etc.)
+ * @param {string} logTag - prefix for structured logs e.g. '[Chat]' or '[ProfileChat]'
+ */
+async function callWithFallback(messages, ollamaOptions, logTag) {
+  const attempts = [
+    {
+      name: 'OpenRouter (nvidia/nemotron-3-nano-30b-a3b:free)',
+      run: () => fetchOpenRouterChat('nvidia/nemotron-3-nano-30b-a3b:free', messages),
+    },
+    {
+      name: 'OpenRouter (openrouter/auto)',
+      run: () => fetchOpenRouterChat('openrouter/auto', messages),
+    },
+    {
+      name: `Ollama (${process.env.OLLAMA_MODEL || 'qwen2.5:3b'})`,
+      run: () => fetchOllamaChat(messages, ollamaOptions),
+      skip: () => !OLLAMA_URL,
+    },
+    {
+      name: 'OpenRouter (tongyi/tongyi-deepresearch-30b-a3b:free)',
+      run: () => fetchOpenRouterChat('tongyi/tongyi-deepresearch-30b-a3b:free', messages),
+    },
+  ];
+
+  for (const step of attempts) {
+    if (step.skip?.()) continue;
+    try {
+      const result = await step.run();
+      if (result.ok) {
+        logger.info(`${logTag} AI provider succeeded`, { provider: step.name });
+        return { ok: true, reply: result.reply };
+      }
+      logger.warn(`${logTag} AI provider failed`, { provider: step.name, error: result.error });
+    } catch (err) {
+      logger.warn(`${logTag} AI provider failed`, { provider: step.name, error: err.message });
+    }
+  }
+
+  return { ok: false };
+}
+
 const SYSTEM_PROMPT = `You are OxSteed's AI assistant — friendly, concise, and knowledgeable about the OxSteed local services marketplace.
 
 ## About OxSteed
@@ -107,36 +219,22 @@ exports.chatMessage = async (req, res) => {
       ...history,
     ];
 
-    const ollamaRes = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: process.env.OLLAMA_MODEL || 'qwen2.5:3b',
-        messages: ollamaMessages,
-        stream: false,
-        options: {
-          temperature: 0.65,
-          num_predict: 400,
-          top_p: 0.9,
-          repeat_penalty: 1.1,
-        },
-      }),
-    });
+    const ai = await callWithFallback(
+      ollamaMessages,
+      {
+        temperature: 0.65,
+        num_predict: 400,
+        top_p: 0.9,
+        repeat_penalty: 1.1,
+      },
+      '[Chat]'
+    );
 
-    if (!ollamaRes.ok) {
-      const errText = await ollamaRes.text().catch(() => '');
-      logger.error('[Chat] Ollama error', { status: ollamaRes.status, body: errText });
+    if (!ai.ok) {
       return res.status(502).json({ error: 'AI service temporarily unavailable' });
     }
 
-    const data = await ollamaRes.json();
-    const reply = (data.message?.content || '').trim();
-
-    if (!reply) {
-      return res.status(502).json({ error: 'AI returned an empty response' });
-    }
-
-    res.json({ reply });
+    res.json({ reply: ai.reply });
   } catch (err) {
     logger.error('[Chat] Error', { message: err.message });
     res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
@@ -297,28 +395,19 @@ exports.profileChatMessage = async (req, res) => {
       })).filter(m => m.content.trim()),
     ];
 
-    const ollamaRes = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model:   process.env.OLLAMA_MODEL || 'qwen2.5:3b',
-        messages: ollamaMessages,
-        stream:  false,
-        options: { temperature: 0.6, num_predict: 350, top_p: 0.9 },
-      }),
-    });
+    const ai = await callWithFallback(
+      ollamaMessages,
+      { temperature: 0.6, num_predict: 350, top_p: 0.9 },
+      '[ProfileChat]'
+    );
 
-    if (!ollamaRes.ok) {
-      logger.error('[ProfileChat] Ollama error', { status: ollamaRes.status });
+    if (!ai.ok) {
       return res.status(502).json({ error: 'AI service temporarily unavailable' });
     }
 
-    const data  = await ollamaRes.json();
-    const reply = (data.message?.content || '').trim();
-
     return res.json({
       type:           'ai',
-      reply,
+      reply:          ai.reply,
       helperOnline:   helperOnline,
       authorType:     destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
     });

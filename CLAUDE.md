@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-13 (live chat PR #99 follow-ups)
+**Last updated:** 2026-04-13 (chat AI OpenRouter + Ollama fallback)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -86,6 +86,8 @@ STRIPE_WEBHOOK_SECRET
 | `REDIS_URL` | Add to Coolify when a Redis instance is provisioned — no code changes needed. |
 | `VITE_GA_MEASUREMENT_ID` | Google Analytics 4. Consent-gated — won't fire until user accepts analytics cookies. |
 | `VITE_META_PIXEL_ID` | Meta Pixel. Consent-gated. |
+| `OPENROUTER_API_KEY` | OxSteed AI chat (`chatController.js`): OpenRouter chat completions; used in multi-provider fallback with local Ollama. |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | Optional local Ollama for same chat endpoints; URL is SSRF-validated (localhost / allowlisted internal hostnames only). |
 
 ---
 
@@ -528,6 +530,8 @@ All production-readiness audit items have been completed. Items are documented i
 - **`client/src/utils/inboxTimeFormat.js`**: Shared `formatInboxTime` for `MessagesPage` + `HelperInboxPage`.
 
 **Session — 2026-04-13 (PR #99 Bugbot):** Fixed helper thread regression: `profile_chat:new_message` now handled in the hook when `listenProfileChat: true`. Gated typing clear on own message echo. Deduplicated inbox timestamp helper. Message-id dedupe in `useConversationChat` (`appendMessageIfNew`) avoids redundant read-sync GETs when duplicate `message:new` events arrive (conversation room + user room). Typing handlers ignore self via `userId` in the payload (PR #102).
+
+**Session — 2026-04-13 (chat AI providers):** `server/controllers/chatController.js` — shared `callWithFallback()` for `chatMessage` and `profileChatMessage` AI paths: OpenRouter (`nvidia/nemotron-3-nano-30b-a3b:free` → `openrouter/auto` → optional Ollama `qwen2.5:3b` when `OLLAMA_URL` set → `tongyi/tongyi-deepresearch-30b-a3b:free`). Env: `OPENROUTER_API_KEY`. Success/fail logged with `logger.info` / `logger.warn`; all providers exhausted → 502 `{ error: 'AI service temporarily unavailable' }`. Profile chat live/socket path unchanged.
 
 **Multi-business support:** `getConversations` and `getConversationMeta` join `businesses` on `is_primary = TRUE AND is_active = TRUE`. Business name is shown as a subtitle in all four views (customer inbox, customer thread, helper inbox, helper thread). Helpers with multiple businesses see "via [Business Name]" so they know which business identity a conversation is under.
 
