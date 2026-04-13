@@ -95,8 +95,15 @@ export default function SettingsPage() {
   const handleExportData = async () => {
     setExporting(true);
     try {
-      await api.post('/privacy/export');
-      toast.success('Data export started. You will receive an email shortly.');
+      const r = await api.get('/privacy/export');
+        const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'my-data.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Data exported successfully');
     } catch (err) { toast.error('Failed to start data export'); }
     setExporting(false);
   };
