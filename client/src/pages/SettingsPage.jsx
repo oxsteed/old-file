@@ -15,39 +15,20 @@ const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 export default function SettingsPage() {
   const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('profile');
   const [switchingRole, setSwitchingRole] = useState(false);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const isHelper = HELPER_ROLES.includes(user?.role);
   const targetRole = isHelper ? 'customer' : 'helper';
 
-  const handleSwitchRole = async () => {
-    setSwitchingRole(true);
-    try {
-      await switchRole(targetRole);
-      setShowSwitchConfirm(false);
-      toast.success(
-        targetRole === 'helper'
-          ? 'Switched to Helper mode! Set up your profile and go online when ready.'
-          : 'Switched to Customer mode. Your helper profile is saved and waiting.',
-      );
-      // Navigate to the appropriate dashboard
-      navigate(targetRole === 'helper' ? '/dashboard' : '/dashboard', { replace: true });
-      window.location.reload(); // ensure SmartDashboard re-evaluates role
-    } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to switch role');
-    }
-    setSwitchingRole(false);
-  };
-  const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '' });
+  const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '', display_name_preference: 'first_name' });
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
-    // ── Subscription state ──────────────────────────────────
   const { subscription, plans, loading: subLoading, openPortal, cancelSubscription, createCheckout } = useSubscription();
 
-  // ── Businesses state ────────────────────────────────────
   const [businesses, setBusinesses] = useState([]);
   const [bizLoading, setBizLoading] = useState(true);
   const [showAddBiz, setShowAddBiz] = useState(false);
@@ -58,7 +39,6 @@ export default function SettingsPage() {
   });
   const [bizSaving, setBizSaving] = useState(false);
 
-  // ── Load profile ────────────────────────────────────────
   useEffect(() => {
     api.get('/auth/me')
       .then(r => {
@@ -76,14 +56,12 @@ export default function SettingsPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  // ── Load businesses ─────────────────────────────────────
   useEffect(() => {
     api.get('/businesses')
       .then(r => { setBusinesses(r.data?.businesses || []); setBizLoading(false); })
       .catch(() => setBizLoading(false));
   }, []);
 
-  // ── Profile handlers ────────────────────────────────────
   const saveProfile = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -115,39 +93,24 @@ export default function SettingsPage() {
     } catch (err) { toast.error('Failed to delete account'); }
   };
 
-  // ── Business handlers ───────────────────────────────────
-  const resetBizForm = () => {
-    setBizForm({ business_name: '', business_type: 'llc', ein: '', address_street: '', address_city: '', address_state: '', address_zip: '' });
-    setEditingBiz(null);
-    setShowAddBiz(false);
-  };
-
-  const openAddBiz = () => {
-    resetBizForm();
-    setShowAddBiz(true);
-  };
-
-  const openEditBiz = (biz) => {
-    setBizForm({
-      business_name: biz.business_name || '',
-      business_type: biz.business_type || 'llc',
-      ein: '', // don't prefill sensitive data
-      address_street: biz.address_street || '',
-      address_city: biz.address_city || '',
-      address_state: biz.address_state || '',
-      address_zip: biz.address_zip || '',
-    });
-    setEditingBiz(biz);
-    setShowAddBiz(true);
+  const handleSwitchRole = async () => {
+    setSwitchingRole(true);
+    try {
+      await switchRole(targetRole);
+      setShowSwitchConfirm(false);
+      toast.success(targetRole === 'helper' ? 'Switched to Helper mode!' : 'Switched to Customer mode.');
+      navigate(targetRole === 'helper' ? '/dashboard' : '/dashboard', { replace: true });
+      window.location.reload();
+    } catch (err) { toast.error(err?.response?.data?.error || 'Failed to switch role'); }
+    setSwitchingRole(false);
   };
 
   const saveBusiness = async (e) => {
     e.preventDefault();
-    if (!bizForm.business_name.trim()) return toast.error('Business name is required');
     setBizSaving(true);
     try {
       if (editingBiz) {
-        const { data } = await api.put(`/businesses/${editingBiz.id}`, bizForm);
+        const { data } = await api.put(\`/businesses/\${editingBiz.id}\`, bizForm);
         setBusinesses(prev => prev.map(b => b.id === editingBiz.id ? data.business : b));
         toast.success('Business updated');
       } else {
@@ -155,26 +118,10 @@ export default function SettingsPage() {
         setBusinesses(prev => [...prev, data.business]);
         toast.success('Business added');
       }
-      resetBizForm();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save business'); }
+      setShowAddBiz(false);
+      setEditingBiz(null);
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save'); }
     setBizSaving(false);
-  };
-
-  const deleteBusiness = async (id) => {
-    if (!confirm('Remove this business?')) return;
-    try {
-      await api.delete(`/businesses/${id}`);
-      setBusinesses(prev => prev.filter(b => b.id !== id));
-      toast.success('Business removed');
-    } catch (err) { toast.error('Failed to remove business'); }
-  };
-
-  const setPrimaryBiz = async (id) => {
-    try {
-      await api.put(`/businesses/${id}/primary`);
-      setBusinesses(prev => prev.map(b => ({ ...b, is_primary: b.id === id })));
-      toast.success('Primary business updated');
-    } catch (err) { toast.error('Failed to update primary business'); }
   };
 
   const BIZ_TYPES = [
@@ -184,411 +131,247 @@ export default function SettingsPage() {
     { value: 'partnership', label: 'Partnership' },
   ];
 
-  // ── Loading state ───────────────────────────────────────
-  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>;
+  if (loading) return <div className=\"min-h-screen bg-gray-950 flex items-center justify-center\"><p className=\"text-gray-400\">Loading...</p></div>;
+
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: '👤' },
+    { id: 'security', label: 'Security', icon: '🔒' },
+    { id: 'billing', label: 'Billing', icon: '💳' },
+    { id: 'businesses', label: 'Businesses', icon: '💼' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'referrals', label: 'Referrals', icon: '🎁' },
+    { id: 'advanced', label: 'Advanced', icon: '⚙️' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className=\"min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-orange-500/30\">
       <Navbar />
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-4">Settings</h1>
-
-        {/* Trial Banner */}
-        <div className="mb-6">
-          <TrialBanner />
-        </div>
-
-        {/* Navigation */}
-        <div className="flex gap-4 mb-8 flex-wrap">
-          <Link to="/settings/2fa" className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition">Two-Factor Auth</Link>
-          <Link to="/settings/notifications" className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition">Notifications</Link>
-        </div>
-
-        {/* Edit Profile */}
-        <form onSubmit={saveProfile} className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
-
-          {/* Name — read-only, contact support to change */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">First Name</label>
-              <input
-                className="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
-                value={profile.first_name || ''}
-                readOnly
-                disabled
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Last Name</label>
-              <input
-                className="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
-                value={profile.last_name || ''}
-                readOnly
-                disabled
-              />
-            </div>
-          </div>
-          <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-800/50 rounded-lg px-4 py-3 mb-4">
-            <svg className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p className="text-sm text-orange-300">
-              Name changes require identity verification and must be processed by our team — for example, after a marriage or legal name change.{' '}
-              <a href="mailto:support@oxsteed.com" className="underline hover:text-orange-200">Email support@oxsteed.com</a>
-              {' '}or use the <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline hover:text-orange-200">support chat</button> at the bottom of this page.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Phone</label>
-              <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={profile.phone || ''} onChange={e => setProfile({...profile, phone: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Zip Code</label>
-              <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={profile.zipcode || ''} onChange={e => setProfile({...profile, zipcode: e.target.value})} />
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="block text-sm text-gray-400 mb-1">Bio</label>
-            <textarea className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white h-24" value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} />
-          </div>
-
-          {/* Name display preference */}
-          <div className="mt-4">
-            <label className="block text-sm text-gray-400 mb-1">Display Name</label>
-            <p className="text-xs text-gray-500 mb-2">Choose how your name appears to others on the platform.</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'first_name',    label: 'First name only',  example: user?.first_name || 'Alex' },
-                { value: 'full_name',     label: 'Full name',        example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
-                { value: 'business_name', label: 'Business name',    example: 'My Services LLC' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setProfile(p => ({ ...p, display_name_preference: opt.value }))}
-                  className={`flex flex-col items-start p-3 rounded-lg border text-left transition ${profile.display_name_preference === opt.value ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
-                >
-                  <span className="text-xs font-semibold text-white mb-1">{opt.label}</span>
-                  <span className="text-[11px] text-gray-400">{opt.example}</span>
-                </button>
-              ))}
-            </div>
-            {profile.display_name_preference === 'business_name' && (
-              <p className="text-xs text-orange-400 mt-2">⚠ If you have no business added, this falls back to your first name. Add a business below.</p>
-            )}
-          </div>
-
-          <button type="submit" disabled={saving} className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition disabled:opacity-50">
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </form>
-
-                {/* Subscription & Billing */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Subscription & Billing</h2>
-          {subLoading ? (
-            <p className="text-gray-500 text-sm">Loading subscription...</p>
-          ) : subscription ? (
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-500/15 text-green-400">
-                  {subscription.status === 'active' ? 'Active' : subscription.status}
-                </span>
-                <span className="text-gray-400 text-sm">
-                  {subscription.plan_name || 'Pro Plan'}
-                </span>
-              </div>
-              {subscription.current_period_end && (
-                <p className="text-gray-500 text-sm mb-4">
-                  Next billing date: {new Date(subscription.current_period_end).toLocaleDateString()}
-                </p>
-              )}
-              {subscription.cancel_at_period_end && (
-                <p className="text-yellow-500 text-sm mb-4">
-                  Your subscription will cancel at the end of the current billing period.
-                </p>
-              )}
-              <div className="flex gap-3">
-                <button
-                  onClick={openPortal}
-                  className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm"
-                >
-                  Manage Billing
-                </button>
-                {!subscription.cancel_at_period_end && (
-                  <button
-                    onClick={() => { if (confirm('Cancel your subscription? You will retain access until the end of your billing period.')) cancelSubscription(); }}
-                    className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm text-red-400"
-                  >
-                    Cancel Plan
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p className="text-gray-400 text-sm mb-4">You are on the Free plan. Upgrade to unlock more features.</p>
-              <div className="flex gap-3 flex-wrap">
-                {plans.filter(p => p.slug !== 'free').map(plan => (
-                  <button
-                    key={plan.id}
-                    onClick={() => createCheckout(plan.slug)}
-                    className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm"
-                  >
-                    Upgrade to {plan.name} — ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? 'year' : 'mo'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ══════════════════════════════════════════════════ */}
-        {/* My Businesses                                     */}
-        {/* ══════════════════════════════════════════════════ */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">My Businesses</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Manage your LLCs and business entities. Jobs and payouts can be tied to a specific business.</p>
-            </div>
+      <div className=\"max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-12\">
+        
+        {/* Sidebar Navigation */}
+        <div className=\"w-full md:w-64 shrink-0 space-y-1\">
+          <h1 className=\"text-2xl font-bold text-white mb-8 tracking-tight\">Settings</h1>
+          {tabs.map(tab => (
             <button
-              onClick={openAddBiz}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm whitespace-nowrap"
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={\`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 \${
+                activeTab === tab.id 
+                  ? 'bg-orange-600/10 text-orange-500 border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]'
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent'
+              }\`}
             >
-              + Add Business
+              <span className=\"text-lg opacity-80\">{tab.icon}</span>
+              <span className=\"font-medium\">{tab.label}</span>
             </button>
+          ))}
+          <div className=\"pt-8 mt-8 border-t border-slate-800/50\">
+             <Link to=\"/settings/2fa\" className=\"flex items-center gap-3 px-4 py-2 text-sm text-slate-500 hover:text-orange-400 transition\">2FA Dashboard →</Link>
           </div>
+        </div>
 
-          {/* Business list */}
-          {bizLoading ? (
-            <p className="text-gray-500 text-sm">Loading businesses...</p>
-          ) : businesses.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-gray-700 rounded-xl">
-              <p className="text-gray-500 text-sm mb-1">No businesses added yet</p>
-              <p className="text-gray-600 text-xs">Add your LLC or business entity to use on jobs and invoices.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {businesses.map(biz => (
-                <div key={biz.id} className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-700/50 rounded-xl">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* Icon */}
-                    <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round">
-                        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-                      </svg>
-                    </div>
-                    {/* Info */}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-white text-sm truncate">{biz.business_name}</span>
-                        {biz.is_primary && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/15 text-orange-400">Primary</span>
-                        )}
+        {/* Main Content Area */}
+        <div className=\"flex-1 min-w-0\">
+          <div className=\"bg-slate-900/40 backdrop-blur-sm border border-slate-800/60 rounded-3xl p-8 shadow-2xl relative overflow-hidden\">
+            {/* Futuristic Decor */}
+            <div className=\"absolute top-0 right-0 w-64 h-64 bg-orange-600/5 blur-[120px] rounded-full -mr-32 -mt-32\"></div>
+            
+            <div className=\"relative\">
+              {activeTab === 'profile' && (
+                <div className=\"animate-in fade-in slide-in-from-bottom-2 duration-500\">
+                  <div className=\"mb-8\">
+                    <h2 className=\"text-2xl font-semibold text-white\">Profile Settings</h2>
+                    <p className=\"text-slate-400 mt-1\">Manage your public presence and contact information.</p>
+                  </div>
+                  
+                  <form onSubmit={saveProfile} className=\"space-y-8\">
+                    <div className=\"grid grid-cols-1 md:grid-cols-2 gap-6\">
+                      <div className=\"space-y-2\">
+                        <label className=\"text-xs font-bold uppercase tracking-wider text-slate-500\">First Name</label>
+                        <div className=\"px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl text-slate-500 cursor-not-allowed\">{profile.first_name}</div>
                       </div>
-                      <p className="text-xs text-gray-500 truncate">
-                        {BIZ_TYPES.find(t => t.value === biz.business_type)?.label || biz.business_type || 'Business'}
-                        {biz.address_city && ` · ${biz.address_city}, ${biz.address_state}`}
+                      <div className=\"space-y-2\">
+                        <label className=\"text-xs font-bold uppercase tracking-wider text-slate-500\">Last Name</label>
+                        <div className=\"px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl text-slate-500 cursor-not-allowed\">{profile.last_name}</div>
+                      </div>
+                    </div>
+
+                    <div className=\"p-4 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex gap-4\">
+                      <div className=\"text-orange-500 text-xl\">ℹ️</div>
+                      <p className=\"text-sm text-slate-400 leading-relaxed\">
+                        Identity verification is required for name changes. Contact <a href=\"mailto:support@oxsteed.com\" className=\"text-orange-500 hover:underline\">Support</a> to update your legal name.
                       </p>
                     </div>
-                  </div>
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0 ml-3">
-                    {!biz.is_primary && (
-                      <button
-                        onClick={() => setPrimaryBiz(biz.id)}
-                        title="Set as primary"
-                        className="p-2 text-gray-500 hover:text-orange-400 hover:bg-gray-700 rounded-lg transition text-xs"
-                      >
-                        ★
-                      </button>
-                    )}
-                    <button
-                      onClick={() => openEditBiz(biz)}
-                      className="p-2 text-gray-500 hover:text-white hover:bg-gray-700 rounded-lg transition text-xs"
-                    >
-                      Edit
+
+                    <div className=\"grid grid-cols-1 md:grid-cols-2 gap-6\">
+                      <div className=\"space-y-2\">
+                        <label className=\"text-xs font-bold uppercase tracking-wider text-slate-500\">Phone Number</label>
+                        <input className=\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all outline-none\" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} />
+                      </div>
+                      <div className=\"space-y-2\">
+                        <label className=\"text-xs font-bold uppercase tracking-wider text-slate-500\">Zip Code</label>
+                        <input className=\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all outline-none\" value={profile.zipcode} onChange={e => setProfile({...profile, zipcode: e.target.value})} />
+                      </div>
+                    </div>
+
+                    <div className=\"space-y-2\">
+                      <label className=\"text-xs font-bold uppercase tracking-wider text-slate-500\">Bio</label>
+                      <textarea className=\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all outline-none min-h-[120px]\" value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} />
+                    </div>
+
+                    <button type=\"submit\" disabled={saving} className=\"px-8 py-3 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50\">
+                      {saving ? 'Updating...' : 'Save Changes'}
                     </button>
-                    <button
-                      onClick={() => deleteBusiness(biz.id)}
-                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-gray-700 rounded-lg transition text-xs"
-                    >
-                      ✕
-                    </button>
-                  </div>
+                  </form>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add/Edit form */}
-          {showAddBiz && (
-            <form onSubmit={saveBusiness} className="mt-4 p-4 bg-gray-800/30 border border-gray-700 rounded-xl space-y-4">
-              <h3 className="font-semibold text-sm text-white">{editingBiz ? 'Edit Business' : 'Add a Business'}</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Business Name *</label>
-                  <input
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                    value={bizForm.business_name}
-                    onChange={e => setBizForm({ ...bizForm, business_name: e.target.value })}
-                    placeholder="Mika's Plumbing LLC"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Business Type</label>
-                  <select
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                    value={bizForm.business_type}
-                    onChange={e => setBizForm({ ...bizForm, business_type: e.target.value })}
-                  >
-                    {BIZ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">EIN <span className="text-gray-600">(optional)</span></label>
-                  <input
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                    value={bizForm.ein}
-                    onChange={e => setBizForm({ ...bizForm, ein: e.target.value })}
-                    placeholder="XX-XXXXXXX"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Business Address</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="Street" value={bizForm.address_street} onChange={e => setBizForm({ ...bizForm, address_street: e.target.value })} />
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="City" value={bizForm.address_city} onChange={e => setBizForm({ ...bizForm, address_city: e.target.value })} />
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="State" value={bizForm.address_state} onChange={e => setBizForm({ ...bizForm, address_state: e.target.value })} />
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="Zip" value={bizForm.address_zip} onChange={e => setBizForm({ ...bizForm, address_zip: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button type="submit" disabled={bizSaving} className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm disabled:opacity-50">
-                  {bizSaving ? 'Saving...' : editingBiz ? 'Update Business' : 'Add Business'}
-                </button>
-                <button type="button" onClick={resetBizForm} className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Change Password */}
-        <form onSubmit={changePassword} className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-          <div className="space-y-4">
-            <input type="password" placeholder="Current Password" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={passwords.current} onChange={e => setPasswords({...passwords, current: e.target.value})} />
-            <input type="password" placeholder="New Password" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={passwords.newPass} onChange={e => setPasswords({...passwords, newPass: e.target.value})} />
-            <input type="password" placeholder="Confirm New Password" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} />
-          </div>
-          <button type="submit" className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition">Update Password</button>
-        </form>
-
-        {/* Notification Preferences */}
-        <NotificationPreferences />
-
-        {/* Referral Program */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-1">Referral Program</h2>
-          <p className="text-gray-400 text-sm mb-4">Invite friends to OxSteed and track your referrals.</p>
-          <ReferralPanel />
-        </div>
-
-        {/* Data Export */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Your Data</h2>
-          <p className="text-gray-400 mb-4">Download a copy of all your data as required by GDPR/CCPA.</p>
-          <button onClick={() => { api.get('/privacy/export').then(r => { const blob = new Blob([JSON.stringify(r.data, null, 2)]); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my-data.json'; a.click(); toast.success('Data exported'); }).catch(() => toast.error('Export failed')); }} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">Export My Data</button>
-        </div>
-
-        {/* ══════════════════════════════════════════════════ */}
-        {/* Account Type / Role Switching                     */}
-        {/* ══════════════════════════════════════════════════ */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-1">Account Type</h2>
-          <p className="text-gray-400 text-sm mb-4">
-            {isHelper
-              ? 'You are currently a Helper — you can receive job offers and appear in the helper directory. Switch to Customer mode to browse and post jobs instead.'
-              : 'You are currently a Customer — you can post jobs and browse helpers. Switch to Helper mode to offer your services on OxSteed.'}
-          </p>
-
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isHelper ? 'bg-orange-500/15 text-orange-400' : 'bg-blue-500/15 text-blue-400'}`}>
-              {isHelper ? 'Helper' : 'Customer'}
-            </span>
-            <span className="text-gray-500 text-sm">Current role</span>
-          </div>
-
-          {!showSwitchConfirm ? (
-            <button
-              onClick={() => setShowSwitchConfirm(true)}
-              className={`px-5 py-2 rounded-lg font-medium transition text-sm ${isHelper ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
-            >
-              {isHelper ? 'Switch to Customer Mode' : 'Switch to Helper Mode'}
-            </button>
-          ) : (
-            <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4">
-              {isHelper ? (
-                <>
-                  <p className="text-sm text-white font-semibold mb-1">Switch to Customer Mode?</p>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Your helper profile and all your data will be saved. You can switch back at any time.
-                    You will no longer appear in the helper directory while in Customer mode.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-white font-semibold mb-1">Switch to Helper Mode?</p>
-                  <p className="text-sm text-gray-400 mb-4">
-                    A helper profile will be created for you. You will start as <strong className="text-white">offline</strong> — you
-                    control when you appear in the directory using the online/offline toggle in your dashboard.
-                    You can switch back to Customer mode at any time.
-                  </p>
-                </>
               )}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSwitchRole}
-                  disabled={switchingRole}
-                  className={`px-5 py-2 rounded-lg font-medium transition text-sm disabled:opacity-50 ${isHelper ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
-                >
-                  {switchingRole ? 'Switching...' : 'Yes, Switch'}
-                </button>
-                <button
-                  onClick={() => setShowSwitchConfirm(false)}
-                  className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Delete Account */}
-        <div className="bg-red-950/30 rounded-xl p-6 border border-red-900">
-          <h2 className="text-xl font-semibold mb-2 text-red-400">Danger Zone</h2>
-          <p className="text-gray-400 mb-4">Permanently delete your account and all associated data. This cannot be undone.</p>
-          {!showDelete ? (
-            <button onClick={() => setShowDelete(true)} className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition">Delete My Account</button>
-          ) : (
-            <div className="flex gap-4">
-              <button onClick={deleteAccount} className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition">Yes, Delete Permanently</button>
-              <button onClick={() => setShowDelete(false)} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">Cancel</button>
+              {activeTab === 'security' && (
+                <div className=\"animate-in fade-in slide-in-from-bottom-2 duration-500\">
+                  <div className=\"mb-8\">
+                    <h2 className=\"text-2xl font-semibold text-white\">Security</h2>
+                    <p className=\"text-slate-400 mt-1\">Keep your account safe with modern security standards.</p>
+                  </div>
+                  
+                  <form onSubmit={changePassword} className=\"space-y-6\">
+                    <div className=\"space-y-4\">
+                      <input type=\"password\" placeholder=\"Current Password\" className=\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 outline-none transition-all\" value={passwords.current} onChange={e => setPasswords({...passwords, current: e.target.value})} />
+                      <input type=\"password\" placeholder=\"New Password\" className=\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 outline-none transition-all\" value={passwords.newPass} onChange={e => setPasswords({...passwords, newPass: e.target.value})} />
+                      <input type=\"password\" placeholder=\"Confirm New Password\" className=\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 outline-none transition-all\" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} />
+                    </div>
+                    <button type=\"submit\" className=\"px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all\">Update Password</button>
+                  </form>
+                </div>
+              )}
+
+              {activeTab === 'billing' && (
+                <div className=\"animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-8\">
+                  <div className=\"mb-8\">
+                    <h2 className=\"text-2xl font-semibold text-white\">Billing & Subscription</h2>
+                    <p className=\"text-slate-400 mt-1\">Manage your plans, invoices, and payment methods.</p>
+                  </div>
+
+                  {subLoading ? (
+                    <div className=\"animate-pulse flex gap-4\"><div className=\"h-12 w-12 bg-slate-800 rounded-full\"></div><div className=\"flex-1 space-y-4\"><div className=\"h-4 bg-slate-800 rounded w-3/4\"></div><div className=\"h-4 bg-slate-800 rounded w-1/2\"></div></div></div>
+                  ) : subscription ? (
+                    <div className=\"p-8 bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-3xl shadow-xl\">
+                      <div className=\"flex items-start justify-between mb-6\">
+                        <div>
+                          <span className=\"px-3 py-1 bg-green-500/10 text-green-400 text-xs font-bold rounded-full uppercase tracking-tighter\">Active Plan</span>
+                          <h3 className=\"text-2xl font-bold text-white mt-2\">{subscription.plan_name || 'OxSteed Pro'}</h3>
+                          <p className=\"text-slate-500 text-sm mt-1\">Renews on {new Date(subscription.current_period_end).toLocaleDateString()}</p>
+                        </div>
+                        <div className=\"text-right\">
+                          <button onClick={openPortal} className=\"px-4 py-2 bg-orange-600/10 text-orange-500 border border-orange-500/20 rounded-xl font-bold text-sm hover:bg-orange-600 hover:text-white transition-all\">Manage Portal</button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className=\"p-8 border border-dashed border-slate-800 rounded-3xl text-center\">
+                      <p className=\"text-slate-400 mb-6\">You are currently using OxSteed Free.</p>
+                      <div className=\"flex flex-wrap gap-4 justify-center\">
+                         {plans.filter(p => p.slug !== 'free').map(plan => (
+                            <button key={plan.id} onClick={() => createCheckout(plan.slug)} className=\"px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-2xl shadow-lg shadow-orange-600/10 transition-all\">Upgrade to {plan.name} — \${(plan.price / 100).toFixed(2)}</button>
+                         ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'businesses' && (
+                <div className=\"animate-in fade-in slide-in-from-bottom-2 duration-500\">
+                  <div className=\"flex items-center justify-between mb-8\">
+                    <div>
+                      <h2 className=\"text-2xl font-semibold text-white\">My Businesses</h2>
+                      <p className=\"text-slate-400 mt-1\">Manage legal entities tied to your jobs.</p>
+                    </div>
+                    <button onClick={() => setShowAddBiz(true)} className=\"px-4 py-2 bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-600/20 hover:scale-105 transition-all text-sm\">+ Add New</button>
+                  </div>
+
+                  {bizLoading ? (
+                    <div className=\"space-y-4\">
+                      {[1,2].map(i => <div key={i} className=\"h-20 bg-slate-800/50 rounded-2xl animate-pulse\"></div>)}
+                    </div>
+                  ) : (
+                    <div className=\"grid gap-4\">
+                      {businesses.length === 0 ? (
+                         <div className=\"py-12 text-center border border-dashed border-slate-800 rounded-3xl text-slate-500\">No businesses registered yet.</div>
+                      ) : (
+                        businesses.map(biz => (
+                          <div key={biz.id} className=\"p-5 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center justify-between group hover:border-slate-700 transition-all\">
+                            <div>
+                              <h4 className=\"font-bold text-white\">{biz.business_name}</h4>
+                              <p className=\"text-xs text-slate-500\">{biz.business_type.toUpperCase()} • {biz.address_city}, {biz.address_state}</p>
+                            </div>
+                            <div className=\"flex gap-2 opacity-0 group-hover:opacity-100 transition-all\">
+                              <button onClick={() => { setEditingBiz(biz); setBizForm(biz); setShowAddBiz(true); }} className=\"p-2 hover:bg-slate-800 rounded-lg text-slate-400\">✏️</button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'notifications' && <NotificationPreferences />}
+              {activeTab === 'referrals' && <ReferralPanel />}
+
+              {activeTab === 'advanced' && (
+                <div className=\"animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-12\">
+                   <div className=\"mb-8\">
+                    <h2 className=\"text-2xl font-semibold text-white\">Advanced Options</h2>
+                    <p className=\"text-slate-400 mt-1\">Dangerous operations and data management.</p>
+                  </div>
+
+                  <div className=\"p-8 bg-slate-950/50 border border-slate-800 rounded-3xl\">
+                    <h3 className=\"font-bold text-white mb-4\">Account Role</h3>
+                    <p className=\"text-sm text-slate-400 mb-6\">You are currently in <span className=\"text-orange-500 font-bold uppercase tracking-widest text-xs\">{user?.role}</span> mode.</p>
+                    <button onClick={() => setShowSwitchConfirm(true)} className=\"px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all\">Switch Role</button>
+                  </div>
+
+                  <div className=\"p-8 bg-red-950/10 border border-red-900/20 rounded-3xl\">
+                    <h3 className=\"font-bold text-red-400 mb-2\">Danger Zone</h3>
+                    <p className=\"text-sm text-slate-500 mb-6\">Permanently delete your account and all data. This action cannot be undone.</p>
+                    <button onClick={() => setShowDelete(true)} className=\"px-6 py-3 bg-red-600/10 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white font-bold rounded-2xl transition-all\">Delete Account</button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
       <Footer />
+
+      {/* Role Switch Modal */}
+      {showSwitchConfirm && (
+        <div className=\"fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300\">
+          <div className=\"bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl\">
+            <h3 className=\"text-2xl font-bold text-white mb-2\">Switch to {targetRole}?</h3>
+            <p className=\"text-slate-400 mb-8\">Your current progress will be saved. You can switch back at any time.</p>
+            <div className=\"flex gap-4\">
+              <button onClick={handleSwitchRole} className=\"flex-1 px-6 py-3 bg-orange-600 text-white font-bold rounded-2xl hover:bg-orange-500 transition-all\">Confirm</button>
+              <button onClick={() => setShowSwitchConfirm(false)} className=\"flex-1 px-6 py-3 bg-slate-800 text-slate-300 font-bold rounded-2xl hover:bg-slate-700 transition-all\">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDelete && (
+        <div className=\"fixed inset-0 z-50 flex items-center justify-center p-6 bg-red-950/20 backdrop-blur-xl animate-in zoom-in-95 duration-200\">
+          <div className=\"bg-slate-950 border border-red-900/50 w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl\">
+            <div className=\"w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-3xl mb-6 mx-auto\">⚠️</div>
+            <h3 className=\"text-2xl font-bold text-white text-center mb-2\">Permanent Deletion</h3>
+            <p className=\"text-slate-500 text-center mb-10 text-sm\">This will scrub all your data, job history, and payments from our systems. There is no recovery.</p>
+            <div className=\"flex flex-col gap-3\">
+              <button onClick={deleteAccount} className=\"w-full px-6 py-4 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-500 shadow-xl shadow-red-600/20 transition-all\">I understand, delete everything</button>
+              <button onClick={() => setShowDelete(false)} className=\"w-full px-6 py-4 text-slate-400 font-bold hover:text-white transition-all\">Keep my account</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
