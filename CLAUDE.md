@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-11 (role switching + helper offline toggle)
+**Last updated:** 2026-04-13 (live chat PR #99 follow-ups)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -42,7 +42,7 @@
 │   │   ├── hooks/        # useAuth, useJobs, usePayments, useSubscription, etc.
 │   │   ├── pages/        # route-level page components
 │   │   ├── styles/       # page-specific CSS files
-│   │   ├── utils/        # consentScripts.ts, (add more here)
+│   │   ├── utils/        # consentScripts.ts, inboxTimeFormat.js, …
 │   │   └── index.css     # Tailwind + CSS variable dual-palette theme system
 │   └── index.html        # static og/meta defaults (overridden per-page by PageMeta)
 └── server/
@@ -498,6 +498,45 @@ All production-readiness audit items have been completed. Items are documented i
 - Newly switched helpers start `is_listed = FALSE` — they opt in to visibility. This prevents a blank/incomplete profile from appearing in the directory.
 - Profile data (helper_profiles) is preserved across switches so helpers don't lose their setup if they temporarily switch to customer mode.
 - Fresh JWTs are issued on every role switch so the `role` claim in the token is always correct without requiring a separate login.
+
+---
+
+### Session — 2026-04-12 (live chat — industry-standard real-time messaging)
+
+**Problem:** Customer `ConversationPage` used polling (5s interval). Both inbox pages lacked real-time updates. No typing indicators or read receipts. Helper validation missing. N+1 query in conversation list. Multi-business context absent.
+
+**What was done:**
+
+- **`server/services/socketService.js`**: Added `broadcastToConversation(conversationId, event, data)` — emits to `conv_{id}` room.
+- **`server/index.js`**: Added socket event handlers inside `io.on('connection')`:
+  - `conversation:join` — server verifies DB membership, then `socket.join('conv_{id}')`. Clients cannot join arbitrary rooms.
+  - `conversation:leave` — `socket.leave('conv_{id}')`.
+  - `typing:start` / `typing:stop` — only if `socket.rooms` already contains `conv_{id}` (must have joined via verified `conversation:join`); re-broadcast excluding sender. No DB writes.
+- **`server/controllers/messageController.js`**:
+  - `getConversations`: LATERAL joins for last message and for unread count (`COUNT` over unread rows only — no full `messages` join). Joined `businesses` for `helper_business_name`.
+  - `getConversationMeta`: new function — lightweight single-conversation metadata fetch (name, job title, business name). Used by conversation header on first load.
+  - `getOrCreateConversation`: validates `helperId` is a real helper account (`role IN ('helper','helper_pro','broker')`). Prevents conversations with customers/admins.
+  - `getMessages`: `RETURNING id` on the read-update so `messages:read` is only emitted when messages were actually marked read. Emits `messages:read` to `conv_{id}` room.
+  - `sendMessage`: 4000-char limit enforced. Emits `message:new` to both `conv_{id}` room (so both parties in the thread see it immediately) and recipient's `user_{id}` room (for inbox-page updates). Includes `sender_name` from `req.user` in the payload.
+- **`server/routes/messages.js`**: Added `GET /conversations/:id/meta` route.
+- **`client/src/hooks/useSocket.js`**: Added `joinConversation(id)` and `leaveConversation(id)` helpers. Removed stale `console.log` calls.
+- **`client/src/pages/ConversationPage.jsx`** (customer): Complete rewrite. Removed 5-second polling. Joins conversation room on mount. Listens for `message:new`, `user:typing`, `user:stopped_typing`, `messages:read`. Emits `typing:start`/`typing:stop` with 2s debounce; stops on blur and on send. Animated typing bubble (3 bouncing dots). "Seen" label under the last message the user sent once the other party opens the thread. Shows helper's business name and job title in header.
+- **`client/src/pages/MessagesPage.jsx`** (customer inbox): Replaced static load with real-time socket listener for `message:new` — re-fetches conversation list on arrival. Shows business name as subtitle under helper name. Improved timestamp formatting and layout.
+- **`client/src/pages/HelperInboxPage.jsx`**: Added `message:new` listener alongside existing `profile_chat:new_message`. Shows `helper_business_name` subtitle for helpers with multiple businesses. Deduplication of both events.
+- **`client/src/pages/HelperConversationPage.jsx`**: Joins conversation room on mount. Typing indicators (send + receive). "Seen" indicator. Business/job context in header. Consistent dedup logic.
+- **`client/src/hooks/useConversationChat.js`**: Shared hook for customer + helper thread pages; `messages:read` ignores self (`readBy`); clears typing only on inbound `message:new`; optional `listenProfileChat` for `profile_chat:new_message` (server does not emit `message:new` for profile-initiated threads).
+- **`client/src/utils/inboxTimeFormat.js`**: Shared `formatInboxTime` for `MessagesPage` + `HelperInboxPage`.
+
+**Session — 2026-04-13 (PR #99 Bugbot):** Fixed helper thread regression: `profile_chat:new_message` now handled in the hook when `listenProfileChat: true`. Gated typing clear on own message echo. Deduplicated inbox timestamp helper. Added message-id dedupe in `useConversationChat` before mark-as-read so duplicate `message:new` events (conversation room + user room) no longer trigger redundant full-fetch read-sync GETs.
+
+**Multi-business support:** `getConversations` and `getConversationMeta` join `businesses` on `is_primary = TRUE AND is_active = TRUE`. Business name is shown as a subtitle in all four views (customer inbox, customer thread, helper inbox, helper thread). Helpers with multiple businesses see "via [Business Name]" so they know which business identity a conversation is under.
+
+**Socket event flow summary:**
+- Client mounts ConversationPage → `conversation:join` → server verifies, adds to `conv_{id}` room
+- User types → `typing:start` → server → `user:typing` to conv room → other party sees bubble
+- 2s inactivity / blur / send → `typing:stop` → `user:stopped_typing` → bubble disappears
+- User sends → POST `/messages/conversations/:id` → server saves, emits `message:new` to conv room + recipient user room
+- Recipient opens thread → `getMessages` marks read → server emits `messages:read` to conv room → sender sees "Seen"
 
 ---
 

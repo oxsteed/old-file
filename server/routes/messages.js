@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { getConversations, getOrCreateConversation, getMessages, sendMessage } = require('../controllers/messageController');
+const { getConversations, getOrCreateConversation, getConversationMeta, getMessages, sendMessage } = require('../controllers/messageController');
 
 // All routes require authentication
 router.use(authenticate);
@@ -11,6 +11,9 @@ router.get('/conversations', getConversations);
 
 // POST /api/messages/conversations - Create or get existing conversation
 router.post('/conversations', getOrCreateConversation);
+
+// GET /api/messages/conversations/:conversationId/meta - conversation name, job title, business
+router.get('/conversations/:conversationId/meta', getConversationMeta);
 
 // GET /api/messages/conversations/:conversationId - Get messages for a conversation
 router.get('/conversations/:conversationId', getMessages);

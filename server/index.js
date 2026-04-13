@@ -110,11 +110,58 @@ io.on('connection', (socket) => {
   if (['admin', 'super_admin'].includes(socket.userRole)) {
     socket.join('admins');
   }
-  
-  // SECURITY (H-28): Explicitly drop 'join' events from clients. 
-  // Room membership is determined strictly server-side through authentication 
+
+  // SECURITY (H-28): Explicitly drop 'join' events from clients.
+  // Room membership is determined strictly server-side through authentication
   // hooks above. We do not allow arbitrary clients to join rooms like 'admins'.
   socket.on('join', () => {});
+
+  // ── CONVERSATION ROOMS ────────────────────────────────────────
+  // Clients join a per-conversation room to receive typing indicators and
+  // real-time message delivery scoped to that thread.  Membership is
+  // verified server-side; clients cannot join arbitrary rooms.
+  socket.on('conversation:join', async (conversationId) => {
+    if (!conversationId) return;
+    try {
+      const { rows } = await pool.query(
+        'SELECT id FROM conversations WHERE id = $1 AND (customer_id = $2 OR helper_id = $2)',
+        [conversationId, userId]
+      );
+      if (rows.length) {
+        socket.join(`conv_${conversationId}`);
+        logger.debug('Socket joined conversation room', { userId, conversationId });
+      }
+    } catch (err) {
+      logger.error('socket conversation:join error', { message: err.message });
+    }
+  });
+
+  socket.on('conversation:leave', (conversationId) => {
+    if (conversationId) socket.leave(`conv_${conversationId}`);
+  });
+
+  // ── TYPING INDICATORS ─────────────────────────────────────────
+  // Gate on room membership: the socket must have already joined conv_{id}
+  // via conversation:join (which verified DB membership).  This prevents any
+  // authenticated user from broadcasting typing events to arbitrary rooms they
+  // don't belong to — socket.to() does NOT require the sender to be in the room.
+  socket.on('typing:start', (conversationId) => {
+    if (conversationId && socket.rooms.has(`conv_${conversationId}`)) {
+      socket.to(`conv_${conversationId}`).emit('user:typing', {
+        conversationId,
+        userId,
+      });
+    }
+  });
+
+  socket.on('typing:stop', (conversationId) => {
+    if (conversationId && socket.rooms.has(`conv_${conversationId}`)) {
+      socket.to(`conv_${conversationId}`).emit('user:stopped_typing', {
+        conversationId,
+        userId,
+      });
+    }
+  });
 
   socketService.trackConnect(userId, socket.id);
   logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });

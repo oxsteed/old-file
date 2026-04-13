@@ -33,12 +33,10 @@ export const useSocket = () => {
     );
 
     socketInstance.on('connect', () => {
-      console.log('[Socket] Connected');
       setConnected(true);
     });
 
     socketInstance.on('disconnect', () => {
-      console.log('[Socket] Disconnected');
       setConnected(false);
     });
 
@@ -53,6 +51,17 @@ export const useSocket = () => {
       // Only disconnect on explicit logout
     };
   }, [user]);
+
+  /** Join a per-conversation Socket.IO room to get typing indicators and
+   *  conversation-scoped message delivery.  Server verifies membership. */
+  const joinConversation = (conversationId) => {
+    socketRef.current?.emit('conversation:join', conversationId);
+  };
+
+  /** Leave a conversation room (called on unmount of ConversationPage). */
+  const leaveConversation = (conversationId) => {
+    socketRef.current?.emit('conversation:leave', conversationId);
+  };
 
   const joinJobRoom = (jobId) => {
     socketRef.current?.emit('job:join', jobId);
@@ -69,10 +78,12 @@ export const useSocket = () => {
   };
 
   return {
-    socket:       socketRef.current,
+    socket:            socketRef.current,
     connected,
+    joinConversation,
+    leaveConversation,
     joinJobRoom,
     leaveJobRoom,
-    disconnect
+    disconnect,
   };
 };

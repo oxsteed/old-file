@@ -4,21 +4,12 @@ import api from '../api/axios';
 import { useSocket } from '../hooks/useSocket';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-
-function formatTime(ts) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  const now = new Date();
-  const diffDays = Math.floor((now - d) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
+import { formatInboxTime } from '../utils/inboxTimeFormat';
 
 export default function HelperInboxPage() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Track conversation IDs that have arrived since the list was last refreshed
   const [newInbound, setNewInbound] = useState(new Set());
   const navigate = useNavigate();
   const { socket } = useSocket();
@@ -38,9 +29,13 @@ export default function HelperInboxPage() {
     fetchConversations();
   }, [fetchConversations]);
 
+  // Real-time inbox updates: listen for both direct messages (message:new) and
+  // profile-page initiated conversations (profile_chat:new_message).
   useEffect(() => {
     if (!socket) return;
-    const handler = ({ conversationId }) => {
+
+    const handleInbound = ({ conversationId }) => {
+      if (!conversationId) return;
       fetchConversations();
       setNewInbound(prev => {
         const next = new Set(prev);
@@ -48,8 +43,13 @@ export default function HelperInboxPage() {
         return next;
       });
     };
-    socket.on('profile_chat:new_message', handler);
-    return () => socket.off('profile_chat:new_message', handler);
+
+    socket.on('message:new',            handleInbound);
+    socket.on('profile_chat:new_message', handleInbound);
+    return () => {
+      socket.off('message:new',            handleInbound);
+      socket.off('profile_chat:new_message', handleInbound);
+    };
   }, [socket, fetchConversations]);
 
   const handleOpen = (convId) => {
@@ -93,9 +93,9 @@ export default function HelperInboxPage() {
         ) : (
           <div className="bg-gray-900 border border-gray-700/50 rounded-2xl divide-y divide-gray-700/50 overflow-hidden">
             {conversations.map((conv) => {
-              const isNew = newInbound.has(String(conv.id));
+              const isNew  = newInbound.has(String(conv.id));
               const unread = parseInt(conv.unread_count) > 0 || isNew;
-              const badge = isNew && !parseInt(conv.unread_count) ? 'New' : conv.unread_count;
+              const badge  = isNew && !parseInt(conv.unread_count) ? 'New' : conv.unread_count;
               return (
                 <button
                   key={conv.id}
@@ -111,11 +111,19 @@ export default function HelperInboxPage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <p className={`text-sm truncate ${unread ? 'font-semibold text-white' : 'font-medium text-gray-300'}`}>
-                        {conv.other_user_name || 'Customer'}
-                      </p>
-                      <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                        {formatTime(conv.last_message_at)}
+                      <div className="min-w-0 flex-1 mr-2">
+                        <p className={`text-sm truncate ${unread ? 'font-semibold text-white' : 'font-medium text-gray-300'}`}>
+                          {conv.other_user_name || 'Customer'}
+                        </p>
+                        {/* Show which of the helper's businesses this conversation is under */}
+                        {conv.helper_business_name && (
+                          <p className="text-xs text-gray-600 truncate leading-tight">
+                            via {conv.helper_business_name}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500 flex-shrink-0">
+                        {formatInboxTime(conv.last_message_at)}
                       </span>
                     </div>
                     {conv.job_title && (
