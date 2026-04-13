@@ -153,6 +153,7 @@ function BusinessHubInner() {
   function handleSwitchBiz(id) {
     setBizId(id);
     localStorage.setItem(LS_KEY, id);
+    setAnalyticsLoading(true);
     setAnalytics(null); setInvoiceData(null); setTaxData(null); setGoals([]);
   }
 
