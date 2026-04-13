@@ -103,6 +103,7 @@ const getOrCreateConversation = async (req, res) => {
         : 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL',
       jobId ? [userId, helperId, jobId] : [userId, helperId]
     );
+    if (!existing.rows[0]) return res.status(500).json({ error: 'Failed to create conversation' });
     res.json(existing.rows[0]);
   } catch (error) {
     logger.error('Error creating conversation', { err: error.message });
