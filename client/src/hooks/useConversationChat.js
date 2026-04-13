@@ -10,10 +10,11 @@ const TYPING_AUTO_CLEAR_MS = 5000; // clear indicator if no stop event received 
  * Shared logic for ConversationPage and HelperConversationPage.
  *
  * @param {string|undefined} conversationId
- * @param {{ extraSocketEvents?: Array<[string, Function]> }} options
- *   extraSocketEvents: additional [event, handler] pairs the page needs (e.g. profile_chat:new_message)
+ * @param {{ extraSocketEvents?: Array<[string, Function]>, listenProfileChat?: boolean }} options
+ *   extraSocketEvents: additional [event, handler] pairs
+ *   listenProfileChat: when true, handle profile_chat:new_message (job-less profile threads; no message:new from server)
  */
-export function useConversationChat(conversationId, { extraSocketEvents = [] } = {}) {
+export function useConversationChat(conversationId, { extraSocketEvents = [], listenProfileChat = false } = {}) {
   const [messages, setMessages] = useState([]);
   const [otherName, setOtherName] = useState('');
   const [helperBusiness, setHelperBusiness] = useState('');
@@ -89,15 +90,29 @@ export function useConversationChat(conversationId, { extraSocketEvents = [] } =
 
     const onMessageNew = ({ conversationId: cid, message }) => {
       if (String(cid) !== String(conversationId)) return;
-      // Clear typing indicator when a message arrives — covers the case
-      // where the other party never sent typing:stop (e.g. closed tab).
-      clearOtherTyping();
+      // Only clear "other typing" when the message is from the other party.
+      // Our own message echoes would incorrectly hide their typing indicator.
+      if (message.sender_id !== user?.id) clearOtherTyping();
       setMessages(prev => {
         if (prev.some(m => m.id === message.id)) return prev;
         return [...prev, message];
       });
-      if (message.sender_id !== user?.id && message.sender_name && !otherName) {
-        setOtherName(message.sender_name);
+      if (message.sender_id !== user?.id && message.sender_name) {
+        setOtherName((prev) => prev || message.sender_name);
+      }
+    };
+
+    const onProfileChatNew = ({ conversationId: cid, message, senderName }) => {
+      if (String(cid) !== String(conversationId)) return;
+      const enriched =
+        senderName && !message.sender_name ? { ...message, sender_name: senderName } : message;
+      if (enriched.sender_id !== user?.id) clearOtherTyping();
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === enriched.id)) return prev;
+        return [...prev, enriched];
+      });
+      if (enriched.sender_id !== user?.id && enriched.sender_name) {
+        setOtherName((prev) => prev || enriched.sender_name);
       }
     };
 
@@ -127,8 +142,10 @@ export function useConversationChat(conversationId, { extraSocketEvents = [] } =
     socket.on('user:typing', onTyping);
     socket.on('user:stopped_typing', onStoppedTyping);
     socket.on('messages:read', onMessagesRead);
+    if (listenProfileChat) {
+      socket.on('profile_chat:new_message', onProfileChatNew);
+    }
 
-    // Register any page-specific extra events
     for (const [event, handler] of extraSocketEvents) {
       socket.on(event, handler);
     }
@@ -138,11 +155,14 @@ export function useConversationChat(conversationId, { extraSocketEvents = [] } =
       socket.off('user:typing', onTyping);
       socket.off('user:stopped_typing', onStoppedTyping);
       socket.off('messages:read', onMessagesRead);
+      if (listenProfileChat) {
+        socket.off('profile_chat:new_message', onProfileChatNew);
+      }
       for (const [event, handler] of extraSocketEvents) {
         socket.off(event, handler);
       }
     };
-  }, [socket, conversationId, user?.id, otherName, clearOtherTyping]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [socket, conversationId, user?.id, clearOtherTyping, listenProfileChat]); // eslint-disable-line react-hooks/exhaustive-deps -- extraSocketEvents intentionally omitted (often new [] per render)
 
   // ── Typing indicator emit ─────────────────────────────────────
   const handleInputChange = (e) => {

@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useConversationChat } from '../hooks/useConversationChat';
-import { useSocket } from '../hooks/useSocket';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -12,23 +11,6 @@ function formatTime(ts) {
 export default function HelperConversationPage() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
-  const { socket } = useSocket();
-
-  // profile_chat:new_message is helper-specific: inbound messages from
-  // customers who started a chat from the helper's public profile page.
-  // We wire it here and pass it into the shared hook via extraSocketEvents.
-  const handleProfileNew = ({ conversationId: cid, message, senderName }) => {
-    // The hook's onMessageNew handler will also fire for these once the
-    // sender joins the same room; this handler provides a fallback and
-    // enriches sender_name when the socket payload omits it.
-    if (String(cid) !== String(conversationId)) return;
-    // Delegate to the same setMessages path via a synthetic message:new emit
-    // is not straightforward here, so we imperatively update via ref instead.
-    // For simplicity we re-use the same socket event with an enriched payload.
-    if (socket) {
-      socket.emit('__noop__'); // no-op; actual update happens via message:new
-    }
-  };
 
   const {
     messages, otherName, helperBusiness, jobTitle,
@@ -37,19 +19,7 @@ export default function HelperConversationPage() {
     messagesEndRef, inputRef,
     handleInputChange, handleBlur, handleSend, handleKeyDown,
     user,
-  } = useConversationChat(conversationId, {
-    extraSocketEvents: [
-      // profile_chat:new_message: enriches inbound messages that carry senderName
-      // but may not yet have sender_name on the message object itself.
-      ['profile_chat:new_message', ({ conversationId: cid, message, senderName }) => {
-        // The hook's generic message:new listener deduplicates by id, so we
-        // dispatch a synthetic message:new into the socket to reuse that path.
-        // Since we can't call setMessages directly from here, we rely on the
-        // server also emitting message:new for the same event. This handler
-        // only supplements sender_name if needed — the hook handles the rest.
-      }],
-    ],
-  });
+  } = useConversationChat(conversationId, { listenProfileChat: true });
 
   if (loading) {
     return (

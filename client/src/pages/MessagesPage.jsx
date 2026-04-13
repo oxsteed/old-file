@@ -4,17 +4,7 @@ import api from '../api/axios';
 import { useSocket } from '../hooks/useSocket';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-
-function formatTime(ts) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  const now = new Date();
-  const diffDays = Math.floor((now - d) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
+import { formatInboxTime } from '../utils/inboxTimeFormat';
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
@@ -99,7 +89,7 @@ export default function MessagesPage() {
                         )}
                       </div>
                       <span className="text-xs text-gray-400 flex-shrink-0">
-                        {formatTime(conv.last_message_at)}
+                        {formatInboxTime(conv.last_message_at)}
                       </span>
                     </div>
                     {conv.job_title && (

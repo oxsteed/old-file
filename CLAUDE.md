@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-12 (live chat — industry-standard real-time messaging)
+**Last updated:** 2026-04-13 (live chat PR #99 follow-ups)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -42,7 +42,7 @@
 │   │   ├── hooks/        # useAuth, useJobs, usePayments, useSubscription, etc.
 │   │   ├── pages/        # route-level page components
 │   │   ├── styles/       # page-specific CSS files
-│   │   ├── utils/        # consentScripts.ts, (add more here)
+│   │   ├── utils/        # consentScripts.ts, inboxTimeFormat.js, …
 │   │   └── index.css     # Tailwind + CSS variable dual-palette theme system
 │   └── index.html        # static og/meta defaults (overridden per-page by PageMeta)
 └── server/
@@ -511,9 +511,9 @@ All production-readiness audit items have been completed. Items are documented i
 - **`server/index.js`**: Added socket event handlers inside `io.on('connection')`:
   - `conversation:join` — server verifies DB membership, then `socket.join('conv_{id}')`. Clients cannot join arbitrary rooms.
   - `conversation:leave` — `socket.leave('conv_{id}')`.
-  - `typing:start` / `typing:stop` — re-broadcast to `conv_{id}` excluding sender. No DB writes.
+  - `typing:start` / `typing:stop` — only if `socket.rooms` already contains `conv_{id}` (must have joined via verified `conversation:join`); re-broadcast excluding sender. No DB writes.
 - **`server/controllers/messageController.js`**:
-  - `getConversations`: replaced correlated subqueries (N+1) with a LATERAL join for last message. Joined `businesses` table to surface `helper_business_name` (primary active business of the helper).
+  - `getConversations`: LATERAL joins for last message and for unread count (`COUNT` over unread rows only — no full `messages` join). Joined `businesses` for `helper_business_name`.
   - `getConversationMeta`: new function — lightweight single-conversation metadata fetch (name, job title, business name). Used by conversation header on first load.
   - `getOrCreateConversation`: validates `helperId` is a real helper account (`role IN ('helper','helper_pro','broker')`). Prevents conversations with customers/admins.
   - `getMessages`: `RETURNING id` on the read-update so `messages:read` is only emitted when messages were actually marked read. Emits `messages:read` to `conv_{id}` room.
@@ -524,6 +524,10 @@ All production-readiness audit items have been completed. Items are documented i
 - **`client/src/pages/MessagesPage.jsx`** (customer inbox): Replaced static load with real-time socket listener for `message:new` — re-fetches conversation list on arrival. Shows business name as subtitle under helper name. Improved timestamp formatting and layout.
 - **`client/src/pages/HelperInboxPage.jsx`**: Added `message:new` listener alongside existing `profile_chat:new_message`. Shows `helper_business_name` subtitle for helpers with multiple businesses. Deduplication of both events.
 - **`client/src/pages/HelperConversationPage.jsx`**: Joins conversation room on mount. Typing indicators (send + receive). "Seen" indicator. Business/job context in header. Consistent dedup logic.
+- **`client/src/hooks/useConversationChat.js`**: Shared hook for customer + helper thread pages; `messages:read` ignores self (`readBy`); clears typing only on inbound `message:new`; optional `listenProfileChat` for `profile_chat:new_message` (server does not emit `message:new` for profile-initiated threads).
+- **`client/src/utils/inboxTimeFormat.js`**: Shared `formatInboxTime` for `MessagesPage` + `HelperInboxPage`.
+
+**Session — 2026-04-13 (PR #99 Bugbot):** Fixed helper thread regression: `profile_chat:new_message` now handled in the hook when `listenProfileChat: true`. Gated typing clear on own message echo. Deduplicated inbox timestamp helper.
 
 **Multi-business support:** `getConversations` and `getConversationMeta` join `businesses` on `is_primary = TRUE AND is_active = TRUE`. Business name is shown as a subtitle in all four views (customer inbox, customer thread, helper inbox, helper thread). Helpers with multiple businesses see "via [Business Name]" so they know which business identity a conversation is under.
 
