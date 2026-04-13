@@ -60,10 +60,8 @@ async function generateToken(req, res) {
 
     const token = crypto.randomBytes(32).toString('hex'); // 64-char hex
 
-    // owner_id  = real business owner (biz.user_id) — used for redemption notifications
-    //             and the owner-self-redeem guard in redeemToken.
-    // created_by_id = the actual requester (may be a manager) — used in listTokens
-    //             so managers can retrieve the secret of tokens they personally created.
+    // owner_id      = real business owner (biz.user_id) — for redemption guard & notifications
+    // created_by_id = actual requester (may be a manager) — for listTokens visibility
     const { rows: [record] } = await pool.query(
       `INSERT INTO business_invite_tokens
          (business_id, owner_id, created_by_id, token, role, expires_at)
@@ -99,9 +97,6 @@ async function listTokens(req, res) {
     const { rows } = await pool.query(
       `SELECT
          t.id,
-         -- Show the secret only when the token is inert (used/revoked/expired)
-         -- OR the requester is the owner
-         -- OR the requester is the manager who created it
          CASE
            WHEN t.used_at IS NOT NULL OR t.is_revoked OR t.expires_at < NOW() THEN t.token
            WHEN $3                                                              THEN t.token
@@ -169,13 +164,14 @@ async function revokeToken(req, res) {
 // Any authenticated user enters a 64-char token to join a business as a rep.
 // Token is single-use: marked used_at + used_by_id immediately on success.
 async function redeemToken(req, res) {
+  const client = await pool.connect();
   try {
     const { token } = req.body;
     if (!token || token.length !== 64) {
       return res.status(400).json({ error: 'Invalid token format — must be exactly 64 characters' });
     }
 
-    const { rows: [record] } = await pool.query(
+    const { rows: [record] } = await client.query(
       `SELECT t.id, t.business_id, t.owner_id, t.role, t.expires_at,
               b.business_name, b.is_active
        FROM business_invite_tokens t
@@ -199,7 +195,6 @@ async function redeemToken(req, res) {
       return res.status(400).json({ error: 'This business is no longer active' });
     }
 
-    // Prevent owner from redeeming their own token
     if (record.owner_id === req.user.id) {
       return res.status(400).json({ error: 'You cannot redeem your own token' });
     }
@@ -209,7 +204,11 @@ async function redeemToken(req, res) {
       return res.status(409).json({ error: `You are already an active member of "${record.business_name}"` });
     }
 
-    const { rowCount } = await pool.query(
+    // ── Begin atomic transaction ──────────────────────────────────────────────
+    await client.query('BEGIN');
+
+    // 1. Mark the token consumed (prevents concurrent redemption)
+    const { rowCount } = await client.query(
       `UPDATE business_invite_tokens
        SET used_at = NOW(), used_by_id = $1
        WHERE id = $2 AND used_at IS NULL AND is_revoked = FALSE`,
@@ -217,11 +216,28 @@ async function redeemToken(req, res) {
     );
 
     if (!rowCount) {
+      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Token was just used by someone else' });
     }
 
-    // owner_id on the token is always the real business owner (set in generateToken)
-    await pool.query(
+    // 2. DELETE stale pending invite BEFORE inserting the active membership.
+    //    If a pending row exists for the same (business_id, invite_email) unique
+    //    constraint, the INSERT below would silently do nothing (ON CONFLICT DO
+    //    NOTHING), and the subsequent DELETE would then remove the only row —
+    //    leaving the user with no membership while the token is already consumed.
+    if (req.user.email) {
+      await client.query(
+        `DELETE FROM business_members
+         WHERE business_id = $1
+           AND LOWER(invite_email) = LOWER($2)
+           AND status = 'pending'`,
+        [record.business_id, req.user.email]
+      );
+    }
+
+    // 3. Insert the active membership — pending row is already gone so the
+    //    unique constraint will not block this insert.
+    await client.query(
       `INSERT INTO business_members
          (business_id, owner_id, member_id, role, invite_email, status, accepted_at)
        VALUES ($1, $2, $3, $4, $5, 'active', NOW())
@@ -229,15 +245,8 @@ async function redeemToken(req, res) {
       [record.business_id, record.owner_id, req.user.id, record.role, req.user.email || '']
     );
 
-    if (req.user.email) {
-      await pool.query(
-        `DELETE FROM business_members
-         WHERE business_id = $1 AND LOWER(invite_email) = LOWER($2) AND status = 'pending'`,
-        [record.business_id, req.user.email]
-      );
-    }
-
-    await pool.query(
+    // 4. Notify the business owner
+    await client.query(
       `INSERT INTO notifications (user_id, type, title, message, metadata)
        VALUES ($1, 'vortex_redeemed', $2, $3, $4)`,
       [
@@ -253,6 +262,9 @@ async function redeemToken(req, res) {
       ]
     );
 
+    await client.query('COMMIT');
+    // ── End transaction ───────────────────────────────────────────────────────
+
     return res.json({
       ok: true,
       business_id: record.business_id,
@@ -260,8 +272,11 @@ async function redeemToken(req, res) {
       role: record.role,
     });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     logger.error('redeemToken error', { err: err.message });
     return res.status(500).json({ error: 'Failed to redeem token' });
+  } finally {
+    client.release();
   }
 }
 
