@@ -30,6 +30,7 @@ import NotificationSettings from './pages/Settings/Notifications';
 import SettingsPage from './pages/SettingsPage';
 import PublicProfile from './pages/PublicProfile';
 import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
+import BusinessProfilePage from './pages/BusinessProfilePage';
 import HelpersDirectoryPage from './pages/HelpersDirectoryPage';
 import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputeDetail from './pages/disputes/DisputeDetail';
@@ -78,6 +79,7 @@ export default function App() {
                   <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                   <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
                   <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
+                  <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
 
                   {/* ── Legal / policy pages ───────────────────────────── */}
                   <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />

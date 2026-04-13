@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
@@ -409,6 +410,17 @@ function BusinessHubInner() {
                 ))}
               </select>
               {currentBiz?.is_primary && <span className="bh-primary-tag">Primary</span>}
+              {bizId && (
+                <Link
+                  to={`/business/${bizId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bh-view-profile-link"
+                  title="View public profile"
+                >
+                  View Profile ↗
+                </Link>
+              )}
             </div>
 
             {/* Tabs */}

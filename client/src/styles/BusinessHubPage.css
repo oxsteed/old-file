@@ -70,6 +70,15 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.bh-view-profile-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #f97316;
+  text-decoration: none;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.bh-view-profile-link:hover { text-decoration: underline; }
 
 /* ── Tabs ────────────────────────────────────────────────── */
 .bh-tabs {

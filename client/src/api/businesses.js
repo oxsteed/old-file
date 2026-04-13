@@ -3,11 +3,13 @@
 import api from './axios';
 
 // ── Businesses ────────────────────────────────────────────────────────────────
-export const listBusinesses  = ()              => api.get('/businesses').then(r => r.data?.businesses || []);
-export const createBusiness  = (payload)       => api.post('/businesses', payload).then(r => r.data?.business);
-export const updateBusiness  = (id, payload)   => api.put(`/businesses/${id}`, payload).then(r => r.data?.business);
-export const setPrimary      = (id)            => api.put(`/businesses/${id}/primary`).then(r => r.data?.business);
-export const deleteBusiness  = (id)            => api.delete(`/businesses/${id}`).then(r => r.data);
+export const listBusinesses        = ()              => api.get('/businesses').then(r => r.data?.businesses || []);
+export const createBusiness        = (payload)       => api.post('/businesses', payload).then(r => r.data?.business);
+export const updateBusiness        = (id, payload)   => api.put(`/businesses/${id}`, payload).then(r => r.data?.business);
+export const setPrimary            = (id)            => api.put(`/businesses/${id}/primary`).then(r => r.data?.business);
+export const deleteBusiness        = (id)            => api.delete(`/businesses/${id}`).then(r => r.data);
+// Public — no auth required
+export const getBusinessPublicProfile = (id)         => api.get(`/businesses/${id}/public`).then(r => r.data);
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 export const getAnalytics    = (id)            => api.get(`/businesses/${id}/analytics`).then(r => r.data);

@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 
 const {
   listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  getBusinessPublicProfile,
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
@@ -26,6 +27,9 @@ router.get('/invitations',                   authenticate, listMyInvitations);
 router.post('/invitations/:id/accept',       authenticate, acceptInvitation);
 router.post('/invitations/:id/decline',      authenticate, declineInvitation);
 router.get('/managed',                       authenticate, listManagedBusinesses);
+
+// ── Public profile (no auth) — must be before authenticated /:id routes ───────
+router.get('/:id/public',  getBusinessPublicProfile);
 
 // ── Business CRUD ─────────────────────────────────────────────────────────────
 router.get('/',            authenticate, listBusinesses);

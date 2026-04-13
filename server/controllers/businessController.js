@@ -536,8 +536,134 @@ function generateLast6Months() {
   return months;
 }
 
+// ── Public business profile ───────────────────────────────────────────────────
+// GET /api/businesses/:id/public — no auth required.
+// Returns everything a customer needs to see the business profile page.
+async function getBusinessPublicProfile(req, res) {
+  try {
+    const bizId = req.params.id;
+
+    // Core business record + owner info
+    const bizRes = await pool.query(
+      `SELECT
+         b.id, b.business_name, b.business_type, b.description,
+         b.website, b.phone, b.logo_url,
+         b.address_city, b.address_state,
+         b.is_primary, b.is_active, b.created_at,
+         u.id           AS owner_id,
+         u.first_name   AS owner_first_name,
+         u.last_name    AS owner_last_name,
+         u.email        AS owner_email,
+         hp.profile_headline,
+         hp.profile_photo_url,
+         hp.cover_photo_url,
+         hp.bio_short,
+         hp.service_city, hp.service_state, hp.service_radius_miles,
+         hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
+         hp.is_identity_verified, hp.is_background_checked,
+         hp.is_insured, hp.is_licensed
+       FROM businesses b
+       JOIN users u          ON u.id  = b.user_id
+       LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
+       WHERE b.id        = $1
+         AND b.is_active = TRUE
+         AND u.deleted_at IS NULL`,
+      [bizId]
+    );
+
+    const biz = bizRes.rows[0];
+    if (!biz) return res.status(404).json({ error: 'Business not found' });
+
+    const ownerId = biz.owner_id;
+
+    // Parallel: services, reviews, gallery, FAQs, policies, active team members
+    const [svcRes, reviewRes, galRes, faqRes, polRes, teamRes] = await Promise.all([
+      pool.query(
+        `SELECT id, name, description, price, price_unit, duration, popular, category, sort_order
+         FROM helper_services
+         WHERE user_id = $1 AND is_active = TRUE
+         ORDER BY sort_order, id`,
+        [ownerId]
+      ),
+      pool.query(
+        `SELECT r.id, r.rating, r.comment, r.created_at, r.response, r.response_at,
+                u.first_name, u.last_name
+         FROM reviews r
+         JOIN users u ON u.id = r.reviewer_id
+         WHERE r.reviewee_id = $1 AND r.is_public = TRUE
+         ORDER BY r.created_at DESC
+         LIMIT 20`,
+        [ownerId]
+      ),
+      pool.query(
+        `SELECT id, url, caption FROM helper_gallery WHERE user_id = $1 ORDER BY sort_order, id`,
+        [ownerId]
+      ),
+      pool.query(
+        `SELECT id, question, answer FROM helper_faqs WHERE user_id = $1 ORDER BY sort_order, id`,
+        [ownerId]
+      ),
+      pool.query(
+        `SELECT id, title, content, icon FROM helper_policies WHERE user_id = $1 ORDER BY sort_order, id`,
+        [ownerId]
+      ),
+      // Active team members (name + role only — no email exposed publicly)
+      pool.query(
+        `SELECT bm.role, u.first_name, u.last_name, u.profile_photo_url
+         FROM business_members bm
+         JOIN users u ON u.id = bm.member_id
+         WHERE bm.business_id = $1 AND bm.status = 'active'
+         ORDER BY bm.accepted_at`,
+        [bizId]
+      ),
+    ]);
+
+    return res.json({
+      business: {
+        id:             biz.id,
+        business_name:  biz.business_name,
+        business_type:  biz.business_type,
+        description:    biz.description,
+        website:        biz.website,
+        phone:          biz.phone,
+        logo_url:       biz.logo_url,
+        cover_photo_url: biz.cover_photo_url || null,
+        address_city:   biz.address_city    || biz.service_city,
+        address_state:  biz.address_state   || biz.service_state,
+        service_radius_miles: biz.service_radius_miles,
+        is_primary:     biz.is_primary,
+        member_since:   biz.created_at,
+        // Badge flags from owner's helper profile
+        is_identity_verified:    biz.is_identity_verified,
+        is_background_checked:   biz.is_background_checked,
+        is_insured:              biz.is_insured,
+        is_licensed:             biz.is_licensed,
+        avg_rating:              biz.avg_rating,
+        total_reviews:           biz.total_reviews,
+        completed_jobs_count:    biz.completed_jobs_count,
+        // Owner context — needed for chat initiation
+        owner_id:        ownerId,
+        owner_name:      `${biz.owner_first_name} ${biz.owner_last_name}`.trim(),
+        owner_photo:     biz.profile_photo_url,
+        profile_headline: biz.profile_headline,
+        bio_short:       biz.bio_short,
+      },
+      services:  svcRes.rows,
+      reviews:   reviewRes.rows,
+      gallery:   galRes.rows,
+      faqs:      faqRes.rows,
+      policies:  polRes.rows,
+      team:      teamRes.rows,
+    });
+  } catch (err) {
+    logger.error('getBusinessPublicProfile error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load business profile' });
+  }
+}
+
 module.exports = {
   listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  getBusinessPublicProfile,
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
