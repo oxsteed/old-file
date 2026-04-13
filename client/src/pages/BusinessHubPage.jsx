@@ -22,7 +22,8 @@ function fmt$(n) {
 }
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const dateOnly = String(d).split('T')[0];
+  return new Date(dateOnly + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 function fmtMonth(m) {
   // m = "2025-03"
@@ -39,7 +40,6 @@ const DEFAULT_INV_FORM   = {
   line_items: [{ description: '', quantity: 1, unit_price: '' }],
 };
 const DEFAULT_GOAL_FORM  = { title: '', goal_type: 'revenue', period: 'monthly', target_value: '', current_value: '' };
-const DEFAULT_PAY_FORM   = { amount: '' };
 
 // ── main component ────────────────────────────────────────────────────────────
 export default function BusinessHubPage() {
@@ -143,7 +143,10 @@ function BusinessHubInner() {
     if (tab === 'overview') loadOverview();
     else if (tab === 'invoices') loadInvoices();
     else if (tab === 'tax') loadTax();
-    else if (tab === 'goals') loadGoals();
+    else if (tab === 'goals') {
+      loadGoals();
+      loadOverview();
+    }
   }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
@@ -586,6 +589,11 @@ function BusinessHubInner() {
 function OverviewTab({ analytics }) {
   const a = analytics;
   const monthly = a?.monthly || [];
+  const profitCls = value => {
+    const parsed = parseFloat(value);
+    if (Number.isNaN(parsed)) return undefined;
+    return parsed >= 0 ? 'positive' : 'negative';
+  };
   const allVals = monthly.flatMap(m => [
     parseFloat(m.revenue) || 0,
     parseFloat(m.expenses) || 0,
@@ -598,10 +606,10 @@ function OverviewTab({ analytics }) {
       {/* KPI grid */}
       <div className="bh-kpi-grid">
         <KPI label="MTD Revenue"    value={fmt$(a?.mtd?.revenue)}    cls="positive" />
-        <KPI label="MTD Profit"     value={fmt$(a?.mtd?.profit)}     cls={parseFloat(a?.mtd?.profit) >= 0 ? 'positive' : 'negative'} />
+        <KPI label="MTD Profit"     value={fmt$(a?.mtd?.profit)}     cls={profitCls(a?.mtd?.profit)} />
         <KPI label="Last Mo Revenue" value={fmt$(a?.last_month?.revenue)} />
         <KPI label="YTD Revenue"    value={fmt$(a?.ytd?.revenue)}    cls="positive" />
-        <KPI label="YTD Profit"     value={fmt$(a?.ytd?.profit)}     cls={parseFloat(a?.ytd?.profit) >= 0 ? 'positive' : 'negative'} />
+        <KPI label="YTD Profit"     value={fmt$(a?.ytd?.profit)}     cls={profitCls(a?.ytd?.profit)} />
         <KPI label="Outstanding"    value={fmt$(a?.invoices?.outstanding_total)} cls="warn"
           sub={`${a?.invoices?.sent || 0} sent`} />
         <KPI label="Overdue"        value={fmt$(a?.invoices?.overdue_total)}     cls="negative"
