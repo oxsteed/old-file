@@ -139,6 +139,7 @@ async function revokeMember(req, res) {
 // Returns pending invitations addressed to the logged-in user.
 async function listMyInvitations(req, res) {
   try {
+    const normalizedEmail = req.user.email?.toLowerCase() || '';
     const { rows } = await pool.query(
       `SELECT
          bm.id,
@@ -155,10 +156,10 @@ async function listMyInvitations(req, res) {
        FROM business_members bm
        JOIN businesses b ON b.id = bm.business_id
        JOIN users u      ON u.id = bm.owner_id
-       WHERE bm.member_id = $1
+       WHERE (bm.member_id = $1 OR bm.invite_email = $2)
          AND bm.status    = 'pending'
        ORDER BY bm.invited_at DESC`,
-      [req.user.id]
+      [req.user.id, normalizedEmail]
     );
 
     return res.json({ invitations: rows });

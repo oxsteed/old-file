@@ -182,6 +182,8 @@ function BusinessHubInner() {
     localStorage.setItem(LS_KEY, id);
     setAnalyticsLoading(true);
     setAnalytics(null); setInvoiceData(null); setTaxData(null); setGoals([]);
+    setMembersLoading(true);
+    setMembers([]);
   }
 
   // ── modal helpers ─────────────────────────────────────────────────────────
