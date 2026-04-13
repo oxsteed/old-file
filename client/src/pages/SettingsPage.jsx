@@ -5,7 +5,6 @@ import api from '../api/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import TrialBanner from '../components/TrialBanner';
 import useSubscription from '../hooks/useSubscription';
 import NotificationPreferences from '../components/NotificationPreferences';
 import ReferralPanel from '../components/ReferralPanel';
@@ -26,6 +25,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { subscription, plans, loading: subLoading, openPortal, cancelSubscription, createCheckout } = useSubscription();
 
@@ -34,7 +34,7 @@ export default function SettingsPage() {
   const [showAddBiz, setShowAddBiz] = useState(false);
   const [editingBiz, setEditingBiz] = useState(null);
   const [bizForm, setBizForm] = useState({
-    business_name: '', business_type: 'llc', ein: '',
+    business_name: '', business_type: 'sole_prop', ein: '',
     address_street: '', address_city: '', address_state: '', address_zip: '',
   });
   const [bizSaving, setBizSaving] = useState(false);
@@ -66,8 +66,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { first_name, last_name, bio, ...updatableFields } = profile;
-      await api.put('/auth/profile', updatableFields);
+      await api.put('/auth/profile', profile);
       toast.success('Profile updated');
     } catch (err) { toast.error(err.response?.data?.error || 'Failed to update'); }
     setSaving(false);
@@ -93,6 +92,15 @@ export default function SettingsPage() {
     } catch (err) { toast.error('Failed to delete account'); }
   };
 
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      await api.post('/privacy/export');
+      toast.success('Data export started. You will receive an email shortly.');
+    } catch (err) { toast.error('Failed to start data export'); }
+    setExporting(false);
+  };
+
   const handleSwitchRole = async () => {
     setSwitchingRole(true);
     try {
@@ -109,12 +117,15 @@ export default function SettingsPage() {
     e.preventDefault();
     setBizSaving(true);
     try {
+      const payload = { ...bizForm };
+      if (editingBiz) delete payload.ein; // Don't send EIN on update unless changed
+      
       if (editingBiz) {
-        const { data } = await api.put(\\`/businesses/\\${editingBiz.id}\\`, bizForm);
+        const { data } = await api.put(\\`/businesses/\\${editingBiz.id}\\`, payload);
         setBusinesses(prev => prev.map(b => b.id === editingBiz.id ? data.business : b));
         toast.success('Business updated');
       } else {
-        const { data } = await api.post('/businesses', bizForm);
+        const { data } = await api.post('/businesses', payload);
         setBusinesses(prev => [...prev, data.business]);
         toast.success('Business added');
       }
@@ -122,6 +133,23 @@ export default function SettingsPage() {
       setEditingBiz(null);
     } catch (err) { toast.error(err.response?.data?.error || 'Failed to save'); }
     setBizSaving(false);
+  };
+
+  const deleteBusiness = async (id) => {
+    if (!window.confirm('Delete this business?')) return;
+    try {
+      await api.delete(\\`/businesses/\\${id}\\`);
+      setBusinesses(prev => prev.filter(b => b.id !== id));
+      toast.success('Business deleted');
+    } catch (err) { toast.error('Failed to delete business'); }
+  };
+
+  const setPrimaryBiz = async (id) => {
+    try {
+      await api.put(\\`/businesses/\\${id}/primary\\`);
+      setBusinesses(prev => prev.map(b => ({ ...b, is_primary: b.id === id })));
+      toast.success('Primary business updated');
+    } catch (err) { toast.error('Failed to set primary business'); }
   };
 
   const BIZ_TYPES = [
@@ -173,7 +201,6 @@ export default function SettingsPage() {
         {/* Main Content Area */}
         <div className=\\\"flex-1 min-w-0\\\">
           <div className=\\\"bg-slate-900/40 backdrop-blur-sm border border-slate-800/60 rounded-3xl p-8 shadow-2xl relative overflow-hidden\\\">
-            {/* Futuristic Decor */}
             <div className=\\\"absolute top-0 right-0 w-64 h-64 bg-orange-600/5 blur-[120px] rounded-full -mr-32 -mt-32\\\"></div>
             
             <div className=\\\"relative\\\">
@@ -196,13 +223,6 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className=\\\"p-4 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex gap-4\\\">
-                      <div className=\\\"text-orange-500 text-xl\\\">ℹ️</div>
-                      <p className=\\\"text-sm text-slate-400 leading-relaxed\\\">
-                        Identity verification is required for name changes. Contact <a href=\\\"mailto:support@oxsteed.com\\\" className=\\\"text-orange-500 hover:underline\\\">Support</a> to update your legal name.
-                      </p>
-                    </div>
-
                     <div className=\\\"grid grid-cols-1 md:grid-cols-2 gap-6\\\">
                       <div className=\\\"space-y-2\\\">
                         <label className=\\\"text-xs font-bold uppercase tracking-wider text-slate-500\\\">Phone Number</label>
@@ -212,6 +232,15 @@ export default function SettingsPage() {
                         <label className=\\\"text-xs font-bold uppercase tracking-wider text-slate-500\\\">Zip Code</label>
                         <input className=\\\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20 transition-all outline-none\\\" value={profile.zipcode} onChange={e => setProfile({...profile, zipcode: e.target.value})} />
                       </div>
+                    </div>
+
+                    <div className=\\\"space-y-2\\\">
+                      <label className=\\\"text-xs font-bold uppercase tracking-wider text-slate-500\\\">Display Name Preference</label>
+                      <select className=\\\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-2xl focus:border-orange-500/50 outline-none transition-all\\\" value={profile.display_name_preference} onChange={e => setProfile({...profile, display_name_preference: e.target.value})}>
+                        <option value=\\\"first_name\\\">First Name Only</option>
+                        <option value=\\\"full_name\\\">Full Name</option>
+                        <option value=\\\"business_name\\\">Primary Business Name</option>
+                      </select>
                     </div>
 
                     <div className=\\\"space-y-2\\\">
@@ -257,16 +286,27 @@ export default function SettingsPage() {
                     <div className=\\\"p-8 bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-3xl shadow-xl\\\">
                       <div className=\\\"flex items-start justify-between mb-6\\\">
                         <div>
-                          <span className=\\\"px-3 py-1 bg-green-500/10 text-green-400 text-xs font-bold rounded-full uppercase tracking-tighter\\\">Active Plan</span>
+                          <span className={\\`px-3 py-1 text-xs font-bold rounded-full uppercase tracking-tighter \\${
+                            subscription.cancel_at_period_end ? 'bg-yellow-500/10 text-yellow-500' : 'bg-green-500/10 text-green-400'
+                          }\\`}>
+                            {subscription.cancel_at_period_end ? 'Cancelling Soon' : 'Active Plan'}
+                          </span>
                           <h3 className=\\\"text-2xl font-bold text-white mt-2\\\">{subscription.plan_name || 'OxSteed Pro'}</h3>
                           <p className=\\\"text-slate-500 text-sm mt-1\\\">
-                            {subscription.current_period_end ? \\`Renews on \\${new Date(subscription.current_period_end).toLocaleDateString()}\\` : 'Plan active'}
+                            {subscription.cancel_at_period_end 
+                              ? \\`Access ends on \\${new Date(subscription.current_period_end).toLocaleDateString()}\\` 
+                              : \\`Renews on \\${new Date(subscription.current_period_end).toLocaleDateString()}\\`}
                           </p>
                         </div>
                         <div className=\\\"text-right\\\">
                           <button onClick={openPortal} className=\\\"px-4 py-2 bg-orange-600/10 text-orange-500 border border-orange-500/20 rounded-xl font-bold text-sm hover:bg-orange-600 hover:text-white transition-all\\\">Manage Portal</button>
                         </div>
                       </div>
+                      {subscription.cancel_at_period_end && (
+                        <div className=\\\"mt-4 p-4 bg-yellow-500/5 border border-yellow-500/10 rounded-2xl\\\">
+                          <p className=\\\"text-sm text-yellow-500/80\\\">⚠️ Your subscription has been cancelled and will not renew. You will lose access to pro features after the current period.</p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className=\\\"p-8 border border-dashed border-slate-800 rounded-3xl text-center\\\">
@@ -288,7 +328,7 @@ export default function SettingsPage() {
                       <h2 className=\\\"text-2xl font-semibold text-white\\\">My Businesses</h2>
                       <p className=\\\"text-slate-400 mt-1\\\">Manage legal entities tied to your jobs.</p>
                     </div>
-                    <button onClick={() => { setEditingBiz(null); setBizForm({ business_name: '', business_type: 'llc', ein: '', address_street: '', address_city: '', address_state: '', address_zip: '' }); setShowAddBiz(true); }} className=\\\"px-4 py-2 bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-600/20 hover:scale-105 transition-all text-sm\\\">+ Add New</button>
+                    <button onClick={() => { setEditingBiz(null); setBizForm({ business_name: '', business_type: 'sole_prop', ein: '', address_street: '', address_city: '', address_state: '', address_zip: '' }); setShowAddBiz(true); }} className=\\\"px-4 py-2 bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-600/20 hover:scale-105 transition-all text-sm\\\">+ Add New</button>
                   </div>
 
                   {bizLoading ? (
@@ -302,12 +342,17 @@ export default function SettingsPage() {
                       ) : (
                         businesses.map(biz => (
                           <div key={biz.id} className=\\\"p-5 bg-slate-950/40 border border-slate-800 rounded-2xl flex items-center justify-between group hover:border-slate-700 transition-all\\\">
-                            <div>
-                              <h4 className=\\\"font-bold text-white\\\">{biz.business_name}</h4>
-                              <p className=\\\"text-xs text-slate-500\\\">{(biz.business_type || 'Business').toUpperCase()} • {biz.address_city || 'N/A'}, {biz.address_state || 'N/A'}</p>
+                            <div className=\\\"flex items-center gap-4\\\">
+                              {biz.is_primary && <span className=\\\"text-orange-500\\\" title=\\\"Primary Business\\\">★</span>}
+                              <div>
+                                <h4 className=\\\"font-bold text-white\\\">{biz.business_name}</h4>
+                                <p className=\\\"text-xs text-slate-500\\\">{(biz.business_type || 'Business').toUpperCase()} • {biz.address_city || 'N/A'}, {biz.address_state || 'N/A'}</p>
+                              </div>
                             </div>
                             <div className=\\\"flex gap-2 opacity-0 group-hover:opacity-100 transition-all\\\">
-                              <button onClick={() => { setEditingBiz(biz); setBizForm(biz); setShowAddBiz(true); }} className=\\\"p-2 hover:bg-slate-800 rounded-lg text-slate-400\\\">✏️</button>
+                              {!biz.is_primary && <button onClick={() => setPrimaryBiz(biz.id)} className=\\\"p-2 hover:bg-slate-800 rounded-lg text-slate-400\\\" title=\\\"Set as Primary\\\">☆</button>}
+                              <button onClick={() => { setEditingBiz(biz); setBizForm({ ...biz, ein: '' }); setShowAddBiz(true); }} className=\\\"p-2 hover:bg-slate-800 rounded-lg text-slate-400\\\" title=\\\"Edit\\\">✏️</button>
+                              <button onClick={() => deleteBusiness(biz.id)} className=\\\"p-2 hover:bg-red-900/20 rounded-lg text-red-400/60 hover:text-red-400\\\" title=\\\"Delete\\\">✕</button>
                             </div>
                           </div>
                         ))
@@ -325,6 +370,14 @@ export default function SettingsPage() {
                    <div className=\\\"mb-8\\\">
                     <h2 className=\\\"text-2xl font-semibold text-white\\\">Advanced Options</h2>
                     <p className=\\\"text-slate-400 mt-1\\\">Dangerous operations and data management.</p>
+                  </div>
+
+                  <div className=\\\"p-8 bg-slate-950/50 border border-slate-800 rounded-3xl\\\">
+                    <h3 className=\\\"font-bold text-white mb-4\\\">Data Management</h3>
+                    <p className=\\\"text-sm text-slate-400 mb-6\\\">Download a complete archive of your account data (GDPR/CCPA).</p>
+                    <button onClick={handleExportData} disabled={exporting} className=\\\"px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all disabled:opacity-50\\\">
+                      {exporting ? 'Exporting...' : 'Export My Data'}
+                    </button>
                   </div>
 
                   <div className=\\\"p-8 bg-slate-950/50 border border-slate-800 rounded-3xl\\\">
@@ -380,6 +433,12 @@ export default function SettingsPage() {
                   </select>
                 </div>
               </div>
+              {!editingBiz && (
+                <div className=\\\"space-y-2\\\">
+                  <label className=\\\"text-xs font-bold uppercase text-slate-500\\\">EIN (Tax ID)</label>
+                  <input className=\\\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl focus:border-orange-500 outline-none\\\" placeholder=\\\"Optional\\\" value={bizForm.ein} onChange={e => setBizForm({...bizForm, ein: e.target.value})} />
+                </div>
+              )}
               <div className=\\\"space-y-2\\\">
                 <label className=\\\"text-xs font-bold uppercase text-slate-500\\\">Street Address</label>
                 <input required className=\\\"w-full px-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl focus:border-orange-500 outline-none\\\" value={bizForm.address_street} onChange={e => setBizForm({...bizForm, address_street: e.target.value})} />
@@ -425,4 +484,4 @@ export default function SettingsPage() {
       )}
     </div>
   );
-          }
+     }
