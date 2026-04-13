@@ -85,7 +85,10 @@ exports.getLifePulse = async (req, res) => {
     }
 
     // ── parallel queries ───────────────────────────────────────────────────
-    const [baselineRes, reliabilityRes, oxsteedRes, needsRes, recurringRes, taskRecurringRes] = await Promise.all([
+    const [
+      baselineRes, reliabilityRes, oxsteedRes, needsRes, recurringRes, taskRecurringRes,
+      invoiceIncomeRes, pendingInvoicesRes, taxObligationsRes,
+    ] = await Promise.all([
 
       // 1. 90-day one-time income and expense totals (non-recurring entries only)
       db.query(`
@@ -203,14 +206,57 @@ exports.getLifePulse = async (req, res) => {
           ORDER BY section, title, frequency, created_at DESC
         ) t
       `, [userId]),
+
+      // 7. Paid invoice income in last 90 days (across all businesses)
+      db.query(`
+        SELECT COALESCE(SUM(bi.total), 0) AS invoice_income_90d
+        FROM business_invoices bi
+        JOIN businesses b ON b.id = bi.business_id
+        WHERE b.user_id = $1
+          AND bi.status = 'paid'
+          AND bi.paid_at >= NOW() - INTERVAL '90 days'
+      `, [userId]),
+
+      // 8. Outstanding invoices (sent/overdue) within this window — expected income
+      db.query(`
+        SELECT COALESCE(SUM(bi.total - bi.amount_paid), 0) AS pending_invoice_total,
+               COUNT(*) AS pending_count
+        FROM business_invoices bi
+        JOIN businesses b ON b.id = bi.business_id
+        WHERE b.user_id = $1
+          AND bi.status IN ('sent','overdue')
+          AND (bi.due_date IS NULL OR bi.due_date <= CURRENT_DATE + ($2 || ' days')::INTERVAL)
+      `, [userId, windowDays]),
+
+      // 9. Upcoming tax estimates due within this window
+      db.query(`
+        SELECT COALESCE(SUM(te.estimated_tax - te.paid_amount), 0) AS upcoming_tax_due,
+               MIN(te.due_date)                                      AS nearest_tax_due,
+               COUNT(*)                                              AS tax_estimate_count
+        FROM business_tax_estimates te
+        WHERE te.user_id = $1
+          AND te.status = 'pending'
+          AND te.due_date <= CURRENT_DATE + ($2 || ' days')::INTERVAL
+          AND te.due_date >= CURRENT_DATE
+      `, [userId, windowDays]),
     ]);
 
-    const baseline       = baselineRes.rows[0];
-    const reliability    = reliabilityRes.rows[0];
-    const oxsteed        = oxsteedRes.rows[0];
-    const rawNeeds       = needsRes.rows;
-    const recurringRow   = recurringRes.rows[0];
-    const taskRow        = taskRecurringRes.rows[0];
+    const baseline          = baselineRes.rows[0];
+    const reliability       = reliabilityRes.rows[0];
+    const oxsteed           = oxsteedRes.rows[0];
+    const rawNeeds          = needsRes.rows;
+    const recurringRow      = recurringRes.rows[0];
+    const taskRow           = taskRecurringRes.rows[0];
+    const invoiceIncomeRow  = invoiceIncomeRes.rows[0];
+    const pendingInvRow     = pendingInvoicesRes.rows[0];
+    const taxObligRow       = taxObligationsRes.rows[0];
+
+    // Business data
+    const invoiceIncome90d    = parseFloat(invoiceIncomeRow.invoice_income_90d);
+    const pendingInvoiceTotal = parseFloat(pendingInvRow.pending_invoice_total);
+    const pendingInvoiceCount = parseInt(pendingInvRow.pending_count || 0);
+    const upcomingTaxDue      = parseFloat(taxObligRow.upcoming_tax_due || 0);
+    const taxEstimateCount    = parseInt(taxObligRow.tax_estimate_count || 0);
 
     // ── 1. Daily averages ───────────────────────────────────────────────────
     const income90d     = parseFloat(baseline.income_90d);
@@ -222,8 +268,10 @@ exports.getLifePulse = async (req, res) => {
     const recurringExpenseMonthly = parseFloat(recurringRow.recurring_expense_monthly)
                                   + parseFloat(taskRow.task_expense_monthly);
 
-    // Merge OxSteed settled earnings into the income baseline
-    const totalIncome90d  = income90d + oxsteedIncome;
+    // Merge OxSteed settled earnings + paid invoice income into the income baseline.
+    // Invoice income is kept separate from manual expense entries (users shouldn't
+    // double-count invoice payments they also log as expenses).
+    const totalIncome90d  = income90d + oxsteedIncome + invoiceIncome90d;
     // Daily averages: one-time transactions averaged over 90 days
     //                + recurring patterns normalised from their monthly equivalent
     const avgDailyIncome  = (totalIncome90d / 90) + (recurringIncomeMonthly  / 30);
@@ -278,7 +326,9 @@ exports.getLifePulse = async (req, res) => {
     const sinkingFundForWindow = round2(totalSinkingFund);
 
     // ── 4. Net, coverage, runway ────────────────────────────────────────────
-    const totalObligations = projectedExpenses + sinkingFundForWindow;
+    // Tax obligations due in this window are treated like a sinking fund obligation.
+    // Pending invoices reduce obligations (they're expected income partially offsetting needs).
+    const totalObligations = projectedExpenses + sinkingFundForWindow + upcomingTaxDue;
     const netAvailable     = round2(projectedIncome - totalObligations);
     const coverageRatio    = totalObligations > 0
       ? round2(projectedIncome / totalObligations)
@@ -375,6 +425,25 @@ exports.getLifePulse = async (req, res) => {
       alerts.push('Less than 1 month of financial runway — consider reducing discretionary spending.');
     }
 
+    // Business alerts
+    if (upcomingTaxDue > 0 && taxEstimateCount > 0) {
+      const taxFmt    = upcomingTaxDue.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      const dueDateFmt = taxObligRow.nearest_tax_due
+        ? new Date(taxObligRow.nearest_tax_due + 'T00:00:00')
+            .toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+        : 'soon';
+      alerts.push(
+        `Estimated tax payment of $${taxFmt} is due ${dueDateFmt} — included in your obligations.`
+      );
+    }
+
+    if (pendingInvoiceCount > 0) {
+      const pendingFmt = pendingInvoiceTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      alerts.push(
+        `$${pendingFmt} in outstanding invoices (${pendingInvoiceCount} unpaid) could strengthen your runway once collected.`
+      );
+    }
+
     // ── 8. Compute overall pulse score ─────────────────────────────────────
     const cScore = scoreCoverage(coverageRatio);
     const bScore = scoreBuffer(runwayMonths);
@@ -405,7 +474,11 @@ exports.getLifePulse = async (req, res) => {
       // Averages (useful for debugging / display)
       avg_daily_income:  round2(avgDailyIncome),
       avg_daily_expense: round2(avgDailyExpense),
-      oxsteed_income_90d: round2(oxsteedIncome),
+      oxsteed_income_90d:   round2(oxsteedIncome),
+      invoice_income_90d:   round2(invoiceIncome90d),
+      pending_invoice_total: round2(pendingInvoiceTotal),
+      pending_invoice_count: pendingInvoiceCount,
+      upcoming_tax_due:     round2(upcomingTaxDue),
 
       // Horizon-adjusted projections (backward-compat with old /projection fields)
       projected_income:         projectedIncome,
