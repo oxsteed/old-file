@@ -324,7 +324,7 @@ function BusinessHubInner() {
     setSaving(true);
     try {
       const result = await inviteMember(bizId, { email: form.invite_email.trim(), role: form.invite_role });
-      toast.success(result.user_found ? 'Invitation sent' : 'Invite recorded — they'll see it when they sign up');
+      toast.success(result.user_found ? 'Invitation sent' : `Invite recorded — they'll see it when they sign up`);
       closeModal();
       await loadTeam();
     } catch (e) { setFormErr(e?.response?.data?.error || 'Failed to send invite'); }
