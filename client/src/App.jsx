@@ -39,6 +39,7 @@ import HelperInboxPage from './pages/HelperInboxPage';
 import HelperConversationPage from './pages/HelperConversationPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
+import BusinessHubPage from './pages/BusinessHubPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -102,6 +103,7 @@ export default function App() {
                   <Route path="/helper/messages/:conversationId" element={<Guarded><ProtectedRoute><HelperConversationPage /></ProtectedRoute></Guarded>} />
                   <Route path="/planned-needs" element={<Guarded><ProtectedRoute><PlannedNeedsPage /></ProtectedRoute></Guarded>} />
                   <Route path="/car-care"      element={<Guarded><ProtectedRoute><CarCarePage /></ProtectedRoute></Guarded>} />
+                  <Route path="/business-hub"  element={<Guarded><ProtectedRoute><BusinessHubPage /></ProtectedRoute></Guarded>} />
                   
                   <Route path="*" element={<NotFoundPage />} />
                           </Routes>

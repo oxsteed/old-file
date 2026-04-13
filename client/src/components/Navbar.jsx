@@ -128,6 +128,7 @@ export default function Navbar() {
                 </NavLink>
                 <Divider />
                 <NavLink to="/dashboard" active={isActive('/dashboard')}>Dashboard</NavLink>
+                {isHelper && <NavLink to="/business-hub" active={isActive('/business-hub')}>Business</NavLink>}
                 <NavLink to="/settings" active={isActive('/settings')}>Settings</NavLink>
                 <span className="ox-badge ox-badge-primary" style={{ textTransform: 'capitalize' }}>
                   {user?.role}
@@ -210,6 +211,7 @@ export default function Navbar() {
                     }}>{unreadMsgs}</span>
                   )}
                 </MobileNavLink>
+                {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>Business</MobileNavLink>}
                 <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>Settings</MobileNavLink>
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}

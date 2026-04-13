@@ -673,3 +673,20 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **`jobs.category_id` is unused from frontend:** The DB column is `INTEGER REFERENCES categories(id)` but the frontend uses string slugs (`'electrical-full'`, etc.). PostJobPage intentionally omits `category_id` from the FormData and relies on `category_name` only. If a real categories table with integer IDs is ever added, wire it up in both PostJobPage and jobController.
 - **Admin audit log table:** `adminController.js` calls `logAdminAction()` which writes to `admin_audit_log`. Verify this table exists (check migrations). If it's missing, admin removal actions will throw a 500. Add a migration if needed.
 - **MediaRecorder MIME on Safari/iOS:** `video/webm` is not supported on Safari. `LiveCaptureModal` falls back to the browser's default MIME via `MediaRecorder.isTypeSupported()` — this works but produces `.webm` files with incorrect extension on Safari (which uses `video/mp4`). The uploaded file will still play but the extension may mismatch. Low priority for now.
+
+### Session — 2026-04-13 (Business Hub frontend)
+
+#### New files
+- `client/src/pages/BusinessHubPage.jsx` — four-tab page (Overview, Invoices, Tax, Goals); uses `bh-` CSS prefix from `BusinessHubPage.css`; all API calls via `client/src/api/businesses.js`.
+
+#### Route
+- `client/src/App.jsx`: added `<Route path="/business-hub" …>` (ProtectedRoute + Guarded) next to `/car-care`.
+
+#### Nav links
+- `client/src/components/Navbar.jsx`: "Business" link added to desktop and mobile menus, gated on `isHelper` (helper / helper_pro / broker roles only).
+
+#### Design decisions
+- No chart library — pure CSS bar chart for the 6-month P&L (heights computed as `(value / maxValue) * 180px`).
+- Business switcher persists last selection in `localStorage` under key `oxs:bh:lastBusinessId`.
+- Goals `current_value` is manually entered; revenue/profit goals also surface MTD analytics value as a floor so the bar reflects real data without extra API calls.
+- Defense-in-depth role check inside the page component in addition to nav-link gating.
