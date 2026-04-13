@@ -40,16 +40,26 @@ async function isBusinessMember(userId, bizId) {
 }
 
 // ── POST /api/businesses/:id/vortex-tokens ────────────────────────────────────
-// Owner or manager generates a new single-use Vortex token for a representative slot.
+// Owner or manager generates a new single-use Vortex token.
+// Privilege restriction: only the real business owner may issue manager-role
+// tokens. A manager is silently capped to 'representative' regardless of the
+// role value they supply — preventing privilege self-replication.
 async function generateToken(req, res) {
   try {
     const biz = await ownedOrManagedBusiness(req.user.id, req.params.id);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
-    const { role = 'representative', expires_in = '7d' } = req.body;
-    if (!['manager', 'representative'].includes(role)) {
+    const isOwner = biz.user_id === req.user.id;
+
+    const { role: requestedRole = 'representative', expires_in = '7d' } = req.body;
+
+    if (!['manager', 'representative'].includes(requestedRole)) {
       return res.status(400).json({ error: 'Role must be manager or representative' });
     }
+
+    // Managers may only issue representative-level tokens.
+    // If a manager passes role:'manager', cap it to 'representative'.
+    const role = (!isOwner && requestedRole === 'manager') ? 'representative' : requestedRole;
 
     const EXPIRY_MAP = { '24h': 24, '7d': 168, '30d': 720, '60d': 1440 };
     const hours = EXPIRY_MAP[expires_in];
@@ -223,8 +233,8 @@ async function redeemToken(req, res) {
     // 2. DELETE stale pending invite BEFORE inserting the active membership.
     //    If a pending row exists for the same (business_id, invite_email) unique
     //    constraint, the INSERT below would silently do nothing (ON CONFLICT DO
-    //    NOTHING), and the subsequent DELETE would then remove the only row —
-    //    leaving the user with no membership while the token is already consumed.
+    //    NOTHING), and a subsequent DELETE would remove the only row — leaving
+    //    the user with no membership while the token is already consumed.
     if (req.user.email) {
       await client.query(
         `DELETE FROM business_members
