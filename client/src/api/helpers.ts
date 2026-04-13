@@ -7,6 +7,8 @@ import type { HelperProfileData } from '../types/helperProfile';
 
 export interface HelperDirectoryResponse {
   helpers: HelperCardData[];
+  /** Business cards to mix into the helpers grid (only present on page 1) */
+  businesses?: HelperCardData[];
   total: number;
   page: number;
 }

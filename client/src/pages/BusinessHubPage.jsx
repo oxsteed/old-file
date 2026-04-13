@@ -13,6 +13,7 @@ import {
   listMembers, inviteMember, revokeMember,
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
+  listVortexTokens, generateVortexToken, revokeVortexToken,
 } from '../api/businesses';
 import '../styles/BusinessHubPage.css';
 
@@ -96,6 +97,11 @@ function BusinessHubInner() {
   const [invitations, setInvitations]     = useState([]);
   const [managedBiz, setManagedBiz]       = useState([]);
 
+  // vortex tokens
+  const [vortexTokens, setVortexTokens]   = useState([]);
+  const [tokenForm, setTokenForm]         = useState({ role: 'representative', expires_in: '7d' });
+  const [generatingToken, setGeneratingToken] = useState(false);
+
   // ── load businesses ──────────────────────────────────────────────────────
   const loadBusinesses = useCallback(async () => {
     setLoadingBiz(true);
@@ -152,14 +158,16 @@ function BusinessHubInner() {
     if (!bizId) return;
     setMembersLoading(true);
     try {
-      const [m, inv, managed] = await Promise.all([
+      const [m, inv, managed, tokens] = await Promise.all([
         listMembers(bizId),
         listMyInvitations(),
         listManagedBusinesses(),
+        listVortexTokens(bizId).catch(() => []),
       ]);
       setMembers(m);
       setInvitations(inv);
       setManagedBiz(managed);
+      setVortexTokens(tokens);
     } catch { toast.error('Failed to load team'); }
     finally { setMembersLoading(false); }
   }, [bizId]);
@@ -349,6 +357,29 @@ function BusinessHubInner() {
     } catch { toast.error('Failed to decline'); }
   }
 
+  // ── vortex token handlers ─────────────────────────────────────────────────
+  async function handleGenerateToken() {
+    if (!bizId) return;
+    setGeneratingToken(true);
+    try {
+      await generateVortexToken(bizId, tokenForm);
+      toast.success('Vortex token generated');
+      const tokens = await listVortexTokens(bizId).catch(() => []);
+      setVortexTokens(tokens);
+    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to generate token'); }
+    finally { setGeneratingToken(false); }
+  }
+
+  async function handleRevokeToken(tokenId) {
+    if (!bizId) return;
+    try {
+      await revokeVortexToken(bizId, tokenId);
+      toast.success('Token revoked');
+      const tokens = await listVortexTokens(bizId).catch(() => []);
+      setVortexTokens(tokens);
+    } catch { toast.error('Failed to revoke token'); }
+  }
+
   // ── invoice line items helpers ────────────────────────────────────────────
   function addLineItem() {
     setForm(f => ({ ...f, line_items: [...(f.line_items || []), { description: '', quantity: 1, unit_price: '' }] }));
@@ -507,6 +538,12 @@ function BusinessHubInner() {
                 members={members}
                 invitations={invitations}
                 managedBiz={managedBiz}
+                vortexTokens={vortexTokens}
+                tokenForm={tokenForm}
+                onTokenFormChange={(patch) => setTokenForm(f => ({ ...f, ...patch }))}
+                onGenerateToken={handleGenerateToken}
+                generatingToken={generatingToken}
+                onRevokeToken={handleRevokeToken}
                 onInvite={() => { setForm({ invite_email: '', invite_role: 'representative' }); setFormErr(''); setModal('invite-member'); }}
                 onRevoke={handleRevokeMember}
                 onAccept={handleAcceptInvitation}
@@ -955,8 +992,22 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete }) {
 }
 
 // ── Team tab ──────────────────────────────────────────────────────────────────
-function TeamTab({ members, invitations, managedBiz, onInvite, onRevoke, onAccept, onDecline }) {
+function TeamTab({
+  members, invitations, managedBiz,
+  vortexTokens, tokenForm, onTokenFormChange, onGenerateToken, generatingToken, onRevokeToken,
+  onInvite, onRevoke, onAccept, onDecline,
+}) {
   const ROLE_LABEL = { manager: 'Manager', representative: 'Representative' };
+
+  function copyToken(token) {
+    navigator.clipboard.writeText(token).then(() => {
+      // brief visual flash — no toast dependency needed for a simple copy
+      const el = document.getElementById(`vtx-${token.slice(0, 8)}`);
+      if (el) { el.textContent = 'Copied!'; setTimeout(() => { if (el) el.textContent = 'Copy'; }, 1500); }
+    });
+  }
+
+  const STATUS_COLOR = { active: '#4ade80', used: '#94a3b8', expired: '#f97316', revoked: '#ef4444' };
 
   return (
     <div className="bh-team">
@@ -1004,6 +1055,75 @@ function TeamTab({ members, invitations, managedBiz, onInvite, onRevoke, onAccep
           </div>
         </div>
       )}
+
+      {/* ── Vortex token generator ────────────────────────────────────────── */}
+      <div className="bh-team-section">
+        <h3 className="bh-team-heading">Vortex — Self-Onboarding Tokens</h3>
+        <p className="bh-team-vortex-desc">
+          Generate a 64-character single-use token. Share it with a representative out-of-band — they click
+          "Vortex" in the footer after signing up, enter the token, and are instantly linked to this business.
+        </p>
+        <div className="bh-team-vortex-gen">
+          <select
+            className="bh-select"
+            value={tokenForm.role}
+            onChange={e => onTokenFormChange({ role: e.target.value })}
+          >
+            <option value="representative">Representative</option>
+            <option value="manager">Manager</option>
+          </select>
+          <select
+            className="bh-select"
+            value={tokenForm.expires_in}
+            onChange={e => onTokenFormChange({ expires_in: e.target.value })}
+          >
+            <option value="24h">Expires in 24 hours</option>
+            <option value="7d">Expires in 7 days</option>
+            <option value="30d">Expires in 30 days</option>
+            <option value="60d">Expires in 60 days</option>
+          </select>
+          <button className="bh-btn primary" onClick={onGenerateToken} disabled={generatingToken}>
+            {generatingToken ? 'Generating…' : '+ Generate Token'}
+          </button>
+        </div>
+
+        {vortexTokens.length > 0 && (
+          <div className="bh-vortex-tokens">
+            {vortexTokens.map(t => (
+              <div key={t.id} className={`bh-vortex-token-row bh-vortex-${t.status}`}>
+                <div className="bh-vortex-token-info">
+                  <code className="bh-vortex-code">{t.token.slice(0, 16)}…</code>
+                  <span className="bh-role-badge bh-role-representative" style={{ marginLeft: '0.5rem' }}>{ROLE_LABEL[t.role] || t.role}</span>
+                  <span className="bh-vortex-status" style={{ color: STATUS_COLOR[t.status] || 'inherit' }}>
+                    {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                  </span>
+                  {t.status === 'used' && t.used_by_first && (
+                    <span className="bh-vortex-used-by">Used by {t.used_by_first} {t.used_by_last}</span>
+                  )}
+                  {t.status === 'active' && (
+                    <span className="bh-vortex-expires">Expires {new Date(t.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  )}
+                </div>
+                <div className="bh-vortex-token-actions">
+                  {t.status === 'active' && (
+                    <>
+                      <button
+                        id={`vtx-${t.token.slice(0, 8)}`}
+                        className="bh-btn"
+                        onClick={() => copyToken(t.token)}
+                        style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                      >
+                        Copy
+                      </button>
+                      <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(t.id)}>Revoke</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Members of the currently selected business ─────────────────── */}
       <div className="bh-team-section">

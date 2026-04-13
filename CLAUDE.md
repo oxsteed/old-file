@@ -690,3 +690,43 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - Business switcher persists last selection in `localStorage` under key `oxs:bh:lastBusinessId`.
 - Goals `current_value` is manually entered; revenue/profit goals also surface MTD analytics value as a floor so the bar reflects real data without extra API calls.
 - Defense-in-depth role check inside the page component in addition to nav-link gating.
+
+### Session — 2026-04-13 (Multi-business platform — Vortex tokens, representative access, business directory)
+
+#### New migrations
+- `server/migrations/062_business_members.sql` — `business_members` table with lifecycle `pending→active/revoked`.
+- `server/migrations/063_vortex_tokens_and_biz_conv.sql` — `business_invite_tokens` (64-char single-use tokens) + `business_id` FK on `conversations`.
+- `server/migrations/064_conversations_business_unique.sql` — drops the broad null-job partial unique index from migration 060; replaces with two narrower indexes: one for personal threads (`business_id IS NULL`) and one for business threads (`business_id IS NOT NULL`), so a customer can have separate conversations with the same helper across different business contexts.
+
+#### New server files
+- `server/controllers/vortexController.js` — `generateToken`, `listTokens`, `revokeToken`, `redeemToken`.
+- `server/controllers/businessMembersController.js` — member invite/revoke, invitation accept/decline, `listManagedBusinesses`.
+
+#### Server changes
+- `server/controllers/messageController.js`:
+  - `getConversations`: includes business-rep access via `business_members` EXISTS check; adds `conversation_business_name` via JOIN on `c.business_id`.
+  - `getMessages` / `getConversationMeta` / `sendMessage`: auth checks updated to allow active business reps. `sendMessage` uses `business_name` as `sender_name` when conversation has `business_id` set. Rep sends notify both owner and customer via personal rooms.
+  - `getOrCreateConversation`: accepts optional `businessId`; creates/finds the correctly scoped conversation.
+- `server/controllers/chatController.js` `profileChatMessage`: accepts `businessId`; looks up business owner as helper; creates business-scoped conversation with `business_id` set.
+- `server/index.js` `conversation:join`: extended to allow active business reps to join conversation rooms.
+- `server/controllers/helpersController.js` `listHelpers`: second query fetches active businesses on page 1; maps them to `HelperCardData`-compatible shape with `type: 'business'` and `profileUrl: '/business/:id'`; returns `{ helpers, businesses, total, page }`.
+- `server/routes/businesses.js`: added vortex routes (redeem at top, per-business token CRUD at bottom); wired `businessMembersController` and all member/invitation routes.
+
+#### Frontend changes
+- `client/src/api/businesses.js`: added `listVortexTokens`, `generateVortexToken`, `revokeVortexToken`, `redeemVortexToken`.
+- `client/src/api/helpers.ts`: `HelperDirectoryResponse.businesses?: HelperCardData[]` added.
+- `client/src/types/helperDirectory.ts`: `HelperCardData` extended with optional `type`, `businessId`, `profileUrl`; `memberSince` made optional for business cards.
+- `client/src/components/helperDirectory/HelperCard.tsx`: renders business variant — indigo color scheme, "Business" badge, links to `profileUrl`, "View Business" CTA.
+- `client/src/pages/HelpersDirectoryPage.tsx`: stores `businesses` from API; `mergeGridItems` function inserts business cards at every 4th helper position on page 1; `handleMessage` routes business-id strings to `/business/:id`.
+- `client/src/pages/BusinessHubPage.jsx`: Team tab updated — Vortex token generator section (role, expiry selectors + generate button + token list with copy/revoke); vortex state + handlers in `BusinessHubInner`; `loadTeam` also loads `listVortexTokens`.
+- `client/src/styles/BusinessHubPage.css`: Vortex token section styles (`.bh-team-vortex-*`, `.bh-vortex-*`, `.bh-select`).
+- `client/src/components/Footer.jsx`: "Vortex" pill button (visible to signed-in users only); `VortexModal` component with 64-char token input, character counter, redeem → join-success flow.
+- `client/src/pages/BusinessProfilePage.jsx` `handleContact`: now passes `businessId` in the query string so the resulting conversation is tagged with `business_id`.
+- `client/src/pages/MessagesPage.jsx`: on mount, reads `?helperId=&businessId=` params; auto-calls `POST /messages/conversations` and redirects to the thread.
+
+#### Key design decisions
+- Representatives appear as the **business** in conversation threads (`sender_name` = business name), not as their personal name.
+- Owner can manage the business alongside any active representative — both have full conversation access.
+- If no representative is assigned, the owner is effectively self-assigned (they're still `helper_id` on conversations).
+- Businesses appear mixed into the `/helpers` grid via a separate server query; `type: 'business'` on the card drives the visual variant and link target.
+- Business-context conversations are scoped by `business_id` so a customer can have a separate thread per business (not one shared thread with the owner for all businesses).

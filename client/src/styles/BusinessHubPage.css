@@ -625,3 +625,76 @@
   cursor: pointer;
 }
 .bh-btn-danger-sm:hover { background: rgba(248,113,113,0.1); }
+
+/* ── Vortex tokens ───────────────────────────────────────── */
+.bh-team-vortex-desc {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  margin: 0.25rem 0 1rem;
+  line-height: 1.5;
+}
+.bh-team-vortex-gen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.bh-select {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--app-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.bh-vortex-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bh-vortex-token-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+.bh-vortex-active { border-color: rgba(74,222,128,0.3); }
+.bh-vortex-used   { opacity: 0.55; }
+.bh-vortex-expired { opacity: 0.55; }
+.bh-vortex-revoked { opacity: 0.45; text-decoration: line-through; }
+.bh-vortex-token-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.bh-vortex-code {
+  font-family: monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--app-text);
+}
+.bh-vortex-status {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.bh-vortex-used-by,
+.bh-vortex-expires {
+  font-size: 0.78rem;
+  color: var(--muted-text);
+}
+.bh-vortex-token-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}

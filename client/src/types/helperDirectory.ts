@@ -246,6 +246,12 @@ export interface HelperServiceSummary {
 
 export interface HelperCardData {
   id: string;
+  /** 'helper' (default) or 'business' for business cards mixed into the grid */
+  type?: 'helper' | 'business';
+  /** For business cards — the numeric DB id of the business */
+  businessId?: number;
+  /** For business cards — the URL to link the card to (e.g. /business/:id) */
+  profileUrl?: string;
   businessName: string;
   ownerName: string;
   avatar: string;
@@ -253,7 +259,7 @@ export interface HelperCardData {
   reviewCount: number;
   jobsCompleted: number;
   /** ISO date string */
-  memberSince: string;
+  memberSince?: string;
   verified: boolean;
   backgroundChecked: boolean;
   categories: string[];

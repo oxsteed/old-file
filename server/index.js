@@ -124,7 +124,15 @@ io.on('connection', (socket) => {
     if (!conversationId) return;
     try {
       const { rows } = await pool.query(
-        'SELECT id FROM conversations WHERE id = $1 AND (customer_id = $2 OR helper_id = $2)',
+        `SELECT id FROM conversations
+         WHERE id = $1 AND (
+           customer_id = $2
+           OR helper_id = $2
+           OR (business_id IS NOT NULL AND EXISTS(
+             SELECT 1 FROM business_members bm
+             WHERE bm.business_id = business_id AND bm.member_id = $2 AND bm.status = 'active'
+           ))
+         )`,
         [conversationId, userId]
       );
       if (rows.length) {

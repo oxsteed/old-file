@@ -22,6 +22,13 @@ const {
   listManagedBusinesses,
 } = require('../controllers/businessMembersController');
 
+const {
+  generateToken, listTokens, revokeToken, redeemToken,
+} = require('../controllers/vortexController');
+
+// ── Vortex redeem (no business id — must be before /:id routes) ───────────────
+router.post('/vortex/redeem',                authenticate, redeemToken);
+
 // ── Member invitations (must come before /:id routes) ─────────────────────────
 router.get('/invitations',                   authenticate, listMyInvitations);
 router.post('/invitations/:id/accept',       authenticate, acceptInvitation);
@@ -64,5 +71,10 @@ router.delete('/:id/goals/:goalId',             authenticate, deleteGoal);
 router.get('/:id/members',                      authenticate, listMembers);
 router.post('/:id/members',                     authenticate, inviteMember);
 router.delete('/:id/members/:memberId',         authenticate, revokeMember);
+
+// ── Vortex tokens (per-business) ─────────────────────────────────────────────
+router.get('/:id/vortex-tokens',                authenticate, listTokens);
+router.post('/:id/vortex-tokens',               authenticate, generateToken);
+router.delete('/:id/vortex-tokens/:tokenId',    authenticate, revokeToken);
 
 module.exports = router;

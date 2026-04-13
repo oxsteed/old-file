@@ -45,3 +45,9 @@ export const declineInvitation   = (id)           => api.post(`/businesses/invit
 
 // ── Businesses I manage as a representative / manager ─────────────────────────
 export const listManagedBusinesses = ()           => api.get('/businesses/managed').then(r => r.data?.businesses || []);
+
+// ── Vortex tokens ─────────────────────────────────────────────────────────────
+export const listVortexTokens    = (bizId)               => api.get(`/businesses/${bizId}/vortex-tokens`).then(r => r.data?.tokens || []);
+export const generateVortexToken = (bizId, payload)      => api.post(`/businesses/${bizId}/vortex-tokens`, payload).then(r => r.data?.token);
+export const revokeVortexToken   = (bizId, tokenId)      => api.delete(`/businesses/${bizId}/vortex-tokens/${tokenId}`).then(r => r.data);
+export const redeemVortexToken   = (token)               => api.post('/businesses/vortex/redeem', { token }).then(r => r.data);

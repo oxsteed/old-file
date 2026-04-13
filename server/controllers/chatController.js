@@ -287,12 +287,34 @@ function buildHelperSystemPrompt(helper, skills) {
  */
 exports.profileChatMessage = async (req, res) => {
   try {
-    const { helperId, messages: msgHistory = [], destination = 'helper' } = req.body;
+    const {
+      helperId: rawHelperId,
+      businessId,
+      messages: msgHistory = [],
+      destination = 'helper',
+    } = req.body;
 
-    if (!helperId) return res.status(400).json({ error: 'helperId is required' });
     if (!Array.isArray(msgHistory) || msgHistory.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
     }
+
+    // If a businessId is supplied (message from a business profile page), look up
+    // the business owner so we can set helper_id + business_id on the conversation.
+    let resolvedHelperId = rawHelperId;
+    let resolvedBusinessId = businessId ? parseInt(businessId, 10) || null : null;
+
+    if (resolvedBusinessId) {
+      const bizRes = await pool.query(
+        `SELECT user_id FROM businesses WHERE id = $1 AND is_active = TRUE`,
+        [resolvedBusinessId]
+      );
+      if (!bizRes.rows.length) {
+        return res.status(404).json({ error: 'Business not found' });
+      }
+      resolvedHelperId = bizRes.rows[0].user_id;
+    }
+
+    if (!resolvedHelperId) return res.status(400).json({ error: 'helperId or businessId is required' });
 
     // Fetch helper row — only return data for actual helper accounts to prevent
     // conversations being created with admin or customer accounts (M-32)
@@ -307,10 +329,11 @@ exports.profileChatMessage = async (req, res) => {
          WHERE u.id = $1
            AND u.role IN ($2, $3, $4)
            AND u.deleted_at IS NULL`,
-      [helperId, ROLES.HELPER_FREE, ROLES.HELPER_PRO, ROLES.HELPER_BROKER]
+      [resolvedHelperId, ROLES.HELPER_FREE, ROLES.HELPER_PRO, ROLES.HELPER_BROKER]
     );
     if (!helperRes.rows.length) return res.status(404).json({ error: 'Helper not found' });
     const helper = helperRes.rows[0];
+    const helperId = resolvedHelperId;
 
     // Fetch helper's listed skills for context
     const skillsRes = await pool.query(
@@ -324,12 +347,16 @@ exports.profileChatMessage = async (req, res) => {
 
     // ── Live mode: authenticated customer + helper online + destination=helper ──
     if (destination === 'helper' && helperOnline && userId) {
-      // Get or create conversation
+      // Get or create conversation — scope by business_id when present
       const existingConv = await pool.query(
-        `SELECT id FROM conversations
-          WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL
-          LIMIT 1`,
-        [userId, helperId]
+        resolvedBusinessId
+          ? `SELECT id FROM conversations
+              WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id = $3
+              LIMIT 1`
+          : `SELECT id FROM conversations
+              WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL
+              LIMIT 1`,
+        resolvedBusinessId ? [userId, helperId, resolvedBusinessId] : [userId, helperId]
       );
 
       let conversationId;
@@ -337,19 +364,26 @@ exports.profileChatMessage = async (req, res) => {
         conversationId = existingConv.rows[0].id;
       } else {
         const newConv = await pool.query(
-          `INSERT INTO conversations (customer_id, helper_id)
-           VALUES ($1, $2)
-           ON CONFLICT DO NOTHING
-           RETURNING id`,
-          [userId, helperId]
+          resolvedBusinessId
+            ? `INSERT INTO conversations (customer_id, helper_id, business_id)
+               VALUES ($1, $2, $3)
+               ON CONFLICT DO NOTHING
+               RETURNING id`
+            : `INSERT INTO conversations (customer_id, helper_id)
+               VALUES ($1, $2)
+               ON CONFLICT DO NOTHING
+               RETURNING id`,
+          resolvedBusinessId ? [userId, helperId, resolvedBusinessId] : [userId, helperId]
         );
         if (newConv.rows.length) {
           conversationId = newConv.rows[0].id;
         } else {
           // Row was inserted concurrently — fetch it
           const fetched = await pool.query(
-            `SELECT id FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL LIMIT 1`,
-            [userId, helperId]
+            resolvedBusinessId
+              ? `SELECT id FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id = $3 LIMIT 1`
+              : `SELECT id FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL LIMIT 1`,
+            resolvedBusinessId ? [userId, helperId, resolvedBusinessId] : [userId, helperId]
           );
           conversationId = fetched.rows[0]?.id;
         }

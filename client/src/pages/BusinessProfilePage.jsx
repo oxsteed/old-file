@@ -72,8 +72,14 @@ export default function BusinessProfilePage() {
       navigate('/login', { state: { from: `/business/${id}` } });
       return;
     }
-    // Open a conversation with the business owner
-    navigate(`/messages?helperId=${profile.business.owner_id}&helperName=${encodeURIComponent(profile.business.business_name)}`);
+    // Open a conversation scoped to this business.
+    // businessId ensures the thread is tagged with business_id in the DB so
+    // representatives can also access and reply to it.
+    navigate(
+      `/messages?helperId=${profile.business.owner_id}` +
+      `&businessId=${id}` +
+      `&helperName=${encodeURIComponent(profile.business.business_name)}`
+    );
   }
 
   function handleHire() {
