@@ -120,8 +120,8 @@ async function callWithFallback(messages, ollamaOptions, logTag) {
       skip: () => !OLLAMA_URL,
     },
     {
-      name: 'OpenRouter (tongyi/tongyi-deepresearch-30b-a3b:free)',
-      run: () => fetchOpenRouterChat('tongyi/tongyi-deepresearch-30b-a3b:free', messages),
+      name: 'OpenRouter (alibaba/tongyi-deepresearch-30b-a3b:free)',
+      run: () => fetchOpenRouterChat('alibaba/tongyi-deepresearch-30b-a3b:free', messages),
     },
   ];
 
