@@ -31,6 +31,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const typingTimerRef = useRef(null);
   const typingAutoClearRef = useRef(null);
   const isTypingRef = useRef(false);
+  const messageIdsRef = useRef(new Set());
 
   const { user } = useAuth();
   const { socket, connected, joinConversation, leaveConversation } = useSocket();
@@ -40,6 +41,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     try {
       const res = await api.get(`/messages/conversations/${conversationId}`);
       const data = Array.isArray(res.data) ? res.data : [];
+      messageIdsRef.current = new Set(data.map((m) => m.id));
       setMessages(data);
       const other = data.find(m => m.sender_id !== user?.id);
       if (other?.sender_name) setOtherName(other.sender_name);
@@ -84,19 +86,37 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     setOtherTyping(false);
   }, []);
 
+  const markConversationRead = useCallback(async () => {
+    try {
+      await api.get(`/messages/conversations/${conversationId}`);
+    } catch (_err) {
+      // Best effort: read state will be synced on next successful fetch.
+    }
+  }, [conversationId]);
+
+  const appendMessageIfNew = useCallback((incomingMessage) => {
+    if (!incomingMessage || messageIdsRef.current.has(incomingMessage.id)) {
+      return false;
+    }
+    messageIdsRef.current.add(incomingMessage.id);
+    setMessages((prev) => [...prev, incomingMessage]);
+    return true;
+  }, []);
+
   // ── Real-time events ─────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
 
     const onMessageNew = ({ conversationId: cid, message }) => {
       if (String(cid) !== String(conversationId)) return;
+      const appended = appendMessageIfNew(message);
+      if (!appended) return;
       // Only clear "other typing" when the message is from the other party.
       // Our own message echoes would incorrectly hide their typing indicator.
-      if (message.sender_id !== user?.id) clearOtherTyping();
-      setMessages(prev => {
-        if (prev.some(m => m.id === message.id)) return prev;
-        return [...prev, message];
-      });
+      if (message.sender_id !== user?.id) {
+        clearOtherTyping();
+        markConversationRead();
+      }
       if (message.sender_id !== user?.id && message.sender_name) {
         setOtherName((prev) => prev || message.sender_name);
       }
@@ -106,18 +126,20 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       if (String(cid) !== String(conversationId)) return;
       const enriched =
         senderName && !message.sender_name ? { ...message, sender_name: senderName } : message;
-      if (enriched.sender_id !== user?.id) clearOtherTyping();
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === enriched.id)) return prev;
-        return [...prev, enriched];
-      });
+      const appended = appendMessageIfNew(enriched);
+      if (!appended) return;
+      if (enriched.sender_id !== user?.id) {
+        clearOtherTyping();
+        markConversationRead();
+      }
       if (enriched.sender_id !== user?.id && enriched.sender_name) {
         setOtherName((prev) => prev || enriched.sender_name);
       }
     };
 
-    const onTyping = ({ conversationId: cid }) => {
+    const onTyping = ({ conversationId: cid, userId }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(userId) === String(user?.id)) return;
       setOtherTyping(true);
       // Auto-clear safety net: if typing:stop never arrives (e.g. user
       // disconnects mid-typing), clear the indicator after TYPING_AUTO_CLEAR_MS.
@@ -127,8 +149,9 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       }, TYPING_AUTO_CLEAR_MS);
     };
 
-    const onStoppedTyping = ({ conversationId: cid }) => {
+    const onStoppedTyping = ({ conversationId: cid, userId }) => {
       if (String(cid) !== String(conversationId)) return;
+      if (String(userId) === String(user?.id)) return;
       clearOtherTyping();
     };
 
@@ -162,7 +185,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
         socket.off(event, handler);
       }
     };
-  }, [socket, conversationId, user?.id, clearOtherTyping, listenProfileChat]); // eslint-disable-line react-hooks/exhaustive-deps -- extraSocketEvents intentionally omitted (often new [] per render)
+  }, [socket, conversationId, user?.id, clearOtherTyping, markConversationRead, appendMessageIfNew, listenProfileChat]); // eslint-disable-line react-hooks/exhaustive-deps -- extraSocketEvents intentionally omitted (often new [] per render)
 
   // ── Typing indicator emit ─────────────────────────────────────
   const handleInputChange = (e) => {
@@ -190,7 +213,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const handleBlur = () => stopTypingEmit();
 
   // ── Send ──────────────────────────────────────────────────────
-  const handleSend = async (e) => {
+  const handleSend = useCallback(async (e) => {
     e?.preventDefault();
     const content = newMessage.trim();
     if (!content || sending) return;
@@ -199,10 +222,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     setNewMessage('');
     try {
       const res = await api.post(`/messages/conversations/${conversationId}`, { content });
-      setMessages(prev => {
-        if (prev.some(m => m.id === res.data.id)) return prev;
-        return [...prev, res.data];
-      });
+      appendMessageIfNew(res.data);
     } catch (err) {
       console.error('[useConversationChat] send error:', err);
       setNewMessage(content);
@@ -210,7 +230,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       setSending(false);
       inputRef.current?.focus();
     }
-  };
+  }, [newMessage, sending, stopTypingEmit, conversationId, appendMessageIfNew]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
