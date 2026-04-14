@@ -286,7 +286,7 @@ async function listHelpers(req, res) {
       const bizWhere = bizConditions.join(' AND ');
       const { rows: bizRows } = await pool.query(
         `SELECT
-           b.id, b.business_name, hp.profile_headline AS tagline, b.about,
+           b.id, b.business_name, hp.profile_headline AS tagline, b.description AS about,
            b.logo_url AS profile_photo_url,
            NULL AS city, NULL AS state,
            0 AS avg_rating, 0 AS total_reviews,
