@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StepBar, AccountForm, DiditPanel } from '../components/registration';
+import Footer from '../components/Footer';
 
 type Step = 1 | 2;
 
@@ -73,11 +74,10 @@ export default function HelperRegister() {
             </div>
           </div>
 
-          <footer className="text-center text-xs text-gray-600">
-            © {new Date().getFullYear()} OxSteed · Springfield, OH
-          </footer>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }
