@@ -1,13 +1,14 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// Paths a helper is allowed to visit while in the onboarding gate.
-// '/helper/onboarding' was removed — no matching <Route> exists in App.jsx.
+// Protected routes a helper may visit before onboarding is complete.
+// All entries here must correspond to actual <ProtectedRoute>-wrapped routes
+// in App.jsx — public paths never reach this gate.
+// '/helper-dashboard' is required: HelperRegister navigates there after OTP
+// verification, before onboarding_completed is set to true.
 const ONBOARDING_ALLOWED_PATHS = [
-  '/register/helper',
-  '/register/helper/onboarding',
-  '/onboarding',
-  '/logout',
+  '/helper-dashboard',
+  '/dashboard',
 ];
 
 export default function ProtectedRoute({ children, requiredRole, requireOnboarded = true }) {

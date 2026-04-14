@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import type { CookiePreferences } from '../hooks/useCookieConsent';
 
@@ -11,6 +11,7 @@ export default function CookieConsent() {
     savePreferences,
     openSettings,
     closeSettings,
+    preferences,
   } = useCookieConsentContext();
 
   const [local, setLocal] = useState({
@@ -18,6 +19,19 @@ export default function CookieConsent() {
     marketing: false,
     functional: false,
   });
+
+  // Seed the local toggle state from saved preferences each time the settings
+  // panel opens, so returning users see their existing choices rather than
+  // all-false — which would silently revoke prior consent on "Save".
+  useEffect(() => {
+    if (showSettings && preferences) {
+      setLocal({
+        analytics: preferences.analytics ?? false,
+        marketing: preferences.marketing ?? false,
+        functional: preferences.functional ?? false,
+      });
+    }
+  }, [showSettings, preferences]);
 
   if (!showBanner && !showSettings) return null;
 

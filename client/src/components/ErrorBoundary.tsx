@@ -42,18 +42,18 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
   };
 
   handleGoHome = () => {
-    // Always reset error state first so the boundary renders its children
-    // after navigation. Without this, hasError stays true and the error
-    // screen remains visible even after the URL changes to '/'.
-    this.setState({ hasError: false, error: null }, () => {
-      if (this.props.navigateHome) {
-        // Prefer SPA navigation when a router is available (see RouterAwareErrorBoundary)
-        this.props.navigateHome();
-      } else {
-        // Fallback: hard redirect when rendered outside a Router (e.g. tests)
-        window.location.href = '/';
-      }
-    });
+    if (this.props.navigateHome) {
+      // Navigate first so children re-render at '/' rather than the broken
+      // route. Resetting state before navigating would cause a re-render at
+      // the crashed route, which could immediately re-trigger
+      // getDerivedStateFromError and snap hasError back to true before the
+      // URL update fires.
+      this.props.navigateHome();
+      this.setState({ hasError: false, error: null });
+    } else {
+      // Fallback: hard redirect when rendered outside a Router (e.g. tests)
+      window.location.href = '/';
+    }
   };
 
   render() {
