@@ -251,16 +251,20 @@ function BusinessHubInner() {
       await updateBusiness(bizId, {
         business_name:        profileForm.business_name       || undefined,
         business_type:        profileForm.business_type       || undefined,
-        profile_headline:     profileForm.profile_headline    || undefined,
-        description:          profileForm.description         || undefined,
-        phone:                profileForm.phone               || undefined,
-        website:              profileForm.website             || undefined,
-        address_street:       profileForm.address_street      || undefined,
-        address_city:         profileForm.address_city        || undefined,
-        address_state:        profileForm.address_state       || undefined,
-        address_zip:          profileForm.address_zip         || undefined,
-        service_radius_miles: profileForm.service_radius_miles
-                                ? parseFloat(profileForm.service_radius_miles) : undefined,
+        // Send '' / null explicitly so JSON includes the key; omitted keys become NULL
+        // server-side and COALESCE(NULL, col) would preserve the previous value.
+        profile_headline:     profileForm.profile_headline ?? '',
+        description:          profileForm.description ?? '',
+        phone:                profileForm.phone ?? '',
+        website:              profileForm.website ?? '',
+        address_street:       profileForm.address_street ?? '',
+        address_city:         profileForm.address_city ?? '',
+        address_state:        profileForm.address_state ?? '',
+        address_zip:          profileForm.address_zip ?? '',
+        service_radius_miles:
+          profileForm.service_radius_miles === '' || profileForm.service_radius_miles == null
+            ? null
+            : parseFloat(profileForm.service_radius_miles),
         ...photoPatch,
       });
       toast.success('Profile saved');
