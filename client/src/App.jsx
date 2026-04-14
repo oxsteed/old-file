@@ -2,8 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { CookieConsentProvider } from './context/CookieConsentContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import { RouterAwareErrorBoundary } from './components/ErrorBoundary';
+import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import Login from './pages/Login';
@@ -49,6 +50,7 @@ import SupportWidget from './components/SupportWidget';
 
 // Wraps each route element in its own error boundary so a crash in one page
 // doesn't blank the entire app — only that route shows an error.
+// Plain ErrorBoundary is fine here: these are already inside <Router>.
 function Guarded({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
@@ -57,65 +59,74 @@ export default function App() {
   return (
     <HelmetProvider>
       <ThemeProvider>
-        {/* Root boundary catches catastrophic failures (Router, AuthProvider, etc.) */}
-        <ErrorBoundary>
-          <Router>
-            <AuthProvider>
-              <ScrollToTop />
-              <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-              <TermsGate>
-                <Routes>
-                  {/* ── Public routes ──────────────────────────────────── */}
-                  <Route path="/"                        element={<Guarded><HomePage /></Guarded>} />
-                  <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
-                  <Route path="/register/customer"       element={<Guarded><CustomerRegister /></Guarded>} />
-                  <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
-                  <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
-                  <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
-                  <Route path="/how-it-works"            element={<Guarded><HowItWorksPage /></Guarded>} />
-                  <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
-                  <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
-                  <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
-                  <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
-                  <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
-                  <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
-                  <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
+        {/*
+          Root boundary: RouterAwareErrorBoundary must sit INSIDE <Router> so
+          useNavigate() is available. The outer ThemeProvider/HelmetProvider
+          layer is stateless — catastrophic failures there are vanishingly rare
+          and would prevent the Router from mounting anyway.
+        */}
+        <Router>
+          {/* Single shared cookie-consent state — Footer and CookieConsent
+              both consume this via useCookieConsentContext(). */}
+          <CookieConsentProvider>
+            <RouterAwareErrorBoundary>
+              <AuthProvider>
+                <ScrollToTop />
+                <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+                <TermsGate>
+                  <Routes>
+                    {/* ── Public routes ────────────────────────────────────── */}
+                    <Route path="/"                        element={<Guarded><HomePage /></Guarded>} />
+                    <Route path="/login"                   element={<Guarded><Login /></Guarded>} />
+                    <Route path="/register/customer"       element={<Guarded><CustomerRegister /></Guarded>} />
+                    <Route path="/register/helper"         element={<Guarded><HelperRegister /></Guarded>} />
+                    <Route path="/forgot-password"         element={<Guarded><ForgotPasswordPage /></Guarded>} />
+                    <Route path="/reset-password/:token"   element={<Guarded><ResetPasswordPage /></Guarded>} />
+                    <Route path="/how-it-works"            element={<Guarded><HowItWorksPage /></Guarded>} />
+                    <Route path="/about"                   element={<Guarded><AboutPage /></Guarded>} />
+                    <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
+                    <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
+                    <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
+                    <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
+                    <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
+                    <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
 
-                  {/* ── Legal / policy pages ───────────────────────────── */}
-                  <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
-                  <Route path="/privacy"        element={<Guarded><PrivacyPage /></Guarded>} />
-                  <Route path="/do-not-sell"    element={<Guarded><DoNotSellPage /></Guarded>} />
-                  <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />
-                  <Route path="/cookie-policy"  element={<Guarded><CookiePolicyPage /></Guarded>} />
-                  <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
+                    {/* ── Legal / policy pages ─────────────────────────────── */}
+                    <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
+                    <Route path="/privacy"        element={<Guarded><PrivacyPage /></Guarded>} />
+                    <Route path="/do-not-sell"    element={<Guarded><DoNotSellPage /></Guarded>} />
+                    <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />
+                    <Route path="/cookie-policy"  element={<Guarded><CookiePolicyPage /></Guarded>} />
+                    <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
 
-                  {/* ── Authenticated routes ───────────────────────────── */}
-                  <Route path="/dashboard"      element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
-                  <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
-                  <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
-                  <Route path="/post-job"       element={<Guarded><ProtectedRoute><PostJobPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
-                  <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
-                  <Route path="/disputes"       element={<Guarded><ProtectedRoute><DisputeCenter /></ProtectedRoute></Guarded>} />
-                  <Route path="/disputes/:id"   element={<Guarded><ProtectedRoute><DisputeDetail /></ProtectedRoute></Guarded>} />
-                  <Route path="/messages"       element={<Guarded><ProtectedRoute><MessagesPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><ConversationPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/helper/messages" element={<Guarded><ProtectedRoute><HelperInboxPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/helper/messages/:conversationId" element={<Guarded><ProtectedRoute><HelperConversationPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/planned-needs" element={<Guarded><ProtectedRoute><PlannedNeedsPage /></ProtectedRoute></Guarded>} />
-                  <Route path="/car-care"      element={<Guarded><ProtectedRoute><CarCarePage /></ProtectedRoute></Guarded>} />
-                  <Route path="/business-hub"  element={<Guarded><ProtectedRoute><BusinessHubPage /></ProtectedRoute></Guarded>} />
-                  
-                  <Route path="*" element={<NotFoundPage />} />
-                          </Routes>
-                        </TermsGate>
-        <CookieConsent />
-        <SupportWidget />
-        </AuthProvider>
-          </Router>
-      </ErrorBoundary>
-    </ThemeProvider>
+                    {/* ── Authenticated routes ────────────────────────────── */}
+                    <Route path="/dashboard"      element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
+                    <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
+                    <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
+                    <Route path="/post-job"       element={<Guarded><ProtectedRoute><PostJobPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
+                    <Route path="/disputes"       element={<Guarded><ProtectedRoute><DisputeCenter /></ProtectedRoute></Guarded>} />
+                    <Route path="/disputes/:id"   element={<Guarded><ProtectedRoute><DisputeDetail /></ProtectedRoute></Guarded>} />
+                    <Route path="/messages"       element={<Guarded><ProtectedRoute><MessagesPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><ConversationPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/helper/messages" element={<Guarded><ProtectedRoute><HelperInboxPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/helper/messages/:conversationId" element={<Guarded><ProtectedRoute><HelperConversationPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/planned-needs" element={<Guarded><ProtectedRoute><PlannedNeedsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/car-care"      element={<Guarded><ProtectedRoute><CarCarePage /></ProtectedRoute></Guarded>} />
+                    <Route path="/business-hub"  element={<Guarded><ProtectedRoute><BusinessHubPage /></ProtectedRoute></Guarded>} />
+
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </TermsGate>
+                <CookieConsent />
+                <SupportWidget />
+              </AuthProvider>
+            </RouterAwareErrorBoundary>
+          </CookieConsentProvider>
+        </Router>
+      </ThemeProvider>
     </HelmetProvider>
   );
 }

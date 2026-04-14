@@ -1,19 +1,18 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext';
 
-// '/helper/onboarding' was removed — no matching <Route> exists in App.jsx.
-// Helpers in the onboarding gate are redirected to /register/helper (see below).
+// Protected routes a helper may visit before onboarding is complete.
+// All entries here must correspond to actual <ProtectedRoute>-wrapped routes
+// in App.jsx — public paths never reach this gate.
+// '/helper-dashboard' is required: HelperRegister navigates there after OTP
+// verification, before onboarding_completed is set to true.
 const ONBOARDING_ALLOWED_PATHS = [
-  '/login',
-  '/register',
-  '/register/helper',
-  '/register/customer',
-  '/helper-register',
   '/helper-dashboard',
+  '/dashboard',
 ];
 
-export default function ProtectedRoute({ children, requiredRole, requiredTier }) {
-  const { user, loading } = useAuth();
+export default function ProtectedRoute({ children, requiredRole, requireOnboarded = true }) {
+  const { user, loading, isOnboardingComplete } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -28,24 +27,19 @@ export default function ProtectedRoute({ children, requiredRole, requiredTier })
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Helper onboarding gate: redirect incomplete helpers unless on allowed paths
-  const helperOnboardingComplete = user.onboarding_step === 'active'
-    || user.onboarding_completed
-    || user.onboarding_status === 'onboarding_complete';
-  if (
-    user.role === 'helper' &&
-    !helperOnboardingComplete &&
-    !ONBOARDING_ALLOWED_PATHS.some(p => location.pathname.startsWith(p))
-  ) {
-    return <Navigate to="/register/helper" replace />;
-  }
-
   if (requiredRole && user.role !== requiredRole) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (requiredTier && user.tier !== requiredTier) {
-    return <Navigate to="/dashboard" replace />;
+  // Helper onboarding gate: redirect helpers who haven't completed onboarding
+  // unless they're already on an allowed path.
+  if (
+    requireOnboarded &&
+    user.role === 'helper' &&
+    !isOnboardingComplete &&
+    !ONBOARDING_ALLOWED_PATHS.includes(location.pathname)
+  ) {
+    return <Navigate to="/register/helper" replace />;
   }
 
   return children;

@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useCookieConsent, CookiePreferences } from '../hooks/useCookieConsent';
+import { useState, useEffect } from 'react';
+import { useCookieConsentContext } from '../context/CookieConsentContext';
+import type { CookiePreferences } from '../hooks/useCookieConsent';
 
 export default function CookieConsent() {
   const {
@@ -11,7 +12,7 @@ export default function CookieConsent() {
     openSettings,
     closeSettings,
     preferences,
-  } = useCookieConsent();
+  } = useCookieConsentContext();
 
   const [local, setLocal] = useState({
     analytics: false,
@@ -19,9 +20,22 @@ export default function CookieConsent() {
     functional: false,
   });
 
+  // Seed the local toggle state from saved preferences each time the settings
+  // panel opens, so returning users see their existing choices rather than
+  // all-false — which would silently revoke prior consent on "Save".
+  useEffect(() => {
+    if (showSettings && preferences) {
+      setLocal({
+        analytics: preferences.analytics ?? false,
+        marketing: preferences.marketing ?? false,
+        functional: preferences.functional ?? false,
+      });
+    }
+  }, [showSettings, preferences]);
+
   if (!showBanner && !showSettings) return null;
 
-  // ─── Settings Panel ─────────────────────────────────────────
+  // ─── Settings Panel ──────────────────────────────────────────────
   if (showSettings) {
     return (
       <div style={overlay}>
@@ -79,7 +93,7 @@ export default function CookieConsent() {
     );
   }
 
-  // ─── Banner ─────────────────────────────────────────────────
+  // ─── Banner ────────────────────────────────────────────────────
   return (
     <div style={bannerWrap}>
       <div style={bannerInner}>
@@ -100,7 +114,7 @@ export default function CookieConsent() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────
+// ─── Styles ────────────────────────────────────────────────────
 const overlay: React.CSSProperties = {
   position: 'fixed', inset: 0, zIndex: 10000,
   display: 'flex', alignItems: 'center', justifyContent: 'center',

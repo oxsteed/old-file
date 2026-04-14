@@ -3,11 +3,15 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
+import { useCookieConsentContext } from '../context/CookieConsentContext';
 
 export default function Footer() {
   const { user } = useAuth();
   const year = new Date().getFullYear();
   const [vortexOpen, setVortexOpen] = useState(false);
+  // Reads from the shared CookieConsentProvider — openSettings() here will
+  // update the same showSettings state that <CookieConsent> is listening to.
+  const { openSettings } = useCookieConsentContext();
 
   return (
     <>
@@ -103,6 +107,24 @@ export default function Footer() {
           <LegalLink to="/cookie-policy">Cookie Policy</LegalLink>
           <LegalLink to="/do-not-sell">Do Not Sell My Info</LegalLink>
           <LegalLink to="/accessibility">Accessibility</LegalLink>
+          {/* GDPR: persistent entry point so users can change consent at any time */}
+          <button
+            onClick={openSettings}
+            aria-label="Manage cookie preferences"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              fontSize: '0.78rem',
+              color: 'var(--color-text-faint)',
+              cursor: 'pointer',
+              transition: 'color var(--transition-fast)',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-faint)')}
+          >
+            Manage Cookies
+          </button>
           {user && (
             <button
               onClick={() => setVortexOpen(true)}
