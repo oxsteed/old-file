@@ -2,14 +2,17 @@ const cron                 = require('node-cron');
 const db                   = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const { ROLES }            = require('../constants/roles');
+const logger               = require('../utils/logger');
 
 /**
  * Every Monday at 8am Eastern
- * Send each active helper their weekly earnings + job summary
+ * Send each active helper their weekly earnings + job summary.
+ * Each iteration is wrapped in its own try-catch so a single failure
+ * does not abort the rest of the batch.
  */
 const startWeeklySummaryJob = () => {
   cron.schedule('0 8 * * 1', async () => {
-    console.log('[Cron] Running weekly summary emails...');
+    logger.info('[Cron] Running weekly summary emails...');
     try {
       const { rows: helpers } = await db.query(
         `SELECT
@@ -35,27 +38,37 @@ const startWeeklySummaryJob = () => {
       );
 
       let sent = 0;
+      let failed = 0;
+
       for (const helper of helpers) {
-        await sendNotification({
-          userId: helper.id,
-          type:   'weekly_summary',
-          title:  `Your weekly OxSteed summary`,
-          body:   `This week: $${parseFloat(helper.earnings_mtd || 0)
-                    .toFixed(2)} earned MTD · ${helper.active_bids} active bids`,
-          data: {
-            earnings_mtd:       helper.earnings_mtd,
-            completed_jobs:     helper.completed_jobs,
-            active_bids:        helper.active_bids,
-            open_jobs_posted:   helper.open_jobs_posted
-          },
-          action_url: '/dashboard'
-        });
-        sent++;
+        try {
+          await sendNotification({
+            userId: helper.id,
+            type:   'weekly_summary',
+            title:  `Your weekly OxSteed summary`,
+            body:   `This week: $${parseFloat(helper.earnings_mtd || 0)
+                      .toFixed(2)} earned MTD · ${helper.active_bids} active bids`,
+            data: {
+              earnings_mtd:       helper.earnings_mtd,
+              completed_jobs:     helper.completed_jobs,
+              active_bids:        helper.active_bids,
+              open_jobs_posted:   helper.open_jobs_posted
+            },
+            action_url: '/dashboard'
+          });
+          sent++;
+        } catch (helperErr) {
+          failed++;
+          logger.error('[Cron] Weekly summary failed for helper', {
+            helperId: helper.id,
+            message: helperErr.message
+          });
+        }
       }
 
-      console.log(`[Cron] Weekly summaries sent: ${sent}`);
+      logger.info(`[Cron] Weekly summaries complete`, { sent, failed, total: helpers.length });
     } catch (err) {
-      console.error('[Cron] Weekly summary error:', err);
+      logger.error('[Cron] Weekly summary job error:', { message: err.message, stack: err.stack });
     }
   }, { timezone: 'America/New_York' });
 };

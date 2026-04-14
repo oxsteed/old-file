@@ -1,14 +1,15 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+// '/helper/onboarding' was removed — no matching <Route> exists in App.jsx.
+// Helpers in the onboarding gate are redirected to /register/helper (see below).
 const ONBOARDING_ALLOWED_PATHS = [
-  '/helper/onboarding',
   '/login',
   '/register',
   '/register/helper',
   '/register/customer',
   '/helper-register',
-    '/helper-dashboard',
+  '/helper-dashboard',
 ];
 
 export default function ProtectedRoute({ children, requiredRole, requiredTier }) {

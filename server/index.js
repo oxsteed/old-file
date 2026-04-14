@@ -58,7 +58,9 @@ const vehicleRoutes         = require('./routes/vehicles');
 const houseRoutes           = require('./routes/house');
 const helperProfileRoutes  = require('./routes/helperProfile');
 const helperProductsRoutes = require('./routes/helperProducts');
-const roleToggleRoutes     = require('./routes/roleToggle');
+// roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
+// The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
+// creation, and no fresh JWT issuance, causing inconsistent auth state.
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -271,7 +273,7 @@ app.use('/api/vehicles',      vehicleRoutes);
 app.use('/api/house',         houseRoutes);
 app.use('/api/helper-profile', helperProfileRoutes);
 app.use('/api/helper-products', helperProductsRoutes);
-app.use('/api/role-toggle',     roleToggleRoutes);
+// NOTE: /api/role-toggle intentionally removed — see comment near top of file
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
@@ -332,4 +334,3 @@ function shutdown(signal) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-
