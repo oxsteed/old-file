@@ -113,16 +113,28 @@ function BusinessHubInner() {
   const [logoFile, setLogoFile]           = useState(null);
   const [coverFile, setCoverFile]         = useState(null);
 
-  // ── load businesses ──────────────────────────────────────────────────────
+  // ── load businesses (owned + managed) ───────────────────────────────────
   const loadBusinesses = useCallback(async () => {
     setLoadingBiz(true);
     try {
-      const list = await listBusinesses();
-      setBusinesses(list);
-      if (list.length > 0) {
+      const [owned, managed] = await Promise.all([
+        listBusinesses(),
+        listManagedBusinesses().catch(() => []),
+      ]);
+      // Tag each entry so the UI knows the caller's relationship to it.
+      const ownedTagged   = owned.map(b   => ({ ...b, _role: 'owner'    }));
+      const managedTagged = managed.map(b => ({ ...b, _role: b.role })); // 'manager' | 'representative'
+      // Deduplicate: if the user somehow owns AND is a member, prefer 'owner'.
+      const seen = new Set(ownedTagged.map(b => String(b.id)));
+      const merged = [
+        ...ownedTagged,
+        ...managedTagged.filter(b => !seen.has(String(b.id))),
+      ];
+      setBusinesses(merged);
+      if (merged.length > 0) {
         const saved = localStorage.getItem(LS_KEY);
-        const valid = saved && list.find(b => String(b.id) === String(saved));
-        const chosen = valid ? saved : String(list[0].id);
+        const valid = saved && merged.find(b => String(b.id) === String(saved));
+        const chosen = valid ? saved : String(merged[0].id);
         setBizId(chosen);
         localStorage.setItem(LS_KEY, chosen);
       }
@@ -481,8 +493,17 @@ function BusinessHubInner() {
     return { subtotal, taxAmt, total: subtotal + taxAmt };
   }
 
-  // ── current biz object ────────────────────────────────────────────────────
-  const currentBiz = businesses.find(b => String(b.id) === String(bizId));
+  // ── current biz object + caller's role ───────────────────────────────────
+  const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
+  const currentRole = currentBiz?._role || 'owner'; // 'owner' | 'manager' | 'representative'
+  const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
+
+  // If the user switches to a business where they can't edit profile, fall back to overview
+  useEffect(() => {
+    if (tab === 'profile' && !canEditBizProfile) {
+      setTab('overview');
+    }
+  }, [bizId, canEditBizProfile, tab]);
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -520,10 +541,18 @@ function BusinessHubInner() {
               <span className="bh-switcher-label">Business</span>
               <select value={bizId} onChange={e => handleSwitchBiz(e.target.value)}>
                 {businesses.map(b => (
-                  <option key={b.id} value={b.id}>{b.business_name}</option>
+                  <option key={b.id} value={b.id}>
+                    {b.business_name}
+                    {b._role !== 'owner' ? ` (${b._role})` : ''}
+                  </option>
                 ))}
               </select>
-              {currentBiz?.is_primary && <span className="bh-primary-tag">Primary</span>}
+              {currentBiz?.is_primary && currentRole === 'owner' && <span className="bh-primary-tag">Primary</span>}
+              {currentRole !== 'owner' && (
+                <span className="bh-primary-tag" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', borderColor: 'rgba(99,102,241,0.3)' }}>
+                  {currentRole === 'manager' ? 'Manager' : 'Representative'}
+                </span>
+              )}
               {bizId && (
                 <Link
                   to={`/business/${bizId}`}
@@ -539,11 +568,13 @@ function BusinessHubInner() {
 
             {/* Tabs */}
             <div className="bh-tabs">
-              {['profile', 'overview', 'invoices', 'tax', 'goals', 'team'].map(t => (
-                <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-                  {t === 'profile' ? 'Edit Profile' : t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
-                </button>
-              ))}
+              {['profile', 'overview', 'invoices', 'tax', 'goals', 'team']
+                .filter(t => t !== 'profile' || canEditBizProfile)
+                .map(t => (
+                  <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
+                    {t === 'profile' ? 'Edit Profile' : t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
             </div>
 
             {/* ── Profile tab ──────────────────────────────────────── */}
@@ -555,6 +586,7 @@ function BusinessHubInner() {
                 coverPreview={coverPreview}
                 saving={profileSaving}
                 err={profileErr}
+                currentRole={currentRole}
                 onChange={(patch) => setProfileForm(f => ({ ...f, ...patch }))}
                 onLogoChange={(file) => {
                   setLogoFile(file);
@@ -869,7 +901,7 @@ const BIZ_TYPES = [
   'Pool Service', 'Auto Repair', 'General Labor', 'Other',
 ];
 
-function ProfileTab({ form, logoPreview, coverPreview, saving, err, onChange, onLogoChange, onCoverChange, onSave, bizId }) {
+function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole, onChange, onLogoChange, onCoverChange, onSave, bizId }) {
   if (!form) return null;
 
   function pf(e) {
@@ -885,6 +917,11 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, onChange, on
           <p className="bh-profile-subtitle">
             This information appears on your business's public page visible to customers.
           </p>
+          {currentRole === 'manager' && (
+            <p className="bh-profile-note" style={{ marginTop: '0.4rem', color: '#818cf8', fontSize: '0.82rem' }}>
+              You are editing as a <strong>Manager</strong>. Changes apply to the business owner's public profile.
+            </p>
+          )}
         </div>
         {bizId && (
           <a

@@ -3,7 +3,7 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
-const { ownedBusiness } = require('../utils/businessOwnership');
+const { ownedBusiness, canEditProfile } = require('../utils/businessOwnership');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -95,68 +95,77 @@ async function addBusiness(req, res) {
 async function updateBusiness(req, res) {
   try {
     const { id } = req.params;
+
+    // Allow owner OR active manager to update the business profile.
+    const access = await canEditProfile(req.user.id, id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const ownerId = access.owner_id;
+
     const {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
       is_active, tax_rate,
-      // Public-profile fields (optional — update businesses table directly)
+      // Public-profile fields
       logo_url, cover_photo_url,
-      // Helper-profile fields that surface on the business public page
+      // Helper-profile fields that surface on the public business page (belong to owner)
       profile_headline, service_radius_miles,
     } = req.body;
 
     const { rows: [biz] } = await pool.query(
       `UPDATE businesses
-       SET business_name  = COALESCE($1,  business_name),
-           business_type  = COALESCE($2,  business_type),
-           ein            = COALESCE($3,  ein),
-           description    = COALESCE($4,  description),
-           website        = COALESCE($5,  website),
-           phone          = COALESCE($6,  phone),
-           address_street = COALESCE($7,  address_street),
-           address_city   = COALESCE($8,  address_city),
-           address_state  = COALESCE($9,  address_state),
-           address_zip    = COALESCE($10, address_zip),
-           is_active      = COALESCE($11, is_active),
-           tax_rate       = COALESCE($12, tax_rate),
-           logo_url       = COALESCE($13, logo_url),
-           cover_photo_url= COALESCE($14, cover_photo_url),
-           updated_at     = NOW()
-       WHERE id = $15 AND user_id = $16
+       SET business_name   = COALESCE($1,  business_name),
+           business_type   = COALESCE($2,  business_type),
+           ein             = COALESCE($3,  ein),
+           description     = COALESCE($4,  description),
+           website         = COALESCE($5,  website),
+           phone           = COALESCE($6,  phone),
+           address_street  = COALESCE($7,  address_street),
+           address_city    = COALESCE($8,  address_city),
+           address_state   = COALESCE($9,  address_state),
+           address_zip     = COALESCE($10, address_zip),
+           is_active       = COALESCE($11, is_active),
+           tax_rate        = COALESCE($12, tax_rate),
+           logo_url        = COALESCE($13, logo_url),
+           cover_photo_url = COALESCE($14, cover_photo_url),
+           updated_at      = NOW()
+       WHERE id = $15
        RETURNING *`,
       [
         business_name, business_type, ein, description, website, phone,
         address_street, address_city, address_state, address_zip,
         is_active != null ? is_active : null,
-        tax_rate != null ? parseFloat(tax_rate) : null,
-        logo_url || null,
+        tax_rate  != null ? parseFloat(tax_rate) : null,
+        logo_url        || null,
         cover_photo_url || null,
-        id, req.user.id,
+        id,
       ]
     );
 
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
-    // Optionally update profile_headline and service_radius_miles on the owner's
-    // helper_profiles row — these fields surface on the business public page.
-    const helperUpdates = [];
-    const helperValues = [];
+    // Update profile_headline / service_radius_miles on the OWNER's helper_profiles
+    // row (keyed by ownerId, not the requester — a manager editing profile must not
+    // overwrite their own helper_profiles row).
+    const helperCols   = [];
+    const helperVals   = [];
     if (profile_headline !== undefined) {
-      helperValues.push(profile_headline || null);
-      helperUpdates.push(`profile_headline = $${helperValues.length}`);
+      helperVals.push(profile_headline || null);
+      helperCols.push(`profile_headline = $${helperVals.length}`);
     }
     if (service_radius_miles !== undefined) {
-      const radius = service_radius_miles != null ? parseFloat(service_radius_miles) : null;
-      helperValues.push(radius);
-      helperUpdates.push(`service_radius_miles = $${helperValues.length}`);
+      helperVals.push(service_radius_miles != null ? parseFloat(service_radius_miles) : null);
+      helperCols.push(`service_radius_miles = $${helperVals.length}`);
     }
-    if (helperUpdates.length > 0) {
-      helperValues.push(req.user.id);
+    if (helperCols.length > 0) {
+      helperVals.push(ownerId);
+      const colNames = helperCols.map(c => c.split(' = ')[0]).join(', ');
+      const colPlaceholders = helperVals.slice(0, -1).map((_, i) => `$${i + 1}`).join(', ');
       await pool.query(
-        `INSERT INTO helper_profiles (user_id, ${helperUpdates.map(u => u.split(' = ')[0]).join(', ')})
-         VALUES ($${helperValues.length}, ${helperUpdates.map((_, i) => `$${i + 1}`).join(', ')})
-         ON CONFLICT (user_id) DO UPDATE SET ${helperUpdates.join(', ')}, updated_at = NOW()`,
-        helperValues
+        `INSERT INTO helper_profiles (user_id, ${colNames})
+         VALUES ($${helperVals.length}, ${colPlaceholders})
+         ON CONFLICT (user_id) DO UPDATE SET ${helperCols.join(', ')}, updated_at = NOW()`,
+        helperVals
       );
     }
 
@@ -170,20 +179,17 @@ async function updateBusiness(req, res) {
 // ── Upload business photos (logo + cover) ─────────────────────────────────────
 // PUT /api/businesses/:id/photos  multipart/form-data
 // fields: logo (optional), cover (optional)
+// Access: owner OR active manager
 async function uploadBusinessPhotos(req, res) {
   try {
     const { id } = req.params;
 
-    // Verify the requester owns this business
-    const { rows: [biz] } = await pool.query(
-      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
-      [id, req.user.id]
-    );
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    // Allow owner OR active manager to upload photos.
+    const access = await canEditProfile(req.user.id, id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { uploadFile, getPublicUrl } = require('../utils/storage');
     const updates = {};
-
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
     if (req.files?.logo?.[0]) {
@@ -191,7 +197,9 @@ async function uploadBusinessPhotos(req, res) {
       if (!allowed.includes(file.mimetype))
         return res.status(400).json({ error: 'Logo must be a JPG, PNG, WebP, or GIF' });
       const key = await uploadFile(file.buffer, 'business-logos', file.originalname, file.mimetype);
-      updates.logo_url = key ? getPublicUrl(key) : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      updates.logo_url = key
+        ? getPublicUrl(key)
+        : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
     }
 
     if (req.files?.cover?.[0]) {
@@ -199,17 +207,20 @@ async function uploadBusinessPhotos(req, res) {
       if (!allowed.includes(file.mimetype))
         return res.status(400).json({ error: 'Cover photo must be a JPG, PNG, WebP, or GIF' });
       const key = await uploadFile(file.buffer, 'business-covers', file.originalname, file.mimetype);
-      updates.cover_photo_url = key ? getPublicUrl(key) : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      updates.cover_photo_url = key
+        ? getPublicUrl(key)
+        : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
     }
 
     if (Object.keys(updates).length === 0)
       return res.status(400).json({ error: 'No files uploaded' });
 
+    // Access already verified above — update by id only (no user_id guard needed here).
     const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
-    const values = [...Object.values(updates), id, req.user.id];
+    const values = [...Object.values(updates), id];
     const { rows: [updated] } = await pool.query(
       `UPDATE businesses SET ${setClauses}, updated_at = NOW()
-       WHERE id = $${values.length - 1} AND user_id = $${values.length}
+       WHERE id = $${values.length}
        RETURNING id, logo_url, cover_photo_url`,
       values
     );
