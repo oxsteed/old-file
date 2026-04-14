@@ -19,7 +19,7 @@ export const useSocket = () => {
       return;
     }
 
-    const token = localStorage.getItem('oxsteed_token');
+    const token = localStorage.getItem('accessToken');
 
     socketInstance = io(
       import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
