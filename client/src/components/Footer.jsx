@@ -3,13 +3,15 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
-import { useCookieConsent } from '../hooks/useCookieConsent';
+import { useCookieConsentContext } from '../context/CookieConsentContext';
 
 export default function Footer() {
   const { user } = useAuth();
   const year = new Date().getFullYear();
   const [vortexOpen, setVortexOpen] = useState(false);
-  const { openSettings } = useCookieConsent();
+  // Reads from the shared CookieConsentProvider — openSettings() here will
+  // update the same showSettings that <CookieConsent> is listening to.
+  const { openSettings } = useCookieConsentContext();
 
   return (
     <>
