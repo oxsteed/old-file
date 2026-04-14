@@ -757,19 +757,45 @@ exports.getDashboardSummary = async (req, res) => {
     const expenses = parseFloat(finances.total_expenses || 0);
     const net = income - expenses;
 
+    // Detect whether the user has entered ANY financial/activity data at all.
+    // If nothing has been input yet, return pulse_score = 0 so the UI never
+    // shows a misleading non-zero score to a brand-new user.
+    const totalGoalsRaw = parseInt(goals.active_goals || 0) + parseInt(goals.completed_goals || 0);
+    const totalPendingRaw = parseInt(home.total_pending || 0);
+    const hasAnyData = income > 0 || expenses > 0
+      || totalGoalsRaw > 0
+      || totalPendingRaw > 0
+      || parseInt(activity.jobs_completed || 0) > 0
+      || parseInt(activity.active_bids || 0) > 0
+      || parseInt(activity.active_jobs_posted || 0) > 0
+      || parseFloat(activity.avg_rating || 0) > 0;
+
+    if (!hasAnyData) {
+      return res.json({
+        pulse_score: 0,
+        pulse_breakdown: { finances: 0, goals: 0, home: 0, activity: 0 },
+        finances: { total_income: 0, total_expenses: 0, net: 0, month, year },
+        goals:    { active: 0, completed: 0, avg_progress: 0 },
+        home:     { overdue: 0, due_this_week: 0, total_pending: 0 },
+        checklist: { total: 0, completed: 0 },
+        activity:  { active_jobs_posted: 0, active_bids: 0, jobs_completed: 0, avg_rating: null },
+        planned:   { active_count: 0, activating_soon_count: 0, publishing_this_week: 0, total_planned_cost: 0, next_due_date: null },
+      });
+    }
+
     // Finance score (25 pts): positive net = good, deeper negative = worse
     const financeScore = income === 0 && expenses === 0 ? 50 : // neutral if no data
       Math.max(0, Math.min(100, 50 + (net / Math.max(income, expenses, 1)) * 50));
 
     // Goals score (25 pts): based on avg progress + completion rate
     const goalProgress = parseInt(goals.avg_progress || 0);
-    const totalGoals = parseInt(goals.active_goals || 0) + parseInt(goals.completed_goals || 0);
+    const totalGoals = totalGoalsRaw;
     const goalsScore = totalGoals === 0 ? 50 :
       goalProgress * 0.7 + (parseInt(goals.completed_goals || 0) / totalGoals) * 100 * 0.3;
 
     // Home score (25 pts): fewer overdue = better
     const overdue = parseInt(home.overdue || 0);
-    const totalPending = parseInt(home.total_pending || 0);
+    const totalPending = totalPendingRaw;
     const homeScore = totalPending === 0 ? 80 :
       Math.max(0, 100 - (overdue / Math.max(totalPending, 1)) * 100);
 
