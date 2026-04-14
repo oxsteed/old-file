@@ -2,10 +2,13 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const upload  = require('../middleware/upload');
 
 const {
   listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  uploadBusinessPhotos,
   getBusinessPublicProfile,
+  getBusinessProfileForEditor,
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
@@ -38,11 +41,17 @@ router.get('/managed',                       authenticate, listManagedBusinesses
 // ── Public profile (no auth) — must be before authenticated /:id routes ───────
 router.get('/:id/public',  getBusinessPublicProfile);
 
+// ── Authenticated profile editor (before generic PUT /:id) ───────────────────
+router.get('/:id/profile-edit', authenticate, getBusinessProfileForEditor);
+
 // ── Business CRUD ─────────────────────────────────────────────────────────────
 router.get('/',            authenticate, listBusinesses);
 router.post('/',           authenticate, addBusiness);
 router.put('/:id',         authenticate, updateBusiness);
 router.put('/:id/primary', authenticate, setPrimary);
+router.put('/:id/photos',  authenticate,
+  upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'cover', maxCount: 1 }]),
+  uploadBusinessPhotos);
 router.delete('/:id',      authenticate, deleteBusiness);
 
 // ── Analytics (P&L, trends, job stats) ───────────────────────────────────────

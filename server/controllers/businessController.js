@@ -3,7 +3,7 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
-const { ownedBusiness } = require('../utils/businessOwnership');
+const { ownedBusiness, canEditProfile } = require('../utils/businessOwnership');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -95,43 +95,154 @@ async function addBusiness(req, res) {
 async function updateBusiness(req, res) {
   try {
     const { id } = req.params;
+
+    // Allow owner OR active manager to update the business profile.
+    const access = await canEditProfile(req.user.id, id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const ownerId = access.owner_id;
+
     const {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
       is_active, tax_rate,
+      // Public-profile fields
+      logo_url, cover_photo_url,
+      clear_logo_url, clear_cover_photo_url,
+      // Helper-profile fields that surface on the public business page (belong to owner)
+      profile_headline, service_radius_miles,
     } = req.body;
+
+    const isOwner = req.user.id === ownerId;
+    const logoExplicitNull = clear_logo_url === true;
+    const coverExplicitNull = clear_cover_photo_url === true;
+    // Managers may edit marketing/contact/address only — not tax identity or lifecycle flags.
+    const sensitiveEin = isOwner ? ein : undefined;
+    const sensitiveTax = isOwner ? tax_rate : undefined;
+    const sensitiveActive = isOwner && is_active != null ? is_active : null;
 
     const { rows: [biz] } = await pool.query(
       `UPDATE businesses
-       SET business_name  = COALESCE($1,  business_name),
-           business_type  = COALESCE($2,  business_type),
-           ein            = COALESCE($3,  ein),
-           description    = COALESCE($4,  description),
-           website        = COALESCE($5,  website),
-           phone          = COALESCE($6,  phone),
-           address_street = COALESCE($7,  address_street),
-           address_city   = COALESCE($8,  address_city),
-           address_state  = COALESCE($9,  address_state),
-           address_zip    = COALESCE($10, address_zip),
-           is_active      = COALESCE($11, is_active),
-           tax_rate       = COALESCE($12, tax_rate),
-           updated_at     = NOW()
-       WHERE id = $13 AND user_id = $14
+       SET business_name   = COALESCE($1,  business_name),
+           business_type   = COALESCE($2,  business_type),
+           ein             = CASE WHEN $16::boolean THEN COALESCE($3, ein) ELSE ein END,
+           description     = COALESCE($4,  description),
+           website         = COALESCE($5,  website),
+           phone           = COALESCE($6,  phone),
+           address_street  = COALESCE($7,  address_street),
+           address_city    = COALESCE($8,  address_city),
+           address_state   = COALESCE($9,  address_state),
+           address_zip     = COALESCE($10, address_zip),
+           is_active       = CASE WHEN $16::boolean THEN COALESCE($11, is_active) ELSE is_active END,
+           tax_rate        = CASE WHEN $16::boolean THEN COALESCE($12, tax_rate) ELSE tax_rate END,
+           logo_url        = CASE WHEN $17::boolean THEN NULL ELSE COALESCE($13, logo_url) END,
+           cover_photo_url = CASE WHEN $18::boolean THEN NULL ELSE COALESCE($14, cover_photo_url) END,
+           updated_at      = NOW()
+       WHERE id = $15
        RETURNING *`,
       [
-        business_name, business_type, ein, description, website, phone,
+        business_name, business_type,
+        sensitiveEin !== undefined ? sensitiveEin : null,
+        description, website, phone,
         address_street, address_city, address_state, address_zip,
-        is_active != null ? is_active : null,
-        tax_rate != null ? parseFloat(tax_rate) : null,
-        id, req.user.id,
+        sensitiveActive,
+        sensitiveTax != null ? parseFloat(sensitiveTax) : null,
+        logo_url        || null,
+        cover_photo_url || null,
+        id,
+        isOwner,
+        logoExplicitNull,
+        coverExplicitNull,
       ]
     );
 
     if (!biz) return res.status(404).json({ error: 'Business not found' });
+
+    // Update profile_headline / service_radius_miles on the OWNER's helper_profiles
+    // row (keyed by ownerId, not the requester — a manager editing profile must not
+    // overwrite their own helper_profiles row).
+    const helperCols   = [];
+    const helperVals   = [];
+    if (profile_headline !== undefined) {
+      helperVals.push(profile_headline || null);
+      helperCols.push(`profile_headline = $${helperVals.length}`);
+    }
+    if (service_radius_miles !== undefined) {
+      helperVals.push(service_radius_miles != null ? parseFloat(service_radius_miles) : null);
+      helperCols.push(`service_radius_miles = $${helperVals.length}`);
+    }
+    if (helperCols.length > 0) {
+      helperVals.push(ownerId);
+      const colNames = helperCols.map(c => c.split(' = ')[0]).join(', ');
+      const colPlaceholders = helperVals.slice(0, -1).map((_, i) => `$${i + 1}`).join(', ');
+      await pool.query(
+        `INSERT INTO helper_profiles (user_id, ${colNames})
+         VALUES ($${helperVals.length}, ${colPlaceholders})
+         ON CONFLICT (user_id) DO UPDATE SET ${helperCols.join(', ')}, updated_at = NOW()`,
+        helperVals
+      );
+    }
+
     return res.json({ business: biz });
   } catch (err) {
     logger.error('updateBusiness error', { err: err.message });
     return res.status(500).json({ error: 'Failed to update business' });
+  }
+}
+
+// ── Upload business photos (logo + cover) ─────────────────────────────────────
+// PUT /api/businesses/:id/photos  multipart/form-data
+// fields: logo (optional), cover (optional)
+// Access: owner OR active manager
+async function uploadBusinessPhotos(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Allow owner OR active manager to upload photos.
+    const access = await canEditProfile(req.user.id, id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const { uploadFile, getPublicUrl } = require('../utils/storage');
+    const updates = {};
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    if (req.files?.logo?.[0]) {
+      const file = req.files.logo[0];
+      if (!allowed.includes(file.mimetype))
+        return res.status(400).json({ error: 'Logo must be a JPG, PNG, WebP, or GIF' });
+      const key = await uploadFile(file.buffer, 'business-logos', file.originalname, file.mimetype);
+      updates.logo_url = key
+        ? getPublicUrl(key)
+        : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    }
+
+    if (req.files?.cover?.[0]) {
+      const file = req.files.cover[0];
+      if (!allowed.includes(file.mimetype))
+        return res.status(400).json({ error: 'Cover photo must be a JPG, PNG, WebP, or GIF' });
+      const key = await uploadFile(file.buffer, 'business-covers', file.originalname, file.mimetype);
+      updates.cover_photo_url = key
+        ? getPublicUrl(key)
+        : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    }
+
+    if (Object.keys(updates).length === 0)
+      return res.status(400).json({ error: 'No files uploaded' });
+
+    // Access already verified above — update by id only (no user_id guard needed here).
+    const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
+    const values = [...Object.values(updates), id];
+    const { rows: [updated] } = await pool.query(
+      `UPDATE businesses SET ${setClauses}, updated_at = NOW()
+       WHERE id = $${values.length}
+       RETURNING id, logo_url, cover_photo_url`,
+      values
+    );
+
+    return res.json({ business: updated, ...updates });
+  } catch (err) {
+    logger.error('uploadBusinessPhotos error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to upload photos' });
   }
 }
 
@@ -540,6 +651,7 @@ async function getBusinessPublicProfile(req, res) {
       `SELECT
          b.id, b.business_name, b.business_type, b.description,
          b.website, b.phone, b.logo_url,
+         COALESCE(b.cover_photo_url, hp.cover_photo_url) AS cover_photo_url,
          b.address_city, b.address_state,
          b.is_primary, b.is_active, b.created_at,
          u.id           AS owner_id,
@@ -547,7 +659,6 @@ async function getBusinessPublicProfile(req, res) {
          u.last_name    AS owner_last_name,
          hp.profile_headline,
          hp.profile_photo_url,
-         hp.cover_photo_url,
          hp.bio_short,
          hp.service_city, hp.service_state, hp.service_radius_miles,
          hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
@@ -652,9 +763,49 @@ async function getBusinessPublicProfile(req, res) {
   }
 }
 
+// ── Authenticated profile editor payload ──────────────────────────────────────
+// GET /api/businesses/:id/profile-edit — owner or active manager; includes full address.
+async function getBusinessProfileForEditor(req, res) {
+  try {
+    const { id } = req.params;
+    const access = await canEditProfile(req.user.id, id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const { rows: [row] } = await pool.query(
+      `SELECT
+         b.id,
+         b.business_name,
+         b.business_type,
+         b.description,
+         b.website,
+         b.phone,
+         b.address_street,
+         b.address_city,
+         b.address_state,
+         b.address_zip,
+         b.logo_url,
+         b.cover_photo_url,
+         hp.profile_headline,
+         hp.service_radius_miles,
+         hp.bio_short
+       FROM businesses b
+       LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
+       WHERE b.id = $1`,
+      [id]
+    );
+    if (!row) return res.status(404).json({ error: 'Business not found' });
+    return res.json({ business: row });
+  } catch (err) {
+    logger.error('getBusinessProfileForEditor error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load business profile' });
+  }
+}
+
 module.exports = {
   listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  uploadBusinessPhotos,
   getBusinessPublicProfile,
+  getBusinessProfileForEditor,
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,

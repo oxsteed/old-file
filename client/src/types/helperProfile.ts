@@ -29,6 +29,8 @@ export interface HelperProfile {
   responseRate: number;
   badges: Badge[];
   categories: string[];
+  /** Display location override, e.g. "Austin, TX" */
+  city?: string;
 }
 
 // ─── Services ───────────────────────────────────────────────────────────────

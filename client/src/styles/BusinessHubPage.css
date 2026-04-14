@@ -698,3 +698,122 @@
   gap: 0.4rem;
   flex-shrink: 0;
 }
+
+/* ── Profile tab ─────────────────────────────────────────── */
+.bh-profile-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0.25rem 0 2rem;
+}
+.bh-profile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.bh-profile-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--app-text);
+  margin: 0 0 0.2rem;
+}
+.bh-profile-subtitle {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  margin: 0;
+}
+.bh-profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+.bh-profile-section-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--app-text);
+  margin: 0 0 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+/* Photo upload row */
+.bh-photo-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 600px) {
+  .bh-photo-row { grid-template-columns: 1fr; }
+}
+.bh-photo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bh-photo-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+.bh-photo-preview {
+  border: 2px dashed var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-bg);
+}
+.bh-photo-preview--logo {
+  width: 100px;
+  height: 100px;
+  border-radius: 14px;
+}
+.bh-photo-preview--cover {
+  width: 100%;
+  height: 100px;
+}
+.bh-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bh-photo-placeholder {
+  font-size: 0.78rem;
+  color: var(--muted-text);
+}
+/* visually hide the native file input */
+.bh-photo-input {
+  display: none;
+}
+.bh-field-hint {
+  font-size: 0.78rem;
+  color: var(--muted-text);
+  margin-top: 0.2rem;
+}
+.bh-profile-err {
+  color: #f87171;
+  font-size: 0.875rem;
+  margin: 0;
+}
+.bh-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.bh-profile-note {
+  font-size: 0.82rem;
+  color: var(--muted-text);
+  margin: 0;
+}
+.bh-profile-link {
+  color: #f59e0b;
+  text-decoration: underline;
+}
+.bh-profile-link:hover { color: #e08846; }
