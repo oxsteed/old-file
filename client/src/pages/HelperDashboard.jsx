@@ -655,8 +655,22 @@ export default function HelperDashboard() {
             </Card>
           </div>
         )}
-                {tab==='personalcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">💆</p><h3 className="font-semibold text-white text-lg mb-1">Personal Care</h3><p className="text-sm text-gray-500">Haircuts, massages, grooming, and wellness — coming soon.</p></Card>)}
-          {tab==='carcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">🚗</p><h3 className="font-semibold text-white text-lg mb-1">Car Care</h3><p className="text-sm text-gray-500">Oil changes, detailing, tire rotation, and mobile mechanics — coming soon.</p></Card>)}
+                {tab==='personalcare' && (
+          <Card className="p-10 text-center">
+            <p className="text-3xl mb-3">💆</p>
+            <h3 className="font-semibold text-white text-lg mb-1">Personal Care</h3>
+            <p className="text-sm text-gray-500 mb-5">Track health appointments, grooming, wellness, and recurring self-care tasks.</p>
+            <button onClick={()=>navigate('/dashboard?tab=personalcare')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm">Open Personal Care →</button>
+          </Card>
+        )}
+          {tab==='carcare' && (
+          <Card className="p-10 text-center">
+            <p className="text-3xl mb-3">🚗</p>
+            <h3 className="font-semibold text-white text-lg mb-1">Car Care</h3>
+            <p className="text-sm text-gray-500 mb-5">Track oil changes, tire rotations, detailing, and other vehicle maintenance tasks.</p>
+            <button onClick={()=>navigate('/dashboard?tab=carcare')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm">Open Car Care →</button>
+          </Card>
+        )}
         </main>
 
       {/* Modals */}
@@ -758,3 +772,5 @@ export default function HelperDashboard() {
     </PageShell>
   );
 }
+
+
