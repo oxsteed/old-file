@@ -65,17 +65,6 @@ const FAQS = [
   },
 ];
 
-/* Connector line between step cards */
-const stepConnectorStyle = {
-  position: 'absolute',
-  top: '20px',
-  left: 'calc(50% + 20px)',
-  width: 'calc(100% - 40px)',
-  height: '1px',
-  background: 'linear-gradient(90deg, rgba(249,115,22,0.5) 0%, rgba(249,115,22,0.1) 100%)',
-  pointerEvents: 'none',
-};
-
 export default function HowItWorks() {
   return (
     <div
@@ -276,10 +265,6 @@ export default function HowItWorks() {
                   marginBottom: '1.25rem',
                   letterSpacing: '-0.01em',
                 }}>{item.step}</div>
-                {/* Connector line (not on last card) */}
-                {idx < CUSTOMER_STEPS.length - 1 && (
-                  <div style={stepConnectorStyle} />
-                )}
                 <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{item.title}</h3>
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>{item.desc}</p>
               </div>
@@ -361,9 +346,6 @@ export default function HowItWorks() {
                   fontWeight: 800, fontSize: '0.9rem', color: '#fff',
                   marginBottom: '1.25rem',
                 }}>{item.step}</div>
-                {idx < HELPER_STEPS.length - 1 && (
-                  <div style={stepConnectorStyle} />
-                )}
                 <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{item.title}</h3>
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>{item.desc}</p>
               </div>
@@ -443,7 +425,7 @@ export default function HowItWorks() {
               marginBottom: '1rem',
               lineHeight: 1.15,
             }}>Ready to Get Started?</h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '1rem', lineHeight: 1.7, marginBottom: '2.5rem', maxWidth: '400px', margin: '0 auto 2.5rem' }}>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '1rem', lineHeight: 1.7, maxWidth: '400px', margin: '0 auto 2.5rem' }}>
               Join your local OxSteed community today. It only takes a couple of minutes.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
