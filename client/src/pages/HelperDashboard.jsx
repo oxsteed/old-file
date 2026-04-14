@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import BadgeDisplay from '../components/BadgeDisplay';
 import api from '../api/axios';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import PageShell from '../components/PageShell';
+import TrialBanner from '../components/TrialBanner';
+import HelperOffersCard from '../components/HelperOffersCard';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -56,7 +58,7 @@ const OB_STEPS = [
   {key:'email',label:'Verify Email',desc:'Confirm your email address',check:u=>!!u?.email_verified},
   {key:'profile',label:'Profile & Location',desc:'Phone, zip, skills, and a short bio',check:u=>!!u?.profile_completed},
   {key:'plan',label:'Choose Your Plan',desc:'Free or Pro — upgrade anytime',check:u=>!!u?.tier_selected},
-  {key:'tax',label:'Tax Information',desc:'Required for Pro tier helpers (W-9)',check:u=>!!u?.w9_completed||u?.membership_tier==='tier1'||u?.membership_tier==='free',onlyFor:u=>u?.membership_tier==='tier2'||u?.membership_tier==='pro'},
+  {key:'tax',label:'Tax Information',desc:'Required for Pro tier helpers (W-9)',check:u=>!!u?.w9_completed||u?.effective_tier==='free',onlyFor:u=>u?.effective_tier==='pro'},
   {key:'review',label:'Review & Complete',desc:'Accept terms and go live',check:u=>!!u?.onboarding_completed},
 ];
 
@@ -88,6 +90,7 @@ export default function HelperDashboard() {
   const [myBids, setMyBids] = useState([]);
   const [nearbyJobs, setNearbyJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [welcomeMsg] = useState(location.state?.message||null);
   const [tab, setTab] = useState('pulse');
 
@@ -103,7 +106,88 @@ export default function HelperDashboard() {
   },[]);
 
   // Detect "selected Pro during registration but hasn't paid yet"
-  const selectedProNoPay = !subscription?.status && (user?.membership_tier==='tier2'||user?.membership_tier==='pro') && !!user?.tier_selected;
+  const selectedProNoPay = !subscription?.status && user?.effective_tier==='pro' && !!user?.tier_selected;
+
+  // Skills & Tools state
+  const [mySkills, setMySkills] = useState([]);
+  const [myTools, setMyTools] = useState([]);
+  const [showSkillModal, setShowSkillModal] = useState(false);
+  const [showToolModal, setShowToolModal] = useState(false);
+  const [editingSkill, setEditingSkill] = useState(null);
+  const [editingTool, setEditingTool] = useState(null);
+  const [skillLookup,   setSkillLookup]   = useState([]);
+  const [catLookup,     setCatLookup]     = useState([]);
+  const [toolCatLookup, setToolCatLookup] = useState([]);
+  const emptySkill = { skill_name:'', category:'', hourly_rate:'', years_experience:'', description:'', is_available:true };
+  const emptyTool  = { name:'', category:'', description:'', daily_rate:'', deposit_amount:'', condition:'good', brand:'', model:'', is_available_for_rent:true };
+  const [skillForm, setSkillForm] = useState(emptySkill);
+  const [toolForm, setToolForm]   = useState(emptyTool);
+
+  const loadSkillsAndTools = useCallback(async () => {
+    try {
+      const [sRes, tRes] = await Promise.all([api.get('/user-skills/me'), api.get('/tool-rentals/me')]);
+      setMySkills(sRes.data || []);
+      setMyTools(tRes.data || []);
+    } catch { /* non-critical */ }
+  }, []);
+
+  const handleSaveSkill = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingSkill) {
+        await api.put(`/user-skills/${editingSkill.id}`, skillForm);
+        toast.success('Skill updated!');
+      } else {
+        await api.post('/user-skills', skillForm);
+        toast.success('Skill added!');
+      }
+      setShowSkillModal(false);
+      setEditingSkill(null);
+      setSkillForm(emptySkill);
+      loadSkillsAndTools();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save skill'); }
+  };
+
+  const handleSaveTool = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingTool) {
+        await api.put(`/tool-rentals/${editingTool.id}`, toolForm);
+        toast.success('Tool updated!');
+      } else {
+        await api.post('/tool-rentals', toolForm);
+        toast.success('Tool listed!');
+      }
+      setShowToolModal(false);
+      setEditingTool(null);
+      setToolForm(emptyTool);
+      loadSkillsAndTools();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save tool'); }
+  };
+
+  const openSkillLookup = async (q) => {
+    if (q.length < 2) { setSkillLookup([]); return; }
+    try {
+      const r = await api.get('/user-skills/lookup', { params: { q, limit: 8 } });
+      setSkillLookup(r.data?.skills || r.data || []);
+    } catch { /**/ }
+  };
+
+  const openCatLookup = async (q) => {
+    if (!q || q.length < 1) { setCatLookup([]); return; }
+    try {
+      const r = await api.get('/user-skills/categories', { params: { q, limit: 10 } });
+      setCatLookup(r.data?.categories || []);
+    } catch { setCatLookup([]); }
+  };
+
+  const openToolCatLookup = async (q) => {
+    if (!q || q.length < 1) { setToolCatLookup([]); return; }
+    try {
+      const r = await api.get('/tool-rentals/categories', { params: { q, limit: 10 } });
+      setToolCatLookup(r.data?.categories || []);
+    } catch { setToolCatLookup([]); }
+  };
 
   // Modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -113,22 +197,27 @@ export default function HelperDashboard() {
   const [goalForm, setGoalForm] = useState({title:'',goal_type:'financial',target_value:'',icon:'🎯'});
   const [checklistForm, setChecklistForm] = useState({title:'',due_date:''});
 
+  const retryLoad = useCallback(async()=>{
+    setLoading(true);
+    setError(false);
+    try{
+      const p = [api.get('/verification/background-check/status'),api.get('/verification/identity/status'),api.get('/notifications')];
+      if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));}
+      const r = await Promise.allSettled(p);
+      const anyFailed = r.some(res=>res.status==='rejected');
+      if(anyFailed) setError(true);
+      setVerification({backgroundCheck:r[0].status==='fulfilled'?r[0].value.data?.backgroundCheck||null:null,identity:r[1].status==='fulfilled'?r[1].value.data?.identity||null:null});
+      if(r[2].status==='fulfilled'){const n=r[2].value.data?.notifications||r[2].value.data||[];setNotifications(Array.isArray(n)?n:[]);}
+      if(isOnboardingComplete){
+        if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
+        if(r[4]?.status==='fulfilled'){const j=r[4].value.data?.jobs||r[4].value.data||[];setNearbyJobs(Array.isArray(j)?j:[]);}
+      }
+    }catch(e){console.error(e);setError(true);}finally{setLoading(false);}
+  },[isOnboardingComplete]);
+
   useEffect(()=>{
-    const fetchAll = async()=>{
-      try{
-        const p = [api.get('/verification/background-check/status'),api.get('/verification/identity/status'),api.get('/notifications')];
-        if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));}
-        const r = await Promise.allSettled(p);
-        setVerification({backgroundCheck:r[0].status==='fulfilled'?r[0].value.data?.backgroundCheck||null:null,identity:r[1].status==='fulfilled'?r[1].value.data?.identity||null:null});
-        if(r[2].status==='fulfilled'){const n=r[2].value.data?.notifications||r[2].value.data||[];setNotifications(Array.isArray(n)?n:[]);}
-        if(isOnboardingComplete){
-          if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
-          if(r[4]?.status==='fulfilled'){const j=r[4].value.data?.jobs||r[4].value.data||[];setNearbyJobs(Array.isArray(j)?j:[]);}
-        }
-      }catch(e){console.error(e);}finally{setLoading(false);}
-    };
-    fetchAll();
-    if(isOnboardingComplete){life.fetchSummary();life.fetchCommunity();life.fetchExpenses();life.fetchBudgets();life.fetchGoals();life.fetchChecklist();}
+    retryLoad();
+    if(isOnboardingComplete){life.fetchSummary();life.fetchCommunity();life.fetchExpenses();life.fetchBudgets();life.fetchGoals();life.fetchChecklist();loadSkillsAndTools();}
   },[isOnboardingComplete]);
 
   const startBackgroundCheck=async()=>{try{await api.post('/verification/background-check');window.location.reload();}catch(e){alert(e.response?.data?.error||'Failed');}};
@@ -144,6 +233,12 @@ export default function HelperDashboard() {
   // Derived
   const hr=new Date().getHours();
   const greeting=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+  const displayName = (() => {
+    const pref = user?.display_name_preference || 'first_name';
+    if (pref === 'full_name') return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+    if (pref === 'business_name') return user?.business_name || user?.first_name || '';
+    return user?.first_name || '';
+  })();
   const isProActive=subscription?.status==='active';
   const showOnboarding=!isOnboardingComplete;
   const unreadNotifs=notifications.filter(n=>!n.read&&!n.read_at).length;
@@ -153,14 +248,23 @@ export default function HelperDashboard() {
 
   const tabs = showOnboarding
     ? [{id:'pulse',label:'Get Started'}]
-    : [{id:'pulse',label:'My Pulse'},{id:'jobs',label:'Find Jobs'},{id:'earnings',label:'Earnings'},{id:'goals',label:'Goals'},{id:'bids',label:'My Bids'}];
+    : [{id:'pulse',label:'My Pulse'},{id:'earnings',label:'Earnings'},{id:'jobs',label:'Find Jobs'},{id:'goals',label:'Goals'},{id:'personalcare',label:'Personal Care'},{id:'carcare',label:'Car Care'},{id:'skills',label:'Skills & Tools'},{id:'bids',label:'My Bids'}];
 
-  if(loading) return(<div className="min-h-screen bg-gray-950 text-white"><Navbar/><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div>);
+  if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
 
   return(
-    <div className="min-h-screen bg-gray-950 text-white">
-      <Navbar/>
+    <PageShell>
+    <div className="min-h-screen text-white">
+      <PageMeta title="Helper Dashboard" description="Manage your jobs, earnings, bids, and skills." noIndex={true} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Trial Banner */}
+        <div className="mb-5">
+          <TrialBanner />
+        </div>
+
+            {/* Preferred Helper Offers */}
+            <HelperOffersCard />
 
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
@@ -168,7 +272,7 @@ export default function HelperDashboard() {
         <div className="flex items-start justify-between mb-1">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-bold">{showOnboarding?`Welcome, ${user?.first_name||'Helper'}!`:`${greeting}, ${user?.first_name||'Helper'}.`}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">{showOnboarding?`Welcome, ${displayName||'Helper'}!`:`${greeting}, ${displayName||'Helper'}.`}</h1>
               {!showOnboarding&&<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" className="animate-pulse"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>}
             </div>
             <p className="text-gray-500 mt-1 text-sm">{showOnboarding?'Finish setup to go live.':`${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} — Let's get to work.`}</p>
@@ -178,14 +282,20 @@ export default function HelperDashboard() {
 
         {/* Tabs */}
         {tabs.length>1&&(
-          <div className="flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 w-fit overflow-x-auto">
-            {tabs.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>))}
+          <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1">
+            {tabs.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>))}
           </div>
         )}
 
         {/* ═══════ PULSE ═══════ */}
         {tab==='pulse'&&(<>
-          {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/register/helper')}/></div>}
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
+              <span>⚠</span>
+              <span>Some data failed to load. <button onClick={retryLoad} className="underline hover:text-red-300">Retry</button></span>
+            </div>
+          )}
+          {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/settings')}/></div>}
 
           {/* Life Pulse Score */}
           {!showOnboarding && s?.pulse_score !== undefined && (
@@ -262,23 +372,24 @@ export default function HelperDashboard() {
 
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:'Browse Jobs',c:'text-orange-400'},{to:'/messages',Ic:IcoChat,l:'Messages',c:'text-blue-400'},{to:'/disputes',Ic:IcoShield,l:'Disputes',c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'}].map((a,i)=>(
+              {[{to:'/jobs',Ic:IcoBriefcase,l:'Find Jobs',c:'text-orange-400'},{to:'/messages',Ic:IcoChat,l:'Messages',c:'text-blue-400'},{to:'/disputes',Ic:IcoShield,l:'Disputes',c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'}].map((a,i)=>(
                 <Link key={i} to={a.to} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3"><a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span></Link>
               ))}
             </div>
 
             {/* Nearby jobs */}
-            {nearbyJobs.length>0&&(
-              <Card className="mb-6">
-                <CardHeader icon={IcoZap} title="Jobs Near You" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">View All →</Link>}/>
-                <div className="space-y-2">{nearbyJobs.slice(0,3).map(job=>(
-                  <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
-                    <div className="min-w-0 flex-1"><p className="text-white text-sm font-medium group-hover:text-orange-400 transition truncate">{job.title}</p><p className="text-xs text-gray-500 mt-0.5 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.distance_miles?` · ${job.distance_miles} mi`:''}</p></div>
-                    {(job.budget_min||job.budget_max)&&<span className="text-sm font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}
-                  </Link>
-                ))}</div>
-              </Card>
-            )}
+            <Card className="mb-6">
+              <CardHeader icon={IcoZap} title="Jobs Near You" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">View All →</Link>}/>
+              {nearbyJobs.length===0
+                ? <p className="text-gray-500 text-sm text-center py-6">No nearby jobs right now. Check back soon or <Link to="/jobs" className="text-orange-400 hover:text-orange-300">browse all jobs</Link>.</p>
+                : <div className="space-y-2">{nearbyJobs.slice(0,3).map(job=>(
+                    <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
+                      <div className="min-w-0 flex-1"><p className="text-white text-sm font-medium group-hover:text-orange-400 transition truncate">{job.title}</p><p className="text-xs text-gray-500 mt-0.5 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.distance_miles?` · ${job.distance_miles} mi`:''}</p></div>
+                      {(job.budget_min||job.budget_max)&&<span className="text-sm font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}
+                    </Link>
+                  ))}</div>
+              }
+            </Card>
 
             {/* Community Stats */}
             {life.community && (
@@ -398,7 +509,7 @@ export default function HelperDashboard() {
         {tab==='bids'&&(
           <div>
             <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">My Bids</h3><div className="flex gap-2"><Tag text={`${activeBids.length} active`} color="orange"/><Tag text={`${wonBids.length} won`} color="green"/></div></div>
-            {myBids.length===0?(<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">No bids yet.</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">Browse Jobs</Link></Card>)
+            {myBids.length===0?(<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">No bids yet. Browse available jobs to start bidding.</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">Browse Jobs</Link></Card>)
             :(<div className="space-y-2">{myBids.map(bid=>(
               <Link key={bid.id} to={`/jobs/${bid.job_id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
                 <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title||`Job #${bid.job_id}`}</p><p className="text-xs text-gray-500 mt-1">Bid: <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>
@@ -407,10 +518,139 @@ export default function HelperDashboard() {
             ))}</div>)}
           </div>
         )}
-      </main>
-      <Footer/>
+        {/* ═══════ SKILLS & TOOLS ═══════ */}
+        {tab==='skills'&&(
+          <div className="space-y-6">
+            {/* Skills */}
+            <Card>
+              <CardHeader icon={IcoZap} title="My Skills" right={<Btn onClick={()=>{setEditingSkill(null);setSkillForm(emptySkill);setShowSkillModal(true);}}>+ Add Skill</Btn>}/>
+              {mySkills.length===0
+                ?<p className="text-gray-600 text-sm text-center py-8">No skills listed yet. Add your first skill to get discovered for relevant jobs.</p>
+                :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{mySkills.map(sk=>(
+                  <div key={sk.id} className="p-4 border border-gray-800 rounded-xl">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm text-white truncate">{sk.skill_name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{sk.category}{sk.years_experience?` · ${sk.years_experience} yrs`:''}</p>
+                        {sk.hourly_rate&&<p className="text-xs text-orange-400 mt-1 font-semibold">${parseFloat(sk.hourly_rate).toFixed(0)}/hr</p>}
+                        {sk.description&&<p className="text-xs text-gray-600 mt-1 line-clamp-2">{sk.description}</p>}
+                      </div>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <Tag text={sk.is_available?'Available':'Unavailable'} color={sk.is_available?'green':'gray'}/>
+                        <div className="flex gap-1 justify-end mt-1">
+                          <button onClick={()=>{setEditingSkill(sk);setSkillForm({skill_name:sk.skill_name,category:sk.category||'',hourly_rate:sk.hourly_rate||'',years_experience:sk.years_experience||'',description:sk.description||'',is_available:sk.is_available});setShowSkillModal(true);}} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">Edit</button>
+                          <button onClick={async()=>{if(!confirm('Delete this skill?'))return;try{await api.delete(`/user-skills/${sk.id}`);toast.success('Removed');loadSkillsAndTools();}catch{toast.error('Failed');}}} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">Del</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}</div>}
+            </Card>
+
+            {/* Tools for Rent */}
+            <Card>
+              <CardHeader icon={IcoBriefcase} title="Tools for Rent" right={<Btn onClick={()=>{setEditingTool(null);setToolForm(emptyTool);setShowToolModal(true);}}>+ List a Tool</Btn>}/>
+              {myTools.length===0
+                ?<p className="text-gray-600 text-sm text-center py-8">No tools listed yet. List your equipment so others can rent them.</p>
+                :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{myTools.map(t=>(
+                  <div key={t.id} className="p-4 border border-gray-800 rounded-xl">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm text-white truncate">{t.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{t.category}{t.brand?` · ${t.brand}`:''}{t.model?` ${t.model}`:''}</p>
+                        <div className="flex gap-2 mt-1">
+                          {t.daily_rate&&<span className="text-xs text-orange-400 font-semibold">${parseFloat(t.daily_rate).toFixed(0)}/day</span>}
+                          {t.deposit_amount&&<span className="text-xs text-gray-500">Deposit: ${parseFloat(t.deposit_amount).toFixed(0)}</span>}
+                        </div>
+                        {t.condition&&<p className="text-xs text-gray-600 mt-1 capitalize">Condition: {t.condition}</p>}
+                      </div>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <Tag text={t.is_available_for_rent?'Available':'Unavailable'} color={t.is_available_for_rent?'green':'gray'}/>
+                        <div className="flex gap-1 justify-end mt-1">
+                          <button onClick={()=>{setEditingTool(t);setToolForm({name:t.name,category:t.category||'',description:t.description||'',daily_rate:t.daily_rate||'',deposit_amount:t.deposit_amount||'',condition:t.condition||'good',brand:t.brand||'',model:t.model||'',is_available_for_rent:t.is_available_for_rent});setShowToolModal(true);}} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">Edit</button>
+                          <button onClick={async()=>{if(!confirm('Delete this listing?'))return;try{await api.delete(`/tool-rentals/${t.id}`);toast.success('Removed');loadSkillsAndTools();}catch{toast.error('Failed');}}} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">Del</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}</div>}
+            </Card>
+          </div>
+        )}
+                {tab==='personalcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">💆</p><h3 className="font-semibold text-white text-lg mb-1">Personal Care</h3><p className="text-sm text-gray-500">Haircuts, massages, grooming, and wellness — coming soon.</p></Card>)}
+          {tab==='carcare' && (<Card className="p-12 text-center"><p className="text-2xl mb-3">🚗</p><h3 className="font-semibold text-white text-lg mb-1">Car Care</h3><p className="text-sm text-gray-500">Oil changes, detailing, tire rotation, and mobile mechanics — coming soon.</p></Card>)}
+        </main>
 
       {/* Modals */}
+      <Modal open={showSkillModal} onClose={()=>{setShowSkillModal(false);setEditingSkill(null);setSkillLookup([]);}} title={editingSkill?'Edit Skill':'Add Skill'}>
+        <form onSubmit={handleSaveSkill} className="space-y-4">
+          <div>
+            <Input label="Skill Name" required placeholder="e.g. Drywall Repair, Electrical Wiring" value={skillForm.skill_name}
+              onChange={e=>{setSkillForm(p=>({...p,skill_name:e.target.value}));openSkillLookup(e.target.value);}}/>
+            {skillLookup.length>0&&(
+              <div className="mt-1 border border-gray-700 rounded-lg overflow-hidden">
+                {skillLookup.map(s=><button type="button" key={s.id||s.name} onClick={()=>{setSkillForm(p=>({...p,skill_name:s.skill_name||s.name,category:s.category_name||p.category}));setSkillLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 transition">{s.skill_name||s.name}{s.category_name?<span className="text-gray-600 ml-2 text-xs">{s.category_name}</span>:null}</button>)}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <input
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              placeholder="e.g. Plumbing, Electrical, Landscaping"
+              value={skillForm.category}
+              onChange={e=>{setSkillForm(p=>({...p,category:e.target.value}));openCatLookup(e.target.value);}}
+              onBlur={()=>setTimeout(()=>setCatLookup([]),150)}
+            />
+            {catLookup.length>0&&(
+              <div className="mt-1 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {catLookup.map(c=><button type="button" key={c} onClick={()=>{setSkillForm(p=>({...p,category:c}));setCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 transition">{c}</button>)}
+              </div>
+            )}
+          </div>
+          <Input label="Hourly Rate ($, optional)" type="number" step="0.01" min="0" placeholder="0.00" value={skillForm.hourly_rate} onChange={e=>setSkillForm(p=>({...p,hourly_rate:e.target.value}))}/>
+          <Input label="Years of Experience" type="number" min="0" max="50" placeholder="0" value={skillForm.years_experience} onChange={e=>setSkillForm(p=>({...p,years_experience:e.target.value}))}/>
+          <div><label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Short Description (optional)</label><textarea className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" rows={2} placeholder="Brief overview of your experience" value={skillForm.description} onChange={e=>setSkillForm(p=>({...p,description:e.target.value}))}/></div>
+          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={skillForm.is_available} onChange={e=>setSkillForm(p=>({...p,is_available:e.target.checked}))} className="w-4 h-4 accent-orange-500"/><span className="text-sm text-gray-300">Available for hire</span></label>
+          <Btn className="w-full py-3" type="submit">{editingSkill?'Save Changes':'Add Skill'}</Btn>
+        </form>
+      </Modal>
+
+      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);}} title={editingTool?'Edit Tool Listing':'List a Tool for Rent'}>
+        <form onSubmit={handleSaveTool} className="space-y-4">
+          <Input label="Tool Name" required placeholder="e.g. DeWalt 20V Cordless Drill" value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Brand" placeholder="DeWalt" value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
+            <Input label="Model" placeholder="DCD777" value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <input
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              placeholder="Power Tools, Hand Tools, Landscaping…"
+              value={toolForm.category}
+              onChange={e=>{setToolForm(p=>({...p,category:e.target.value}));openToolCatLookup(e.target.value);}}
+              onBlur={()=>setTimeout(()=>setToolCatLookup([]),150)}
+            />
+            {toolCatLookup.length>0&&(
+              <div className="mt-1 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {toolCatLookup.map(c=><button type="button" key={c} onClick={()=>{setToolForm(p=>({...p,category:c}));setToolCatLookup([]);}} className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 transition">{c}</button>)}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Daily Rate ($)" type="number" step="0.01" min="0" required placeholder="25.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
+            <Input label="Deposit ($, optional)" type="number" step="0.01" min="0" placeholder="50.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
+          </div>
+          <Select label="Condition" value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
+            <option value="new">New</option><option value="like_new">Like New</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option>
+          </Select>
+          <div><label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Description (optional)</label><textarea className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" rows={2} placeholder="Condition details, what's included, pickup location…" value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/></div>
+          <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={toolForm.is_available_for_rent} onChange={e=>setToolForm(p=>({...p,is_available_for_rent:e.target.checked}))} className="w-4 h-4 accent-orange-500"/><span className="text-sm text-gray-300">Currently available to rent</span></label>
+          <Btn className="w-full py-3" type="submit">{editingTool?'Save Changes':'List Tool'}</Btn>
+        </form>
+      </Modal>
+
       <Modal open={showExpenseModal} onClose={()=>setShowExpenseModal(false)} title="Log Transaction">
         <form onSubmit={handleAddExpense} className="space-y-4">
           <Select label="Type" value={expenseForm.type} onChange={e=>setExpenseForm(p=>({...p,type:e.target.value}))}><option value="expense">Expense</option><option value="income">Income</option></Select>
@@ -437,6 +677,7 @@ export default function HelperDashboard() {
         </form>
       </Modal>
     </div>
+    </PageShell>
   );
 }
 
