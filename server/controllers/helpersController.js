@@ -249,7 +249,7 @@ async function listHelpers(req, res) {
     let businesses = [];
     if (pageNum === 1) {
       const bizConditions = [
-        'b.is_active = TRUE',
+        'TRUE = TRUE',
         "b.business_name IS NOT NULL",
         "b.business_name != ''",
       ];
@@ -287,10 +287,10 @@ async function listHelpers(req, res) {
       const { rows: bizRows } = await pool.query(
         `SELECT
            b.id, b.business_name, hp.profile_headline AS tagline, b.about,
-           b.profile_photo_url, b.cover_photo_url,
-           b.city, b.state,
-           b.avg_rating, b.total_reviews,
-           b.is_verified,
+           b.logo_url AS profile_photo_url,
+           NULL AS city, NULL AS state,
+           0 AS avg_rating, 0 AS total_reviews,
+           FALSE AS is_verified,
            u.id AS owner_id, u.first_name AS owner_first, u.last_name AS owner_last
          FROM businesses b
          JOIN users u ON u.id = b.user_id
