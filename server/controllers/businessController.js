@@ -600,7 +600,7 @@ async function getBusinessPublicProfile(req, res) {
       ),
       // Active team members (name + role only — no email exposed publicly)
       pool.query(
-        `SELECT bm.role, u.first_name, u.last_name, u.profile_photo_url
+        `SELECT bm.role, u.first_name, u.last_name
          FROM business_members bm
          JOIN users u ON u.id = bm.member_id
          WHERE bm.business_id = $1 AND bm.status = 'active'
