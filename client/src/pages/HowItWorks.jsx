@@ -85,16 +85,19 @@ export default function HowItWorks() {
           zIndex: 50,
         }}
       >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Link to="/" style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f97316', letterSpacing: '-0.02em', textDecoration: 'none' }}>
             OxSteed
           </Link>
-          <div className="flex items-center gap-6">
-            <Link to="/register/customer" style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
+          <div className="flex items-center gap-3 sm:gap-6">
+            {/* Text links collapse on small screens — the hero CTAs cover these actions */}
+            <Link to="/register/customer" className="hidden sm:inline"
+              style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
               onMouseEnter={e => e.currentTarget.style.color = '#fff'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
             >Post a Job</Link>
-            <Link to="/register/helper" style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
+            <Link to="/register/helper" className="hidden sm:inline"
+              style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
               onMouseEnter={e => e.currentTarget.style.color = '#fff'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
             >Become a Helper</Link>
@@ -109,6 +112,7 @@ export default function HowItWorks() {
                 borderRadius: '999px',
                 textDecoration: 'none',
                 transition: 'background 150ms',
+                whiteSpace: 'nowrap',
               }}
               onMouseEnter={e => e.currentTarget.style.background = '#ea580c'}
               onMouseLeave={e => e.currentTarget.style.background = '#f97316'}
