@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Footer from '../components/Footer';
 
 const CUSTOMER_STEPS = [
   {
@@ -66,7 +67,7 @@ const FAQS = [
 
 export default function HowItWorks() {
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col" data-theme="dark">
       {/* Navbar */}
       <nav className="border-b border-gray-800" role="navigation" aria-label="Main navigation">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -78,6 +79,8 @@ export default function HowItWorks() {
           </div>
         </div>
       </nav>
+
+      <div className="flex-1">
 
       {/* Hero */}
       <section className="text-center py-16 px-4 border-b border-gray-800">
@@ -199,37 +202,9 @@ export default function HowItWorks() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 mt-0">
-        <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8 text-sm text-gray-400">
-          <div>
-            <h3 className="text-white font-semibold mb-3">OxSteed</h3>
-            <p>Your local home-services marketplace. Connecting neighbors with trusted helpers.</p>
-          </div>
-          <div>
-            <h3 className="text-white font-semibold mb-3">Legal</h3>
-            <ul className="space-y-1">
-              <li><Link to="/terms" className="hover:text-white transition">Terms of Service</Link></li>
-              <li><Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link></li>
-              <li><Link to="/security" className="hover:text-white transition">Security Policy</Link></li>
-              <li><Link to="/accessibility" className="hover:text-white transition">Accessibility</Link></li>
-              <li><Link to="/cookie-policy" className="hover:text-white transition">Cookie Policy</Link></li>
-              <li><Link to="/do-not-sell" className="hover:text-white transition">Do Not Sell My Info</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-white font-semibold mb-3">Company</h3>
-            <ul className="space-y-1">
-              <li><Link to="/about" className="hover:text-white transition">About</Link></li>
-              <li><Link to="/how-it-works" className="hover:text-white transition">How It Works</Link></li>
-              <li><a href="mailto:support@oxsteed.com" className="hover:text-white transition">Contact</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="max-w-6xl mx-auto px-4 pb-6 text-center text-xs text-gray-600">
-          {`\\u00A9 ${new Date().getFullYear()} OxSteed. All rights reserved.`}
-        </div>
-      </footer>
+      </div>
+
+      <Footer />
     </div>
   );
 }
