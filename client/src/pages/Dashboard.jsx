@@ -1,5 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import toast from 'react-hot-toast';
 import { useState, useEffect, useCallback } from 'react';
@@ -101,7 +101,6 @@ const localDateStr = (d = new Date()) =>
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const life = useLifeDashboard();
 
   const [myJobs, setMyJobs] = useState([]);
@@ -109,7 +108,7 @@ export default function Dashboard() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [tab, setTab] = useState(() => searchParams.get('tab') || 'pulse');
+  const [tab, setTab] = useState('pulse');
 
   // Modal state
   const [showExpenseModal, setShowExpenseModal] = useState(false);
