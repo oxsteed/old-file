@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
@@ -10,6 +10,9 @@ import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import HelperOffersCard from '../components/HelperOffersCard';
+import EditProfileTab from '../components/EditProfileTab';
+import { useSocket } from '../hooks/useSocket';
+import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -37,19 +40,6 @@ const Tag = ({ text, color = 'orange' }) => {
   const m = { orange:'bg-orange-500/15 text-orange-400', green:'bg-emerald-500/15 text-emerald-400', red:'bg-red-500/15 text-red-400', gray:'bg-gray-700/40 text-gray-400', blue:'bg-blue-500/15 text-blue-400', purple:'bg-purple-500/15 text-purple-400' };
   return <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${m[color]||m.orange}`}>{text}</span>;
 };
-const ProgressBar = ({ pct, color = 'bg-orange-500' }) => (
-  <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{width:`${Math.min(pct,100)}%`}}/></div>
-);
-const Card = ({ children, className = '' }) => <div className={`bg-gray-900/60 border border-gray-700/40 rounded-2xl p-5 ${className}`}>{children}</div>;
-const CardHeader = ({ icon: Ic, title, right }) => (
-  <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2.5">{Ic&&<Ic size={18} cls="text-orange-400"/>}<h3 className="font-semibold text-white text-sm">{title}</h3></div>{right}</div>
-);
-const Btn = ({ children, onClick, variant='primary', className='', ...r }) => {
-  const v = {primary:'bg-orange-500 hover:bg-orange-600 text-white',secondary:'bg-gray-800 hover:bg-gray-700 text-gray-300',danger:'bg-red-500/20 hover:bg-red-500/30 text-red-400'};
-  return <button onClick={onClick} className={`text-xs font-semibold px-4 py-2 rounded-lg transition ${v[variant]} ${className}`} {...r}>{children}</button>;
-};
-const Input = ({label,...r})=>(<div>{label&&<label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{label}</label>}<input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition" {...r}/></div>);
-const Select = ({label,children,...r})=>(<div>{label&&<label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{label}</label>}<select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition" {...r}>{children}</select></div>);
 const Modal = ({open,onClose,title,children})=>{if(!open)return null;return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}><div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/><div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between mb-5"><h3 className="font-bold text-white">{title}</h3><button onClick={onClose} className="text-gray-500 hover:text-white transition"><IcoX size={18}/></button></div>{children}</div></div>);};
 
 // ── Onboarding (preserved) ────────────────────────────────────────────────
@@ -197,12 +187,16 @@ export default function HelperDashboard() {
   const [goalForm, setGoalForm] = useState({title:'',goal_type:'financial',target_value:'',icon:'🎯'});
   const [checklistForm, setChecklistForm] = useState({title:'',due_date:''});
 
+  // Unread message count — shown as a badge on the Messages quick action.
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const { socket } = useSocket();
+
   const retryLoad = useCallback(async()=>{
     setLoading(true);
     setError(false);
     try{
       const p = [api.get('/verification/background-check/status'),api.get('/verification/identity/status'),api.get('/notifications')];
-      if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));}
+      if(isOnboardingComplete){p.push(api.get('/bids/me'));p.push(api.get('/jobs?limit=5'));p.push(api.get('/messages/conversations'));}
       const r = await Promise.allSettled(p);
       const anyFailed = r.some(res=>res.status==='rejected');
       if(anyFailed) setError(true);
@@ -211,9 +205,25 @@ export default function HelperDashboard() {
       if(isOnboardingComplete){
         if(r[3]?.status==='fulfilled'){const b=r[3].value.data?.bids||r[3].value.data||[];setMyBids(Array.isArray(b)?b:[]);}
         if(r[4]?.status==='fulfilled'){const j=r[4].value.data?.jobs||r[4].value.data||[];setNearbyJobs(Array.isArray(j)?j:[]);}
+        if(r[5]?.status==='fulfilled'){const convs=r[5].value.data||[];const total=convs.reduce((s,c)=>s+(parseInt(c.unread_count)||0),0);setUnreadMessages(total);}
       }
     }catch(e){console.error(e);setError(true);}finally{setLoading(false);}
   },[isOnboardingComplete]);
+
+  // Real-time unread badge: increment on inbound messages from customers.
+  useEffect(()=>{
+    if(!socket) return;
+    const inc = ()=> setUnreadMessages(prev => prev + 1);
+    // profile_chat:new_message — first contact from customer on helper's profile page
+    // message:new — follow-up via the standard /messages conversations path
+    // Both are emitted only to the recipient, so no sender-id guard needed.
+    socket.on('profile_chat:new_message', inc);
+    socket.on('message:new', inc);
+    return ()=>{
+      socket.off('profile_chat:new_message', inc);
+      socket.off('message:new', inc);
+    };
+  },[socket]);
 
   useEffect(()=>{
     retryLoad();
@@ -229,6 +239,30 @@ export default function HelperDashboard() {
   const handleAddChecklist=async(e)=>{e.preventDefault();try{await life.createChecklistItem(checklistForm);toast.success('Added!');setChecklistForm({title:'',due_date:''});setShowChecklistModal(false);life.fetchSummary();}catch{toast.error('Failed.');}};
   const toggleChecklist=async(item)=>{try{await life.updateChecklistItem(item.id,{is_completed:!item.is_completed});life.fetchSummary();}catch{toast.error('Failed.');}};
   const updateGoalProgress=async(goal,val)=>{try{const v=parseFloat(val);if(isNaN(v))return;await life.updateGoal(goal.id,{current_value:v,is_completed:goal.target_value&&v>=goal.target_value});life.fetchSummary();toast.success('Updated!');}catch{toast.error('Failed.');}};
+
+  // ── Online / offline toggle ───────────────────────────────────────────────
+  const [isListed, setIsListed] = useState(user?.is_listed !== false);
+  const [listingLoading, setListingLoading] = useState(false);
+
+  useEffect(() => {
+    // Sync with server in case user.is_listed is stale
+    api.get('/helpers/me/listing')
+      .then(r => setIsListed(!!r.data?.is_listed))
+      .catch(() => { /* non-critical */ });
+  }, []);
+
+  const handleToggleListing = async () => {
+    const next = !isListed;
+    setListingLoading(true);
+    try {
+      const { data } = await api.put('/helpers/me/listing', { is_listed: next });
+      setIsListed(!!data.is_listed);
+      toast.success(data.is_listed ? 'You are now online — visible in the helper directory.' : 'You are now offline — hidden from the directory.');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to update status');
+    }
+    setListingLoading(false);
+  };
 
   // Derived
   const hr=new Date().getHours();
@@ -248,7 +282,7 @@ export default function HelperDashboard() {
 
   const tabs = showOnboarding
     ? [{id:'pulse',label:'Get Started'}]
-    : [{id:'pulse',label:'My Pulse'},{id:'earnings',label:'Earnings'},{id:'jobs',label:'Find Jobs'},{id:'goals',label:'Goals'},{id:'personalcare',label:'Personal Care'},{id:'carcare',label:'Car Care'},{id:'skills',label:'Skills & Tools'},{id:'bids',label:'My Bids'}];
+    : [{id:'pulse',label:'My Pulse'},{id:'editprofile',label:'Edit Profile'},{id:'earnings',label:'Earnings'},{id:'jobs',label:'Find Jobs'},{id:'goals',label:'Goals'},{id:'personalcare',label:'Personal Care'},{id:'carcare',label:'Car Care'},{id:'skills',label:'Skills & Tools'},{id:'bids',label:'My Bids'}];
 
   if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
 
@@ -268,7 +302,24 @@ export default function HelperDashboard() {
 
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
-        {/* Greeting */}
+        {/* Offline notice */}
+        {!showOnboarding && !isListed && (
+          <div className="mb-4 flex items-center justify-between gap-3 p-3 bg-gray-800/80 border border-gray-700 rounded-xl text-sm text-gray-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0"/>
+              <span>You are <strong className="text-white">offline</strong> — you are not visible in the helper directory right now.</span>
+            </div>
+            <button
+              onClick={handleToggleListing}
+              disabled={listingLoading}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap"
+            >
+              Go Online
+            </button>
+          </div>
+        )}
+
+        {/* Greeting + Online/Offline toggle */}
         <div className="flex items-start justify-between mb-1">
           <div>
             <div className="flex items-center gap-3">
@@ -277,7 +328,25 @@ export default function HelperDashboard() {
             </div>
             <p className="text-gray-500 mt-1 text-sm">{showOnboarding?'Finish setup to go live.':`${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} — Let's get to work.`}</p>
           </div>
-          <BadgeDisplay badges={user?.badges} size="large"/>
+          <div className="flex flex-col items-end gap-2">
+            <BadgeDisplay badges={user?.badges} size="large"/>
+            {/* Online / Offline pill — only shown after onboarding is done */}
+            {!showOnboarding && (
+              <button
+                onClick={handleToggleListing}
+                disabled={listingLoading}
+                title={isListed ? 'Click to go offline (hide from directory)' : 'Click to go online (appear in directory)'}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all disabled:opacity-60 border ${
+                  isListed
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                    : 'bg-gray-700/60 border-gray-600 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isListed ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`}/>
+                {listingLoading ? 'Updating…' : isListed ? 'Online' : 'Offline'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -372,8 +441,14 @@ export default function HelperDashboard() {
 
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:'Find Jobs',c:'text-orange-400'},{to:'/messages',Ic:IcoChat,l:'Messages',c:'text-blue-400'},{to:'/disputes',Ic:IcoShield,l:'Disputes',c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'}].map((a,i)=>(
-                <Link key={i} to={a.to} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3"><a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span></Link>
+              {[{to:'/jobs',Ic:IcoBriefcase,l:'Find Jobs',c:'text-orange-400'},{to:'/helper/messages',Ic:IcoChat,l:'Messages',c:'text-blue-400',badge:unreadMessages},{to:'/disputes',Ic:IcoShield,l:'Disputes',c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'}].map((a,i)=>(
+                <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
+                  <div className="relative flex-shrink-0">
+                    <a.Ic size={18} cls={a.c}/>
+                    {!!a.badge&&<span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">{a.badge>99?'99+':a.badge}</span>}
+                  </div>
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
+                </Link>
               ))}
             </div>
 
@@ -518,6 +593,9 @@ export default function HelperDashboard() {
             ))}</div>)}
           </div>
         )}
+        {/* ═══════ EDIT PROFILE ═══════ */}
+        {tab==='editprofile'&&<EditProfileTab/>}
+
         {/* ═══════ SKILLS & TOOLS ═══════ */}
         {tab==='skills'&&(
           <div className="space-y-6">
@@ -680,5 +758,3 @@ export default function HelperDashboard() {
     </PageShell>
   );
 }
-
-
