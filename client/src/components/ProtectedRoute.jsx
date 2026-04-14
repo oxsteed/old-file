@@ -11,7 +11,7 @@ const ONBOARDING_ALLOWED_PATHS = [
 ];
 
 export default function ProtectedRoute({ children, requiredRole, requireOnboarded = true }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isOnboardingComplete } = useAuth();
   const location = useLocation();
 
   if (loading) return null;
@@ -27,7 +27,7 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
   if (
     requireOnboarded &&
     user.role === 'helper' &&
-    !user.onboarding_complete &&
+    !isOnboardingComplete &&
     !ONBOARDING_ALLOWED_PATHS.includes(location.pathname)
   ) {
     return <Navigate to="/register/helper" replace />;
