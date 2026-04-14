@@ -21,6 +21,7 @@
     "testTimeout": 15000
   },
   "dependencies": {
+    "@sentry/node": "^8.0.0",
     "@aws-sdk/client-s3": "3.1021.0",
     "@aws-sdk/s3-request-presigner": "3.1021.0",
     "@otplib/v12-adapter": "^13.4.0",
