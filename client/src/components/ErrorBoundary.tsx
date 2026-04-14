@@ -42,13 +42,18 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
   };
 
   handleGoHome = () => {
-    if (this.props.navigateHome) {
-      // Prefer SPA navigation when a router is available (see RouterAwareErrorBoundary)
-      this.props.navigateHome();
-    } else {
-      // Fallback: hard redirect when rendered outside a Router (e.g. tests)
-      window.location.href = '/';
-    }
+    // Always reset error state first so the boundary renders its children
+    // after navigation. Without this, hasError stays true and the error
+    // screen remains visible even after the URL changes to '/'.
+    this.setState({ hasError: false, error: null }, () => {
+      if (this.props.navigateHome) {
+        // Prefer SPA navigation when a router is available (see RouterAwareErrorBoundary)
+        this.props.navigateHome();
+      } else {
+        // Fallback: hard redirect when rendered outside a Router (e.g. tests)
+        window.location.href = '/';
+      }
+    });
   };
 
   render() {
@@ -104,10 +109,11 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
  * idiomatic solution.
  *
  * Usage in App.jsx:
- *   import { RouterAwareErrorBoundary } from './components/ErrorBoundary';
- *   <RouterAwareErrorBoundary>
- *     <App />
+ *   import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
+ *   <RouterAwareErrorBoundary>   ← root boundary (inside <Router>)
+ *     ...
  *   </RouterAwareErrorBoundary>
+ *   // Per-route <Guarded> wrappers continue using <ErrorBoundary> directly.
  */
 import { useNavigate } from 'react-router-dom';
 
