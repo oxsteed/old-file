@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Sentry from '@sentry/react';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -34,7 +35,12 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log error to console in development
     console.error('[ErrorBoundary] Uncaught error:', error, errorInfo);
-    // TODO: Send to error reporting service (e.g., Sentry)
+    // Report to Sentry
+    Sentry.captureException(error, {
+      contexts: {
+        react: { componentStack: errorInfo.componentStack },
+      },
+    });
   }
 
   handleRetry = () => {
@@ -93,7 +99,6 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
         </div>
       );
     }
-
     return this.props.children;
   }
 }
@@ -110,7 +115,7 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
  *
  * Usage in App.jsx:
  *   import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
- *   <RouterAwareErrorBoundary>   ← root boundary (inside <Router>)
+ *   <RouterAwareErrorBoundary> ← root boundary (inside <Router>)
  *     ...
  *   </RouterAwareErrorBoundary>
  *   // Per-route <Guarded> wrappers continue using <ErrorBoundary> directly.
