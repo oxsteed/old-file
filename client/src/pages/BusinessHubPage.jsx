@@ -595,6 +595,14 @@ function BusinessHubInner() {
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (
               profileLoading ? <p className="bh-loading">Loading profile…</p> :
+              !profileForm && profileErr ? (
+                <div className="bh-empty" style={{ marginTop: '1rem' }}>
+                  <p className="bh-error" style={{ marginBottom: '1rem' }}>{profileErr}</p>
+                  <button type="button" className="bh-btn primary" onClick={() => loadProfile()}>
+                    Try again
+                  </button>
+                </div>
+              ) :
               <ProfileTab
                 form={profileForm}
                 logoPreview={logoPreview}
