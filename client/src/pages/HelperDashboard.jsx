@@ -1,3 +1,4 @@
+Made with Perplexity
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
@@ -235,8 +236,8 @@ export default function HelperDashboard() {
   },[socket]);
 
   // ── fetchPcTasks / fetchCarTasks ─────────────────────────────────────────
-  const fetchPcTasks  = useCallback(async()=>{ try{ const r=await api.get('/life/personal-care',{params:{completed:'false'}}); setPcTasks(r.data?.tasks||r.data||[]); }catch{/**/} },[]);
-  const fetchCarTasks = useCallback(async()=>{ try{ const r=await api.get('/life/car-care',{params:{completed:'false'}}); setCarTasks(r.data?.tasks||r.data||[]); }catch{/**/} },[]);
+  const fetchPcTasks  = useCallback(async()=>{ try{ const r=await api.get('/life/home-tasks',{params:{section:'personalcare',completed:'false'}}); setPcTasks(r.data?.home_tasks||r.data||[]); }catch{/**/} },[]);
+  const fetchCarTasks = useCallback(async()=>{ try{ const r=await api.get('/life/home-tasks',{params:{section:'carcare',completed:'false'}}); setCarTasks(r.data?.home_tasks||r.data||[]); }catch{/**/} },[]);
 
   // ── Main useEffect ───────────────────────────────────────────────────────
   useEffect(()=>{
@@ -285,8 +286,8 @@ export default function HelperDashboard() {
 
   const handleAddHomeTask=async(e)=>{e.preventDefault();try{await life.createHomeTask({...homeTaskForm,recurrence_days:homeTaskForm.recurrence_days?parseInt(homeTaskForm.recurrence_days):null});toast.success('Task added!');setHomeTaskForm({title:'',due_date:'',urgency:'low',recurrence_days:''});setShowHomeTaskModal(false);life.fetchSummary();life.fetchHomeTasks({completed:'false',section:'home'});}catch{toast.error('Failed.');}};
   const toggleHomeTask=async(task)=>{try{await life.updateHomeTask(task.id,{is_completed:!task.is_completed});life.fetchSummary();life.fetchHomeTasks({completed:'false',section:'home'});}catch{toast.error('Failed.');}};
-  const handleAddPcTask=async(e)=>{e.preventDefault();try{await api.post('/life/personal-care',{...pcForm,recurrence_days:pcForm.recurrence_days?parseInt(pcForm.recurrence_days):null});toast.success('Task added!');setPcForm({title:'',due_date:'',urgency:'low',recurrence_days:''});setShowPcModal(false);fetchPcTasks();life.fetchSummary();}catch{toast.error('Failed.');}};
-  const handleAddCarTask=async(e)=>{e.preventDefault();try{await api.post('/life/car-care',{...carForm,recurrence_days:carForm.recurrence_days?parseInt(carForm.recurrence_days):null});toast.success('Task added!');setCarForm({title:'',due_date:'',urgency:'low',recurrence_days:'',vehicle_info:''});setShowCarModal(false);fetchCarTasks();life.fetchSummary();}catch{toast.error('Failed.');}};
+  const handleAddPcTask=async(e)=>{e.preventDefault();try{await api.post('/life/home-tasks',{section:'personalcare',...pcForm,recurrence_days:pcForm.recurrence_days?parseInt(pcForm.recurrence_days):null});toast.success('Task added!');setPcForm({title:'',due_date:'',urgency:'low',recurrence_days:''});setShowPcModal(false);fetchPcTasks();life.fetchSummary();}catch{toast.error('Failed.');}};
+  const handleAddCarTask=async(e)=>{e.preventDefault();try{await api.post('/life/home-tasks',{section:'carcare',...carForm,recurrence_days:carForm.recurrence_days?parseInt(carForm.recurrence_days):null});toast.success('Task added!');setCarForm({title:'',due_date:'',urgency:'low',recurrence_days:'',vehicle_info:''});setShowCarModal(false);fetchCarTasks();life.fetchSummary();}catch{toast.error('Failed.');}};
 
   // ── Home handlers ────────────────────────────────────────────────────────
   const lookupHomeAddress=async()=>{const addr=homeAddrInput.trim();if(!addr)return;setHomeLookupLoading(true);setHomeLookup(null);setHomeLookupError('');try{const res=await api.get('/house/lookup',{params:{address:addr}});setHomeLookup(res.data);}catch(err){setHomeLookupError(err.response?.data?.error||'Address not found.');}finally{setHomeLookupLoading(false);}};
@@ -726,14 +727,14 @@ export default function HelperDashboard() {
             {pcTasks.length===0?<Card><p className="text-gray-600 text-sm text-center py-8">No personal care tasks yet.</p></Card>
             :(<div className="space-y-2">{pcTasks.map(t=>{const overdue=t.due_date&&t.due_date<localDateStr()&&!t.is_completed;return(
               <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${t.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                <button onClick={async()=>{try{await api.put(`/life/personal-care/${t.id}`,{is_completed:!t.is_completed});fetchPcTasks();life.fetchSummary();}catch{toast.error('Failed.');}}} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
+                <button onClick={async()=>{try{await api.put(`/life/home-tasks/${t.id}`,{is_completed:!t.is_completed});fetchPcTasks();life.fetchSummary();}catch{toast.error('Failed.');}}} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${t.is_completed?'line-through text-gray-600':'text-white'}`}>{t.title}</p>
                   <p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-600'}`}>{t.due_date?(overdue?'Overdue · ':'')+new Date(t.due_date).toLocaleDateString():'No due date'}{t.recurrence_days?` · Every ${t.recurrence_days}d`:''}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {t.urgency&&<Tag text={t.urgency} color={t.urgency==='high'?'red':t.urgency==='medium'?'orange':'gray'}/>}
-                  <button onClick={async()=>{try{await api.delete(`/life/personal-care/${t.id}`);fetchPcTasks();toast.success('Removed');}catch{toast.error('Failed.');}}} className="text-gray-600 hover:text-red-400 transition"><IcoTrash size={13}/></button>
+                  <button onClick={async()=>{try{await api.delete(`/life/home-tasks/${t.id}`);fetchPcTasks();toast.success('Removed');}catch{toast.error('Failed.');}}} className="text-gray-600 hover:text-red-400 transition"><IcoTrash size={13}/></button>
                 </div>
               </div>
             );})}</div>)}
@@ -755,14 +756,14 @@ export default function HelperDashboard() {
             {carTasks.length===0?<Card><p className="text-gray-600 text-sm text-center py-8">No car care tasks yet.</p></Card>
             :(<div className="space-y-2">{carTasks.map(t=>{const overdue=t.due_date&&t.due_date<localDateStr()&&!t.is_completed;return(
               <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${t.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                <button onClick={async()=>{try{await api.put(`/life/car-care/${t.id}`,{is_completed:!t.is_completed});fetchCarTasks();life.fetchSummary();}catch{toast.error('Failed.');}}} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
+                <button onClick={async()=>{try{await api.put(`/life/home-tasks/${t.id}`,{is_completed:!t.is_completed});fetchCarTasks();life.fetchSummary();}catch{toast.error('Failed.');}}} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${t.is_completed?'line-through text-gray-600':'text-white'}`}>{t.title}</p>
                   <p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-600'}`}>{t.due_date?(overdue?'Overdue · ':'')+new Date(t.due_date).toLocaleDateString():'No due date'}{t.recurrence_days?` · Every ${t.recurrence_days}d`:''}{t.vehicle_info?` · ${t.vehicle_info}`:''}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {t.urgency&&<Tag text={t.urgency} color={t.urgency==='high'?'red':t.urgency==='medium'?'orange':'gray'}/>}
-                  <button onClick={async()=>{try{await api.delete(`/life/car-care/${t.id}`);fetchCarTasks();toast.success('Removed');}catch{toast.error('Failed.');}}} className="text-gray-600 hover:text-red-400 transition"><IcoTrash size={13}/></button>
+                  <button onClick={async()=>{try{await api.delete(`/life/home-tasks/${t.id}`);fetchCarTasks();toast.success('Removed');}catch{toast.error('Failed.');}}} className="text-gray-600 hover:text-red-400 transition"><IcoTrash size={13}/></button>
                 </div>
               </div>
             );})}</div>)}
