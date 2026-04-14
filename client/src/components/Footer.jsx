@@ -10,7 +10,7 @@ export default function Footer() {
   const year = new Date().getFullYear();
   const [vortexOpen, setVortexOpen] = useState(false);
   // Reads from the shared CookieConsentProvider — openSettings() here will
-  // update the same showSettings that <CookieConsent> is listening to.
+  // update the same showSettings state that <CookieConsent> is listening to.
   const { openSettings } = useCookieConsentContext();
 
   return (
