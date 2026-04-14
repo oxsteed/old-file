@@ -11,7 +11,8 @@
    Light mode removes .dark and sets data-theme="light".
    ═══════════════════════════════════════════════════════════════ */
 
-:root {
+:root,
+[data-theme="dark"] {
   /* ── Surfaces ── */
   --color-bg:            #0a0f1a;
   --color-surface:       #111827;

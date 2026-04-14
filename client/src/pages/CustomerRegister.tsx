@@ -13,7 +13,7 @@ export default function CustomerRegister() {
   const [step, setStep] = useState<Step>(1);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-gray-950 text-white" data-theme="dark">
       {/* Navbar */}
       <nav className="border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
