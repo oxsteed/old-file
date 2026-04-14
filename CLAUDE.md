@@ -740,5 +740,7 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **`listMembers`** — `canAccessBusinessTeam` allows active reps/managers to list team (owner id from access row for `owner_id` filter).
 - **`uploadBusinessPhotos` client** — removed manual `Content-Type: multipart/form-data` so axios sets boundary.
 - **Remove logo/cover** — `BusinessHubPage`: clearing file input sets preview to `null` (not stale `profileForm` URL). Save sends `clear_logo_url` / `clear_cover_photo_url` when URLs are empty; `updateBusiness` sets `logo_url` / `cover_photo_url` to NULL (COALESCE alone could not clear).
+- **Editor cover URL** — `getBusinessProfileForEditor` returns `b.cover_photo_url` only (no `COALESCE` to helper cover) so after clear + reload the hub editor stays empty; public profile still uses `getBusinessPublicProfile` fallback for display.
+- **Public profile chrome** — `PublicProfilePageChrome.jsx`: shared skeleton, error, mobile chat drawer, section nav, back-to-top for `HelperBusinessProfilePage.tsx` + `BusinessProfilePage.jsx`.
 
 **Note:** `cd server && npm test` in this workspace failed for unrelated reasons (403 vs expected in several suites, missing `file-type`, ESM in `@otplib`); not attributed to this change set.
