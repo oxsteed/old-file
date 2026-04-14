@@ -1,6 +1,11 @@
 // OxSteed v2 - Express server entry point
 require('dotenv').config();
 
+// Sentry must be initialized before routes/controllers are loaded so that
+// its OpenTelemetry hooks can instrument pg, http, and other modules.
+// dotenv must come first so SENTRY_DSN is available from .env in development.
+require('./instrument');
+
 // Validate required env vars before anything else loads
 require('./utils/validateEnv')();
 
@@ -298,6 +303,10 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ── ERROR HANDLER ────────────────────────────────────────────
+// Sentry error handler must come after all routes and before the generic handler.
+const { setupExpressErrorHandler } = require('@sentry/node');
+setupExpressErrorHandler(app);
+
 // Standardized Error Handler (L-02) to prevent leaking stack traces or internal details.
 app.use(errorHandler);
 
