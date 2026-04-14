@@ -1,335 +1,678 @@
 // client/src/pages/BusinessProfilePage.jsx
-// Public-facing profile page for an individual business listed on OxSteed.
+//
+// Public-facing business profile page.
 // URL: /business/:id  — no auth required to view.
-// Chat / "Hire" CTAs redirect to login if the visitor is not authenticated.
+//
+// Layout is intentionally identical to HelperBusinessProfilePage.tsx.
+// Business API data is mapped to the HelperProfileData shape so all the
+// same shared components (BusinessHeader, ServicesSection, ReviewsSection,
+// ChatPanel, DynamicBlocks, etc.) render without modification.
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { MessageCircle, X, ArrowUp } from 'lucide-react';
+
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
-import { useAuth } from '../context/AuthContext';
-import { getBusinessPublicProfile } from '../api/businesses';
-import '../styles/BusinessProfilePage.css';
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-function StarRating({ value }) {
-  const stars = Math.round(parseFloat(value || 0));
-  return (
-    <span className="bp-stars" aria-label={`${stars} out of 5 stars`}>
-      {[1,2,3,4,5].map(i => (
-        <span key={i} style={{ color: i <= stars ? '#f59e0b' : '#4b5563' }}>★</span>
-      ))}
-    </span>
-  );
+// Profile section components (same set as HelperBusinessProfilePage)
+import BusinessHeader from '../components/helperProfile/BusinessHeader';
+import ServicesSection from '../components/helperProfile/ServicesSection';
+import GallerySection from '../components/helperProfile/GallerySection';
+import HoursSection from '../components/helperProfile/HoursSection';
+import LocationSection from '../components/helperProfile/LocationSection';
+import PoliciesSection from '../components/helperProfile/PoliciesSection';
+import ReviewsSection from '../components/helperProfile/ReviewsSection';
+import FAQSection from '../components/helperProfile/FAQSection';
+import CTASection from '../components/helperProfile/CTASection';
+import ChatPanel from '../components/helperProfile/chat/ChatPanel';
+import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
+
+import { getBusinessPublicProfile } from '../api/businesses';
+
+// ── Data mapping helpers ──────────────────────────────────────────────────────
+
+function buildBadges(business) {
+  const badges = [];
+  if (business.is_background_checked)
+    badges.push({ id: 'bg',   label: 'Background Checked', icon: 'shield-check', variant: 'verified'  });
+  if (business.is_identity_verified)
+    badges.push({ id: 'id',   label: 'ID Verified',         icon: 'shield-check', variant: 'verified'  });
+  if (business.is_licensed)
+    badges.push({ id: 'lic',  label: 'Licensed',            icon: 'award',        variant: 'trusted'   });
+  if (business.is_insured)
+    badges.push({ id: 'ins',  label: 'Insured',             icon: 'shield-check', variant: 'trusted'   });
+  return badges;
 }
 
-function Avatar({ src, name, size = 40 }) {
-  if (src) return <img src={src} alt={name} className="bp-avatar" style={{ width: size, height: size }} />;
+/**
+ * Maps the raw API response from GET /api/businesses/:id/public
+ * to the HelperProfileData shape expected by the shared components.
+ */
+function mapToHelperProfileData(profile) {
+  const { business, services, reviews, gallery, faqs, policies } = profile;
+
+  const helper = {
+    id:            business.owner_id,
+    businessName:  business.business_name,
+    ownerName:     business.owner_name || business.business_name,
+    tagline:       business.profile_headline || '',
+    bio:           business.description || business.bio_short || '',
+    avatar:        business.logo_url || business.owner_photo || '',
+    coverImage:    business.cover_photo_url || '',
+    rating:        parseFloat(business.avg_rating) || 0,
+    reviewCount:   parseInt(business.total_reviews, 10) || 0,
+    jobsCompleted: parseInt(business.completed_jobs_count, 10) || 0,
+    memberSince:   business.member_since,
+    verified:      !!business.is_identity_verified,
+    responseTime:  '',
+    responseRate:  0,
+    badges:        buildBadges(business),
+    categories:    business.business_type ? [business.business_type] : [],
+    city:          [business.address_city, business.address_state].filter(Boolean).join(', '),
+  };
+
+  const mappedServices = (services || []).map(s => ({
+    id:          String(s.id),
+    name:        s.name,
+    description: s.description || '',
+    price:       parseFloat(s.price) || 0,
+    priceUnit:   s.price_unit || 'flat',
+    duration:    s.duration || '',
+    popular:     !!s.popular,
+    category:    s.category || 'General',
+  }));
+
+  const mappedGallery = (gallery || []).map(g => ({
+    id:      String(g.id),
+    url:     g.url,
+    alt:     g.caption || 'Business photo',
+    caption: g.caption || '',
+    type:    'photo',
+  }));
+
+  const mappedReviews = (reviews || []).map(r => ({
+    id:          String(r.id),
+    authorName:  `${r.first_name} ${(r.last_name || '')[0] || ''}.`,
+    rating:      r.rating,
+    date:        r.created_at,
+    serviceUsed: '',
+    content:     r.comment || '',
+    helpfulCount:0,
+    verified:    true,
+    helperReply: r.response ? { content: r.response, date: r.response_at } : undefined,
+  }));
+
+  const mappedFaqs = (faqs || []).map(f => ({
+    id:       String(f.id),
+    question: f.question,
+    answer:   f.answer,
+  }));
+
+  const mappedPolicies = (policies || []).map(p => ({
+    id:      String(p.id),
+    title:   p.title,
+    content: p.content,
+    icon:    p.icon || 'file-text',
+  }));
+
+  const location = {
+    city:          business.address_city  || '',
+    state:         business.address_state || '',
+    zip:           '',
+    serviceRadius: business.service_radius_miles || 10,
+    radiusUnit:    'miles',
+    servesRemotely:false,
+  };
+
+  // Hours: not returned by the business public API — rendered only if present.
+  const hours = [];
+
+  const chatSession = {
+    id:            `session_${business.owner_id}`,
+    destination:   'helper',
+    status:        'ai_assistant',
+    helperStatus:  'ai_assistant',
+    oxsteedStatus: 'ai_assistant',
+    timeline:      [],
+    typing:        null,
+  };
+
+  return {
+    helper,
+    services:    mappedServices,
+    gallery:     mappedGallery,
+    reviews:     mappedReviews,
+    faqs:        mappedFaqs,
+    policies:    mappedPolicies,
+    location,
+    hours,
+    chatSession,
+    // Extras not in HelperProfileData — kept for supplementary sections
+    team:    profile.team || [],
+    bizId:   business.id,
+    phone:   business.phone,
+    website: business.website,
+  };
+}
+
+// ── Loading skeleton (mirrors HelperBusinessProfilePage) ──────────────────────
+function ProfileSkeleton() {
   return (
-    <div className="bp-avatar bp-avatar-init" style={{ width: size, height: size, fontSize: size * 0.4 }}>
-      {(name || '?')[0].toUpperCase()}
+    <div className="animate-pulse space-y-4">
+      <div className="h-56 bg-gray-800 rounded-none" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+        <div className="flex gap-4">
+          <div className="w-24 h-24 rounded-2xl bg-gray-800 -mt-12 flex-shrink-0" />
+          <div className="space-y-2 flex-1 pt-2">
+            <div className="h-6 bg-gray-800 rounded w-3/5" />
+            <div className="h-4 bg-gray-800 rounded w-2/5" />
+          </div>
+        </div>
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-40 bg-gray-800 rounded-2xl" />
+        ))}
+      </div>
     </div>
   );
 }
 
-function Badge({ children, icon }) {
+// ── Error state ───────────────────────────────────────────────────────────────
+function ProfileError({ message, onRetry }) {
   return (
-    <span className="bp-badge">
-      {icon && <span className="bp-badge-icon">{icon}</span>}
-      {children}
-    </span>
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
+      <div className="w-14 h-14 rounded-full bg-red-900/30 flex items-center justify-center">
+        <X className="w-7 h-7 text-red-400" aria-hidden="true" />
+      </div>
+      <div>
+        <p className="text-white font-medium">Unable to load this business</p>
+        <p className="text-gray-400 text-sm mt-1">{message}</p>
+      </div>
+      <button
+        onClick={onRetry}
+        className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors"
+      >
+        Try again
+      </button>
+    </div>
   );
 }
 
-// ── page ──────────────────────────────────────────────────────────────────────
+// ── Mobile chat drawer (identical to HelperBusinessProfilePage) ───────────────
+function MobileChatDrawer({ open, onClose, children }) {
+  const drawerRef = useRef(null);
+  const touchStartY = useRef(0);
+  const touchCurrentY = useRef(0);
+  const isDragging = useRef(false);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  const handleHandleTouchStart = (e) => {
+    isDragging.current = true;
+    touchStartY.current = e.touches[0].clientY;
+    touchCurrentY.current = e.touches[0].clientY;
+  };
+
+  const handleHandleTouchMove = (e) => {
+    if (!isDragging.current) return;
+    touchCurrentY.current = e.touches[0].clientY;
+    const delta = touchCurrentY.current - touchStartY.current;
+    if (!drawerRef.current) return;
+    if (delta > 0) {
+      drawerRef.current.classList.add('ox-drawer-dragging');
+      drawerRef.current.style.transform = `translateY(${Math.min(delta, 120)}px)`;
+    } else {
+      drawerRef.current.classList.remove('ox-drawer-dragging');
+      drawerRef.current.style.transform = '';
+    }
+  };
+
+  const snapBack = () => {
+    if (drawerRef.current) {
+      drawerRef.current.classList.remove('ox-drawer-dragging');
+      drawerRef.current.style.transform = '';
+    }
+  };
+
+  const handleHandleTouchEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    const delta = touchCurrentY.current - touchStartY.current;
+    if (delta > 80) { onClose(); } else { snapBack(); }
+  };
+
+  const handleHandleTouchCancel = () => {
+    isDragging.current = false;
+    snapBack();
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" role="dialog" aria-modal="true" aria-label="Chat">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={drawerRef}
+        className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col shadow-2xl transition-transform duration-300"
+        style={{ height: '90dvh' }}
+      >
+        <div
+          className="flex justify-center pt-3 pb-1 flex-shrink-0 cursor-pointer"
+          onTouchStart={handleHandleTouchStart}
+          onTouchMove={handleHandleTouchMove}
+          onTouchEnd={handleHandleTouchEnd}
+          onTouchCancel={handleHandleTouchCancel}
+          onClick={onClose}
+          role="button"
+          aria-label="Close chat"
+          tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && onClose()}
+        >
+          <div className="w-10 h-1 rounded-full bg-gray-600" aria-hidden="true" />
+        </div>
+        <div className="flex-1 overflow-hidden px-3 pb-3">{children}</div>
+      </div>
+      <style>{`.ox-drawer-dragging { transition: none !important; }`}</style>
+    </div>
+  );
+}
+
+// ── Back-to-top button ────────────────────────────────────────────────────────
+function BackToTopButton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setVisible(window.scrollY > 600);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className="fixed bottom-24 left-4 z-30 lg:bottom-8 lg:left-auto lg:right-4 w-10 h-10 rounded-full bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors shadow-lg flex items-center justify-center"
+      aria-label="Back to top"
+    >
+      <ArrowUp className="w-4 h-4" aria-hidden="true" />
+    </button>
+  );
+}
+
+// ── Section nav ───────────────────────────────────────────────────────────────
+const PAGE_SECTIONS = [
+  { id: 'services',  label: 'Services'  },
+  { id: 'gallery',   label: 'Photos'    },
+  { id: 'reviews',   label: 'Reviews'   },
+  { id: 'faqs',      label: 'FAQs'      },
+  { id: 'policies',  label: 'Policies'  },
+];
+
+function SectionNav() {
+  const scrollTo = (id) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  return (
+    <nav
+      aria-label="Page sections"
+      className="sticky top-0 z-20 bg-gray-950/90 backdrop-blur-md border-b border-gray-800"
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <ul className="flex gap-1 overflow-x-auto hide-scrollbar py-2" role="list">
+          {PAGE_SECTIONS.map(s => (
+            <li key={s.id} role="listitem">
+              <button
+                onClick={() => scrollTo(s.id)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors whitespace-nowrap"
+              >
+                {s.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </nav>
+  );
+}
+
+// ── Team section (business-specific supplement) ───────────────────────────────
+function TeamSection({ team }) {
+  if (!team || team.length === 0) return null;
+
+  function getInitials(first, last) {
+    return `${(first || '')[0] || ''}${(last || '')[0] || ''}`.toUpperCase() || '?';
+  }
+
+  return (
+    <section
+      aria-labelledby="team-heading"
+      className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
+      id="team"
+    >
+      <h2 id="team-heading" className="text-base font-semibold text-white mb-4">
+        Our Team
+      </h2>
+      <ul className="space-y-3" role="list">
+        {team.map((member, i) => (
+          <li key={i} className="flex items-center gap-3">
+            {member.profile_photo_url ? (
+              <img
+                src={member.profile_photo_url}
+                alt={`${member.first_name} ${member.last_name}`}
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-semibold text-gray-300 select-none">
+                  {getInitials(member.first_name, member.last_name)}
+                </span>
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-white">
+                {member.first_name} {member.last_name}
+              </p>
+              <p className="text-xs text-gray-400">
+                {member.role === 'manager' ? 'Manager' : 'Representative'}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// ── Contact links section (business-specific supplement) ─────────────────────
+function ContactLinksSection({ phone, website }) {
+  if (!phone && !website) return null;
+
+  return (
+    <section
+      aria-labelledby="contact-heading"
+      className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
+    >
+      <h2 id="contact-heading" className="text-base font-semibold text-white mb-3">
+        Contact
+      </h2>
+      <div className="flex flex-wrap gap-3">
+        {phone && (
+          <a
+            href={`tel:${phone}`}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+          >
+            📞 {phone}
+          </a>
+        )}
+        {website && (
+          <a
+            href={website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+          >
+            🌐 {website.replace(/^https?:\/\//, '')}
+          </a>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ── Main page component ───────────────────────────────────────────────────────
 export default function BusinessProfilePage() {
-  const { id }       = useParams();
-  const navigate     = useNavigate();
-  const { user }     = useAuth();
+  const { id }    = useParams();
+  const navigate  = useNavigate();
 
-  const [profile, setProfile]   = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const [profileData, setProfileData] = useState(null);
+  const [loadState,   setLoadState]   = useState('idle');
+  const [error,       setError]       = useState(null);
+  const [chatOpen,    setChatOpen]    = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // Scroll padding: Navbar (~64px) + SectionNav (~40px) + breathing room
+  useEffect(() => {
+    const prev = document.documentElement.style.scrollPaddingTop;
+    document.documentElement.style.scrollPaddingTop = '112px';
+    return () => { document.documentElement.style.scrollPaddingTop = prev; };
+  }, []);
+
+  const loadProfile = useCallback(async () => {
+    setLoadState('loading');
     setError(null);
     try {
-      const data = await getBusinessPublicProfile(id);
-      setProfile(data);
+      const raw = await getBusinessPublicProfile(id);
+      setProfileData(mapToHelperProfileData(raw));
+      setLoadState('success');
     } catch (e) {
-      setError(e?.response?.status === 404 ? 'Business not found.' : 'Failed to load this business profile.');
-    } finally {
-      setLoading(false);
+      setError(
+        e?.response?.status === 404
+          ? 'Business not found.'
+          : 'Failed to load this business profile. Please try again.'
+      );
+      setLoadState('error');
     }
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  function handleContact() {
-    if (!user) {
-      navigate('/login', { state: { from: `/business/${id}` } });
-      return;
-    }
-    // Open a conversation scoped to this business.
-    // businessId ensures the thread is tagged with business_id in the DB so
-    // representatives can also access and reply to it.
-    navigate(
-      `/messages?helperId=${profile.business.owner_id}` +
-      `&businessId=${id}` +
-      `&helperName=${encodeURIComponent(profile.business.business_name)}`
+  const handleBookNow = useCallback(() => {
+    if (!profileData) return;
+    const params = new URLSearchParams({
+      helperId:   profileData.helper.id,
+      helperName: profileData.helper.businessName,
+    });
+    navigate(`/post-job?${params.toString()}`);
+  }, [profileData, navigate]);
+
+  const handleOpenChat  = useCallback(() => setChatOpen(true),  []);
+  const handleSelectService = useCallback(() => {}, []); // future: /book/:id?service=
+
+  // ── Loading / error shells ─────────────────────────────────────────────────
+  if (loadState === 'loading' || loadState === 'idle') {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white">
+        <Navbar />
+        <ProfileSkeleton />
+      </div>
     );
   }
 
-  function handleHire() {
-    if (!user) {
-      navigate('/login', { state: { from: `/business/${id}` } });
-      return;
-    }
-    navigate(`/post-job?helperId=${profile.business.owner_id}&helperName=${encodeURIComponent(profile.business.business_name)}`);
-  }
-
-  // ── loading ───────────────────────────────────────────────────────────────
-  if (loading) {
+  if (loadState === 'error' || !profileData) {
     return (
-      <div className="bp-shell">
+      <div className="min-h-screen bg-gray-950 text-white">
         <Navbar />
-        <div className="bp-loading-wrap">
-          <div className="bp-spinner" />
-          <p>Loading business profile…</p>
-        </div>
+        <main className="py-16">
+          <ProfileError message={error ?? 'Unknown error'} onRetry={loadProfile} />
+        </main>
         <Footer />
       </div>
     );
   }
 
-  // ── error ─────────────────────────────────────────────────────────────────
-  if (error || !profile) {
-    return (
-      <div className="bp-shell">
-        <Navbar />
-        <div className="bp-error-wrap">
-          <p className="bp-error-msg">{error || 'Something went wrong.'}</p>
-          <Link to="/helpers" className="bp-btn-outline">Browse helpers</Link>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  const { business, services, reviews, gallery, faqs, policies, team } = profile;
-  const avgRating    = parseFloat(business.avg_rating || 0);
-  const totalReviews = parseInt(business.total_reviews || 0);
-  const location     = [business.address_city, business.address_state].filter(Boolean).join(', ');
+  const {
+    helper, services, gallery, hours, location,
+    policies, reviews, faqs, chatSession,
+    team, bizId, phone, website,
+  } = profileData;
 
   return (
-    <div className="bp-shell">
+    <div className="min-h-screen bg-gray-950 text-white">
       <PageMeta
-        title={`${business.business_name} — OxSteed`}
-        description={business.description || business.bio_short || `Hire ${business.business_name} on OxSteed`}
+        title={`${helper.businessName} — OxSteed`}
+        description={
+          helper.tagline ||
+          `Hire ${helper.businessName} on OxSteed — verified local business in ${helper.city || 'your area'}.`
+        }
+        image={helper.coverImage || helper.avatar}
+        url={`https://oxsteed.com/business/${id}`}
+        type="profile"
       />
       <Navbar />
 
-      {/* ── Cover + header ───────────────────────────────────────────────── */}
-      <div className="bp-cover" style={business.cover_photo_url ? { backgroundImage: `url(${business.cover_photo_url})` } : {}}>
-        <div className="bp-cover-overlay" />
-      </div>
+      {/* Business hero header — identical component to helper profile */}
+      <BusinessHeader
+        helper={helper}
+        onBookNow={handleBookNow}
+        onOpenChat={handleOpenChat}
+      />
 
-      <div className="bp-page">
-        <div className="bp-layout">
+      {/* Sticky section nav */}
+      <SectionNav />
 
-          {/* ── Left column ─────────────────────────────────────────────── */}
-          <div className="bp-main">
+      {/* Page body */}
+      <main
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+        id="main-content"
+      >
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8">
 
-            {/* Identity card */}
-            <div className="bp-identity">
-              <div className="bp-identity-top">
-                <Avatar src={business.logo_url || business.owner_photo} name={business.business_name} size={72} />
-                <div className="bp-identity-info">
-                  <h1 className="bp-name">{business.business_name}</h1>
-                  {business.profile_headline && (
-                    <p className="bp-headline">{business.profile_headline}</p>
-                  )}
-                  {location && <p className="bp-location">📍 {location}</p>}
-                  {totalReviews > 0 && (
-                    <div className="bp-rating-row">
-                      <StarRating value={avgRating} />
-                      <span className="bp-rating-count">{avgRating.toFixed(1)} ({totalReviews} review{totalReviews !== 1 ? 's' : ''})</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+          {/* ── Left column ────────────────────────────────────────── */}
+          <div className="lg:col-span-7 space-y-6">
 
-              {/* Trust badges */}
-              <div className="bp-badges">
-                {business.is_identity_verified  && <Badge icon="✓">ID Verified</Badge>}
-                {business.is_background_checked && <Badge icon="✓">Background Check</Badge>}
-                {business.is_insured            && <Badge icon="✓">Insured</Badge>}
-                {business.is_licensed           && <Badge icon="✓">Licensed</Badge>}
-                {business.completed_jobs_count > 0 && (
-                  <Badge>{business.completed_jobs_count} jobs completed</Badge>
-                )}
-              </div>
+            {/* Bio */}
+            {helper.bio && (
+              <section
+                aria-labelledby="bio-heading"
+                className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
+              >
+                <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
+                  About {helper.businessName}
+                </h2>
+                <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
+              </section>
+            )}
 
-              {/* About */}
-              {(business.description || business.bio_short) && (
-                <p className="bp-about">{business.description || business.bio_short}</p>
-              )}
+            {/* Contact links (phone / website) */}
+            <ContactLinksSection phone={phone} website={website} />
 
-              {/* Contact links */}
-              <div className="bp-contact-links">
-                {business.phone && (
-                  <a href={`tel:${business.phone}`} className="bp-contact-link">📞 {business.phone}</a>
-                )}
-                {business.website && (
-                  <a href={business.website} target="_blank" rel="noopener noreferrer" className="bp-contact-link">
-                    🌐 {business.website.replace(/^https?:\/\//, '')}
-                  </a>
-                )}
-              </div>
+            {/* Services & Pricing (empty state built into component) */}
+            <ServicesSection
+              services={services}
+              onSelectService={handleSelectService}
+            />
+
+            {/* Photo gallery */}
+            <GallerySection images={gallery} />
+
+            {/* Team members */}
+            <TeamSection team={team} />
+
+            {/* Hours + Location side by side on md+ */}
+            <div className="grid sm:grid-cols-2 gap-6">
+              {hours.length > 0 && <HoursSection hours={hours} />}
+              <LocationSection location={location} />
             </div>
 
-            {/* Services */}
-            {services.length > 0 && (
-              <section className="bp-section" id="services">
-                <h2 className="bp-section-title">Services</h2>
-                <div className="bp-services">
-                  {services.map(s => (
-                    <div key={s.id} className="bp-service-card">
-                      <div className="bp-service-name">
-                        {s.name}
-                        {s.popular && <span className="bp-popular">Popular</span>}
-                      </div>
-                      {s.description && <p className="bp-service-desc">{s.description}</p>}
-                      {s.price && (
-                        <p className="bp-service-price">
-                          ${parseFloat(s.price).toFixed(2)}
-                          {s.price_unit && <span> / {s.price_unit}</span>}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <PoliciesSection policies={policies} />
 
-            {/* Gallery */}
-            {gallery.length > 0 && (
-              <section className="bp-section" id="gallery">
-                <h2 className="bp-section-title">Photos</h2>
-                <div className="bp-gallery">
-                  {gallery.map(g => (
-                    <div key={g.id} className="bp-gallery-item">
-                      <img src={g.url} alt={g.caption || ''} loading="lazy" />
-                      {g.caption && <p className="bp-gallery-caption">{g.caption}</p>}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            {/*
+              Dynamic blocks — use owner_id as helperId so these endpoints
+              resolve against the business owner's helper profile data.
+              Each block silently renders null if the fetch fails.
+            */}
+            <AvailabilityBlock helperId={helper.id} />
+            <PricingBlock      helperId={helper.id} />
+            <SlotsBlock        helperId={helper.id} />
 
-            {/* Team */}
-            {team.length > 0 && (
-              <section className="bp-section" id="team">
-                <h2 className="bp-section-title">Our Team</h2>
-                <div className="bp-team">
-                  {team.map((m, i) => (
-                    <div key={i} className="bp-team-card">
-                      <Avatar src={m.profile_photo_url} name={`${m.first_name} ${m.last_name}`} size={48} />
-                      <div>
-                        <p className="bp-team-name">{m.first_name} {m.last_name}</p>
-                        <p className="bp-team-role">{m.role === 'manager' ? 'Manager' : 'Representative'}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <ReviewsSection
+              reviews={reviews}
+              overallRating={helper.rating}
+              totalCount={helper.reviewCount}
+            />
 
-            {/* Reviews */}
-            {reviews.length > 0 && (
-              <section className="bp-section" id="reviews">
-                <h2 className="bp-section-title">Reviews</h2>
-                <div className="bp-reviews">
-                  {reviews.map(r => (
-                    <div key={r.id} className="bp-review">
-                      <div className="bp-review-header">
-                        <Avatar src={null} name={`${r.first_name} ${r.last_name}`} size={36} />
-                        <div>
-                          <p className="bp-review-name">{r.first_name} {r.last_name}</p>
-                          <StarRating value={r.rating} />
-                        </div>
-                        <span className="bp-review-date">
-                          {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                        </span>
-                      </div>
-                      {r.comment && <p className="bp-review-text">{r.comment}</p>}
-                      {r.response && (
-                        <div className="bp-review-response">
-                          <strong>Response:</strong> {r.response}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <FAQSection faqs={faqs} />
 
-            {/* FAQs */}
-            {faqs.length > 0 && (
-              <section className="bp-section" id="faqs">
-                <h2 className="bp-section-title">FAQs</h2>
-                <div className="bp-faqs">
-                  {faqs.map(f => (
-                    <details key={f.id} className="bp-faq">
-                      <summary className="bp-faq-q">{f.question}</summary>
-                      <p className="bp-faq-a">{f.answer}</p>
-                    </details>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Policies */}
-            {policies.length > 0 && (
-              <section className="bp-section" id="policies">
-                <h2 className="bp-section-title">Policies</h2>
-                <div className="bp-policies">
-                  {policies.map(p => (
-                    <div key={p.id} className="bp-policy">
-                      <p className="bp-policy-title">{p.icon} {p.title}</p>
-                      <p className="bp-policy-content">{p.content}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* Bottom padding for mobile CTA bar + FAB + iOS home indicator */}
+            <div className="h-32 lg:hidden" aria-hidden="true" />
           </div>
 
-          {/* ── Right sidebar / CTA ──────────────────────────────────────── */}
-          <aside className="bp-sidebar">
-            <div className="bp-cta-card">
-              <h3 className="bp-cta-title">{business.business_name}</h3>
-              {totalReviews > 0 && (
-                <div className="bp-rating-row" style={{ justifyContent: 'center', marginBottom: '0.75rem' }}>
-                  <StarRating value={avgRating} />
-                  <span className="bp-rating-count">{avgRating.toFixed(1)}</span>
-                </div>
-              )}
-              {location && <p className="bp-cta-location">📍 {location}</p>}
-              <button className="bp-btn-primary" onClick={handleHire}>Post a Job</button>
-              <button className="bp-btn-secondary" onClick={handleContact}>Message</button>
-              {business.phone && (
-                <a href={`tel:${business.phone}`} className="bp-btn-outline">Call</a>
-              )}
+          {/* ── Right column: CTA + Chat (desktop) ─────────────────── */}
+          <aside
+            className="hidden lg:flex lg:col-span-5 flex-col gap-5"
+            aria-label="Book and chat"
+          >
+            <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col">
+              <CTASection
+                helper={helper}
+                onBookNow={handleBookNow}
+                onOpenChat={handleOpenChat}
+                hasServices={services.length > 0}
+              />
+              <div className="flex-1 min-h-0" style={{ minHeight: '480px', height: '540px' }}>
+                <ChatPanel
+                  session={chatSession}
+                  helperName={helper.businessName}
+                  helperId={helper.id}
+                  businessId={String(bizId)}
+                  variant="sidebar"
+                  className="h-full"
+                />
+              </div>
             </div>
           </aside>
 
         </div>
-      </div>
+      </main>
 
       <Footer />
+
+      {/* ── Mobile sticky CTA bar ────────────────────────────────────── */}
+      <div
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        aria-label="Quick actions"
+      >
+        <button
+          onClick={handleOpenChat}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors active:bg-gray-700"
+          aria-label="Open chat with this business"
+        >
+          <MessageCircle className="w-4 h-4" aria-hidden="true" />
+          Message
+        </button>
+        <button
+          onClick={services.length > 0 ? handleBookNow : undefined}
+          disabled={services.length === 0}
+          title={services.length === 0 ? "No services listed yet — send a message." : undefined}
+          className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed active:bg-brand-700"
+          aria-label="Book this business"
+        >
+          Book Now
+        </button>
+      </div>
+
+      {/* ── Mobile chat drawer ───────────────────────────────────────── */}
+      <MobileChatDrawer open={chatOpen} onClose={() => setChatOpen(false)}>
+        <ChatPanel
+          session={chatSession}
+          helperName={helper.businessName}
+          helperId={helper.id}
+          businessId={String(bizId)}
+          variant="modal"
+          onClose={() => setChatOpen(false)}
+          className="h-full"
+        />
+      </MobileChatDrawer>
+
+      {/* ── Mobile chat FAB ──────────────────────────────────────────── */}
+      {!chatOpen && (
+        <button
+          onClick={handleOpenChat}
+          className="lg:hidden fixed right-4 z-30 w-12 h-12 rounded-full bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center transition-colors active:bg-brand-700"
+          style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
+          aria-label="Open chat"
+        >
+          <MessageCircle className="w-5 h-5" aria-hidden="true" />
+        </button>
+      )}
+
+      <BackToTopButton />
     </div>
   );
 }

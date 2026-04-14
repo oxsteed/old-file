@@ -21,6 +21,8 @@ interface ChatPanelProps {
   session: ChatSession;
   helperName: string;
   helperId: string;
+  /** When set, the chat is scoped to a business (used on /business/:id pages). */
+  businessId?: string;
   /** 'sidebar' = embedded on desktop (no close btn). 'modal' = mobile drawer (shows close btn). */
   variant?: 'sidebar' | 'modal';
   onClose?: () => void;
@@ -99,6 +101,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   session: initialSession,
   helperName,
   helperId,
+  businessId,
   variant = 'sidebar',
   onClose,
   className = '',
@@ -189,6 +192,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     try {
       const { data } = await api.post('/chat/profile-message', {
         helperId,
+        ...(businessId ? { businessId } : {}),
         destination: session.destination,
         messages: [...session.timeline, userMsg]
           .filter(i => i.itemType === 'message')
