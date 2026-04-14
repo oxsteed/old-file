@@ -9,12 +9,79 @@ import TrialBanner from '../components/TrialBanner';
 import useSubscription from '../hooks/useSubscription';
 import NotificationPreferences from '../components/NotificationPreferences';
 import ReferralPanel from '../components/ReferralPanel';
+import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
+
+// ── SVG icons ────────────────────────────────────────────────────────────────
+const IconUser = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+  </svg>
+);
+const IconShield = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l8 3v6c0 5-3.5 9.3-8 11C7.5 20.3 4 16 4 11V5l8-3z"/>
+  </svg>
+);
+const IconCard = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+  </svg>
+);
+const IconBuilding = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+    <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+  </svg>
+);
+const IconBell = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+  </svg>
+);
+const IconGift = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5" rx="1"/>
+    <path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/>
+  </svg>
+);
+const IconDatabase = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+  </svg>
+);
+const IconRefresh = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+  </svg>
+);
+const IconTrash = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+  </svg>
+);
+
+// ── Tab definitions ───────────────────────────────────────────────────────────
+const TABS = [
+  { key: 'profile',       label: 'Profile',       icon: <IconUser /> },
+  { key: 'security',      label: 'Security',      icon: <IconShield /> },
+  { key: 'subscription',  label: 'Subscription',  icon: <IconCard /> },
+  { key: 'businesses',    label: 'Businesses',    icon: <IconBuilding /> },
+  { key: 'notifications', label: 'Notifications', icon: <IconBell /> },
+  { key: 'referral',      label: 'Referral',      icon: <IconGift /> },
+  { key: 'privacy',       label: 'Privacy & Data',icon: <IconDatabase /> },
+  { key: 'account',       label: 'Account Type',  icon: <IconRefresh /> },
+  { key: 'danger',        label: 'Danger Zone',   icon: <IconTrash />, danger: true },
+];
 
 export default function SettingsPage() {
   const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('profile');
   const [switchingRole, setSwitchingRole] = useState(false);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const isHelper = HELPER_ROLES.includes(user?.role);
@@ -30,24 +97,22 @@ export default function SettingsPage() {
           ? 'Switched to Helper mode! Set up your profile and go online when ready.'
           : 'Switched to Customer mode. Your helper profile is saved and waiting.',
       );
-      // Navigate to the appropriate dashboard
       navigate(targetRole === 'helper' ? '/dashboard' : '/dashboard', { replace: true });
-      window.location.reload(); // ensure SmartDashboard re-evaluates role
+      window.location.reload();
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Failed to switch role');
     }
     setSwitchingRole(false);
   };
+
   const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '' });
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
-    // ── Subscription state ──────────────────────────────────
   const { subscription, plans, loading: subLoading, openPortal, cancelSubscription, createCheckout } = useSubscription();
 
-  // ── Businesses state ────────────────────────────────────
   const [businesses, setBusinesses] = useState([]);
   const [bizLoading, setBizLoading] = useState(true);
   const [showAddBiz, setShowAddBiz] = useState(false);
@@ -58,7 +123,6 @@ export default function SettingsPage() {
   });
   const [bizSaving, setBizSaving] = useState(false);
 
-  // ── Load profile ────────────────────────────────────────
   useEffect(() => {
     api.get('/auth/me')
       .then(r => {
@@ -76,14 +140,12 @@ export default function SettingsPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  // ── Load businesses ─────────────────────────────────────
   useEffect(() => {
     api.get('/businesses')
       .then(r => { setBusinesses(r.data?.businesses || []); setBizLoading(false); })
       .catch(() => setBizLoading(false));
   }, []);
 
-  // ── Profile handlers ────────────────────────────────────
   const saveProfile = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -115,23 +177,19 @@ export default function SettingsPage() {
     } catch (err) { toast.error('Failed to delete account'); }
   };
 
-  // ── Business handlers ───────────────────────────────────
   const resetBizForm = () => {
     setBizForm({ business_name: '', business_type: 'llc', ein: '', address_street: '', address_city: '', address_state: '', address_zip: '' });
     setEditingBiz(null);
     setShowAddBiz(false);
   };
 
-  const openAddBiz = () => {
-    resetBizForm();
-    setShowAddBiz(true);
-  };
+  const openAddBiz = () => { resetBizForm(); setShowAddBiz(true); };
 
   const openEditBiz = (biz) => {
     setBizForm({
       business_name: biz.business_name || '',
       business_type: biz.business_type || 'llc',
-      ein: '', // don't prefill sensitive data
+      ein: '',
       address_street: biz.address_street || '',
       address_city: biz.address_city || '',
       address_state: biz.address_state || '',
@@ -184,408 +242,430 @@ export default function SettingsPage() {
     { value: 'partnership', label: 'Partnership' },
   ];
 
-  // ── Loading state ───────────────────────────────────────
-  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>;
+  if (loading) {
+    return (
+      <div className="sp-spinner-wrap">
+        <div className="sp-spinner" />
+      </div>
+    );
+  }
 
-  return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <Navbar />
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-4">Settings</h1>
+  // ── Tab panels ──────────────────────────────────────────────────────────────
 
-        {/* Trial Banner */}
-        <div className="mb-6">
-          <TrialBanner />
+  const tabProfile = (
+    <form onSubmit={saveProfile}>
+      <div className="sp-card">
+        <h2 className="sp-card-title">Edit Profile</h2>
+        <p className="sp-card-subtitle">Manage your personal information.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="sp-label">First Name</label>
+            <input className="sp-input" value={profile.first_name || ''} readOnly disabled />
+          </div>
+          <div>
+            <label className="sp-label">Last Name</label>
+            <input className="sp-input" value={profile.last_name || ''} readOnly disabled />
+          </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex gap-4 mb-8 flex-wrap">
-          <Link to="/settings/2fa" className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition">Two-Factor Auth</Link>
-          <Link to="/settings/notifications" className="px-4 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition">Notifications</Link>
+        <div className="sp-info-banner mb-4">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>
+            Name changes require identity verification and must be processed by our team.{' '}
+            <a href="mailto:support@oxsteed.com" className="underline opacity-80 hover:opacity-100">Email support@oxsteed.com</a>
+            {' '}or use the{' '}
+            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline opacity-80 hover:opacity-100">support chat</button>.
+          </span>
         </div>
 
-        {/* Edit Profile */}
-        <form onSubmit={saveProfile} className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="sp-label">Phone</label>
+            <input className="sp-input" value={profile.phone || ''} onChange={e => setProfile({ ...profile, phone: e.target.value })} />
+          </div>
+          <div>
+            <label className="sp-label">Zip Code</label>
+            <input className="sp-input" value={profile.zipcode || ''} onChange={e => setProfile({ ...profile, zipcode: e.target.value })} />
+          </div>
+        </div>
 
-          {/* Name — read-only, contact support to change */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="mb-4">
+          <label className="sp-label">Bio</label>
+          <textarea className="sp-textarea" value={profile.bio || ''} onChange={e => setProfile({ ...profile, bio: e.target.value })} />
+        </div>
+
+        <div className="mb-5">
+          <label className="sp-label">Display Name</label>
+          <p className="text-xs mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>Choose how your name appears to others on the platform.</p>
+          <div className="sp-name-options">
+            {[
+              { value: 'first_name',    label: 'First name only', example: user?.first_name || 'Alex' },
+              { value: 'full_name',     label: 'Full name',       example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
+              { value: 'business_name', label: 'Business name',   example: 'My Services LLC' },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setProfile(p => ({ ...p, display_name_preference: opt.value }))}
+                className={`sp-name-opt ${profile.display_name_preference === opt.value ? 'selected' : ''}`}
+              >
+                <span className="sp-name-opt-label">{opt.label}</span>
+                <span className="sp-name-opt-example">{opt.example}</span>
+              </button>
+            ))}
+          </div>
+          {profile.display_name_preference === 'business_name' && (
+            <p className="text-xs mt-2" style={{ color: '#fb923c' }}>⚠ If you have no business added, this falls back to your first name.</p>
+          )}
+        </div>
+
+        <button type="submit" disabled={saving} className="sp-btn sp-btn-primary">
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
+  );
+
+  const tabSecurity = (
+    <>
+      <form onSubmit={changePassword}>
+        <div className="sp-card">
+          <h2 className="sp-card-title">Change Password</h2>
+          <p className="sp-card-subtitle">Use a strong, unique password for your account.</p>
+          <div className="space-y-3 mb-5">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">First Name</label>
-              <input
-                className="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
-                value={profile.first_name || ''}
-                readOnly
-                disabled
-              />
+              <label className="sp-label">Current Password</label>
+              <input type="password" className="sp-input" placeholder="••••••••" value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Last Name</label>
-              <input
-                className="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-gray-400 cursor-not-allowed"
-                value={profile.last_name || ''}
-                readOnly
-                disabled
-              />
+              <label className="sp-label">New Password</label>
+              <input type="password" className="sp-input" placeholder="••••••••" value={passwords.newPass} onChange={e => setPasswords({ ...passwords, newPass: e.target.value })} />
+            </div>
+            <div>
+              <label className="sp-label">Confirm New Password</label>
+              <input type="password" className="sp-input" placeholder="••••••••" value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} />
             </div>
           </div>
-          <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-800/50 rounded-lg px-4 py-3 mb-4">
-            <svg className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p className="text-sm text-orange-300">
-              Name changes require identity verification and must be processed by our team — for example, after a marriage or legal name change.{' '}
-              <a href="mailto:support@oxsteed.com" className="underline hover:text-orange-200">Email support@oxsteed.com</a>
-              {' '}or use the <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline hover:text-orange-200">support chat</button> at the bottom of this page.
+          <button type="submit" className="sp-btn sp-btn-primary">Update Password</button>
+        </div>
+      </form>
+
+      <div className="sp-card">
+        <h2 className="sp-card-title">Two-Factor Authentication</h2>
+        <p className="sp-card-subtitle">Add an extra layer of security to your account.</p>
+        <Link to="/settings/2fa" className="sp-btn sp-btn-ghost">Manage 2FA</Link>
+      </div>
+    </>
+  );
+
+  const tabSubscription = (
+    <div className="sp-card">
+      <h2 className="sp-card-title">Subscription & Billing</h2>
+      <p className="sp-card-subtitle">Manage your plan and payment details.</p>
+      {subLoading ? (
+        <p className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>Loading subscription…</p>
+      ) : subscription ? (
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="sp-badge sp-badge-green">
+              {subscription.status === 'active' ? 'Active' : subscription.status}
+            </span>
+            <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{subscription.plan_name || 'Pro Plan'}</span>
+          </div>
+          {subscription.current_period_end && (
+            <p className="text-sm mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+              Next billing: {new Date(subscription.current_period_end).toLocaleDateString()}
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Phone</label>
-              <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={profile.phone || ''} onChange={e => setProfile({...profile, phone: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Zip Code</label>
-              <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={profile.zipcode || ''} onChange={e => setProfile({...profile, zipcode: e.target.value})} />
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="block text-sm text-gray-400 mb-1">Bio</label>
-            <textarea className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white h-24" value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} />
-          </div>
-
-          {/* Name display preference */}
-          <div className="mt-4">
-            <label className="block text-sm text-gray-400 mb-1">Display Name</label>
-            <p className="text-xs text-gray-500 mb-2">Choose how your name appears to others on the platform.</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'first_name',    label: 'First name only',  example: user?.first_name || 'Alex' },
-                { value: 'full_name',     label: 'Full name',        example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
-                { value: 'business_name', label: 'Business name',    example: 'My Services LLC' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setProfile(p => ({ ...p, display_name_preference: opt.value }))}
-                  className={`flex flex-col items-start p-3 rounded-lg border text-left transition ${profile.display_name_preference === opt.value ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700 bg-gray-800 hover:border-gray-600'}`}
-                >
-                  <span className="text-xs font-semibold text-white mb-1">{opt.label}</span>
-                  <span className="text-[11px] text-gray-400">{opt.example}</span>
-                </button>
-              ))}
-            </div>
-            {profile.display_name_preference === 'business_name' && (
-              <p className="text-xs text-orange-400 mt-2">⚠ If you have no business added, this falls back to your first name. Add a business below.</p>
+          )}
+          {subscription.cancel_at_period_end && (
+            <p className="text-sm mb-3" style={{ color: '#fbbf24' }}>
+              Subscription will cancel at end of billing period.
+            </p>
+          )}
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={openPortal} className="sp-btn sp-btn-primary">Manage Billing</button>
+            {!subscription.cancel_at_period_end && (
+              <button
+                onClick={() => { if (confirm('Cancel your subscription? You will retain access until the end of your billing period.')) cancelSubscription(); }}
+                className="sp-btn sp-btn-danger"
+              >
+                Cancel Plan
+              </button>
             )}
           </div>
-
-          <button type="submit" disabled={saving} className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition disabled:opacity-50">
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </form>
-
-                {/* Subscription & Billing */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Subscription & Billing</h2>
-          {subLoading ? (
-            <p className="text-gray-500 text-sm">Loading subscription...</p>
-          ) : subscription ? (
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-500/15 text-green-400">
-                  {subscription.status === 'active' ? 'Active' : subscription.status}
-                </span>
-                <span className="text-gray-400 text-sm">
-                  {subscription.plan_name || 'Pro Plan'}
-                </span>
-              </div>
-              {subscription.current_period_end && (
-                <p className="text-gray-500 text-sm mb-4">
-                  Next billing date: {new Date(subscription.current_period_end).toLocaleDateString()}
-                </p>
-              )}
-              {subscription.cancel_at_period_end && (
-                <p className="text-yellow-500 text-sm mb-4">
-                  Your subscription will cancel at the end of the current billing period.
-                </p>
-              )}
-              <div className="flex gap-3">
-                <button
-                  onClick={openPortal}
-                  className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm"
-                >
-                  Manage Billing
-                </button>
-                {!subscription.cancel_at_period_end && (
-                  <button
-                    onClick={() => { if (confirm('Cancel your subscription? You will retain access until the end of your billing period.')) cancelSubscription(); }}
-                    className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm text-red-400"
-                  >
-                    Cancel Plan
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p className="text-gray-400 text-sm mb-4">You are on the Free plan. Upgrade to unlock more features.</p>
-              <div className="flex gap-3 flex-wrap">
-                {plans.filter(p => p.slug !== 'free').map(plan => (
-                  <button
-                    key={plan.id}
-                    onClick={() => createCheckout(plan.slug)}
-                    className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm"
-                  >
-                    Upgrade to {plan.name} — ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? 'year' : 'mo'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* ══════════════════════════════════════════════════ */}
-        {/* My Businesses                                     */}
-        {/* ══════════════════════════════════════════════════ */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">My Businesses</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Manage your LLCs and business entities. Jobs and payouts can be tied to a specific business.</p>
-            </div>
-            <button
-              onClick={openAddBiz}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm whitespace-nowrap"
-            >
-              + Add Business
-            </button>
-          </div>
-
-          {/* Business list */}
-          {bizLoading ? (
-            <p className="text-gray-500 text-sm">Loading businesses...</p>
-          ) : businesses.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-gray-700 rounded-xl">
-              <p className="text-gray-500 text-sm mb-1">No businesses added yet</p>
-              <p className="text-gray-600 text-xs">Add your LLC or business entity to use on jobs and invoices.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {businesses.map(biz => (
-                <div key={biz.id} className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-700/50 rounded-xl">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* Icon */}
-                    <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round">
-                        <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-                      </svg>
-                    </div>
-                    {/* Info */}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-white text-sm truncate">{biz.business_name}</span>
-                        {biz.is_primary && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/15 text-orange-400">Primary</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 truncate">
-                        {BIZ_TYPES.find(t => t.value === biz.business_type)?.label || biz.business_type || 'Business'}
-                        {biz.address_city && ` · ${biz.address_city}, ${biz.address_state}`}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0 ml-3">
-                    {!biz.is_primary && (
-                      <button
-                        onClick={() => setPrimaryBiz(biz.id)}
-                        title="Set as primary"
-                        className="p-2 text-gray-500 hover:text-orange-400 hover:bg-gray-700 rounded-lg transition text-xs"
-                      >
-                        ★
-                      </button>
-                    )}
-                    <button
-                      onClick={() => openEditBiz(biz)}
-                      className="p-2 text-gray-500 hover:text-white hover:bg-gray-700 rounded-lg transition text-xs"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteBusiness(biz.id)}
-                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-gray-700 rounded-lg transition text-xs"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add/Edit form */}
-          {showAddBiz && (
-            <form onSubmit={saveBusiness} className="mt-4 p-4 bg-gray-800/30 border border-gray-700 rounded-xl space-y-4">
-              <h3 className="font-semibold text-sm text-white">{editingBiz ? 'Edit Business' : 'Add a Business'}</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Business Name *</label>
-                  <input
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                    value={bizForm.business_name}
-                    onChange={e => setBizForm({ ...bizForm, business_name: e.target.value })}
-                    placeholder="Mika's Plumbing LLC"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Business Type</label>
-                  <select
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                    value={bizForm.business_type}
-                    onChange={e => setBizForm({ ...bizForm, business_type: e.target.value })}
-                  >
-                    {BIZ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">EIN <span className="text-gray-600">(optional)</span></label>
-                  <input
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                    value={bizForm.ein}
-                    onChange={e => setBizForm({ ...bizForm, ein: e.target.value })}
-                    placeholder="XX-XXXXXXX"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Business Address</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="Street" value={bizForm.address_street} onChange={e => setBizForm({ ...bizForm, address_street: e.target.value })} />
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="City" value={bizForm.address_city} onChange={e => setBizForm({ ...bizForm, address_city: e.target.value })} />
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="State" value={bizForm.address_state} onChange={e => setBizForm({ ...bizForm, address_state: e.target.value })} />
-                  <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm" placeholder="Zip" value={bizForm.address_zip} onChange={e => setBizForm({ ...bizForm, address_zip: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button type="submit" disabled={bizSaving} className="px-5 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition text-sm disabled:opacity-50">
-                  {bizSaving ? 'Saving...' : editingBiz ? 'Update Business' : 'Add Business'}
-                </button>
-                <button type="button" onClick={resetBizForm} className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Change Password */}
-        <form onSubmit={changePassword} className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-          <div className="space-y-4">
-            <input type="password" placeholder="Current Password" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={passwords.current} onChange={e => setPasswords({...passwords, current: e.target.value})} />
-            <input type="password" placeholder="New Password" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={passwords.newPass} onChange={e => setPasswords({...passwords, newPass: e.target.value})} />
-            <input type="password" placeholder="Confirm New Password" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} />
-          </div>
-          <button type="submit" className="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition">Update Password</button>
-        </form>
-
-        {/* Notification Preferences */}
-        <NotificationPreferences />
-
-        {/* Referral Program */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-1">Referral Program</h2>
-          <p className="text-gray-400 text-sm mb-4">Invite friends to OxSteed and track your referrals.</p>
-          <ReferralPanel />
-        </div>
-
-        {/* Data Export */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Your Data</h2>
-          <p className="text-gray-400 mb-4">Download a copy of all your data as required by GDPR/CCPA.</p>
-          <button onClick={() => { api.get('/privacy/export').then(r => { const blob = new Blob([JSON.stringify(r.data, null, 2)]); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my-data.json'; a.click(); toast.success('Data exported'); }).catch(() => toast.error('Export failed')); }} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">Export My Data</button>
-        </div>
-
-        {/* ══════════════════════════════════════════════════ */}
-        {/* Account Type / Role Switching                     */}
-        {/* ══════════════════════════════════════════════════ */}
-        <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-          <h2 className="text-xl font-semibold mb-1">Account Type</h2>
-          <p className="text-gray-400 text-sm mb-4">
-            {isHelper
-              ? 'You are currently a Helper — you can receive job offers and appear in the helper directory. Switch to Customer mode to browse and post jobs instead.'
-              : 'You are currently a Customer — you can post jobs and browse helpers. Switch to Helper mode to offer your services on OxSteed.'}
+      ) : (
+        <div>
+          <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            You are on the Free plan. Upgrade to unlock more features.
           </p>
-
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isHelper ? 'bg-orange-500/15 text-orange-400' : 'bg-blue-500/15 text-blue-400'}`}>
-              {isHelper ? 'Helper' : 'Customer'}
-            </span>
-            <span className="text-gray-500 text-sm">Current role</span>
+          <div className="flex gap-3 flex-wrap">
+            {plans.filter(p => p.slug !== 'free').map(plan => (
+              <button key={plan.id} onClick={() => createCheckout(plan.slug)} className="sp-btn sp-btn-primary">
+                Upgrade to {plan.name} — ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? 'year' : 'mo'}
+              </button>
+            ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
 
-          {!showSwitchConfirm ? (
-            <button
-              onClick={() => setShowSwitchConfirm(true)}
-              className={`px-5 py-2 rounded-lg font-medium transition text-sm ${isHelper ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
-            >
-              {isHelper ? 'Switch to Customer Mode' : 'Switch to Helper Mode'}
-            </button>
-          ) : (
-            <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4">
-              {isHelper ? (
-                <>
-                  <p className="text-sm text-white font-semibold mb-1">Switch to Customer Mode?</p>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Your helper profile and all your data will be saved. You can switch back at any time.
-                    You will no longer appear in the helper directory while in Customer mode.
+  const tabBusinesses = (
+    <div className="sp-card">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="sp-card-title">My Businesses</h2>
+        <button onClick={openAddBiz} className="sp-btn sp-btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.8125rem' }}>+ Add Business</button>
+      </div>
+      <p className="sp-card-subtitle">Manage your LLCs and business entities. Jobs and payouts can be tied to a specific business.</p>
+
+      {bizLoading ? (
+        <p className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>Loading businesses…</p>
+      ) : businesses.length === 0 ? (
+        <div className="sp-empty">
+          <p>No businesses added yet</p>
+          <p>Add your LLC or business entity to use on jobs and invoices.</p>
+        </div>
+      ) : (
+        <div>
+          {businesses.map(biz => (
+            <div key={biz.id} className="sp-biz-item">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="sp-biz-icon">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="1.5" strokeLinecap="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate" style={{ color: 'var(--app-text,#f1f5f9)' }}>{biz.business_name}</span>
+                    {biz.is_primary && <span className="sp-badge sp-badge-orange">Primary</span>}
+                  </div>
+                  <p className="text-xs truncate" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                    {BIZ_TYPES.find(t => t.value === biz.business_type)?.label || biz.business_type || 'Business'}
+                    {biz.address_city && ` · ${biz.address_city}, ${biz.address_state}`}
                   </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-white font-semibold mb-1">Switch to Helper Mode?</p>
-                  <p className="text-sm text-gray-400 mb-4">
-                    A helper profile will be created for you. You will start as <strong className="text-white">offline</strong> — you
-                    control when you appear in the directory using the online/offline toggle in your dashboard.
-                    You can switch back to Customer mode at any time.
-                  </p>
-                </>
-              )}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSwitchRole}
-                  disabled={switchingRole}
-                  className={`px-5 py-2 rounded-lg font-medium transition text-sm disabled:opacity-50 ${isHelper ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
-                >
-                  {switchingRole ? 'Switching...' : 'Yes, Switch'}
-                </button>
-                <button
-                  onClick={() => setShowSwitchConfirm(false)}
-                  className="px-5 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition text-sm"
-                >
-                  Cancel
-                </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0 ml-3">
+                {!biz.is_primary && (
+                  <button onClick={() => setPrimaryBiz(biz.id)} title="Set as primary" className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}>★</button>
+                )}
+                <button onClick={() => openEditBiz(biz)} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }}>Edit</button>
+                <button onClick={() => deleteBusiness(biz.id)} className="sp-btn sp-btn-danger" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}>✕</button>
               </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {showAddBiz && (
+        <form onSubmit={saveBusiness} className="sp-biz-form-panel">
+          <h3 className="font-semibold text-sm mb-4" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+            {editingBiz ? 'Edit Business' : 'Add a Business'}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="sp-label">Business Name *</label>
+              <input className="sp-input" value={bizForm.business_name} onChange={e => setBizForm({ ...bizForm, business_name: e.target.value })} placeholder="Mika's Plumbing LLC" required />
+            </div>
+            <div>
+              <label className="sp-label">Business Type</label>
+              <select className="sp-select" value={bizForm.business_type} onChange={e => setBizForm({ ...bizForm, business_type: e.target.value })}>
+                {BIZ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="sp-label">EIN <span style={{ opacity: 0.5 }}>(optional)</span></label>
+              <input className="sp-input" value={bizForm.ein} onChange={e => setBizForm({ ...bizForm, ein: e.target.value })} placeholder="XX-XXXXXXX" />
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="sp-label">Business Address</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input className="sp-input" placeholder="Street" value={bizForm.address_street} onChange={e => setBizForm({ ...bizForm, address_street: e.target.value })} />
+              <input className="sp-input" placeholder="City" value={bizForm.address_city} onChange={e => setBizForm({ ...bizForm, address_city: e.target.value })} />
+              <input className="sp-input" placeholder="State" value={bizForm.address_state} onChange={e => setBizForm({ ...bizForm, address_state: e.target.value })} />
+              <input className="sp-input" placeholder="Zip" value={bizForm.address_zip} onChange={e => setBizForm({ ...bizForm, address_zip: e.target.value })} />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" disabled={bizSaving} className="sp-btn sp-btn-primary">
+              {bizSaving ? 'Saving…' : editingBiz ? 'Update Business' : 'Add Business'}
+            </button>
+            <button type="button" onClick={resetBizForm} className="sp-btn sp-btn-ghost">Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+
+  // NotificationPreferences renders its own card wrapper with heading — render directly
+  const tabNotifications = <NotificationPreferences />;
+
+  const tabReferral = (
+    <div className="sp-card">
+      <h2 className="sp-card-title">Referral Program</h2>
+      <p className="sp-card-subtitle">Invite friends to OxSteed and track your referrals.</p>
+      <ReferralPanel />
+    </div>
+  );
+
+  const tabPrivacy = (
+    <div className="sp-card">
+      <h2 className="sp-card-title">Privacy & Data</h2>
+      <p className="sp-card-subtitle">Download a copy of all your data as required by GDPR/CCPA.</p>
+      <button
+        className="sp-btn sp-btn-ghost"
+        onClick={() => {
+          api.get('/privacy/export')
+            .then(r => {
+              const blob = new Blob([JSON.stringify(r.data, null, 2)]);
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'my-data.json';
+              a.click();
+              toast.success('Data exported');
+            })
+            .catch(() => toast.error('Export failed'));
+        }}
+      >
+        Export My Data
+      </button>
+    </div>
+  );
+
+  const tabAccount = (
+    <div className="sp-card">
+      <h2 className="sp-card-title">Account Type</h2>
+      <p className="sp-card-subtitle">
+        {isHelper
+          ? 'You are currently a Helper — you can receive job offers and appear in the helper directory. Switch to Customer mode to browse and post jobs instead.'
+          : 'You are currently a Customer — you can post jobs and browse helpers. Switch to Helper mode to offer your services on OxSteed.'}
+      </p>
+      <div className="flex items-center gap-3 mb-5">
+        <span className={`sp-role-badge ${isHelper ? 'sp-role-helper' : 'sp-role-customer'}`}>
+          {isHelper ? 'Helper' : 'Customer'}
+        </span>
+        <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>Current role</span>
+      </div>
+
+      {!showSwitchConfirm ? (
+        <button
+          onClick={() => setShowSwitchConfirm(true)}
+          className={`sp-btn ${isHelper ? 'sp-btn-ghost' : 'sp-btn-primary'}`}
+        >
+          {isHelper ? 'Switch to Customer Mode' : 'Switch to Helper Mode'}
+        </button>
+      ) : (
+        <div className="sp-confirm-box">
+          {isHelper ? (
+            <>
+              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>Switch to Customer Mode?</p>
+              <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                Your helper profile and all your data will be saved. You can switch back at any time.
+                You will no longer appear in the helper directory while in Customer mode.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>Switch to Helper Mode?</p>
+              <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                A helper profile will be created for you. You will start as <strong style={{ color: 'var(--app-text,#f1f5f9)' }}>offline</strong> — you
+                control when you appear in the directory using the online/offline toggle in your dashboard.
+                You can switch back to Customer mode at any time.
+              </p>
+            </>
           )}
+          <div className="flex gap-3">
+            <button
+              onClick={handleSwitchRole}
+              disabled={switchingRole}
+              className={`sp-btn ${isHelper ? 'sp-btn-ghost' : 'sp-btn-primary'} disabled:opacity-50`}
+            >
+              {switchingRole ? 'Switching…' : 'Yes, Switch'}
+            </button>
+            <button onClick={() => setShowSwitchConfirm(false)} className="sp-btn sp-btn-ghost">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const tabDanger = (
+    <div className="sp-card sp-danger-card">
+      <h2 className="sp-card-title" style={{ color: '#f87171' }}>Danger Zone</h2>
+      <p className="sp-card-subtitle">Permanently delete your account and all associated data. This action cannot be undone.</p>
+
+      {!showDelete ? (
+        <button onClick={() => setShowDelete(true)} className="sp-btn sp-btn-danger">Delete My Account</button>
+      ) : (
+        <div className="sp-confirm-box">
+          <p className="text-sm font-semibold mb-1" style={{ color: '#f87171' }}>Are you absolutely sure?</p>
+          <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            This will permanently delete your account, profile, job history, and all associated data. You cannot undo this.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={deleteAccount} className="sp-btn sp-btn-danger">Yes, Delete My Account</button>
+            <button onClick={() => setShowDelete(false)} className="sp-btn sp-btn-ghost">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const PANEL_MAP = {
+    profile:       tabProfile,
+    security:      tabSecurity,
+    subscription:  tabSubscription,
+    businesses:    tabBusinesses,
+    notifications: tabNotifications,
+    referral:      tabReferral,
+    privacy:       tabPrivacy,
+    account:       tabAccount,
+    danger:        tabDanger,
+  };
+
+  return (
+    <div className="sp-page">
+      <Navbar />
+      <div className="sp-shell">
+        <div className="sp-header">
+          <h1 className="sp-title">Settings</h1>
+          <div className="mt-3">
+            <TrialBanner />
+          </div>
         </div>
 
-        {/* Delete Account */}
-        <div className="bg-red-950/30 rounded-xl p-6 border border-red-900">
-          <h2 className="text-xl font-semibold mb-2 text-red-400">Danger Zone</h2>
-          <p className="text-gray-400 mb-4">Permanently delete your account and all associated data. This cannot be undone.</p>
-          {!showDelete ? (
-            <button onClick={() => setShowDelete(true)} className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition">Delete My Account</button>
-          ) : (
-            <div className="flex gap-4">
-              <button onClick={deleteAccount} className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium transition">Yes, Delete Permanently</button>
-              <button onClick={() => setShowDelete(false)} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition">Cancel</button>
-            </div>
-          )}
+        <div className="sp-layout">
+          {/* Sidebar */}
+          <nav className="sp-sidebar" aria-label="Settings navigation">
+            {TABS.map((tab, i) => {
+              const isDividerBefore = tab.key === 'danger';
+              return (
+                <div key={tab.key}>
+                  {isDividerBefore && <div className="sp-tab-divider" />}
+                  <button
+                    className={`sp-tab ${activeTab === tab.key ? 'active' : ''} ${tab.danger ? 'danger' : ''}`}
+                    onClick={() => setActiveTab(tab.key)}
+                    aria-current={activeTab === tab.key ? 'page' : undefined}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Content */}
+          <main className="sp-content">
+            {PANEL_MAP[activeTab]}
+          </main>
         </div>
       </div>
       <Footer />
