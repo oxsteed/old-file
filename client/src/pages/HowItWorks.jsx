@@ -67,7 +67,7 @@ const FAQS = [
 
 export default function HowItWorks() {
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col" data-theme="dark">
       {/* Navbar */}
       <nav className="border-b border-gray-800" role="navigation" aria-label="Main navigation">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
