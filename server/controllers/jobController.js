@@ -23,7 +23,7 @@ exports.createJob = async (req, res) => {
       private_notes,
     } = req.body;
 
-    // ── Validate required fields ──────────────────────────────────────────
+    // ── Validate required fields ────────────────────────────────────────────────────────────────────
     const errs = {};
     if (!title || title.trim().length < 10)       errs.title       = 'Title must be at least 10 characters';
     if (!description || description.trim().length < 50) errs.description = 'Description must be at least 50 characters';
@@ -32,11 +32,11 @@ exports.createJob = async (req, res) => {
       return res.status(400).json({ error: 'validation_failed', fields: errs });
     }
 
-    // ── Resolve category ──────────────────────────────────────────────────
+    // ── Resolve category ──────────────────────────────────────────────────────────────────────────
     const finalCategoryId   = category_id   || null;
     const finalCategoryName = category_name || category || null;
 
-    // ── Resolve media — upload files to S3 ───────────────────────────────
+    // ── Resolve media — upload files to S3 ─────────────────────────────────────────────────────
     let mediaArr = [];
     if (req.files && req.files.length > 0) {
       const uploads = await Promise.allSettled(
@@ -54,22 +54,22 @@ exports.createJob = async (req, res) => {
         : (Array.isArray(media_urls) ? media_urls : []);
     }
 
-    // ── Resolve budget ────────────────────────────────────────────────────
+    // ── Resolve budget ────────────────────────────────────────────────────────────────────────────
     const resolvedBudgetType = budget_type || 'open';
     const resolvedBudgetMin  = resolvedBudgetType !== 'open' ? (budget_min  || null) : null;
     const resolvedBudgetMax  = resolvedBudgetType !== 'open' ? (budget_max  || null) : null;
     const isUrgent           = (urgency === 'asap') || (priority === 'urgent');
 
-    // ── Fuzz public coords ────────────────────────────────────────────────
+    // ── Fuzz public coords ───────────────────────────────────────────────────────────────────────────
     const approx = fuzzCoords(location_lat, location_lng);
 
-    // ── Serialise requirements ────────────────────────────────────────────
+    // ── Serialise requirements ─────────────────────────────────────────────────────────────────────────
     let reqJson = '[]';
     if (requirements) {
       reqJson = typeof requirements === 'string' ? requirements : JSON.stringify(requirements);
     }
 
-    // ── Build location_point expression ──────────────────────────────────
+    // ── Build location_point expression ─────────────────────────────────────────────────────────────
     const hasGeo = location_lat && location_lng;
 
     const { rows } = await pool.query(
@@ -84,17 +84,17 @@ exports.createJob = async (req, res) => {
           location_point,
           location_approx_lat, location_approx_lng,
           requirements, media_urls,
+          scheduled_date, scheduled_time, recurrence,
+          preferred_helper_id, preferred_helper_name,
+          private_notes,
           status, expires_at
-                      scheduled_date, scheduled_time, recurrence,
-            preferred_helper_id, preferred_helper_name,
-            private_notes,
        )
        VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,$19,
           ${hasGeo ? `ST_SetSRID(ST_MakePoint($19::float,$18::float),4326)::geography` : 'NULL'},
           $20,$21,$22,$23,
-                      $24,$25,$26,$27,$28,$29,
+          $24,$25,$26,$27,$28,$29,
           'published', now() + interval '30 days'
        )
        RETURNING *`,
@@ -108,7 +108,7 @@ exports.createJob = async (req, res) => {
         location_lat  || null, location_lng || null,
         approx.lat, approx.lng,
         reqJson, mediaArr,
-                scheduled_date || null, scheduled_time || null, recurrence || 'none',
+        scheduled_date || null, scheduled_time || null, recurrence || 'none',
         preferred_helper_id || null, preferred_helper_name || null,
         private_notes || null,
       ]
@@ -118,7 +118,7 @@ exports.createJob = async (req, res) => {
     // eslint-disable-next-line no-unused-vars
     const { location_lat: _rlat, location_lng: _rlng, location_point: _rpt, ...safeJob } = rows[0];
 
-    // ── Synchronous match scoring ─────────────────────────────────────────
+    // ── Synchronous match scoring ───────────────────────────────────────────────────────────────────────
     let matchResult = { total: 0, notified: 0 };
     try {
       matchResult = await scoreAndMatch(rows[0]);
@@ -127,7 +127,7 @@ exports.createJob = async (req, res) => {
       logger.error('Match scoring error (non-fatal)', { err: matchErr });
     }
 
-    // ── Clear the user's draft ────────────────────────────────────────────
+    // ── Clear the user's draft ──────────────────────────────────────────────────────────────────────────
     try {
       await pool.query(
         `DELETE FROM job_drafts WHERE client_id = $1`,
