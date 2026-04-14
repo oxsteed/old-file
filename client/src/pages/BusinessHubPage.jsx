@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -112,6 +112,9 @@ function BusinessHubInner() {
   const [coverPreview, setCoverPreview]   = useState(null);
   const [logoFile, setLogoFile]           = useState(null);
   const [coverFile, setCoverFile]         = useState(null);
+  // Snapshot of helper-linked fields from last loadProfile — omit from PUT when unchanged
+  // so the server skips helper_profiles UPSERT (see businessController updateBusiness).
+  const profileFieldsBaselineRef = useRef(null);
 
   // ── load businesses (owned + managed) ───────────────────────────────────
   const loadBusinesses = useCallback(async () => {
@@ -202,7 +205,7 @@ function BusinessHubInner() {
     try {
       const data = await getBusinessProfileForEditor(bizId);
       const biz = data.business;
-      setProfileForm({
+      const nextForm = {
         business_name:       biz.business_name   || '',
         business_type:       biz.business_type   || '',
         profile_headline:    biz.profile_headline || '',
@@ -216,7 +219,12 @@ function BusinessHubInner() {
         service_radius_miles: biz.service_radius_miles || '',
         logo_url:            biz.logo_url        || '',
         cover_photo_url:     biz.cover_photo_url || '',
-      });
+      };
+      setProfileForm(nextForm);
+      profileFieldsBaselineRef.current = {
+        profile_headline: nextForm.profile_headline,
+        service_radius_miles: nextForm.service_radius_miles,
+      };
       setLogoPreview(biz.logo_url || null);
       setCoverPreview(biz.cover_photo_url || null);
       setLogoFile(null);
@@ -248,12 +256,10 @@ function BusinessHubInner() {
         else
           photoPatch.clear_cover_photo_url = true;
       }
-      await updateBusiness(bizId, {
+      const bl = profileFieldsBaselineRef.current;
+      const body = {
         business_name:        profileForm.business_name       || undefined,
         business_type:        profileForm.business_type       || undefined,
-        // Send '' / null explicitly so JSON includes the key; omitted keys become NULL
-        // server-side and COALESCE(NULL, col) would preserve the previous value.
-        profile_headline:     profileForm.profile_headline ?? '',
         description:          profileForm.description ?? '',
         phone:                profileForm.phone ?? '',
         website:              profileForm.website ?? '',
@@ -261,12 +267,22 @@ function BusinessHubInner() {
         address_city:         profileForm.address_city ?? '',
         address_state:        profileForm.address_state ?? '',
         address_zip:          profileForm.address_zip ?? '',
-        service_radius_miles:
-          profileForm.service_radius_miles === '' || profileForm.service_radius_miles == null
-            ? null
-            : parseFloat(profileForm.service_radius_miles),
         ...photoPatch,
-      });
+      };
+      if (bl) {
+        const curHeadline = profileForm.profile_headline ?? '';
+        if (String(curHeadline) !== String(bl.profile_headline))
+          body.profile_headline = curHeadline;
+        const curR = profileForm.service_radius_miles;
+        const curRadiusStr = curR === '' || curR == null ? '' : String(curR);
+        const blR = bl.service_radius_miles;
+        const blRadiusStr = blR === '' || blR == null ? '' : String(blR);
+        if (curRadiusStr !== blRadiusStr) {
+          body.service_radius_miles =
+            curR === '' || curR == null ? null : parseFloat(curR);
+        }
+      }
+      await updateBusiness(bizId, body);
       toast.success('Profile saved');
       // Reload so form reflects persisted values
       setLogoFile(null);
