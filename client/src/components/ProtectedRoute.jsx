@@ -15,10 +15,13 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
   const { user, loading, isOnboardingComplete } = useAuth();
   const location = useLocation();
 
-  // Return null while auth state is resolving — avoids a flash of the login
-  // redirect before the token is verified. The parent Suspense / skeleton
-  // handles the loading UI.
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
