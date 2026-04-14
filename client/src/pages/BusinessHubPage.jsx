@@ -235,6 +235,19 @@ function BusinessHubInner() {
         await uploadBusinessPhotos(bizId, logoFile || null, coverFile || null);
       }
       // 2. Save text fields (logo_url / cover_photo_url included if typed manually)
+      const photoPatch = {};
+      if (!logoFile) {
+        if (profileForm.logo_url)
+          photoPatch.logo_url = profileForm.logo_url;
+        else
+          photoPatch.clear_logo_url = true;
+      }
+      if (!coverFile) {
+        if (profileForm.cover_photo_url)
+          photoPatch.cover_photo_url = profileForm.cover_photo_url;
+        else
+          photoPatch.clear_cover_photo_url = true;
+      }
       await updateBusiness(bizId, {
         business_name:        profileForm.business_name       || undefined,
         business_type:        profileForm.business_type       || undefined,
@@ -248,9 +261,7 @@ function BusinessHubInner() {
         address_zip:          profileForm.address_zip         || undefined,
         service_radius_miles: profileForm.service_radius_miles
                                 ? parseFloat(profileForm.service_radius_miles) : undefined,
-        // Only send URL-based logo/cover if no file was uploaded
-        ...(!logoFile  && profileForm.logo_url       ? { logo_url:        profileForm.logo_url        } : {}),
-        ...(!coverFile && profileForm.cover_photo_url ? { cover_photo_url: profileForm.cover_photo_url } : {}),
+        ...photoPatch,
       });
       toast.success('Profile saved');
       // Reload so form reflects persisted values
@@ -590,11 +601,11 @@ function BusinessHubInner() {
                 onChange={(patch) => setProfileForm(f => ({ ...f, ...patch }))}
                 onLogoChange={(file) => {
                   setLogoFile(file);
-                  setLogoPreview(file ? URL.createObjectURL(file) : (profileForm?.logo_url || null));
+                  setLogoPreview(file ? URL.createObjectURL(file) : null);
                 }}
                 onCoverChange={(file) => {
                   setCoverFile(file);
-                  setCoverPreview(file ? URL.createObjectURL(file) : (profileForm?.cover_photo_url || null));
+                  setCoverPreview(file ? URL.createObjectURL(file) : null);
                 }}
                 onSave={handleSaveProfile}
                 bizId={bizId}

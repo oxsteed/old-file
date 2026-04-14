@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-14 (PR #129 Bugbot — business profile editor fixes)
+**Last updated:** 2026-04-14 (Business Hub — remove logo/cover clears DB + preview)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -739,5 +739,6 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **`updateBusiness`** — non-owners cannot change `ein`, `tax_rate`, or `is_active` (manager marketing-only updates).
 - **`listMembers`** — `canAccessBusinessTeam` allows active reps/managers to list team (owner id from access row for `owner_id` filter).
 - **`uploadBusinessPhotos` client** — removed manual `Content-Type: multipart/form-data` so axios sets boundary.
+- **Remove logo/cover** — `BusinessHubPage`: clearing file input sets preview to `null` (not stale `profileForm` URL). Save sends `clear_logo_url` / `clear_cover_photo_url` when URLs are empty; `updateBusiness` sets `logo_url` / `cover_photo_url` to NULL (COALESCE alone could not clear).
 
 **Note:** `cd server && npm test` in this workspace failed for unrelated reasons (403 vs expected in several suites, missing `file-type`, ESM in `@otplib`); not attributed to this change set.

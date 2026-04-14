@@ -108,11 +108,14 @@ async function updateBusiness(req, res) {
       is_active, tax_rate,
       // Public-profile fields
       logo_url, cover_photo_url,
+      clear_logo_url, clear_cover_photo_url,
       // Helper-profile fields that surface on the public business page (belong to owner)
       profile_headline, service_radius_miles,
     } = req.body;
 
     const isOwner = req.user.id === ownerId;
+    const logoExplicitNull = clear_logo_url === true;
+    const coverExplicitNull = clear_cover_photo_url === true;
     // Managers may edit marketing/contact/address only — not tax identity or lifecycle flags.
     const sensitiveEin = isOwner ? ein : undefined;
     const sensitiveTax = isOwner ? tax_rate : undefined;
@@ -132,8 +135,8 @@ async function updateBusiness(req, res) {
            address_zip     = COALESCE($10, address_zip),
            is_active       = CASE WHEN $16::boolean THEN COALESCE($11, is_active) ELSE is_active END,
            tax_rate        = CASE WHEN $16::boolean THEN COALESCE($12, tax_rate) ELSE tax_rate END,
-           logo_url        = COALESCE($13, logo_url),
-           cover_photo_url = COALESCE($14, cover_photo_url),
+           logo_url        = CASE WHEN $17::boolean THEN NULL ELSE COALESCE($13, logo_url) END,
+           cover_photo_url = CASE WHEN $18::boolean THEN NULL ELSE COALESCE($14, cover_photo_url) END,
            updated_at      = NOW()
        WHERE id = $15
        RETURNING *`,
@@ -148,6 +151,8 @@ async function updateBusiness(req, res) {
         cover_photo_url || null,
         id,
         isOwner,
+        logoExplicitNull,
+        coverExplicitNull,
       ]
     );
 
