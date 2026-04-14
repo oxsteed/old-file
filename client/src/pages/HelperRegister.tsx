@@ -14,7 +14,7 @@ export default function HelperRegister() {
   const [step, setStep] = useState<Step>(1);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white" data-theme="dark">
+    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
       {/* Navbar */}
       <nav className="border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -26,7 +26,7 @@ export default function HelperRegister() {
         </div>
       </nav>
 
-      <div className="flex flex-col items-center px-4 py-8 md:py-12">
+      <div className="flex-1 flex flex-col items-center px-4 py-8 md:py-12">
         <div className="w-full max-w-[480px] flex flex-col gap-8">
 
           <section className="text-center">
