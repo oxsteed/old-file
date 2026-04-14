@@ -2,6 +2,9 @@ import React from 'react';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
+  // Injected by RouterAwareErrorBoundary — kept optional so the class
+  // component can be unit-tested in isolation without a router context.
+  navigateHome?: () => void;
 }
 
 interface ErrorBoundaryState {
@@ -13,6 +16,10 @@ interface ErrorBoundaryState {
  * ErrorBoundary — Catches unhandled React rendering errors
  * and displays a user-friendly fallback UI instead of a blank page.
  * Includes a retry button and contact information.
+ *
+ * Use <RouterAwareErrorBoundary> (exported below) in App.jsx so the
+ * "Go to Homepage" button navigates via React Router instead of doing a
+ * hard reload with window.location.href.
  */
 export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -32,6 +39,16 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
 
   handleRetry = () => {
     this.setState({ hasError: false, error: null });
+  };
+
+  handleGoHome = () => {
+    if (this.props.navigateHome) {
+      // Prefer SPA navigation when a router is available (see RouterAwareErrorBoundary)
+      this.props.navigateHome();
+    } else {
+      // Fallback: hard redirect when rendered outside a Router (e.g. tests)
+      window.location.href = '/';
+    }
   };
 
   render() {
@@ -55,7 +72,7 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
                 Try Again
               </button>
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={this.handleGoHome}
                 style={styles.homeBtn}
               >
                 Go to Homepage
@@ -74,6 +91,33 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
 
     return this.props.children;
   }
+}
+
+/**
+ * RouterAwareErrorBoundary
+ *
+ * Thin functional wrapper that injects useNavigate() into the class-based
+ * ErrorBoundary. Use this instead of <ErrorBoundary> anywhere you need
+ * React Router navigation on crash (i.e. in App.jsx).
+ *
+ * React class components cannot call hooks directly; this wrapper is the
+ * idiomatic solution.
+ *
+ * Usage in App.jsx:
+ *   import { RouterAwareErrorBoundary } from './components/ErrorBoundary';
+ *   <RouterAwareErrorBoundary>
+ *     <App />
+ *   </RouterAwareErrorBoundary>
+ */
+import { useNavigate } from 'react-router-dom';
+
+export function RouterAwareErrorBoundary({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  return (
+    <ErrorBoundary navigateHome={() => navigate('/', { replace: true })}>
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 const styles: Record<string, React.CSSProperties> = {

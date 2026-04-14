@@ -1,51 +1,36 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext';
 
+// Paths a helper is allowed to visit while in onboarding gate.
 // '/helper/onboarding' was removed — no matching <Route> exists in App.jsx.
-// Helpers in the onboarding gate are redirected to /register/helper (see below).
 const ONBOARDING_ALLOWED_PATHS = [
-  '/login',
-  '/register',
   '/register/helper',
-  '/register/customer',
-  '/helper-register',
-  '/helper-dashboard',
+  '/register/helper/onboarding',
+  '/onboarding',
+  '/logout',
 ];
 
-export default function ProtectedRoute({ children, requiredRole, requiredTier }) {
+export default function ProtectedRoute({ children, requiredRole, requireOnboarded = true }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
+  if (loading) return null;
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // Helper onboarding gate: redirect incomplete helpers unless on allowed paths
-  const helperOnboardingComplete = user.onboarding_step === 'active'
-    || user.onboarding_completed
-    || user.onboarding_status === 'onboarding_complete';
-  if (
-    user.role === 'helper' &&
-    !helperOnboardingComplete &&
-    !ONBOARDING_ALLOWED_PATHS.some(p => location.pathname.startsWith(p))
-  ) {
-    return <Navigate to="/register/helper" replace />;
   }
 
   if (requiredRole && user.role !== requiredRole) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (requiredTier && user.tier !== requiredTier) {
-    return <Navigate to="/dashboard" replace />;
+  if (
+    requireOnboarded &&
+    user.role === 'helper' &&
+    !user.onboarding_complete &&
+    !ONBOARDING_ALLOWED_PATHS.includes(location.pathname)
+  ) {
+    return <Navigate to="/register/helper" replace />;
   }
 
   return children;
