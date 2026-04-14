@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
 
@@ -66,6 +67,8 @@ const FAQS = [
 ];
 
 export default function HowItWorks() {
+  const [openFaq, setOpenFaq] = useState(null);
+
   return (
     <div
       className="min-h-screen text-white flex flex-col"
@@ -335,7 +338,7 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        {/* ── FAQ (2-column editorial) ── */}
+        {/* ── FAQ accordion ── */}
         <section style={{
           padding: '3rem 1.5rem 3.5rem',
           background: 'linear-gradient(180deg, rgba(249,115,22,0.03) 0%, transparent 100%)',
@@ -346,11 +349,12 @@ export default function HowItWorks() {
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '2rem',
+              gap: '2.5rem',
               alignItems: 'start',
             }}>
+
               {/* Left column — title */}
-              <div>
+              <div style={{ position: 'sticky', top: '5rem' }}>
                 <h2 style={{
                   fontSize: 'clamp(1.5rem, 2.75vw, 2rem)',
                   fontWeight: 800,
@@ -359,38 +363,100 @@ export default function HowItWorks() {
                   margin: '0 0 0.6rem',
                   lineHeight: 1.15,
                 }}>
-                  Frequently Asked Questions
+                  Frequently Asked<br />Questions
                 </h2>
-                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0, maxWidth: '320px' }}>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0, maxWidth: '280px' }}>
                   Quick answers to what most people ask about OxSteed.
                 </p>
               </div>
 
-              {/* Right column — FAQ items in a tight 2-column grid */}
+              {/* Right column — accordion */}
               <div style={{
-                gridColumn: 'span 1',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                gap: '0.625rem',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                background: 'rgba(255,255,255,0.02)',
               }}>
-                {FAQS.map((faq, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                      borderRadius: '12px',
-                      padding: '1rem 1.15rem',
-                      transition: 'border-color 200ms',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(249,115,22,0.2)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'}
-                  >
-                    <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', margin: '0 0 0.35rem', lineHeight: 1.35 }}>{faq.q}</h3>
-                    <p style={{ color: 'rgba(255,255,255,0.48)', fontSize: '0.8125rem', lineHeight: 1.55, margin: 0 }}>{faq.a}</p>
-                  </div>
-                ))}
+                {FAQS.map((faq, i) => {
+                  const isOpen = openFaq === i;
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        borderBottom: i < FAQS.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                        background: isOpen ? 'rgba(249,115,22,0.04)' : 'transparent',
+                        transition: 'background 200ms',
+                      }}
+                    >
+                      {/* Question row */}
+                      <button
+                        onClick={() => setOpenFaq(isOpen ? null : i)}
+                        aria-expanded={isOpen}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '1rem',
+                          padding: '1.1rem 1.35rem',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{
+                          color: isOpen ? '#fff' : 'rgba(255,255,255,0.85)',
+                          fontWeight: 700,
+                          fontSize: '0.9375rem',
+                          lineHeight: 1.35,
+                          transition: 'color 200ms',
+                        }}>
+                          {faq.q}
+                        </span>
+                        {/* Chevron */}
+                        <svg
+                          width="18" height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke={isOpen ? '#f97316' : 'rgba(255,255,255,0.35)'}
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            flexShrink: 0,
+                            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1), stroke 200ms',
+                          }}
+                          aria-hidden="true"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+
+                      {/* Answer — smooth height via grid trick */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateRows: isOpen ? '1fr' : '0fr',
+                        transition: 'grid-template-rows 280ms cubic-bezier(0.4, 0, 0.2, 1)',
+                      }}>
+                        <div style={{ overflow: 'hidden' }}>
+                          <p style={{
+                            color: 'rgba(255,255,255,0.55)',
+                            fontSize: '0.875rem',
+                            lineHeight: 1.7,
+                            margin: 0,
+                            padding: '0 1.35rem 1.25rem',
+                          }}>
+                            {faq.a}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+
             </div>
           </div>
         </section>
