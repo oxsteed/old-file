@@ -391,11 +391,6 @@
   color: #4ade80;
 }
 
-.sp-badge-blue {
-  background: rgba(59,130,246,.12);
-  color: #93c5fd;
-}
-
 /* ── Role badge ──────────────────────────────────────────── */
 .sp-role-badge {
   display: inline-flex;
@@ -452,13 +447,6 @@
   opacity: 0.6;
 }
 
-/* ── Section divider line ────────────────────────────────── */
-.sp-divider {
-  height: 1px;
-  background: var(--border-color, rgba(255,255,255,.07));
-  margin: 1.25rem 0;
-}
-
 /* ── Mobile: horizontal tab bar ──────────────────────────── */
 @media (max-width: 879px) {
   .sp-layout {
@@ -497,7 +485,8 @@
 
   .sp-tab-divider {
     width: 1px;
-    height: auto;
+    height: 1px;
+    align-self: stretch;
     margin: 0.2rem 0;
   }
 

@@ -120,10 +120,10 @@ export default function NotificationPreferences() {
 
   if (loading) {
     return (
-      <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Notification Preferences</h2>
-        <div className="flex items-center gap-2 text-gray-500 text-sm">
-          <svg className="animate-spin h-4 w-4 text-orange-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <div className="sp-card">
+        <h2 className="sp-card-title">Notification Preferences</h2>
+        <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+          <svg className="animate-spin h-4 w-4" style={{ color: '#f97316' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
@@ -134,11 +134,11 @@ export default function NotificationPreferences() {
   }
 
   return (
-    <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 mb-6">
+    <div className="sp-card">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-xl font-semibold">Notification Preferences</h2>
+        <h2 className="sp-card-title" style={{ marginBottom: 0 }}>Notification Preferences</h2>
         {saving && (
-          <span className="flex items-center gap-1.5 text-xs text-orange-400">
+          <span className="flex items-center gap-1.5 text-xs" style={{ color: '#f97316' }}>
             <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -147,24 +147,25 @@ export default function NotificationPreferences() {
           </span>
         )}
       </div>
-      <p className="text-sm text-gray-500 mb-6">Choose how you want to be notified about activity on your account.</p>
+      <p className="sp-card-subtitle">Choose how you want to be notified about activity on your account.</p>
 
       <div className="space-y-8">
         {SECTIONS.map((section, sIdx) => (
           <div key={section.key}>
             <div className="mb-3">
-              <h3 className="text-base font-medium text-white">{section.title}</h3>
-              <p className="text-xs text-gray-500 mt-0.5">{section.description}</p>
+              <h3 className="text-base font-medium" style={{ color: 'var(--app-text,#f1f5f9)' }}>{section.title}</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>{section.description}</p>
             </div>
-            <div className="space-y-0 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="space-y-0 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-color,rgba(255,255,255,.08))' }}>
               {section.keys.map((prefKey, idx) => (
                 <div
                   key={prefKey}
-                  className={`flex items-center justify-between px-4 py-3 ${
-                    idx !== section.keys.length - 1 ? 'border-b border-gray-800' : ''
-                  } hover:bg-gray-800/40 transition-colors`}
+                  className={`flex items-center justify-between px-4 py-3 transition-colors ${
+                    idx !== section.keys.length - 1 ? 'border-b' : ''
+                  } hover:bg-white/5`}
+                  style={idx !== section.keys.length - 1 ? { borderBottomColor: 'var(--border-color,rgba(255,255,255,.08))' } : {}}
                 >
-                  <span className="text-sm text-gray-200">{LABELS[prefKey]}</span>
+                  <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>{LABELS[prefKey]}</span>
                   <Toggle
                     checked={prefs?.[prefKey] ?? true}
                     onChange={(val) => handleToggle(prefKey, val)}
@@ -174,7 +175,7 @@ export default function NotificationPreferences() {
               ))}
             </div>
             {sIdx < SECTIONS.length - 1 && (
-              <div className="mt-8 border-t border-gray-800" />
+              <div className="mt-8" style={{ borderTop: '1px solid var(--border-color,rgba(255,255,255,.08))' }} />
             )}
           </div>
         ))}
