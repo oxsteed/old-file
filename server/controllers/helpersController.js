@@ -296,7 +296,7 @@ async function listHelpers(req, res) {
          JOIN users u ON u.id = b.user_id
          LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
          WHERE ${bizWhere}
-         ORDER BY b.avg_rating DESC NULLS LAST, b.total_reviews DESC NULLS LAST
+                 ORDER BY hp.avg_rating DESC NULLS LAST, hp.total_reviews DESC NULLS LAST
          LIMIT 20`,
         bizParams
       );
