@@ -8,6 +8,15 @@ export const createBusiness        = (payload)       => api.post('/businesses', 
 export const updateBusiness        = (id, payload)   => api.put(`/businesses/${id}`, payload).then(r => r.data?.business);
 export const setPrimary            = (id)            => api.put(`/businesses/${id}/primary`).then(r => r.data?.business);
 export const deleteBusiness        = (id)            => api.delete(`/businesses/${id}`).then(r => r.data);
+// Upload logo and/or cover photo (multipart/form-data)
+export const uploadBusinessPhotos  = (id, logoFile, coverFile) => {
+  const fd = new FormData();
+  if (logoFile)  fd.append('logo',  logoFile);
+  if (coverFile) fd.append('cover', coverFile);
+  return api.put(`/businesses/${id}/photos`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data);
+};
 // Public — no auth required
 export const getBusinessPublicProfile = (id)         => api.get(`/businesses/${id}/public`).then(r => r.data);
 

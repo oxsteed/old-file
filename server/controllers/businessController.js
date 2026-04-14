@@ -99,6 +99,10 @@ async function updateBusiness(req, res) {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
       is_active, tax_rate,
+      // Public-profile fields (optional — update businesses table directly)
+      logo_url, cover_photo_url,
+      // Helper-profile fields that surface on the business public page
+      profile_headline, service_radius_miles,
     } = req.body;
 
     const { rows: [biz] } = await pool.query(
@@ -115,23 +119,105 @@ async function updateBusiness(req, res) {
            address_zip    = COALESCE($10, address_zip),
            is_active      = COALESCE($11, is_active),
            tax_rate       = COALESCE($12, tax_rate),
+           logo_url       = COALESCE($13, logo_url),
+           cover_photo_url= COALESCE($14, cover_photo_url),
            updated_at     = NOW()
-       WHERE id = $13 AND user_id = $14
+       WHERE id = $15 AND user_id = $16
        RETURNING *`,
       [
         business_name, business_type, ein, description, website, phone,
         address_street, address_city, address_state, address_zip,
         is_active != null ? is_active : null,
         tax_rate != null ? parseFloat(tax_rate) : null,
+        logo_url || null,
+        cover_photo_url || null,
         id, req.user.id,
       ]
     );
 
     if (!biz) return res.status(404).json({ error: 'Business not found' });
+
+    // Optionally update profile_headline and service_radius_miles on the owner's
+    // helper_profiles row — these fields surface on the business public page.
+    const helperUpdates = [];
+    const helperValues = [];
+    if (profile_headline !== undefined) {
+      helperValues.push(profile_headline || null);
+      helperUpdates.push(`profile_headline = $${helperValues.length}`);
+    }
+    if (service_radius_miles !== undefined) {
+      const radius = service_radius_miles != null ? parseFloat(service_radius_miles) : null;
+      helperValues.push(radius);
+      helperUpdates.push(`service_radius_miles = $${helperValues.length}`);
+    }
+    if (helperUpdates.length > 0) {
+      helperValues.push(req.user.id);
+      await pool.query(
+        `INSERT INTO helper_profiles (user_id, ${helperUpdates.map(u => u.split(' = ')[0]).join(', ')})
+         VALUES ($${helperValues.length}, ${helperUpdates.map((_, i) => `$${i + 1}`).join(', ')})
+         ON CONFLICT (user_id) DO UPDATE SET ${helperUpdates.join(', ')}, updated_at = NOW()`,
+        helperValues
+      );
+    }
+
     return res.json({ business: biz });
   } catch (err) {
     logger.error('updateBusiness error', { err: err.message });
     return res.status(500).json({ error: 'Failed to update business' });
+  }
+}
+
+// ── Upload business photos (logo + cover) ─────────────────────────────────────
+// PUT /api/businesses/:id/photos  multipart/form-data
+// fields: logo (optional), cover (optional)
+async function uploadBusinessPhotos(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Verify the requester owns this business
+    const { rows: [biz] } = await pool.query(
+      'SELECT id FROM businesses WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+    if (!biz) return res.status(404).json({ error: 'Business not found' });
+
+    const { uploadFile, getPublicUrl } = require('../utils/storage');
+    const updates = {};
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    if (req.files?.logo?.[0]) {
+      const file = req.files.logo[0];
+      if (!allowed.includes(file.mimetype))
+        return res.status(400).json({ error: 'Logo must be a JPG, PNG, WebP, or GIF' });
+      const key = await uploadFile(file.buffer, 'business-logos', file.originalname, file.mimetype);
+      updates.logo_url = key ? getPublicUrl(key) : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    }
+
+    if (req.files?.cover?.[0]) {
+      const file = req.files.cover[0];
+      if (!allowed.includes(file.mimetype))
+        return res.status(400).json({ error: 'Cover photo must be a JPG, PNG, WebP, or GIF' });
+      const key = await uploadFile(file.buffer, 'business-covers', file.originalname, file.mimetype);
+      updates.cover_photo_url = key ? getPublicUrl(key) : `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    }
+
+    if (Object.keys(updates).length === 0)
+      return res.status(400).json({ error: 'No files uploaded' });
+
+    const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
+    const values = [...Object.values(updates), id, req.user.id];
+    const { rows: [updated] } = await pool.query(
+      `UPDATE businesses SET ${setClauses}, updated_at = NOW()
+       WHERE id = $${values.length - 1} AND user_id = $${values.length}
+       RETURNING id, logo_url, cover_photo_url`,
+      values
+    );
+
+    return res.json({ business: updated, ...updates });
+  } catch (err) {
+    logger.error('uploadBusinessPhotos error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to upload photos' });
   }
 }
 
@@ -654,6 +740,7 @@ async function getBusinessPublicProfile(req, res) {
 
 module.exports = {
   listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
+  uploadBusinessPhotos,
   getBusinessPublicProfile,
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,

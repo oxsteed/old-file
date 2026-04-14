@@ -5,7 +5,7 @@ import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import {
-  listBusinesses, createBusiness,
+  listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
   listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice,
   getTax, refreshTax, markTaxPaid,
@@ -14,6 +14,7 @@ import {
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
+  getBusinessPublicProfile,
 } from '../api/businesses';
 import '../styles/BusinessHubPage.css';
 
@@ -102,6 +103,16 @@ function BusinessHubInner() {
   const [tokenForm, setTokenForm]         = useState({ role: 'representative', expires_in: '7d' });
   const [generatingToken, setGeneratingToken] = useState(false);
 
+  // profile tab
+  const [profileForm, setProfileForm] = useState(null);   // null = not loaded
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving]   = useState(false);
+  const [profileErr, setProfileErr]         = useState('');
+  const [logoPreview, setLogoPreview]     = useState(null);
+  const [coverPreview, setCoverPreview]   = useState(null);
+  const [logoFile, setLogoFile]           = useState(null);
+  const [coverFile, setCoverFile]         = useState(null);
+
   // ── load businesses ──────────────────────────────────────────────────────
   const loadBusinesses = useCallback(async () => {
     setLoadingBiz(true);
@@ -172,6 +183,75 @@ function BusinessHubInner() {
     finally { setMembersLoading(false); }
   }, [bizId]);
 
+  const loadProfile = useCallback(async () => {
+    if (!bizId) return;
+    setProfileLoading(true);
+    setProfileErr('');
+    try {
+      const data = await getBusinessPublicProfile(bizId);
+      const biz = data.business;
+      setProfileForm({
+        business_name:       biz.business_name   || '',
+        business_type:       biz.business_type   || '',
+        profile_headline:    biz.profile_headline || '',
+        description:         biz.description     || biz.bio_short || '',
+        phone:               biz.phone           || '',
+        website:             biz.website         || '',
+        address_street:      '',
+        address_city:        biz.address_city    || '',
+        address_state:       biz.address_state   || '',
+        address_zip:         '',
+        service_radius_miles: biz.service_radius_miles || '',
+        logo_url:            biz.logo_url        || '',
+        cover_photo_url:     biz.cover_photo_url || '',
+      });
+      setLogoPreview(biz.logo_url || null);
+      setCoverPreview(biz.cover_photo_url || null);
+      setLogoFile(null);
+      setCoverFile(null);
+    } catch { setProfileErr('Failed to load business profile.'); }
+    finally { setProfileLoading(false); }
+  }, [bizId]);
+
+  const handleSaveProfile = useCallback(async () => {
+    if (!profileForm) return;
+    setProfileSaving(true);
+    setProfileErr('');
+    try {
+      // 1. Upload photos first if files were selected
+      if (logoFile || coverFile) {
+        await uploadBusinessPhotos(bizId, logoFile || null, coverFile || null);
+      }
+      // 2. Save text fields (logo_url / cover_photo_url included if typed manually)
+      await updateBusiness(bizId, {
+        business_name:        profileForm.business_name       || undefined,
+        business_type:        profileForm.business_type       || undefined,
+        profile_headline:     profileForm.profile_headline    || undefined,
+        description:          profileForm.description         || undefined,
+        phone:                profileForm.phone               || undefined,
+        website:              profileForm.website             || undefined,
+        address_street:       profileForm.address_street      || undefined,
+        address_city:         profileForm.address_city        || undefined,
+        address_state:        profileForm.address_state       || undefined,
+        address_zip:          profileForm.address_zip         || undefined,
+        service_radius_miles: profileForm.service_radius_miles
+                                ? parseFloat(profileForm.service_radius_miles) : undefined,
+        // Only send URL-based logo/cover if no file was uploaded
+        ...(!logoFile  && profileForm.logo_url       ? { logo_url:        profileForm.logo_url        } : {}),
+        ...(!coverFile && profileForm.cover_photo_url ? { cover_photo_url: profileForm.cover_photo_url } : {}),
+      });
+      toast.success('Profile saved');
+      // Reload so form reflects persisted values
+      setLogoFile(null);
+      setCoverFile(null);
+      await loadProfile();
+    } catch (e) {
+      setProfileErr(e?.response?.data?.error || 'Failed to save profile');
+    } finally {
+      setProfileSaving(false);
+    }
+  }, [bizId, profileForm, logoFile, coverFile, loadProfile]);
+
   useEffect(() => {
     if (!bizId) return;
     if (tab === 'overview') loadOverview();
@@ -182,7 +262,8 @@ function BusinessHubInner() {
       loadOverview();
     }
     else if (tab === 'team') loadTeam();
-  }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
+    else if (tab === 'profile') loadProfile();
+  }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam, loadProfile]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -458,12 +539,35 @@ function BusinessHubInner() {
 
             {/* Tabs */}
             <div className="bh-tabs">
-              {['overview', 'invoices', 'tax', 'goals', 'team'].map(t => (
+              {['profile', 'overview', 'invoices', 'tax', 'goals', 'team'].map(t => (
                 <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-                  {t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === 'profile' ? 'Edit Profile' : t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
+
+            {/* ── Profile tab ──────────────────────────────────────── */}
+            {tab === 'profile' && (
+              profileLoading ? <p className="bh-loading">Loading profile…</p> :
+              <ProfileTab
+                form={profileForm}
+                logoPreview={logoPreview}
+                coverPreview={coverPreview}
+                saving={profileSaving}
+                err={profileErr}
+                onChange={(patch) => setProfileForm(f => ({ ...f, ...patch }))}
+                onLogoChange={(file) => {
+                  setLogoFile(file);
+                  setLogoPreview(file ? URL.createObjectURL(file) : (profileForm?.logo_url || null));
+                }}
+                onCoverChange={(file) => {
+                  setCoverFile(file);
+                  setCoverPreview(file ? URL.createObjectURL(file) : (profileForm?.cover_photo_url || null));
+                }}
+                onSave={handleSaveProfile}
+                bizId={bizId}
+              />
+            )}
 
             {/* ── Overview tab ────────────────────────────────────── */}
             {tab === 'overview' && (
@@ -748,6 +852,222 @@ function BusinessHubInner() {
 
       </div>
     </PageShell>
+  );
+}
+
+// ── Profile tab ───────────────────────────────────────────────────────────────
+const US_STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
+  'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
+  'VA','WA','WV','WI','WY','DC',
+];
+
+const BIZ_TYPES = [
+  'Handyman', 'Plumbing', 'Electrical', 'HVAC', 'Landscaping', 'Cleaning',
+  'Painting', 'Carpentry', 'Roofing', 'Flooring', 'Moving', 'Pest Control',
+  'Pool Service', 'Auto Repair', 'General Labor', 'Other',
+];
+
+function ProfileTab({ form, logoPreview, coverPreview, saving, err, onChange, onLogoChange, onCoverChange, onSave, bizId }) {
+  if (!form) return null;
+
+  function pf(e) {
+    const { name, value } = e.target;
+    onChange({ [name]: value });
+  }
+
+  return (
+    <div className="bh-profile-tab">
+      <div className="bh-profile-header">
+        <div>
+          <h2 className="bh-profile-title">Public Profile</h2>
+          <p className="bh-profile-subtitle">
+            This information appears on your business's public page visible to customers.
+          </p>
+        </div>
+        {bizId && (
+          <a
+            href={`/business/${bizId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bh-btn sm"
+          >
+            Preview ↗
+          </a>
+        )}
+      </div>
+
+      {/* ── Photos ──────────────────────────────────────────────────── */}
+      <section className="bh-profile-section">
+        <h3 className="bh-profile-section-title">Photos</h3>
+        <div className="bh-photo-row">
+
+          {/* Logo */}
+          <div className="bh-photo-field">
+            <label className="bh-photo-label">Business Logo</label>
+            <div className="bh-photo-preview bh-photo-preview--logo">
+              {logoPreview
+                ? <img src={logoPreview} alt="Logo preview" className="bh-photo-img" />
+                : <span className="bh-photo-placeholder">No logo</span>}
+            </div>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="bh-photo-input"
+              onChange={e => onLogoChange(e.target.files?.[0] || null)}
+              id="bh-logo-input"
+            />
+            <label htmlFor="bh-logo-input" className="bh-btn sm" style={{ cursor: 'pointer', display: 'inline-block' }}>
+              {logoPreview ? 'Change Logo' : 'Upload Logo'}
+            </label>
+            {logoPreview && (
+              <button
+                className="bh-btn sm danger"
+                onClick={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
+                style={{ marginLeft: '0.5rem' }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+
+          {/* Cover photo */}
+          <div className="bh-photo-field">
+            <label className="bh-photo-label">Cover Photo</label>
+            <div className="bh-photo-preview bh-photo-preview--cover">
+              {coverPreview
+                ? <img src={coverPreview} alt="Cover preview" className="bh-photo-img" />
+                : <span className="bh-photo-placeholder">No cover photo</span>}
+            </div>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="bh-photo-input"
+              onChange={e => onCoverChange(e.target.files?.[0] || null)}
+              id="bh-cover-input"
+            />
+            <label htmlFor="bh-cover-input" className="bh-btn sm" style={{ cursor: 'pointer', display: 'inline-block' }}>
+              {coverPreview ? 'Change Cover' : 'Upload Cover'}
+            </label>
+            {coverPreview && (
+              <button
+                className="bh-btn sm danger"
+                onClick={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
+                style={{ marginLeft: '0.5rem' }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Business identity ────────────────────────────────────────── */}
+      <section className="bh-profile-section">
+        <h3 className="bh-profile-section-title">Business Identity</h3>
+        <div className="bh-field-row">
+          <div className="bh-field">
+            <label>Business Name *</label>
+            <input name="business_name" value={form.business_name} onChange={pf} placeholder="My Service Co." />
+          </div>
+          <div className="bh-field">
+            <label>Business Type</label>
+            <select name="business_type" value={form.business_type} onChange={pf}>
+              <option value="">— Select a type —</option>
+              {BIZ_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="bh-field">
+          <label>Tagline / Headline</label>
+          <input
+            name="profile_headline"
+            value={form.profile_headline}
+            onChange={pf}
+            placeholder="e.g. Reliable plumbing &amp; HVAC service since 2010"
+            maxLength={120}
+          />
+          <span className="bh-field-hint">Shown below your business name. Max 120 chars.</span>
+        </div>
+        <div className="bh-field">
+          <label>About / Description</label>
+          <textarea
+            name="description"
+            value={form.description}
+            onChange={pf}
+            rows={4}
+            placeholder="Tell customers about your business, specialties, and what makes you stand out…"
+          />
+        </div>
+      </section>
+
+      {/* ── Contact info ────────────────────────────────────────────── */}
+      <section className="bh-profile-section">
+        <h3 className="bh-profile-section-title">Contact Info</h3>
+        <div className="bh-field-row">
+          <div className="bh-field">
+            <label>Phone</label>
+            <input name="phone" value={form.phone} onChange={pf} placeholder="(555) 000-0000" type="tel" />
+          </div>
+          <div className="bh-field">
+            <label>Website</label>
+            <input name="website" value={form.website} onChange={pf} placeholder="https://yoursite.com" type="url" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Location & service area ──────────────────────────────────── */}
+      <section className="bh-profile-section">
+        <h3 className="bh-profile-section-title">Location &amp; Service Area</h3>
+        <div className="bh-field">
+          <label>Street Address</label>
+          <input name="address_street" value={form.address_street} onChange={pf} placeholder="123 Main St (optional — not shown publicly)" />
+          <span className="bh-field-hint">Street address is not displayed publicly.</span>
+        </div>
+        <div className="bh-field-row">
+          <div className="bh-field">
+            <label>City</label>
+            <input name="address_city" value={form.address_city} onChange={pf} placeholder="Austin" />
+          </div>
+          <div className="bh-field">
+            <label>State</label>
+            <select name="address_state" value={form.address_state} onChange={pf}>
+              <option value="">— Select —</option>
+              {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="bh-field" style={{ maxWidth: '120px' }}>
+            <label>ZIP</label>
+            <input name="address_zip" value={form.address_zip} onChange={pf} placeholder="78701" maxLength={10} />
+          </div>
+        </div>
+        <div className="bh-field" style={{ maxWidth: '200px' }}>
+          <label>Service Radius (miles)</label>
+          <input
+            type="number"
+            name="service_radius_miles"
+            value={form.service_radius_miles}
+            onChange={pf}
+            placeholder="25"
+            min="1"
+            max="200"
+          />
+        </div>
+      </section>
+
+      {err && <p className="bh-profile-err">{err}</p>}
+
+      <div className="bh-profile-actions">
+        <button className="bh-btn primary" onClick={onSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save Profile'}
+        </button>
+        <p className="bh-profile-note">
+          Services, gallery, availability, and policies are managed from your{' '}
+          <a href="/dashboard" className="bh-profile-link">helper profile settings</a>.
+        </p>
+      </div>
+    </div>
   );
 }
 
