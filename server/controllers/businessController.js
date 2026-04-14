@@ -112,11 +112,17 @@ async function updateBusiness(req, res) {
       profile_headline, service_radius_miles,
     } = req.body;
 
+    const isOwner = req.user.id === ownerId;
+    // Managers may edit marketing/contact/address only — not tax identity or lifecycle flags.
+    const sensitiveEin = isOwner ? ein : undefined;
+    const sensitiveTax = isOwner ? tax_rate : undefined;
+    const sensitiveActive = isOwner && is_active != null ? is_active : null;
+
     const { rows: [biz] } = await pool.query(
       `UPDATE businesses
        SET business_name   = COALESCE($1,  business_name),
            business_type   = COALESCE($2,  business_type),
-           ein             = COALESCE($3,  ein),
+           ein             = CASE WHEN $16::boolean THEN COALESCE($3, ein) ELSE ein END,
            description     = COALESCE($4,  description),
            website         = COALESCE($5,  website),
            phone           = COALESCE($6,  phone),
@@ -124,21 +130,24 @@ async function updateBusiness(req, res) {
            address_city    = COALESCE($8,  address_city),
            address_state   = COALESCE($9,  address_state),
            address_zip     = COALESCE($10, address_zip),
-           is_active       = COALESCE($11, is_active),
-           tax_rate        = COALESCE($12, tax_rate),
+           is_active       = CASE WHEN $16::boolean THEN COALESCE($11, is_active) ELSE is_active END,
+           tax_rate        = CASE WHEN $16::boolean THEN COALESCE($12, tax_rate) ELSE tax_rate END,
            logo_url        = COALESCE($13, logo_url),
            cover_photo_url = COALESCE($14, cover_photo_url),
            updated_at      = NOW()
        WHERE id = $15
        RETURNING *`,
       [
-        business_name, business_type, ein, description, website, phone,
+        business_name, business_type,
+        sensitiveEin !== undefined ? sensitiveEin : null,
+        description, website, phone,
         address_street, address_city, address_state, address_zip,
-        is_active != null ? is_active : null,
-        tax_rate  != null ? parseFloat(tax_rate) : null,
+        sensitiveActive,
+        sensitiveTax != null ? parseFloat(sensitiveTax) : null,
         logo_url        || null,
         cover_photo_url || null,
         id,
+        isOwner,
       ]
     );
 
@@ -637,6 +646,7 @@ async function getBusinessPublicProfile(req, res) {
       `SELECT
          b.id, b.business_name, b.business_type, b.description,
          b.website, b.phone, b.logo_url,
+         COALESCE(b.cover_photo_url, hp.cover_photo_url) AS cover_photo_url,
          b.address_city, b.address_state,
          b.is_primary, b.is_active, b.created_at,
          u.id           AS owner_id,
@@ -644,7 +654,6 @@ async function getBusinessPublicProfile(req, res) {
          u.last_name    AS owner_last_name,
          hp.profile_headline,
          hp.profile_photo_url,
-         hp.cover_photo_url,
          hp.bio_short,
          hp.service_city, hp.service_state, hp.service_radius_miles,
          hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
@@ -749,10 +758,49 @@ async function getBusinessPublicProfile(req, res) {
   }
 }
 
+// ── Authenticated profile editor payload ──────────────────────────────────────
+// GET /api/businesses/:id/profile-edit — owner or active manager; includes full address.
+async function getBusinessProfileForEditor(req, res) {
+  try {
+    const { id } = req.params;
+    const access = await canEditProfile(req.user.id, id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    const { rows: [row] } = await pool.query(
+      `SELECT
+         b.id,
+         b.business_name,
+         b.business_type,
+         b.description,
+         b.website,
+         b.phone,
+         b.address_street,
+         b.address_city,
+         b.address_state,
+         b.address_zip,
+         b.logo_url,
+         COALESCE(b.cover_photo_url, hp.cover_photo_url) AS cover_photo_url,
+         hp.profile_headline,
+         hp.service_radius_miles,
+         hp.bio_short
+       FROM businesses b
+       LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
+       WHERE b.id = $1`,
+      [id]
+    );
+    if (!row) return res.status(404).json({ error: 'Business not found' });
+    return res.json({ business: row });
+  } catch (err) {
+    logger.error('getBusinessProfileForEditor error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load business profile' });
+  }
+}
+
 module.exports = {
   listBusinesses, addBusiness, updateBusiness, setPrimary, deleteBusiness,
   uploadBusinessPhotos,
   getBusinessPublicProfile,
+  getBusinessProfileForEditor,
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,

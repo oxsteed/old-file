@@ -3,14 +3,14 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
-const { ownedBusiness } = require('../utils/businessOwnership');
+const { ownedBusiness, canAccessBusinessTeam } = require('../utils/businessOwnership');
 
 // ── GET /api/businesses/:id/members ──────────────────────────────────────────
 // Owner lists all members (active + pending) for their business.
 async function listMembers(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canAccessBusinessTeam(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rows } = await pool.query(
       `SELECT
@@ -31,7 +31,7 @@ async function listMembers(req, res) {
          AND bm.owner_id    = $2
          AND bm.status != 'revoked'
        ORDER BY bm.status, bm.invited_at`,
-      [biz.id, req.user.id]
+      [access.id, access.owner_id]
     );
 
     return res.json({ members: rows });

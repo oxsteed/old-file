@@ -14,7 +14,7 @@ import {
   listMyInvitations, acceptInvitation, declineInvitation,
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
-  getBusinessPublicProfile,
+  getBusinessProfileForEditor,
 } from '../api/businesses';
 import '../styles/BusinessHubPage.css';
 
@@ -200,7 +200,7 @@ function BusinessHubInner() {
     setProfileLoading(true);
     setProfileErr('');
     try {
-      const data = await getBusinessPublicProfile(bizId);
+      const data = await getBusinessProfileForEditor(bizId);
       const biz = data.business;
       setProfileForm({
         business_name:       biz.business_name   || '',
@@ -209,10 +209,10 @@ function BusinessHubInner() {
         description:         biz.description     || biz.bio_short || '',
         phone:               biz.phone           || '',
         website:             biz.website         || '',
-        address_street:      '',
+        address_street:      biz.address_street  || '',
         address_city:        biz.address_city    || '',
         address_state:       biz.address_state   || '',
-        address_zip:         '',
+        address_zip:         biz.address_zip     || '',
         service_radius_miles: biz.service_radius_miles || '',
         logo_url:            biz.logo_url        || '',
         cover_photo_url:     biz.cover_photo_url || '',

@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-13 (chat system audit + live-chat bug fixes)
+**Last updated:** 2026-04-14 (PR #129 Bugbot — business profile editor fixes)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -730,3 +730,14 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - If no representative is assigned, the owner is effectively self-assigned (they're still `helper_id` on conversations).
 - Businesses appear mixed into the `/helpers` grid via a separate server query; `type: 'business'` on the card drives the visual variant and link target.
 - Business-context conversations are scoped by `business_id` so a customer can have a separate thread per business (not one shared thread with the owner for all businesses).
+
+### Session — 2026-04-14 (PR #129 / Bugbot — business hub profile)
+
+- **Migration** `server/migrations/065_businesses_cover_photo.sql` — adds `businesses.cover_photo_url` (writes were targeting a missing column).
+- **`getBusinessPublicProfile`** — `cover_photo_url` from `COALESCE(b.cover_photo_url, hp.cover_photo_url)` so business uploads and legacy helper cover both show.
+- **`GET /api/businesses/:id/profile-edit`** — `getBusinessProfileForEditor` (owner or active manager): full address + headline/radius for the Business Hub editor (`client/src/api/businesses.js` `getBusinessProfileForEditor`; `BusinessHubPage` `loadProfile` uses it).
+- **`updateBusiness`** — non-owners cannot change `ein`, `tax_rate`, or `is_active` (manager marketing-only updates).
+- **`listMembers`** — `canAccessBusinessTeam` allows active reps/managers to list team (owner id from access row for `owner_id` filter).
+- **`uploadBusinessPhotos` client** — removed manual `Content-Type: multipart/form-data` so axios sets boundary.
+
+**Note:** `cd server && npm test` in this workspace failed for unrelated reasons (403 vs expected in several suites, missing `file-type`, ESM in `@otplib`); not attributed to this change set.
