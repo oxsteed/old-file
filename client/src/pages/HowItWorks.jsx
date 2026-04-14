@@ -122,7 +122,7 @@ export default function HowItWorks() {
         {/* ── Hero ── */}
         <section
           style={{
-            padding: '7rem 1.5rem 6rem',
+            padding: '4.5rem 1.5rem 3.5rem',
             textAlign: 'center',
             position: 'relative',
             overflow: 'hidden',
@@ -153,7 +153,7 @@ export default function HowItWorks() {
               color: '#fb923c',
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              marginBottom: '1.75rem',
+              marginBottom: '1.25rem',
             }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />
               Platform Overview
@@ -169,11 +169,11 @@ export default function HowItWorks() {
               How OxSteed Works
             </h1>
             <p style={{
-              fontSize: '1.125rem',
+              fontSize: '1.0625rem',
               color: 'rgba(255,255,255,0.5)',
-              lineHeight: 1.7,
+              lineHeight: 1.65,
               maxWidth: '540px',
-              margin: '0 auto 2.5rem',
+              margin: '0 auto 1.75rem',
             }}>
               OxSteed connects customers with local helpers. Whether you need work done or want to earn money in your community, we make it simple and easy to use.
             </p>
@@ -219,8 +219,8 @@ export default function HowItWorks() {
         </section>
 
         {/* ── For Customers ── */}
-        <section style={{ padding: '6rem 1.5rem', maxWidth: '1080px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+        <section style={{ padding: '3.5rem 1.5rem', maxWidth: '1080px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <span style={{
               display: 'inline-block',
               fontSize: '0.7rem',
@@ -234,12 +234,12 @@ export default function HowItWorks() {
               padding: '0.25rem 0.8rem',
               marginBottom: '1rem',
             }}>For Customers</span>
-            <h2 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', margin: 0 }}>
+            <h2 style={{ fontSize: 'clamp(1.625rem, 2.75vw, 2rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', margin: 0 }}>
               Get Help in 4 Easy Steps
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
             {CUSTOMER_STEPS.map((item, idx) => (
               <div
                 key={item.step}
@@ -248,7 +248,7 @@ export default function HowItWorks() {
                   background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
                   border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: '16px',
-                  padding: '1.75rem 1.5rem',
+                  padding: '1.4rem 1.35rem',
                   transition: 'border-color 200ms, transform 200ms, box-shadow 200ms',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.35)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.35)'; }}
@@ -256,13 +256,13 @@ export default function HowItWorks() {
               >
                 {/* Step number */}
                 <div style={{
-                  width: '2.25rem', height: '2.25rem',
-                  borderRadius: '10px',
+                  width: '2rem', height: '2rem',
+                  borderRadius: '9px',
                   background: 'linear-gradient(135deg, #f97316, #ea580c)',
                   boxShadow: '0 4px 14px rgba(249,115,22,0.4)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 800, fontSize: '0.9rem', color: '#fff',
-                  marginBottom: '1.25rem',
+                  fontWeight: 800, fontSize: '0.875rem', color: '#fff',
+                  marginBottom: '0.85rem',
                   letterSpacing: '-0.01em',
                 }}>{item.step}</div>
                 <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{item.title}</h3>
@@ -271,7 +271,7 @@ export default function HowItWorks() {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
             <Link
               to="/register/customer"
               style={{
@@ -302,8 +302,8 @@ export default function HowItWorks() {
         </div>
 
         {/* ── For Helpers ── */}
-        <section style={{ padding: '6rem 1.5rem', maxWidth: '1080px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+        <section style={{ padding: '3.5rem 1.5rem', maxWidth: '1080px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <span style={{
               display: 'inline-block',
               fontSize: '0.7rem',
@@ -317,12 +317,12 @@ export default function HowItWorks() {
               padding: '0.25rem 0.8rem',
               marginBottom: '1rem',
             }}>For Helpers</span>
-            <h2 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', margin: 0 }}>
+            <h2 style={{ fontSize: 'clamp(1.625rem, 2.75vw, 2rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', margin: 0 }}>
               Start Earning in Your Neighborhood
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
             {HELPER_STEPS.map((item, idx) => (
               <div
                 key={item.step}
@@ -331,20 +331,20 @@ export default function HowItWorks() {
                   background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)',
                   border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: '16px',
-                  padding: '1.75rem 1.5rem',
+                  padding: '1.4rem 1.35rem',
                   transition: 'border-color 200ms, transform 200ms, box-shadow 200ms',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.35)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.35)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
                 <div style={{
-                  width: '2.25rem', height: '2.25rem',
-                  borderRadius: '10px',
+                  width: '2rem', height: '2rem',
+                  borderRadius: '9px',
                   background: 'linear-gradient(135deg, #f97316, #ea580c)',
                   boxShadow: '0 4px 14px rgba(249,115,22,0.4)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 800, fontSize: '0.9rem', color: '#fff',
-                  marginBottom: '1.25rem',
+                  fontWeight: 800, fontSize: '0.875rem', color: '#fff',
+                  marginBottom: '0.85rem',
                 }}>{item.step}</div>
                 <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>{item.title}</h3>
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>{item.desc}</p>
@@ -352,7 +352,7 @@ export default function HowItWorks() {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
             <Link
               to="/register/helper"
               style={{
@@ -377,18 +377,18 @@ export default function HowItWorks() {
 
         {/* ── FAQ ── */}
         <section style={{
-          padding: '6rem 1.5rem',
+          padding: '3.5rem 1.5rem',
           background: 'linear-gradient(180deg, rgba(249,115,22,0.03) 0%, transparent 100%)',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           borderBottom: '1px solid rgba(255,255,255,0.05)',
         }}>
           <div style={{ maxWidth: '720px', margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-              <h2 style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', margin: 0 }}>
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <h2 style={{ fontSize: 'clamp(1.625rem, 2.75vw, 2rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.025em', margin: 0 }}>
                 Frequently Asked Questions
               </h2>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
               {FAQS.map((faq, i) => (
                 <div
                   key={i}
@@ -396,14 +396,14 @@ export default function HowItWorks() {
                     background: 'rgba(255,255,255,0.03)',
                     border: '1px solid rgba(255,255,255,0.07)',
                     borderRadius: '14px',
-                    padding: '1.5rem 1.75rem',
+                    padding: '1.25rem 1.5rem',
                     transition: 'border-color 200ms',
                   }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(249,115,22,0.2)'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'}
                 >
-                  <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '0.9375rem', marginBottom: '0.625rem', lineHeight: 1.4 }}>{faq.q}</h3>
-                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', lineHeight: 1.7, margin: 0 }}>{faq.a}</p>
+                  <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '0.9375rem', marginBottom: '0.5rem', lineHeight: 1.4 }}>{faq.q}</h3>
+                  <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>{faq.a}</p>
                 </div>
               ))}
             </div>
@@ -411,21 +411,21 @@ export default function HowItWorks() {
         </section>
 
         {/* ── Bottom CTA ── */}
-        <section style={{ padding: '7rem 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <section style={{ padding: '4rem 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: 'radial-gradient(ellipse 60% 50% at 50% 100%, rgba(249,115,22,0.1) 0%, transparent 70%)',
           }} />
           <div style={{ position: 'relative', maxWidth: '560px', margin: '0 auto' }}>
             <h2 style={{
-              fontSize: 'clamp(1.875rem, 3.5vw, 2.5rem)',
+              fontSize: 'clamp(1.75rem, 3vw, 2.125rem)',
               fontWeight: 800,
               color: '#fff',
               letterSpacing: '-0.03em',
-              marginBottom: '1rem',
+              marginBottom: '0.75rem',
               lineHeight: 1.15,
             }}>Ready to Get Started?</h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '1rem', lineHeight: 1.7, maxWidth: '400px', margin: '0 auto 2.5rem' }}>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '1rem', lineHeight: 1.65, maxWidth: '400px', margin: '0 auto 1.75rem' }}>
               Join your local OxSteed community today. It only takes a couple of minutes.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
