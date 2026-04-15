@@ -16,6 +16,7 @@ const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = requir
 const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
 const SALT_ROUNDS = 12;
+const TERMS_IP_HASH_MAX_LEN = 45;
 
 function formatAuthUser(user) {
   if (!user) return null;
@@ -536,7 +537,8 @@ async function acceptTerms(req, res) {
     const pending = rows[0];
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
     const rawIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    const ip = hashIP(rawIp);
+    // Legacy schemas still define terms_acceptance_ip as VARCHAR(45).
+    const ip = hashIP(rawIp)?.slice(0, TERMS_IP_HASH_MAX_LEN) || null;
     const userAgent = req.headers['user-agent'] || '';
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');

@@ -115,6 +115,28 @@ describe('POST /api/auth/register', () => {
   });
 });
 
+// ── POST /api/auth/register/accept-terms ─────────────────────────────────────
+describe('POST /api/auth/register/accept-terms', () => {
+  test('stores a DB-safe hashed IP length and sends OTP', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ email: 'test@example.com' }], // SELECT pending registration
+      })
+      .mockResolvedValueOnce({ rows: [] }); // UPDATE pending registration
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/accept-terms')
+      .send({ token: 'pending-token' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/terms accepted/i);
+
+    const updateArgs = mockQuery.mock.calls[1][1];
+    expect(typeof updateArgs[2]).toBe('string');
+    expect(updateArgs[2].length).toBeLessThanOrEqual(45);
+  });
+});
+
 // ── POST /api/auth/login ──────────────────────────────────────────────────────
 describe('POST /api/auth/login', () => {
   test('returns 400 when fields are missing', async () => {
