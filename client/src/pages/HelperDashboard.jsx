@@ -571,8 +571,6 @@ export default function HelperDashboard() {
       if (!homesLoaded) {
         api.get('/house/my').then(r=>{ setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
       }
-      api.get('/planned-needs?status=planned,funding,activating_soon&limit=5')
-        .then(r=>{ setMoneyPlannedNeeds(r.data?.needs || r.data || []); }).catch(()=>{});
     }
   },[isOnboardingComplete]);
 
@@ -581,6 +579,11 @@ export default function HelperDashboard() {
     if (tab === 'skills') { fetchMySkills(); fetchMyTools(); }
     if (tab === 'personalcare') fetchPersonalCareTasks();
     if (tab === 'carcare') { fetchCarCareTasks(); if (!garageFetched) fetchGarage(); }
+    if (tab === 'money') {
+      api.get('/planned-needs', { params: { status: 'planned,funding,activating_soon', limit: 5 } })
+        .then(r => setMoneyPlannedNeeds(r.data?.planned_needs || []))
+        .catch(() => {});
+    }
   }, [tab]);
 
   const startBackgroundCheck=async()=>{try{await api.post('/verification/background-check');window.location.reload();}catch(e){alert(e.response?.data?.error||'Failed');}};
