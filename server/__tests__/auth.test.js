@@ -27,23 +27,11 @@ function buildApp() {
   return app;
 }
 
-// Valid JWT for routes that require authentication (e.g. logout)
+// Valid JWT used by logout when only access token is provided.
 const TEST_TOKEN = jwt.sign(
   { id: 1, email: 'test@example.com', role: 'customer' },
   process.env.JWT_SECRET
 );
-
-const MOCK_AUTH_USER = {
-  id: 1, first_name: 'Test', last_name: 'User',
-  email: 'test@example.com', phone: null, role: 'customer',
-  email_verified: true, is_verified: false,
-  onboarding_status: 'active', onboarding_completed: true,
-  contact_completed: true, profile_completed: true,
-  tier_selected: true, w9_completed: false, terms_accepted: true,
-  membership_tier: 'free', id_verified: false, background_check_passed: false,
-  city: null, state: null, zip_code: null,
-  display_name_preference: 'first_name', business_name: null,
-};
 
 beforeEach(() => resetMocks());
 
@@ -162,24 +150,33 @@ describe('POST /api/auth/refresh', () => {
 });
 
 // ── POST /api/auth/logout ─────────────────────────────────────────────────────
-// logout requires authenticate middleware, so we must send a valid JWT
 describe('POST /api/auth/logout', () => {
-  test('returns 200 and clears session', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [MOCK_AUTH_USER] })  // authenticate lookup
-      .mockResolvedValueOnce({ rows: [] });               // UPDATE sessions
+  test('returns 200 and clears session by refresh token without auth header', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE sessions by hashed refresh token
+
+    const res = await request(buildApp())
+      .post('/api/auth/logout')
+      .send({ refreshToken: 'some-refresh-token' });
+
+    expect(res.status).toBe(200);
+  });
+
+  test('returns 200 and clears all user sessions with valid access token only', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE sessions by user_id
 
     const res = await request(buildApp())
       .post('/api/auth/logout')
       .set('Authorization', `Bearer ${TEST_TOKEN}`)
-      .send({ refreshToken: 'some-refresh-token' });
+      .send({});
+
     expect(res.status).toBe(200);
   });
 
-  test('returns 401 when no token provided', async () => {
+  test('returns 400 when no refresh token or valid access token is provided', async () => {
     const res = await request(buildApp())
       .post('/api/auth/logout')
       .send({});
-    expect(res.status).toBe(401);
+
+    expect(res.status).toBe(400);
   });
 });

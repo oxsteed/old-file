@@ -40,7 +40,7 @@ router.post('/otp/verify', authLimiter, verifyOTP);
 router.post('/forgot-password', strictLimiter, forgotPassword);
 router.post('/reset-password', strictLimiter, resetPassword);
 router.post('/refresh', authLimiter, refreshToken);
-router.post('/logout', authenticate, logout);
+router.post('/logout', logout);
 
 // Customer registration flow (3-step)
 router.post('/check-email', authLimiter, checkEmail);

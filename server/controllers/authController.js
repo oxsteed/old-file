@@ -4,6 +4,7 @@
 // OxSteed v2
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { authenticator } = require('@otplib/v12-adapter');
 const pool = require('../db');
 const { generateTokens } = require('../middleware/auth');
@@ -420,12 +421,35 @@ async function refreshToken(req, res) {
 async function logout(req, res) {
   try {
     const { refreshToken: token } = req.body;
+    let didInvalidateSession = false;
+
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
       await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [hashedToken]);
+      didInvalidateSession = true;
     }
+
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const accessToken = authHeader.slice(7);
+      try {
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'secret');
+        if (decoded?.id) {
+          await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [decoded.id]);
+          didInvalidateSession = true;
+        }
+      } catch (err) {
+        // Ignore invalid or expired access tokens here; refresh-token logout should still work.
+      }
+    }
+
+    if (!didInvalidateSession) {
+      return res.status(400).json({ error: 'Refresh token or valid access token required' });
+    }
+
     res.json({ message: 'Logged out' });
   } catch (err) {
+    logger.error('Logout error', { err });
     res.status(500).json({ error: 'Logout failed' });
   }
 }
