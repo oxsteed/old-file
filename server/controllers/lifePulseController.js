@@ -1,5 +1,6 @@
 'use strict';
 const db = require('../db');
+const { DEFAULTS: SETTINGS_DEFAULTS } = require('./pulseScoreSettingsController');
 
 // ── constants ────────────────────────────────────────────────────────────────
 
@@ -84,10 +85,20 @@ exports.getLifePulse = async (req, res) => {
       });
     }
 
+    // ── fetch user settings first (cheap single-row lookup) ───────────────
+    const settingsRes = await db.query(
+      'SELECT * FROM pulse_score_settings WHERE user_id = $1', [userId]
+    );
+    // cfg(key): true if the user has not explicitly disabled this source.
+    // Missing row → all defaults (TRUE). Explicit false → excluded.
+    const _s = { ...SETTINGS_DEFAULTS, ...(settingsRes.rows[0] || {}) };
+    const cfg = (key) => _s[key] !== false;
+
     // ── parallel queries ───────────────────────────────────────────────────
     const [
       baselineRes, reliabilityRes, oxsteedRes, needsRes, recurringRes, taskRecurringRes,
       invoiceIncomeRes, pendingInvoicesRes, taxObligationsRes, predictedJobRes,
+      toolRentalRes, debtObligRes,
     ] = await Promise.all([
 
       // 1. 90-day one-time income and expense totals (non-recurring entries only)
@@ -177,15 +188,17 @@ exports.getLifePulse = async (req, res) => {
         ) r
       `, [userId]),
 
-      // 6. Recurring home-task costs (personal_care + car_care) with a frequency and
-      //    estimated_cost — deduplicated per (section, title, frequency).
-      //    These represent predictable periodic expenses (gym, oil change, etc.)
-      //    and are added to the expense baseline so the score stays accurate.
+      // 6. Recurring home-task costs — split by section so each plan type can be
+      //    toggled independently via pulse_score_settings.
+      //    Sections: 'home_maintenance', 'car_care', 'personal_care'
       db.query(`
         SELECT
-          COALESCE(SUM(monthly_eq), 0) AS task_expense_monthly
+          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'home_maintenance'), 0) AS home_monthly,
+          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'car_care'),         0) AS car_monthly,
+          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'personal_care'),    0) AS personal_monthly
         FROM (
           SELECT DISTINCT ON (section, title, frequency)
+            section,
             CASE frequency
               WHEN 'daily'      THEN estimated_cost * 30
               WHEN 'weekly'     THEN estimated_cost * (30.0 / 7)
@@ -198,7 +211,7 @@ exports.getLifePulse = async (req, res) => {
           FROM home_tasks
           WHERE user_id = $1
             AND is_recurring = TRUE
-            AND section IN ('personal_care', 'car_care')
+            AND section IN ('home_maintenance', 'car_care', 'personal_care')
             AND estimated_cost IS NOT NULL AND estimated_cost > 0
             AND frequency IS NOT NULL AND frequency <> 'one_time'
             AND (recurring_start_date IS NULL OR recurring_start_date <= CURRENT_DATE)
@@ -249,6 +262,53 @@ exports.getLifePulse = async (req, res) => {
         WHERE payee_id = $1
           AND status = 'authorized'
       `, [userId]),
+
+      // 11. Tool rental income: manual income entries the user has logged under
+      //     tool / equipment / rental categories in the last 90 days.
+      db.query(`
+        SELECT COALESCE(SUM(amount), 0) AS tool_rental_income_90d
+        FROM expenses
+        WHERE user_id = $1
+          AND type = 'income'
+          AND (
+            LOWER(category) LIKE '%tool%'
+            OR LOWER(category) LIKE '%equipment%'
+            OR LOWER(category) LIKE '%rental%'
+          )
+          AND occurred_at >= CURRENT_DATE - INTERVAL '90 days'
+      `, [userId]),
+
+      // 12. Monthly debt obligations: recurring expenses in debt / loan / mortgage /
+      //     credit categories — deduplicated the same way as other recurring expenses.
+      db.query(`
+        SELECT COALESCE(SUM(monthly_eq), 0) AS debt_monthly
+        FROM (
+          SELECT DISTINCT ON (category, description, frequency)
+            CASE frequency
+              WHEN 'daily'      THEN amount * 30
+              WHEN 'weekly'     THEN amount * (30.0 / 7)
+              WHEN 'bi_weekly'  THEN amount * (30.0 / 14)
+              WHEN 'monthly'    THEN amount
+              WHEN 'quarterly'  THEN amount / 3.0
+              WHEN 'yearly'     THEN amount / 12.0
+              ELSE                   amount
+            END AS monthly_eq
+          FROM expenses
+          WHERE user_id = $1
+            AND type = 'expense'
+            AND is_recurring = TRUE
+            AND frequency IS NOT NULL AND frequency <> 'one_time'
+            AND (
+              LOWER(category) LIKE '%loan%'
+              OR LOWER(category) LIKE '%debt%'
+              OR LOWER(category) LIKE '%mortgage%'
+              OR LOWER(category) LIKE '%credit%'
+            )
+            AND (recurring_start_date IS NULL OR recurring_start_date <= CURRENT_DATE)
+            AND (recurring_end_date   IS NULL OR recurring_end_date   >= CURRENT_DATE)
+          ORDER BY category, description, frequency, occurred_at DESC
+        ) d
+      `, [userId]),
     ]);
 
     const baseline          = baselineRes.rows[0];
@@ -261,38 +321,64 @@ exports.getLifePulse = async (req, res) => {
     const pendingInvRow     = pendingInvoicesRes.rows[0];
     const taxObligRow       = taxObligationsRes.rows[0];
     const predictedJobRow   = predictedJobRes.rows[0];
+    const toolRentalRow     = toolRentalRes.rows[0];
+    const debtObligRow      = debtObligRes.rows[0];
 
-    // Business data
-    const invoiceIncome90d    = parseFloat(invoiceIncomeRow.invoice_income_90d);
-    const pendingInvoiceTotal = parseFloat(pendingInvRow.pending_invoice_total);
-    const pendingInvoiceCount = parseInt(pendingInvRow.pending_count || 0);
-    const upcomingTaxDue      = parseFloat(taxObligRow.upcoming_tax_due || 0);
-    const taxEstimateCount    = parseInt(taxObligRow.tax_estimate_count || 0);
+    // ── Raw values (pre-settings) ───────────────────────────────────────────
+    const invoiceIncome90d_raw    = parseFloat(invoiceIncomeRow.invoice_income_90d);
+    const pendingInvoiceTotal_raw = parseFloat(pendingInvRow.pending_invoice_total);
+    const pendingInvoiceCount     = parseInt(pendingInvRow.pending_count || 0);
+    const upcomingTaxDue_raw      = parseFloat(taxObligRow.upcoming_tax_due || 0);
+    const taxEstimateCount        = parseInt(taxObligRow.tax_estimate_count || 0);
+    const predictedJobIncome_raw  = parseFloat(predictedJobRow.predicted_job_income || 0);
+    const toolRentalIncome90d_raw = parseFloat(toolRentalRow.tool_rental_income_90d || 0);
+    const debtMonthly_raw         = parseFloat(debtObligRow.debt_monthly || 0);
+
+    // ── Apply settings gates ────────────────────────────────────────────────
+    // Each source is zeroed out if the user has disabled it.
+    const invoiceIncome90d    = cfg('include_business_pl')        ? invoiceIncome90d_raw    : 0;
+    const pendingInvoiceTotal = cfg('include_pending_invoices')   ? pendingInvoiceTotal_raw : 0;
+    const upcomingTaxDue      = cfg('include_tax_obligations')    ? upcomingTaxDue_raw      : 0;
+    const predictedJobIncome  = cfg('include_predicted_jobs')     ? predictedJobIncome_raw  : 0;
+    const toolRentalIncome90d = cfg('include_tool_rentals')       ? toolRentalIncome90d_raw : 0;
 
     // Predicted future income (committed but not yet realized)
-    // Authorized escrow jobs: payment is held, released when job completes.
-    // Pending invoices: already sent to clients, weighted at 80% confidence.
-    const predictedJobIncome     = parseFloat(predictedJobRow.predicted_job_income || 0);
     const predictedInvoiceIncome = round2(pendingInvoiceTotal * 0.80);
 
-    // ── 1. Daily averages ───────────────────────────────────────────────────
-    const income90d     = parseFloat(baseline.income_90d);
-    const expense90d    = parseFloat(baseline.expense_90d);
-    const oxsteedIncome = parseFloat(oxsteed.oxsteed_income_90d);
+    // ── 1. Daily averages (settings-gated) ─────────────────────────────────
+    const income90d_raw  = parseFloat(baseline.income_90d);
+    const expense90d_raw = parseFloat(baseline.expense_90d);
+    const income90d  = cfg('include_manual_income')   ? income90d_raw  : 0;
+    const expense90d = cfg('include_manual_expenses') ? expense90d_raw : 0;
 
-    // Monthly equivalents from recurring entries (expenses table + home tasks)
-    const recurringIncomeMonthly  = parseFloat(recurringRow.recurring_income_monthly);
-    const recurringExpenseMonthly = parseFloat(recurringRow.recurring_expense_monthly)
-                                  + parseFloat(taskRow.task_expense_monthly);
+    const oxsteedIncome = cfg('include_oxsteed_income') ? parseFloat(oxsteed.oxsteed_income_90d) : 0;
 
-    // Merge OxSteed settled earnings + paid invoice income into the income baseline.
-    // Invoice income is kept separate from manual expense entries (users shouldn't
-    // double-count invoice payments they also log as expenses).
-    const totalIncome90d  = income90d + oxsteedIncome + invoiceIncome90d;
-    // Daily averages: one-time transactions averaged over 90 days
-    //                + recurring patterns normalised from their monthly equivalent
+    // Recurring income/expense — gated per direction
+    const recurringIncomeMonthly_raw  = parseFloat(recurringRow.recurring_income_monthly);
+    const recurringExpenseMonthly_raw = parseFloat(recurringRow.recurring_expense_monthly);
+
+    const recurringIncomeMonthly  = cfg('include_recurring_income')   ? recurringIncomeMonthly_raw  : 0;
+    // Recurring expenses: include the full recurring amount, but subtract debt portion
+    // if debt is disabled so it isn't double-excluded (debt is a subset of recurring).
+    let recurringExpenseMonthly = cfg('include_recurring_expenses') ? recurringExpenseMonthly_raw : 0;
+    if (cfg('include_recurring_expenses') && !cfg('include_debt_obligations')) {
+      // User wants recurring expenses but not the debt subset → subtract it
+      recurringExpenseMonthly = Math.max(0, recurringExpenseMonthly - debtMonthly_raw);
+    }
+    if (!cfg('include_recurring_expenses') && cfg('include_debt_obligations')) {
+      // User excluded recurring but kept debt → add only the debt portion back
+      recurringExpenseMonthly = debtMonthly_raw;
+    }
+
+    // Home task costs — split by section so each plan type can be toggled
+    const taskExpMonthly_home     = cfg('include_home_maintenance') ? parseFloat(taskRow.home_monthly     || 0) : 0;
+    const taskExpMonthly_car      = cfg('include_car_care')         ? parseFloat(taskRow.car_monthly      || 0) : 0;
+    const taskExpMonthly_personal = cfg('include_personal_care')    ? parseFloat(taskRow.personal_monthly || 0) : 0;
+    const taskExpenseMonthly = taskExpMonthly_home + taskExpMonthly_car + taskExpMonthly_personal;
+
+    const totalIncome90d  = income90d + oxsteedIncome + invoiceIncome90d + toolRentalIncome90d;
     const avgDailyIncome  = (totalIncome90d / 90) + (recurringIncomeMonthly  / 30);
-    const avgDailyExpense = (expense90d     / 90) + (recurringExpenseMonthly / 30);
+    const avgDailyExpense = (expense90d / 90) + (recurringExpenseMonthly / 30) + (taskExpenseMonthly / 30);
 
     // ── 2. Window projections ───────────────────────────────────────────────
     const projectedIncome   = round2(avgDailyIncome  * windowDays);
@@ -340,7 +426,8 @@ exports.getLifePulse = async (req, res) => {
       };
     });
 
-    const sinkingFundForWindow = round2(totalSinkingFund);
+    // If planned needs are disabled, treat sinking fund obligations as zero.
+    const sinkingFundForWindow = cfg('include_planned_needs') ? round2(totalSinkingFund) : 0;
 
     // ── 4. Net, coverage, runway ────────────────────────────────────────────
     // Present-value model:
@@ -502,11 +589,12 @@ exports.getLifePulse = async (req, res) => {
       // Averages (useful for debugging / display)
       avg_daily_income:  round2(avgDailyIncome),
       avg_daily_expense: round2(avgDailyExpense),
-      oxsteed_income_90d:   round2(oxsteedIncome),
-      invoice_income_90d:   round2(invoiceIncome90d),
+      oxsteed_income_90d:    round2(oxsteedIncome),
+      tool_rental_income_90d: round2(toolRentalIncome90d),
+      invoice_income_90d:    round2(invoiceIncome90d),
       pending_invoice_total: round2(pendingInvoiceTotal),
       pending_invoice_count: pendingInvoiceCount,
-      upcoming_tax_due:     round2(upcomingTaxDue),
+      upcoming_tax_due:      round2(upcomingTaxDue),
 
       // Past / predicted / present-value income breakdown.
       // past_income      = historical baseline projected over the window.
@@ -514,11 +602,34 @@ exports.getLifePulse = async (req, res) => {
       // present_value_income = past + predicted: the projected reality for this window.
       past_income:           projectedIncome,
       predicted_income: {
-        total:          totalPredictedIncome,
-        authorized_jobs: round2(predictedJobIncome),
+        total:            totalPredictedIncome,
+        authorized_jobs:  round2(predictedJobIncome),
         pending_invoices: round2(predictedInvoiceIncome),
       },
       present_value_income:  presentValueIncome,
+
+      // Settings: what is currently active, so the UI can render the toggle list.
+      settings: Object.fromEntries(
+        Object.keys(SETTINGS_DEFAULTS).map(k => [k, cfg(k)])
+      ),
+      // Per-source contribution breakdown for transparency UI.
+      sources: {
+        manual_income_90d:        round2(income90d),
+        manual_expense_90d:       round2(expense90d),
+        recurring_income_monthly: round2(recurringIncomeMonthly),
+        recurring_expense_monthly: round2(recurringExpenseMonthly),
+        oxsteed_income_90d:       round2(oxsteedIncome),
+        tool_rental_income_90d:   round2(toolRentalIncome90d),
+        invoice_income_90d:       round2(invoiceIncome90d),
+        predicted_jobs:           round2(predictedJobIncome),
+        predicted_invoices:       round2(predictedInvoiceIncome),
+        tax_obligations_window:   round2(upcomingTaxDue),
+        home_maintenance_monthly: round2(taskExpMonthly_home),
+        car_care_monthly:         round2(taskExpMonthly_car),
+        personal_care_monthly:    round2(taskExpMonthly_personal),
+        debt_monthly:             round2(cfg('include_debt_obligations') ? debtMonthly_raw : 0),
+        sinking_fund_window:      sinkingFundForWindow,
+      },
 
       // Horizon-adjusted projections (backward-compat with old /projection fields)
       projected_income:         projectedIncome,
