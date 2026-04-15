@@ -769,3 +769,14 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **`authController.logout`** now supports both paths: invalidate by hashed `refreshToken`, or (when a valid bearer token is present) invalidate all sessions for that user id.
 - **Auth tests** updated in `server/__tests__/auth.test.js` to cover refresh-token-only logout, access-token-only logout, and 400 validation when neither token is provided.
 - **Jest compatibility note:** `server/__tests__/auth.test.js` now mocks `@otplib/v12-adapter` so the suite can run in this CommonJS Jest config without ESM parsing errors from `@scure/base`.
+### Session — 2026-04-15 (feature gap fixes)
+
+Four gaps identified and fixed:
+
+1. **Business Hub Overview KPI mismatch** — `getBusinessAnalytics` returned flat fields (`outstanding_invoices`, `jobs_completed_6m`, `avg_job_value`) but `OverviewTab` expected nested `a?.invoices.outstanding_total`, `a?.invoices.overdue_total`, `a?.invoices.sent`, `a?.invoices.overdue_count`, `a?.jobs.completed_6m`, `a?.jobs.avg_value`. Fixed by restructuring the server response into `{ invoices: {...}, jobs: {...} }` shape. Also expanded the invoice summary SQL to return `sent_count` and `overdue_count` separately. (`server/controllers/businessController.js`)
+
+2. **Business Hub Tax tab `year` field** — `TaxTab` rendered `est.year` but the DB column is `tax_year`. Fixed to `est.tax_year` in both the table row and the "Mark Paid" confirmation modal. (`client/src/pages/BusinessHubPage.jsx`)
+
+3. **Helper Products tab missing** — The full backend (`/api/helper-products`) and migration (`054_helper_products.sql`) existed but there was no frontend UI. Added a "My Products" tab to `HelperDashboard` with: product state + fetch, add/edit/delete/toggle-availability handlers, a product grid card view, and an add/edit modal with name, category, price, description, image URL, and availability toggle. (`client/src/pages/HelperDashboard.jsx`)
+
+4. **Subscription cancel immediately downgrades user** — `cancelSubscription` set `status='cancelled'` and `tier='free'` immediately on cancel, but Stripe uses `cancel_at_period_end=true` (access continues until period ends). Fixed to only set `cancel_at_period_end=TRUE` and update `current_period_end` from Stripe's response; status stays `active`. The `customer.subscription.deleted` webhook handles the final downgrade when Stripe ends the period. (`server/controllers/subscriptionController.js`)

@@ -150,24 +150,22 @@ exports.cancelSubscription = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'No active subscription found.' });
 
-    await stripe.subscriptions.update(rows[0].stripe_subscription_id, {
+    const stripeSub = await stripe.subscriptions.update(rows[0].stripe_subscription_id, {
       cancel_at_period_end: true,
     });
 
+    // Status stays 'active' — access continues until period_end.
+    // The webhook customer.subscription.deleted will flip it to 'cancelled' when Stripe actually ends it.
     await db.query(
       `UPDATE subscriptions
-       SET cancel_at_period_end = TRUE, status = 'cancelled', updated_at = NOW()
+       SET cancel_at_period_end = TRUE,
+           current_period_end   = TO_TIMESTAMP($2),
+           updated_at           = NOW()
        WHERE stripe_subscription_id = $1`,
-      [rows[0].stripe_subscription_id]
-    );
-    await db.query(
-      `UPDATE users
-       SET subscription_status = 'cancelled', tier = 'free', updated_at = NOW()
-       WHERE id = $1`,
-      [req.user.id]
+      [rows[0].stripe_subscription_id, stripeSub.current_period_end]
     );
 
-    res.json({ message: 'Subscription cancellation scheduled successfully.' });
+    res.json({ message: 'Subscription cancellation scheduled successfully.', cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString() });
   } catch (err) {
     console.error('Cancel subscription error:', err);
     res.status(500).json({ error: 'Failed to cancel subscription.' });
