@@ -4,6 +4,7 @@ import PageShell from '../components/PageShell';
 import api from '../api/axios';
 import QuickAddTemplates from '../components/QuickAddTemplates';
 import PlannedNeedHoldStatus from '../components/PlannedNeedHoldStatus';
+import PulseScoreSettings from '../components/PulseScoreSettings';
 import '../styles/PlannedNeedsPage.css';
 
 // ── constants ──────────────────────────────────────────────────────────────
@@ -223,42 +224,130 @@ export default function PlannedNeedsPage() {
             <p style={{ color:'var(--muted-text)', textAlign:'center', padding:'1rem 0' }}>Loading projection…</p>
           ) : projection ? (
             <>
-              {/* Score badge */}
-              {projection.pulse_score !== undefined && (() => {
-                const score = projection.pulse_score;
-                const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
-                const bd = projection.score_breakdown || {};
-                return (
-                  <div className="pn-pulse-score-row">
+              {/* Score badge + settings */}
+              {(projection.pulse_score !== undefined || projection.no_data) && (() => {
+                const [showSettings, setShowSettings] = useState(false);
+                const [showSrcs, setShowSrcs]         = useState(false);
+
+                if (projection.no_data) return (
+                  <div className="pn-pulse-score-row pn-pulse-no-data">
+                    {showSettings && (
+                      <PulseScoreSettings onClose={() => setShowSettings(false)} onSaved={() => loadProjection(window_)} />
+                    )}
                     <div className="pn-pulse-ring">
                       <svg width="56" height="56" viewBox="0 0 56 56" style={{ transform:'rotate(-90deg)' }}>
-                        <circle cx="28" cy="28" r="23" fill="none" stroke="var(--border-color)" strokeWidth="4"/>
-                        <circle cx="28" cy="28" r="23" fill="none" stroke={scoreColor} strokeWidth="4"
-                          strokeDasharray={`${(score / 100) * 144.5} 144.5`} strokeLinecap="round"
-                          style={{ transition:'stroke-dasharray 0.8s ease' }}/>
+                        <circle cx="28" cy="28" r="23" fill="none" stroke="var(--border-color)" strokeWidth="4" strokeDasharray="4 4"/>
                       </svg>
-                      <span className="pn-pulse-ring-score" style={{ color: scoreColor }}>{score}</span>
+                      <span className="pn-pulse-ring-score" style={{ color:'var(--muted-text)' }}>—</span>
                     </div>
-                    <div className="pn-pulse-bd">
-                      {[
-                        { l:'Coverage',    v: bd.coverage },
-                        { l:'Buffer',      v: bd.buffer },
-                        { l:'Reliability', v: bd.reliability },
-                        { l:'Obligations', v: bd.obligations },
-                      ].map((d, i) => (
-                        <div key={i} className="pn-pulse-bd-item">
-                          <span className="pn-pulse-bd-val">{d.v ?? '—'}</span>
-                          <span className="pn-pulse-bd-label">{d.l}</span>
-                        </div>
-                      ))}
-                      {projection.runway_months !== null && projection.runway_months !== undefined && (
-                        <div className="pn-pulse-bd-item">
-                          <span className="pn-pulse-bd-val">{projection.runway_months}mo</span>
-                          <span className="pn-pulse-bd-label">Runway</span>
-                        </div>
-                      )}
+                    <div style={{ flex:1 }}>
+                      <p style={{ fontWeight:600, color:'var(--app-text)', fontSize:'0.85rem' }}>No Data Yet</p>
+                      <p style={{ fontSize:'0.72rem', color:'var(--muted-text)', marginTop:'0.2rem' }}>
+                        Log income or expenses to see your pulse score.
+                      </p>
                     </div>
+                    <button onClick={() => setShowSettings(true)} className="pn-pulse-settings-btn" title="Configure sources">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                      </svg>
+                    </button>
                   </div>
+                );
+
+                const score = projection.pulse_score;
+                const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
+                const bd      = projection.score_breakdown || {};
+                const sources = projection.sources || {};
+                const activeCount = projection.settings ? Object.values(projection.settings).filter(Boolean).length : null;
+                const totalCount  = projection.settings ? Object.keys(projection.settings).length : null;
+
+                const SRC_LIST = [
+                  { key:'manual_income_90d',         label:'Manual income (90d)',           dir:'+' },
+                  { key:'recurring_income_monthly',   label:'Recurring income /mo',          dir:'+' },
+                  { key:'oxsteed_income_90d',         label:'OxSteed income (90d)',          dir:'+' },
+                  { key:'tool_rental_income_90d',     label:'Tool rental income (90d)',      dir:'+' },
+                  { key:'invoice_income_90d',         label:'Business invoices paid (90d)',  dir:'+' },
+                  { key:'predicted_jobs',             label:'In-progress jobs',              dir:'+' },
+                  { key:'predicted_invoices',         label:'Pending invoices',              dir:'+' },
+                  { key:'manual_expense_90d',         label:'Manual expenses (90d)',         dir:'−' },
+                  { key:'recurring_expense_monthly',  label:'Recurring expenses /mo',        dir:'−' },
+                  { key:'debt_monthly',               label:'Debt obligations /mo',          dir:'−' },
+                  { key:'home_maintenance_monthly',   label:'Home maintenance /mo',          dir:'−' },
+                  { key:'car_care_monthly',           label:'Car care /mo',                  dir:'−' },
+                  { key:'personal_care_monthly',      label:'Personal care /mo',             dir:'−' },
+                  { key:'tax_obligations_window',     label:'Tax obligations (window)',      dir:'−' },
+                  { key:'sinking_fund_window',        label:'Planned needs (window)',        dir:'−' },
+                ].filter(s => (sources[s.key] ?? 0) !== 0);
+
+                return (
+                  <>
+                    {showSettings && (
+                      <PulseScoreSettings
+                        onClose={() => setShowSettings(false)}
+                        onSaved={() => loadProjection(window_)}
+                      />
+                    )}
+                    <div className="pn-pulse-score-row">
+                      <div className="pn-pulse-ring">
+                        <svg width="56" height="56" viewBox="0 0 56 56" style={{ transform:'rotate(-90deg)' }}>
+                          <circle cx="28" cy="28" r="23" fill="none" stroke="var(--border-color)" strokeWidth="4"/>
+                          <circle cx="28" cy="28" r="23" fill="none" stroke={scoreColor} strokeWidth="4"
+                            strokeDasharray={`${(score / 100) * 144.5} 144.5`} strokeLinecap="round"
+                            style={{ transition:'stroke-dasharray 0.8s ease' }}/>
+                        </svg>
+                        <span className="pn-pulse-ring-score" style={{ color: scoreColor }}>{score}</span>
+                      </div>
+                      <div className="pn-pulse-bd">
+                        {[
+                          { l:'Coverage',    v: bd.coverage },
+                          { l:'Buffer',      v: bd.buffer },
+                          { l:'Reliability', v: bd.reliability },
+                          { l:'Obligations', v: bd.obligations },
+                        ].map((d, i) => (
+                          <div key={i} className="pn-pulse-bd-item">
+                            <span className="pn-pulse-bd-val">{d.v ?? '—'}</span>
+                            <span className="pn-pulse-bd-label">{d.l}</span>
+                          </div>
+                        ))}
+                        {projection.runway_months !== null && projection.runway_months !== undefined && (
+                          <div className="pn-pulse-bd-item">
+                            <span className="pn-pulse-bd-val">{projection.runway_months}mo</span>
+                            <span className="pn-pulse-bd-label">Runway</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Settings gear */}
+                      <button
+                        onClick={() => setShowSettings(true)}
+                        className="pn-pulse-settings-btn"
+                        title="Configure score sources"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                             strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="3"/>
+                          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                        </svg>
+                        {activeCount !== null && <span className="pn-pulse-settings-count">{activeCount}/{totalCount}</span>}
+                      </button>
+                    </div>
+                    {/* Source breakdown toggle */}
+                    <button className="pn-sources-toggle" onClick={() => setShowSrcs(v => !v)}>
+                      {showSrcs ? 'Hide sources' : "What's included?"}
+                    </button>
+                    {showSrcs && SRC_LIST.length > 0 && (
+                      <div className="pn-sources-grid">
+                        {SRC_LIST.map(s => (
+                          <div key={s.key} className="pn-source-row">
+                            <span className="pn-source-label">{s.label}</span>
+                            <span className={`pn-source-val ${s.dir === '+' ? 'positive' : 'negative'}`}>
+                              {s.dir}${(sources[s.key] || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 );
               })()}
 

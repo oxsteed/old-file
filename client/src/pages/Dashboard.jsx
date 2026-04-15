@@ -7,6 +7,7 @@ import api from '../api/axios';
 import useLifeDashboard from '../hooks/useLifeDashboard';
 import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
+import PulseScoreSettings from '../components/PulseScoreSettings';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -762,65 +763,164 @@ export default function Dashboard() {
             </div>
           )}
           {/* Life Pulse Score — powered by the unified engine (30-day horizon) */}
-          {life.financialPulse && (() => {
+          {(() => {
+            const [showPulseSettings, setShowPulseSettings] = useState(false);
+            const [showSources, setShowSources] = useState(false);
             const fp = life.financialPulse;
+            if (!fp) return null;
+
+            // No data entered yet — show onboarding prompt instead of a fabricated score
+            if (fp.no_data) return (
+              <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold">Financial Pulse · Next 30 days</p>
+                  <button onClick={() => setShowPulseSettings(true)} className="text-[11px] text-gray-600 hover:text-gray-400 transition flex items-center gap-1">
+                    <IcoSettings size={13} cls="text-gray-600" /> Configure
+                  </button>
+                </div>
+                {showPulseSettings && (
+                  <PulseScoreSettings onClose={() => setShowPulseSettings(false)} onSaved={() => life.fetchFinancialPulse('1m')} />
+                )}
+                <div className="flex flex-col items-center justify-center py-6 gap-3 text-center">
+                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-700">—</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-400">No Data Yet</p>
+                  <p className="text-xs text-gray-600 max-w-xs">
+                    Log your income and expenses to get an accurate financial pulse score. The score only reflects what you've actually entered.
+                  </p>
+                  <div className="flex gap-2 mt-1">
+                    <Link to="/dashboard" onClick={() => {}} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                      Log a transaction
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+
             const score = fp.pulse_score;
             const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
             const breakdown = fp.score_breakdown || {};
+            const sources   = fp.sources || {};
+            const activeCount = fp.settings
+              ? Object.values(fp.settings).filter(Boolean).length
+              : null;
+            const totalCount = fp.settings ? Object.keys(fp.settings).length : null;
+
+            const SOURCE_LABELS = [
+              { key: 'manual_income_90d',         label: 'Manual income (90d)',        dir: '+' },
+              { key: 'recurring_income_monthly',   label: 'Recurring income /mo',       dir: '+' },
+              { key: 'oxsteed_income_90d',         label: 'OxSteed income (90d)',       dir: '+' },
+              { key: 'tool_rental_income_90d',     label: 'Tool rental income (90d)',   dir: '+' },
+              { key: 'invoice_income_90d',         label: 'Business invoices paid (90d)', dir: '+' },
+              { key: 'predicted_jobs',             label: 'In-progress jobs (predicted)', dir: '+' },
+              { key: 'predicted_invoices',         label: 'Pending invoices (predicted)', dir: '+' },
+              { key: 'manual_expense_90d',         label: 'Manual expenses (90d)',       dir: '−' },
+              { key: 'recurring_expense_monthly',  label: 'Recurring expenses /mo',      dir: '−' },
+              { key: 'debt_monthly',               label: 'Debt obligations /mo',        dir: '−' },
+              { key: 'home_maintenance_monthly',   label: 'Home maintenance /mo',        dir: '−' },
+              { key: 'car_care_monthly',           label: 'Car care /mo',                dir: '−' },
+              { key: 'personal_care_monthly',      label: 'Personal care /mo',           dir: '−' },
+              { key: 'tax_obligations_window',     label: 'Tax obligations (window)',    dir: '−' },
+              { key: 'sinking_fund_window',        label: 'Planned needs (window)',      dir: '−' },
+            ].filter(s => (sources[s.key] ?? 0) !== 0);
+
             return (
-              <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                  {/* Score ring + description */}
-                  <div className="flex items-center gap-6">
-                    <div className="relative w-20 h-20 shrink-0">
-                      <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-                        <circle cx="40" cy="40" r="34" fill="none" stroke="#1f2937" strokeWidth="6"/>
-                        <circle cx="40" cy="40" r="34" fill="none" stroke={scoreColor} strokeWidth="6"
-                          strokeDasharray={`${(score / 100) * 213.6} 213.6`} strokeLinecap="round"
-                          className="transition-all duration-1000"/>
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-2xl font-bold" style={{ color: scoreColor }}>{score}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-0.5">Financial Pulse</p>
-                      <p className="text-[10px] text-gray-600 mb-1">Next 30 days</p>
-                      <p className="text-sm text-gray-400 max-w-xs">
-                        {score >= 80 ? 'Strong coverage, solid runway, reliable income.' :
-                         score >= 60 ? 'Good shape — watch sinking funds and upcoming expenses.' :
-                         score >= 40 ? 'Some gaps. Review coverage and buffer strength.' :
-                         'Needs attention. Income may not cover near-term obligations.'}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Breakdown */}
-                  <div className="grid grid-cols-4 gap-3 shrink-0">
-                    {[
-                      { l: 'Coverage',    v: breakdown.coverage,    c: 'text-emerald-400' },
-                      { l: 'Buffer',      v: breakdown.buffer,      c: 'text-blue-400'    },
-                      { l: 'Reliability', v: breakdown.reliability, c: 'text-purple-400'  },
-                      { l: 'Obligations', v: breakdown.obligations, c: 'text-orange-400'  },
-                    ].map((d, i) => (
-                      <div key={i} className="text-center">
-                        <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '—'}</p>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {/* Alerts */}
-                {fp.alerts?.length > 0 && (
-                  <div className="mt-4 space-y-1.5 border-t border-gray-700/40 pt-4">
-                    {fp.alerts.map((alert, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs text-yellow-400">
-                        <span className="shrink-0 mt-0.5">⚠</span>
-                        <span>{alert}</span>
-                      </div>
-                    ))}
-                  </div>
+              <>
+                {showPulseSettings && (
+                  <PulseScoreSettings
+                    onClose={() => setShowPulseSettings(false)}
+                    onSaved={() => life.fetchFinancialPulse('1m')}
+                  />
                 )}
-              </div>
+                <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
+                  {/* Header row */}
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold">Financial Pulse · Next 30 days</p>
+                    <button
+                      onClick={() => setShowPulseSettings(true)}
+                      className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition"
+                      title="Configure pulse score sources"
+                    >
+                      <IcoSettings size={13} cls="text-gray-500" />
+                      {activeCount !== null && (
+                        <span>{activeCount}/{totalCount} sources</span>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                    {/* Score ring + description */}
+                    <div className="flex items-center gap-6">
+                      <div className="relative w-20 h-20 shrink-0">
+                        <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+                          <circle cx="40" cy="40" r="34" fill="none" stroke="#1f2937" strokeWidth="6"/>
+                          <circle cx="40" cy="40" r="34" fill="none" stroke={scoreColor} strokeWidth="6"
+                            strokeDasharray={`${(score / 100) * 213.6} 213.6`} strokeLinecap="round"
+                            className="transition-all duration-1000"/>
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-2xl font-bold" style={{ color: scoreColor }}>{score}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-400 max-w-xs">
+                          {score >= 80 ? 'Strong coverage, solid runway, reliable income.' :
+                           score >= 60 ? 'Good shape — watch sinking funds and upcoming expenses.' :
+                           score >= 40 ? 'Some gaps. Review coverage and buffer strength.' :
+                           'Needs attention. Income may not cover near-term obligations.'}
+                        </p>
+                        <button
+                          onClick={() => setShowSources(v => !v)}
+                          className="text-[11px] text-gray-600 hover:text-orange-400 transition mt-1.5 underline underline-offset-2"
+                        >
+                          {showSources ? 'Hide sources' : 'What\'s included?'}
+                        </button>
+                      </div>
+                    </div>
+                    {/* Breakdown */}
+                    <div className="grid grid-cols-4 gap-3 shrink-0">
+                      {[
+                        { l: 'Coverage',    v: breakdown.coverage,    c: 'text-emerald-400' },
+                        { l: 'Buffer',      v: breakdown.buffer,      c: 'text-blue-400'    },
+                        { l: 'Reliability', v: breakdown.reliability, c: 'text-purple-400'  },
+                        { l: 'Obligations', v: breakdown.obligations, c: 'text-orange-400'  },
+                      ].map((d, i) => (
+                        <div key={i} className="text-center">
+                          <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '—'}</p>
+                          <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Source breakdown (expandable) */}
+                  {showSources && SOURCE_LABELS.length > 0 && (
+                    <div className="mt-4 border-t border-gray-700/40 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {SOURCE_LABELS.map(s => (
+                        <div key={s.key} className="flex items-center justify-between text-[11px]">
+                          <span className="text-gray-500">{s.label}</span>
+                          <span className={s.dir === '+' ? 'text-emerald-400' : 'text-red-400'}>
+                            {s.dir}${(sources[s.key] || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Alerts */}
+                  {fp.alerts?.length > 0 && (
+                    <div className="mt-4 space-y-1.5 border-t border-gray-700/40 pt-4">
+                      {fp.alerts.map((alert, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs text-yellow-400">
+                          <span className="shrink-0 mt-0.5">⚠</span>
+                          <span>{alert}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             );
           })()}
 

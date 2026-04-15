@@ -32,6 +32,29 @@ export default function useLifeDashboard() {
     }
   }, []);
 
+  // Pulse score settings — what sources are active
+  const [pulseSettings, setPulseSettings] = useState(null);
+
+  const fetchPulseSettings = useCallback(async () => {
+    try {
+      const { data } = await api.get('/life/pulse/settings');
+      setPulseSettings(data);
+      return data;
+    } catch (err) {
+      console.error('fetchPulseSettings error:', err);
+    }
+  }, []);
+
+  const savePulseSettings = useCallback(async (updates) => {
+    try {
+      const { data } = await api.put('/life/pulse/settings', updates);
+      setPulseSettings(data);
+      return data;
+    } catch (err) {
+      console.error('savePulseSettings error:', err);
+    }
+  }, []);
+
   // ── Community stats ─────────────────────────────────────────────────
   const [community, setCommunity] = useState(null);
 
@@ -245,6 +268,7 @@ export default function useLifeDashboard() {
 
     // Financial Pulse (unified engine)
     financialPulse, fetchFinancialPulse,
+    pulseSettings, fetchPulseSettings, savePulseSettings,
 
     // Community
     community, fetchCommunity,

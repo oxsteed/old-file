@@ -2,6 +2,11 @@ const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/lifeDashboardController');
 const pulseCtrl = require('../controllers/lifePulseController');
+const settingsCtrl = require('../controllers/pulseScoreSettingsController');
+
+// ── Pulse score settings (must be before /pulse to avoid route shadowing) ─
+router.get('/pulse/settings', authenticate, settingsCtrl.getSettings);
+router.put('/pulse/settings', authenticate, settingsCtrl.updateSettings);
 
 // ── Unified Life Pulse engine ────────────────────────────────────────────
 // GET /api/life/pulse?window=1m   (dashboard default)
