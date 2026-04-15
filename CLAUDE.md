@@ -786,3 +786,9 @@ Four gaps identified and fixed:
 - **Root cause:** `hashIP()` now returns a 64-char SHA-256 hex string, but customer/helper terms acceptance stores into legacy `terms_acceptance_ip` columns defined as `VARCHAR(45)` in older schemas. This caused `POST /api/auth/register/accept-terms` to fail with a 500.
 - **Fix:** `authController.acceptTerms` and `helperRegistrationController.acceptTerms` now cap stored hashed IP values to 45 chars for compatibility with legacy column widths while still keeping hashed (non-raw) IP storage.
 - **Regression test:** added `POST /api/auth/register/accept-terms` test in `server/__tests__/auth.test.js` that asserts the persisted IP hash argument length is `<= 45`.
+
+### Session — 2026-04-15 (start registration `22001` fix)
+
+- **Issue observed:** helper signup `POST /api/helper-registration/start` returned 500 with PostgreSQL `22001` (`varchar.c / bpchar`) for some inputs.
+- **Fixes:** both `helperRegistrationController.startRegistration` and `authController.startRegistration` now normalize/trim registration inputs before validation + DB writes, apply explicit max-length validation for phone/zip, and downgrade DB length-overflow (`22001`) to a 400 validation-style response instead of 500.
+- **Regression tests:** new `server/__tests__/helperRegistration.test.js` covers normalized helper start payloads and `22001` handling; `server/__tests__/auth.test.js` now also covers normalized customer `/register/start` and `22001` handling.
