@@ -53,21 +53,39 @@ async function getCategories(req, res) {
 // POST /api/helper-registration/start
 async function startRegistration(req, res) {
   try {
-    const { email, password, firstName, lastName, phone, zip, ageConfirmed } = req.body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      zip,
+      ageConfirmed
+    } = req.body;
 
-    const errs = validate(req.body, {
+    const normalized = {
+      email: String(email || '').trim().toLowerCase(),
+      password,
+      firstName: String(firstName || '').trim(),
+      lastName: String(lastName || '').trim(),
+      phone: String(phone || '').trim(),
+      zip: String(zip || '').trim(),
+      ageConfirmed,
+    };
+
+    const errs = validate(normalized, {
       email:     [rules.required, rules.email, rules.maxLen(254)],
       password:  [rules.required, rules.minLen(8), rules.maxLen(128)],
       firstName: [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
       lastName:  [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
-      phone:     [rules.required, rules.phone],
-      zip:       [rules.required, rules.zip],
+      phone:     [rules.required, rules.phone, rules.maxLen(20)],
+      zip:       [rules.required, rules.zip, rules.maxLen(10)],
     });
     if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
     // Check for existing user
     const dup = await pool.query(
-      'SELECT id FROM users WHERE email = $1', [email]);
+      'SELECT id FROM users WHERE email = $1', [normalized.email]);
     if (dup.rows.length)
       return res.status(409).json({ error: 'Email already registered' });
 
@@ -95,21 +113,44 @@ async function startRegistration(req, res) {
             (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
           VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
           RETURNING token
-        `, [token, email, password_hash, firstName, lastName, phone, zip, otpHash, otp_expires])
+        `, [
+          token,
+          normalized.email,
+          password_hash,
+          normalized.firstName,
+          normalized.lastName,
+          normalized.phone,
+          normalized.zip,
+          otpHash,
+          otp_expires
+        ])
       : await pool.query(`
           INSERT INTO pending_registrations
             (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
           RETURNING token
-        `, [token, email, password_hash, firstName, lastName, phone, zip, otpHash, otp_expires]);
+        `, [
+          token,
+          normalized.email,
+          password_hash,
+          normalized.firstName,
+          normalized.lastName,
+          normalized.phone,
+          normalized.zip,
+          otpHash,
+          otp_expires
+        ]);
 
-    await sendOTPEmail(email, otp);
+    await sendOTPEmail(normalized.email, otp);
 
     res.status(201).json({
       message: 'OTP sent to email',
       token: result.rows[0].token,
     });
   } catch (err) {
+    if (err?.code === '22001') {
+      return res.status(400).json({ error: 'One or more registration fields are too long' });
+    }
     logger.error('startRegistration error:', { err });
     res.status(500).json({ error: 'Registration failed' });
   }

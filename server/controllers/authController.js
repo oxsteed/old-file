@@ -500,27 +500,48 @@ async function addToWaitlist(req, res) {
 async function startRegistration(req, res) {
   try {
     const { email, password, firstName, lastName, phone, zip, ageConfirmed, ref } = req.body;
-    if (!email || !password || !firstName || !lastName || !phone || !zip) {
-      return res.status(400).json({ error: 'All fields required' });
-    }
-    if (!ageConfirmed) return res.status(400).json({ error: 'Age confirmation required' });
-    const phoneClean = phone.replace(/\D/g, '');
+    const normalized = {
+      email: String(email || '').trim().toLowerCase(),
+      password,
+      firstName: String(firstName || '').trim(),
+      lastName: String(lastName || '').trim(),
+      phone: String(phone || '').trim(),
+      zip: String(zip || '').trim(),
+      ageConfirmed,
+      ref: ref ? String(ref).trim() : null,
+    };
+
+    const errs = validate(normalized, {
+      email: [rules.required, rules.email, rules.maxLen(254)],
+      password: [rules.required, rules.minLen(8), rules.maxLen(128)],
+      firstName: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
+      lastName: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
+      phone: [rules.required, rules.phone, rules.maxLen(20)],
+      zip: [rules.required, rules.zip, rules.maxLen(10)],
+    });
+    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
+
+    if (!normalized.ageConfirmed) return res.status(400).json({ error: 'Age confirmation required' });
+    const phoneClean = normalized.phone.replace(/\D/g, '');
     if (phoneClean.length < 10 || phoneClean.length > 11) {
       return res.status(400).json({ error: 'Invalid phone number' });
     }
     const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
-    if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code' });
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (!/^\d{5}$/.test(normalized.zip)) return res.status(400).json({ error: 'Invalid zip code' });
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
-    await pool.query('DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)', [email.toLowerCase(), 'customer']);
+    await pool.query('DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)', [normalized.email, 'customer']);
     await pool.query(
   'INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed, role, referral_ref) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-  [token, email.toLowerCase(), passwordHash, firstName, lastName, formattedPhone, zip, ageConfirmed, 'customer', ref || null]
+  [token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalized.zip, normalized.ageConfirmed, 'customer', normalized.ref]
 );
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
+    if (err?.code === '22001') {
+      return res.status(400).json({ error: 'One or more registration fields are too long' });
+    }
     logger.error('Start registration error', { err });
     res.status(500).json({ error: 'Registration failed' });
   }

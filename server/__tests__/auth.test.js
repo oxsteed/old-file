@@ -137,6 +137,56 @@ describe('POST /api/auth/register/accept-terms', () => {
   });
 });
 
+// ── POST /api/auth/register/start ─────────────────────────────────────────────
+describe('POST /api/auth/register/start', () => {
+  test('normalizes and stores trimmed registration fields', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // check existing email
+      .mockResolvedValueOnce({ rows: [] }) // delete old pending registration
+      .mockResolvedValueOnce({ rows: [] }); // insert pending registration
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: '  CUSTOMER@Example.com ',
+        password: 'SecurePass123!',
+        firstName: '  Customer ',
+        lastName: ' User  ',
+        phone: ' +1 (555) 111-2222 ',
+        zip: '12345',
+        ageConfirmed: true,
+      });
+
+    expect(res.status).toBe(200);
+    const insertArgs = mockQuery.mock.calls[2][1];
+    expect(insertArgs[1]).toBe('customer@example.com');
+    expect(insertArgs[3]).toBe('Customer');
+    expect(insertArgs[4]).toBe('User');
+  });
+
+  test('returns 400 for DB field length overflow instead of 500', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // check existing email
+      .mockResolvedValueOnce({ rows: [] }) // delete old pending registration
+      .mockRejectedValueOnce({ code: '22001' }); // insert pending registration
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'customer@example.com',
+        password: 'SecurePass123!',
+        firstName: 'Customer',
+        lastName: 'User',
+        phone: '+15551112222',
+        zip: '12345',
+        ageConfirmed: true,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/too long/i);
+  });
+});
+
 // ── POST /api/auth/login ──────────────────────────────────────────────────────
 describe('POST /api/auth/login', () => {
   test('returns 400 when fields are missing', async () => {
