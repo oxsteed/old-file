@@ -71,7 +71,7 @@ export default function Moderation() {
                       {item.report_count > 0 && (
                         <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-900/60 text-red-400 shrink-0">
                           <AlertTriangle size={11} />
-                          {item.report_count} report{item.report_count !== 1 ? 's' : ''}
+                          {item.report_count} report{Number(item.report_count) !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>

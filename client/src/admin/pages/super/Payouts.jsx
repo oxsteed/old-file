@@ -19,10 +19,11 @@ export default function Payouts() {
       });
       setPayouts(data.payouts || []);
       if (data.stats) setStats(data.stats);
-      if (data.message) setNotice(data.message);
+      setNotice(data.message || '');
     } catch (err) {
       console.error('Failed to fetch payouts:', err);
       setPayouts([]);
+      setNotice('');
     } finally {
       setLoading(false);
     }
