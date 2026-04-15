@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-14 (Business Hub — remove logo/cover clears DB + preview)
+**Last updated:** 2026-04-15 (Job list — remove trust level section from How It Works)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -744,3 +744,7 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **Public profile chrome** — `PublicProfilePageChrome.jsx`: shared skeleton, error, mobile chat drawer, section nav, back-to-top for `HelperBusinessProfilePage.tsx` + `BusinessProfilePage.jsx`.
 
 **Note:** `cd server && npm test` in this workspace failed for unrelated reasons (403 vs expected in several suites, missing `file-type`, ESM in `@otplib`); not attributed to this change set.
+
+### Session — 2026-04-15 (jobs page trust section)
+
+- **`/jobs` (`JobListPage.jsx`)** — Removed the "How OxSteed Works" subsections that showed Community/Pro trust cards (`TrustKeys`) for both customer and helper tour tabs; dropped unused import. Removed `.jlp-trust-*` rules from `JobListPage.css`. Orphaned `TrustKeys.jsx` + `TrustKeys.css` deleted (no remaining imports).

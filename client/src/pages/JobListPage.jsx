@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
-import TrustKeys from '../components/TrustKeys';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import '../styles/JobListPage.css';
@@ -376,13 +375,6 @@ export default function JobListPage() {
                   <p>Pay directly or pay via OxSteed for added protection. Rate your helper when complete.</p>
                 </div>
               </div>
-              <div className="jlp-trust-section">
-                <h4>Choose your trust level</h4>
-                <div className="jlp-trust-badges">
-                  <TrustKeys level="community" mode="card" />
-                  <TrustKeys level="pro" mode="card" /> 
-                </div>
-              </div>
             </div>
           ) : (
             <div>
@@ -406,13 +398,6 @@ export default function JobListPage() {
                   <div className="jlp-step-num">4</div>
                   <h3>Get Paid</h3>
                   <p>Complete the job, collect payment directly or through OxSteed, and build your reputation.</p>
-                </div>
-              </div>
-              <div className="jlp-trust-section">
-                <h4>Build your trust level</h4>
-                <div className="jlp-trust-badges">
-                  <TrustKeys level="community" mode="card" />
-                  <TrustKeys level="pro" mode="card" /> 
                 </div>
               </div>
             </div>
