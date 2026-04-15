@@ -768,3 +768,4 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **`POST /api/auth/logout`** no longer requires `authenticate`; endpoint now accepts refresh-token-only logout for clients whose access token already expired.
 - **`authController.logout`** now supports both paths: invalidate by hashed `refreshToken`, or (when a valid bearer token is present) invalidate all sessions for that user id.
 - **Auth tests** updated in `server/__tests__/auth.test.js` to cover refresh-token-only logout, access-token-only logout, and 400 validation when neither token is provided.
+- **Jest compatibility note:** `server/__tests__/auth.test.js` now mocks `@otplib/v12-adapter` so the suite can run in this CommonJS Jest config without ESM parsing errors from `@scure/base`.

@@ -14,6 +14,15 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
+jest.mock('@otplib/v12-adapter', () => ({
+  authenticator: {
+    options: {},
+    verify: jest.fn().mockReturnValue(true),
+    generateSecret: jest.fn().mockReturnValue('TESTSECRET'),
+    keyuri: jest.fn().mockReturnValue('otpauth://totp/OxSteed:test@example.com?secret=TESTSECRET'),
+  },
+}));
+
 // Load after mocks are set up
 const express = require('express');
 const request = require('supertest');
