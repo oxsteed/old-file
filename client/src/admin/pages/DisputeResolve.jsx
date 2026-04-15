@@ -79,7 +79,7 @@ export default function DisputeResolve() {
     setSubmitting(true);
     setError(null);
     try {
-      await adminApi.post(`/admin/disputes/${disputeId}/resolve`, {
+      await adminApi.post(`/disputes/admin/${disputeId}/resolve`, {
         resolution,
         resolution_notes: notes,
         ...(resolution === 'partial_refund' && {

@@ -22,8 +22,8 @@ router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
 router.get('/jobs',                    requireAdmin,      superCtrl.getJobs);
 router.get('/jobs/:jobId',             requireAdmin,      superCtrl.getJobDetail);
 router.post('/jobs/:jobId/action',     requireAdmin,      superCtrl.forceJobAction);
-// Hard delete — super admin only
-router.delete('/jobs/:jobId',          requireSuperAdmin, superCtrl.deleteJob);
+// Hard delete — delegatable via delete_jobs grant
+router.delete('/jobs/:jobId',          requireAdmin, requirePermission('delete_jobs'), superCtrl.deleteJob);
 
 // Content removal — bids and reviews (always logged for super-admin review)
 router.get('/content',                         requireAdmin, adminCtrl.getContent);
@@ -51,32 +51,34 @@ router.get('/super/dashboard',     requireSuperAdmin, superCtrl.getDashboardStat
 router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart);
 
 // User management (privileged write)
-router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
+// verify_users and delete_users can be delegated via permission grants;
+// role changes and force-logout remain super-admin only (no delegation scope).
+router.post('/users/:userId/verify', requireAdmin,      requirePermission('verify_users'), superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
-router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
+router.delete('/users/:userId',      requireAdmin,      requirePermission('delete_users'), superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 
-// Admin account management (super_admin only)
-router.get('/super/admin-accounts',             requireSuperAdmin, superCtrl.getAdminAccounts);
-router.post('/super/admin-accounts',            requireSuperAdmin, superCtrl.createAdminAccount);
-router.put('/super/admin-accounts/:id/status',  requireSuperAdmin, superCtrl.toggleAdminAccountStatus);
-router.get('/super/admin-activity/:adminId',    requireSuperAdmin, superCtrl.getAdminActivity);
+// Admin account management — delegatable via manage_admin_accounts grant
+router.get('/super/admin-accounts',             requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminAccounts);
+router.post('/super/admin-accounts',            requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.createAdminAccount);
+router.put('/super/admin-accounts/:id/status',  requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.toggleAdminAccountStatus);
+router.get('/super/admin-activity/:adminId',    requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminActivity);
 
-// Financials
-router.get('/financials',            requireSuperAdmin, superCtrl.getFinancials);
-router.get('/payouts',               requireSuperAdmin, superCtrl.getPayouts);
-router.get('/super/revenue',         requireSuperAdmin, superCtrl.getRevenueSummary);
-router.get('/super/revenue/export',  requireSuperAdmin, superCtrl.getRevenueExport);
-router.post('/jobs/:jobId/refund',   requireSuperAdmin, superCtrl.issueManualRefund);
+// Financials — super-admin direct, or admin with view_financials grant
+router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
+router.get('/payouts',               requireAdmin, requirePermission('view_financials'), superCtrl.getPayouts);
+router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
+router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
+router.post('/jobs/:jobId/refund',   requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
 
-// Platform settings
-router.get('/settings',              requireSuperAdmin, superCtrl.getSettings);
-router.put('/settings/:key',         requireSuperAdmin, superCtrl.updateSetting);
-router.put('/feature-flags/:key',    requireSuperAdmin, superCtrl.updateFeatureFlag);
+// Platform settings — super-admin direct, or admin with manage_settings grant
+router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);
+router.put('/settings/:key',         requireAdmin, requirePermission('manage_settings'), superCtrl.updateSetting);
+router.put('/feature-flags/:key',    requireAdmin, requirePermission('manage_settings'), superCtrl.updateFeatureFlag);
 
 // Audit log + export
-router.get('/audit-log',             requireSuperAdmin, superCtrl.getAuditLog);
-router.get('/export/:type',          requireSuperAdmin, superCtrl.exportData);
+router.get('/audit-log',             requireAdmin, requirePermission('view_audit_log'), superCtrl.getAuditLog);
+router.get('/export/:type',          requireAdmin, requirePermission('export_data'),    superCtrl.exportData);
 
 // ══════════════════════════════════════════════════════════════
 // SUPPORT TICKETS (admin + super_admin)
@@ -119,7 +121,8 @@ router.post('/super/users', requireAdmin, requirePermission('create_users'), sup
 // ADMIN → USER LIVE MESSAGING (super-admin only)
 // ══════════════════════════════════════════════════════════════
 
-router.post('/super/users/:userId/message', requireSuperAdmin, superCtrl.sendAdminMessage);
+// Admin→user messaging — delegatable via message_users grant
+router.post('/super/users/:userId/message', requireAdmin, requirePermission('message_users'), superCtrl.sendAdminMessage);
 
 // ══════════════════════════════════════════════════════════════
 // SKILLS & CATEGORIES LOOKUP MANAGEMENT (admin + super_admin)

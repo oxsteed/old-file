@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users, Briefcase, DollarSign, TrendingUp,
   AlertTriangle, Flag, Activity, ArrowUpRight
@@ -16,9 +17,11 @@ export default function SuperDashboard() {
   const [mrr,     setMrr]     = useState(0);
   const [period,  setPeriod]  = useState('30d');
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
 
   useEffect(() => {
     const fetch = async () => {
+      setError(null);
       try {
         // Super-admins get the full revenue dashboard; regular admins get the basic stats.
         const endpoint = isSuper ? '/admin/super/dashboard' : '/admin/dashboard';
@@ -27,6 +30,7 @@ export default function SuperDashboard() {
         setMrr(data.mrr || 0);
       } catch (err) {
         console.error(err);
+        setError('Failed to load dashboard stats.');
       } finally {
         setLoading(false);
       }
@@ -35,6 +39,14 @@ export default function SuperDashboard() {
   }, [isSuper]);
 
   if (loading) return <AdminLoader />;
+
+  if (error) return (
+    <div className="p-8">
+      <div className="bg-red-950 border border-red-800 rounded-xl p-4 text-red-300 text-sm">
+        {error}
+      </div>
+    </div>
+  );
 
   const s = stats;
 
@@ -163,11 +175,11 @@ export default function SuperDashboard() {
                   <p className="text-xs text-red-400">Requires attention</p>
                 </div>
               </div>
-              <a href="/admin/jobs?status=disputed"
+              <Link to="/admin/disputes"
                  className="text-xs text-red-400 hover:text-red-300
                             flex items-center gap-1 transition">
                 View <ArrowUpRight size={12} />
-              </a>
+              </Link>
             </div>
           )}
 
@@ -183,11 +195,11 @@ export default function SuperDashboard() {
                   <p className="text-xs text-yellow-400">Awaiting review</p>
                 </div>
               </div>
-              <a href="/admin/reports"
+              <Link to="/admin/reports"
                  className="text-xs text-yellow-400 hover:text-yellow-300
                             flex items-center gap-1 transition">
                 Review <ArrowUpRight size={12} />
-              </a>
+              </Link>
             </div>
           )}
         </div>

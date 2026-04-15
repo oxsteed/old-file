@@ -16,7 +16,7 @@ export default function AdminDisputes() {
     const fetch = async () => {
       setLoading(true);
       try {
-        const { data } = await adminApi.get('/admin/disputes/all', {
+        const { data } = await adminApi.get('/disputes/admin/all', {
           params: { status: tab }        });
         setDisputes(data.disputes);
         setTotal(data.total);
@@ -32,7 +32,7 @@ export default function AdminDisputes() {
   const handleStartReview = async (disputeId) => {
     setActing(disputeId);
     try {
-      await adminApi.post(`/admin/disputes/${disputeId}/review`);
+      await adminApi.post(`/disputes/admin/${disputeId}/review`);
       setDisputes(prev =>
         prev.map(d =>
           d.id === disputeId ? { ...d, status: 'under_review' } : d

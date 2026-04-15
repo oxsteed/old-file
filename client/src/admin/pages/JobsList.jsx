@@ -54,7 +54,7 @@ export default function JobsList() {
 
   const exportCSV = async () => {
     try {
-      const { data } = await adminApi.get('/admin/jobs/export', { responseType: 'blob' });
+      const { data } = await adminApi.get('/admin/export/jobs', { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([data]));
       const a = document.createElement('a');
       a.href = url; a.download = `jobs_${new Date().toISOString().slice(0,10)}.csv`;
