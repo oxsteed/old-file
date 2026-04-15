@@ -559,3 +559,10 @@ html.dark .pn-queue-banner {
 @media (max-width: 600px) {
   .pn-sources-grid { grid-template-columns: 1fr; }
 }
+
+/* ── No-data pulse state ─────────────────────────────────── */
+.pn-pulse-no-data {
+  opacity: 0.75;
+  align-items: center;
+  gap: 1rem;
+}

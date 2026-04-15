@@ -15,54 +15,56 @@ const WINDOW_LABELS = {
 };
 
 // ── scoring helpers ───────────────────────────────────────────────────────────
+// All helpers operate on true values only — no fake neutral defaults.
+// The caller is responsible for detecting the no-data case before invoking these.
 
 /**
- * Coverage score (40 pts max):
- * How well projected income covers projected obligations (fixed + sinking funds).
- * ratio ≥ 1.5 → 100 | ratio = 1.0 → 70 | ratio = 0 → 0
+ * Coverage: what % of obligations does income cover?
+ * null (no obligations) + has income → 100 (nothing to be short on).
+ * ratio ≥ 1 → 100. ratio < 1 → direct % (e.g. 0.67 → 67).
  */
 function scoreCoverage(coverageRatio) {
-  if (coverageRatio === null || coverageRatio === undefined) return 50; // no obligations yet
-  if (coverageRatio >= 1.5) return 100;
-  if (coverageRatio >= 1.0) return 70 + ((coverageRatio - 1.0) / 0.5) * 30;
-  return Math.max(0, coverageRatio * 70);
+  if (coverageRatio === null) return 100; // income exists, zero obligations = fully covered
+  if (coverageRatio >= 1.0)  return 100;
+  return Math.max(0, Math.round(coverageRatio * 100));
 }
 
 /**
- * Buffer score (25 pts max):
- * Financial runway — based on cumulative 90-day net as a savings proxy.
- * runway ≥ 6 mo → 100 | 3 mo → 70 | 1 mo → 40 | 0 → 10 (non-zero so new users aren't crushed)
+ * Buffer: how many months of runway does the net cash position represent?
+ * null (no burn rate) + has income → 100 (income with no outgoings = infinite runway).
+ * ≥ 6 mo → 100 | 3 mo → 75 | 1 mo → 50 | > 0 → 25 | 0 → 0.
  */
 function scoreBuffer(runwayMonths) {
-  if (runwayMonths === null) return 50;
-  if (runwayMonths >= 6)   return 100;
-  if (runwayMonths >= 3)   return 70  + ((runwayMonths - 3) / 3) * 30;
-  if (runwayMonths >= 1)   return 40  + ((runwayMonths - 1) / 2) * 30;
-  if (runwayMonths > 0)    return runwayMonths * 40;
-  return 10;
+  if (runwayMonths === null) return 100; // income declared, no burn = infinite runway
+  if (runwayMonths >= 6)    return 100;
+  if (runwayMonths >= 3)    return 75;
+  if (runwayMonths >= 1)    return 50;
+  if (runwayMonths > 0)     return 25;
+  return 0;
 }
 
 /**
- * Reliability score (20 pts max):
- * Compares last-30d daily avg income against prior-60d daily avg.
- * No drop → 95 | small drop (< 15%) → 82 | moderate (15–30%) → 65 | large (30–50%) → 45 | severe (> 50%) → 20
+ * Reliability: income consistency over the last 90 days.
+ * hasPriorIncome = false means no transaction history yet → 0 (unknown, not good).
+ * No drop → 100 | < 15% drop → 82 | 15–30% → 65 | 30–50% → 45 | > 50% → 20.
  */
-function scoreReliability(dropPct) {
-  if (dropPct > 0.50) return 20;
-  if (dropPct > 0.30) return 45;
-  if (dropPct > 0.15) return 65;
-  if (dropPct > 0.00) return 82;
-  return 95;
+function scoreReliability(dropPct, hasPriorIncome) {
+  if (!hasPriorIncome) return 0; // no history to judge — not assumed good
+  if (dropPct > 0.50)  return 20;
+  if (dropPct > 0.30)  return 45;
+  if (dropPct > 0.15)  return 65;
+  if (dropPct > 0.00)  return 82;
+  return 100;
 }
 
 /**
- * Obligations score (15 pts max):
- * Average funding % across active planned needs that have an estimated cost.
- * No costy needs → 80 (neutral).
+ * Obligations: how well are planned needs funded?
+ * No costed needs → 100 (nothing underfunded).
+ * Each need: funded% averaged. Result is 0–100.
  */
 function scoreObligations(needs) {
   const funded = needs.filter(n => parseFloat(n.estimated_cost || 0) > 0);
-  if (funded.length === 0) return 80;
+  if (funded.length === 0) return 100; // no obligations = fully on top of them
   const avgPct = funded.reduce((sum, n) => {
     const cost     = parseFloat(n.estimated_cost);
     const reserved = parseFloat(n.reserved_amount || 0);
@@ -559,31 +561,47 @@ exports.getLifePulse = async (req, res) => {
     }
 
     // ── 8. Compute overall pulse score ─────────────────────────────────────
+
+    // No-data detection: user has not entered anything that can be evaluated.
+    // Every source is zero → there is nothing to score. Return null so the
+    // frontend shows "No Data Yet" instead of a fabricated number.
+    const hasAnyData = avgDailyIncome > 0 || avgDailyExpense > 0 || totalObligations > 0;
+
+    const hasPriorIncomeHistory = parseFloat(reliability.income_prior60) > 0;
+
     const cScore = scoreCoverage(coverageRatio);
     const bScore = scoreBuffer(runwayMonths);
-    const rScore = scoreReliability(incomeDropPct);
+    const rScore = scoreReliability(incomeDropPct, hasPriorIncomeHistory);
     const oScore = scoreObligations(rawNeeds);
 
-    // Equal weight: each dimension contributes 25% so no single signal dominates.
-    const pulseScore = Math.max(0, Math.min(100, Math.round(
-      cScore * 0.25 +
-      bScore * 0.25 +
-      rScore * 0.25 +
-      oScore * 0.25
-    )));
+    // Overall pulse score = direct income-vs-obligations coverage, capped at 100.
+    // This is the single most honest signal: can the user cover what they owe?
+    //
+    //   No data at all         → null  ("No Data Yet")
+    //   Has income, no oblig.  → 100   (nothing to be short on)
+    //   Income ≥ obligations   → 100   (fully covered)
+    //   Income < obligations   → round(income / obligations × 100)  (shows shortfall)
+    //
+    // Example: $100 income, $150 expenses → round(100/150 × 100) = 67
+    const pulseScore = !hasAnyData
+      ? null
+      : totalObligations === 0
+        ? 100
+        : Math.min(100, Math.round((presentValueIncome / totalObligations) * 100));
 
     // ── response ────────────────────────────────────────────────────────────
     res.json({
       window:      windowKey,
       window_days: windowDays,
 
-      // Score
+      // Score — null means no data has been entered yet ("No Data Yet" in UI)
+      no_data:     !hasAnyData,
       pulse_score: pulseScore,
-      score_breakdown: {
-        coverage:     Math.round(cScore),
-        buffer:       Math.round(bScore),
-        reliability:  Math.round(rScore),
-        obligations:  oScore,
+      score_breakdown: !hasAnyData ? null : {
+        coverage:    Math.round(cScore),
+        buffer:      Math.round(bScore),
+        reliability: Math.round(rScore),
+        obligations: oScore,
       },
 
       // Averages (useful for debugging / display)

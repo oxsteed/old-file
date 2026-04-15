@@ -768,6 +768,36 @@ export default function Dashboard() {
             const [showSources, setShowSources] = useState(false);
             const fp = life.financialPulse;
             if (!fp) return null;
+
+            // No data entered yet — show onboarding prompt instead of a fabricated score
+            if (fp.no_data) return (
+              <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold">Financial Pulse · Next 30 days</p>
+                  <button onClick={() => setShowPulseSettings(true)} className="text-[11px] text-gray-600 hover:text-gray-400 transition flex items-center gap-1">
+                    <IcoSettings size={13} cls="text-gray-600" /> Configure
+                  </button>
+                </div>
+                {showPulseSettings && (
+                  <PulseScoreSettings onClose={() => setShowPulseSettings(false)} onSaved={() => life.fetchFinancialPulse('1m')} />
+                )}
+                <div className="flex flex-col items-center justify-center py-6 gap-3 text-center">
+                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-700">—</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-400">No Data Yet</p>
+                  <p className="text-xs text-gray-600 max-w-xs">
+                    Log your income and expenses to get an accurate financial pulse score. The score only reflects what you've actually entered.
+                  </p>
+                  <div className="flex gap-2 mt-1">
+                    <Link to="/dashboard" onClick={() => {}} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                      Log a transaction
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+
             const score = fp.pulse_score;
             const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
             const breakdown = fp.score_breakdown || {};
