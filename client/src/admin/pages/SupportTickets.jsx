@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import api from '../../api/axios';
+import adminApi from '../../lib/adminApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
 import {
@@ -106,7 +106,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: d } = await api.get(`/admin/support/tickets/${ticketId}`);
+      const { data: d } = await adminApi.get(`/admin/support/tickets/${ticketId}`);
       setData(d);
     } catch { /* ignore */ }
     setLoading(false);
@@ -125,23 +125,23 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
   };
 
   const handleClaim = () => action(() =>
-    api.post(`/admin/support/tickets/${ticketId}/claim`)
+    adminApi.post(`/admin/support/tickets/${ticketId}/claim`)
   );
   const handleUnclaim = () => action(() =>
-    api.post(`/admin/support/tickets/${ticketId}/unclaim`)
+    adminApi.post(`/admin/support/tickets/${ticketId}/unclaim`)
   );
   const handleStatus = (status) => action(() =>
-    api.put(`/admin/support/tickets/${ticketId}/status`, { status })
+    adminApi.put(`/admin/support/tickets/${ticketId}/status`, { status })
   );
   const handlePriority = (priority) => action(() =>
-    api.put(`/admin/support/tickets/${ticketId}/priority`, { priority })
+    adminApi.put(`/admin/support/tickets/${ticketId}/priority`, { priority })
   );
   const handleSend = async (e) => {
     e.preventDefault();
     if (!reply.trim()) return;
     setSending(true);
     try {
-      await api.post(`/admin/support/tickets/${ticketId}/reply`, {
+      await adminApi.post(`/admin/support/tickets/${ticketId}/reply`, {
         content: reply.trim(),
         is_internal: isInternal,
       });
@@ -412,8 +412,8 @@ export default function SupportTickets() {
       if (assigned) params.assigned = assigned;
 
       const [tRes, sRes] = await Promise.all([
-        api.get('/admin/support/tickets', { params }),
-        api.get('/admin/support/stats'),
+        adminApi.get('/admin/support/tickets', { params }),
+        adminApi.get('/admin/support/stats'),
       ]);
       setTickets(tRes.data.tickets);
       setTotal(tRes.data.total);
