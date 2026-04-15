@@ -82,8 +82,8 @@ exports.listToolRentals = async (req, res) => {
       conds.push(`(tr.name ILIKE $${p} OR tr.category ILIKE $${p} OR u.email ILIKE $${p})`);
       params.push(`%${search}%`); p++;
     }
-    if (available === 'true')  conds.push('tr.is_available = TRUE');
-    if (available === 'false') conds.push('tr.is_available = FALSE');
+    if (available === 'true' || available === 'available')  conds.push('tr.is_available = TRUE');
+    if (available === 'false' || available === 'hidden') conds.push('tr.is_available = FALSE');
     const wc = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const { rows } = await db.query(`

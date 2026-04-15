@@ -9,7 +9,11 @@ exports.listPayments = async (req, res) => {
 
     if (status) { conds.push(`p.status = $${p++}`); params.push(status); }
     if (date_from) { conds.push(`p.created_at >= $${p++}`); params.push(date_from); }
-    if (date_to)   { conds.push(`p.created_at <= $${p++}`); params.push(date_to); }
+    if (date_to) {
+      conds.push(`p.created_at < ($${p}::date + interval '1 day')`);
+      params.push(date_to);
+      p++;
+    }
     const wc = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const { rows } = await db.query(`
