@@ -24,7 +24,7 @@ async function pendingRegistrationsHasRoleColumn() {
   return rows.length > 0;
 }
 
-// ── helpers ──────────────────────────────────────────────
+// ── helpers ────────────────────────────────────────────
 function generateOTP() {
   return crypto.randomInt(100000, 1000000).toString();
 }
@@ -49,7 +49,7 @@ async function getCategories(req, res) {
   }
 }
 
-// ── 1. Start Registration ────────────────────────────────
+// ── 1. Start Registration ────────────────────────────────────
 // POST /api/helper-registration/start
 async function startRegistration(req, res) {
   try {
@@ -81,7 +81,14 @@ async function startRegistration(req, res) {
       phone:     [rules.required, rules.phone, rules.maxLen(20)],
       zip:       [rules.required, rules.zip, rules.maxLen(10)],
     });
-    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
+    if (errs) {
+      // Log which fields failed so WARN 400s in production are self-diagnosing
+      logger.warn('startRegistration validation_failed', {
+        fields: Object.keys(errs),
+        ip: req.ip,
+      });
+      return res.status(400).json({ error: 'validation_failed', fields: errs });
+    }
 
     // Check for existing user
     const dup = await pool.query(
@@ -272,7 +279,7 @@ async function verifyOTP(req, res) {
   }
 }
 
-// ── 3. Resend OTP ────────────────────────────────────────
+// ── 3. Resend OTP ──────────────────────────────────────────
 // POST /api/helper-registration/resend-otp
 async function resendOTP(req, res) {
   try {
@@ -407,7 +414,7 @@ async function submitOnboardingProfile(req, res) {
   }
 }
 
-// ── 6. Submit ID Verification ────────────────────────────
+// ── 6. Submit ID Verification ────────────────────────
 async function submitIdVerification(req, res) {
   try {
     const userId = req.user.id;
@@ -430,7 +437,7 @@ async function submitIdVerification(req, res) {
   }
 }
 
-// ── 7. Submit Background Check ───────────────────────────
+// ── 7. Submit Background Check ───────────────────────
 async function submitBackgroundCheck(req, res) {
   try {
     const userId = req.user.id;
@@ -453,7 +460,7 @@ async function submitBackgroundCheck(req, res) {
   }
 }
 
-// ── 8. Get Onboarding Status ─────────────────────────────
+// ── 8. Get Onboarding Status ─────────────────────────
 async function getOnboardingStatus(req, res) {
   try {
     const userId = req.user.id;
@@ -560,7 +567,7 @@ async function updateContact(req, res) {
   }
 }
 
-// ── 11. Upload Profile Photo ──────────────────────────────
+// ── 11. Upload Profile Photo ───────────────────────────
 // POST /api/helper-registration/profile-photo
 async function uploadProfilePhoto(req, res) {
   try {
@@ -599,7 +606,7 @@ async function uploadProfilePhoto(req, res) {
   }
 }
 
-// ── 12. Save selected tier ────────────────────────────────
+// ── 12. Save selected tier ──────────────────────────────
 // POST /api/helper-registration/tier
 async function saveTier(req, res) {
   try {
@@ -635,7 +642,7 @@ async function saveTier(req, res) {
   }
 }
 
-// ── 13. Save W9 information ───────────────────────────────
+// ── 13. Save W9 information ────────────────────────────
 // POST /api/helper-registration/w9
 async function saveW9(req, res) {
   try {
@@ -686,7 +693,7 @@ async function saveW9(req, res) {
   }
 }
 
-// ── 14. Accept terms ──────────────────────────────────────
+// ── 14. Accept terms ──────────────────────────────────
 // POST /api/helper-registration/accept-terms
 async function acceptTerms(req, res) {
   try {
@@ -715,7 +722,7 @@ async function acceptTerms(req, res) {
   }
 }
 
-// ── 15. Finalize helper onboarding ────────────────────────
+// ── 15. Finalize helper onboarding ──────────────────────
 // POST /api/helper-registration/finalize
 async function finalizeRegistration(req, res) {
   try {
@@ -739,7 +746,7 @@ async function finalizeRegistration(req, res) {
   }
 }
 
-// ── 16. Legacy payment step (no-op) ──────────────────────
+// ── 16. Legacy payment step (no-op) ──────────────────
 async function savePaymentStep(req, res) {
   return res.json({ message: 'Payment step recorded' });
 }
