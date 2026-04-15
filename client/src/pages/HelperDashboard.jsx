@@ -827,9 +827,6 @@ export default function HelperDashboard() {
         {id:'skills',label:'Skills & Tools'},
         {id:'products',label:'My Products'},
         {id:'bids',label:'My Bids'},
-        {id:'carcare',    label:'Car Care'},
-        {id:'skills',     label:'Skills & Tools'},
-        {id:'bids',       label:'My Bids'},
       ];
 
   if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
@@ -1423,7 +1420,7 @@ export default function HelperDashboard() {
             </div>
             {/* Quick-add templates */}
             <div>
-              <p className="text-xs text-gray-600 mb-2">Quick add:</p>
+              <p className="text-xs text-gray-600 mb-2">Quick add:</p> 
               <div className="flex gap-2 flex-wrap">
                 {[
                   {title:'Annual Physical',     category:'Medical',       urgency:'medium', recurrence_days:365},
@@ -1784,6 +1781,8 @@ export default function HelperDashboard() {
             <span className="text-xs text-gray-400">{productForm.is_available?'Yes':'No'}</span>
           </div>
           <Btn className="w-full py-3" type="submit">{editingProduct ? 'Save Changes' : 'List Product'}</Btn>
+        </form>
+      </Modal>
       {/* Home Task */}
       <Modal open={showHomeTaskModal} onClose={()=>setShowHomeTaskModal(false)} title="Add Home Task">
         <form onSubmit={handleAddHomeTask} className="space-y-4">
