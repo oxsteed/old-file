@@ -20,9 +20,9 @@ function statusBadge(status) {
   }
 }
 
-function fmt(cents) {
-  if (cents == null) return '—';
-  return `$${(Number(cents) / 100).toFixed(2)}`;
+function fmt(dollars) {
+  if (dollars == null) return '—';
+  return `$${Number(dollars).toFixed(2)}`;
 }
 
 export default function PaymentsList() {
