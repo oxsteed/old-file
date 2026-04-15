@@ -669,7 +669,6 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **`skills_lookup` table:** The `/api/user-skills/lookup` endpoint queries a `skills_lookup` table. This table must be seeded with skill names. Migration `037_skills_and_licenses_lookup.sql` creates it — check that it includes seed data. If it's empty, autocomplete will return no results (non-breaking, just not useful).
 - **Socket.IO auth:** The Socket.IO middleware verifies JWTs but does not check `is_active` or `deleted_at` on the user. A deactivated user with a valid (unexpired) token can still connect via WebSocket.
 - **`display_name_preference = 'business_name'`:** If a helper sets this but has no `business_name`, the display name falls back to `first_name`. The UI shows an empty string in one place — search for `user?.business_name ||` to audit.
-- **`POST /api/auth/logout` requires auth:** If a client's access token has already expired and the refresh fails, the client cannot call logout (gets 401). The session will expire naturally but is not explicitly invalidated. Consider accepting an unauthenticated logout that invalidates by refresh token alone.
 - **`jobs.category_id` is unused from frontend:** The DB column is `INTEGER REFERENCES categories(id)` but the frontend uses string slugs (`'electrical-full'`, etc.). PostJobPage intentionally omits `category_id` from the FormData and relies on `category_name` only. If a real categories table with integer IDs is ever added, wire it up in both PostJobPage and jobController.
 - **Admin audit log table:** `adminController.js` calls `logAdminAction()` which writes to `admin_audit_log`. Verify this table exists (check migrations). If it's missing, admin removal actions will throw a 500. Add a migration if needed.
 - **MediaRecorder MIME on Safari/iOS:** `video/webm` is not supported on Safari. `LiveCaptureModal` falls back to the browser's default MIME via `MediaRecorder.isTypeSupported()` — this works but produces `.webm` files with incorrect extension on Safari (which uses `video/mp4`). The uploaded file will still play but the extension may mismatch. Low priority for now.
@@ -764,6 +763,12 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **`businessInvoiceController`** — all invoice routes use `canManageBusinessFinance`; new/updated rows use **`user_id` = business owner** so managers are not stamped as `user_id` on invoices.
 - **`BusinessHubPage.jsx`** — representatives only see **Edit Profile** (if permitted) + **Team**; financial tabs hidden; tab fallback avoids finance when role is representative.
 
+### Session — 2026-04-15 (logout fallback for expired access tokens)
+
+- **`POST /api/auth/logout`** no longer requires `authenticate`; endpoint now accepts refresh-token-only logout for clients whose access token already expired.
+- **`authController.logout`** now supports both paths: invalidate by hashed `refreshToken`, or (when a valid bearer token is present) invalidate all sessions for that user id.
+- **Auth tests** updated in `server/__tests__/auth.test.js` to cover refresh-token-only logout, access-token-only logout, and 400 validation when neither token is provided.
+- **Jest compatibility note:** `server/__tests__/auth.test.js` now mocks `@otplib/v12-adapter` so the suite can run in this CommonJS Jest config without ESM parsing errors from `@scure/base`.
 ### Session — 2026-04-15 (feature gap fixes)
 
 Four gaps identified and fixed:
