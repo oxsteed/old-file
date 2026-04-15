@@ -528,13 +528,24 @@ function BusinessHubInner() {
   const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
   const currentRole = currentBiz?._role || 'owner'; // 'owner' | 'manager' | 'representative'
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
+  /** Representatives handle team / messaging context only — no P&L, invoices, tax, or goals in API. */
+  const canViewFinanceHub = currentRole !== 'representative';
+  const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
+  const visibleTabs = ['profile', ...financeTabIds, 'team'].filter((t) => {
+    if (t === 'profile' && !canEditBizProfile) return false;
+    if (financeTabIds.includes(t) && !canViewFinanceHub) return false;
+    return true;
+  });
 
-  // If the user switches to a business where they can't edit profile, fall back to overview
+  // If the user switches to a business where they can't edit profile, fall back
   useEffect(() => {
     if (tab === 'profile' && !canEditBizProfile) {
-      setTab('overview');
+      setTab(canViewFinanceHub ? 'overview' : 'team');
     }
-  }, [bizId, canEditBizProfile, tab]);
+    if (financeTabIds.includes(tab) && !canViewFinanceHub) {
+      setTab('team');
+    }
+  }, [bizId, canEditBizProfile, canViewFinanceHub, tab]);
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -599,13 +610,11 @@ function BusinessHubInner() {
 
             {/* Tabs */}
             <div className="bh-tabs">
-              {['profile', 'overview', 'invoices', 'tax', 'goals', 'team']
-                .filter(t => t !== 'profile' || canEditBizProfile)
-                .map(t => (
-                  <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-                    {t === 'profile' ? 'Edit Profile' : t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
+              {visibleTabs.map(t => (
+                <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
+                  {t === 'profile' ? 'Edit Profile' : t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
             </div>
 
             {/* ── Profile tab ──────────────────────────────────────── */}
