@@ -554,6 +554,7 @@ export default function HelperDashboard() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
+  const [showHomeTaskModal, setShowHomeTaskModal] = useState(false);
 
   // Budget modal — replaces window.prompt
   const [showBudgetModal, setShowBudgetModal] = useState(false);
@@ -567,7 +568,22 @@ export default function HelperDashboard() {
   // Expense form with recurring support
   const [expenseForm, setExpenseForm] = useState({ type:'expense', amount:'', category:'', description:'', frequency:'one_time', is_recurring:false, recurring_start_date:'', recurring_end_date:'' });
   const [goalForm, setGoalForm] = useState({ title:'', goal_type:'financial', target_value:'', icon:'🎯' });
+  const [homeTaskForm, setHomeTaskForm] = useState({ title:'', due_date:'', urgency:'low', recurrence_days:'' });
   const [checklistForm, setChecklistForm] = useState({ title:'', due_date:'' });
+
+  // ── Home / Properties state ───────────────────────────────────────────────
+  const [homes,             setHomes]             = useState([]);
+  const [homesLoaded,       setHomesLoaded]       = useState(false);
+  const [homeAddrInput,     setHomeAddrInput]     = useState('');
+  const [homeLookup,        setHomeLookup]        = useState(null);
+  const [homeLookupLoading, setHomeLookupLoading] = useState(false);
+  const [homeLookupError,   setHomeLookupError]   = useState('');
+  const [homeNickname,      setHomeNickname]      = useState('');
+  const [homeAdding,        setHomeAdding]        = useState(false);
+  const [homeDeleteTarget,  setHomeDeleteTarget]  = useState(null);
+
+  // ── Money tab — sinking funds snapshot ───────────────────────────────────
+  const [moneyPlannedNeeds, setMoneyPlannedNeeds] = useState([]);
 
   // ── Unread messages / socket ───────────────────────────────────────────
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -614,6 +630,11 @@ export default function HelperDashboard() {
       life.fetchBudgets();
       life.fetchGoals();
       life.fetchChecklist();
+      life.fetchSavedHelpers();
+      life.fetchHomeTasks({ completed:'false', section:'home' });
+      if (!homesLoaded) {
+        api.get('/house/my').then(r=>{ setHomes(r.data||[]); setHomesLoaded(true); }).catch(()=>{});
+      }
     }
   },[isOnboardingComplete]);
 
@@ -623,6 +644,11 @@ export default function HelperDashboard() {
     if (tab === 'products') fetchMyProducts();
     if (tab === 'personalcare') fetchPersonalCareTasks();
     if (tab === 'carcare') { fetchCarCareTasks(); if (!garageFetched) fetchGarage(); }
+    if (tab === 'money') {
+      api.get('/planned-needs', { params: { status: 'planned,funding,activating_soon', limit: 5 } })
+        .then(r => setMoneyPlannedNeeds(r.data?.planned_needs || []))
+        .catch(() => {});
+    }
   }, [tab]);
 
   const startBackgroundCheck=async()=>{try{await api.post('/verification/background-check');window.location.reload();}catch(e){alert(e.response?.data?.error||'Failed');}};
@@ -656,6 +682,72 @@ export default function HelperDashboard() {
       life.fetchSummary();
     } catch { toast.error('Failed.'); }
   };
+  const handleAddHomeTask = async (e) => {
+    e.preventDefault();
+    try {
+      await life.createHomeTask({ ...homeTaskForm, recurrence_days: homeTaskForm.recurrence_days ? parseInt(homeTaskForm.recurrence_days) : null });
+      toast.success('Task added!');
+      setHomeTaskForm({ title:'', due_date:'', urgency:'low', recurrence_days:'' });
+      setShowHomeTaskModal(false);
+      life.fetchSummary();
+      life.fetchHomeTasks({ completed:'false', section:'home' });
+    } catch { toast.error('Failed to save.'); }
+  };
+  const toggleHomeTask = async (task) => {
+    try {
+      await life.updateHomeTask(task.id, { is_completed: !task.is_completed });
+      life.fetchSummary();
+      life.fetchHomeTasks({ completed:'false', section:'home' });
+    } catch { toast.error('Failed to update.'); }
+  };
+  const lookupHomeAddress = async () => {
+    const addr = homeAddrInput.trim();
+    if (!addr) return;
+    setHomeLookupLoading(true);
+    setHomeLookup(null);
+    setHomeLookupError('');
+    try {
+      const res = await api.get('/house/lookup', { params: { address: addr } });
+      setHomeLookup(res.data);
+    } catch (err) {
+      setHomeLookupError(err.response?.data?.error || 'Address not found.');
+    } finally { setHomeLookupLoading(false); }
+  };
+  const addHome = async () => {
+    if (!homeLookup) return;
+    setHomeAdding(true);
+    try {
+      const payload = {
+        address:             homeLookup.matchedAddress,
+        city:                homeLookup.city,
+        state:               homeLookup.state,
+        zip:                 homeLookup.zip,
+        lat:                 homeLookup.lat,
+        lng:                 homeLookup.lng,
+        year_built:          homeLookup.building?.yearBuilt ? parseInt(homeLookup.building.yearBuilt) : undefined,
+        flood_zone:          homeLookup.flood?.zone || undefined,
+        osm_building_levels: homeLookup.building?.levels ? parseInt(homeLookup.building.levels) : undefined,
+        nickname:            homeNickname.trim() || undefined,
+      };
+      const res = await api.post('/house/my', payload);
+      setHomes(prev => [res.data, ...prev]);
+      setHomeLookup(null);
+      setHomeAddrInput('');
+      setHomeNickname('');
+      toast.success('Home added!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add home.');
+    } finally { setHomeAdding(false); }
+  };
+  const deleteHome = async (id) => {
+    try {
+      await api.delete(`/house/my/${id}`);
+      setHomes(prev => prev.filter(h => h.id !== id));
+      setHomeDeleteTarget(null);
+      toast.success('Removed.');
+    } catch { toast.error('Failed to remove.'); }
+  };
+
   const handleAddChecklist = async (e) => {
     e.preventDefault();
     try {
@@ -723,16 +815,21 @@ export default function HelperDashboard() {
   const tabs = showOnboarding
     ? [{id:'pulse',label:'Get Started'}]
     : [
-        {id:'pulse',label:'My Pulse'},
+        {id:'pulse',      label:'My Pulse'},
         {id:'editprofile',label:'Edit Profile'},
-        {id:'earnings',label:'Earnings'},
-        {id:'jobs',label:'Find Jobs'},
-        {id:'goals',label:'Goals'},
+        {id:'earnings',   label:'Earnings'},
+        {id:'jobs',       label:'Find Jobs'},
+        {id:'money',      label:'Money'},
+        {id:'home',       label:'Home'},
+        {id:'goals',      label:'Goals'},
         {id:'personalcare',label:'Personal Care'},
         {id:'carcare',label:'Car Care'},
         {id:'skills',label:'Skills & Tools'},
         {id:'products',label:'My Products'},
         {id:'bids',label:'My Bids'},
+        {id:'carcare',    label:'Car Care'},
+        {id:'skills',     label:'Skills & Tools'},
+        {id:'bids',       label:'My Bids'},
       ];
 
   if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
@@ -1011,6 +1108,280 @@ export default function HelperDashboard() {
             ))}</div>}
           </div>
         )}
+
+        {/* ═══════ MONEY ═══════ */}
+        {tab==='money'&&(<>
+          {/* Monthly summary */}
+          <Card className="mb-6">
+            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>+ Log Transaction</Btn>}/>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Income</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Expenses</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Net</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Savings Rate</p>
+                {(life.expenseSummary?.total_income||0)>0
+                  ?<p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
+                  :<p className="text-xl font-bold text-gray-600">—</p>
+                }
+              </div>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {/* Recent transactions */}
+            <Card>
+              <CardHeader icon={IcoDollar} title="Recent Transactions"/>
+              {life.expenses.length===0?(
+                <p className="text-gray-600 text-sm text-center py-8">No transactions yet. Log your first one above.</p>
+              ):(
+                <div className="space-y-1 max-h-80 overflow-y-auto">
+                  {life.expenses.slice(0,15).map(e=>(
+                    <div key={e.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/30 transition group">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-white truncate">{e.description||e.category}</p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {e.category} · {new Date(e.occurred_at).toLocaleDateString()}
+                          {e.is_recurring&&e.frequency&&e.frequency!=='one_time'&&(
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500/15 text-orange-400">{e.frequency.replace('_','-')}</span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{e.type==='income'?'+':'-'}${parseFloat(e.amount).toFixed(2)}</span>
+                        <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success('Deleted');}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Budgets */}
+            <Card>
+              <CardHeader icon={IcoTarget} title="Budget Categories" right={<Btn variant="secondary" onClick={()=>setShowBudgetModal(true)}>+ Add Budget</Btn>}/>
+              {life.budgets.length===0?(
+                <p className="text-gray-600 text-sm text-center py-8">No budgets set. Add categories to track spending.</p>
+              ):(
+                <div className="space-y-4">
+                  {life.budgets.map(b=>{
+                    const spent=parseFloat(b.spent||0);
+                    const limit=parseFloat(b.monthly_limit);
+                    const pct=limit>0?(spent/limit)*100:0;
+                    const periodLabel=b.period&&b.period!=='monthly'?` /mo (${b.period.replace('_','-')})`:'/mo';
+                    return(
+                      <div key={b.id}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium text-white">{b.category}</span>
+                          <span className="text-gray-500">${spent.toFixed(0)} / ${limit.toFixed(0)}{periodLabel}</span>
+                        </div>
+                        <ProgressBar pct={pct} color={pct>90?'bg-red-500':pct>70?'bg-yellow-500':'bg-emerald-500'}/>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Sinking funds */}
+          <Card className="mb-6">
+            <CardHeader icon={IcoClock} title="Sinking Funds" right={
+              <Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300 font-medium">Manage →</Link>
+            }/>
+            {moneyPlannedNeeds.length===0?(
+              <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
+                <p className="text-sm text-gray-500">No planned needs yet — schedule future expenses and save toward them gradually.</p>
+                <Link to="/planned-needs" className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">+ Add One</Link>
+              </div>
+            ):(
+              <div className="space-y-4">
+                {moneyPlannedNeeds.slice(0,5).map(pn=>{
+                  const cost=parseFloat(pn.estimated_cost||0);
+                  const saved=parseFloat(pn.reserved_amount||0);
+                  const pct=cost>0?Math.min(100,(saved/cost)*100):0;
+                  const perMonth=parseFloat(pn.sinking_fund_per_month||0);
+                  return(
+                    <div key={pn.id}>
+                      <div className="flex justify-between items-center text-sm mb-1">
+                        <span className="font-medium text-white">{pn.title||pn.category}</span>
+                        <div className="flex items-center gap-3">
+                          {perMonth>0&&<span className="text-[10px] text-purple-400">${perMonth.toFixed(0)}/mo needed</span>}
+                          <span className="text-gray-500 text-xs">${saved.toFixed(0)} / ${cost.toFixed(0)}</span>
+                        </div>
+                      </div>
+                      <ProgressBar pct={pct} color={pct>=100?'bg-emerald-500':pct>=50?'bg-blue-500':'bg-orange-500'}/>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </>)}
+
+        {/* ═══════ HOME ═══════ */}
+        {tab==='home'&&(<>
+          {/* My Properties */}
+          <Card className="mb-5">
+            <CardHeader icon={IcoHome} title="My Properties"
+              right={<span className="text-[10px] text-gray-600">Census · OSM · FEMA</span>}/>
+
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Enter your address (e.g. 123 Main St, Springfield OH)"
+                value={homeAddrInput}
+                onChange={e=>{setHomeAddrInput(e.target.value);setHomeLookup(null);setHomeLookupError('');}}
+                onKeyDown={e=>e.key==='Enter'&&!homeLookupLoading&&homeAddrInput.length>5&&lookupHomeAddress()}
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
+              />
+              <button onClick={lookupHomeAddress}
+                disabled={homeLookupLoading||homeAddrInput.trim().length<5}
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
+                {homeLookupLoading?'Looking up…':'Look Up'}
+              </button>
+            </div>
+
+            {homeLookupError&&<p className="text-xs text-red-400 mb-2">{homeLookupError}</p>}
+
+            {homeLookup&&(
+              <div className="bg-gray-800/80 border border-orange-500/30 rounded-xl p-3 mb-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-white leading-tight">{homeLookup.matchedAddress}</p>
+                  <span className="text-[10px] text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">Census verified</span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-400">
+                  {homeLookup.building?.yearBuilt  &&<span>🏠 Built {homeLookup.building.yearBuilt}</span>}
+                  {homeLookup.building?.levels      &&<span>📐 {homeLookup.building.levels} {parseInt(homeLookup.building.levels)===1?'story':'stories'}</span>}
+                  {homeLookup.building?.roofShape   &&<span>🔺 {homeLookup.building.roofShape} roof</span>}
+                  {homeLookup.building?.buildingType&&<span>🏗️ {homeLookup.building.buildingType}</span>}
+                  {homeLookup.flood&&(
+                    <span className={homeLookup.flood.zone&&['A','AE','V','VE','AH','AO'].includes(homeLookup.flood.zone)?'text-red-400 font-semibold':'text-emerald-400'}>
+                      💧 {homeLookup.flood.label||`Flood Zone ${homeLookup.flood.zone}`}
+                    </span>
+                  )}
+                  {!homeLookup.building&&!homeLookup.flood&&(
+                    <span className="text-gray-600">No OSM/FEMA data yet for this address — you can still save it.</span>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <input type="text" placeholder='Nickname (optional — e.g. "Primary Home")'
+                    value={homeNickname} maxLength={80}
+                    onChange={e=>setHomeNickname(e.target.value)}
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
+                  <button onClick={addHome} disabled={homeAdding}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
+                    {homeAdding?'Saving…':'+ Save Property'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {homes.length===0?(
+              <p className="text-xs text-gray-600 text-center py-2">No properties saved yet. Enter an address above.</p>
+            ):(
+              <div className="flex flex-wrap gap-2">
+                {homes.map(h=>(
+                  <div key={h.id} className="flex items-center gap-2 bg-gray-800/70 border border-gray-700 rounded-xl px-3 py-2 max-w-full">
+                    <IcoHome size={13} cls="text-orange-400 flex-shrink-0"/>
+                    <div className="leading-tight min-w-0">
+                      <span className="text-sm text-white font-medium truncate block">{h.nickname||h.address}</span>
+                      {h.nickname&&<span className="text-[10px] text-gray-500 truncate block">{h.address}</span>}
+                      <div className="flex gap-2 flex-wrap">
+                        {h.year_built&&<span className="text-[10px] text-orange-400">{h.year_built}</span>}
+                        {h.flood_zone&&<span className={`text-[10px] ${['A','AE','V','VE'].includes(h.flood_zone)?'text-red-400':'text-emerald-400'}`}>Zone {h.flood_zone}</span>}
+                        {h.osm_building_levels&&<span className="text-[10px] text-gray-500">{h.osm_building_levels}fl</span>}
+                      </div>
+                    </div>
+                    <button onClick={()=>setHomeDeleteTarget(h)} className="text-gray-700 hover:text-red-400 transition ml-1 flex-shrink-0"><IcoX size={12}/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {homeDeleteTarget&&(
+              <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
+                <p className="text-sm text-red-300">Remove <strong>{homeDeleteTarget.nickname||homeDeleteTarget.address}</strong>?</p>
+                <div className="flex gap-2">
+                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">Cancel</button>
+                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">Remove</button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Stats bar */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <Card className="!p-3 text-center">
+              <p className={`text-2xl font-bold ${(s?.home?.overdue||0)>0?'text-red-400':'text-emerald-400'}`}>{s?.home?.overdue||0}</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">Overdue</p>
+            </Card>
+            <Card className="!p-3 text-center">
+              <p className="text-2xl font-bold text-orange-400">{s?.home?.due_this_week||0}</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">Due This Week</p>
+            </Card>
+            <Card className="!p-3 text-center">
+              <p className="text-2xl font-bold text-gray-300">{s?.home?.total_pending||0}</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">Total Pending</p>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {/* Home maintenance tasks */}
+            <Card>
+              <CardHeader icon={IcoHome} title="Home Maintenance" right={<Btn onClick={()=>setShowHomeTaskModal(true)}>+ Add Task</Btn>}/>
+              {life.homeTasks.length===0?(
+                <p className="text-gray-600 text-sm text-center py-8">No home tasks yet. Add maintenance reminders.</p>
+              ):(
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {life.homeTasks.map(t=>{
+                    const overdue=t.due_date&&new Date(t.due_date)<new Date()&&!t.is_completed;
+                    return(
+                      <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${t.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
+                        <button onClick={()=>toggleHomeTask(t)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                          {t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium ${t.is_completed?'line-through text-gray-600':'text-white'}`}>{t.title}</p>
+                          <p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-600'}`}>
+                            {t.due_date?(overdue?'Overdue · ':'')+new Date(t.due_date).toLocaleDateString():'No due date'}
+                            {t.recurrence_days?` · Every ${t.recurrence_days}d`:''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <IcoWrench size={13} cls="text-gray-700"/>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+
+            {/* Saved helpers */}
+            <Card>
+              <CardHeader icon={IcoUsers} title="Saved Helpers" right={<Link to="/helpers" className="text-xs text-orange-400 font-medium">Browse →</Link>}/>
+              {life.savedHelpers.length===0?(
+                <p className="text-gray-600 text-sm text-center py-8">No saved helpers yet. Save helpers you like from profile pages.</p>
+              ):(
+                <div className="space-y-2">
+                  {life.savedHelpers.map(h=>(
+                    <div key={h.id} className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-xl group">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-purple-500/30 flex items-center justify-center font-bold text-sm flex-shrink-0">{(h.first_name||'?')[0]}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{h.first_name} {h.last_name}</p>
+                        <p className="text-xs text-gray-500 truncate">{h.categories||'Helper'} · {h.avg_rating?`${h.avg_rating}★`:'New'} · {h.completed_jobs||0} jobs</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">View</Link>
+                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success('Removed');}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        </>)}
 
         {/* ═══════ GOALS ═══════ */}
         {tab==='goals'&&(<>
@@ -1413,6 +1784,16 @@ export default function HelperDashboard() {
             <span className="text-xs text-gray-400">{productForm.is_available?'Yes':'No'}</span>
           </div>
           <Btn className="w-full py-3" type="submit">{editingProduct ? 'Save Changes' : 'List Product'}</Btn>
+      {/* Home Task */}
+      <Modal open={showHomeTaskModal} onClose={()=>setShowHomeTaskModal(false)} title="Add Home Task">
+        <form onSubmit={handleAddHomeTask} className="space-y-4">
+          <Input label="Task" required placeholder="e.g. Replace HVAC filter" value={homeTaskForm.title} onChange={e=>setHomeTaskForm(p=>({...p,title:e.target.value}))}/>
+          <Input label="Due Date" type="date" value={homeTaskForm.due_date} onChange={e=>setHomeTaskForm(p=>({...p,due_date:e.target.value}))}/>
+          <Select label="Urgency" value={homeTaskForm.urgency} onChange={e=>setHomeTaskForm(p=>({...p,urgency:e.target.value}))}>
+            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+          </Select>
+          <Input label="Repeat Every (days, optional)" type="number" placeholder="30 = monthly" value={homeTaskForm.recurrence_days} onChange={e=>setHomeTaskForm(p=>({...p,recurrence_days:e.target.value}))}/>
+          <Btn className="w-full py-3" type="submit">Add Task</Btn>
         </form>
       </Modal>
 

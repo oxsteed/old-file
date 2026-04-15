@@ -4,7 +4,7 @@
 -- A missing row is treated identically to all-TRUE (no row = full defaults).
 
 CREATE TABLE IF NOT EXISTS pulse_score_settings (
-  user_id                 INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  user_id                 UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
 
   -- Manual ledger entries (expenses table)
   include_manual_income      BOOLEAN NOT NULL DEFAULT TRUE,
