@@ -884,7 +884,7 @@ function BusinessHubInner() {
             <div className="bh-modal">
               <h2>Record Tax Payment</h2>
               <p style={{ fontSize: '0.88rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
-                Q{selected.quarter} {selected.year} · Estimated {fmt$(selected.estimated_tax)}
+                Q{selected.quarter} {selected.tax_year} · Estimated {fmt$(selected.estimated_tax)}
               </p>
               <div className="bh-field"><label>Amount Paid ($)</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
@@ -1327,7 +1327,7 @@ function TaxTab({ data, onRefresh, onPay }) {
             <tbody>
               {estimates.map(est => (
                 <tr key={est.id}>
-                  <td>Q{est.quarter} {est.year}</td>
+                  <td>Q{est.quarter} {est.tax_year}</td>
                   <td style={{ whiteSpace: 'nowrap', color: est.status === 'overdue' ? '#f87171' : undefined }}>{fmtDate(est.due_date)}</td>
                   <td><span className={`bh-status ${est.status}`}>{est.status}</span></td>
                   <td className="num">{fmt$(est.estimated_net_income)}</td>

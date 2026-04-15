@@ -108,6 +108,70 @@ export default function HelperDashboard() {
   // Detect "selected Pro during registration but hasn't paid yet"
   const selectedProNoPay = !subscription?.status && user?.effective_tier==='pro' && !!user?.tier_selected;
 
+  // ── Products state ────────────────────────────────────────────────────────
+  const [myProducts, setMyProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const emptyProduct = { name:'', description:'', price_cents:'', category:'food', image_url:'', is_available:true };
+  const [productForm, setProductForm] = useState(emptyProduct);
+
+  const PRODUCT_CATEGORIES = ['food', 'supply', 'gear', 'other'];
+
+  const fetchMyProducts = useCallback(async () => {
+    setProductsLoading(true);
+    try {
+      const res = await api.get('/helper-products/me');
+      setMyProducts(res.data?.products || []);
+    } catch { /* silent */ }
+    finally { setProductsLoading(false); }
+  }, []);
+
+  const openAddProduct = () => {
+    setEditingProduct(null);
+    setProductForm(emptyProduct);
+    setShowProductModal(true);
+  };
+  const openEditProduct = (p) => {
+    setEditingProduct(p);
+    setProductForm({ name:p.name, description:p.description||'', price_cents: p.price_cents ? String(Math.round(p.price_cents/100)) : '', category:p.category||'food', image_url:p.image_url||'', is_available:p.is_available });
+    setShowProductModal(true);
+  };
+  const handleSaveProduct = async (e) => {
+    e.preventDefault();
+    const dollars = parseFloat(productForm.price_cents);
+    if (!productForm.name.trim()) return toast.error('Name is required.');
+    if (isNaN(dollars) || dollars <= 0) return toast.error('Enter a valid price.');
+    const payload = { ...productForm, price_cents: Math.round(dollars * 100) };
+    try {
+      if (editingProduct) {
+        await api.patch(`/helper-products/${editingProduct.id}`, payload);
+        toast.success('Product updated!');
+      } else {
+        await api.post('/helper-products', payload);
+        toast.success('Product listed!');
+      }
+      setShowProductModal(false);
+      setEditingProduct(null);
+      setProductForm(emptyProduct);
+      fetchMyProducts();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save product.'); }
+  };
+  const handleDeleteProduct = async (id) => {
+    if (!confirm('Remove this product listing?')) return;
+    try {
+      await api.delete(`/helper-products/${id}`);
+      toast.success('Product removed.');
+      fetchMyProducts();
+    } catch { toast.error('Failed to remove product.'); }
+  };
+  const handleToggleProductAvailability = async (product) => {
+    try {
+      await api.patch(`/helper-products/${product.id}`, { is_available: !product.is_available });
+      fetchMyProducts();
+    } catch { toast.error('Failed to update.'); }
+  };
+
   // ── Skills & Tools state ──────────────────────────────────────────────────
   const [mySkills, setMySkills] = useState([]);
   const [myTools, setMyTools] = useState([]);
@@ -556,6 +620,7 @@ export default function HelperDashboard() {
   // Fetch tab-specific data on tab switch
   useEffect(() => {
     if (tab === 'skills') { fetchMySkills(); fetchMyTools(); }
+    if (tab === 'products') fetchMyProducts();
     if (tab === 'personalcare') fetchPersonalCareTasks();
     if (tab === 'carcare') { fetchCarCareTasks(); if (!garageFetched) fetchGarage(); }
   }, [tab]);
@@ -666,6 +731,7 @@ export default function HelperDashboard() {
         {id:'personalcare',label:'Personal Care'},
         {id:'carcare',label:'Car Care'},
         {id:'skills',label:'Skills & Tools'},
+        {id:'products',label:'My Products'},
         {id:'bids',label:'My Bids'},
       ];
 
@@ -1200,6 +1266,48 @@ export default function HelperDashboard() {
           </div>
         )}
 
+        {/* ═══════ MY PRODUCTS ═══════ */}
+        {tab==='products'&&(
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-semibold text-white text-lg">My Products for Sale</h3>
+                <p className="text-xs text-gray-500 mt-0.5">List food, supplies, gear, or other items you sell. Shown on your public profile.</p>
+              </div>
+              <Btn onClick={openAddProduct}>+ List Product</Btn>
+            </div>
+            {productsLoading
+              ? <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
+              : myProducts.length === 0
+                ? <Card className="p-16 text-center"><p className="text-gray-500 mb-4">No products listed yet. Add your first product to showcase what you sell.</p><Btn onClick={openAddProduct}>List a Product</Btn></Card>
+                : <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {myProducts.map(p => (
+                      <div key={p.id} className="p-4 border border-gray-800 rounded-xl">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-sm text-white truncate">{p.name}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 capitalize">{p.category}</p>
+                            <p className="text-xs text-orange-400 mt-1 font-semibold">${(p.price_cents/100).toFixed(2)}</p>
+                            {p.description && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{p.description}</p>}
+                          </div>
+                          <div className="flex flex-col gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => handleToggleProductAvailability(p)}
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition ${p.is_available ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30' : 'bg-gray-700/40 text-gray-500 hover:bg-gray-700'}`}
+                            >{p.is_available ? 'Available' : 'Unavailable'}</button>
+                            <div className="flex gap-1 justify-end mt-1">
+                              <button onClick={() => openEditProduct(p)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">Edit</button>
+                              <button onClick={() => handleDeleteProduct(p.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">Del</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+            }
+          </div>
+        )}
+
         {/* ═══════ MY BIDS ═══════ */}
         {tab==='bids'&&(
           <div>
@@ -1280,6 +1388,32 @@ export default function HelperDashboard() {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Product Modal */}
+      <Modal open={showProductModal} onClose={()=>{setShowProductModal(false);setEditingProduct(null);setProductForm(emptyProduct);}} title={editingProduct ? 'Edit Product' : 'List a Product'}>
+        <form onSubmit={handleSaveProduct} className="space-y-4">
+          <Input label="Product Name" required placeholder="e.g. Home-cooked Meal Delivery" value={productForm.name} onChange={e=>setProductForm(p=>({...p,name:e.target.value}))}/>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <select value={productForm.category} onChange={e=>setProductForm(p=>({...p,category:e.target.value}))}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+              {PRODUCT_CATEGORIES.map(c=><option key={c} value={c} className="capitalize">{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+            </select>
+          </div>
+          <Input label="Price ($)" type="number" step="0.01" min="0.01" required placeholder="0.00" value={productForm.price_cents} onChange={e=>setProductForm(p=>({...p,price_cents:e.target.value}))}/>
+          <Input label="Description (optional)" placeholder="Short description of what you're selling" value={productForm.description} onChange={e=>setProductForm(p=>({...p,description:e.target.value}))}/>
+          <Input label="Image URL (optional)" placeholder="https://..." value={productForm.image_url} onChange={e=>setProductForm(p=>({...p,image_url:e.target.value}))}/>
+          <div className="flex items-center gap-3">
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Available Now</label>
+            <button type="button" onClick={()=>setProductForm(p=>({...p,is_available:!p.is_available}))}
+              className={`w-10 h-5 rounded-full transition-colors relative ${productForm.is_available?'bg-orange-500':'bg-gray-700'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${productForm.is_available?'translate-x-5':'translate-x-0.5'}`}/>
+            </button>
+            <span className="text-xs text-gray-400">{productForm.is_available?'Yes':'No'}</span>
+          </div>
+          <Btn className="w-full py-3" type="submit">{editingProduct ? 'Save Changes' : 'List Product'}</Btn>
+        </form>
       </Modal>
 
       {/* Checklist Item */}
