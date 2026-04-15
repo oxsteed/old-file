@@ -11,6 +11,7 @@ const { trialDefaults } = require('../utils/trial');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
+const TERMS_IP_HASH_MAX_LEN = 45;
 
 async function pendingRegistrationsHasRoleColumn() {
   const { rows } = await pool.query(
@@ -659,7 +660,12 @@ async function acceptTerms(req, res) {
            terms_acceptance_ua = $3,
            updated_at          = NOW()
        WHERE id = $4`,
-      [termsVersion, hashIP(req.ip || 'unknown'), req.headers['user-agent'] || '', userId]
+      [
+        termsVersion,
+        hashIP(req.ip || 'unknown')?.slice(0, TERMS_IP_HASH_MAX_LEN) || null,
+        req.headers['user-agent'] || '',
+        userId
+      ]
     );
     return res.json({ message: 'Terms accepted' });
   } catch (err) {

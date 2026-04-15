@@ -780,3 +780,9 @@ Four gaps identified and fixed:
 3. **Helper Products tab missing** — The full backend (`/api/helper-products`) and migration (`054_helper_products.sql`) existed but there was no frontend UI. Added a "My Products" tab to `HelperDashboard` with: product state + fetch, add/edit/delete/toggle-availability handlers, a product grid card view, and an add/edit modal with name, category, price, description, image URL, and availability toggle. (`client/src/pages/HelperDashboard.jsx`)
 
 4. **Subscription cancel immediately downgrades user** — `cancelSubscription` set `status='cancelled'` and `tier='free'` immediately on cancel, but Stripe uses `cancel_at_period_end=true` (access continues until period ends). Fixed to only set `cancel_at_period_end=TRUE` and update `current_period_end` from Stripe's response; status stays `active`. The `customer.subscription.deleted` webhook handles the final downgrade when Stripe ends the period. (`server/controllers/subscriptionController.js`)
+
+### Session — 2026-04-15 (signup "Failed to accept terms" fix)
+
+- **Root cause:** `hashIP()` now returns a 64-char SHA-256 hex string, but customer/helper terms acceptance stores into legacy `terms_acceptance_ip` columns defined as `VARCHAR(45)` in older schemas. This caused `POST /api/auth/register/accept-terms` to fail with a 500.
+- **Fix:** `authController.acceptTerms` and `helperRegistrationController.acceptTerms` now cap stored hashed IP values to 45 chars for compatibility with legacy column widths while still keeping hashed (non-raw) IP storage.
+- **Regression test:** added `POST /api/auth/register/accept-terms` test in `server/__tests__/auth.test.js` that asserts the persisted IP hash argument length is `<= 45`.
