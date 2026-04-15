@@ -33,7 +33,7 @@ export default function PricingConfig() {
     }
   };
 
-  if (user?.admin_role !== 'super_admin') {
+  if (user?.role !== 'super_admin') {
     return <div className="p-8 text-center text-red-500">Access denied. Super admin only.</div>;
   }
 
