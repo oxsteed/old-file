@@ -485,7 +485,56 @@ exports.issueManualRefund = async (req, res) => {
 };
 
 exports.getPayouts = async (req, res) => {
-  res.json({ payouts: [], page: 1, limit: 25, message: 'Payouts table pending migration.' });
+  try {
+    const { status = '', page = 1, limit = 25 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Map frontend tab names to DB payment statuses
+    const STATUS_MAP = {
+      pending:    "p.status IN ('pending','authorized')",
+      processing: "p.status = 'captured'",
+      completed:  "p.status = 'released'",
+      failed:     "p.status IN ('failed','refunded','disputed')",
+    };
+    const statusClause = STATUS_MAP[status] || 'p.helper_payout > 0';
+    const baseFilter   = `p.helper_payout > 0 AND (${statusClause})`;
+
+    const { rows: payouts } = await db.query(`
+      SELECT p.id, p.amount, p.platform_fee, p.helper_payout, p.status,
+             p.stripe_transfer_id, p.captured_at, p.released_at, p.created_at,
+             j.title AS job_title,
+             u.first_name || ' ' || u.last_name AS helper_name,
+             u.email AS helper_email,
+             ca.stripe_account_id,
+             ca.payouts_enabled
+        FROM payments p
+        JOIN users u ON p.payee_id = u.id
+        LEFT JOIN jobs j ON p.job_id = j.id
+        LEFT JOIN connect_accounts ca ON ca.user_id = u.id
+       WHERE ${baseFilter}
+       ORDER BY p.created_at DESC
+       LIMIT $1 OFFSET $2
+    `, [parseInt(limit), offset]);
+
+    const { rows: statsRows } = await db.query(`
+      SELECT
+        SUM(CASE WHEN status IN ('pending','authorized') THEN helper_payout ELSE 0 END) AS pending,
+        SUM(CASE WHEN status = 'captured'               THEN helper_payout ELSE 0 END) AS processing,
+        SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS completed,
+        SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS "totalPaid"
+        FROM payments WHERE helper_payout > 0
+    `);
+
+    res.json({
+      payouts,
+      stats: statsRows[0],
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
+  } catch (err) {
+    logger.error('getPayouts error', { err });
+    res.status(500).json({ error: 'Failed to fetch payouts.' });
+  }
 };
 
 exports.getRevenueSummary = async (req, res) => {
@@ -653,7 +702,12 @@ exports.exportData = async (req, res) => {
     const queries = {
       users: 'SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE u.role NOT IN (\'admin\',\'super_admin\') ORDER BY u.created_at DESC',
       jobs: await tableExists('jobs') ? 'SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC' : null,
-      revenue: await tableExists('platform_ledger') ? 'SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC' : null
+      revenue: await tableExists('platform_ledger') ? 'SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC' : null,
+      bids: await tableExists('bids') ? 'SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at FROM bids b ORDER BY b.created_at DESC LIMIT 10000' : null,
+      reviews: await tableExists('reviews') ? 'SELECT r.id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.is_public, r.created_at FROM reviews r ORDER BY r.created_at DESC LIMIT 10000' : null,
+      businesses: await tableExists('businesses') ? 'SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC' : null,
+      disputes: await tableExists('disputes') ? 'SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC' : null,
+      support_tickets: await tableExists('support_tickets') ? 'SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC' : null,
     };
     if (!queries[type]) return res.status(400).json({ error: 'Invalid or unavailable export type.' });
     const { rows } = await db.query(queries[type]);
