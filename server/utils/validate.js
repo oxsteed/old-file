@@ -52,9 +52,19 @@ const rules = {
       ? `${field} contains invalid content` : null;
   },
 
+  // Accepts:
+  //   E.164:          +19375550101
+  //   US local:       9375550101
+  //   Formatted US:   (937) 555-0101  /  937-555-0101  /  937.555.0101
+  //   Intl with space: +1 937 555 0101
+  // Strip all formatting to digits (and leading +) then check digit count 7–15.
   phone: (v) => {
     if (!v) return null;
-    return /^\+?[\d\s\-().]{7,20}$/.test(String(v).trim())
+    const digits = String(v).trim().replace(/[\s\-().]/g, '');
+    // Must be digits only (with optional leading +)
+    if (!/^\+?\d+$/.test(digits)) return 'Must be a valid phone number';
+    const digitCount = digits.replace(/^\+/, '').length;
+    return digitCount >= 7 && digitCount <= 15
       ? null : 'Must be a valid phone number';
   },
 
