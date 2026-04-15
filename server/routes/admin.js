@@ -5,6 +5,9 @@ const adminCtrl       = require('../controllers/adminController');
 const supportCtrl     = require('../controllers/supportController');
 const searchCtrl      = require('../controllers/adminSearchController');
 const permCtrl        = require('../controllers/adminPermissionController');
+const bizModCtrl      = require('../controllers/businessModerationController');
+const convAdminCtrl   = require('../controllers/conversationsAdminController');
+const paymentsCtrl    = require('../controllers/paymentsAdminController');
 
 // ══════════════════════════════════════════════════════════════
 // REGULAR ADMIN — both admin and super_admin can access
@@ -30,6 +33,26 @@ router.get('/content',                         requireAdmin, adminCtrl.getConten
 router.post('/bids/:bidId/remove',             requireAdmin, adminCtrl.removeBid);
 router.post('/reviews/:reviewId/remove',       requireAdmin, adminCtrl.removeReview);
 router.post('/reviews/:reviewId/restore',      requireAdmin, adminCtrl.restoreReview);
+
+// ══════════════════════════════════════════════════════════════
+// ENTITY MODERATION — admin + super_admin
+// ══════════════════════════════════════════════════════════════
+
+// Businesses
+router.get('/businesses',             requireAdmin, bizModCtrl.listBusinesses);
+router.put('/businesses/:id/toggle',  requireAdmin, bizModCtrl.toggleBusiness);
+
+// Tool Rentals
+router.get('/tool-rentals',             requireAdmin, bizModCtrl.listToolRentals);
+router.put('/tool-rentals/:id/toggle',  requireAdmin, bizModCtrl.toggleToolRental);
+
+// Planned Needs
+router.get('/planned-needs',                         requireAdmin, bizModCtrl.listPlannedNeeds);
+router.post('/planned-needs/:id/cancel-autopublish', requireAdmin, bizModCtrl.cancelAutopublish);
+router.post('/planned-needs/:id/force-cancel',       requireAdmin, bizModCtrl.forceCancel);
+
+// Payments list (read-only)
+router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
 
 // Users — read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, superCtrl.getUsers);
@@ -57,6 +80,11 @@ router.post('/users/:userId/verify', requireAdmin,      requirePermission('verif
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
 router.delete('/users/:userId',      requireAdmin,      requirePermission('delete_users'), superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
+
+// Conversations (super-admin only — every read is audited)
+router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
+router.get('/super/conversations/:id',          requireSuperAdmin, convAdminCtrl.getThread);
+router.post('/super/conversations/:id/status',  requireSuperAdmin, convAdminCtrl.setConversationStatus);
 
 // Admin account management — delegatable via manage_admin_accounts grant
 router.get('/super/admin-accounts',             requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminAccounts);
