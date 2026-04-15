@@ -17,11 +17,11 @@ export default function SuperDashboard() {
   const [mrr,     setMrr]     = useState(0);
   const [period,  setPeriod]  = useState('30d');
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
+  const [error,   setError]   = useState(null);
 
   useEffect(() => {
     const fetch = async () => {
-      setLoadError(null);
+      setError(null);
       try {
         // Super-admins get the full revenue dashboard; regular admins get the basic stats.
         const endpoint = isSuper ? '/admin/super/dashboard' : '/admin/dashboard';
@@ -30,7 +30,7 @@ export default function SuperDashboard() {
         setMrr(data.mrr || 0);
       } catch (err) {
         console.error(err);
-        setLoadError(err.response?.data?.error || 'Failed to load dashboard.');
+        setError('Failed to load dashboard stats.');
       } finally {
         setLoading(false);
       }
@@ -40,16 +40,18 @@ export default function SuperDashboard() {
 
   if (loading) return <AdminLoader />;
 
+  if (error) return (
+    <div className="p-8">
+      <div className="bg-red-950 border border-red-800 rounded-xl p-4 text-red-300 text-sm">
+        {error}
+      </div>
+    </div>
+  );
+
   const s = stats;
 
   return (
     <div className="p-4 sm:p-8">
-
-      {loadError && (
-        <div className="mb-6 rounded-xl border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-200">
-          {loadError}
-        </div>
-      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-8">

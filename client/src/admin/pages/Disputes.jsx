@@ -17,8 +17,7 @@ export default function AdminDisputes() {
       setLoading(true);
       try {
         const { data } = await adminApi.get('/disputes/admin/all', {
-          params: { status: tab },
-        });
+          params: { status: tab }        });
         setDisputes(data.disputes);
         setTotal(data.total);
       } catch (err) {

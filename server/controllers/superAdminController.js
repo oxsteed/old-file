@@ -484,84 +484,53 @@ exports.issueManualRefund = async (req, res) => {
   } catch (err) { console.error('issueManualRefund error:', err); res.status(500).json({ error: 'Refund failed.' }); }
 };
 
-/**
- * Tab names from admin UI map to payment statuses (no separate payouts table).
- */
 exports.getPayouts = async (req, res) => {
   try {
-    if (!(await tableExists('payments'))) {
-      return res.json({
-        payouts: [],
-        stats: { pending: 0, processing: 0, completed: 0, failed: 0, totalPaid: 0 },
-        message: null,
-      });
-    }
+    const { status = '', page = 1, limit = 25 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const tab = (req.query.status || 'pending').toLowerCase();
-    const tabToStatuses = {
-      pending: ['pending', 'authorized'],
-      processing: ['captured'],
-      completed: ['released'],
-      failed: ['failed', 'refunded'],
+    // Map frontend tab names to DB payment statuses
+    const STATUS_MAP = {
+      pending:    "p.status IN ('pending','authorized')",
+      processing: "p.status = 'captured'",
+      completed:  "p.status = 'released'",
+      failed:     "p.status IN ('failed','refunded','disputed')",
     };
-    const statuses = tabToStatuses[tab] || tabToStatuses.pending;
+    const statusClause = STATUS_MAP[status] || 'p.helper_payout > 0';
+    const baseFilter   = `p.helper_payout > 0 AND (${statusClause})`;
 
-    const statsSql = `
+    const { rows: payouts } = await db.query(`
+      SELECT p.id, p.amount, p.platform_fee, p.helper_payout, p.status,
+             p.stripe_transfer_id, p.captured_at, p.released_at, p.created_at,
+             j.title AS job_title,
+             u.first_name || ' ' || u.last_name AS helper_name,
+             u.email AS helper_email,
+             ca.stripe_account_id,
+             ca.payouts_enabled
+        FROM payments p
+        JOIN users u ON p.payee_id = u.id
+        LEFT JOIN jobs j ON p.job_id = j.id
+        LEFT JOIN connect_accounts ca ON ca.user_id = u.id
+       WHERE ${baseFilter}
+       ORDER BY p.created_at DESC
+       LIMIT $1 OFFSET $2
+    `, [parseInt(limit), offset]);
+
+    const { rows: statsRows } = await db.query(`
       SELECT
-        COUNT(*) FILTER (WHERE p.status IN ('pending','authorized'))::int AS pending,
-        COUNT(*) FILTER (WHERE p.status = 'captured')::int AS processing,
-        COUNT(*) FILTER (WHERE p.status = 'released')::int AS completed,
-        COUNT(*) FILTER (WHERE p.status IN ('failed','refunded'))::int AS failed,
-        COALESCE(SUM(CASE WHEN p.status = 'released' THEN p.helper_payout ELSE 0 END), 0)::numeric AS total_paid
-      FROM payments p
-    `;
-    const { rows: statRows } = await db.query(statsSql);
-    const st = statRows[0] || {};
-
-    const { rows } = await db.query(
-      `
-      SELECT
-        p.id::text AS _id,
-        p.status,
-        COALESCE(p.helper_payout, 0)::float AS amount,
-        p.created_at AS "createdAt",
-        u.id AS helper_user_id,
-        u.first_name || ' ' || u.last_name AS helper_name,
-        u.email AS helper_email,
-        ca.stripe_account_id
-      FROM payments p
-      JOIN users u ON u.id = p.payee_id
-      LEFT JOIN connect_accounts ca ON ca.user_id = p.payee_id
-      WHERE p.status = ANY($1::text[])
-      ORDER BY p.created_at DESC
-      LIMIT 100
-      `,
-      [statuses]
-    );
-
-    const payouts = rows.map((r) => ({
-      _id: r._id,
-      status: r.status,
-      amount: r.amount,
-      createdAt: r.createdAt,
-      method: r.stripe_account_id ? 'stripe_connect' : 'stripe',
-      helper: r.helper_name ? { name: r.helper_name } : null,
-      helperEmail: r.helper_email,
-    }));
+        SUM(CASE WHEN status IN ('pending','authorized') THEN helper_payout ELSE 0 END) AS pending,
+        SUM(CASE WHEN status = 'captured'               THEN helper_payout ELSE 0 END) AS processing,
+        SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS completed,
+        SUM(CASE WHEN status IN ('failed','refunded','disputed') THEN helper_payout ELSE 0 END) AS failed,
+        SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS "totalPaid"
+        FROM payments WHERE helper_payout > 0
+    `);
 
     res.json({
       payouts,
-      stats: {
-        pending: Number(st.pending) || 0,
-        processing: Number(st.processing) || 0,
-        completed: Number(st.completed) || 0,
-        failed: Number(st.failed) || 0,
-        totalPaid: parseFloat(st.total_paid) || 0,
-      },
-      message:
-        payouts.length === 0
-          ? 'No rows in this tab; amounts reflect helper_payout from the payments table.'
-          : null,
+      stats: statsRows[0],
+      page: parseInt(page),
+      limit: parseInt(limit),
     });
   } catch (err) {
     logger.error('getPayouts error', { err });
@@ -732,34 +701,14 @@ exports.exportData = async (req, res) => {
   try {
     const { type } = req.params;
     const queries = {
-      users:
-        'SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE u.role NOT IN (\'admin\',\'super_admin\') ORDER BY u.created_at DESC',
-      jobs: await tableExists('jobs')
-        ? 'SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC'
-        : null,
-      revenue: await tableExists('platform_ledger')
-        ? 'SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC'
-        : null,
-      bids: await tableExists('bids')
-        ? `SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at
-             FROM bids b ORDER BY b.created_at DESC`
-        : null,
-      reviews: await tableExists('reviews')
-        ? `SELECT r.id, r.job_id, r.reviewer_id, r.reviewee_id, r.rating, r.is_public, r.created_at
-             FROM reviews r ORDER BY r.created_at DESC`
-        : null,
-      businesses: await tableExists('businesses')
-        ? `SELECT b.id, b.user_id, b.business_name, b.is_active, b.is_primary, b.created_at
-             FROM businesses b ORDER BY b.created_at DESC`
-        : null,
-      disputes: await tableExists('disputes')
-        ? `SELECT d.id, d.job_id, d.status, d.opened_by, d.created_at
-             FROM disputes d ORDER BY d.created_at DESC`
-        : null,
-      support_tickets: await tableExists('support_tickets')
-        ? `SELECT t.id, t.ticket_number, t.user_id, t.status, t.priority, t.created_at
-             FROM support_tickets t ORDER BY t.created_at DESC`
-        : null,
+      users: 'SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE u.role NOT IN (\'admin\',\'super_admin\') ORDER BY u.created_at DESC',
+      jobs: await tableExists('jobs') ? 'SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC' : null,
+      revenue: await tableExists('platform_ledger') ? 'SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC' : null,
+      bids: await tableExists('bids') ? 'SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at FROM bids b ORDER BY b.created_at DESC LIMIT 10000' : null,
+      reviews: await tableExists('reviews') ? 'SELECT r.id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.is_public, r.created_at FROM reviews r ORDER BY r.created_at DESC LIMIT 10000' : null,
+      businesses: await tableExists('businesses') ? 'SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC' : null,
+      disputes: await tableExists('disputes') ? 'SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC' : null,
+      support_tickets: await tableExists('support_tickets') ? 'SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC' : null,
     };
     if (!queries[type]) return res.status(400).json({ error: 'Invalid or unavailable export type.' });
     const { rows } = await db.query(queries[type]);

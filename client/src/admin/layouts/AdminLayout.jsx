@@ -8,8 +8,7 @@ import {
   FileText, BarChart2, LogOut, TrendingUp,
   ScrollText, Wrench, Trash2, UserCog,
   Menu, X, Sun, Moon, HeadphonesIcon,
-  Search, Key, ClipboardList,
-  Building2, Hammer, CalendarDays, CreditCard, MessageSquare,
+  Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -19,26 +18,26 @@ const REGULAR_NAV = [
   { to: '/admin/reports',          icon: Flag,            label: 'Reports'          },
   { to: '/admin/moderation',       icon: Shield,          label: 'Moderation'       },
   { to: '/admin/content-removals', icon: Trash2,          label: 'Content Removals' },
-  { to: '/admin/businesses',       icon: Building2,      label: 'Businesses'       },
-  { to: '/admin/tool-rentals',     icon: Hammer,         label: 'Tool rentals'     },
-  { to: '/admin/planned-needs',    icon: CalendarDays,   label: 'Planned needs'    },
-  { to: '/admin/payments',         icon: CreditCard,     label: 'Payments'         },
   { to: '/admin/skills',           icon: Wrench,          label: 'Skills'           },
   { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },
   { to: '/admin/search',           icon: Search,          label: 'Search'           },
+  { to: '/admin/businesses',       icon: Building2,       label: 'Businesses'       },
+  { to: '/admin/tool-rentals',     icon: Wrench,          label: 'Tool Rentals'     },
+  { to: '/admin/planned-needs',    icon: ClipboardList,   label: 'Planned Needs'    },
+  { to: '/admin/payments',         icon: CreditCard,      label: 'Payments'         },
 ];
 
 const SUPER_NAV = [
   { to: '/admin/super/dashboard',      icon: BarChart2,     label: 'Super Dashboard'  },
   { to: '/admin/super/revenue',        icon: TrendingUp,    label: 'Revenue'          },
   { to: '/admin/super/financials',     icon: DollarSign,    label: 'Financials'       },
-  { to: '/admin/super/payouts',        icon: FileText,      label: 'Payouts'          },
-  { to: '/admin/super/admin-accounts', icon: UserCog,       label: 'Admin Accounts'   },
+  { to: '/admin/super/payouts',          icon: FileText,       label: 'Payouts'          },
+  { to: '/admin/super/conversations',   icon: MessageSquare,  label: 'Conversations'    },
+  { to: '/admin/super/admin-accounts',  icon: UserCog,        label: 'Admin Accounts'   },
   { to: '/admin/super/permissions',    icon: Key,           label: 'Permissions'      },
   { to: '/admin/super/search-logs',    icon: ClipboardList, label: 'Search Logs'      },
   { to: '/admin/super/settings',       icon: Settings,      label: 'Settings'         },
   { to: '/admin/super/audit-log',      icon: ScrollText,    label: 'Audit Log'        },
-  { to: '/admin/super/conversations',  icon: MessageSquare, label: 'Conversations'    },
 ];
 
 const navClass = ({ isActive }) =>

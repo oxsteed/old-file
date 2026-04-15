@@ -1,33 +1,29 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Shield, AlertTriangle, CheckCircle, Flag, Ban, ExternalLink,
-} from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Flag } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 
 export default function Moderation() {
-  const [queue, setQueue] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [acting, setActing] = useState(null);
 
-  const load = useCallback(async () => {
+  const fetchQueue = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const { data } = await adminApi.get('/admin/moderation-queue');
-      setQueue(Array.isArray(data.queue) ? data.queue : []);
+      setItems(data.queue || []);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load moderation queue.');
-      setQueue([]);
+      console.error('Failed to fetch moderation queue:', err);
+      setItems([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { fetchQueue(); }, [fetchQueue]);
 
-  const runAction = async (jobId, action) => {
+  const handleAction = async (jobId, action) => {
     const reason =
       action === 'cancel'
         ? window.prompt('Reason for cancelling this job (required):') || ''
@@ -36,114 +32,99 @@ export default function Moderation() {
       window.alert('A reason is required to cancel.');
       return;
     }
-    setActing(jobId + action);
+    setActing(`${jobId}-${action}`);
     try {
-      await adminApi.post(`/admin/jobs/${jobId}/action`, { action, reason: reason.trim() || undefined });
-      await load();
+      await adminApi.post(`/admin/jobs/${jobId}/action`, {
+        action,
+        reason: reason.trim() || undefined,
+      });
+      fetchQueue();
     } catch (err) {
-      window.alert(err.response?.data?.error || 'Action failed.');
+      console.error(`Moderation action failed:`, err);
     } finally {
       setActing(null);
     }
   };
 
   return (
-    <div className="p-4 sm:p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Shield size={22} className="text-orange-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Shield className="text-orange-400" size={24} />
-            Job moderation
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Jobs flagged by admins or with pending user reports. Actions use the job moderation API.
+          <h1 className="text-2xl font-bold text-white">Content Moderation</h1>
+          <p className="text-gray-400 text-sm">
+            {items.length} job{items.length !== 1 ? 's' : ''} flagged or reported
           </p>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          className="text-sm px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-gray-300 hover:text-white"
-        >
-          Refresh
-        </button>
       </div>
-
-      {error && (
-        <div className="mb-4 rounded-lg border border-red-800 bg-red-950/60 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="text-center text-gray-400 py-16">Loading queue…</div>
-        ) : queue.length === 0 ? (
+          <div className="text-center text-gray-400 py-16">Loading...</div>
+        ) : items.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle className="mx-auto mb-3 text-green-400" size={48} />
-            <p className="text-gray-400">No flagged jobs or pending job reports.</p>
+            <p className="text-gray-400 font-medium">Queue is clear — no flagged or reported jobs.</p>
           </div>
         ) : (
-          <ul className="divide-y divide-slate-700">
-            {queue.map((job) => (
-              <li key={job.id} className="p-4 sm:p-5 hover:bg-slate-700/20">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-white font-semibold truncate">{job.title}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-gray-300">
-                        {job.status}
-                      </span>
-                      {Number(job.report_count) > 0 && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900 text-yellow-300 flex items-center gap-1">
-                          <AlertTriangle size={12} />
-                          {job.report_count} report{Number(job.report_count) !== 1 ? 's' : ''}
+          <div className="divide-y divide-slate-700">
+            {items.map(item => (
+              <div key={item.id} className="p-4 hover:bg-slate-700/30 transition-colors">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <Link
+                        to={`/admin/jobs/${item.id}`}
+                        className="font-medium text-white hover:text-orange-300 transition-colors truncate"
+                      >
+                        {item.title}
+                      </Link>
+                      {item.report_count > 0 && (
+                        <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-900/60 text-red-400 shrink-0">
+                          <AlertTriangle size={11} />
+                          {item.report_count} report{Number(item.report_count) !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mb-2">
-                      {job.category_name || 'Uncategorized'} · {job.client_name}{' '}
-                      <span className="text-gray-600">({job.client_email})</span>
-                    </p>
-                    {job.description && (
-                      <p className="text-sm text-gray-400 line-clamp-3">{job.description}</p>
-                    )}
+                    <p className="text-gray-400 text-sm line-clamp-2">{item.description}</p>
+                    <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 flex-wrap">
+                      <span>By: <span className="text-gray-300">{item.client_name}</span></span>
+                      {item.category_name && <span>{item.category_name}</span>}
+                      <span className="capitalize">{item.status}</span>
+                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <Link
-                      to={`/admin/jobs/${job.id}`}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-gray-200 hover:bg-slate-600"
-                    >
-                      Open <ExternalLink size={12} />
-                    </Link>
+
+                  <div className="flex gap-2 shrink-0">
                     <button
-                      type="button"
+                      onClick={() => handleAction(item.id, 'unflag')}
                       disabled={!!acting}
-                      onClick={() => runAction(job.id, 'flag')}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-yellow-500/15 text-yellow-300 hover:bg-yellow-500/25 disabled:opacity-40"
+                      title="Dismiss — remove admin flag"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
+                    >
+                      <CheckCircle size={14} /> Dismiss
+                    </button>
+                    <button
+                      onClick={() => handleAction(item.id, 'flag')}
+                      disabled={!!acting}
+                      title="Flag for further review"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
                     >
                       <Flag size={14} /> Flag
                     </button>
                     <button
-                      type="button"
+                      onClick={() => handleAction(item.id, 'cancel')}
                       disabled={!!acting}
-                      onClick={() => runAction(job.id, 'unflag')}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-600 text-gray-200 hover:bg-slate-500 disabled:opacity-40"
+                      title="Cancel job — removes from marketplace"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
                     >
-                      Unflag
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!!acting}
-                      onClick={() => runAction(job.id, 'cancel')}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/15 text-red-300 hover:bg-red-500/25 disabled:opacity-40"
-                    >
-                      <Ban size={14} /> Cancel job
+                      <XCircle size={14} /> Remove
                     </button>
                   </div>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>

@@ -3,8 +3,9 @@ import { useAuth } from '../hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
 
 // Super Admin pages
-import SuperDashboard    from './pages/super/Dashboard';
-import UserDetail        from './pages/super/UserDetail';
+import SuperDashboard      from './pages/super/Dashboard';
+import UserDetail          from './pages/super/UserDetail';
+import ConversationsAdmin  from './pages/super/ConversationsAdmin';
 import Financials        from './pages/super/Financials';
 import PlatformSettings  from './pages/super/PlatformSettings';
 import AuditLog          from './pages/super/AuditLog';
@@ -17,8 +18,12 @@ import SearchLogs        from './pages/super/SearchLogs';
 import PermissionGrants  from './pages/super/PermissionGrants';
 
 // Shared admin pages
-import UsersList       from './pages/UsersList';
-import ReportsList     from './pages/ReportsList';
+import UsersList            from './pages/UsersList';
+import ReportsList          from './pages/ReportsList';
+import BusinessModeration   from './pages/BusinessModeration';
+import ToolRentalModeration from './pages/ToolRentalModeration';
+import PlannedNeedsAdmin    from './pages/PlannedNeedsAdmin';
+import PaymentsList         from './pages/PaymentsList';
 import Disputes        from './pages/Disputes';
 import DisputeResolve  from './pages/DisputeResolve';
 import MarketZipCodes  from './pages/MarketZipCodes';
@@ -31,11 +36,6 @@ import ContentRemovals from './pages/ContentRemovals';
 import SupportTickets  from './pages/SupportTickets';
 import AdminSearch     from './pages/AdminSearch';
 import AdminLogin      from './pages/Login';
-import BusinessModeration from './pages/BusinessModeration';
-import ToolRentalModeration from './pages/ToolRentalModeration';
-import PlannedNeedsAdmin from './pages/PlannedNeedsAdmin';
-import PaymentsList    from './pages/PaymentsList';
-import ConversationsAdmin from './pages/super/ConversationsAdmin';
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -107,6 +107,9 @@ export default function AdminApp() {
           <Route path="super/payouts" element={
             <AdminGuard superOnly><Payouts /></AdminGuard>
           } />
+          <Route path="super/conversations" element={
+            <AdminGuard superOnly><ConversationsAdmin /></AdminGuard>
+          } />
           <Route path="super/settings" element={
             <AdminGuard superOnly><PlatformSettings /></AdminGuard>
           } />
@@ -127,9 +130,6 @@ export default function AdminApp() {
           } />
           <Route path="super/permissions" element={
             <AdminGuard superOnly><PermissionGrants /></AdminGuard>
-          } />
-          <Route path="super/conversations" element={
-            <AdminGuard superOnly><ConversationsAdmin /></AdminGuard>
           } />
         </Route>
 
