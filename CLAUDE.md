@@ -747,4 +747,4 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 
 ### Session — 2026-04-15 (jobs page trust section)
 
-- **`/jobs` (`JobListPage.jsx`)** — Removed the "How OxSteed Works" subsections that showed Community/Pro trust cards (`TrustKeys`) for both customer and helper tour tabs; dropped unused import. Removed `.jlp-trust-*` rules from `JobListPage.css`. `TrustKeys.jsx` remains for other pages.
+- **`/jobs` (`JobListPage.jsx`)** — Removed the "How OxSteed Works" subsections that showed Community/Pro trust cards (`TrustKeys`) for both customer and helper tour tabs; dropped unused import. Removed `.jlp-trust-*` rules from `JobListPage.css`. Orphaned `TrustKeys.jsx` + `TrustKeys.css` deleted (no remaining imports).
