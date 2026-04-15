@@ -1,107 +1,149 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Shield, Search, AlertTriangle, CheckCircle, XCircle, Eye } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { Link } from 'react-router-dom';
+import {
+  Shield, AlertTriangle, CheckCircle, Flag, Ban, ExternalLink,
+} from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 
-const TABS = ['pending', 'approved', 'flagged', 'removed'];
-
 export default function Moderation() {
-  const { user: me } = useAuth();
-  const [activeTab, setActiveTab] = useState('pending');
-  const [items, setItems] = useState([]);
+  const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
+  const [acting, setActing] = useState(null);
 
-  const fetchItems = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data } = await adminApi.get('/admin/moderation', {
-        params: { status: activeTab }
-      });
-      setItems(data.items || []);
-      setTotal(data.total || 0);
+      const { data } = await adminApi.get('/admin/moderation-queue');
+      setQueue(Array.isArray(data.queue) ? data.queue : []);
     } catch (err) {
-      console.error('Failed to fetch moderation items:', err);
-      setItems([]);
+      setError(err.response?.data?.error || 'Failed to load moderation queue.');
+      setQueue([]);
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, []);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => { load(); }, [load]);
 
-  const handleAction = async (itemId, action) => {
+  const runAction = async (jobId, action) => {
+    const reason =
+      action === 'cancel'
+        ? window.prompt('Reason for cancelling this job (required):') || ''
+        : window.prompt('Optional note for audit log:') || '';
+    if (action === 'cancel' && !reason.trim()) {
+      window.alert('A reason is required to cancel.');
+      return;
+    }
+    setActing(jobId + action);
     try {
-      await adminApi.post(`/admin/moderation/${itemId}/${action}`);
-      fetchItems();
+      await adminApi.post(`/admin/jobs/${jobId}/action`, { action, reason: reason.trim() || undefined });
+      await load();
     } catch (err) {
-      console.error(`Moderation action failed:`, err);
+      window.alert(err.response?.data?.error || 'Action failed.');
+    } finally {
+      setActing(null);
     }
   };
 
   return (
-    <div>
+    <div className="p-4 sm:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Content Moderation</h1>
-          <p className="text-gray-400 text-sm">{total} items in queue</p>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Shield className="text-orange-400" size={24} />
+            Job moderation
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Jobs flagged by admins or with pending user reports. Actions use the job moderation API.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={load}
+          className="text-sm px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-gray-300 hover:text-white"
+        >
+          Refresh
+        </button>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        {TABS.map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-colors ${
-              activeTab === tab
-                ? 'bg-orange-500 text-white'
-                : 'bg-slate-800 text-gray-400 hover:text-white border border-slate-700'
-            }`}>
-            {tab}
-          </button>
-        ))}
-      </div>
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-800 bg-red-950/60 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
 
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl">
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="text-center text-gray-400 py-16">Loading...</div>
-        ) : items.length === 0 ? (
+          <div className="text-center text-gray-400 py-16">Loading queue…</div>
+        ) : queue.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle className="mx-auto mb-3 text-green-400" size={48} />
-            <p className="text-gray-400">No {activeTab} items. Queue is clear.</p>
+            <p className="text-gray-400">No flagged jobs or pending job reports.</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-700">
-            {items.map(item => (
-              <div key={item._id} className="p-4 hover:bg-slate-700/30 flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-white font-medium">{item.type || 'Content'}</span>
-                    <span className="text-xs text-gray-500">by {item.user?.name || 'Unknown'}</span>
+          <ul className="divide-y divide-slate-700">
+            {queue.map((job) => (
+              <li key={job.id} className="p-4 sm:p-5 hover:bg-slate-700/20">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="text-white font-semibold truncate">{job.title}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-gray-300">
+                        {job.status}
+                      </span>
+                      {Number(job.report_count) > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900 text-yellow-300 flex items-center gap-1">
+                          <AlertTriangle size={12} />
+                          {job.report_count} report{Number(job.report_count) !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">
+                      {job.category_name || 'Uncategorized'} · {job.client_name}{' '}
+                      <span className="text-gray-600">({job.client_email})</span>
+                    </p>
+                    {job.description && (
+                      <p className="text-sm text-gray-400 line-clamp-3">{job.description}</p>
+                    )}
                   </div>
-                  <p className="text-gray-400 text-sm line-clamp-2">{item.content || item.reason || 'No description'}</p>
-                  <p className="text-gray-500 text-xs mt-1">
-                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
-                  </p>
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    <Link
+                      to={`/admin/jobs/${job.id}`}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 text-gray-200 hover:bg-slate-600"
+                    >
+                      Open <ExternalLink size={12} />
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={!!acting}
+                      onClick={() => runAction(job.id, 'flag')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-yellow-500/15 text-yellow-300 hover:bg-yellow-500/25 disabled:opacity-40"
+                    >
+                      <Flag size={14} /> Flag
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!!acting}
+                      onClick={() => runAction(job.id, 'unflag')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-600 text-gray-200 hover:bg-slate-500 disabled:opacity-40"
+                    >
+                      Unflag
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!!acting}
+                      onClick={() => runAction(job.id, 'cancel')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/15 text-red-300 hover:bg-red-500/25 disabled:opacity-40"
+                    >
+                      <Ban size={14} /> Cancel job
+                    </button>
+                  </div>
                 </div>
-                {activeTab === 'pending' && (
-                  <div className="flex gap-2 ml-4">
-                    <button onClick={() => handleAction(item._id, 'approve')}
-                      className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30" title="Approve">
-                      <CheckCircle size={18} />
-                    </button>
-                    <button onClick={() => handleAction(item._id, 'flag')}
-                      className="p-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30" title="Flag">
-                      <AlertTriangle size={18} />
-                    </button>
-                    <button onClick={() => handleAction(item._id, 'remove')}
-                      className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30" title="Remove">
-                      <XCircle size={18} />
-                    </button>
-                  </div>
-                )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
     </div>

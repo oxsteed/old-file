@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users, Briefcase, DollarSign, TrendingUp,
   AlertTriangle, Flag, Activity, ArrowUpRight
@@ -16,9 +17,11 @@ export default function SuperDashboard() {
   const [mrr,     setMrr]     = useState(0);
   const [period,  setPeriod]  = useState('30d');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     const fetch = async () => {
+      setLoadError(null);
       try {
         // Super-admins get the full revenue dashboard; regular admins get the basic stats.
         const endpoint = isSuper ? '/admin/super/dashboard' : '/admin/dashboard';
@@ -27,6 +30,7 @@ export default function SuperDashboard() {
         setMrr(data.mrr || 0);
       } catch (err) {
         console.error(err);
+        setLoadError(err.response?.data?.error || 'Failed to load dashboard.');
       } finally {
         setLoading(false);
       }
@@ -40,6 +44,12 @@ export default function SuperDashboard() {
 
   return (
     <div className="p-4 sm:p-8">
+
+      {loadError && (
+        <div className="mb-6 rounded-xl border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-200">
+          {loadError}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-8">
@@ -163,11 +173,11 @@ export default function SuperDashboard() {
                   <p className="text-xs text-red-400">Requires attention</p>
                 </div>
               </div>
-              <a href="/admin/jobs?status=disputed"
+              <Link to="/admin/disputes"
                  className="text-xs text-red-400 hover:text-red-300
                             flex items-center gap-1 transition">
                 View <ArrowUpRight size={12} />
-              </a>
+              </Link>
             </div>
           )}
 
@@ -183,11 +193,11 @@ export default function SuperDashboard() {
                   <p className="text-xs text-yellow-400">Awaiting review</p>
                 </div>
               </div>
-              <a href="/admin/reports"
+              <Link to="/admin/reports"
                  className="text-xs text-yellow-400 hover:text-yellow-300
                             flex items-center gap-1 transition">
                 Review <ArrowUpRight size={12} />
-              </a>
+              </Link>
             </div>
           )}
         </div>

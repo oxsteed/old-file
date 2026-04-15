@@ -1,10 +1,18 @@
 const router          = require('express').Router();
-const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
+const {
+  requireAdmin,
+  requireSuperAdmin,
+  requirePermission,
+  requireSuperAdminOrPermission,
+} = require('../middleware/adminAuth');
 const superCtrl       = require('../controllers/superAdminController');
 const adminCtrl       = require('../controllers/adminController');
 const supportCtrl     = require('../controllers/supportController');
 const searchCtrl      = require('../controllers/adminSearchController');
 const permCtrl        = require('../controllers/adminPermissionController');
+const bizModCtrl      = require('../controllers/businessModerationController');
+const convAdminCtrl   = require('../controllers/conversationsAdminController');
+const payAdminCtrl    = require('../controllers/paymentsAdminController');
 
 // ══════════════════════════════════════════════════════════════
 // REGULAR ADMIN — both admin and super_admin can access
@@ -22,8 +30,8 @@ router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
 router.get('/jobs',                    requireAdmin,      superCtrl.getJobs);
 router.get('/jobs/:jobId',             requireAdmin,      superCtrl.getJobDetail);
 router.post('/jobs/:jobId/action',     requireAdmin,      superCtrl.forceJobAction);
-// Hard delete — super admin only
-router.delete('/jobs/:jobId',          requireSuperAdmin, superCtrl.deleteJob);
+// Hard delete — super-admin or delete_jobs grant
+router.delete('/jobs/:jobId', requireAdmin, requireSuperAdminOrPermission('delete_jobs'), superCtrl.deleteJob);
 
 // Content removal — bids and reviews (always logged for super-admin review)
 router.get('/content',                         requireAdmin, adminCtrl.getContent);
@@ -43,6 +51,24 @@ router.post('/markets/:marketId/zip-codes',   requireAdmin, adminCtrl.addZipCode
 router.delete('/markets/:marketId/zip-codes', requireAdmin, adminCtrl.removeZipCodes);
 
 // ══════════════════════════════════════════════════════════════
+// ENTITY MODERATION (all admins)
+// ══════════════════════════════════════════════════════════════
+
+router.get('/moderation/businesses', requireAdmin, bizModCtrl.listBusinesses);
+router.put('/moderation/businesses/:id', requireAdmin, bizModCtrl.toggleBusiness);
+router.get('/moderation/tool-rentals', requireAdmin, bizModCtrl.listToolRentals);
+router.put('/moderation/tool-rentals/:id', requireAdmin, bizModCtrl.toggleToolRental);
+router.get('/moderation/planned-needs', requireAdmin, bizModCtrl.listPlannedNeeds);
+router.post(
+  '/moderation/planned-needs/:id/cancel-autopublish',
+  requireAdmin,
+  bizModCtrl.cancelAutopublish
+);
+router.post('/moderation/planned-needs/:id/force-cancel', requireAdmin, bizModCtrl.forceCancel);
+
+router.get('/payments', requireAdmin, requirePermission('view_financials'), payAdminCtrl.listPayments);
+
+// ══════════════════════════════════════════════════════════════
 // SUPER ADMIN ONLY
 // ══════════════════════════════════════════════════════════════
 
@@ -51,32 +77,37 @@ router.get('/super/dashboard',     requireSuperAdmin, superCtrl.getDashboardStat
 router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart);
 
 // User management (privileged write)
-router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
+router.post('/users/:userId/verify', requireAdmin, requireSuperAdminOrPermission('verify_users'), superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
-router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
+router.delete('/users/:userId', requireAdmin, requireSuperAdminOrPermission('delete_users'), superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 
-// Admin account management (super_admin only)
-router.get('/super/admin-accounts',             requireSuperAdmin, superCtrl.getAdminAccounts);
-router.post('/super/admin-accounts',            requireSuperAdmin, superCtrl.createAdminAccount);
-router.put('/super/admin-accounts/:id/status',  requireSuperAdmin, superCtrl.toggleAdminAccountStatus);
-router.get('/super/admin-activity/:adminId',    requireSuperAdmin, superCtrl.getAdminActivity);
+// Admin account management (super-admin or manage_admin_accounts grant)
+router.get('/super/admin-accounts', requireAdmin, requireSuperAdminOrPermission('manage_admin_accounts'), superCtrl.getAdminAccounts);
+router.post('/super/admin-accounts', requireAdmin, requireSuperAdminOrPermission('manage_admin_accounts'), superCtrl.createAdminAccount);
+router.put('/super/admin-accounts/:id/status', requireAdmin, requireSuperAdminOrPermission('manage_admin_accounts'), superCtrl.toggleAdminAccountStatus);
+router.get('/super/admin-activity/:adminId', requireAdmin, requireSuperAdminOrPermission('manage_admin_accounts'), superCtrl.getAdminActivity);
 
-// Financials
-router.get('/financials',            requireSuperAdmin, superCtrl.getFinancials);
-router.get('/payouts',               requireSuperAdmin, superCtrl.getPayouts);
-router.get('/super/revenue',         requireSuperAdmin, superCtrl.getRevenueSummary);
-router.get('/super/revenue/export',  requireSuperAdmin, superCtrl.getRevenueExport);
-router.post('/jobs/:jobId/refund',   requireSuperAdmin, superCtrl.issueManualRefund);
+// Financials (super-admin or view_financials grant)
+router.get('/financials', requireAdmin, requireSuperAdminOrPermission('view_financials'), superCtrl.getFinancials);
+router.get('/payouts', requireAdmin, requireSuperAdminOrPermission('view_financials'), superCtrl.getPayouts);
+router.get('/super/revenue', requireAdmin, requireSuperAdminOrPermission('view_financials'), superCtrl.getRevenueSummary);
+router.get('/super/revenue/export', requireAdmin, requireSuperAdminOrPermission('view_financials'), superCtrl.getRevenueExport);
+router.post('/jobs/:jobId/refund', requireAdmin, requireSuperAdminOrPermission('issue_refunds'), superCtrl.issueManualRefund);
 
-// Platform settings
-router.get('/settings',              requireSuperAdmin, superCtrl.getSettings);
-router.put('/settings/:key',         requireSuperAdmin, superCtrl.updateSetting);
-router.put('/feature-flags/:key',    requireSuperAdmin, superCtrl.updateFeatureFlag);
+// Platform settings (super-admin or manage_settings grant)
+router.get('/settings', requireAdmin, requireSuperAdminOrPermission('manage_settings'), superCtrl.getSettings);
+router.put('/settings/:key', requireAdmin, requireSuperAdminOrPermission('manage_settings'), superCtrl.updateSetting);
+router.put('/feature-flags/:key', requireAdmin, requireSuperAdminOrPermission('manage_settings'), superCtrl.updateFeatureFlag);
 
 // Audit log + export
-router.get('/audit-log',             requireSuperAdmin, superCtrl.getAuditLog);
-router.get('/export/:type',          requireSuperAdmin, superCtrl.exportData);
+router.get('/audit-log', requireAdmin, requireSuperAdminOrPermission('view_audit_log'), superCtrl.getAuditLog);
+router.get('/export/:type', requireAdmin, requireSuperAdminOrPermission('export_data'), superCtrl.exportData);
+
+// Conversations (read-only triage + status) — super-admin only
+router.get('/super/conversations', requireSuperAdmin, convAdminCtrl.listConversations);
+router.get('/super/conversations/:id', requireSuperAdmin, convAdminCtrl.getThread);
+router.put('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
 
 // ══════════════════════════════════════════════════════════════
 // SUPPORT TICKETS (admin + super_admin)
@@ -119,7 +150,12 @@ router.post('/super/users', requireAdmin, requirePermission('create_users'), sup
 // ADMIN → USER LIVE MESSAGING (super-admin only)
 // ══════════════════════════════════════════════════════════════
 
-router.post('/super/users/:userId/message', requireSuperAdmin, superCtrl.sendAdminMessage);
+router.post(
+  '/super/users/:userId/message',
+  requireAdmin,
+  requireSuperAdminOrPermission('message_users'),
+  superCtrl.sendAdminMessage
+);
 
 // ══════════════════════════════════════════════════════════════
 // SKILLS & CATEGORIES LOOKUP MANAGEMENT (admin + super_admin)

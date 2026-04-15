@@ -31,6 +31,11 @@ import ContentRemovals from './pages/ContentRemovals';
 import SupportTickets  from './pages/SupportTickets';
 import AdminSearch     from './pages/AdminSearch';
 import AdminLogin      from './pages/Login';
+import BusinessModeration from './pages/BusinessModeration';
+import ToolRentalModeration from './pages/ToolRentalModeration';
+import PlannedNeedsAdmin from './pages/PlannedNeedsAdmin';
+import PaymentsList    from './pages/PaymentsList';
+import ConversationsAdmin from './pages/super/ConversationsAdmin';
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -84,6 +89,10 @@ export default function AdminApp() {
           <Route path="content-removals"    element={<ContentRemovals />} />
           <Route path="support"             element={<SupportTickets />} />
           <Route path="search"              element={<AdminSearch />} />
+          <Route path="businesses"          element={<BusinessModeration />} />
+          <Route path="tool-rentals"        element={<ToolRentalModeration />} />
+          <Route path="planned-needs"       element={<PlannedNeedsAdmin />} />
+          <Route path="payments"            element={<PaymentsList />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={
@@ -118,6 +127,9 @@ export default function AdminApp() {
           } />
           <Route path="super/permissions" element={
             <AdminGuard superOnly><PermissionGrants /></AdminGuard>
+          } />
+          <Route path="super/conversations" element={
+            <AdminGuard superOnly><ConversationsAdmin /></AdminGuard>
           } />
         </Route>
 

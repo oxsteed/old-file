@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-15 (Job list — remove trust level section from How It Works)
+**Last updated:** 2026-04-15 (Admin panel — disputes/moderation/payouts, permission grants, moderation surfaces)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -748,3 +748,12 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 ### Session — 2026-04-15 (jobs page trust section)
 
 - **`/jobs` (`JobListPage.jsx`)** — Removed the "How OxSteed Works" subsections that showed Community/Pro trust cards (`TrustKeys`) for both customer and helper tour tabs; dropped unused import. Removed `.jlp-trust-*` rules from `JobListPage.css`. Orphaned `TrustKeys.jsx` + `TrustKeys.css` deleted (no remaining imports).
+
+### Session — 2026-04-15 (admin / super-admin completion)
+
+- **Client fixes:** `Disputes.jsx` / `DisputeResolve.jsx` → `/disputes/admin/*`; `Moderation.jsx` → `GET /admin/moderation-queue` + `POST /admin/jobs/:id/action` (flag/unflag/cancel); `JobsList.jsx` export → `/admin/export/jobs`; `PricingConfig.jsx` guard → `user.role === 'super_admin'`; `Payouts.jsx` → `GET /admin/payouts` (payment-derived tabs, no fake approve/export); `SupportTickets.jsx` → `adminApi`; `SuperDashboard.jsx` → `Link` to disputes/reports + fetch error banner.
+- **Permission grants:** `requireSuperAdminOrPermission` in `adminAuth.js`; sensitive routes in `server/routes/admin.js` use `requireAdmin` + grant (or super): financials, payouts, revenue, refund, settings, audit log, export, verify user, delete user, delete job, admin-accounts, message user.
+- **New admin APIs:** `businessModerationController.js` (businesses, tool rentals, planned needs), `paymentsAdminController.js` (`GET /admin/payments`), `conversationsAdminController.js` (super-only list/thread/status + audit log on list/read).
+- **New admin UI:** `BusinessModeration.jsx`, `ToolRentalModeration.jsx`, `PlannedNeedsAdmin.jsx`, `PaymentsList.jsx`, `super/ConversationsAdmin.jsx`; routes + nav in `AdminApp.jsx` / `AdminLayout.jsx`.
+- **`superAdminController`:** `getPayouts` queries `payments` by tab; `exportData` adds `bids`, `reviews`, `businesses`, `disputes`, `support_tickets` when tables exist.
+- **Tests:** `cd server && npm test` not re-verified here (workspace missing `node_modules`/jest deps).

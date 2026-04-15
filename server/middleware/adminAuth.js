@@ -96,3 +96,10 @@ exports.requirePermission = (permission) => async (req, res, next) => {
     return res.status(500).json({ error: 'Permission check failed.' });
   }
 };
+
+/** Super-admin bypasses; otherwise same grant check as requirePermission. */
+exports.requireSuperAdminOrPermission = (permission) => async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+  if (req.isSuper) return next();
+  return exports.requirePermission(permission)(req, res, next);
+};
