@@ -87,7 +87,7 @@ exports.getLifePulse = async (req, res) => {
     // ── parallel queries ───────────────────────────────────────────────────
     const [
       baselineRes, reliabilityRes, oxsteedRes, needsRes, recurringRes, taskRecurringRes,
-      invoiceIncomeRes, pendingInvoicesRes, taxObligationsRes,
+      invoiceIncomeRes, pendingInvoicesRes, taxObligationsRes, predictedJobRes,
     ] = await Promise.all([
 
       // 1. 90-day one-time income and expense totals (non-recurring entries only)
@@ -239,6 +239,16 @@ exports.getLifePulse = async (req, res) => {
           AND te.due_date <= CURRENT_DATE + ($2 || ' days')::INTERVAL
           AND te.due_date >= CURRENT_DATE
       `, [userId, windowDays]),
+
+      // 10. Predicted income: authorized escrow payments the user has signed up for
+      //     but not yet completed (payment held, will be released on job completion).
+      //     These are future values — known, committed, but not yet realized.
+      db.query(`
+        SELECT COALESCE(SUM(helper_payout), 0) AS predicted_job_income
+        FROM payments
+        WHERE payee_id = $1
+          AND status = 'authorized'
+      `, [userId]),
     ]);
 
     const baseline          = baselineRes.rows[0];
@@ -250,6 +260,7 @@ exports.getLifePulse = async (req, res) => {
     const invoiceIncomeRow  = invoiceIncomeRes.rows[0];
     const pendingInvRow     = pendingInvoicesRes.rows[0];
     const taxObligRow       = taxObligationsRes.rows[0];
+    const predictedJobRow   = predictedJobRes.rows[0];
 
     // Business data
     const invoiceIncome90d    = parseFloat(invoiceIncomeRow.invoice_income_90d);
@@ -257,6 +268,12 @@ exports.getLifePulse = async (req, res) => {
     const pendingInvoiceCount = parseInt(pendingInvRow.pending_count || 0);
     const upcomingTaxDue      = parseFloat(taxObligRow.upcoming_tax_due || 0);
     const taxEstimateCount    = parseInt(taxObligRow.tax_estimate_count || 0);
+
+    // Predicted future income (committed but not yet realized)
+    // Authorized escrow jobs: payment is held, released when job completes.
+    // Pending invoices: already sent to clients, weighted at 80% confidence.
+    const predictedJobIncome     = parseFloat(predictedJobRow.predicted_job_income || 0);
+    const predictedInvoiceIncome = round2(pendingInvoiceTotal * 0.80);
 
     // ── 1. Daily averages ───────────────────────────────────────────────────
     const income90d     = parseFloat(baseline.income_90d);
@@ -326,12 +343,21 @@ exports.getLifePulse = async (req, res) => {
     const sinkingFundForWindow = round2(totalSinkingFund);
 
     // ── 4. Net, coverage, runway ────────────────────────────────────────────
-    // Tax obligations due in this window are treated like a sinking fund obligation.
-    // Pending invoices reduce obligations (they're expected income partially offsetting needs).
+    // Present-value model:
+    //   past    = projectedIncome (historical baseline extrapolated over the window)
+    //   future  = predictedJobIncome (authorized escrow jobs signed up for)
+    //           + predictedInvoiceIncome (pending invoices at 80% confidence)
+    //   present = past + future — the projected reality if everything holds
+    //
+    // This means a user earning $200/mo who signs up for a $150 job sees a
+    // present-value income of $350 for the window, not just $200.
+    const totalPredictedIncome  = round2(predictedJobIncome + predictedInvoiceIncome);
+    const presentValueIncome    = round2(projectedIncome + totalPredictedIncome);
+
     const totalObligations = projectedExpenses + sinkingFundForWindow + upcomingTaxDue;
-    const netAvailable     = round2(projectedIncome - totalObligations);
+    const netAvailable     = round2(presentValueIncome - totalObligations);
     const coverageRatio    = totalObligations > 0
-      ? round2(projectedIncome / totalObligations)
+      ? round2(presentValueIncome / totalObligations)
       : null;
 
     // Runway: proxy from 90-day cumulative net (estimating built-up buffer).
@@ -438,9 +464,10 @@ exports.getLifePulse = async (req, res) => {
     }
 
     if (pendingInvoiceCount > 0) {
-      const pendingFmt = pendingInvoiceTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      const pendingFmt         = pendingInvoiceTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      const pendingCountedFmt  = predictedInvoiceIncome.toLocaleString('en-US', { maximumFractionDigits: 0 });
       alerts.push(
-        `$${pendingFmt} in outstanding invoices (${pendingInvoiceCount} unpaid) could strengthen your runway once collected.`
+        `$${pendingFmt} in outstanding invoices — $${pendingCountedFmt} counted as predicted income in your score.`
       );
     }
 
@@ -450,11 +477,12 @@ exports.getLifePulse = async (req, res) => {
     const rScore = scoreReliability(incomeDropPct);
     const oScore = scoreObligations(rawNeeds);
 
+    // Equal weight: each dimension contributes 25% so no single signal dominates.
     const pulseScore = Math.max(0, Math.min(100, Math.round(
-      cScore * 0.40 +
+      cScore * 0.25 +
       bScore * 0.25 +
-      rScore * 0.20 +
-      oScore * 0.15
+      rScore * 0.25 +
+      oScore * 0.25
     )));
 
     // ── response ────────────────────────────────────────────────────────────
@@ -479,6 +507,18 @@ exports.getLifePulse = async (req, res) => {
       pending_invoice_total: round2(pendingInvoiceTotal),
       pending_invoice_count: pendingInvoiceCount,
       upcoming_tax_due:     round2(upcomingTaxDue),
+
+      // Past / predicted / present-value income breakdown.
+      // past_income      = historical baseline projected over the window.
+      // predicted_income = future values known today (authorized jobs + 80% of pending invoices).
+      // present_value_income = past + predicted: the projected reality for this window.
+      past_income:           projectedIncome,
+      predicted_income: {
+        total:          totalPredictedIncome,
+        authorized_jobs: round2(predictedJobIncome),
+        pending_invoices: round2(predictedInvoiceIncome),
+      },
+      present_value_income:  presentValueIncome,
 
       // Horizon-adjusted projections (backward-compat with old /projection fields)
       projected_income:         projectedIncome,
