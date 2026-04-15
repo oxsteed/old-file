@@ -84,7 +84,8 @@ router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLog
 // Conversations (super-admin only — every read is audited)
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
 router.get('/super/conversations/:id',          requireSuperAdmin, convAdminCtrl.getThread);
-router.post('/super/conversations/:id/status',  requireSuperAdmin, convAdminCtrl.setConversationStatus);
+router.put('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
+router.post('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
 
 // Admin account management — delegatable via manage_admin_accounts grant
 router.get('/super/admin-accounts',             requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminAccounts);

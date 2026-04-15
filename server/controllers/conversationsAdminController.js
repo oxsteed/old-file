@@ -108,7 +108,7 @@ exports.setConversationStatus = async (req, res) => {
     const { rows } = await db.query('SELECT id, status FROM conversations WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Conversation not found.' });
 
-    await db.query('UPDATE conversations SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+    await db.query('UPDATE conversations SET status = $1 WHERE id = $2', [status, id]);
     try {
       await logAdminAction({
         adminId: req.user.id, action: `conversation_${status}`,

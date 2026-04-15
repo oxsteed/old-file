@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-15 (Job list — remove trust level section from How It Works)
+**Last updated:** 2026-04-15 (Admin — merged main; conversations status route + payout stats)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -748,3 +748,11 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 ### Session — 2026-04-15 (jobs page trust section)
 
 - **`/jobs` (`JobListPage.jsx`)** — Removed the "How OxSteed Works" subsections that showed Community/Pro trust cards (`TrustKeys`) for both customer and helper tour tabs; dropped unused import. Removed `.jlp-trust-*` rules from `JobListPage.css`. Orphaned `TrustKeys.jsx` + `TrustKeys.css` deleted (no remaining imports).
+
+### Session — 2026-04-15 (admin / super-admin completion)
+
+- **Client fixes:** `Disputes.jsx` / `DisputeResolve.jsx` → `/disputes/admin/*`; `Moderation.jsx` → `GET /admin/moderation-queue` + `POST /admin/jobs/:id/action` (prompt for reason on cancel); `JobsList.jsx` export → `/admin/export/jobs`; `PricingConfig.jsx` guard → `user.role === 'super_admin'`; `Payouts.jsx` → `GET /admin/payouts`; `SupportTickets.jsx` → `adminApi`; `SuperDashboard.jsx` → `Link` to disputes/reports + load error handling.
+- **Permission grants (main):** delegated routes use `requireAdmin` + `requirePermission(...)`; `requirePermission` lets `super_admin` pass. Entity moderation: `GET/PUT /admin/businesses`, `/admin/tool-rentals`, `GET/POST /admin/planned-needs`, `GET /admin/payments` (`view_financials`).
+- **Controllers / UI:** `businessModerationController.js`, `paymentsAdminController.js`, `conversationsAdminController.js`; admin pages for businesses, tool rentals, planned needs, payments, super conversations; nav in `AdminLayout.jsx` / routes in `AdminApp.jsx`.
+- **`getPayouts`:** payment rows by tab + stats include `failed` sum; **`setConversationStatus`:** no `updated_at` on `conversations` table; **`admin.js`:** both `PUT` and `POST` `/super/conversations/:id/status` for client compatibility.
+- **Tests:** `cd server && npm test` not re-verified here (workspace missing `node_modules`/jest deps).

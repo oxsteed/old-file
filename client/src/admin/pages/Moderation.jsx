@@ -24,9 +24,20 @@ export default function Moderation() {
   useEffect(() => { fetchQueue(); }, [fetchQueue]);
 
   const handleAction = async (jobId, action) => {
+    const reason =
+      action === 'cancel'
+        ? window.prompt('Reason for cancelling this job (required):') || ''
+        : window.prompt('Optional note for audit log:') || '';
+    if (action === 'cancel' && !reason.trim()) {
+      window.alert('A reason is required to cancel.');
+      return;
+    }
     setActing(`${jobId}-${action}`);
     try {
-      await adminApi.post(`/admin/jobs/${jobId}/action`, { action });
+      await adminApi.post(`/admin/jobs/${jobId}/action`, {
+        action,
+        reason: reason.trim() || undefined,
+      });
       fetchQueue();
     } catch (err) {
       console.error(`Moderation action failed:`, err);

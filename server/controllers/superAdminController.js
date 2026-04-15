@@ -521,6 +521,7 @@ exports.getPayouts = async (req, res) => {
         SUM(CASE WHEN status IN ('pending','authorized') THEN helper_payout ELSE 0 END) AS pending,
         SUM(CASE WHEN status = 'captured'               THEN helper_payout ELSE 0 END) AS processing,
         SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS completed,
+        SUM(CASE WHEN status IN ('failed','refunded','disputed') THEN helper_payout ELSE 0 END) AS failed,
         SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS "totalPaid"
         FROM payments WHERE helper_payout > 0
     `);
