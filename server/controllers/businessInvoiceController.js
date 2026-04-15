@@ -5,7 +5,7 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
-const { ownedBusiness } = require('../utils/businessOwnership');
+const { canManageBusinessFinance } = require('../utils/businessOwnership');
 
 function round2(n) { return Math.round((n || 0) * 100) / 100; }
 
@@ -38,14 +38,14 @@ async function nextInvoiceNumber(client, bizId) {
 // GET /api/businesses/:id/invoices?status=sent&limit=50&offset=0
 async function listInvoices(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { status, limit = 50, offset = 0 } = req.query;
     const safeLim = Math.min(parseInt(limit) || 50, 100);
     const safeOff = Math.max(parseInt(offset) || 0, 0);
 
-    const params = [biz.id, safeLim, safeOff];
+    const params = [access.id, safeLim, safeOff];
     const statusClause = status ? `AND status = $4` : '';
     if (status) params.push(status);
 
@@ -69,7 +69,7 @@ async function listInvoices(req, res) {
         COUNT(*) FILTER (WHERE status = 'overdue') AS overdue,
         COALESCE(SUM(total - amount_paid) FILTER (WHERE status IN ('sent','overdue')), 0) AS outstanding_total
       FROM business_invoices WHERE business_id = $1
-    `, [biz.id]);
+    `, [access.id]);
 
     return res.json({ invoices: rows, summary });
   } catch (err) {
@@ -81,12 +81,12 @@ async function listInvoices(req, res) {
 // ── Get single invoice (with full line items) ─────────────────────────────────
 async function getInvoice(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rows: [inv] } = await pool.query(
       'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2',
-      [req.params.invoiceId, biz.id]
+      [req.params.invoiceId, access.id]
     );
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
     return res.json({ invoice: inv });
@@ -102,8 +102,8 @@ async function createInvoice(req, res) {
   try {
     await client.query('BEGIN');
 
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const {
       client_name, client_email, client_company,
@@ -116,7 +116,7 @@ async function createInvoice(req, res) {
       return res.status(400).json({ error: 'At least one line item is required' });
     }
 
-    const invoice_number = await nextInvoiceNumber(client, biz.id);
+    const invoice_number = await nextInvoiceNumber(client, access.id);
     const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
 
     const { rows: [inv] } = await client.query(`
@@ -126,7 +126,7 @@ async function createInvoice(req, res) {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *
     `, [
-      req.user.id, biz.id, invoice_number,
+      access.owner_id, access.id, invoice_number,
       client_name.trim(), client_email || null, client_company || null,
       status, due_date || null,
       subtotal, parseFloat(invoice_tax_rate), tax_amount, total,
@@ -147,8 +147,8 @@ async function createInvoice(req, res) {
 // ── Update invoice ─────────────────────────────────────────────────────────────
 async function updateInvoice(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const {
       client_name, client_email, client_company,
@@ -187,7 +187,7 @@ async function updateInvoice(req, res) {
       tax_amount != null ? tax_amount : null,
       total != null ? total : null,
       notes || null, status || null,
-      req.params.invoiceId, biz.id, req.user.id,
+      req.params.invoiceId, access.id, access.owner_id,
     ]);
 
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
@@ -202,8 +202,8 @@ async function updateInvoice(req, res) {
 // POST /api/businesses/:id/invoices/:invoiceId/pay
 async function markInvoicePaid(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { amount } = req.body;
     const paidAmt = amount != null ? parseFloat(amount) : null;
@@ -211,7 +211,7 @@ async function markInvoicePaid(req, res) {
     // Fetch current invoice
     const { rows: [existing] } = await pool.query(
       'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2',
-      [req.params.invoiceId, biz.id]
+      [req.params.invoiceId, access.id]
     );
     if (!existing) return res.status(404).json({ error: 'Invoice not found' });
 
@@ -230,7 +230,7 @@ async function markInvoicePaid(req, res) {
         updated_at  = NOW()
       WHERE id = $3 AND business_id = $4 AND user_id = $5
       RETURNING *
-    `, [newPaidTotal, newStatus, req.params.invoiceId, biz.id, req.user.id]);
+    `, [newPaidTotal, newStatus, req.params.invoiceId, access.id, access.owner_id]);
 
     return res.json({ invoice: inv });
   } catch (err) {
@@ -242,12 +242,12 @@ async function markInvoicePaid(req, res) {
 // ── Delete invoice ─────────────────────────────────────────────────────────────
 async function deleteInvoice(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rowCount } = await pool.query(
       'DELETE FROM business_invoices WHERE id = $1 AND business_id = $2 AND user_id = $3',
-      [req.params.invoiceId, biz.id, req.user.id]
+      [req.params.invoiceId, access.id, access.owner_id]
     );
     if (!rowCount) return res.status(404).json({ error: 'Invoice not found' });
     return res.json({ ok: true });

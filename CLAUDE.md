@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-15 (Admin — merged main; conversations status route + payout stats)
+**Last updated:** 2026-04-15 (Business Hub — manager finance API + rep tab gating)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -756,3 +756,10 @@ The full list with file paths is in `security.md`. After fixing any item, mark i
 - **Controllers / UI:** `businessModerationController.js`, `paymentsAdminController.js`, `conversationsAdminController.js`; admin pages for businesses, tool rentals, planned needs, payments, super conversations; nav in `AdminLayout.jsx` / routes in `AdminApp.jsx`.
 - **`getPayouts`:** payment rows by tab + stats include `failed` sum; **`setConversationStatus`:** no `updated_at` on `conversations` table; **`admin.js`:** both `PUT` and `POST` `/super/conversations/:id/status` for client compatibility.
 - **Tests:** `cd server && npm test` not re-verified here (workspace missing `node_modules`/jest deps).
+
+### Session — 2026-04-15 (Business Hub — manager vs representative)
+
+- **`canManageBusinessFinance`** in `server/utils/businessOwnership.js` — owner or active **manager** (not representative).
+- **`businessController`** — analytics, tax, goals use `canManageBusinessFinance`; payment/expense queries use **owner** `user_id` when the requester is a manager.
+- **`businessInvoiceController`** — all invoice routes use `canManageBusinessFinance`; new/updated rows use **`user_id` = business owner** so managers are not stamped as `user_id` on invoices.
+- **`BusinessHubPage.jsx`** — representatives only see **Edit Profile** (if permitted) + **Team**; financial tabs hidden; tab fallback avoids finance when role is representative.

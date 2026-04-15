@@ -3,7 +3,7 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
-const { ownedBusiness, canEditProfile } = require('../utils/businessOwnership');
+const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../utils/businessOwnership');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -286,11 +286,11 @@ async function deleteBusiness(req, res) {
 // GET /api/businesses/:id/analytics?period=6m
 async function getBusinessAnalytics(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
-    const bizId  = biz.id;
-    const userId = req.user.id;
+    const bizId   = access.id;
+    const ownerId = access.owner_id;
 
     // 6-month monthly breakdown
     const [invoiceRevRes, oxsteedRevRes, expenseRes, jobStatsRes, invoiceSummaryRes] = await Promise.all([
@@ -309,7 +309,7 @@ async function getBusinessAnalytics(req, res) {
       `, [bizId]),
 
       // OxSteed payment income by month (for primary business only)
-      biz.is_primary
+      access.is_primary
         ? pool.query(`
             SELECT
               TO_CHAR(DATE_TRUNC('month', COALESCE(captured_at, released_at)), 'YYYY-MM') AS month,
@@ -320,7 +320,7 @@ async function getBusinessAnalytics(req, res) {
               AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'
             GROUP BY 1
             ORDER BY 1
-          `, [userId])
+          `, [ownerId])
         : Promise.resolve({ rows: [] }),
 
       // Business-tagged expenses by month
@@ -337,7 +337,7 @@ async function getBusinessAnalytics(req, res) {
       `, [bizId]),
 
       // OxSteed job stats (primary business only)
-      biz.is_primary
+      access.is_primary
         ? pool.query(`
             SELECT
               COUNT(*)::int AS jobs_completed,
@@ -347,7 +347,7 @@ async function getBusinessAnalytics(req, res) {
             WHERE payee_id = $1
               AND status IN ('captured','released')
               AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'
-          `, [userId])
+          `, [ownerId])
         : Promise.resolve({ rows: [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }] }),
 
       // Outstanding invoices summary
@@ -414,17 +414,17 @@ async function getBusinessAnalytics(req, res) {
 // POST /api/businesses/:id/tax/refresh — recalculate based on latest data
 async function getBusinessTax(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rows } = await pool.query(
       `SELECT * FROM business_tax_estimates
        WHERE user_id = $1 AND (business_id = $2 OR business_id IS NULL)
        ORDER BY tax_year ASC, quarter ASC`,
-      [req.user.id, biz.id]
+      [access.owner_id, access.id]
     );
 
-    return res.json({ estimates: rows, tax_rate: biz.tax_rate });
+    return res.json({ estimates: rows, tax_rate: access.tax_rate });
   } catch (err) {
     logger.error('getBusinessTax error', { err: err.message });
     return res.status(500).json({ error: 'Failed to load tax estimates' });
@@ -433,12 +433,12 @@ async function getBusinessTax(req, res) {
 
 async function refreshTaxEstimates(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
-    const userId   = req.user.id;
-    const bizId    = biz.id;
-    const taxRate  = parseFloat(biz.tax_rate) / 100;
+    const userId   = access.owner_id;
+    const bizId    = access.id;
+    const taxRate  = parseFloat(access.tax_rate) / 100;
     const year     = new Date().getFullYear();
     const cq       = currentQuarter();
 
@@ -453,7 +453,7 @@ async function refreshTaxEstimates(req, res) {
 
       // Quarterly net income = OxSteed income (primary) + invoice income - biz expenses
       const [oxRes, invRes, expRes] = await Promise.all([
-        biz.is_primary
+        access.is_primary
           ? pool.query(`
               SELECT COALESCE(SUM(helper_payout), 0) AS total
               FROM payments
@@ -496,12 +496,12 @@ async function refreshTaxEstimates(req, res) {
           last_refreshed_at    = NOW(),
           updated_at           = NOW()
         RETURNING *
-      `, [userId, bizId, year, q, round2(net), parseFloat(biz.tax_rate), estTax, dueDate]);
+      `, [userId, bizId, year, q, round2(net), parseFloat(access.tax_rate), estTax, dueDate]);
 
       upserted.push(est);
     }
 
-    return res.json({ estimates: upserted, tax_rate: biz.tax_rate });
+    return res.json({ estimates: upserted, tax_rate: access.tax_rate });
   } catch (err) {
     logger.error('refreshTaxEstimates error', { err: err.message });
     return res.status(500).json({ error: 'Failed to refresh tax estimates' });
@@ -510,8 +510,8 @@ async function refreshTaxEstimates(req, res) {
 
 async function markTaxPaid(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { amount } = req.body;
     const paidAmt = parseFloat(amount || 0);
@@ -525,7 +525,7 @@ async function markTaxPaid(req, res) {
           updated_at   = NOW()
       WHERE id = $2 AND user_id = $3
       RETURNING *
-    `, [paidAmt, req.params.estimateId, req.user.id]);
+    `, [paidAmt, req.params.estimateId, access.owner_id]);
 
     if (!est) return res.status(404).json({ error: 'Estimate not found' });
     return res.json({ estimate: est });
@@ -538,12 +538,12 @@ async function markTaxPaid(req, res) {
 // ── Business goals ────────────────────────────────────────────────────────────
 async function listGoals(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rows } = await pool.query(
       `SELECT * FROM business_goals WHERE business_id = $1 ORDER BY created_at DESC`,
-      [biz.id]
+      [access.id]
     );
     return res.json({ goals: rows });
   } catch (err) {
@@ -554,8 +554,8 @@ async function listGoals(req, res) {
 
 async function createGoal(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { title, goal_type, period, target_value, period_start, period_end } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
@@ -567,7 +567,7 @@ async function createGoal(req, res) {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       RETURNING *
     `, [
-      req.user.id, biz.id, title.trim(), goal_type || 'revenue',
+      access.owner_id, access.id, title.trim(), goal_type || 'revenue',
       period || 'monthly', parseFloat(target_value),
       period_start || null, period_end || null,
     ]);
@@ -581,8 +581,8 @@ async function createGoal(req, res) {
 
 async function updateGoal(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { title, target_value, current_value, is_completed } = req.body;
     const { rows: [goal] } = await pool.query(`
@@ -598,7 +598,7 @@ async function updateGoal(req, res) {
       title, target_value ? parseFloat(target_value) : null,
       current_value != null ? parseFloat(current_value) : null,
       is_completed != null ? is_completed : null,
-      req.params.goalId, biz.id, req.user.id,
+      req.params.goalId, access.id, access.owner_id,
     ]);
 
     if (!goal) return res.status(404).json({ error: 'Goal not found' });
@@ -611,12 +611,12 @@ async function updateGoal(req, res) {
 
 async function deleteGoal(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
 
     const { rowCount } = await pool.query(
       'DELETE FROM business_goals WHERE id = $1 AND business_id = $2 AND user_id = $3',
-      [req.params.goalId, biz.id, req.user.id]
+      [req.params.goalId, access.id, access.owner_id]
     );
     if (!rowCount) return res.status(404).json({ error: 'Goal not found' });
     return res.json({ ok: true });
