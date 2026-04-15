@@ -350,12 +350,13 @@ async function getBusinessAnalytics(req, res) {
           `, [ownerId])
         : Promise.resolve({ rows: [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }] }),
 
-      // Outstanding invoices summary
+      // Outstanding invoices summary — include per-status counts for the Overview KPIs
       pool.query(`
         SELECT
           COALESCE(SUM(total - amount_paid) FILTER (WHERE status IN ('sent','overdue')), 0) AS outstanding,
           COALESCE(SUM(total - amount_paid) FILTER (WHERE status = 'overdue'), 0)            AS overdue,
-          COUNT(*) FILTER (WHERE status IN ('sent','overdue'))                                AS outstanding_count
+          COUNT(*) FILTER (WHERE status = 'sent')                                            AS sent_count,
+          COUNT(*) FILTER (WHERE status = 'overdue')                                         AS overdue_count
         FROM business_invoices
         WHERE business_id = $1
       `, [bizId]),
@@ -396,12 +397,18 @@ async function getBusinessAnalytics(req, res) {
       mtd: thisMo || { revenue: 0, expenses: 0, profit: 0 },
       last_month: lastMo || { revenue: 0, expenses: 0, profit: 0 },
       ytd,
-      jobs_completed_6m:  parseInt(jobStats.jobs_completed || 0),
-      avg_job_value:      round2(parseFloat(jobStats.avg_job_value || 0)),
-      max_job_value:      round2(parseFloat(jobStats.max_job_value || 0)),
-      outstanding_invoices: round2(parseFloat(invSummary.outstanding || 0)),
-      overdue_invoices:     round2(parseFloat(invSummary.overdue || 0)),
-      outstanding_count:    parseInt(invSummary.outstanding_count || 0),
+      // Nested shape expected by the frontend OverviewTab
+      invoices: {
+        outstanding_total: round2(parseFloat(invSummary.outstanding || 0)),
+        overdue_total:     round2(parseFloat(invSummary.overdue || 0)),
+        sent:              parseInt(invSummary.sent_count || 0),
+        overdue_count:     parseInt(invSummary.overdue_count || 0),
+      },
+      jobs: {
+        completed_6m: parseInt(jobStats.jobs_completed || 0),
+        avg_value:    round2(parseFloat(jobStats.avg_job_value || 0)),
+        max_value:    round2(parseFloat(jobStats.max_job_value || 0)),
+      },
     });
   } catch (err) {
     logger.error('getBusinessAnalytics error', { err: err.message });
