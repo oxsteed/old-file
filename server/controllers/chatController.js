@@ -3,6 +3,39 @@ const { ROLES }     = require('../constants/roles');
 const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
 
+// BCP-47 code → English name, covering all languages LibreTranslate exposes
+const LANGUAGE_NAMES = {
+  af: 'Afrikaans', sq: 'Albanian', am: 'Amharic', ar: 'Arabic', hy: 'Armenian',
+  az: 'Azerbaijani', eu: 'Basque', be: 'Belarusian', bn: 'Bengali', bs: 'Bosnian',
+  bg: 'Bulgarian', ca: 'Catalan', zh: 'Chinese', hr: 'Croatian', cs: 'Czech',
+  da: 'Danish', nl: 'Dutch', en: 'English', eo: 'Esperanto', et: 'Estonian',
+  fi: 'Finnish', fr: 'French', gl: 'Galician', ka: 'Georgian', de: 'German',
+  el: 'Greek', gu: 'Gujarati', ht: 'Haitian Creole', ha: 'Hausa', he: 'Hebrew',
+  hi: 'Hindi', hu: 'Hungarian', is: 'Icelandic', id: 'Indonesian', ga: 'Irish',
+  it: 'Italian', ja: 'Japanese', kn: 'Kannada', kk: 'Kazakh', ko: 'Korean',
+  ku: 'Kurdish', ky: 'Kyrgyz', lo: 'Lao', lv: 'Latvian', lt: 'Lithuanian',
+  lb: 'Luxembourgish', mk: 'Macedonian', mg: 'Malagasy', ms: 'Malay',
+  ml: 'Malayalam', mt: 'Maltese', mi: 'Maori', mr: 'Marathi', mn: 'Mongolian',
+  my: 'Myanmar', ne: 'Nepali', nb: 'Norwegian', pa: 'Punjabi', fa: 'Persian',
+  pl: 'Polish', pt: 'Portuguese', ro: 'Romanian', ru: 'Russian', sm: 'Samoan',
+  sr: 'Serbian', sn: 'Shona', sd: 'Sindhi', si: 'Sinhala', sk: 'Slovak',
+  sl: 'Slovenian', so: 'Somali', es: 'Spanish', su: 'Sundanese', sw: 'Swahili',
+  sv: 'Swedish', tl: 'Tagalog', tg: 'Tajik', ta: 'Tamil', tt: 'Tatar',
+  te: 'Telugu', th: 'Thai', tr: 'Turkish', tk: 'Turkmen', uk: 'Ukrainian',
+  ur: 'Urdu', ug: 'Uyghur', uz: 'Uzbek', vi: 'Vietnamese', cy: 'Welsh',
+  xh: 'Xhosa', yi: 'Yiddish', yo: 'Yoruba', zu: 'Zulu',
+};
+
+/**
+ * Returns a system-prompt instruction to make the AI respond in the
+ * requested language. Returns empty string for English (no change needed).
+ */
+function getLanguageInstruction(code) {
+  if (!code || code === 'en') return '';
+  const name = LANGUAGE_NAMES[code] || code;
+  return `\n\n## Language Requirement\nThe user has selected ${name} as their preferred language. You MUST respond entirely in ${name} for all your replies, regardless of what language the user writes in. Only switch languages if the user explicitly asks you to.`;
+}
+
 // Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env
 const OLLAMA_URL = (() => {
   const raw = process.env.OLLAMA_URL || '';
@@ -186,13 +219,13 @@ OxSteed connects customers with local skilled helpers for jobs like home repair,
 
 exports.chatMessage = async (req, res) => {
   try {
-    const { messages, pageContext } = req.body;
+    const { messages, pageContext, language } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
     }
 
     // Page context awareness — append current page info to system prompt
-    let systemPrompt = SYSTEM_PROMPT;
+    let systemPrompt = SYSTEM_PROMPT + getLanguageInstruction(language);
     if (pageContext?.path) {
       const pathHint = pageContext.path.startsWith('/post-job')
         ? 'The user is currently on the Post a Job page.'
@@ -270,6 +303,7 @@ exports.profileChatMessage = async (req, res) => {
       messages: msgHistory = [],
       destination = 'helper',
       threadId: incomingThreadId,
+      language,
     } = req.body;
 
     if (!Array.isArray(msgHistory) || msgHistory.length === 0) {
@@ -424,6 +458,7 @@ exports.profileChatMessage = async (req, res) => {
     }
 
     if (!systemPrompt) return res.status(404).json({ error: 'Helper not found' });
+    systemPrompt += getLanguageInstruction(language);
 
     // Retrieve stored history from Redis; fall back to client-supplied messages
     const storedHistory = await threadMemory.getThread(threadId);
