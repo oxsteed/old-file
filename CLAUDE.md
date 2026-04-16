@@ -808,6 +808,9 @@ Four root causes found and fixed for the "Phase 2 Didit verification doesn't app
 - `DiditPanel.tsx` — handles `verification_unavailable`: shows a "Continue to Dashboard" state. Clicking it calls `POST /api/didit/skip` (which sets `didit_status = 'skipped'`, gated to fail with 403 when `DIDIT_API_KEY` IS configured), then refreshes the user and calls `onVerified()`.
 - `server/routes/didit.js` — wired `POST /skip` route.
 
+**Post-verification redirect loop fix (same session):**
+After Didit webhook fires, the frontend's cached user still had `didit_status='pending'` (set at OTP time). `DiditPanel` called `onVerified()` → navigated to `/dashboard` → `ProtectedRoute` read the stale cache → redirected back to `/verify-identity` → infinite loop. Fixed by calling `refreshUser()` in both the `checkReturning` on-mount check and the polling interval before calling `onVerified()`, so ProtectedRoute sees the fresh `'verified'` status. Confirmed working for both customer and helper flows.
+
 **How the enforcement tiers work:**
 - **Production (DIDIT_API_KEY set):** Users must complete Didit. Skip is blocked (403). `ProtectedRoute` redirects anyone with `didit_status !== 'verified'` to `/verify-identity`.
 - **Dev / staging (no API key):** `createSession` returns 503, DiditPanel shows "unavailable" state, user can continue via skip (sets `didit_status = 'skipped'`), and ProtectedRoute allows `'skipped'` through.
