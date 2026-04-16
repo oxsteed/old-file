@@ -372,6 +372,7 @@ export default function SupportWidget() {
       const { data } = await api.post('/chat/message', {
         messages:    updated.map(m => ({ role: m.role, content: m.content })),
         pageContext,
+        language:    localStorage.getItem('oxs:language') || 'en',
       });
       const reply = { role: 'assistant', content: data.reply, ts: new Date().toISOString() };
       setMessages(prev => [...prev, reply]);

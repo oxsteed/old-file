@@ -199,6 +199,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         destination: session.destination,
         // threadId links this request to server-side Redis history (null = new session)
         ...(threadId ? { threadId } : {}),
+        language: localStorage.getItem('oxs:language') || 'en',
         messages: [...session.timeline, userMsg]
           .filter(i => i.itemType === 'message')
           .map(i => {
