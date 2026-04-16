@@ -40,6 +40,9 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
         if (data.status === 'verified') {
           setStatus('verified');
           toast.success('Identity verified!');
+          // Refresh AuthContext so ProtectedRoute sees didit_status='verified'
+          // before we navigate — without this the stale cache triggers a redirect loop.
+          try { await refreshUser(); } catch { /* non-blocking */ }
           setTimeout(() => onVerified(), 1000);
         } else if (data.status === 'failed') {
           setStatus('failed');
@@ -114,6 +117,9 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
           clearInterval(pollRef.current!);
           setStatus('verified');
           toast.success('Identity verified!');
+          // Refresh AuthContext so ProtectedRoute sees didit_status='verified'
+          // before we navigate — without this the stale cache triggers a redirect loop.
+          try { await refreshUser(); } catch { /* non-blocking */ }
           setTimeout(() => onVerified(), 1000);
         } else if (data.status === 'failed') {
           clearInterval(pollRef.current!);
