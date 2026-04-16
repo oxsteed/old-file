@@ -21,7 +21,20 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login({ email, password, rememberMe });
+      const result = await login({ email, password, rememberMe });
+      const loggedInUser = result?.user;
+
+      // If the user has verified their email but hasn't completed Didit identity
+      // verification, send them to the verification page before the app.
+      if (
+        loggedInUser?.email_verified &&
+        !['verified', 'skipped'].includes(loggedInUser?.didit_status)
+      ) {
+        toast.success('Welcome back! Please complete your identity verification.');
+        navigate('/verify-identity', { replace: true });
+        return;
+      }
+
       toast.success('Welcome back!');
       navigate(from, { replace: true });
     } catch (err) {

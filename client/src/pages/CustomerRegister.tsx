@@ -1,16 +1,31 @@
 // client/src/pages/CustomerRegister.tsx
 // 2-step registration: Account → Didit (required) → Dashboard
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StepBar, AccountForm, DiditPanel } from '../components/registration';
 import Footer from '../components/Footer';
+import { useAuth } from '../context/AuthContext';
 
 type Step = 1 | 2;
 
 export default function CustomerRegister() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
+
+  // If the user is already registered + email-verified, skip step 1.
+  // - Verified/skipped Didit → go straight to dashboard.
+  // - Needs Didit → go to the standalone verification page (avoids showing the
+  //   account form again for a user who's already in the DB).
+  useEffect(() => {
+    if (!user?.email_verified) return;
+    if (['verified', 'skipped'].includes(user.didit_status ?? '')) {
+      navigate('/dashboard', { replace: true });
+    } else {
+      navigate('/verify-identity', { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">

@@ -16,6 +16,15 @@ async function createSession(req, res) {
   try {
     const userId = req.user.id;
 
+    // Guard: if Didit is not configured, tell the client so it can offer a skip
+    // path instead of showing a generic 502 error.
+    if (!DIDIT_API_KEY) {
+      return res.status(503).json({
+        error: 'verification_unavailable',
+        message: 'Identity verification is not configured on this server.',
+      });
+    }
+
     // Call Didit API to create a verification session
     const diditResponse = await fetch(DIDIT_API_URL, {
       method: 'POST',
@@ -178,6 +187,29 @@ async function getStatus(req, res) {
   }
 }
 
+// ── Skip verification (Didit not configured / development) ──────────────────
+// Sets didit_status = 'skipped' so ProtectedRoute stops redirecting the user.
+// Only reachable when DIDIT_API_KEY is absent (server returns 503 on session
+// creation), preventing deliberate bypass in production.
+async function skipVerification(req, res) {
+  try {
+    if (DIDIT_API_KEY) {
+      // Didit IS configured — skipping is not allowed.
+      return res.status(403).json({ error: 'Identity verification is required and cannot be skipped.' });
+    }
+
+    const userId = req.user.id;
+    await pool.query(
+      `UPDATE users SET didit_status = 'skipped', updated_at = NOW() WHERE id = $1`,
+      [userId]
+    );
+    return res.json({ ok: true, status: 'skipped' });
+  } catch (err) {
+    console.error('Didit skipVerification error:', err);
+    return res.status(500).json({ error: 'Failed to skip verification' });
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────
 function maskEmail(email) {
   if (!email) return '***';
@@ -185,4 +217,4 @@ function maskEmail(email) {
   return local.slice(0, 2) + '***@' + domain;
 }
 
-module.exports = { createSession, handleWebhook, getStatus };
+module.exports = { createSession, handleWebhook, getStatus, skipVerification };

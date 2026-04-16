@@ -2,16 +2,28 @@
 // 2-step registration: Account → Didit (required) → Helper Dashboard
 // Identical structure to CustomerRegister. Onboarding finishes from dashboard.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StepBar, AccountForm, DiditPanel } from '../components/registration';
 import Footer from '../components/Footer';
+import { useAuth } from '../context/AuthContext';
 
 type Step = 1 | 2;
 
 export default function HelperRegister() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
+
+  // If the user is already registered + email-verified, skip step 1.
+  useEffect(() => {
+    if (!user?.email_verified) return;
+    if (['verified', 'skipped'].includes(user.didit_status ?? '')) {
+      navigate('/helper-dashboard', { replace: true });
+    } else {
+      navigate('/verify-identity', { replace: true });
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">

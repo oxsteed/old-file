@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-15 (Business Hub — manager finance API + rep tab gating)
+**Last updated:** 2026-04-16 (signup Didit verification fixes)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -786,6 +786,31 @@ Four gaps identified and fixed:
 - **Root cause:** `hashIP()` now returns a 64-char SHA-256 hex string, but customer/helper terms acceptance stores into legacy `terms_acceptance_ip` columns defined as `VARCHAR(45)` in older schemas. This caused `POST /api/auth/register/accept-terms` to fail with a 500.
 - **Fix:** `authController.acceptTerms` and `helperRegistrationController.acceptTerms` now cap stored hashed IP values to 45 chars for compatibility with legacy column widths while still keeping hashed (non-raw) IP storage.
 - **Regression test:** added `POST /api/auth/register/accept-terms` test in `server/__tests__/auth.test.js` that asserts the persisted IP hash argument length is `<= 45`.
+
+### Session — 2026-04-16 (signup Didit verification fixes)
+
+Four root causes found and fixed for the "Phase 2 Didit verification doesn't appear / can be skipped" issue:
+
+1. **`AccountForm.tsx` auto-advance** — After OTP verification, `onSuccess()` is now called automatically (1.2 s delay) so the DiditPanel always appears without requiring a second button click. Previously the user had to click "Continue to Identity Verification" manually — if they didn't, they were already logged-in and could navigate to the dashboard freely.
+
+2. **`ProtectedRoute.jsx` Didit gate** — Added a check: if `user.email_verified && didit_status not in ['verified', 'skipped']`, redirect to `/verify-identity`. `DIDIT_EXEMPT_PATHS = ['/verify-identity']` prevents an infinite redirect. This catches users who bypass the registration flow (e.g., navigate directly to `/dashboard`).
+
+3. **`Login.jsx` post-login enforcement** — After a successful login, if the user's `didit_status` is not complete, they are redirected to `/verify-identity` instead of the dashboard.
+
+4. **`CustomerRegister` / `HelperRegister` redirect fix** — If a user with `email_verified = true` lands on the registration page (returning after a restart, etc.), they are immediately redirected to `/verify-identity` (or dashboard if already verified) instead of seeing the account form again.
+
+**New files:**
+- `client/src/pages/VerifyIdentityPage.tsx` — standalone page wrapping DiditPanel for returning users.
+- `server/migrations/068_didit_status_skipped.sql` — documents `'skipped'` as a valid `didit_status` value; also patches any NULL rows to `'pending'`.
+
+**Additional fixes:**
+- `diditController.createSession` — returns `503 { error: 'verification_unavailable' }` instead of crashing into a 502 when `DIDIT_API_KEY` is not set.
+- `DiditPanel.tsx` — handles `verification_unavailable`: shows a "Continue to Dashboard" state. Clicking it calls `POST /api/didit/skip` (which sets `didit_status = 'skipped'`, gated to fail with 403 when `DIDIT_API_KEY` IS configured), then refreshes the user and calls `onVerified()`.
+- `server/routes/didit.js` — wired `POST /skip` route.
+
+**How the enforcement tiers work:**
+- **Production (DIDIT_API_KEY set):** Users must complete Didit. Skip is blocked (403). `ProtectedRoute` redirects anyone with `didit_status !== 'verified'` to `/verify-identity`.
+- **Dev / staging (no API key):** `createSession` returns 503, DiditPanel shows "unavailable" state, user can continue via skip (sets `didit_status = 'skipped'`), and ProtectedRoute allows `'skipped'` through.
 
 ### Session — 2026-04-16 (signup flow fixes)
 
