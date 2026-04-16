@@ -9,7 +9,7 @@ const requireRole      = require('../middleware/requireRole');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger     = require('../utils/logger');
 
-const helperOnly = [authenticate, requireRole('helper', 'helper_pro')];
+const helperOnly = [authenticate, requireRole('helper', 'helper_pro', 'broker')];
 
 // ── GET /api/helper-profile/me ────────────────────────────────────────────────
 // Returns the helper's own full profile (for the dashboard editor).
@@ -102,14 +102,14 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
         hourly_rate_min   != null && hourly_rate_min !== '' ? parseFloat(hourly_rate_min)   : null,
         hourly_rate_max   != null && hourly_rate_max !== '' ? parseFloat(hourly_rate_max)   : null,
         safePref          ?? null,
-        flat_rate_available != null ? !!flat_rate_available : null,
-        contact_for_pricing != null ? !!contact_for_pricing : null,
+        flat_rate_available != null ? !!flat_rate_available : false,
+        contact_for_pricing != null ? !!contact_for_pricing : false,
         service_city      ?? null,
         service_state     ?? null,
         service_zip       ?? null,
         service_radius_miles != null && service_radius_miles !== '' ? parseInt(service_radius_miles) : null,
         availability_json ? JSON.stringify(availability_json) : null,
-        is_available_now  != null ? !!is_available_now : null,
+        is_available_now  != null ? !!is_available_now : false,
       ],
     );
 
