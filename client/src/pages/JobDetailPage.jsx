@@ -10,6 +10,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
 import ReviewModal from '../components/reviews/ReviewModal';
+import { useTranslation } from 'react-i18next';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const JOB_TYPE_MAP = {
@@ -22,9 +23,9 @@ const JOB_TYPE_MAP = {
 
 const URGENCY_MAP = {
   asap:       { label: 'ASAP',       color: '#ef4444', bg: 'rgba(239,68,68,.15)' },
-  this_week:  { label: 'This Week',  color: '#f97316', bg: 'rgba(249,115,22,.15)' },
+  this_week:  { label: t('jobDetail.urgencyWeek'),  color: '#f97316', bg: 'rgba(249,115,22,.15)' },
   this_month: { label: 'This Month', color: '#eab308', bg: 'rgba(234,179,8,.15)' },
-  flexible:   { label: 'Flexible',   color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
+  flexible:   { label: t('jobDetail.urgencyFlexible'),   color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
 };
 
 const REQ_META = {
@@ -90,6 +91,7 @@ function daysUntil(dateStr) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function JobDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, canApplyToJobs, needsOnboarding } = useAuth();
@@ -432,7 +434,7 @@ export default function JobDetailPage() {
                   <span className="jdp-char-count">{bidForm.message.length} / 500</span>
                 </div>
                 <button type="submit" className="jdp-btn-primary jdp-bid-submit" disabled={bidLoading}>
-                  {bidLoading ? 'Submitting…' : '💼 Submit Bid'}
+                  {bidLoading ? t('jobDetail.submittingBid') : '💼 Submit Bid'}
                 </button>
               </form>
             </div>
@@ -515,7 +517,7 @@ export default function JobDetailPage() {
                 <div className="jdp-detail-row">
                   <span className="jdp-detail-icon">📍</span>
                   <div>
-                    <div className="jdp-detail-label">Location</div>
+                    <div className="jdp-detail-label">{t('jobs.location')}</div>
                     <div className="jdp-detail-val">{location}</div>
                     {job.location_address && <div className="jdp-detail-sub">{job.location_address}</div>}
                   </div>
@@ -524,14 +526,14 @@ export default function JobDetailPage() {
               <div className="jdp-detail-row">
                 <span className="jdp-detail-icon">📅</span>
                 <div>
-                  <div className="jdp-detail-label">Posted</div>
+                  <div className="jdp-detail-label">{t('jobDetail.posted')}</div>
                   <div className="jdp-detail-val">{new Date(job.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                 </div>
               </div>
               <div className="jdp-detail-row">
                 <span className="jdp-detail-icon">⚡</span>
                 <div>
-                  <div className="jdp-detail-label">Urgency</div>
+                  <div className="jdp-detail-label">{t('jobs.urgency')}</div>
                   <div className="jdp-detail-val" style={{ color: urgencyMeta.color }}>{urgencyMeta.label}</div>
                 </div>
               </div>

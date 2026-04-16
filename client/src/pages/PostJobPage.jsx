@@ -5,6 +5,7 @@ import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
 import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
+import { useTranslation } from 'react-i18next';
 
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -592,6 +593,7 @@ function CheckIcon({ size = 12 }) {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function PostJobPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user }  = useAuth();
@@ -801,7 +803,7 @@ export default function PostJobPage() {
   return (
     <div className="pjw-root">
       <PageMeta
-        title="Post a Job"
+        title={t('postJob.title')}
         description="Describe what you need done and get competitive bids from trusted local helpers within hours. Free to post."
         url="https://oxsteed.com/post-job"
         noIndex={true}
@@ -827,7 +829,7 @@ export default function PostJobPage() {
             <Link to="/jobs">Jobs</Link><span>›</span>
             <span aria-current="page">Post a Job</span>
           </nav>
-          <h1 className="pjw-page-title">Post a Job</h1>
+          <h1 className="pjw-page-title">{t('postJob.title')}</h1>
           <p className="pjw-page-sub">Describe what needs doing and set your own requirements. Helpers who meet your bar will bid.</p>
           {directHelperId && (
             <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
@@ -1148,7 +1150,7 @@ export default function PostJobPage() {
                     <div className="pjw-req-header">
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                         <svg className="pjw-req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <div><div className="pjw-req-name">Background Check</div><div className="pjw-req-desc">Verified ID on OxSteed</div></div>
+                        <div><div className="pjw-req-name">{t('postJob.backgroundCheck')}</div><div className="pjw-req-desc">Verified ID on OxSteed</div></div>
                       </div>
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.backgroundCheck.enabled && <CheckIcon/>}</div>
                     </div>
@@ -1325,12 +1327,12 @@ export default function PostJobPage() {
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Category</span>
+                  <span className="pjw-review-label">{t('postJob.category')}</span>
                   <span className={`pjw-review-value${!form.categoryName?' is-empty':''}`}>{form.categoryName || 'Not selected'}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Location</span>
+                  <span className="pjw-review-label">{t('postJob.location')}</span>
                   <span className={`pjw-review-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || 'Not set'}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
@@ -1345,7 +1347,7 @@ export default function PostJobPage() {
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Description</span>
+                  <span className="pjw-review-label">{t('postJob.description')}</span>
                   <span className="pjw-review-value" style={{ maxWidth:'360px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{form.description || <em style={{color:'var(--pjw-text-faint)'}}>Not set</em>}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
@@ -1434,7 +1436,7 @@ export default function PostJobPage() {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
                   : <button type="button" className="pjw-btn pjw-btn-primary" disabled={form.submitting || !form.termsAccepted} onClick={handleSubmit}>
-                      {form.submitting ? 'Posting…' : 'Post Job & Invite Bids'}
+                      {form.submitting ? t('postJob.submitting') : 'Post Job & Invite Bids'}
                       {!form.submitting && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>}
                     </button>
                 }
@@ -1458,11 +1460,11 @@ export default function PostJobPage() {
                   <span className={`pjw-sum-value${!form.title?' is-empty':''}`}>{form.title || 'Not set yet'}</span>
                 </div>
                 <div className="pjw-sum-row">
-                  <span className="pjw-sum-label">Category</span>
+                  <span className="pjw-sum-label">{t('postJob.category')}</span>
                   <span className={`pjw-sum-value${!form.categoryName?' is-empty':''}`}>{form.categoryName || 'Not selected'}</span>
                 </div>
                 <div className="pjw-sum-row">
-                  <span className="pjw-sum-label">Location</span>
+                  <span className="pjw-sum-label">{t('postJob.location')}</span>
                   <span className={`pjw-sum-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || 'Not set'}</span>
                 </div>
                 <div className="pjw-sum-row">
@@ -1486,7 +1488,7 @@ export default function PostJobPage() {
                 <button type="button" className="pjw-btn pjw-btn-primary pjw-btn-full"
                   onClick={form.step === 4 ? handleSubmit : () => { setErrors({}); set({ step: 4 }); }}
                   disabled={form.submitting}>
-                  {form.submitting ? 'Posting…' : 'Post Job'}
+                  {form.submitting ? t('postJob.submitting') : t('postJob.submitJob')}
                   {!form.submitting && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>}
                 </button>
                 <button type="button" className="pjw-btn pjw-btn-secondary pjw-btn-full"
