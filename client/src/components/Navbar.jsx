@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
+import LanguageSelector from './LanguageSelector';
 
 /** The OxSteed brand icon (4-arrow clockwise ring with inner circle) */
 function OxSteedIcon({ size = 24 }) {
@@ -154,6 +155,7 @@ export default function Navbar() {
                 </Link>
               </>
             )}
+            <LanguageSelector />
             <ThemeToggle />
           </div>
 
@@ -163,6 +165,7 @@ export default function Navbar() {
             alignItems: 'center',
             gap: 'var(--space-2)',
           }}>
+            <LanguageSelector />
             <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}

@@ -63,6 +63,7 @@ const vehicleRoutes         = require('./routes/vehicles');
 const houseRoutes           = require('./routes/house');
 const helperProfileRoutes  = require('./routes/helperProfile');
 const helperProductsRoutes = require('./routes/helperProducts');
+const translateRoutes      = require('./routes/translate');
 // roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -282,6 +283,7 @@ app.use('/api/vehicles',      vehicleRoutes);
 app.use('/api/house',         houseRoutes);
 app.use('/api/helper-profile', helperProfileRoutes);
 app.use('/api/helper-products', helperProductsRoutes);
+app.use('/api/translate',      translateRoutes);
 // NOTE: /api/role-toggle intentionally removed — see comment near top of file
 
 // ── INLINE ROUTES ──────────────────────────────────────
