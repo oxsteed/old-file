@@ -35,6 +35,7 @@ const DEFAULT_FORM = {
   title:'', description:'', category:'other', due_date:'',
   estimated_cost:'', lead_time_days:7, recurrence_type:'none',
   recurrence_interval_days:'', preferred_helper_id:'', notes:'',
+  vehicle_id:'', home_id:'',
 };
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -67,6 +68,8 @@ export default function PlannedNeedsPage() {
   const [needs, setNeeds] = useState([]);
   const [projection, setProjection] = useState(null);
   const [savedHelpers, setSavedHelpers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [homes, setHomes] = useState([]);
   const [window_, setWindow] = useState(DEFAULT_WINDOW);
   const [loading, setLoading] = useState(true);
   const [projLoading, setProjLoading] = useState(false);
@@ -102,7 +105,18 @@ export default function PlannedNeedsPage() {
     } catch { /* non-fatal */ }
   }, []);
 
-  useEffect(() => { loadNeeds(); loadSavedHelpers(); }, [loadNeeds, loadSavedHelpers]);
+  const loadVehiclesAndHomes = useCallback(async () => {
+    try {
+      const [vRes, hRes] = await Promise.all([
+        api.get('/vehicles/my'),
+        api.get('/house/my'),
+      ]);
+      setVehicles(vRes.data.vehicles || []);
+      setHomes(hRes.data.homes || []);
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { loadNeeds(); loadSavedHelpers(); loadVehiclesAndHomes(); }, [loadNeeds, loadSavedHelpers, loadVehiclesAndHomes]);
   useEffect(() => { loadProjection(window_); }, [window_, loadProjection]);
 
   // ── modal helpers ─────────────────────────────────────────────────────────
@@ -120,6 +134,8 @@ export default function PlannedNeedsPage() {
       recurrence_interval_days: need.recurrence_interval_days || '',
       preferred_helper_id: need.preferred_helper_id || '',
       notes: need.notes || '',
+      vehicle_id: need.vehicle_id || '',
+      home_id: need.home_id || '',
     });
     setError(''); setModal('edit');
   }
@@ -152,6 +168,8 @@ export default function PlannedNeedsPage() {
         recurrence_interval_days: form.recurrence_interval_days
           ? parseInt(form.recurrence_interval_days) : undefined,
         preferred_helper_id: form.preferred_helper_id || undefined,
+        vehicle_id: form.vehicle_id ? parseInt(form.vehicle_id) : undefined,
+        home_id: form.home_id ? parseInt(form.home_id) : undefined,
       };
       if (modal === 'add') await api.post('/planned-needs', payload);
       else                  await api.put(`/planned-needs/${selected.id}`, payload);
@@ -505,6 +523,36 @@ export default function PlannedNeedsPage() {
                 </div>
               </div>
 
+              {/* Vehicle picker — shown when category is car_care */}
+              {form.category === 'car_care' && vehicles.length > 0 && (
+                <div className="pn-form-group">
+                  <label>Vehicle <span style={{ fontWeight:400, color:'var(--muted-text)' }}>(optional)</span></label>
+                  <select name="vehicle_id" value={form.vehicle_id} onChange={handleFormChange}>
+                    <option value="">— No specific vehicle —</option>
+                    {vehicles.map(v => (
+                      <option key={v.id} value={v.id}>
+                        {v.nickname || `${v.year || ''} ${v.make_name || ''} ${v.model_name || ''}`.trim()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Property picker — shown for all categories */}
+              {homes.length > 0 && (
+                <div className="pn-form-group">
+                  <label>Property <span style={{ fontWeight:400, color:'var(--muted-text)' }}>(optional)</span></label>
+                  <select name="home_id" value={form.home_id} onChange={handleFormChange}>
+                    <option value="">— No specific property —</option>
+                    {homes.map(h => (
+                      <option key={h.id} value={h.id}>
+                        {h.nickname || h.address}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="pn-form-row">
                 <div className="pn-form-group">
                   <label>Recurrence</label>
@@ -661,6 +709,8 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
           {need.lead_time_days && isActive && (
             <span>Auto-posts in {daysLabel(daysLeft - need.lead_time_days)}</span>
           )}
+          {need.vehicle_name && <span>Vehicle: {need.vehicle_name}</span>}
+          {need.home_name && <span>Property: {need.home_name}</span>}
         </div>
 
         {/* Preferred helper row */}

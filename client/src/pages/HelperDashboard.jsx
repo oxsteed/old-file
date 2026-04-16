@@ -1350,6 +1350,7 @@ export default function HelperDashboard() {
                           <p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-600'}`}>
                             {t.due_date?(overdue?'Overdue · ':'')+new Date(t.due_date).toLocaleDateString():'No due date'}
                             {t.recurrence_days?` · Every ${t.recurrence_days}d`:''}
+                            {t.home_name?` · ${t.home_name}`:''}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1446,7 +1447,7 @@ export default function HelperDashboard() {
             :<div className="space-y-2">{personalCareTasks.map(task=>{const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;return(
               <div key={task.id} className={`flex items-center gap-3 p-4 border rounded-2xl transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
                 <button onClick={()=>togglePcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
-                <div className="flex-1 min-w-0"><p className={`text-sm font-medium ${task.is_completed?'line-through text-gray-600':'text-white'}`}>{task.title}</p><p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-500'}`}>{task.description}{task.due_date?` · ${overdue?'Overdue · ':''}${new Date(task.due_date).toLocaleDateString()}`:''}{task.recurrence_days?` · Every ${task.recurrence_days}d`:''}{task.estimated_cost?` · $${parseFloat(task.estimated_cost).toFixed(0)} est.`:''}</p></div>
+                <div className="flex-1 min-w-0"><p className={`text-sm font-medium ${task.is_completed?'line-through text-gray-600':'text-white'}`}>{task.title}</p><p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-500'}`}>{task.description}{task.due_date?` · ${overdue?'Overdue · ':''}${new Date(task.due_date).toLocaleDateString()}`:''}{task.recurrence_days?` · Every ${task.recurrence_days}d`:''}{task.estimated_cost?` · $${parseFloat(task.estimated_cost).toFixed(0)} est.`:''}{task.home_name?` · ${task.home_name}`:''}</p></div>
                 <div className="flex items-center gap-2"><Tag text={task.urgency} color={task.urgency==='high'?'red':task.urgency==='medium'?'orange':'gray'}/><button onClick={()=>deletePcTask(task.id)} className="opacity-0 hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button></div>
               </div>
             );})}</div>}
@@ -1563,7 +1564,7 @@ export default function HelperDashboard() {
             :<div className="space-y-2">{carCareTasks.map(task=>{const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;return(
               <div key={task.id} className={`flex items-center gap-3 p-4 border rounded-2xl transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
                 <button onClick={()=>toggleCcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
-                <div className="flex-1 min-w-0"><p className={`text-sm font-medium ${task.is_completed?'line-through text-gray-600':'text-white'}`}>{task.title}</p><p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-500'}`}>{task.description}{task.due_date?` · ${overdue?'Overdue · ':''}${new Date(task.due_date).toLocaleDateString()}`:''}{task.recurrence_days?` · Every ${task.recurrence_days}d`:''}{task.estimated_cost?` · $${parseFloat(task.estimated_cost).toFixed(0)} est.`:''}</p></div>
+                <div className="flex-1 min-w-0"><p className={`text-sm font-medium ${task.is_completed?'line-through text-gray-600':'text-white'}`}>{task.title}</p><p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-500'}`}>{task.description}{task.due_date?` · ${overdue?'Overdue · ':''}${new Date(task.due_date).toLocaleDateString()}`:''}{task.recurrence_days?` · Every ${task.recurrence_days}d`:''}{task.estimated_cost?` · $${parseFloat(task.estimated_cost).toFixed(0)} est.`:''}{task.vehicle_name?` · ${task.vehicle_name}`:''}{task.home_name?` · ${task.home_name}`:''}</p></div>
                 <div className="flex items-center gap-2"><Tag text={task.urgency} color={task.urgency==='high'?'red':task.urgency==='medium'?'orange':'gray'}/><button onClick={()=>deleteCcTask(task.id)} className="opacity-0 hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button></div>
               </div>
             );})}</div>}

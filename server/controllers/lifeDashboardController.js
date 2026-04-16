@@ -471,13 +471,19 @@ exports.getHomeTasks = async (req, res) => {
     }
 
     const { rows } = await db.query(`
-      SELECT * FROM home_tasks
+      SELECT
+        ht.*,
+        COALESCE(uv.nickname, uv.make_name || ' ' || uv.model_name) AS vehicle_name,
+        COALESCE(uh.nickname, uh.address) AS home_name
+      FROM home_tasks ht
+      LEFT JOIN user_vehicles uv ON uv.id = ht.vehicle_id
+      LEFT JOIN user_homes uh ON uh.id = ht.home_id
       WHERE ${conditions.join(' AND ')}
       ORDER BY
-        is_completed ASC,
-        CASE urgency WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
-        due_date ASC NULLS LAST,
-        created_at DESC
+        ht.is_completed ASC,
+        CASE ht.urgency WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+        ht.due_date ASC NULLS LAST,
+        ht.created_at DESC
     `, params);
 
     res.json({ home_tasks: rows });

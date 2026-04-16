@@ -1331,6 +1331,7 @@ export default function Dashboard() {
                           <p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-600'}`}>
                             {t.due_date ? (overdue ? 'Overdue · ' : '') + new Date(t.due_date).toLocaleDateString() : 'No due date'}
                             {t.recurrence_days ? ` · Every ${t.recurrence_days}d` : ''}
+                            {t.home_name ? ` · ${t.home_name}` : ''}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1706,6 +1707,7 @@ export default function Dashboard() {
                             {t.description&&<span className="text-[10px] bg-gray-800/60 text-gray-400 px-1.5 py-0.5 rounded-full">{t.description}</span>}
                             {t.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?'Overdue · ':''}{new Date(t.due_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>}
                             {recLabel&&<span className="text-[10px] text-purple-400">↻ {recLabel}</span>}
+                            {t.home_name&&<span className="text-[10px] text-blue-400">🏠 {t.home_name}</span>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
@@ -1943,6 +1945,8 @@ export default function Dashboard() {
                             {t.description&&<span className="text-[10px] bg-gray-800/60 text-gray-400 px-1.5 py-0.5 rounded-full">{t.description}</span>}
                             {t.due_date&&<span className={`text-[10px] ${overdue?'text-red-400 font-semibold':'text-gray-600'}`}>{overdue?'Overdue · ':''}{new Date(t.due_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>}
                             {recLabel&&<span className="text-[10px] text-purple-400">↻ {recLabel}</span>}
+                            {t.vehicle_name&&<span className="text-[10px] text-yellow-400">🚗 {t.vehicle_name}</span>}
+                            {t.home_name&&<span className="text-[10px] text-blue-400">🏠 {t.home_name}</span>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
