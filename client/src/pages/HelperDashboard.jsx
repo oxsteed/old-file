@@ -92,10 +92,8 @@ export default function HelperDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [welcomeMsg] = useState(location.state?.message||null);
-  const [tab, setTab] = useState('pulse');
-
-  // Handle ?subscribed=true from Stripe redirect
   const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => searchParams.get('tab') || 'pulse');
   useEffect(()=>{
     if(searchParams.get('subscribed')==='true'){
       toast.success('Pro subscription activated! Welcome to the Pro tier.');
@@ -1574,6 +1572,9 @@ export default function HelperDashboard() {
         {/* ═══════ SKILLS & TOOLS ═══════ */}
         {tab==='skills' && (
           <div className="space-y-8">
+            <div className="flex justify-end">
+              <button onClick={()=>navigate(`/helpers/${user?.id}`)} className="text-sm text-orange-400 hover:text-orange-300 underline underline-offset-2 transition">View Public Profile →</button>
+            </div>
             {/* My Skills */}
             <div>
               <div className="flex items-center justify-between mb-4">
