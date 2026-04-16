@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-16 (gap review and fixes)
+**Last updated:** 2026-04-16 (session review — 6 bug fixes)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -804,6 +804,22 @@ Four gaps identified and fixed:
 **What is still not linked (deferred — needs more design):**
 - `planned_needs` table has no `home_id` or `vehicle_id` FK. Users can't say "this car care planned need is for my Toyota Camry." Requires a migration + PlannedNeedsPage form change.
 - The home task list cards don't yet show which property/vehicle a task belongs to (data is now stored, display pass deferred).
+
+### Session — 2026-04-16 (session review — 6 bug fixes)
+
+**Full-codebase review: 6 bugs found and fixed (commit e1955d3):**
+
+1. **`reviewController.submitReview` — open transaction on early returns** — `BEGIN` was issued but early validation returns (bad rating, job not found, no reviewee) skipped `ROLLBACK`, leaving the pooled connection with a dangling transaction. Added `abort()` helper that calls `ROLLBACK` + `release()` + nulls the client ref so the `finally` block doesn't double-release.
+
+2. **`chat.js` `optionalAuth` — expired token returned 401** — Calling `authenticate()` with an expired/invalid token sent a `401` response instead of falling through to unauthenticated AI mode. Rewrote as a lightweight inline JWT + DB check that silently catches all errors and continues as unauthenticated.
+
+3. **`lifeDashboardController.getExpenses` — no `LIMIT` cap** — `parseInt(limit)` was used directly with no ceiling; a client could request millions of rows. Capped at 500 (default 50).
+
+4. **`plannedNeedsController.updatePlannedNeed` — can't clear `vehicle_id`/`home_id`** — `COALESCE($14, vehicle_id)` prevented callers from unlinking a vehicle/home by passing `null`. Replaced with explicit assignment using a `'vehicle_id' in req.body` presence check.
+
+5. **`console.error` → `logger.error`** — Migrated all unstructured console calls in `reviewController.js`, `plannedNeedsController.js`, `lifeDashboardController.js`, `middleware/auth.js`.
+
+6. **`helperProfile PUT /core` — business AI context not invalidated** — `invalidateHelperContext(uid)` only cleared the `helper-context:{id}` key; if the helper owned a business the `business-context:{id}` key stayed stale for up to 5 min. Now looks up the primary business ID and passes it to `invalidateHelperContext`.
 
 ### Session — 2026-04-16 (gap review and fixes)
 
