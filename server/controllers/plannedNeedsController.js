@@ -80,9 +80,13 @@ exports.listPlannedNeeds = async (req, res) => {
           ELSE 0
         END AS sinking_fund_per_month,
         ph.first_name AS preferred_helper_first_name,
-        ph.last_name  AS preferred_helper_last_name
+        ph.last_name  AS preferred_helper_last_name,
+        COALESCE(uv.nickname, uv.make_name || ' ' || uv.model_name) AS vehicle_name,
+        COALESCE(uh.nickname, uh.address) AS home_name
       FROM planned_needs pn
       LEFT JOIN users ph ON ph.id = pn.preferred_helper_id
+      LEFT JOIN user_vehicles uv ON uv.id = pn.vehicle_id
+      LEFT JOIN user_homes uh ON uh.id = pn.home_id
       WHERE ${conditions.join(' AND ')}
       ORDER BY
         CASE status
@@ -123,6 +127,8 @@ exports.createPlannedNeed = async (req, res) => {
       recurrence_interval_days,
       preferred_helper_id,
       notes,
+      vehicle_id,
+      home_id,
     } = req.body;
 
     if (!title)    return res.status(400).json({ error: 'Title is required.' });
@@ -150,14 +156,16 @@ exports.createPlannedNeed = async (req, res) => {
       INSERT INTO planned_needs
         (user_id, title, description, category, status, due_date, estimated_cost,
          lead_time_days, recurrence_type, recurrence_interval_days,
-         preferred_helper_id, notes)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         preferred_helper_id, notes, vehicle_id, home_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
     `, [
       userId, title, description || null, category, status, due_date,
       estimated_cost || null, parseInt(lead_time_days), recurrence_type,
       recurrence_interval_days || null,
       preferred_helper_id || null, notes || null,
+      vehicle_id ? parseInt(vehicle_id) : null,
+      home_id    ? parseInt(home_id)    : null,
     ]);
 
     res.status(201).json(rows[0]);
@@ -186,6 +194,8 @@ exports.updatePlannedNeed = async (req, res) => {
       recurrence_interval_days,
       preferred_helper_id,
       notes,
+      vehicle_id,
+      home_id,
     } = req.body;
 
     // Verify ownership and editability
@@ -230,6 +240,8 @@ exports.updatePlannedNeed = async (req, res) => {
           recurrence_interval_days = COALESCE($11, recurrence_interval_days),
           preferred_helper_id      = COALESCE($12, preferred_helper_id),
           notes                    = COALESCE($13, notes),
+          vehicle_id               = COALESCE($14, vehicle_id),
+          home_id                  = COALESCE($15, home_id),
           updated_at               = NOW()
       WHERE id = $1 AND user_id = $2
       RETURNING *
@@ -237,6 +249,8 @@ exports.updatePlannedNeed = async (req, res) => {
       id, userId, title, description, category, newStatus, due_date,
       estimated_cost, lead_time_days, recurrence_type,
       recurrence_interval_days, preferred_helper_id, notes,
+      vehicle_id ? parseInt(vehicle_id) : null,
+      home_id    ? parseInt(home_id)    : null,
     ]);
 
     res.json(rows[0]);
