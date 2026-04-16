@@ -403,6 +403,7 @@ export default function Dashboard() {
         estimated_cost: ccForm.estimated_cost ? parseFloat(ccForm.estimated_cost) : null,
         recurring_start_date: ccForm.is_recurring && ccForm.recurring_start_date ? ccForm.recurring_start_date : null,
         recurring_end_date: ccForm.is_recurring && ccForm.recurring_end_date ? ccForm.recurring_end_date : null,
+        vehicle_id: vehiclePayload.vehicle_id || null,
       });
       toast.success('Service added!');
       setCcForm({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', vehicle_id:'' });
@@ -587,7 +588,7 @@ export default function Dashboard() {
   // Form state
   const [expenseForm, setExpenseForm] = useState({ type:'expense', amount:'', category:'', description:'', frequency:'one_time', is_recurring:false, recurring_start_date:'', recurring_end_date:'' });
   const [goalForm, setGoalForm] = useState({ title:'', goal_type:'financial', target_value:'', icon:'🎯' });
-  const [homeTaskForm, setHomeTaskForm] = useState({ title:'', due_date:'', urgency:'low', recurrence_days:'' });
+  const [homeTaskForm, setHomeTaskForm] = useState({ title:'', due_date:'', urgency:'low', frequency:'one_time', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', home_id:'' });
   const [checklistForm, setChecklistForm] = useState({ title:'', due_date:'' });
 
   const retryLoad = useCallback(async () => {
@@ -668,9 +669,16 @@ export default function Dashboard() {
   const handleAddHomeTask = async (e) => {
     e.preventDefault();
     try {
-      await life.createHomeTask({ ...homeTaskForm, recurrence_days: homeTaskForm.recurrence_days ? parseInt(homeTaskForm.recurrence_days) : null });
+      await life.createHomeTask({
+        ...homeTaskForm,
+        frequency: homeTaskForm.frequency || null,
+        estimated_cost: homeTaskForm.estimated_cost ? parseFloat(homeTaskForm.estimated_cost) : null,
+        recurring_start_date: homeTaskForm.is_recurring && homeTaskForm.recurring_start_date ? homeTaskForm.recurring_start_date : null,
+        recurring_end_date: homeTaskForm.is_recurring && homeTaskForm.recurring_end_date ? homeTaskForm.recurring_end_date : null,
+        home_id: homeTaskForm.home_id ? parseInt(homeTaskForm.home_id) : null,
+      });
       toast.success('Task added!');
-      setHomeTaskForm({ title:'', due_date:'', urgency:'low', recurrence_days:'' });
+      setHomeTaskForm({ title:'', due_date:'', urgency:'low', frequency:'one_time', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', home_id:'' });
       setShowHomeTaskModal(false);
       life.fetchSummary();
     } catch { toast.error('Failed to save.'); }
@@ -2008,7 +2016,25 @@ export default function Dashboard() {
           <Select label="Urgency" value={homeTaskForm.urgency} onChange={e=>setHomeTaskForm(p=>({...p,urgency:e.target.value}))}>
             <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
           </Select>
-          <Input label="Repeat Every (days, optional)" type="number" placeholder="30 = monthly" value={homeTaskForm.recurrence_days} onChange={e=>setHomeTaskForm(p=>({...p,recurrence_days:e.target.value}))}/>
+          <Select label="Frequency" value={homeTaskForm.frequency} onChange={e=>setHomeTaskForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!=='one_time'}))}>
+            <option value="one_time">One-time</option>
+            <option value="weekly">Weekly</option>
+            <option value="bi_weekly">Bi-weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </Select>
+          {homeTaskForm.is_recurring && (<>
+            <Input label="Repeat Start (optional)" type="date" value={homeTaskForm.recurring_start_date} onChange={e=>setHomeTaskForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+            <Input label="Repeat End (optional)" type="date" value={homeTaskForm.recurring_end_date} onChange={e=>setHomeTaskForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+          </>)}
+          <Input label="Estimated Cost ($, optional)" type="number" min="0" step="0.01" placeholder="e.g. 150" value={homeTaskForm.estimated_cost} onChange={e=>setHomeTaskForm(p=>({...p,estimated_cost:e.target.value}))}/>
+          {homes.length > 0 && (
+            <Select label="Property (optional)" value={homeTaskForm.home_id} onChange={e=>setHomeTaskForm(p=>({...p,home_id:e.target.value}))}>
+              <option value="">No specific property</option>
+              {homes.map(h=><option key={h.id} value={h.id}>{h.nickname || h.address}</option>)}
+            </Select>
+          )}
           <Btn className="w-full py-3" type="submit">Add Task</Btn>
         </form>
       </Modal>

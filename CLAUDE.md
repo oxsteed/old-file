@@ -787,6 +787,24 @@ Four gaps identified and fixed:
 - **Fix:** `authController.acceptTerms` and `helperRegistrationController.acceptTerms` now cap stored hashed IP values to 45 chars for compatibility with legacy column widths while still keeping hashed (non-raw) IP storage.
 - **Regression test:** added `POST /api/auth/register/accept-terms` test in `server/__tests__/auth.test.js` that asserts the persisted IP hash argument length is `<= 45`.
 
+### Session — 2026-04-16 (home/car/personal care data linkage gaps)
+
+**Five gaps identified and fixed:**
+
+1. **`lifePulseController.js` section mismatch (CRITICAL)** — the pulse engine queried for `section IN ('home_maintenance', 'car_care', 'personal_care')` but the dashboard form stores home tasks with `section = 'home'`. This meant all recurring home-maintenance costs (HVAC filters, repairs, etc.) were silently excluded from the pulse score. Fixed by adding `'home'` to the filter: `section IN ('home', 'home_maintenance', 'car_care', 'personal_care')`.
+
+2. **Home task form missing `estimated_cost`, `frequency`, and house picker** — `homeTaskForm` in Dashboard.jsx and HelperDashboard.jsx only had title/due_date/urgency/recurrence_days. The DB columns `estimated_cost` and `frequency` (migration 047) existed and the controller accepted them, but the forms never collected or sent them. Added frequency dropdown, recurring start/end dates, estimated cost field, and a property picker (populated from user's saved homes) to the add modal in both dashboards.
+
+3. **Car care `vehicle_id` collected but not POSTed** — `addCcTask` in both dashboards constructed a `vehiclePayload` with `vehicle_id` but only used `vehicle_label` in the description string. `vehicle_id` was never sent to the backend, so car care tasks had no structured link to the user's garage. Fixed by adding `vehicle_id: vehiclePayload.vehicle_id || null` to both POST calls.
+
+4. **No `vehicle_id` / `home_id` FK columns on `home_tasks`** — even if the frontend sent these fields, the DB had no column to store them. Added migration `069_home_tasks_fks.sql` with nullable FKs: `vehicle_id BIGINT REFERENCES user_vehicles(id) ON DELETE SET NULL` and `home_id BIGINT REFERENCES user_homes(id) ON DELETE SET NULL`, with partial indexes. Updated `createHomeTask` and `updateHomeTask` in `lifeDashboardController.js` to accept and write both fields.
+
+5. **`lifeDashboardController.createHomeTask` used `console.error`** — replaced with `logger.error` (migration 069 session).
+
+**What is still not linked (deferred — needs more design):**
+- `planned_needs` table has no `home_id` or `vehicle_id` FK. Users can't say "this car care planned need is for my Toyota Camry." Requires a migration + PlannedNeedsPage form change.
+- The home task list cards don't yet show which property/vehicle a task belongs to (data is now stored, display pass deferred).
+
 ### Session — 2026-04-16 (gap review and fixes)
 
 **Gap audit across full codebase. Four issues found and fixed:**
