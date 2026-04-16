@@ -31,7 +31,7 @@ exports.submitReview = async (req, res) => {
       JOIN users u_c ON j.client_id = u_c.id
       LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id
       WHERE j.id = $1
-        AND j.status = 'closed'
+        AND j.status IN ('completed', 'closed')
         AND (j.client_id = $2 OR j.assigned_helper_id = $2)
     `, [jobId, reviewerId]);
 
@@ -192,7 +192,7 @@ exports.getReviewEligibility = async (req, res) => {
     }
 
     const { status, already_reviewed } = rows[0];
-    const eligible = status === 'closed' && !already_reviewed;
+    const eligible = (status === 'completed' || status === 'closed') && !already_reviewed;
 
     res.json({ eligible, already_reviewed, job_status: status });
   } catch (err) {

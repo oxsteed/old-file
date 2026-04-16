@@ -1279,7 +1279,7 @@ export default function PostJobPage() {
                   const v = e.target.value;
                   set({ preferredHelperName: v, preferredHelperId: '' });
                   if (v.length >= 2) {
-                    api.get(`/api/helpers?query=${encodeURIComponent(v)}&limit=5`)
+                    api.get(`/helpers?query=${encodeURIComponent(v)}&limit=5`)
                       .then(r => setHelperHints(r.data.helpers || []))
                       .catch(() => setHelperHints([]));
                   } else { setHelperHints([]); }

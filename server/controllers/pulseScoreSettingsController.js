@@ -1,5 +1,6 @@
 'use strict';
-const db = require('../db');
+const db     = require('../db');
+const logger = require('../utils/logger');
 
 // All keys with their defaults (true = included).
 // This object is the single source of truth for what keys exist.
@@ -37,7 +38,7 @@ exports.getSettings = async (req, res) => {
     delete settings.updated_at;
     res.json(settings);
   } catch (err) {
-    console.error('getSettings error:', err);
+    logger.error('getSettings error', { err });
     res.status(500).json({ error: 'Failed to fetch pulse score settings.' });
   }
 };
@@ -79,7 +80,7 @@ exports.updateSettings = async (req, res) => {
     delete settings.updated_at;
     res.json(settings);
   } catch (err) {
-    console.error('updateSettings error:', err);
+    logger.error('updateSettings error', { err });
     res.status(500).json({ error: 'Failed to update pulse score settings.' });
   }
 };
