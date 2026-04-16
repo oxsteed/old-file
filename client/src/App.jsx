@@ -48,6 +48,7 @@ import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
 import SupportWidget from './components/SupportWidget';
+import { LanguageProvider } from './context/LanguageContext';
 
 // Wraps each route element in its own error boundary so a crash in one page
 // doesn't blank the entire app — only that route shows an error.
@@ -59,6 +60,7 @@ function Guarded({ children }) {
 export default function App() {
   return (
     <HelmetProvider>
+      <LanguageProvider>
       <ThemeProvider>
         {/*
           Root boundary: RouterAwareErrorBoundary must sit INSIDE <Router> so
@@ -130,6 +132,7 @@ export default function App() {
           </CookieConsentProvider>
         </Router>
       </ThemeProvider>
+      </LanguageProvider>
     </HelmetProvider>
   );
 }
