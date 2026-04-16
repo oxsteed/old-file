@@ -8,6 +8,7 @@ const { authenticate } = require('../middleware/auth');
 const requireRole      = require('../middleware/requireRole');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger     = require('../utils/logger');
+const { invalidateHelperContext } = require('../services/helperContext');
 
 const helperOnly = [authenticate, requireRole('helper', 'helper_pro')];
 
@@ -112,6 +113,9 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
         is_available_now  != null ? !!is_available_now : null,
       ],
     );
+
+    // Bust the per-helper AI context cache so the next chat uses fresh profile data
+    invalidateHelperContext(uid).catch(() => {});
 
     res.json({ ok: true });
   } catch (err) {

@@ -1,5 +1,7 @@
-const logger = require('../utils/logger');
-const { ROLES } = require('../constants/roles');
+const logger        = require('../utils/logger');
+const { ROLES }     = require('../constants/roles');
+const helperContext = require('../services/helperContext');
+const threadMemory  = require('../services/threadMemory');
 
 // Validate OLLAMA_URL at startup to prevent SSRF via misconfigured env
 const OLLAMA_URL = (() => {
@@ -7,14 +9,13 @@ const OLLAMA_URL = (() => {
   if (!raw) return '';
   try {
     const u = new URL(raw);
-    // Only allow http/https to localhost or 127.0.0.1 — reject everything else
-   const allowedHosts = [
-  'localhost',
-  '127.0.0.1',
-  '::1',
-  'ollama-api',
-  'ollama-api-p116fo3uwyxytib7ph3yleei',
-];
+    const allowedHosts = [
+      'localhost',
+      '127.0.0.1',
+      '::1',
+      'ollama-api',
+      'ollama-api-p116fo3uwyxytib7ph3yleei',
+    ];
     if (!['http:', 'https:'].includes(u.protocol)) {
       logger.warn('[Chat] OLLAMA_URL has unsupported protocol — ignoring', { url: raw });
       return '';
@@ -190,7 +191,7 @@ exports.chatMessage = async (req, res) => {
       return res.status(400).json({ error: 'messages array is required' });
     }
 
-    // 4. Page context awareness — append current page info to system prompt
+    // Page context awareness — append current page info to system prompt
     let systemPrompt = SYSTEM_PROMPT;
     if (pageContext?.path) {
       const pathHint = pageContext.path.startsWith('/post-job')
@@ -246,57 +247,6 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 
 /**
- * Build an AI system prompt that knows about a specific helper's profile.
- */
-function buildHelperSystemPrompt(helper, skills) {
-  const skillList = skills.length
-    ? skills.map(s => `${s.skill_name}${s.hourly_rate ? ` ($${parseFloat(s.hourly_rate).toFixed(0)}/hr)` : ''}`).join(', ')
-    : 'Not listed yet';
-
-  return `You are an AI assistant representing ${helper.first_name} ${helper.last_name}, a helper on the OxSteed local services marketplace. Answer questions as if you are their assistant — knowledgeable, helpful, and professional.
-
-## About This Helper
-- Name: ${helper.first_name} ${helper.last_name}
-- Headline: ${helper.profile_headline || 'Skilled local helper'}
-- Bio: ${helper.bio_long || helper.bio_short || 'Experienced local professional available for hire.'}
-- Location: ${[helper.service_city, helper.service_state].filter(Boolean).join(', ') || 'Local area'}
-- Service radius: ${helper.service_radius_miles || 10} miles
-- Skills: ${skillList}
-- Identity verified: ${helper.is_identity_verified ? 'Yes' : 'Not yet'}
-- Background checked: ${helper.is_background_checked ? 'Yes' : 'Not yet'}
-- Average rating: ${helper.avg_rating ? `${parseFloat(helper.avg_rating).toFixed(1)} / 5` : 'New helper'}
-- Jobs completed: ${helper.completed_jobs_count || 0}
-
-## Your Role
-- Answer questions about this helper's availability, skills, pricing, and experience
-- If asked about booking or pricing specifics you don't know, invite the customer to send a message to the helper directly
-- Be warm, professional, and represent this helper well
-- Keep responses concise (2-4 sentences unless detail is clearly needed)
-- If asked about things unrelated to this helper or OxSteed, politely redirect`;
-}
-
-function buildBusinessSystemPrompt(business, skills) {
-  const skillList = skills.length
-    ? skills.map(s => `${s.skill_name}${s.hourly_rate ? ` ($${parseFloat(s.hourly_rate).toFixed(0)}/hr)` : ''}`).join(', ')
-    : 'Not listed yet';
-
-  return `You are an AI assistant representing ${business.business_name}, a business on the OxSteed local services marketplace. Answer questions as if you are the business's virtual assistant — knowledgeable, helpful, and professional.
-
-## About This Business
-- Business name: ${business.business_name}
-- Description: ${business.description || 'A local service business available for hire.'}
-- Location: ${[business.address_city, business.address_state].filter(Boolean).join(', ') || 'Local area'}
-- Services offered: ${skillList}
-
-## Your Role
-- Answer questions about this business's services, availability, and pricing
-- If asked about booking or pricing specifics you don't know, invite the customer to send a message directly
-- Be warm, professional, and represent this business well
-- Keep responses concise (2-4 sentences unless detail is clearly needed)
-- If asked about things unrelated to this business or OxSteed, politely redirect`;
-}
-
-/**
  * POST /api/chat/profile-message
  * Handles messages sent from a helper's profile page.
  *
@@ -304,7 +254,13 @@ function buildBusinessSystemPrompt(business, skills) {
  *   destination=helper  AND (helper OR any active rep) online AND customer authenticated
  *     → saves to conversations table + notifies helper + all online reps via socket (live)
  *   otherwise
- *     → AI response using helper's profile as context
+ *     → AI response using helper's profile as context (Redis-cached, 5-min TTL)
+ *
+ * Thread memory:
+ *   Client sends `threadId` (null on first message). Server stores conversation
+ *   history in Redis (chat:{threadId}, last 20 messages, 1-hr sliding TTL) and
+ *   returns the threadId so subsequent requests skip sending full history.
+ *   Falls back to client-supplied `messages` array when Redis is unavailable.
  */
 exports.profileChatMessage = async (req, res) => {
   try {
@@ -313,6 +269,7 @@ exports.profileChatMessage = async (req, res) => {
       businessId,
       messages: msgHistory = [],
       destination = 'helper',
+      threadId: incomingThreadId,
     } = req.body;
 
     if (!Array.isArray(msgHistory) || msgHistory.length === 0) {
@@ -337,33 +294,7 @@ exports.profileChatMessage = async (req, res) => {
 
     if (!resolvedHelperId) return res.status(400).json({ error: 'helperId or businessId is required' });
 
-    // Fetch helper row — only return data for actual helper accounts to prevent
-    // conversations being created with admin or customer accounts (M-32)
-    const helperRes = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name,
-              hp.profile_headline, hp.bio_long, hp.bio_short,
-              hp.service_city, hp.service_state, hp.service_radius_miles,
-              hp.is_identity_verified, hp.is_background_checked,
-              hp.avg_rating, hp.completed_jobs_count
-         FROM users u
-         JOIN helper_profiles hp ON hp.user_id = u.id
-         WHERE u.id = $1
-           AND u.role IN ($2, $3, $4)
-           AND u.deleted_at IS NULL`,
-      [resolvedHelperId, ROLES.HELPER_FREE, ROLES.HELPER_PRO, ROLES.HELPER_BROKER]
-    );
-    if (!helperRes.rows.length) return res.status(404).json({ error: 'Helper not found' });
-    const helper = helperRes.rows[0];
-    const helperId = resolvedHelperId;
-
-    // Fetch helper's listed skills for context
-    const skillsRes = await pool.query(
-      `SELECT skill_name, hourly_rate FROM user_skills
-        WHERE user_id = $1 AND is_available = true LIMIT 20`,
-      [helperId]
-    ).catch(() => ({ rows: [] }));
-
-    const helperOnline = socketService.isOnline(helperId);
+    const helperOnline = socketService.isOnline(resolvedHelperId);
     const userId = req.user?.id;
 
     // Check if any active rep for this business is online; also collect their IDs
@@ -393,7 +324,7 @@ exports.profileChatMessage = async (req, res) => {
           : `SELECT id FROM conversations
               WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL
               LIMIT 1`,
-        resolvedBusinessId ? [userId, helperId, resolvedBusinessId] : [userId, helperId]
+        resolvedBusinessId ? [userId, resolvedHelperId, resolvedBusinessId] : [userId, resolvedHelperId]
       );
 
       let conversationId;
@@ -410,7 +341,7 @@ exports.profileChatMessage = async (req, res) => {
                VALUES ($1, $2)
                ON CONFLICT DO NOTHING
                RETURNING id`,
-          resolvedBusinessId ? [userId, helperId, resolvedBusinessId] : [userId, helperId]
+          resolvedBusinessId ? [userId, resolvedHelperId, resolvedBusinessId] : [userId, resolvedHelperId]
         );
         if (newConv.rows.length) {
           conversationId = newConv.rows[0].id;
@@ -420,7 +351,7 @@ exports.profileChatMessage = async (req, res) => {
             resolvedBusinessId
               ? `SELECT id FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id = $3 LIMIT 1`
               : `SELECT id FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL LIMIT 1`,
-            resolvedBusinessId ? [userId, helperId, resolvedBusinessId] : [userId, helperId]
+            resolvedBusinessId ? [userId, resolvedHelperId, resolvedBusinessId] : [userId, resolvedHelperId]
           );
           conversationId = fetched.rows[0]?.id;
         }
@@ -456,10 +387,8 @@ exports.profileChatMessage = async (req, res) => {
         senderAvatar: sender?.profile_photo_url || null,
       };
 
-      // FIX (Bugbot #2): notify the business owner AND all online reps, not just helperId.
-      // When owner is offline but reps are online, reps triggered the live routing —
-      // they must receive the socket event or the message silently disappears.
-      const notifyTargets = new Set([helperId, ...onlineRepIds]);
+      // Notify the business owner AND all online reps, not just resolvedHelperId.
+      const notifyTargets = new Set([resolvedHelperId, ...onlineRepIds]);
       notifyTargets.forEach(targetId => {
         socketService.broadcastToUser(targetId, 'profile_chat:new_message', socketPayload);
       });
@@ -473,32 +402,58 @@ exports.profileChatMessage = async (req, res) => {
     }
 
     // ── AI mode: helper offline, unauthenticated, or destination=oxsteed ──
+
+    // Resolve or generate a threadId for this AI session
+    const threadId = threadMemory.isValidThreadId(incomingThreadId)
+      ? incomingThreadId
+      : threadMemory.generateThreadId();
+
+    // Build the system prompt (Redis-cached, 5-min TTL per helper)
     let systemPrompt;
     if (destination === 'oxsteed') {
       systemPrompt = `You are OxSteed's customer support AI. Answer questions about the OxSteed platform — how to post jobs, payments, subscriptions, and policies. Be concise and helpful. For account-specific issues refer users to support@oxsteed.com.`;
     } else if (resolvedBusinessId) {
-      // Build prompt from business profile instead of owner's personal profile
-      const bizProfile = await pool.query(
-        `SELECT business_name, description, address_city, address_state
-         FROM businesses WHERE id = $1 AND is_active = TRUE`,
-        [resolvedBusinessId]
-      );
-      const biz = bizProfile.rows[0];
-      if (biz) {
-        systemPrompt = buildBusinessSystemPrompt(biz, skillsRes.rows);
-      } else {
-        systemPrompt = buildHelperSystemPrompt(helper, skillsRes.rows);
-      }
+      const ctx = await helperContext.getBusinessContext(resolvedBusinessId, resolvedHelperId);
+      systemPrompt = ctx
+        ? ctx.systemPrompt
+        : (await helperContext.getHelperContext(resolvedHelperId))?.systemPrompt;
     } else {
-      systemPrompt = buildHelperSystemPrompt(helper, skillsRes.rows);
+      const ctx = await helperContext.getHelperContext(resolvedHelperId);
+      if (!ctx) return res.status(404).json({ error: 'Helper not found' });
+      systemPrompt = ctx.systemPrompt;
     }
+
+    if (!systemPrompt) return res.status(404).json({ error: 'Helper not found' });
+
+    // Retrieve stored history from Redis; fall back to client-supplied messages
+    const storedHistory = await threadMemory.getThread(threadId);
+    const history = storedHistory.length
+      ? storedHistory
+      : msgHistory
+          .slice(-20)
+          .map(m => ({
+            role:    ['user', 'assistant'].includes(m.role) ? m.role : 'user',
+            content: String(m.content || '').slice(0, 1500),
+          }))
+          .filter(m => m.content.trim());
+
+    // The last entry in msgHistory is the new user message — include it if not already stored
+    const newUserMsg = (() => {
+      const last = msgHistory[msgHistory.length - 1];
+      const content = String(last?.content || '').trim().slice(0, 1500);
+      if (!content) return null;
+      // When history came from Redis it already contains previous turns but not the latest message
+      const alreadyPresent = storedHistory.length > 0 &&
+        storedHistory[storedHistory.length - 1].role === 'user' &&
+        storedHistory[storedHistory.length - 1].content === content;
+      return alreadyPresent ? null : { role: 'user', content };
+    })();
+
+    const fullHistory = newUserMsg ? [...history, newUserMsg] : history;
 
     const ollamaMessages = [
       { role: 'system', content: systemPrompt },
-      ...msgHistory.slice(-10).map(m => ({
-        role:    ['user', 'assistant'].includes(m.role) ? m.role : 'user',
-        content: String(m.content || '').slice(0, 1500),
-      })).filter(m => m.content.trim()),
+      ...fullHistory,
     ];
 
     const ai = await callWithFallback(
@@ -511,11 +466,18 @@ exports.profileChatMessage = async (req, res) => {
       return res.status(502).json({ error: 'AI service temporarily unavailable' });
     }
 
+    // Persist the new exchange to thread memory (user message + AI reply)
+    const messagesToStore = [];
+    if (newUserMsg) messagesToStore.push(newUserMsg);
+    messagesToStore.push({ role: 'assistant', content: ai.reply });
+    await threadMemory.appendToThread(threadId, messagesToStore);
+
     return res.json({
-      type:           'ai',
-      reply:          ai.reply,
-      helperOnline:   helperOnline,
-      authorType:     destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
+      type:        'ai',
+      reply:       ai.reply,
+      threadId,
+      helperOnline: helperOnline,
+      authorType:  destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
     });
   } catch (err) {
     logger.error('[ProfileChat] Error', { message: err.message });
