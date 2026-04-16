@@ -1,4 +1,5 @@
 const db            = require('../db');
+const logger        = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 
 // ─── SUBMIT REVIEW ────────────────────────────────────────────
@@ -7,9 +8,19 @@ exports.submitReview = async (req, res) => {
   try {
     dbClient = await db.connect();
   } catch (connErr) {
-    console.error('submitReview: DB connection failed:', connErr.message);
+    logger.error('submitReview: DB connection failed', { message: connErr.message });
     return res.status(503).json({ error: 'Database unavailable. Please try again.' });
   }
+
+  // Helper: roll back, release, and send an error response.
+  // Nulls dbClient so the finally block's guarded release() is a no-op.
+  const abort = async (status, body) => {
+    try { await dbClient.query('ROLLBACK'); } catch (_) {}
+    dbClient.release();
+    dbClient = null;
+    return res.status(status).json(body);
+  };
+
   try {
     await dbClient.query('BEGIN');
 
@@ -19,7 +30,7 @@ exports.submitReview = async (req, res) => {
 
     // Validate rating
     if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: 'Rating must be between 1 and 5.' });
+      return abort(400, { error: 'Rating must be between 1 and 5.' });
     }
 
     // Get job — verify reviewer was involved
@@ -36,9 +47,7 @@ exports.submitReview = async (req, res) => {
     `, [jobId, reviewerId]);
 
     if (!jobRows.length) {
-      return res.status(403).json({
-        error: 'Can only review completed and closed jobs you were part of.'
-      });
+      return abort(403, { error: 'Can only review completed and closed jobs you were part of.' });
     }
 
     const job = jobRows[0];
@@ -48,7 +57,7 @@ exports.submitReview = async (req, res) => {
     const revieweeId  = isClient ? job.assigned_helper_id : job.client_id;
 
     if (!revieweeId) {
-      return res.status(400).json({ error: 'No reviewee found for this job.' });
+      return abort(400, { error: 'No reviewee found for this job.' });
     }
 
     // Combine title and body into comment field (DB has 'comment', not 'title'/'body')
@@ -103,13 +112,11 @@ exports.submitReview = async (req, res) => {
 
     res.status(201).json({ review });
   } catch (err) {
-    await dbClient.query('ROLLBACK');
+    try { await dbClient.query('ROLLBACK'); } catch (_) {}
     if (err.code === '23505') {
-      return res.status(409).json({
-        error: 'You have already reviewed this job.'
-      });
+      return res.status(409).json({ error: 'You have already reviewed this job.' });
     }
-    console.error('submitReview error:', err);
+    logger.error('submitReview error', { message: err.message });
     res.status(500).json({ error: 'Failed to submit review.' });
   } finally {
     if (dbClient) dbClient.release();
@@ -161,7 +168,7 @@ exports.getUserReviews = async (req, res) => {
       limit:   parseInt(limit)
     });
   } catch (err) {
-    console.error('getUserReviews error:', err);
+    logger.error('getUserReviews error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch reviews.' });
   }
 };
@@ -196,7 +203,7 @@ exports.getReviewEligibility = async (req, res) => {
 
     res.json({ eligible, already_reviewed, job_status: status });
   } catch (err) {
-    console.error('getReviewEligibility error:', err);
+    logger.error('getReviewEligibility error', { message: err.message });
     res.status(500).json({ error: 'Failed to check eligibility.' });
   }
 };
@@ -255,7 +262,7 @@ exports.adminHideReview = async (req, res) => {
 
     res.json({ message: 'Review hidden successfully.' });
   } catch (err) {
-    console.error('adminHideReview error:', err);
+    logger.error('adminHideReview error', { message: err.message });
     res.status(500).json({ error: 'Failed to hide review.' });
   }
 };
@@ -291,7 +298,7 @@ exports.respondToReview = async (req, res) => {
 
     res.json({ review: rows[0] });
   } catch (err) {
-    console.error('respondToReview error:', err);
+    logger.error('respondToReview error', { message: err.message });
     res.status(500).json({ error: 'Failed to respond to review.' });
   }
 };

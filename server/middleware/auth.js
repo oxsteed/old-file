@@ -1,8 +1,9 @@
 // Phase  2 - Authentication & authorization middleware
 // OxSteed v2
 
-const jwt = require('jsonwebtoken');
-const pool = require('../db');
+const jwt    = require('jsonwebtoken');
+const pool   = require('../db');
+const logger = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -121,7 +122,7 @@ function requireTier(...tiers) {
       }
       next();
     } catch (err) {
-      console.error('requireTier error:', err);
+      logger.error('requireTier error', { message: err.message });
       return res.status(500).json({ error: 'Failed to check tier' });
     }
   };
@@ -145,7 +146,7 @@ async function requireActiveSubscription(req, res, next) {
     }
     next();
   } catch (err) {
-    console.error('requireActiveSubscription error:', err);
+    logger.error('requireActiveSubscription error', { message: err.message });
     return res.status(500).json({ error: 'Failed to check subscription' });
   }
 }

@@ -114,8 +114,13 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
       ],
     );
 
-    // Bust the per-helper AI context cache so the next chat uses fresh profile data
-    invalidateHelperContext(uid).catch(() => {});
+    // Bust the per-helper AI context cache (helper + their primary business) so the
+    // next profile-chat uses fresh data.  Look up the business ID without blocking.
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
 
     res.json({ ok: true });
   } catch (err) {

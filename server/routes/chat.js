@@ -1,14 +1,30 @@
 const router = require('express').Router();
 const { chatMessage, profileChatMessage } = require('../controllers/chatController');
-const { authenticate } = require('../middleware/auth');
 const { chatLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
 
-// Middleware: attach user if token present, but don't reject unauthenticated requests
-const optionalAuth = (req, res, next) => {
+// Middleware: attach user if token present and valid; continue as unauthenticated otherwise.
+// Never sends 401/403 — an expired or invalid token simply means req.user stays undefined,
+// which the profileChatMessage handler treats as "AI mode".
+const jwt = require('jsonwebtoken');
+const pool = require('../db');
+const optionalAuth = async (req, res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return next();
-  authenticate(req, res, next);
+  try {
+    const token = header.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active
+         FROM users u WHERE u.id = $1`,
+      [decoded.id]
+    );
+    const user = rows[0];
+    if (user && user.is_active) req.user = user;
+  } catch {
+    // Expired, invalid, or DB error — continue as unauthenticated
+  }
+  next();
 };
 
 // Public — no auth required for support chat
