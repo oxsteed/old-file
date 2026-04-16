@@ -10,7 +10,7 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const logger     = require('../utils/logger');
 const { invalidateHelperContext } = require('../services/helperContext');
 
-const helperOnly = [authenticate, requireRole('helper', 'helper_pro')];
+const helperOnly = [authenticate, requireRole('helper', 'helper_pro', 'broker')];
 
 // ── GET /api/helper-profile/me ────────────────────────────────────────────────
 // Returns the helper's own full profile (for the dashboard editor).
