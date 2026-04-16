@@ -6,10 +6,11 @@
 // - Duplicate = "You already have an account" -> links to login
 
 import { useState, useEffect, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Shield, ChevronLeft, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   onVerified: () => void;
@@ -22,13 +23,14 @@ const STEPS = [
   { title: 'Take a selfie', hint: 'Live face match against your document photo' },
 ];
 
-type DiditStatus = 'idle' | 'launching' | 'pending' | 'verified' | 'failed' | 'duplicate';
+type DiditStatus = 'idle' | 'launching' | 'pending' | 'verified' | 'failed' | 'duplicate' | 'unavailable';
 
 export default function DiditPanel({ onVerified, onBack }: Props) {
   const [status, setStatus] = useState<DiditStatus>('idle');
   const [duplicateHint, setDuplicateHint] = useState('');
+  const [skipping, setSkipping] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [searchParams] = useSearchParams();
+  const { refreshUser } = useAuth();
 
   // Check if user is returning from Didit (callback URL includes query params)
   useEffect(() => {
@@ -74,8 +76,30 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
         startPolling();
       }
     } catch (err: any) {
-      setStatus('failed');
-      toast.error(err.response?.data?.error || 'Could not start verification');
+      if (err.response?.data?.error === 'verification_unavailable') {
+        // Didit API key is not configured on this server (dev/staging).
+        // Allow the user to skip — the server's skip endpoint enforces this is
+        // only possible when the key is absent.
+        setStatus('unavailable');
+      } else {
+        setStatus('failed');
+        toast.error(err.response?.data?.error || 'Could not start verification');
+      }
+    }
+  };
+
+  // Skip verification (only works when Didit is not configured on the server).
+  const handleSkip = async () => {
+    setSkipping(true);
+    try {
+      await api.post('/didit/skip');
+      // Refresh the user so ProtectedRoute sees didit_status = 'skipped'
+      await refreshUser();
+      toast.success('Continuing without verification');
+      onVerified();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Could not skip verification');
+      setSkipping(false);
     }
   };
 
@@ -170,6 +194,34 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
           </div>
           <h2 className="text-xl font-bold text-white">Identity Verified</h2>
           <p className="text-sm text-gray-400">Redirecting to your dashboard...</p>
+        </div>
+      )}
+
+      {status === 'unavailable' && (
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className="w-16 h-16 rounded-full bg-gray-700/40 flex items-center justify-center">
+            <Shield size={32} className="text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Verification Unavailable</h2>
+          <p className="text-sm text-gray-400 max-w-[34ch] leading-relaxed">
+            Identity verification is not configured on this server. This is normal in
+            development and staging environments.
+          </p>
+          <p className="text-xs text-gray-500 max-w-[36ch] leading-relaxed">
+            Your account has been created. You can continue — verification will be
+            required once this feature is enabled in production.
+          </p>
+          <button
+            type="button"
+            onClick={handleSkip}
+            disabled={skipping}
+            className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
+          >
+            {skipping ? 'Continuing…' : 'Continue to Dashboard'}
+          </button>
+          <button type="button" onClick={onBack} className="text-xs text-gray-400 hover:text-white transition-colors underline">
+            Go back
+          </button>
         </div>
       )}
 

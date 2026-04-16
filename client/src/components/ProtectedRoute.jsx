@@ -11,6 +11,15 @@ const ONBOARDING_ALLOWED_PATHS = [
   '/dashboard',
 ];
 
+// Paths that are themselves part of the identity-verification flow and must
+// NOT trigger the Didit redirect (would create an infinite loop).
+const DIDIT_EXEMPT_PATHS = [
+  '/verify-identity',
+];
+
+// Didit statuses that grant full access to protected routes.
+const DIDIT_COMPLETE = ['verified', 'skipped'];
+
 export default function ProtectedRoute({ children, requiredRole, requireOnboarded = true }) {
   const { user, loading, isOnboardingComplete } = useAuth();
   const location = useLocation();
@@ -29,6 +38,18 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
 
   if (requiredRole && user.role !== requiredRole) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Didit identity-verification gate.
+  // Once a user's email is verified they must also pass Didit before accessing
+  // any protected page. 'skipped' is set when Didit is not configured on the
+  // server (development / staging environments).
+  if (
+    user.email_verified &&
+    !DIDIT_COMPLETE.includes(user.didit_status) &&
+    !DIDIT_EXEMPT_PATHS.includes(location.pathname)
+  ) {
+    return <Navigate to="/verify-identity" replace />;
   }
 
   // Helper onboarding gate: redirect helpers who haven't completed onboarding

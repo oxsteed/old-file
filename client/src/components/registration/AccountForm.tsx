@@ -158,12 +158,14 @@ export default function AccountForm({ role, onSuccess }: Props) {
         }
       }
       setOtpVerified(true);
-      toast.success('Email verified!');
+      toast.success('Email verified! Moving to identity verification...');
+      // Auto-advance to Didit step — user shouldn't need to click again
+      setTimeout(() => onSuccess(), 1200);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Invalid code');
       setOtpDigits(['', '', '', '', '', '']);
     }
-  }, [registrationToken, role, setUser]);
+  }, [registrationToken, role, setUser, onSuccess]);
 
   // ── Resend OTP ────────────────────────────────────────
   const handleResendOtp = useCallback(async () => {
@@ -222,7 +224,9 @@ export default function AccountForm({ role, onSuccess }: Props) {
         return;
       }
 
-      // OTP verified → proceed to Didit step
+      // OTP verified — onSuccess() was already called automatically in handleOtpComplete.
+      // This branch is a safety fallback in case the timeout fires late or the user
+      // clicks the button before the auto-advance triggers.
       onSuccess();
     } catch (err: any) {
       const msg = err.response?.data?.error || err.response?.data?.message || 'Registration failed';
@@ -478,7 +482,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
             </svg>
           ) : (
             <>
-              {otpVerified ? 'Continue to Identity Verification' : otpSent ? 'Verify Email & Continue' : 'Create Account'}
+              {otpVerified ? 'Proceeding to Identity Verification…' : otpSent ? 'Verify Email & Continue' : 'Create Account'}
               <ChevronRight size={16} />
             </>
           )}

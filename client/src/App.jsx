@@ -42,6 +42,7 @@ import HelperConversationPage from './pages/HelperConversationPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
 import BusinessHubPage from './pages/BusinessHubPage';
+import VerifyIdentityPage from './pages/VerifyIdentityPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -100,6 +101,8 @@ export default function App() {
                     <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
 
                     {/* ── Authenticated routes ────────────────────────────── */}
+                    {/* verify-identity is exempt from the Didit gate in ProtectedRoute (see DIDIT_EXEMPT_PATHS) */}
+                    <Route path="/verify-identity" element={<Guarded><ProtectedRoute><VerifyIdentityPage /></ProtectedRoute></Guarded>} />
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><SmartDashboard /></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
