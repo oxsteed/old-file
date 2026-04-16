@@ -192,12 +192,14 @@ exports.getLifePulse = async (req, res) => {
 
       // 6. Recurring home-task costs — split by section so each plan type can be
       //    toggled independently via pulse_score_settings.
-      //    Sections: 'home_maintenance', 'car_care', 'personal_care'
+      //    Sections: 'home' and 'home_maintenance' are the same concept ('home' is
+      //    the value stored by the dashboard form; 'home_maintenance' was the original
+      //    intent — both are treated identically here).
       db.query(`
         SELECT
-          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'home_maintenance'), 0) AS home_monthly,
-          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'car_care'),         0) AS car_monthly,
-          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'personal_care'),    0) AS personal_monthly
+          COALESCE(SUM(monthly_eq) FILTER (WHERE section IN ('home', 'home_maintenance')), 0) AS home_monthly,
+          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'car_care'),                   0) AS car_monthly,
+          COALESCE(SUM(monthly_eq) FILTER (WHERE section = 'personal_care'),              0) AS personal_monthly
         FROM (
           SELECT DISTINCT ON (section, title, frequency)
             section,
@@ -213,7 +215,7 @@ exports.getLifePulse = async (req, res) => {
           FROM home_tasks
           WHERE user_id = $1
             AND is_recurring = TRUE
-            AND section IN ('home_maintenance', 'car_care', 'personal_care')
+            AND section IN ('home', 'home_maintenance', 'car_care', 'personal_care')
             AND estimated_cost IS NOT NULL AND estimated_cost > 0
             AND frequency IS NOT NULL AND frequency <> 'one_time'
             AND (recurring_start_date IS NULL OR recurring_start_date <= CURRENT_DATE)

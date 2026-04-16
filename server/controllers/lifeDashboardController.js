@@ -500,6 +500,7 @@ exports.createHomeTask = async (req, res) => {
       title, description, due_date, recurrence_days, urgency = 'low', section = 'home',
       frequency, is_recurring = false, estimated_cost,
       recurring_start_date, recurring_end_date,
+      vehicle_id, home_id,
     } = req.body;
 
     if (!title) return res.status(400).json({ error: 'Title is required.' });
@@ -515,8 +516,9 @@ exports.createHomeTask = async (req, res) => {
     const { rows } = await db.query(`
       INSERT INTO home_tasks
         (user_id, title, description, due_date, recurrence_days, urgency, section,
-         frequency, is_recurring, estimated_cost, recurring_start_date, recurring_end_date)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         frequency, is_recurring, estimated_cost, recurring_start_date, recurring_end_date,
+         vehicle_id, home_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `, [
       userId, title, description || null, due_date || null,
@@ -524,6 +526,8 @@ exports.createHomeTask = async (req, res) => {
       safeFrequency, is_recurring || false,
       estimated_cost ? parseFloat(estimated_cost) : null,
       recurring_start_date || null, recurring_end_date || null,
+      vehicle_id ? parseInt(vehicle_id) : null,
+      home_id    ? parseInt(home_id)    : null,
     ]);
 
     res.status(201).json(rows[0]);
@@ -540,6 +544,7 @@ exports.updateHomeTask = async (req, res) => {
     const {
       title, description, due_date, recurrence_days, urgency, is_completed,
       frequency, is_recurring, estimated_cost, recurring_start_date, recurring_end_date,
+      vehicle_id, home_id,
     } = req.body;
 
     const safeFrequency = frequency && VALID_FREQUENCIES.includes(frequency) ? frequency : undefined;
@@ -561,12 +566,16 @@ exports.updateHomeTask = async (req, res) => {
           estimated_cost = COALESCE($11, estimated_cost),
           recurring_start_date = COALESCE($12, recurring_start_date),
           recurring_end_date = COALESCE($13, recurring_end_date),
+          vehicle_id = COALESCE($14, vehicle_id),
+          home_id    = COALESCE($15, home_id),
           updated_at = now()
       WHERE id = $1 AND user_id = $2
       RETURNING *
     `, [id, userId, title, description, due_date, effectiveRecurrenceDays, urgency, is_completed,
         safeFrequency, is_recurring, estimated_cost ? parseFloat(estimated_cost) : undefined,
-        recurring_start_date, recurring_end_date]);
+        recurring_start_date, recurring_end_date,
+        vehicle_id ? parseInt(vehicle_id) : undefined,
+        home_id    ? parseInt(home_id)    : undefined]);
 
     if (!rows.length) return res.status(404).json({ error: 'Home task not found.' });
     res.json(rows[0]);
