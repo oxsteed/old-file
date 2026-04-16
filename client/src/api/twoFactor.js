@@ -1,6 +1,6 @@
 // Two-Factor Authentication API Client
 // OxSteed v2
-import api from './auth';
+import api from './axios';
 
 export const twoFactorAPI = {
   // Get current 2FA status

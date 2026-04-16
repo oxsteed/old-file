@@ -14,7 +14,7 @@ export default function HelperOffersCard() {
 
   const fetchOffers = async () => {
     try {
-      const { data } = await api.get('/api/planned-needs/helper/offers');
+      const { data } = await api.get('/planned-needs/helper/offers');
       setOffers(data.offers || []);
     } catch (err) {
       console.error('Failed to fetch helper offers:', err);

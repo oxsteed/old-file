@@ -16,7 +16,7 @@ export default function QuickAddTemplates({ onSelect }) {
   const [templates, setTemplates] = useState([]);
 
   useEffect(() => {
-    api.get('/api/planned-needs/templates')
+    api.get('/planned-needs/templates')
       .then(r => setTemplates(r.data.templates || []))
       .catch(() => {});
   }, []);

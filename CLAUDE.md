@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-16 (signup Didit verification fixes)
+**Last updated:** 2026-04-16 (gap review and fixes)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -786,6 +786,26 @@ Four gaps identified and fixed:
 - **Root cause:** `hashIP()` now returns a 64-char SHA-256 hex string, but customer/helper terms acceptance stores into legacy `terms_acceptance_ip` columns defined as `VARCHAR(45)` in older schemas. This caused `POST /api/auth/register/accept-terms` to fail with a 500.
 - **Fix:** `authController.acceptTerms` and `helperRegistrationController.acceptTerms` now cap stored hashed IP values to 45 chars for compatibility with legacy column widths while still keeping hashed (non-raw) IP storage.
 - **Regression test:** added `POST /api/auth/register/accept-terms` test in `server/__tests__/auth.test.js` that asserts the persisted IP hash argument length is `<= 45`.
+
+### Session — 2026-04-16 (gap review and fixes)
+
+**Gap audit across full codebase. Four issues found and fixed:**
+
+1. **Double `/api/` prefix in 3 components** — `PostJobPage.jsx:1282`, `HelperOffersCard.jsx:17`, `QuickAddTemplates.jsx:19` all called `api.get('/api/...')` when the axios instance already has `/api` as its base URL. Fixed to `/helpers`, `/planned-needs/helper/offers`, `/planned-needs/templates`.
+
+2. **Review system orphaned** — `ReviewModal.jsx` and `ReviewsList.jsx` in `client/src/components/reviews/` were fully built but never imported anywhere. `JobDetailPage.jsx` had no review UI at all. Additionally, the eligibility check in `reviewController.js` required `status = 'closed'` but the frontend never calls `POST /jobs/:id/close` (job flow ends at `'completed'`), meaning reviews could never be left.
+   - Fixed `reviewController.submitReview` and `getReviewEligibility` to accept `IN ('completed', 'closed')`.
+   - Added `'closed'` to `STATUS_MAP` in `JobDetailPage.jsx`.
+   - Imported `ReviewModal` into `JobDetailPage`; added `reviewEligible` state fetched from `/reviews/jobs/:id/eligibility` when job is completed/closed.
+   - Show `ReviewModal` in owner's sidebar for completed/closed jobs (reviewing the helper); show a separate "Review" sidebar card for the assigned helper (reviewing the customer).
+   - Fixed `isHelper` in `JobDetailPage` to also include `helper_pro` and `broker` roles.
+
+3. **`pulseScoreSettingsController.js` unstructured logs** — `console.error` on lines 40 and 82 replaced with `logger.error`.
+
+4. **`twoFactor.js` unnecessary import indirection** — imported `api` from `./auth` (which re-exports from `./axios`) instead of importing directly from `./axios`.
+
+**Components that are still orphaned (intentionally not integrated — no obvious placement without a bigger design decision):**
+- `client/src/components/ReviewForm.jsx` + `ReviewList.jsx` — older review components superseded by `components/reviews/ReviewModal.jsx` + `ReviewsList.jsx`. Can be deleted if the newer review components are confirmed working.
 
 ### Session — 2026-04-16 (signup Didit verification fixes)
 

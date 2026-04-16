@@ -3,11 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import usePayments from '../hooks/usePayments';
 import useAuth from '../hooks/useAuth';
+import api from '../api/axios';
 import '../styles/JobDetailPage.css';
 import PageMeta from '../components/PageMeta';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
+import ReviewModal from '../components/reviews/ReviewModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const JOB_TYPE_MAP = {
@@ -39,6 +41,7 @@ const STATUS_MAP = {
   accepted:    { label: 'Helper Chosen',  color: '#60a5fa', bg: 'rgba(96,165,250,.12)' },
   in_progress: { label: 'In Progress',   color: '#f97316', bg: 'rgba(249,115,22,.15)' },
   completed:   { label: 'Completed',     color: '#a3a3a3', bg: 'rgba(163,163,163,.1)' },
+  closed:      { label: 'Closed',        color: '#a3a3a3', bg: 'rgba(163,163,163,.1)' },
   cancelled:   { label: 'Cancelled',     color: '#f87171', bg: 'rgba(248,113,113,.12)' },
 };
 
@@ -101,11 +104,23 @@ export default function JobDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [reviewEligible, setReviewEligible] = useState(false);
 
   useEffect(() => {
     fetchJob(id);
     loadBids();
   }, [id]);
+
+  useEffect(() => {
+    if (!job || !user) return;
+    const done = job.status === 'completed' || job.status === 'closed';
+    const involved = user.id === job.client_id || user.id === job.assigned_helper_id;
+    if (done && involved) {
+      api.get(`/reviews/jobs/${id}/eligibility`)
+        .then(r => setReviewEligible(r.data.eligible))
+        .catch(() => {});
+    }
+  }, [job?.status, user?.id]);
 
   async function loadBids() {
     try { setBids((await getJobBids(id)) || []); } catch {}
@@ -190,8 +205,9 @@ export default function JobDetailPage() {
     </div>
   );
 
-  const isOwner    = user?.id === job.client_id;
-  const isHelper   = user?.role === 'helper';
+  const isOwner      = user?.id === job.client_id;
+  const isHelper     = ['helper', 'helper_pro', 'broker'].includes(user?.role);
+  const isAssignedHelper = user?.id === job.assigned_helper_id;
   const hasAlreadyBid = bids.some(b => b.helper_id === user?.id);
   const acceptedBid   = bids.find(b => b.status === 'accepted');
 
@@ -587,9 +603,29 @@ export default function JobDetailPage() {
                   {actionLoading ? 'Processing…' : '✅ Mark as Complete'}
                 </button>
               )}
-              {job.status === 'completed' && (
-                <div className="jdp-status-done">Job completed ✓</div>
+              {(job.status === 'completed' || job.status === 'closed') && (
+                <>
+                  <div className="jdp-status-done">Job completed ✓</div>
+                  {reviewEligible && (
+                    <ReviewModal
+                      jobId={id}
+                      revieweeName={job.helper_name || 'your helper'}
+                      onComplete={() => setReviewEligible(false)}
+                    />
+                  )}
+                </>
               )}
+            </div>
+          )}
+          {/* Helper "Leave a review" action for the job owner (customer) */}
+          {isAssignedHelper && (job.status === 'completed' || job.status === 'closed') && reviewEligible && (
+            <div className="jdp-card jdp-sidebar-card jdp-owner-actions">
+              <h3 className="jdp-sidebar-title">Review</h3>
+              <ReviewModal
+                jobId={id}
+                revieweeName={job.client_name || 'your customer'}
+                onComplete={() => setReviewEligible(false)}
+              />
             </div>
           )}
         </aside>
