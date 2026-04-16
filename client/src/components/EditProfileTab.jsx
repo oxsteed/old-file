@@ -58,8 +58,8 @@ export default function EditProfileTab() {
     try {
       await api.put('/helper-profile/core', core);
       toast.success('Profile saved!');
-    } catch {
-      toast.error('Failed to save');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to save');
     }
     setSaving(false);
   };
