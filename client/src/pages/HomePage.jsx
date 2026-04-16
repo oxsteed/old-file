@@ -5,6 +5,7 @@ import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import Hero from '../components/Hero';
 
 const SKILL_TILES = [
   { slug: 'electrical',   icon: '⚡', name: 'Electrical',      desc: 'Outlets, panels, EV chargers' },
@@ -518,61 +519,7 @@ export default function HomePage() {
 
       {/* -- Hero -- */}
       <section className="hp-hero">
-        <div className="hp-hero-inner">
-          <div className="hp-hero-eyebrow">Local trades marketplace</div>
-          <h1 className="hp-hero-title">
-            Post a job.<br />
-            Find a helper.<br />
-            <em>Get it done.</em>
-          </h1>
-          <p className="hp-hero-sub">
-            Describe what needs doing, set your own requirements, and let qualified local helpers bid. Compare proposals and pay securely with OxSteed. Free to start.
-          </p>
-
-          {/* ── Search bar ── */}
-          <HomeSearch />
-
-          <div className="hp-hero-ctas">
-            {user ? (
-              <>
-                <Link
-                  to={user.role === 'helper' ? '/jobs' : '/post-job'}
-                  className="hp-btn hp-btn-primary hp-btn-lg"
-                >
-                  {user.role === 'helper' ? 'Browse Jobs' : 'Post a Job'}
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                </Link>
-                <Link to="/dashboard" className="hp-btn hp-btn-outline hp-btn-lg">
-                  Go to Dashboard
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link to="/register/customer" className="hp-btn hp-btn-primary hp-btn-lg">
-                  Post a Job
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                </Link>
-                <Link to="/jobs" className="hp-btn hp-btn-outline hp-btn-lg">
-                  Browse Listings
-                </Link>
-              </>
-            )}
-          </div>
-          <div className="hp-hero-trust">
-            <span className="hp-trust-pill">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-              Free to post
-            </span>
-            <span className="hp-trust-pill">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-              Address stays private
-            </span>
-            <span className="hp-trust-pill">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-              No obligation
-            </span>
-          </div>
-        </div>
+        <Hero search={<HomeSearch />} />
 
         {/* Hero live bids card */}
         <div className="hp-hero-card" aria-hidden="true">

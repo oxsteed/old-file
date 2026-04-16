@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "browseJobs": "Browse Jobs",
+    "postJob": "Post a Job",
+    "messages": "Messages",
+    "dashboard": "Dashboard",
+    "business": "Business",
+    "settings": "Settings",
+    "signOut": "Sign Out",
+    "signIn": "Sign In",
+    "howItWorks": "How It Works",
+    "listSkills": "List Your Skills"
+  },
+  "hero": {
+    "title": "Local Help,\nWhen You Need It",
+    "subtitle": "Post a job in minutes. Get bids from trusted local helpers for home repair, cleaning, moving, and more.",
+    "postJob": "Post a Job",
+    "browseHelpers": "Browse Helpers",
+    "stat1": "Verified Helpers",
+    "stat2": "Jobs Completed",
+    "stat3": "Average Rating",
+    "trustFree": "Free to post",
+    "trustPrivate": "Address stays private",
+    "trustNoObligation": "No obligation"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "send": "Send",
+    "retry": "Retry",
+    "learnMore": "Learn more",
+    "getStarted": "Get started"
+  },
+  "jobs": {
+    "title": "Job Details",
+    "myJobs": "My Jobs",
+    "active": "Active",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "budget": "Budget",
+    "urgency": "Urgency",
+    "asap": "ASAP",
+    "thisWeek": "This Week",
+    "flexible": "Flexible",
+    "placeBid": "Place a Bid",
+    "cancelJob": "Cancel Job",
+    "markComplete": "Mark as Complete",
+    "noBids": "No bids yet"
+  },
+  "auth": {
+    "email": "Email address",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset password",
+    "signUp": "Sign up",
+    "welcomeBack": "Welcome back"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "tryAgain": "Please try again",
+    "notFound": "Not found",
+    "sessionExpired": "Session expired"
+  }
+}

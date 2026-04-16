@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "browseJobs": "Explorar Trabajos",
+    "postJob": "Publicar Trabajo",
+    "messages": "Mensajes",
+    "dashboard": "Panel",
+    "business": "Negocio",
+    "settings": "Configuración",
+    "signOut": "Cerrar Sesión",
+    "signIn": "Iniciar Sesión",
+    "howItWorks": "Cómo Funciona",
+    "listSkills": "Ofrecer Servicios"
+  },
+  "hero": {
+    "title": "Ayuda Local,\nCuando la Necesitas",
+    "subtitle": "Publica un trabajo en minutos. Recibe ofertas de ayudantes locales de confianza para reparaciones, limpieza, mudanzas y más.",
+    "postJob": "Publicar Trabajo",
+    "browseHelpers": "Ver Ayudantes",
+    "stat1": "Ayudantes Verificados",
+    "stat2": "Trabajos Completados",
+    "stat3": "Calificación Promedio",
+    "trustFree": "Publicar gratis",
+    "trustPrivate": "Dirección privada",
+    "trustNoObligation": "Sin compromiso"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "submit": "Enviar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "search": "Buscar",
+    "send": "Enviar",
+    "retry": "Reintentar",
+    "learnMore": "Más información",
+    "getStarted": "Comenzar"
+  },
+  "jobs": {
+    "title": "Detalles del Trabajo",
+    "myJobs": "Mis Trabajos",
+    "active": "Activos",
+    "completed": "Completados",
+    "cancelled": "Cancelados",
+    "budget": "Presupuesto",
+    "urgency": "Urgencia",
+    "asap": "Lo Antes Posible",
+    "thisWeek": "Esta Semana",
+    "flexible": "Flexible",
+    "placeBid": "Hacer Oferta",
+    "cancelJob": "Cancelar Trabajo",
+    "markComplete": "Marcar como Completo",
+    "noBids": "Sin ofertas aún"
+  },
+  "auth": {
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "resetPassword": "Restablecer contraseña",
+    "signUp": "Registrarse",
+    "welcomeBack": "Bienvenido de nuevo"
+  },
+  "errors": {
+    "generic": "Algo salió mal",
+    "tryAgain": "Por favor, inténtalo de nuevo",
+    "notFound": "No encontrado",
+    "sessionExpired": "Sesión expirada"
+  }
+}

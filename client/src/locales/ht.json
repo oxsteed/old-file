@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "browseJobs": "Chèche Travay",
+    "postJob": "Pibliye Travay",
+    "messages": "Mesaj",
+    "dashboard": "Tablo de Bò",
+    "business": "Biznis",
+    "settings": "Paramèt",
+    "signOut": "Dekonekte",
+    "signIn": "Konekte",
+    "howItWorks": "Kijan sa Mache",
+    "listSkills": "Ofri Sèvis Ou"
+  },
+  "hero": {
+    "title": "Èd Lokal,\nLè Ou Bezwen Li",
+    "subtitle": "Pibliye yon travay nan kèk minit. Resevwa òf nan men pwofesyonèl lokal ou ka fè konfyans pou reparasyon, netwayaj, demenajman ak plis.",
+    "postJob": "Pibliye Travay",
+    "browseHelpers": "Wè Pwofesyonèl",
+    "stat1": "Pwofesyonèl Verifye",
+    "stat2": "Travay Fini",
+    "stat3": "Nòt Mwayen",
+    "trustFree": "Gratis pou pibliye",
+    "trustPrivate": "Adrès rete prive",
+    "trustNoObligation": "Pa gen obligasyon"
+  },
+  "common": {
+    "loading": "Ap chaje…",
+    "save": "Sove",
+    "cancel": "Anile",
+    "delete": "Efase",
+    "edit": "Modifye",
+    "submit": "Soumèt",
+    "confirm": "Konfime",
+    "close": "Fèmen",
+    "back": "Tounen",
+    "next": "Pwochen",
+    "search": "Chèche",
+    "send": "Voye",
+    "retry": "Eseye Ankò",
+    "learnMore": "Aprann plis",
+    "getStarted": "Kòmanse"
+  },
+  "jobs": {
+    "title": "Detay Travay",
+    "myJobs": "Travay Mwen",
+    "active": "Aktif",
+    "completed": "Fini",
+    "cancelled": "Anile",
+    "budget": "Bidjè",
+    "urgency": "Ijans",
+    "asap": "Pi vit Posib",
+    "thisWeek": "Semèn sa a",
+    "flexible": "Fleksib",
+    "placeBid": "Fè Òf",
+    "cancelJob": "Anile Travay",
+    "markComplete": "Mak kòm Fini",
+    "noBids": "Pa gen òf toujou"
+  },
+  "auth": {
+    "email": "Adrès imèl",
+    "password": "Modpas",
+    "forgotPassword": "Ou bliye modpas ou?",
+    "resetPassword": "Reyinisyalize modpas",
+    "signUp": "Enskri",
+    "welcomeBack": "Byenvini tounen"
+  },
+  "errors": {
+    "generic": "Yon erè te pase",
+    "tryAgain": "Tanpri eseye ankò",
+    "notFound": "Pa jwenn",
+    "sessionExpired": "Sesyon ekspire"
+  }
+}
