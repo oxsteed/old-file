@@ -1,4 +1,5 @@
-const db = require('../db');
+const db     = require('../db');
+const logger = require('../utils/logger');
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -104,7 +105,7 @@ exports.listPlannedNeeds = async (req, res) => {
 
     res.json({ planned_needs: needs });
   } catch (err) {
-    console.error('listPlannedNeeds error:', err);
+    logger.error('listPlannedNeeds error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch planned needs.' });
   }
 };
@@ -170,7 +171,7 @@ exports.createPlannedNeed = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('createPlannedNeed error:', err);
+    logger.error('createPlannedNeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to create planned need.' });
   }
 };
@@ -227,6 +228,14 @@ exports.updatePlannedNeed = async (req, res) => {
     const newLeadTime   = lead_time_days !== undefined ? lead_time_days : need.lead_time_days;
     const newStatus     = deriveInitialStatus(newCost, newDueDate, parseInt(newLeadTime));
 
+    // vehicle_id and home_id use explicit assignment (not COALESCE) so callers can pass
+    // null/0 to *clear* an existing link. Fields absent from req.body fall back to the
+    // current DB value so partial patches still work.
+    const hasVehicle = 'vehicle_id' in req.body;
+    const hasHome    = 'home_id'    in req.body;
+    const newVehicleId = hasVehicle ? (vehicle_id ? parseInt(vehicle_id) : null) : need.vehicle_id;
+    const newHomeId    = hasHome    ? (home_id    ? parseInt(home_id)    : null) : need.home_id;
+
     const { rows } = await db.query(`
       UPDATE planned_needs
       SET title                    = COALESCE($3,  title),
@@ -240,8 +249,8 @@ exports.updatePlannedNeed = async (req, res) => {
           recurrence_interval_days = COALESCE($11, recurrence_interval_days),
           preferred_helper_id      = COALESCE($12, preferred_helper_id),
           notes                    = COALESCE($13, notes),
-          vehicle_id               = COALESCE($14, vehicle_id),
-          home_id                  = COALESCE($15, home_id),
+          vehicle_id               = $14,
+          home_id                  = $15,
           updated_at               = NOW()
       WHERE id = $1 AND user_id = $2
       RETURNING *
@@ -249,13 +258,12 @@ exports.updatePlannedNeed = async (req, res) => {
       id, userId, title, description, category, newStatus, due_date,
       estimated_cost, lead_time_days, recurrence_type,
       recurrence_interval_days, preferred_helper_id, notes,
-      vehicle_id ? parseInt(vehicle_id) : null,
-      home_id    ? parseInt(home_id)    : null,
+      newVehicleId, newHomeId,
     ]);
 
     res.json(rows[0]);
   } catch (err) {
-    console.error('updatePlannedNeed error:', err);
+    logger.error('updatePlannedNeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to update planned need.' });
   }
 };
@@ -290,7 +298,7 @@ exports.cancelPlannedNeed = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    console.error('cancelPlannedNeed error:', err);
+    logger.error('cancelPlannedNeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to cancel planned need.' });
   }
 };
@@ -370,7 +378,7 @@ exports.completePlannedNeed = async (req, res) => {
 
     res.json({ completed, next_need: nextNeed });
   } catch (err) {
-    console.error('completePlannedNeed error:', err);
+    logger.error('completePlannedNeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to complete planned need.' });
   }
 };
@@ -397,7 +405,7 @@ exports.deletePlannedNeed = async (req, res) => {
     await db.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2', [id, userId]);
     res.json({ message: 'Planned need deleted.' });
   } catch (err) {
-    console.error('deletePlannedNeed error:', err);
+    logger.error('deletePlannedNeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to delete planned need.' });
   }
 };
@@ -509,7 +517,7 @@ exports.getProjection = async (req, res) => {
       needs: needsWithProjection,
     });
   } catch (err) {
-    console.error('getProjection error:', err);
+    logger.error('getProjection error', { message: err.message });
     res.status(500).json({ error: 'Failed to generate projection.' });
   }
 };
@@ -553,7 +561,7 @@ exports.helperAccept = async (req, res) => {
 
     res.json({ message: 'Accepted successfully.', planned_need_id: need.id });
   } catch (err) {
-    console.error('helperAccept error:', err);
+    logger.error('helperAccept error', { message: err.message });
     res.status(500).json({ error: 'Failed to accept.' });
   }
 };
@@ -606,7 +614,7 @@ exports.helperDecline = async (req, res) => {
 
     res.json({ message: 'Declined. Job is now open to all helpers.' });
   } catch (err) {
-    console.error('helperDecline error:', err);
+    logger.error('helperDecline error', { message: err.message });
     res.status(500).json({ error: 'Failed to decline.' });
   }
 };
@@ -648,7 +656,7 @@ exports.getHelperOffers = async (req, res) => {
 
     res.json({ offers });
   } catch (err) {
-    console.error('getHelperOffers error:', err);
+    logger.error('getHelperOffers error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch offers.' });
   }
 };
@@ -689,7 +697,7 @@ exports.broadcastNow = async (req, res) => {
 
     res.json({ message: 'Job is now open to all helpers.' });
   } catch (err) {
-    console.error('broadcastNow error:', err);
+    logger.error('broadcastNow error', { message: err.message });
     res.status(500).json({ error: 'Failed to broadcast.' });
   }
 };
@@ -719,7 +727,7 @@ exports.addToFund = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Not found or not editable.' });
     res.json(rows[0]);
   } catch (err) {
-    console.error('addToFund error:', err);
+    logger.error('addToFund error', { message: err.message });
     res.status(500).json({ error: 'Failed to update fund.' });
   }
 };
@@ -756,7 +764,7 @@ exports.getCostHistory = async (req, res) => {
 
     res.json({ history: rows, smart_estimate: smartEstimate, sample_size: costs.length });
   } catch (err) {
-    console.error('getCostHistory error:', err);
+    logger.error('getCostHistory error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch cost history.' });
   }
 };
@@ -773,7 +781,7 @@ exports.getTemplates = async (req, res) => {
     `);
     res.json({ templates: rows });
   } catch (err) {
-    console.error('getTemplates error:', err);
+    logger.error('getTemplates error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch templates.' });
   }
 };
@@ -792,7 +800,7 @@ exports.getPreferredByCount = async (req, res) => {
     `, [helperId]);
     res.json({ preferred_by_count: parseInt(rows[0].preferred_by_count) });
   } catch (err) {
-    console.error('getPreferredByCount error:', err);
+    logger.error('getPreferredByCount error', { message: err.message });
     res.status(500).json({ error: 'Failed to fetch count.' });
   }
 };
