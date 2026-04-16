@@ -787,6 +787,27 @@ Four gaps identified and fixed:
 - **Fix:** `authController.acceptTerms` and `helperRegistrationController.acceptTerms` now cap stored hashed IP values to 45 chars for compatibility with legacy column widths while still keeping hashed (non-raw) IP storage.
 - **Regression test:** added `POST /api/auth/register/accept-terms` test in `server/__tests__/auth.test.js` that asserts the persisted IP hash argument length is `<= 45`.
 
+### Session — 2026-04-16 (signup flow fixes)
+
+Four bugs in the customer + helper registration flows, all now fixed:
+
+1. **`pending_registrations.otp_code CHAR(6)` overflow** — The security hardening (session 2026-04-10) changed OTP storage from raw 6-digit codes to SHA-256 hashes (64-char hex). The original `CHAR(6)` column definition caused PostgreSQL `22001` (value too long) on every helper `startRegistration` and customer `acceptTerms` call. **Fix:** migration `067_fix_otp_code_column_types.sql` expands both `pending_registrations.otp_code` and `users.otp_code` to `TEXT`.
+
+2. **`users.otp_code VARCHAR(10)` overflow** — Same SHA-256 hash issue on `users.otp_code` (used by `requestOTP` / `resendVerification`). Fixed in the same migration.
+
+3. **`AuthContext` state not updated after OTP verification** — `AccountForm.handleOtpComplete` stored tokens in `localStorage` but never called `setUser()` in `AuthContext`. After OTP verification, the user appeared unauthenticated in React context — `ProtectedRoute` would redirect back to `/login` when navigating to the dashboard/helper-dashboard. **Fix:** `AccountForm.tsx` now calls `setUser(data.user)` after successful OTP verification.
+
+4. **OTP sent with placeholder phone/zip data** — The previous `handleSendOtp` was called from `handleEmailBlur` using placeholder values (`phone: '0000000000'`, `zip: '00000'`) before the user had filled those fields. These placeholders were persisted into `pending_registrations` and then written to the final `users` row. **Fix:** Removed `handleEmailBlur`-triggered OTP sending entirely. The `sendOtp` function is now only called from `handleSubmit` after all fields are validated, using real form values.
+
+5. **Helper `verifyOTP` did not store refresh token session** — After OTP verification, the helper's refresh token was never inserted into the `sessions` table, so any subsequent `POST /api/auth/refresh` call would return 401 (invalid refresh token). **Fix:** `helperRegistrationController.verifyOTP` now hashes and persists the refresh token in `sessions`.
+
+6. **`checkEmail` endpoint returns 409 but client only handled 200** — `POST /api/auth/check-email` returns status 409 (not 200) when email is taken. Axios throws on non-2xx, so `catch` fired and `emailAvailable` stayed `null`, allowing the user to proceed. **Fix:** `AccountForm.tsx` now handles the 409 error explicitly to set `emailAvailable = false`.
+
+**Files changed:**
+- `server/migrations/067_fix_otp_code_column_types.sql` (new)
+- `server/controllers/helperRegistrationController.js` — persist refresh token session in `verifyOTP`
+- `client/src/components/registration/AccountForm.tsx` — `onSuccess` type fix, AuthContext update, real-data OTP send, 409 email check handling
+
 ### Session — 2026-04-15 (start registration `22001` fix)
 
 - **Issue observed:** helper signup `POST /api/helper-registration/start` returned 500 with PostgreSQL `22001` (`varchar.c / bpchar`) for some inputs.

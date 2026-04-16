@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Briefcase, ChevronRight, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 import AvatarUpload from './AvatarUpload';
 import OTPInput from './OTPInput';
 import PasswordField, { scorePassword } from './PasswordField';
@@ -16,14 +17,7 @@ import PasswordField, { scorePassword } from './PasswordField';
 // ── Types ────────────────────────────────────────────────
 interface Props {
   role: 'customer' | 'helper';
-  onSuccess: (data: {
-    token: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    address: string;
-  }) => void;
+  onSuccess: () => void;
 }
 
 type FormState = {
@@ -56,6 +50,7 @@ function FieldError({ id, msg }: { id?: string; msg?: string }) {
 export default function AccountForm({ role, onSuccess }: Props) {
   const [searchParams] = useSearchParams();
   const referralRef = searchParams.get('ref') || undefined;
+  const { setUser } = useAuth();
 
   // Form data
   const [form, setForm] = useState<FormState>({
@@ -81,7 +76,6 @@ export default function AccountForm({ role, onSuccess }: Props) {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
 
   // Loading states
-  const [sendingOtp, setSendingOtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // ── Field setter ───────────────────────────────────────
@@ -99,65 +93,55 @@ export default function AccountForm({ role, onSuccess }: Props) {
       if (!data.available) {
         setErrors((prev) => ({ ...prev, email: 'This email is already registered' }));
       }
-    } catch {
-      setEmailAvailable(null);
+    } catch (err: any) {
+      // 409 = email taken (server returns { available: false } with 409 status)
+      if (err?.response?.status === 409) {
+        setEmailAvailable(false);
+        setErrors((prev) => ({ ...prev, email: 'This email is already registered' }));
+      } else {
+        setEmailAvailable(null);
+      }
     }
   }, [form.email]);
 
-  // ── Send OTP (triggers after email blur & valid) ───────
-  const handleSendOtp = useCallback(async () => {
-    if (!EMAIL_RE.test(form.email) || otpSent || emailAvailable === false) return;
-    setSendingOtp(true);
-    try {
-      // 1) Create pending registration
-      const endpoint = role === 'helper' ? '/helper-registration/start' : '/auth/register/start';
-      const res = await api.post(endpoint, {
-        email: form.email.trim().toLowerCase(),
-        password: form.password || 'Temp1234!', // temp — will be validated on submit
-        firstName: form.firstName.trim() || 'Pending',
-        lastName: form.lastName.trim() || 'User',
-        phone: form.phone || '0000000000',
-        zip: form.address?.match(/\d{5}/)?.[0] || '00000',
-        ageConfirmed: true,
-        ...(referralRef ? { ref: referralRef } : {}),
+  // ── Send OTP with real form values ─────────────────────
+  // Called only from handleSubmit after all fields are validated.
+  const sendOtp = useCallback(async (formData: FormState): Promise<string | null> => {
+    const phoneDigits = formData.phone.replace(/\D/g, '');
+    // Extract zip from address or fall back to empty string (server will validate)
+    const zip = formData.address.match(/\d{5}/)?.[0] || '';
+
+    const endpoint = role === 'helper' ? '/helper-registration/start' : '/auth/register/start';
+    const res = await api.post(endpoint, {
+      email: formData.email.trim().toLowerCase(),
+      password: formData.password,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      phone: phoneDigits,
+      zip: zip || '00000',
+      ageConfirmed: true,
+      ...(referralRef ? { ref: referralRef } : {}),
+    });
+    const token: string = res.data.token;
+
+    // For customers, accept-terms triggers the OTP email
+    if (role === 'customer') {
+      await api.post('/auth/register/accept-terms', {
+        token,
+        termsAccepted: true,
+        privacyAccepted: true,
+        brokerAccepted: true,
+        electronicSignature: {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          date: new Date().toISOString(),
+        },
       });
-      const token = res.data.token;
-      setRegistrationToken(token);
-
-      // 2) Accept terms → triggers OTP email
-      if (role === 'customer') {
-        await api.post('/auth/register/accept-terms', {
-          token,
-          termsAccepted: true,
-          privacyAccepted: true,
-          brokerAccepted: true,
-          electronicSignature: {
-            firstName: form.firstName.trim() || 'Pending',
-            lastName: form.lastName.trim() || 'User',
-            date: new Date().toISOString(),
-          },
-        });
-      }
-      // For helpers, OTP is sent automatically by /start
-
-      setOtpSent(true);
-      toast.success('Verification code sent to your email');
-    } catch (err: any) {
-      const msg = err.response?.data?.error || 'Could not send verification code';
-      toast.error(msg);
-    } finally {
-      setSendingOtp(false);
     }
-  }, [form, role, otpSent, emailAvailable]);
+    // For helpers, OTP is sent automatically by /start
 
-  // ── Email blur → check + optionally send OTP ──────────
-  const handleEmailBlur = useCallback(async () => {
-    await checkEmail();
-    // Only auto-send OTP if we have enough data
-    if (EMAIL_RE.test(form.email) && form.firstName && form.lastName && form.password.length >= 8 && !otpSent) {
-      await handleSendOtp();
-    }
-  }, [checkEmail, form.email, form.firstName, form.lastName, form.password, otpSent, handleSendOtp]);
+    return token;
+  }, [role, referralRef]);
 
   // ── OTP complete ──────────────────────────────────────
   const handleOtpComplete = useCallback(async (code: string) => {
@@ -167,7 +151,11 @@ export default function AccountForm({ role, onSuccess }: Props) {
       if (data.accessToken) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.user) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          // Update AuthContext so ProtectedRoute sees the new session immediately
+          setUser(data.user);
+        }
       }
       setOtpVerified(true);
       toast.success('Email verified!');
@@ -175,7 +163,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
       toast.error(err.response?.data?.error || 'Invalid code');
       setOtpDigits(['', '', '', '', '', '']);
     }
-  }, [registrationToken, role]);
+  }, [registrationToken, role, setUser]);
 
   // ── Resend OTP ────────────────────────────────────────
   const handleResendOtp = useCallback(async () => {
@@ -215,9 +203,14 @@ export default function AccountForm({ role, onSuccess }: Props) {
 
     setSubmitting(true);
     try {
-      // If OTP hasn't been sent yet, send it now
+      // If OTP hasn't been sent yet, send it now with real form values
       if (!otpSent) {
-        await handleSendOtp();
+        const token = await sendOtp(form);
+        if (token) {
+          setRegistrationToken(token);
+          setOtpSent(true);
+          toast.success('Verification code sent to your email');
+        }
         setSubmitting(false);
         return; // Wait for user to enter OTP
       }
@@ -229,17 +222,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
         return;
       }
 
-      // If we already have a token and OTP is verified, proceed to step 2
-      onSuccess({
-        token: registrationToken,
-        firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: form.phone,
-        address: form.address,
-      });
+      // OTP verified → proceed to Didit step
+      onSuccess();
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Registration failed';
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Registration failed';
       setErrors({ general: msg });
       toast.error(msg);
     } finally {
@@ -354,7 +340,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 type="email"
                 value={form.email}
                 onChange={(e) => set('email', e.target.value)}
-                onBlur={handleEmailBlur}
+                onBlur={checkEmail}
                 className={`${inputWithIcon} ${errors.email ? 'border-red-500 bg-red-900/20' : ''}`}
                 placeholder="you@example.com"
                 autoComplete="email"
@@ -432,7 +418,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.address}
                 onChange={(e) => set('address', e.target.value)}
                 className={`${inputWithIcon} ${errors.address ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder="123 Main St, Springfield, OH"
+                placeholder="123 Main St, Springfield, OH 45501"
                 autoComplete="street-address"
                 required
                 aria-invalid={!!errors.address}

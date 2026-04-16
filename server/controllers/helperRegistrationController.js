@@ -262,6 +262,12 @@ async function verifyOTP(req, res) {
     );
 
     const tokens = generateTokens(fullRows[0]);
+    // Persist the refresh token so subsequent /auth/refresh calls work
+    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    await pool.query(
+      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
+      [userId, hashedRefresh]
+    );
 
     res.json({
       message: 'Email verified',
