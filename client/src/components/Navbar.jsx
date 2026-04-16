@@ -110,10 +110,10 @@ export default function Navbar() {
           }}>
             {user ? (
               <>
-                <NavLink to="/jobs" active={isActive('/jobs')}>{t('Browse Jobs')}</NavLink>
-                <NavLink to="/post-job" active={isActive('/post-job')}>{t('Post a Job')}</NavLink>
+                <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
+                <NavLink to="/post-job" active={isActive('/post-job')}>{t('nav.postJob')}</NavLink>
                 <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
-                  {t('Messages')}
+                  {t('nav.messages')}
                   {unreadMsgs > 0 && (
                     <span style={{
                       marginLeft: '0.25rem',
@@ -130,9 +130,9 @@ export default function Navbar() {
                   )}
                 </NavLink>
                 <Divider />
-                <NavLink to="/dashboard" active={isActive('/dashboard')}>{t('Dashboard')}</NavLink>
-                {isHelper && <NavLink to="/business-hub" active={isActive('/business-hub')}>{t('Business')}</NavLink>}
-                <NavLink to="/settings" active={isActive('/settings')}>{t('Settings')}</NavLink>
+                <NavLink to="/dashboard" active={isActive('/dashboard')}>{t('nav.dashboard')}</NavLink>
+                {isHelper && <NavLink to="/business-hub" active={isActive('/business-hub')}>{t('nav.business')}</NavLink>}
+                <NavLink to="/settings" active={isActive('/settings')}>{t('nav.settings')}</NavLink>
                 <span className="ox-badge ox-badge-primary" style={{ textTransform: 'capitalize' }}>
                   {user?.role}
                 </span>
@@ -141,19 +141,19 @@ export default function Navbar() {
                   className="ox-btn ox-btn-ghost ox-btn-sm"
                   style={{ color: 'var(--color-error)' }}
                 >
-                  {t('Sign Out')}
+                  {t('nav.signOut')}
                 </button>
               </>
             ) : (
               <>
-                <NavLink to="/login" active={isActive('/login')}>{t('Sign in')}</NavLink>
-                <NavLink to="/jobs" active={isActive('/jobs')}>{t('Browse Jobs')}</NavLink>
-                <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('How It Works')}</NavLink>
+                <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
+                <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
+                <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
                 <Link to="/register/helper" className="ox-btn ox-btn-secondary ox-btn-sm">
-                  {t('List Your Skills')}
+                  {t('nav.listSkills')}
                 </Link>
                 <Link to="/register/customer" className="ox-btn ox-btn-primary ox-btn-sm">
-                  {t('Post a Job')}
+                  {t('nav.postJob')}
                 </Link>
               </>
             )}
@@ -200,11 +200,11 @@ export default function Navbar() {
           }}>
             {user ? (
               <>
-                <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>{t('Dashboard')}</MobileNavLink>
-                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('Browse Jobs')}</MobileNavLink>
-                <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('Post a Job')}</MobileNavLink>
+                <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
+                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
+                <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
-                  {t('Messages')} {unreadMsgs > 0 && (
+                  {t('nav.messages')} {unreadMsgs > 0 && (
                     <span style={{
                       background: 'var(--color-primary)',
                       color: '#fff',
@@ -236,7 +236,7 @@ export default function Navbar() {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--color-error-bg)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  {t('Sign Out')}
+                  {t('nav.signOut')}
                 </button>
               </>
             ) : (

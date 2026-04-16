@@ -1,28 +1,30 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import Backend from 'i18next-http-backend';
+
+import en from './locales/en.json';
+import es from './locales/es.json';
+import fr from './locales/fr.json';
+import ht from './locales/ht.json';
+
+export const LANGUAGES = [
+  { code: 'en', name: 'English',  flag: '🇬🇧' },
+  { code: 'es', name: 'Español',  flag: '🇪🇸' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'ht', name: 'Kreyòl',   flag: '🇭🇹' },
+];
 
 i18n
-  .use(Backend)
   .use(initReactI18next)
   .init({
-    // Locale JSON files are served from /public/locales/<lng>.json
-    // They are NOT bundled — only the active language is fetched.
-    backend: {
-      loadPath: '/locales/{{lng}}.json',
+    resources: {
+      en: { translation: en },
+      es: { translation: es },
+      fr: { translation: fr },
+      ht: { translation: ht },
     },
-
     lng: localStorage.getItem('oxs:language') || 'en',
     fallbackLng: 'en',
-
-    // Disable suspense mode — components render with fallback text while
-    // the locale file loads, rather than being hidden behind a Suspense boundary.
-    react: { useSuspense: false },
-
-    interpolation: {
-      // React already escapes values — no need for i18next to double-escape.
-      escapeValue: false,
-    },
+    interpolation: { escapeValue: false },
   });
 
 export default i18n;

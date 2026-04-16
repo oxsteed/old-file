@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "browseJobs": "Parcourir les Offres",
+    "postJob": "Publier un Travail",
+    "messages": "Messages",
+    "dashboard": "Tableau de Bord",
+    "business": "Entreprise",
+    "settings": "Paramètres",
+    "signOut": "Se Déconnecter",
+    "signIn": "Se Connecter",
+    "howItWorks": "Comment ça Marche",
+    "listSkills": "Proposer mes Services"
+  },
+  "hero": {
+    "title": "De l'Aide Locale,\nQuand Vous en Avez Besoin",
+    "subtitle": "Publiez un travail en quelques minutes. Recevez des offres de prestataires locaux de confiance pour vos réparations, ménage, déménagement et plus encore.",
+    "postJob": "Publier un Travail",
+    "browseHelpers": "Voir les Prestataires",
+    "stat1": "Prestataires Vérifiés",
+    "stat2": "Travaux Réalisés",
+    "stat3": "Note Moyenne",
+    "trustFree": "Publication gratuite",
+    "trustPrivate": "Adresse confidentielle",
+    "trustNoObligation": "Sans engagement"
+  },
+  "common": {
+    "loading": "Chargement…",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "submit": "Soumettre",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "search": "Rechercher",
+    "send": "Envoyer",
+    "retry": "Réessayer",
+    "learnMore": "En savoir plus",
+    "getStarted": "Commencer"
+  },
+  "jobs": {
+    "title": "Détails du Travail",
+    "myJobs": "Mes Travaux",
+    "active": "Actifs",
+    "completed": "Terminés",
+    "cancelled": "Annulés",
+    "budget": "Budget",
+    "urgency": "Urgence",
+    "asap": "Dès que possible",
+    "thisWeek": "Cette Semaine",
+    "flexible": "Flexible",
+    "placeBid": "Faire une Offre",
+    "cancelJob": "Annuler le Travail",
+    "markComplete": "Marquer comme Terminé",
+    "noBids": "Aucune offre pour l'instant"
+  },
+  "auth": {
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "signUp": "S'inscrire",
+    "welcomeBack": "Bon retour"
+  },
+  "errors": {
+    "generic": "Une erreur s'est produite",
+    "tryAgain": "Veuillez réessayer",
+    "notFound": "Introuvable",
+    "sessionExpired": "Session expirée"
+  }
+}
