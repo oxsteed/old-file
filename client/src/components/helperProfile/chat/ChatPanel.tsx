@@ -113,6 +113,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [handoffDismissed, setHandoffDismissed] = useState(false);
   const [sending,          setSending]          = useState(false);
   const [conversationId,   setConversationId]   = useState<string | null>(null);
+  // threadId ties this chat session to server-side Redis history (AI mode only).
+  // null until the first AI response is received; echoed back on every subsequent send.
+  const [threadId,         setThreadId]         = useState<string | null>(null);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -194,6 +197,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         helperId,
         ...(businessId ? { businessId } : {}),
         destination: session.destination,
+        // threadId links this request to server-side Redis history (null = new session)
+        ...(threadId ? { threadId } : {}),
         messages: [...session.timeline, userMsg]
           .filter(i => i.itemType === 'message')
           .map(i => {
@@ -207,6 +212,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
       if (data.type === 'live') {
         if (data.conversationId) setConversationId(data.conversationId);
+        // Live replies don't use thread memory — clear any stale threadId so
+        // a subsequent switch back to AI mode starts a fresh Redis thread.
+        setThreadId(null);
         const waiting: TimelineEvent = {
           id:        `evt-${Date.now()}`,
           itemType:  'system',
@@ -220,6 +228,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           timeline: [...prev.timeline, waiting],
         }));
       } else {
+        // Store the server-assigned threadId so history is tracked server-side
+        if (data.threadId) setThreadId(data.threadId);
         const aiMsg: ChatMessage = {
           id:         `msg-${Date.now()}-reply`,
           itemType:   'message',

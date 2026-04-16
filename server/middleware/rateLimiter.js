@@ -2,37 +2,20 @@ const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 
-let redisClient = null;
+// Shared Redis client — created once in utils/redis.js, reused here.
+// Falls back gracefully to in-memory when Redis is unavailable.
+const redisClient = require('../utils/redis');
 let RedisStore = null;
 
-if (process.env.REDIS_URL) {
+if (redisClient) {
   try {
     RedisStore = require('rate-limit-redis').default;
-    const Redis = require('ioredis');
-    redisClient = new Redis(process.env.REDIS_URL, {
-      maxRetriesPerRequest: 3,
-      enableOfflineQueue: true,
-      lazyConnect: true,
-      retryStrategy(times) {
-        if (times > 3) return null;
-        return Math.min(times * 200, 2000);
-      },
-    });
-    redisClient.connect()
-      .then(() => logger.info('Rate limiter: Redis connected'))
-      .catch(err => {
-        logger.warn('Rate limiter: Redis connect failed — falling back to memory', { message: err.message });
-        redisClient = null;
-      });
-    redisClient.on('error', (err) => logger.warn('Rate limiter: Redis error', { message: err.message }));
     logger.info('Rate limiter: using Redis store');
   } catch (err) {
-    logger.warn('Rate limiter: Redis store unavailable — falling back to memory', { message: err.message });
-    redisClient = null;
-    RedisStore = null;
+    logger.warn('Rate limiter: rate-limit-redis unavailable — falling back to memory', { message: err.message });
   }
 } else {
-  logger.info('Rate limiter: REDIS_URL not set — using in-memory store (not suitable for multi-instance)');
+  logger.info('Rate limiter: Redis not available — using in-memory store (not suitable for multi-instance)');
 }
 
 // Helper to create a unique RedisStore per limiter
