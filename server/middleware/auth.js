@@ -67,6 +67,8 @@ async function authenticate(req, res, next) {
          u.membership_tier, u.id_verified, u.background_check_passed,
          u.city, u.state, u.zip_code,
          u.display_name_preference, u.is_active,
+         u.didit_status, u.didit_verified_at,
+         u.trial_started_at, u.trial_ends_at,
          b.business_name,
          hp.is_listed
        FROM users u

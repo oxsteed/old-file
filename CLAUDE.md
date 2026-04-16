@@ -811,6 +811,9 @@ Four root causes found and fixed for the "Phase 2 Didit verification doesn't app
 **Post-verification redirect loop fix (same session):**
 After Didit webhook fires, the frontend's cached user still had `didit_status='pending'` (set at OTP time). `DiditPanel` called `onVerified()` → navigated to `/dashboard` → `ProtectedRoute` read the stale cache → redirected back to `/verify-identity` → infinite loop. Fixed by calling `refreshUser()` in both the `checkReturning` on-mount check and the polling interval before calling `onVerified()`, so ProtectedRoute sees the fresh `'verified'` status. Confirmed working for both customer and helper flows.
 
+**Root cause of redirect loop (follow-up fix):**
+`refreshUser()` calls `GET /auth/me` → `authenticate` middleware SELECT did not include `didit_status` or `didit_verified_at` columns. `formatAuthUser` defaulted missing `didit_status` to `'pending'` (`user.didit_status || 'pending'`), so every `refreshUser()` call returned `'pending'` regardless of the DB value. Fixed by adding `u.didit_status, u.didit_verified_at, u.trial_started_at, u.trial_ends_at` to the `authenticate` middleware SELECT in `server/middleware/auth.js`.
+
 **How the enforcement tiers work:**
 - **Production (DIDIT_API_KEY set):** Users must complete Didit. Skip is blocked (403). `ProtectedRoute` redirects anyone with `didit_status !== 'verified'` to `/verify-identity`.
 - **Dev / staging (no API key):** `createSession` returns 503, DiditPanel shows "unavailable" state, user can continue via skip (sets `didit_status = 'skipped'`), and ProtectedRoute allows `'skipped'` through.
