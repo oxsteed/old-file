@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
 import LanguageSelector from './LanguageSelector';
@@ -29,6 +30,7 @@ function OxSteedIcon({ size = 24 }) {
 
 export default function Navbar() {
   const { user, logout, isHelper } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
@@ -108,10 +110,10 @@ export default function Navbar() {
           }}>
             {user ? (
               <>
-                <NavLink to="/jobs" active={isActive('/jobs')}>Browse Jobs</NavLink>
-                <NavLink to="/post-job" active={isActive('/post-job')}>Post a Job</NavLink>
+                <NavLink to="/jobs" active={isActive('/jobs')}>{t('Browse Jobs')}</NavLink>
+                <NavLink to="/post-job" active={isActive('/post-job')}>{t('Post a Job')}</NavLink>
                 <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
-                  Messages
+                  {t('Messages')}
                   {unreadMsgs > 0 && (
                     <span style={{
                       marginLeft: '0.25rem',
@@ -128,9 +130,9 @@ export default function Navbar() {
                   )}
                 </NavLink>
                 <Divider />
-                <NavLink to="/dashboard" active={isActive('/dashboard')}>Dashboard</NavLink>
-                {isHelper && <NavLink to="/business-hub" active={isActive('/business-hub')}>Business</NavLink>}
-                <NavLink to="/settings" active={isActive('/settings')}>Settings</NavLink>
+                <NavLink to="/dashboard" active={isActive('/dashboard')}>{t('Dashboard')}</NavLink>
+                {isHelper && <NavLink to="/business-hub" active={isActive('/business-hub')}>{t('Business')}</NavLink>}
+                <NavLink to="/settings" active={isActive('/settings')}>{t('Settings')}</NavLink>
                 <span className="ox-badge ox-badge-primary" style={{ textTransform: 'capitalize' }}>
                   {user?.role}
                 </span>
@@ -139,19 +141,19 @@ export default function Navbar() {
                   className="ox-btn ox-btn-ghost ox-btn-sm"
                   style={{ color: 'var(--color-error)' }}
                 >
-                  Sign Out
+                  {t('Sign Out')}
                 </button>
               </>
             ) : (
               <>
-                <NavLink to="/login" active={isActive('/login')}>Sign in</NavLink>
-                <NavLink to="/jobs" active={isActive('/jobs')}>Browse Jobs</NavLink>
-                <NavLink to="/how-it-works" active={isActive('/how-it-works')}>How It Works</NavLink>
+                <NavLink to="/login" active={isActive('/login')}>{t('Sign in')}</NavLink>
+                <NavLink to="/jobs" active={isActive('/jobs')}>{t('Browse Jobs')}</NavLink>
+                <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('How It Works')}</NavLink>
                 <Link to="/register/helper" className="ox-btn ox-btn-secondary ox-btn-sm">
-                  List Your Skills
+                  {t('List Your Skills')}
                 </Link>
                 <Link to="/register/customer" className="ox-btn ox-btn-primary ox-btn-sm">
-                  Post a Job
+                  {t('Post a Job')}
                 </Link>
               </>
             )}
@@ -169,7 +171,7 @@ export default function Navbar() {
             <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-label={mobileOpen ? t('Close menu') : t('Open menu')}
               aria-expanded={mobileOpen}
               className="ox-btn-icon"
               style={{ color: 'var(--color-nav-link)' }}
@@ -198,11 +200,11 @@ export default function Navbar() {
           }}>
             {user ? (
               <>
-                <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>Dashboard</MobileNavLink>
-                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>Browse Jobs</MobileNavLink>
-                <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>Post a Job</MobileNavLink>
+                <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>{t('Dashboard')}</MobileNavLink>
+                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('Browse Jobs')}</MobileNavLink>
+                <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('Post a Job')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
-                  Messages {unreadMsgs > 0 && (
+                  {t('Messages')} {unreadMsgs > 0 && (
                     <span style={{
                       background: 'var(--color-primary)',
                       color: '#fff',
@@ -214,8 +216,8 @@ export default function Navbar() {
                     }}>{unreadMsgs}</span>
                   )}
                 </MobileNavLink>
-                {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>Business</MobileNavLink>}
-                <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>Settings</MobileNavLink>
+                {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('Business')}</MobileNavLink>}
+                <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>{t('Settings')}</MobileNavLink>
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
                   style={{
@@ -234,19 +236,19 @@ export default function Navbar() {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--color-error-bg)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  Sign Out
+                  {t('Sign Out')}
                 </button>
               </>
             ) : (
               <>
-                <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>Sign in</MobileNavLink>
-                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>Browse Jobs</MobileNavLink>
-                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>How It Works</MobileNavLink>
+                <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('Sign in')}</MobileNavLink>
+                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('Browse Jobs')}</MobileNavLink>
+                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('How It Works')}</MobileNavLink>
                 <MobileNavLink to="/register/helper" onClick={() => setMobileOpen(false)} highlight>
-                  List Your Skills
+                  {t('List Your Skills')}
                 </MobileNavLink>
                 <MobileNavLink to="/register/customer" onClick={() => setMobileOpen(false)} primary>
-                  Post a Job
+                  {t('Post a Job')}
                 </MobileNavLink>
               </>
             )}

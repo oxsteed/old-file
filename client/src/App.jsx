@@ -3,6 +3,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
+import './i18n'; // initialise i18next before any component renders
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
