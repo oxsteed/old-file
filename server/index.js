@@ -26,7 +26,7 @@ const { reloadFeeConfig } = require('./services/feeService');
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
 const sanitizeInputs = require('./middleware/sanitize');
-const { generalLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
 
 // ── ROUTES ───────────────────────────────────────────────────
@@ -219,7 +219,11 @@ app.post('/api/verification/webhooks/identity', express.raw({ type: 'application
 app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), diditWebhook);
 
 // ── RATE LIMITING ────────────────────────────────────────────
+// Unauthenticated requests: 200 req / 15 min / IP
+// Authenticated requests:   500 req / 15 min / user ID
+// Each limiter skips the other's traffic so they don't double-count.
 app.use('/api/', generalLimiter);
+app.use('/api/', authenticatedLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/privacy/delete-account', strictLimiter);
 app.use('/api/privacy/export', strictLimiter);

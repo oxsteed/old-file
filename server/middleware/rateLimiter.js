@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 
 let redisClient = null;
@@ -47,11 +48,40 @@ function createStoreOption(prefix) {
   return {};
 }
 
-// General API rate limiter: 200 requests per 15 minutes per IP
+// General API rate limiter: 200 requests per 15 minutes per IP (unauthenticated only)
 const generalLimiter = rateLimit({
   ...createStoreOption('rl:general:'),
   windowMs: 15 * 60 * 1000,
   max: 200,
+  // Skip requests that carry a Bearer token — those are handled by authenticatedLimiter.
+  skip: (req) => !!req.headers.authorization?.startsWith('Bearer '),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Authenticated API rate limiter: 500 requests per 15 minutes per user ID.
+// Keyed by user ID so each account gets its own bucket regardless of IP
+// (avoids penalising everyone on a shared network).
+// Falls back to IP if the token is expired or invalid.
+const authenticatedLimiter = rateLimit({
+  ...createStoreOption('rl:auth_user:'),
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  skip: (req) => !req.headers.authorization?.startsWith('Bearer '),
+  keyGenerator: (req) => {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      return `user:${decoded.id}`;
+    } catch {
+      // Expired / invalid token — fall back to IP so the request still gets limited.
+      return req.ip;
+    }
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -116,4 +146,4 @@ const geoLimiter = rateLimit({
   },
 });
 
-module.exports = { generalLimiter, authLimiter, strictLimiter, chatLimiter, geoLimiter };
+module.exports = { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, chatLimiter, geoLimiter };
