@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StepBar, AccountForm, DiditPanel } from '../components/registration';
+import { useTranslation } from 'react-i18next';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,6 +15,7 @@ export default function HelperRegister() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
+  const { t } = useTranslation();
 
   // If the user is already registered + email-verified, skip step 1.
   useEffect(() => {
@@ -32,8 +34,8 @@ export default function HelperRegister() {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
           <div className="flex items-center gap-4">
-            <Link to="/how-it-works" className="text-sm text-gray-400 hover:text-white transition">How It Works</Link>
-            <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">Sign In</Link>
+            <Link to="/how-it-works" className="text-sm text-gray-400 hover:text-white transition">{t('nav.howItWorks')}</Link>
+            <Link to="/login" className="text-sm text-gray-400 hover:text-white transition">{t('nav.signIn')}</Link>
           </div>
         </div>
       </nav>
@@ -72,7 +74,7 @@ export default function HelperRegister() {
             )}
 
             <div className="text-center px-6 pb-5 text-xs text-gray-400">
-              Already have an account?{' '}
+              {t('auth.welcomeBack')}?{' '}
               <Link to="/login" className="text-orange-500 font-medium hover:underline">Sign in</Link>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
+import { useTranslation } from 'react-i18next';
 
 export default function Footer() {
   const { user } = useAuth();
@@ -12,6 +13,7 @@ export default function Footer() {
   // Reads from the shared CookieConsentProvider — openSettings() here will
   // update the same showSettings state that <CookieConsent> is listening to.
   const { openSettings } = useCookieConsentContext();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -63,7 +65,7 @@ export default function Footer() {
               OxSteed
             </Link>
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', maxWidth: '36ch', lineHeight: 1.6 }}>
-              Post a job, compare bids from trusted local helpers, and pay securely.
+              {t('footer.tagline')}
             </p>
           </div>
 
@@ -74,21 +76,21 @@ export default function Footer() {
                 Platform
               </span>
               {user ? (
-                <FooterLink to="/dashboard">Dashboard</FooterLink>
+                <FooterLink to="/dashboard">{t('nav.dashboard')}</FooterLink>
               ) : (
-                <FooterLink to="/login">Sign In</FooterLink>
+                <FooterLink to="/login">{t('nav.signIn')}</FooterLink>
               )}
-              <FooterLink to="/jobs">Browse Jobs</FooterLink>
-              <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>Post a Job</FooterLink>
-              <FooterLink to={user?.role === 'helper' ? '/dashboard' : '/register/helper'}>List Your Skills</FooterLink>
+              <FooterLink to="/jobs">{t('footer.browseJobs')}</FooterLink>
+              <FooterLink to={user?.role === 'customer' ? '/post-job' : '/register/customer'}>{t('footer.postJob')}</FooterLink>
+              <FooterLink to={user?.role === 'helper' ? '/dashboard' : '/register/helper'}>{t('footer.listSkills')}</FooterLink>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Company
               </span>
-              <FooterLink to="/how-it-works">How It Works</FooterLink>
-              <FooterLink to="/about">About</FooterLink>
-              <FooterLink to="/helpers">Find Helpers</FooterLink>
+              <FooterLink to="/how-it-works">{t('footer.howItWorks')}</FooterLink>
+              <FooterLink to="/about">{t('footer.about')}</FooterLink>
+              <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
             </div>
           </div>
         </div>
@@ -101,12 +103,12 @@ export default function Footer() {
           marginBottom: 'var(--space-4)',
           alignItems: 'center',
         }}>
-          <LegalLink to="/terms">Terms of Service</LegalLink>
-          <LegalLink to="/privacy">Privacy Policy</LegalLink>
-          <LegalLink to="/security">Security</LegalLink>
-          <LegalLink to="/cookie-policy">Cookie Policy</LegalLink>
-          <LegalLink to="/do-not-sell">Do Not Sell My Info</LegalLink>
-          <LegalLink to="/accessibility">Accessibility</LegalLink>
+          <LegalLink to="/terms">{t('footer.terms')}</LegalLink>
+          <LegalLink to="/privacy">{t('footer.privacy')}</LegalLink>
+          <LegalLink to="/security">{t('footer.security')}</LegalLink>
+          <LegalLink to="/cookie-policy">{t('footer.cookiePolicy')}</LegalLink>
+          <LegalLink to="/do-not-sell">{t('footer.doNotSell')}</LegalLink>
+          <LegalLink to="/accessibility">{t('footer.accessibility')}</LegalLink>
           {/* GDPR: persistent entry point so users can change consent at any time */}
           <button
             onClick={openSettings}
@@ -221,6 +223,7 @@ function LegalLink({ to, children }) {
 }
 
 function VortexModal({ onClose }) {
+  const { t } = useTranslation();
   const [token, setToken]   = useState('');
   const [error, setError]   = useState('');
   const [success, setSuccess] = useState(null);
@@ -230,7 +233,7 @@ function VortexModal({ onClose }) {
     setError('');
     const t = token.trim();
     if (t.length !== 64) {
-      setError('Token must be exactly 64 characters.');
+      setError(t('footer.vortexTokenError'));
       return;
     }
     setLoading(true);
@@ -263,16 +266,16 @@ function VortexModal({ onClose }) {
   return (
     <div style={overlayStyle} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={boxStyle}>
-        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>Vortex</h2>
+        <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>{t('footer.vortexTitle')}</h2>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', color: 'var(--color-text-muted)', lineHeight: 1.55 }}>
-          Enter a 64-character Vortex token shared by a business owner to join their team.
+          {t('footer.vortexDesc')}
         </p>
 
         {!success ? (
           <>
             <input
               type="text"
-              placeholder="Paste your 64-character token…"
+              placeholder={t('footer.vortexPlaceholder')}
               value={token}
               onChange={e => { setToken(e.target.value); setError(''); }}
               maxLength={64}
@@ -293,7 +296,7 @@ function VortexModal({ onClose }) {
               spellCheck="false"
             />
             <p style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)', margin: '0 0 1rem' }}>
-              {token.length} / 64 characters
+              {t('footer.vortexChars', { count: token.length })}
             </p>
 
             {error && (
@@ -321,7 +324,7 @@ function VortexModal({ onClose }) {
                   opacity: loading || token.trim().length !== 64 ? 0.7 : 1,
                 }}
               >
-                {loading ? 'Joining…' : 'Join Business'}
+                {loading ? t('footer.vortexJoining') : t('footer.vortexJoin')}
               </button>
             </div>
           </>
@@ -330,10 +333,10 @@ function VortexModal({ onClose }) {
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✅</div>
               <p style={{ fontWeight: 700, fontSize: '1.1rem', margin: '0 0 0.5rem' }}>
-                You've joined {success.business_name}!
+                {t('footer.vortexSuccess', { name: success.business_name })}
               </p>
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: '0 0 1.5rem' }}>
-                Role: <strong>{success.role}</strong>
+                {t('footer.vortexRole', { role: success.role })}
               </p>
               <button
                 onClick={onClose}

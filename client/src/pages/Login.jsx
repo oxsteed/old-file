@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import Footer from '../components/Footer';
@@ -14,6 +15,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const from = location.state?.from?.pathname || '/dashboard';
 
@@ -30,15 +32,15 @@ export default function Login() {
         loggedInUser?.email_verified &&
         !['verified', 'skipped'].includes(loggedInUser?.didit_status)
       ) {
-        toast.success('Welcome back! Please complete your identity verification.');
+        toast.success(t('login.verifyIdentityToast'));
         navigate('/verify-identity', { replace: true });
         return;
       }
 
-      toast.success('Welcome back!');
+      toast.success(t('login.welcomeBackToast'));
       navigate(from, { replace: true });
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Login failed');
+      toast.error(err.response?.data?.error || t('errors.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -51,8 +53,8 @@ export default function Login() {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-orange-500">OxSteed</Link>
           <div className="flex items-center gap-3">
-            <Link to="/register/customer" className="text-sm text-gray-400 hover:text-white transition">Post a Job</Link>
-            <Link to="/register/helper" className="text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-all duration-300">List Your Skills</Link>
+            <Link to="/register/customer" className="text-sm text-gray-400 hover:text-white transition">{t('login.postJob')}</Link>
+            <Link to="/register/helper" className="text-sm px-3 py-1.5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-all duration-300">{t('login.listSkills')}</Link>
           </div>
         </div>
       </nav>
@@ -64,7 +66,7 @@ export default function Login() {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div>
             <h1 className="text-white text-4xl font-bold tracking-tight">OxSteed</h1>
-            <p className="text-orange-100 mt-1 text-lg">Your local services board.</p>
+            <p className="text-orange-100 mt-1 text-lg">{t('login.brandTagline')}</p>
           </div>
 
           <div className="space-y-8">
@@ -74,8 +76,8 @@ export default function Login() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Free to Start</p>
-                  <p className="text-orange-100 text-sm">Browse helpers and post jobs at no cost</p>
+                  <p className="text-white font-semibold">{t('login.featureFreeTitle')}</p>
+                  <p className="text-orange-100 text-sm">{t('login.featureFreeSub')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -83,8 +85,8 @@ export default function Login() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Go Pro</p>
-                  <p className="text-orange-100 text-sm">Verified badge, priority placement, bid alerts</p>
+                  <p className="text-white font-semibold">{t('login.featureProTitle')}</p>
+                  <p className="text-orange-100 text-sm">{t('login.featureProSub')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -92,8 +94,8 @@ export default function Login() {
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Pay with Confidence</p>
-                  <p className="text-orange-100 text-sm">Optional escrow protection on any job</p>
+                  <p className="text-white font-semibold">{t('login.featurePayTitle')}</p>
+                  <p className="text-orange-100 text-sm">{t('login.featurePaySub')}</p>
                 </div>
               </div>
             </div>
@@ -109,18 +111,18 @@ export default function Login() {
           {/* Mobile logo */}
           <div className="lg:hidden text-center">
             <h1 className="text-3xl font-bold text-orange-500">OxSteed</h1>
-            <p className="text-gray-500 mt-1">Your local services board.</p>
+            <p className="text-gray-500 mt-1">{t('login.brandTagline')}</p>
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-white">Welcome back</h2>
-            <p className="text-gray-400 mt-1">Sign in to your account to continue</p>
+            <h2 className="text-2xl font-bold text-white">{t('login.title')}</h2>
+            <p className="text-gray-400 mt-1">{t('login.subtitle')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1.5">
-                Email address
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -137,10 +139,10 @@ export default function Login() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                  Password
+                  {t('auth.password')}
                 </label>
                 <Link to="/forgot-password" className="text-sm text-orange-500 hover:text-orange-400 transition">
-                  Forgot password?
+                  {t('auth.forgotPassword')}
                 </Link>
               </div>
               <div className="relative">
@@ -151,7 +153,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12"
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                   autoComplete="current-password"
                 />
                 <button
@@ -173,7 +175,7 @@ export default function Login() {
                 className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-950"
               />
               <label htmlFor="remember-me" className="ml-2 text-sm text-gray-400">
-                Remember me
+                {t('login.rememberMe')}
               </label>
             </div>
 
@@ -186,7 +188,7 @@ export default function Login() {
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
               ) : (
                 <>
-                  Sign in
+                  {t('login.signIn')}
                   <ArrowRight size={18} />
                 </>
               )}
@@ -198,7 +200,7 @@ export default function Login() {
               <div className="w-full border-t border-gray-800" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-gray-950 text-gray-500">New to OxSteed?</span>
+              <span className="px-4 bg-gray-950 text-gray-500">{t('login.newHere')}</span>
             </div>
           </div>
 
@@ -207,23 +209,23 @@ export default function Login() {
               to="/register/customer"
               className="flex-1 flex items-center justify-center gap-1 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
             >
-              Sign up as Customer
+              {t('login.signUpCustomer')}
               <ArrowRight size={16} />
             </Link>
             <Link
               to="/register/helper"
               className="flex-1 flex items-center justify-center gap-1 py-2.5 px-4 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-medium rounded-xl transition-all duration-200"
             >
-              Sign up as Helper
+              {t('login.signUpHelper')}
               <ArrowRight size={16} />
             </Link>
           </div>
 
           <p className="text-center text-xs text-gray-600">
-            Subject to our{' '}
-            <Link to="/terms" className="text-gray-400 hover:text-orange-400 underline">Terms of Service</Link>
-            {' '}and{' '}
-            <Link to="/privacy" className="text-gray-400 hover:text-orange-400 underline">Privacy Policy</Link>
+            {t('login.termsNote')}{' '}
+            <Link to="/terms" className="text-gray-400 hover:text-orange-400 underline">{t('login.termsLink')}</Link>
+            {' '}{t('common.and')}{' '}
+            <Link to="/privacy" className="text-gray-400 hover:text-orange-400 underline">{t('login.privacyLink')}</Link>
           </p>
         </div>
       </div>

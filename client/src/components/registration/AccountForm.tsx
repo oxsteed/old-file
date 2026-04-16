@@ -7,6 +7,7 @@ import { useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Briefcase, ChevronRight, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -51,6 +52,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
   const [searchParams] = useSearchParams();
   const referralRef = searchParams.get('ref') || undefined;
   const { setUser } = useAuth();
+  const { t } = useTranslation();
 
   // Form data
   const [form, setForm] = useState<FormState>({
@@ -91,24 +93,21 @@ export default function AccountForm({ role, onSuccess }: Props) {
       const { data } = await api.post('/auth/check-email', { email: form.email.trim().toLowerCase() });
       setEmailAvailable(data.available);
       if (!data.available) {
-        setErrors((prev) => ({ ...prev, email: 'This email is already registered' }));
+        setErrors((prev) => ({ ...prev, email: t('register.emailTaken') }));
       }
     } catch (err: any) {
-      // 409 = email taken (server returns { available: false } with 409 status)
       if (err?.response?.status === 409) {
         setEmailAvailable(false);
-        setErrors((prev) => ({ ...prev, email: 'This email is already registered' }));
+        setErrors((prev) => ({ ...prev, email: t('register.emailTaken') }));
       } else {
         setEmailAvailable(null);
       }
     }
-  }, [form.email]);
+  }, [form.email, t]);
 
   // ── Send OTP with real form values ─────────────────────
-  // Called only from handleSubmit after all fields are validated.
   const sendOtp = useCallback(async (formData: FormState): Promise<string | null> => {
     const phoneDigits = formData.phone.replace(/\D/g, '');
-    // Extract zip from address or fall back to empty string (server will validate)
     const zip = formData.address.match(/\d{5}/)?.[0] || '';
 
     const endpoint = role === 'helper' ? '/helper-registration/start' : '/auth/register/start';
@@ -124,7 +123,6 @@ export default function AccountForm({ role, onSuccess }: Props) {
     });
     const token: string = res.data.token;
 
-    // For customers, accept-terms triggers the OTP email
     if (role === 'customer') {
       await api.post('/auth/register/accept-terms', {
         token,
@@ -138,7 +136,6 @@ export default function AccountForm({ role, onSuccess }: Props) {
         },
       });
     }
-    // For helpers, OTP is sent automatically by /start
 
     return token;
   }, [role, referralRef]);
@@ -153,19 +150,17 @@ export default function AccountForm({ role, onSuccess }: Props) {
         localStorage.setItem('refreshToken', data.refreshToken);
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
-          // Update AuthContext so ProtectedRoute sees the new session immediately
           setUser(data.user);
         }
       }
       setOtpVerified(true);
-      toast.success('Email verified! Moving to identity verification...');
-      // Auto-advance to Didit step — user shouldn't need to click again
+      toast.success(t('register.verifiedToast'));
       setTimeout(() => onSuccess(), 1200);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid code');
+      toast.error(err.response?.data?.error || t('errors.invalidCode'));
       setOtpDigits(['', '', '', '', '', '']);
     }
-  }, [registrationToken, role, setUser, onSuccess]);
+  }, [registrationToken, role, setUser, onSuccess, t]);
 
   // ── Resend OTP ────────────────────────────────────────
   const handleResendOtp = useCallback(async () => {
@@ -176,24 +171,24 @@ export default function AccountForm({ role, onSuccess }: Props) {
         : { token: registrationToken };
       await api.post(endpoint, payload);
       setOtpDigits(['', '', '', '', '', '']);
-      toast.success('New code sent');
+      toast.success(t('register.newCodeSent'));
     } catch {
-      toast.error('Failed to resend code');
+      toast.error(t('register.resendFailed'));
     }
-  }, [role, form.email, registrationToken]);
+  }, [role, form.email, registrationToken, t]);
 
   // ── Validation ────────────────────────────────────────
   const validate = (): boolean => {
     const e: FormErrors = {};
-    if (!form.firstName.trim()) e.firstName = 'First name is required';
-    if (!form.lastName.trim()) e.lastName = 'Last name is required';
-    if (!form.email.trim() || !EMAIL_RE.test(form.email)) e.email = 'Enter a valid email';
-    if (emailAvailable === false) e.email = 'This email is already registered';
+    if (!form.firstName.trim()) e.firstName = t('register.errorFirstName');
+    if (!form.lastName.trim()) e.lastName = t('register.errorLastName');
+    if (!form.email.trim() || !EMAIL_RE.test(form.email)) e.email = t('register.errorEmail');
+    if (emailAvailable === false) e.email = t('register.emailTaken');
     const phoneDigits = form.phone.replace(/\D/g, '');
-    if (phoneDigits.length < 7) e.phone = 'Enter a valid phone number';
-    if (!form.address.trim()) e.address = 'Address is required';
-    if (scorePassword(form.password) < 3) e.password = 'Password must meet requirements';
-    if (!form.termsAccepted) e.termsAccepted = 'Please accept the terms';
+    if (phoneDigits.length < 7) e.phone = t('register.errorPhone');
+    if (!form.address.trim()) e.address = t('register.errorAddress');
+    if (scorePassword(form.password) < 3) e.password = t('register.errorPassword');
+    if (!form.termsAccepted) e.termsAccepted = t('register.errorTerms');
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -205,31 +200,26 @@ export default function AccountForm({ role, onSuccess }: Props) {
 
     setSubmitting(true);
     try {
-      // If OTP hasn't been sent yet, send it now with real form values
       if (!otpSent) {
         const token = await sendOtp(form);
         if (token) {
           setRegistrationToken(token);
           setOtpSent(true);
-          toast.success('Verification code sent to your email');
+          toast.success(t('register.codeSentToast'));
         }
-        setSubmitting(false);
-        return; // Wait for user to enter OTP
-      }
-
-      // If OTP sent but not yet verified, prompt user
-      if (!otpVerified) {
-        toast.error('Please verify your email with the code sent to you');
         setSubmitting(false);
         return;
       }
 
-      // OTP verified — onSuccess() was already called automatically in handleOtpComplete.
-      // This branch is a safety fallback in case the timeout fires late or the user
-      // clicks the button before the auto-advance triggers.
+      if (!otpVerified) {
+        toast.error(t('register.errorOtp'));
+        setSubmitting(false);
+        return;
+      }
+
       onSuccess();
     } catch (err: any) {
-      const msg = err.response?.data?.error || err.response?.data?.message || 'Registration failed';
+      const msg = err.response?.data?.error || err.response?.data?.message || t('register.registrationFailed');
       setErrors({ general: msg });
       toast.error(msg);
     } finally {
@@ -250,10 +240,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
           className="text-2xl md:text-3xl font-bold text-white"
           style={{ fontFamily: "'Instrument Serif', Georgia, serif", letterSpacing: '-0.02em' }}
         >
-          Create your account
+          {t('register.createAccount')}
         </h1>
         <p className="text-xs text-gray-400 mt-1 mb-6 leading-relaxed">
-          Join OxSteed — your local services marketplace.
+          {t('register.tagline')}
         </p>
       </div>
 
@@ -273,7 +263,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
           <div className="grid grid-cols-2 gap-3 max-[400px]:grid-cols-1">
             <div className="flex flex-col gap-1">
               <label htmlFor="firstName" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-                First name
+                {t('register.firstName')}
               </label>
               <input
                 id="firstName"
@@ -291,7 +281,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="lastName" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-                Last name
+                {t('register.lastName')}
               </label>
               <input
                 id="lastName"
@@ -312,7 +302,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
           {/* ── Business name (optional) ─────────────── */}
           <div className="flex flex-col gap-1">
             <label htmlFor="bizName" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-              Business name <span className="font-normal text-gray-500 normal-case tracking-normal ml-1">optional</span>
+              {t('register.businessName')} <span className="font-normal text-gray-500 normal-case tracking-normal ml-1">{t('register.optional')}</span>
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
@@ -333,7 +323,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
           {/* ── Email ────────────────────────────────── */}
           <div className="flex flex-col gap-1">
             <label htmlFor="email" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-              Email address
+              {t('register.emailAddress')}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
@@ -354,7 +344,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
               />
             </div>
             {emailAvailable === true && !errors.email && (
-              <p className="text-[11px] text-green-500 mt-0.5">Email is available</p>
+              <p className="text-[11px] text-green-500 mt-0.5">{t('register.emailAvailable')}</p>
             )}
             <FieldError id="err-email" msg={errors.email} />
           </div>
@@ -365,10 +355,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-green-400 font-medium flex items-center gap-1.5">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                  Code sent — enter it below
+                  {t('register.codeSent')}
                 </span>
                 <button type="button" onClick={handleResendOtp} className="text-[11px] text-orange-500 hover:opacity-80 transition-opacity">
-                  Resend
+                  {t('register.resend')}
                 </button>
               </div>
               <OTPInput value={otpDigits} onChange={setOtpDigits} onComplete={handleOtpComplete} />
@@ -378,14 +368,14 @@ export default function AccountForm({ role, onSuccess }: Props) {
           {otpVerified && (
             <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-900/20 border border-green-700/30 text-xs text-green-400 font-medium">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-              Email verified
+              {t('register.emailVerified')}
             </div>
           )}
 
           {/* ── Phone ───────────────────────────────── */}
           <div className="flex flex-col gap-1">
             <label htmlFor="phone" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-              Phone number
+              {t('register.phone')}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
@@ -410,7 +400,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
           {/* ── Address ─────────────────────────────── */}
           <div className="flex flex-col gap-1">
             <label htmlFor="address" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-              Address
+              {t('register.address')}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
@@ -459,11 +449,11 @@ export default function AccountForm({ role, onSuccess }: Props) {
               )}
             </button>
             <p className="text-xs text-gray-400 leading-relaxed">
-              I agree to OxSteed's{' '}
-              <Link to="/terms" target="_blank" className="text-orange-500 hover:underline">Terms of Service</Link>
-              {' '}and{' '}
-              <Link to="/privacy" target="_blank" className="text-orange-500 hover:underline">Privacy Policy</Link>.
-              {' '}I consent to identity verification as required for service providers.
+              {t('register.termsText')}{' '}
+              <Link to="/terms" target="_blank" className="text-orange-500 hover:underline">{t('register.termsLink')}</Link>
+              {' '}{t('common.and')}{' '}
+              <Link to="/privacy" target="_blank" className="text-orange-500 hover:underline">{t('register.privacyLink')}</Link>.
+              {' '}{t('register.termsConsent')}
             </p>
           </div>
           <FieldError msg={errors.termsAccepted} />
@@ -482,7 +472,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
             </svg>
           ) : (
             <>
-              {otpVerified ? 'Proceeding to Identity Verification…' : otpSent ? 'Verify Email & Continue' : 'Create Account'}
+              {otpVerified ? t('register.proceedButton') : otpSent ? t('register.verifyButton') : t('register.createButton')}
               <ChevronRight size={16} />
             </>
           )}

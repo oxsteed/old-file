@@ -5,6 +5,7 @@ import useAuth from '../hooks/useAuth';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import '../styles/JobListPage.css';
+import { useTranslation } from 'react-i18next';
 
 const CATEGORIES = [
   { name: 'Handyman' },
@@ -56,6 +57,7 @@ function priorityBadge(priority) {
 }
 
 export default function JobListPage() {
+  const { t } = useTranslation();
   const { jobs, loading, error, pagination, fetchJobs } = useJobs();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -93,7 +95,7 @@ export default function JobListPage() {
   return (
     <PageShell>
       <PageMeta
-        title="Browse Open Jobs"
+        title={t('jobList.metaTitle')}
         description="Find jobs in your area posted by homeowners and businesses. Bid on work that matches your skills and schedule."
         url="https://oxsteed.com/jobs"
       />
@@ -101,7 +103,7 @@ export default function JobListPage() {
       <div className="ox-container">
         {/* ── Hero Section ── */}
         <section className="jlp-hero">
-          <h1>Find Local Services Near You</h1>
+          <h1>{t('jobList.title')}</h1>
           <p className="jlp-hero-sub">
             Browse available jobs or post your own. Connect with local helpers in your area.
           </p>
@@ -111,7 +113,7 @@ export default function JobListPage() {
             <input
               type="search"
               className="ox-input"
-              placeholder="Search jobs by keyword…"
+              placeholder={t('jobList.searchPlaceholder')}
               value={qInput}
               onChange={e => {
                 const val = e.target.value;
@@ -128,7 +130,7 @@ export default function JobListPage() {
               onChange={e => handleFilter('category', e.target.value)}
               aria-label="Filter by category"
             >
-              <option value="">All Categories</option>
+              <option value="">{t('jobList.allCategories')}</option>
               {CATEGORIES.map(c => (
                 <option key={c.name} value={c.name}>{c.name}</option>
               ))}
@@ -149,7 +151,7 @@ export default function JobListPage() {
               onChange={e => handleFilter('state', e.target.value)}
               aria-label="Filter by state"
             >
-              <option value="">All States</option>
+              <option value="">{t('jobList.allStates')}</option>
               {US_STATES.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
@@ -161,9 +163,9 @@ export default function JobListPage() {
               onChange={e => handleFilter('sort', e.target.value)}
               aria-label="Sort jobs"
             >
-              <option value="newest">Newest First</option>
-              <option value="budget_high">Budget: High to Low</option>
-              <option value="budget_low">Budget: Low to High</option>
+              <option value="newest">{t('jobList.sortNewest')}</option>
+              <option value="budget_high">{t('jobList.sortBudgetHigh')}</option>
+              <option value="budget_low">{t('jobList.sortBudgetLow')}</option>
             </select>
           </div>
 
@@ -206,7 +208,7 @@ export default function JobListPage() {
           {loading ? (
             <div className="jlp-loading">
               <div className="ox-spinner" />
-              <p>Loading jobs...</p>
+              <p>{t('common.loading')}</p>
             </div>
           ) : error ? (
             <div className="jlp-error">
@@ -217,8 +219,8 @@ export default function JobListPage() {
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
               </div>
-              <h2>Something went wrong</h2>
-              <p>We couldn't load the job listings. Please try again.</p>
+              <h2>{t('errors.generic')}</h2>
+              <p>{t('errors.tryAgain')}</p>
               <button className="ox-btn ox-btn-primary" onClick={() => fetchJobs(filters)}>
                 Try Again
               </button>
@@ -310,8 +312,8 @@ export default function JobListPage() {
                   <circle cx="58" cy="50" r="3" fill="var(--color-primary)" opacity="0.5" />
                 </svg>
               </div>
-              <h2>No jobs in your area yet</h2>
-              <p>Post a job — it's free and takes about 60 seconds.</p>
+              <h2>{t('jobList.noJobs')}</h2>
+              <p>{t('jobList.noJobsSub')}</p>
               <div className="jlp-empty-actions">
                 {user ? (
                   <button onClick={() => navigate('/post-job')} className="ox-btn ox-btn-primary ox-btn-lg">

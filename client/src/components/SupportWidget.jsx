@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/axios';
+import { useTranslation } from 'react-i18next';
 
 const STORAGE_KEY = 'oxsteed_chat_history';
 const MAX_HISTORY = 40;
@@ -140,6 +141,7 @@ function exportTranscript(messages) {
 
 // ── 3. Escalation modal ───────────────────────────────────────────────────────
 function EscalationModal({ messages, onClose }) {
+  const { t } = useTranslation();
   const [sent,         setSent]         = useState(false);
   const [ticketNumber, setTicketNumber] = useState(null);
   const [name,         setName]         = useState('');
@@ -198,7 +200,7 @@ function EscalationModal({ messages, onClose }) {
           <>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="text-white font-semibold text-sm">Talk to a Human</h3>
+                <h3 className="text-white font-semibold text-sm">{t('support.escalateTitle')}</h3>
                 <p className="text-gray-500 text-xs mt-0.5">We'll reply to your email, usually within a few hours.</p>
               </div>
               <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition" aria-label="Close">
@@ -237,7 +239,7 @@ function EscalationModal({ messages, onClose }) {
                 disabled={sending}
                 className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm rounded-xl transition disabled:opacity-50"
               >
-                {sending ? 'Sending…' : 'Send to Support Team'}
+                {sending ? t('common.sending') + '…' : t('support.submitTicket')}
               </button>
             </form>
           </>
@@ -264,6 +266,8 @@ export default function SupportWidget() {
   const [unread,       setUnread]       = useState(0);
   const [showEscalate, setShowEscalate] = useState(false);
   const [isMobile,     setIsMobile]     = useState(false);
+
+  const { t } = useTranslation();
 
   const endRef      = useRef(null);
   const inputRef    = useRef(null);
@@ -708,7 +712,7 @@ export default function SupportWidget() {
                       onKeyDown={e => {
                         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }
                       }}
-                      placeholder="Message OxSteed AI… (Enter to send)"
+                      placeholder={t('support.placeholder')}
                       disabled={loading}
                       rows={1}
                       style={{ resize: 'none', minHeight: '38px', maxHeight: '120px', overflowY: 'auto' }}
