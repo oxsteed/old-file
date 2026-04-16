@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import Footer from '../components/Footer';
@@ -13,25 +14,26 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      toast.error(t('resetPassword.errorMinLength'));
       return;
     }
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error(t('resetPassword.errorMismatch'));
       return;
     }
     setLoading(true);
     try {
       await api.post('/auth/reset-password', { token, password });
       setSuccess(true);
-      toast.success('Password reset successfully!');
+      toast.success(t('resetPassword.successToast'));
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Reset link is invalid or expired.');
+      toast.error(err.response?.data?.error || t('errors.resetLinkInvalid'));
     } finally {
       setLoading(false);
     }
@@ -44,12 +46,12 @@ export default function ResetPasswordPage() {
         <div className="text-center">
           <Link to="/" className="text-3xl font-bold text-orange-500">OxSteed</Link>
           <h2 className="mt-6 text-2xl font-bold text-white">
-            {success ? 'Password Reset!' : 'Set New Password'}
+            {success ? t('resetPassword.successTitle') : t('resetPassword.title')}
           </h2>
           <p className="mt-2 text-gray-400 text-sm">
             {success
-              ? 'Your password has been updated. Redirecting to login...'
-              : 'Enter your new password below.'}
+              ? t('resetPassword.successSubtitle')
+              : t('resetPassword.subtitle')}
           </p>
         </div>
 
@@ -57,7 +59,7 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
-                New Password
+                {t('resetPassword.newPassword')}
               </label>
               <div className="relative">
                 <input
@@ -67,7 +69,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition pr-12"
-                  placeholder="Min 8 characters"
+                  placeholder={t('resetPassword.passwordPlaceholder')}
                 />
                 <button
                   type="button"
@@ -80,7 +82,7 @@ export default function ResetPasswordPage() {
             </div>
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1.5">
-                Confirm Password
+                {t('resetPassword.confirmPassword')}
               </label>
               <input
                 id="confirmPassword"
@@ -89,7 +91,7 @@ export default function ResetPasswordPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
-                placeholder="Confirm new password"
+                placeholder={t('resetPassword.confirmPlaceholder')}
               />
             </div>
             <button
@@ -97,7 +99,7 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 disabled:opacity-50 transition"
             >
-              {loading ? 'Resetting...' : (<><Lock size={18} /> Reset Password</>)}
+              {loading ? t('resetPassword.resetting') : (<><Lock size={18} /> {t('resetPassword.resetButton')}</>)}
             </button>
           </form>
         )}
@@ -108,7 +110,7 @@ export default function ResetPasswordPage() {
               <Lock className="w-8 h-8 text-green-500" />
             </div>
             <Link to="/login" className="text-orange-500 hover:text-orange-400 text-sm font-medium transition">
-              Go to Sign In now
+              {t('resetPassword.goToSignIn')}
             </Link>
           </div>
         )}
