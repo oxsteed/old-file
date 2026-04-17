@@ -54,6 +54,13 @@ export default function TermsGate({ children }: TermsGateProps) {
     }
   };
 
+  // Lock body scroll while the gate is visible
+  useEffect(() => {
+    if (loading || !user || outstanding.length === 0) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [loading, user, outstanding.length]);
+
   if (loading) return null;
   if (!user || outstanding.length === 0) return <>{children}</>;
 

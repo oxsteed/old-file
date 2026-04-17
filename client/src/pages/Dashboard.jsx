@@ -80,6 +80,16 @@ const Select = ({ label, children, ...rest }) => (
 
 // ── Modal Wrapper ─────────────────────────────────────────────────────────
 const Modal = ({ open, onClose, title, children }) => {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -87,7 +97,7 @@ const Modal = ({ open, onClose, title, children }) => {
       <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-bold text-white">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition"><IcoX size={18}/></button>
+          <button onClick={onClose} aria-label="Close" className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"><IcoX size={18}/></button>
         </div>
         {children}
       </div>

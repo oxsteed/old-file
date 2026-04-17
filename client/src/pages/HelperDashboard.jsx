@@ -48,7 +48,17 @@ const Tag = ({ text, color = 'orange' }) => {
   const m = { orange:'bg-orange-500/15 text-orange-400', green:'bg-emerald-500/15 text-emerald-400', red:'bg-red-500/15 text-red-400', gray:'bg-gray-700/40 text-gray-400', blue:'bg-blue-500/15 text-blue-400', purple:'bg-purple-500/15 text-purple-400' };
   return <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${m[color]||m.orange}`}>{text}</span>;
 };
-const Modal = ({open,onClose,title,children})=>{if(!open)return null;return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}><div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/><div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between mb-5"><h3 className="font-bold text-white">{title}</h3><button onClick={onClose} className="text-gray-500 hover:text-white transition"><IcoX size={18}/></button></div>{children}</div></div>);};
+const Modal = ({open,onClose,title,children})=>{
+  useEffect(()=>{
+    if(!open)return;
+    document.body.style.overflow='hidden';
+    const onKey=(e)=>{if(e.key==='Escape')onClose();};
+    document.addEventListener('keydown',onKey);
+    return()=>{document.body.style.overflow='';document.removeEventListener('keydown',onKey);};
+  },[open,onClose]);
+  if(!open)return null;
+  return(<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}><div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/><div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-between mb-5"><h3 className="font-bold text-white">{title}</h3><button onClick={onClose} aria-label="Close" className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"><IcoX size={18}/></button></div>{children}</div></div>);
+};
 
 // Format a Date as YYYY-MM-DD in local time (avoids UTC-shift from toISOString())
 const localDateStr = (d = new Date()) =>
