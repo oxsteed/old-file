@@ -9,7 +9,9 @@
     "signOut": "Dekonekte",
     "signIn": "Konekte",
     "howItWorks": "Kijan sa Mache",
-    "listSkills": "Ofri Sèvis Ou"
+    "listSkills": "Ofri Sèvis Ou",
+    "closeMenu": "Fèmen meni",
+    "openMenu": "Louvri meni"
   },
   "hero": {
     "title": "Èd Lokal,\nLè Ou Bezwen Li",

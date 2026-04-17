@@ -9,7 +9,9 @@
     "signOut": "Cerrar Sesión",
     "signIn": "Iniciar Sesión",
     "howItWorks": "Cómo Funciona",
-    "listSkills": "Ofrecer Servicios"
+    "listSkills": "Ofrecer Servicios",
+    "closeMenu": "Cerrar menú",
+    "openMenu": "Abrir menú"
   },
   "hero": {
     "title": "Ayuda Local,\nCuando la Necesitas",

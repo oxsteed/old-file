@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 
@@ -85,6 +86,7 @@ function RemoveModal({ item, type, onConfirm, onClose }) {
 }
 
 export default function ContentRemovals() {
+  const { t } = useTranslation();
   const [tab, setTab]         = useState('bids');
   const [items, setItems]     = useState([]);
   const [total, setTotal]     = useState(0);
@@ -120,19 +122,19 @@ export default function ContentRemovals() {
 
   async function handleRemoveBid(bidId, reason) {
     await adminApi.post(`/admin/bids/${bidId}/remove`, { reason });
-    showToast('Bid removed and action logged.');
+    showToast(t('admin.bidRemoved'));
     fetchItems();
   }
 
   async function handleRemoveReview(reviewId, reason) {
     await adminApi.post(`/admin/reviews/${reviewId}/remove`, { reason });
-    showToast('Review hidden and action logged.');
+    showToast(t('admin.reviewHidden'));
     fetchItems();
   }
 
   async function handleRestoreReview(reviewId) {
     await adminApi.post(`/admin/reviews/${reviewId}/restore`);
-    showToast('Review restored.');
+    showToast(t('admin.reviewRestored'));
     fetchItems();
   }
 

@@ -9,7 +9,9 @@
     "signOut": "Sign Out",
     "signIn": "Sign In",
     "howItWorks": "How It Works",
-    "listSkills": "List Your Skills"
+    "listSkills": "List Your Skills",
+    "closeMenu": "Close menu",
+    "openMenu": "Open menu"
   },
   "hero": {
     "title": "Local Help,\nWhen You Need It",

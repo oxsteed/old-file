@@ -1,4 +1,5 @@
 import { useEffect, useState }  from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, Link }      from 'react-router-dom';
 import { Shield, Ban, CheckCircle,
          ExternalLink, AlertCircle,
@@ -8,6 +9,7 @@ import adminApi                 from '../../../lib/adminApi';
 import { useAuth }              from '../../../hooks/useAuth';
 
 export default function UserDetail() {
+  const { t } = useTranslation();
   const { userId }           = useParams();
   const { user: me }         = useAuth();
   const isSuper              = me?.role === 'super_admin';
@@ -241,7 +243,7 @@ export default function UserDetail() {
             <button
               onClick={() => doAction(
                 'ban',
-                { reason: prompt('Reason (optional):') || '' },
+                { reason: prompt(t('admin.optionalReason')) || '' },
                 user.is_active ? 'Ban this user' : 'Unban this user'
               )}
               disabled={working}

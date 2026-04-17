@@ -9,7 +9,9 @@
     "signOut": "Se déconnecter",
     "signIn": "Se connecter",
     "howItWorks": "Comment ça marche",
-    "listSkills": "Proposer mes services"
+    "listSkills": "Proposer mes services",
+    "closeMenu": "Fermer le menu",
+    "openMenu": "Ouvrir le menu"
   },
   "hero": {
     "title": "Aide locale,\nQuand vous en avez besoin",
