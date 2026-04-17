@@ -14,6 +14,7 @@ import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
 import { useSocket } from '../hooks/useSocket';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
+import ReviewsList from '../components/reviews/ReviewsList';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -835,7 +836,8 @@ export default function HelperDashboard() {
         {id:'carcare',label:t('dashboard.tabs.carCare')},
         {id:'skills',label:t('dashboard.tabs.skillsTools')},
         {id:'products',label:t('dashboard.tabs.products')},
-        {id:'bids',label:t('helperDashboard.tabs.myBids')},
+        {id:'bids',    label:t('helperDashboard.tabs.myBids')},
+        {id:'reviews', label:t('helperDashboard.tabs.reviews')},
       ];
 
   if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">{t('helperDashboard.loadingDashboard')}</span></div></div></PageShell>);
@@ -1682,6 +1684,14 @@ export default function HelperDashboard() {
                     ))}
                   </div>
             }
+          </div>
+        )}
+
+        {/* ═══════ MY REVIEWS ═══════ */}
+        {tab==='reviews'&&(
+          <div>
+            <h3 className="font-semibold text-white text-lg mb-5">{t('helperDashboard.tabs.reviews')}</h3>
+            <ReviewsList userId={user?.id} />
           </div>
         )}
 
