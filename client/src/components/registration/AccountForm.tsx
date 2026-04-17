@@ -271,7 +271,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.firstName}
                 onChange={(e) => set('firstName', e.target.value)}
                 className={`${inputBase} px-3 ${errors.firstName ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder="Toussaint"
+                placeholder={t('register.firstNamePlaceholder')}
                 autoComplete="given-name"
                 required
                 aria-invalid={!!errors.firstName}
@@ -289,7 +289,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.lastName}
                 onChange={(e) => set('lastName', e.target.value)}
                 className={`${inputBase} px-3 ${errors.lastName ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder="Louverture"
+                placeholder={t('register.lastNamePlaceholder')}
                 autoComplete="family-name"
                 required
                 aria-invalid={!!errors.lastName}
@@ -314,7 +314,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.businessName}
                 onChange={(e) => set('businessName', e.target.value)}
                 className={inputWithIcon}
-                placeholder="My Business Name LLC"
+                placeholder={t('register.businessNamePlaceholder')}
                 autoComplete="organization"
               />
             </div>
@@ -412,7 +412,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
                 value={form.address}
                 onChange={(e) => set('address', e.target.value)}
                 className={`${inputWithIcon} ${errors.address ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder="123 Main St, Springfield, OH 45501"
+                placeholder={t('register.addressPlaceholder')}
                 autoComplete="street-address"
                 required
                 aria-invalid={!!errors.address}

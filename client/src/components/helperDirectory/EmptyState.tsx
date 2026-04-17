@@ -110,7 +110,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         <Link to="/register/customer" className="text-brand-500 hover:text-brand-400 transition-colors">
           {t('helpersDir.postForFree')}
         </Link>{' '}
-        and qualified helpers will reach out to you.
+        {t('helpersDir.postForFreeTrailing')}
       </p>
     </div>
   );

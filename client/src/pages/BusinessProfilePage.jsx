@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MessageCircle } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -40,16 +41,16 @@ import { getBusinessPublicProfile } from '../api/businesses';
 
 // ── Data mapping helpers ──────────────────────────────────────────────────────
 
-function buildBadges(business) {
+function buildBadges(business, t) {
   const badges = [];
   if (business.is_background_checked)
-    badges.push({ id: 'bg',   label: 'Background Checked', icon: 'shield-check', variant: 'verified'  });
+    badges.push({ id: 'bg',   label: t('helpersDir.badgeBackgroundChecked'), icon: 'shield-check', variant: 'verified'  });
   if (business.is_identity_verified)
-    badges.push({ id: 'id',   label: 'ID Verified',         icon: 'shield-check', variant: 'verified'  });
+    badges.push({ id: 'id',   label: t('helpersDir.badgeIdVerified'),        icon: 'shield-check', variant: 'verified'  });
   if (business.is_licensed)
-    badges.push({ id: 'lic',  label: 'Licensed',            icon: 'award',        variant: 'trusted'   });
+    badges.push({ id: 'lic',  label: t('helpersDir.badgeLicensed'),          icon: 'award',        variant: 'trusted'   });
   if (business.is_insured)
-    badges.push({ id: 'ins',  label: 'Insured',             icon: 'shield-check', variant: 'trusted'   });
+    badges.push({ id: 'ins',  label: t('helpersDir.badgeInsured'),           icon: 'shield-check', variant: 'trusted'   });
   return badges;
 }
 
@@ -57,7 +58,7 @@ function buildBadges(business) {
  * Maps the raw API response from GET /api/businesses/:id/public
  * to the HelperProfileData shape expected by the shared components.
  */
-function mapToHelperProfileData(profile) {
+function mapToHelperProfileData(profile, t) {
   const { business, services, reviews, gallery, faqs, policies } = profile;
 
   const helper = {
@@ -75,7 +76,7 @@ function mapToHelperProfileData(profile) {
     verified:      !!business.is_identity_verified,
     responseTime:  '',
     responseRate:  0,
-    badges:        buildBadges(business),
+    badges:        buildBadges(business, t),
     categories:    business.business_type ? [business.business_type] : [],
     city:          [business.address_city, business.address_state].filter(Boolean).join(', '),
   };
@@ -94,7 +95,7 @@ function mapToHelperProfileData(profile) {
   const mappedGallery = (gallery || []).map(g => ({
     id:      String(g.id),
     url:     g.url,
-    alt:     g.caption || 'Business photo',
+    alt:     g.caption || t('businessProfile.galleryAlt'),
     caption: g.caption || '',
     type:    'photo',
   }));
@@ -166,6 +167,7 @@ function mapToHelperProfileData(profile) {
 
 // ── Team section (business-specific supplement) ───────────────────────────────
 function TeamSection({ team }) {
+  const { t } = useTranslation();
   if (!team || team.length === 0) return null;
 
   function getInitials(first, last) {
@@ -179,7 +181,7 @@ function TeamSection({ team }) {
       id="team"
     >
       <h2 id="team-heading" className="text-base font-semibold text-white mb-4">
-        Our Team
+        {t('businessProfile.ourTeam')}
       </h2>
       <ul className="space-y-3" role="list">
         {team.map((member, i) => (
@@ -203,7 +205,7 @@ function TeamSection({ team }) {
                 {member.first_name} {member.last_name}
               </p>
               <p className="text-xs text-gray-400">
-                {member.role === 'manager' ? 'Manager' : 'Representative'}
+                {member.role === 'manager' ? t('businessProfile.manager') : t('businessProfile.representative')}
               </p>
             </div>
           </li>
@@ -215,6 +217,7 @@ function TeamSection({ team }) {
 
 // ── Contact links section (business-specific supplement) ─────────────────────
 function ContactLinksSection({ phone, website }) {
+  const { t } = useTranslation();
   if (!phone && !website) return null;
 
   return (
@@ -223,7 +226,7 @@ function ContactLinksSection({ phone, website }) {
       className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
     >
       <h2 id="contact-heading" className="text-base font-semibold text-white mb-3">
-        Contact
+        {t('businessProfile.contact')}
       </h2>
       <div className="flex flex-wrap gap-3">
         {phone && (
@@ -253,6 +256,7 @@ function ContactLinksSection({ phone, website }) {
 export default function BusinessProfilePage() {
   const { id }    = useParams();
   const navigate  = useNavigate();
+  const { t }     = useTranslation();
 
   const [profileData, setProfileData] = useState(null);
   const [loadState,   setLoadState]   = useState('idle');
@@ -271,13 +275,13 @@ export default function BusinessProfilePage() {
     setError(null);
     try {
       const raw = await getBusinessPublicProfile(id);
-      setProfileData(mapToHelperProfileData(raw));
+      setProfileData(mapToHelperProfileData(raw, t));
       setLoadState('success');
     } catch (e) {
       setError(
         e?.response?.status === 404
-          ? 'Business not found.'
-          : 'Failed to load this business profile. Please try again.'
+          ? t('businessProfile.notFound')
+          : t('businessProfile.loadFailed')
       );
       setLoadState('error');
     }
@@ -313,7 +317,7 @@ export default function BusinessProfilePage() {
         <Navbar />
         <main className="py-16">
           <ProfileError
-            headline="Unable to load this business"
+            headline={t('businessProfile.unableToLoad')}
             message={error ?? 'Unknown error'}
             onRetry={loadProfile}
           />
@@ -370,7 +374,7 @@ export default function BusinessProfilePage() {
                 className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
               >
                 <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
-                  About {helper.businessName}
+                  {t('businessProfile.about', { name: helper.businessName })}
                 </h2>
                 <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
               </section>
@@ -423,7 +427,7 @@ export default function BusinessProfilePage() {
           {/* ── Right column: CTA + Chat (desktop) ─────────────────── */}
           <aside
             className="hidden lg:flex lg:col-span-5 flex-col gap-5"
-            aria-label="Book and chat"
+            aria-label={t('businessProfile.bookAndChatAria')}
           >
             <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col">
               <CTASection
@@ -454,24 +458,24 @@ export default function BusinessProfilePage() {
       <div
         className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-        aria-label="Quick actions"
+        aria-label={t('businessProfile.quickActionsAria')}
       >
         <button
           onClick={handleOpenChat}
           className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors active:bg-gray-700"
-          aria-label="Open chat with this business"
+          aria-label={t('businessProfile.openChatAria')}
         >
           <MessageCircle className="w-4 h-4" aria-hidden="true" />
-          Message
+          {t('businessProfile.message')}
         </button>
         <button
           onClick={services.length > 0 ? handleBookNow : undefined}
           disabled={services.length === 0}
-          title={services.length === 0 ? "No services listed yet — send a message." : undefined}
+          title={services.length === 0 ? t('helperProfile.cta.noServicesTitle') : undefined}
           className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed active:bg-brand-700"
-          aria-label="Book this business"
+          aria-label={t('businessProfile.bookBusinessAria')}
         >
-          Book Now
+          {t('businessProfile.bookNow')}
         </button>
       </div>
 

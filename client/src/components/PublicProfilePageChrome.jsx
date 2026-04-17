@@ -3,6 +3,7 @@
  * (skeleton, error, mobile chat drawer, section nav, back-to-top).
  */
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, ArrowUp } from 'lucide-react';
 
 export function ProfileSkeleton() {
@@ -25,27 +26,30 @@ export function ProfileSkeleton() {
   );
 }
 
-export function ProfileError({ message, onRetry, headline = 'Unable to load this profile' }) {
+export function ProfileError({ message, onRetry, headline }) {
+  const { t } = useTranslation();
+  const resolvedHeadline = headline ?? t('helperProfile.chrome.unableToLoad');
   return (
     <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4 px-4 text-center">
       <div className="w-14 h-14 rounded-full bg-red-900/30 flex items-center justify-center">
         <X className="w-7 h-7 text-red-400" aria-hidden="true" />
       </div>
       <div>
-        <p className="text-white font-medium">{headline}</p>
+        <p className="text-white font-medium">{resolvedHeadline}</p>
         <p className="text-gray-400 text-sm mt-1">{message}</p>
       </div>
       <button
         onClick={onRetry}
         className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors"
       >
-        Try again
+        {t('helperProfile.chrome.tryAgain')}
       </button>
     </div>
   );
 }
 
 export function MobileChatDrawer({ open, onClose, children }) {
+  const { t } = useTranslation();
   const drawerRef = useRef(null);
   const touchStartY = useRef(0);
   const touchCurrentY = useRef(0);
@@ -108,7 +112,7 @@ export function MobileChatDrawer({ open, onClose, children }) {
       className="fixed inset-0 z-50 flex flex-col"
       role="dialog"
       aria-modal="true"
-      aria-label="Chat"
+      aria-label={t('helperProfile.chrome.chat')}
     >
       <div className="absolute inset-0 bg-black/70" onClick={onClose} aria-hidden="true" />
       <div
@@ -124,7 +128,7 @@ export function MobileChatDrawer({ open, onClose, children }) {
           onTouchCancel={handleHandleTouchCancel}
           onClick={onClose}
           role="button"
-          aria-label="Close chat"
+          aria-label={t('helperProfile.chrome.closeChat')}
           tabIndex={0}
           onKeyDown={(e) => e.key === 'Enter' && onClose()}
         >
@@ -138,6 +142,7 @@ export function MobileChatDrawer({ open, onClose, children }) {
 }
 
 export function BackToTopButton() {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -152,33 +157,34 @@ export function BackToTopButton() {
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       className="fixed bottom-24 left-4 z-30 lg:bottom-8 lg:left-auto lg:right-4 w-10 h-10 rounded-full bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors shadow-lg flex items-center justify-center"
-      aria-label="Back to top"
+      aria-label={t('helperProfile.chrome.backToTop')}
     >
       <ArrowUp className="w-4 h-4" aria-hidden="true" />
     </button>
   );
 }
 
-export const PROFILE_PAGE_SECTIONS = [
-  { id: 'services', label: 'Services' },
-  { id: 'gallery', label: 'Photos' },
-  { id: 'reviews', label: 'Reviews' },
-  { id: 'faqs', label: 'FAQs' },
-  { id: 'policies', label: 'Policies' },
-];
-
 export function SectionNav() {
+  const { t } = useTranslation();
   const scrollTo = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  const sections = [
+    { id: 'services', label: t('helperProfile.chrome.sectionServices') },
+    { id: 'gallery',  label: t('helperProfile.chrome.sectionGallery') },
+    { id: 'reviews',  label: t('helperProfile.chrome.sectionReviews') },
+    { id: 'faqs',     label: t('helperProfile.chrome.sectionFaqs') },
+    { id: 'policies', label: t('helperProfile.chrome.sectionPolicies') },
+  ];
+
   return (
     <nav
-      aria-label="Page sections"
+      aria-label={t('helperProfile.chrome.pageSections')}
       className="sticky top-0 z-20 bg-gray-950/90 backdrop-blur-md border-b border-gray-800"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <ul className="flex gap-1 overflow-x-auto hide-scrollbar py-2" role="list">
-          {PROFILE_PAGE_SECTIONS.map((s) => (
+          {sections.map((s) => (
             <li key={s.id} role="listitem">
               <button
                 onClick={() => scrollTo(s.id)}
@@ -193,3 +199,11 @@ export function SectionNav() {
     </nav>
   );
 }
+
+export const PROFILE_PAGE_SECTIONS = [
+  { id: 'services', label: 'Services' },
+  { id: 'gallery',  label: 'Photos' },
+  { id: 'reviews',  label: 'Reviews' },
+  { id: 'faqs',     label: 'FAQs' },
+  { id: 'policies', label: 'Policies' },
+];

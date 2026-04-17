@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 export default function PublicProfile() {
   const { id } = useParams();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [badges, setBadges] = useState([]);
@@ -31,12 +33,12 @@ export default function PublicProfile() {
     load();
   }, [id]);
 
-  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Loading profile...</p></div>;
-  if (!profile) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Profile not found.</p></div>;
+  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">{t('publicProfile.loading')}</p></div>;
+  if (!profile) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">{t('publicProfile.notFound')}</p></div>;
 
   const avgRating = reviews.length
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-    : 'No ratings';
+    : t('publicProfile.noRatings');
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -53,8 +55,8 @@ export default function PublicProfile() {
               <p className="text-gray-400 mt-1">
                 {(profile.city && profile.state)
                   ? `${profile.city}, ${profile.state}`
-                  : (profile.zip_code || profile.zipcode || 'Location unavailable')}
-                {' '}&middot; Member since {new Date(profile.created_at).getFullYear()}
+                  : (profile.zip_code || profile.zipcode || t('publicProfile.locationUnavailable'))}
+                {' '}&middot; {t('publicProfile.memberSince', { year: new Date(profile.created_at).getFullYear() })}
               </p>
               <div className="flex gap-2 mt-3 flex-wrap">
                 {badges.map((b, i) => (
@@ -65,9 +67,13 @@ export default function PublicProfile() {
               </div>
               <div className="mt-4 flex items-center gap-4">
                 <span className="text-yellow-400 text-lg">{avgRating} ★</span>
-                <span className="text-gray-500">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</span>
+                <span className="text-gray-500">
+                  {t('publicProfile.reviewCount', { count: reviews.length })}
+                </span>
                 {profile.jobs_completed > 0 && (
-                  <span className="text-gray-500">{profile.jobs_completed} jobs completed</span>
+                  <span className="text-gray-500">
+                    {t('publicProfile.jobsDone', { count: profile.jobs_completed })}
+                  </span>
                 )}
               </div>
             </div>
@@ -84,9 +90,9 @@ export default function PublicProfile() {
 
         {/* Reviews */}
         <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Reviews</h2>
+          <h2 className="text-xl font-semibold mb-4">{t('publicProfile.reviews')}</h2>
           {reviews.length === 0 ? (
-            <p className="text-gray-500">No reviews yet.</p>
+            <p className="text-gray-500">{t('publicProfile.noReviews')}</p>
           ) : (
             <div className="space-y-4">
               {reviews.map((r) => (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CalendarX,
   CreditCard,
@@ -21,10 +22,11 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const PoliciesSection: React.FC<PoliciesSectionProps> = ({ policies }) => {
+  const { t } = useTranslation();
   if (!policies || policies.length === 0) return null;
 
   return (
-  <SectionCard id="policies" title="Policies">
+  <SectionCard id="policies" title={t('helperProfile.policies.title')}>
     <dl className="space-y-4">
       {policies.map((policy) => {
         const Icon = iconMap[policy.icon] ?? FileText;

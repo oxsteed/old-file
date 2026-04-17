@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface SearchBarProps {
   value: string;
@@ -10,9 +11,11 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChange,
-  placeholder = 'Search by service, skill, or name…',
+  placeholder,
 }) => {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const resolvedPlaceholder = placeholder ?? t('helpersDir.heroSearchPlaceholder');
 
   return (
     <div className="relative flex items-center">
@@ -25,15 +28,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        aria-label="Search helpers"
+        placeholder={resolvedPlaceholder}
+        aria-label={t('helpersDir.searchAria')}
         className="w-full bg-gray-800 border border-gray-700 rounded-2xl pl-10 pr-10 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
       />
       {value && (
         <button
           onClick={() => { onChange(''); inputRef.current?.focus(); }}
           className="absolute right-3 p-1 rounded-full text-gray-500 hover:text-white transition-colors"
-          aria-label="Clear search"
+          aria-label={t('helpersDir.clearSearch')}
         >
           <X className="w-3.5 h-3.5" aria-hidden="true" />
         </button>

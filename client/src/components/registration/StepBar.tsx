@@ -1,12 +1,17 @@
 // client/src/components/registration/StepBar.tsx
 // Minimal step progress bar — 2 segments with label + count
 
+import { useTranslation } from 'react-i18next';
+
 interface Props {
   current: 1 | 2;
   labels?: [string, string];
 }
 
-export default function StepBar({ current, labels = ['Create your profile', 'Verify your identity'] }: Props) {
+export default function StepBar({ current, labels }: Props) {
+  const { t } = useTranslation();
+  const resolvedLabels = labels ?? [t('register.step1Label'), t('register.step2Label')];
+
   return (
     <div className="px-6 pt-5">
       {/* Segment bars */}
@@ -26,10 +31,10 @@ export default function StepBar({ current, labels = ['Create your profile', 'Ver
       {/* Label row */}
       <div className="flex items-center justify-between mt-3">
         <span className="text-[11px] font-medium tracking-widest uppercase text-gray-400">
-          {labels[current - 1]}
+          {resolvedLabels[current - 1]}
         </span>
         <span className="text-[11px] text-gray-500">
-          Step {current} of 2
+          {t('register.stepOf', { current })}
         </span>
       </div>
     </div>

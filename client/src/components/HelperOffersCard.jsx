@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 
 /**
@@ -9,6 +10,7 @@ import api from '../api/axios';
  *   <HelperOffersCard />
  */
 export default function HelperOffersCard() {
+  const { t } = useTranslation();
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,17 +32,17 @@ export default function HelperOffersCard() {
       await api.post(`/api/planned-needs/${id}/helper/accept`);
       fetchOffers();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to accept');
+      alert(err.response?.data?.error || t('helperOffers.failedAccept'));
     }
   };
 
   const handleDecline = async (id) => {
-    if (!window.confirm('Decline this offer? The job will be opened to all helpers.')) return;
+    if (!window.confirm(t('helperOffers.confirmDecline'))) return;
     try {
       await api.post(`/api/planned-needs/${id}/helper/decline`);
       fetchOffers();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to decline');
+      alert(err.response?.data?.error || t('helperOffers.failedDecline'));
     }
   };
 
@@ -56,7 +58,7 @@ export default function HelperOffersCard() {
       marginBottom: '20px',
     }}>
       <h3 style={{ margin: '0 0 12px', fontSize: '16px', color: '#1e40af' }}>
-        Job Offers for You ({offers.length})
+        {t('helperOffers.title', { count: offers.length })}
       </h3>
       {offers.map(offer => (
         <div key={offer.id} style={{
@@ -70,13 +72,13 @@ export default function HelperOffersCard() {
             <div>
               <strong>{offer.title}</strong>
               <p style={{ margin: '4px 0', color: '#6b7280', fontSize: '13px' }}>
-                From {offer.customer_first_name} {offer.customer_last_initial}
-                {offer.estimated_cost && <> &middot; Est. ${parseFloat(offer.estimated_cost).toFixed(2)}</>}
+                {t('helperOffers.from', { name: `${offer.customer_first_name} ${offer.customer_last_initial}` })}
+                {offer.estimated_cost && <> &middot; {t('helperOffers.estCost', { amount: parseFloat(offer.estimated_cost).toFixed(2) })}</>}
               </p>
               <p style={{ margin: '2px 0', color: '#9ca3af', fontSize: '12px' }}>
                 {offer.hours_remaining > 0
-                  ? `${Math.round(offer.hours_remaining)}h remaining`
-                  : 'Expiring soon'}
+                  ? t('helperOffers.hoursRemaining', { hours: Math.round(offer.hours_remaining) })
+                  : t('helperOffers.expiringSoon')}
               </p>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -87,7 +89,7 @@ export default function HelperOffersCard() {
                   borderRadius: '6px', padding: '6px 14px', cursor: 'pointer',
                   fontSize: '13px', fontWeight: 600,
                 }}
-              >Accept</button>
+              >{t('helperOffers.accept')}</button>
               <button
                 onClick={() => handleDecline(offer.id)}
                 style={{
@@ -95,13 +97,13 @@ export default function HelperOffersCard() {
                   borderRadius: '6px', padding: '6px 14px', cursor: 'pointer',
                   fontSize: '13px', fontWeight: 600,
                 }}
-              >Decline</button>
+              >{t('helperOffers.decline')}</button>
             </div>
           </div>
           {offer.published_job_id && (
             <Link to={`/jobs/${offer.published_job_id}`} style={{
               color: '#2563eb', fontSize: '13px', textDecoration: 'none',
-            }}>View Job Details &rarr;</Link>
+            }}>{t('helperOffers.viewDetails')} &rarr;</Link>
           )}
         </div>
       ))}

@@ -261,7 +261,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                 maxLength={5}
                 value={filters.zipCode}
                 onChange={(e) => onChange({ zipCode: e.target.value.replace(/\D/g, '') })}
-                placeholder="e.g. 78701"
+                placeholder={t('helpersDir.zipPlaceholder')}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
@@ -381,7 +381,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                 {opt.value > 0 && (
                   <Star className="w-3 h-3 fill-current" aria-hidden="true" />
                 )}
-                {opt.label}
+                {opt.value === 0 ? t('helpersDir.ratingAny') : opt.label}
               </button>
             ))}
           </div>

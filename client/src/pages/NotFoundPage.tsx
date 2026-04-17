@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 
 export default function NotFoundPage() {
+  const { t } = useTranslation();
   return (
     <PageShell>
       <div style={{
@@ -29,7 +31,7 @@ export default function NotFoundPage() {
             fontWeight: 600,
             marginBottom: 'var(--space-3)',
           }}>
-            Page Not Found
+            {t('notFound.pageNotFound')}
           </h1>
 
           <p style={{
@@ -38,7 +40,7 @@ export default function NotFoundPage() {
             lineHeight: 1.6,
             marginBottom: 'var(--space-8)',
           }}>
-            The page you're looking for doesn't exist or has been moved.
+            {t('notFound.description')}
           </p>
 
           <div style={{
@@ -48,13 +50,13 @@ export default function NotFoundPage() {
             marginBottom: 'var(--space-6)',
           }}>
             <Link to="/" className="ox-btn ox-btn-primary ox-btn-lg">
-              Go to Homepage
+              {t('notFound.goHome')}
             </Link>
             <button
               onClick={() => window.history.back()}
               className="ox-btn ox-btn-outline ox-btn-lg"
             >
-              Go Back
+              {t('notFound.goBack')}
             </button>
           </div>
 
@@ -62,7 +64,7 @@ export default function NotFoundPage() {
             color: 'var(--color-text-faint)',
             fontSize: 'var(--text-xs)',
           }}>
-            Need help?{' '}
+            {t('notFound.needHelp')}{' '}
             <a
               href="mailto:support@oxsteed.com"
               style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}

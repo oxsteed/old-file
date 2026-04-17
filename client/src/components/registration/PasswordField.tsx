@@ -1,5 +1,6 @@
 // client/src/components/registration/PasswordField.tsx
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 
 interface Props {
@@ -7,21 +8,6 @@ interface Props {
   onChange: (val: string) => void;
   error?: string;
 }
-
-const REQS = [
-  { id: 'len', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
-  { id: 'upper', label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
-  { id: 'num', label: 'One number', test: (p: string) => /[0-9]/.test(p) },
-  { id: 'special', label: 'One special character', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
-] as const;
-
-const LEVELS = ['Weak', 'Fair', 'Good', 'Strong'] as const;
-const LEVEL_COLORS = [
-  'bg-red-500',     // Weak
-  'bg-yellow-500',  // Fair
-  'bg-blue-500',    // Good
-  'bg-green-500',   // Strong
-];
 
 export function scorePassword(pw: string): number {
   let s = 0;
@@ -32,15 +18,37 @@ export function scorePassword(pw: string): number {
   return s;
 }
 
+const LEVEL_COLORS = [
+  'bg-red-500',     // Weak
+  'bg-yellow-500',  // Fair
+  'bg-blue-500',    // Good
+  'bg-green-500',   // Strong
+];
+
 export default function PasswordField({ value, onChange, error }: Props) {
+  const { t } = useTranslation();
   const [show, setShow] = useState(false);
   const [focused, setFocused] = useState(false);
   const score = scorePassword(value);
 
+  const LEVELS = [
+    t('register.passwordWeak'),
+    t('register.passwordFair'),
+    t('register.passwordGood'),
+    t('register.passwordStrong'),
+  ];
+
+  const REQS = [
+    { id: 'len',     label: t('register.reqMinLength'), test: (p: string) => p.length >= 8 },
+    { id: 'upper',   label: t('register.reqUppercase'), test: (p: string) => /[A-Z]/.test(p) },
+    { id: 'num',     label: t('register.reqNumber'),    test: (p: string) => /[0-9]/.test(p) },
+    { id: 'special', label: t('register.reqSpecial'),   test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  ];
+
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor="password" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-        Password
+        {t('register.passwordLabel')}
       </label>
 
       {/* Input with icon + toggle */}
@@ -55,7 +63,7 @@ export default function PasswordField({ value, onChange, error }: Props) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setFocused(true)}
-          placeholder="Create a strong password"
+          placeholder={t('register.passwordPlaceholder')}
           autoComplete="new-password"
           required
           aria-invalid={!!error}
@@ -68,7 +76,7 @@ export default function PasswordField({ value, onChange, error }: Props) {
           type="button"
           onClick={() => setShow(!show)}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-          aria-label={show ? 'Hide password' : 'Show password'}
+          aria-label={show ? t('register.hidePassword') : t('register.showPassword')}
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
@@ -89,7 +97,7 @@ export default function PasswordField({ value, onChange, error }: Props) {
             ))}
           </div>
           {value.length > 0 && (
-            <span className="text-[11px] text-gray-400">{LEVELS[score - 1] || 'Too short'}</span>
+            <span className="text-[11px] text-gray-400">{LEVELS[score - 1] || t('register.passwordTooShort')}</span>
           )}
 
           {/* Requirements */}

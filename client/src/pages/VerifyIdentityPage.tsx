@@ -4,6 +4,7 @@
 // Also handles the case where Didit is not configured (verification_unavailable error).
 
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { DiditPanel } from '../components/registration';
 import Footer from '../components/Footer';
@@ -11,6 +12,7 @@ import Footer from '../components/Footer';
 export default function VerifyIdentityPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   // After Didit webhook fires and status is 'verified', or after a skip, go to the
   // appropriate dashboard.
@@ -32,10 +34,10 @@ export default function VerifyIdentityPage() {
             {/* Step indicator — always step 2 for this page */}
             <div className="flex border-b border-gray-800">
               <div className="flex-1 py-3 text-center text-xs font-semibold text-gray-500">
-                1. Account
+                {t('verifyIdentity.step1')}
               </div>
               <div className="flex-1 py-3 text-center text-xs font-semibold text-orange-400 border-b-2 border-orange-500">
-                2. Identity Verification
+                {t('verifyIdentity.step2')}
               </div>
             </div>
 
