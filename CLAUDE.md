@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-17 (i18n phases 1–11 complete; security + SEO + review/webhook fixes; planned_needs FKs complete)
+**Last updated:** 2026-04-17 (i18n phases 1–17 complete — all user-visible strings translated in all 4 languages; security + SEO + review/webhook fixes; planned_needs FKs complete)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -590,6 +590,12 @@ Full audit of the customer↔helper real-time chat system. Four bugs found and f
 | 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ✅ Done |
 | 10 | helperDirectory components, chat components, review components, EditProfileTab | ✅ Done |
 | 11 | Remaining hardcoded strings in Dashboard.jsx and HelperDashboard.jsx | ✅ Done |
+| 12 | Simple pages: NotFoundPage, VerifyIdentityPage, PublicProfile | ✅ Done |
+| 13 | CookieConsent, ErrorBoundary | ✅ Done |
+| 14 | BusinessProfilePage, HelperBusinessProfilePage, all helperProfile/* components | ✅ Done |
+| 15 | PlannedNeedsPage remaining keys | ✅ Done |
+| 16 | Registration components: AccountForm placeholders, Step5ChoosePlan | ✅ Done |
+| 17 | helperDirectory (ActiveFilterTags, SearchBar, SortControls, FilterPanel, EmptyState), BadgeDisplay, NotificationCenter, QuickAddTemplates, HelperOffersCard, PulseScoreSettings, TermsGate, LegalPageLayout, helperProfile/chat/* (StatusBadge, MessageBubble, ChatTimeline, HandoffBanner, ChatDestinationDropdown), DynamicBlocks, HoursSection | ✅ Done |
 
 ### Migration pattern
 
@@ -637,7 +643,24 @@ Remaining hardcoded strings in the two largest dashboard files:
 - Added `dashboard.money.categoryPlaceholder`, `helperDashboard.viewPublicProfile` to all 4 locale files
 - Fixed critical `t` variable shadow bug: `myTools.map(t=>` renamed to `myTools.map(tool=>`
 
-**All 11 i18n phases are complete. No remaining migration work.**
+**All 17 i18n phases are complete. Every user-visible string in all pages and components is translated in EN/ES/FR/HT. No remaining migration work.**
+
+### New locale namespaces added in phases 12–17
+
+- `helperProfile.chat` — 44 keys: all chat UI strings (status badges, typing indicators, handoff banners, destination dropdown, dynamic blocks, availability/pricing/slots)
+- `helperRegister.step5` — 28 keys: plan selection (Free/Pro names, features, CTAs)
+- `helpersDir` extended — `zipPlaceholder`, `badgeBackgroundChecked`, `badgeIdVerified`, `badgeLicensed`, `badgeInsured`, sort labels, filter tag aria, result count plurals
+- `businessProfile` extended — `galleryAlt`
+- `register` extended — `firstNamePlaceholder`, `lastNamePlaceholder`, `businessNamePlaceholder`, `addressPlaceholder`
+- `quickAddTemplates`, `helperOffers`, `termsGate`, `notificationCenter`, `badge`, `pulseSettings`, `legalPage` — new namespaces
+
+### Implementation notes for future sessions
+
+- `HoursSection.tsx` uses `Intl.DateTimeFormat(i18n.language, { weekday: 'long' })` with a fixed reference Sunday (2023-01-01) to translate day names — no translation keys required for day names.
+- `SortControls.tsx` no longer imports `SORT_LABELS` from `helperDirectory.ts`; uses `t('helpersDir.sort.{key}')` with a local key array instead.
+- `PulseScoreSettings.jsx` GROUPS constant restructured: only `groupKey` and source key strings; labels/descriptions resolved via `t('pulseSettings.groups.{key}')` and `t('pulseSettings.sources.{key}.label/desc')`.
+- `BadgeDisplay.jsx` BADGE_CONFIG restructured: only icon/color data; labels resolved via `getBadgeLabel()` using `t('badge.*')`.
+- Brand names (OxSteed, Stripe, Vortex, Didit) are never translated per project rules.
 
 ---
 
@@ -973,3 +996,40 @@ Four bugs in the customer + helper registration flows, all now fixed:
 - **Issue observed:** helper signup `POST /api/helper-registration/start` returned 500 with PostgreSQL `22001` (`varchar.c / bpchar`) for some inputs.
 - **Fixes:** both `helperRegistrationController.startRegistration` and `authController.startRegistration` now normalize/trim registration inputs before validation + DB writes, apply explicit max-length validation for phone/zip, and downgrade DB length-overflow (`22001`) to a 400 validation-style response instead of 500.
 - **Regression tests:** new `server/__tests__/helperRegistration.test.js` covers normalized helper start payloads and `22001` handling; `server/__tests__/auth.test.js` now also covers normalized customer `/register/start` and `22001` handling.
+
+### Session — 2026-04-17 (i18n phases 12–17 — complete multilingual coverage)
+
+Completed all remaining i18n work. Every user-visible string in the application is now translated in EN/ES/FR/HT.
+
+**Phase 12–13 (prior session, now documented):**
+- `NotFoundPage.tsx`, `VerifyIdentityPage.tsx`, `PublicProfile.jsx` — simple pages
+- `CookieConsent.tsx`, `ErrorBoundary.tsx` — core UI wrappers
+
+**Phase 14 (prior session):**
+- `BusinessProfilePage.jsx`, `HelperBusinessProfilePage.tsx` — public-facing profiles
+- `helperProfile/*` components: `BusinessHeader.tsx`, `CTASection.tsx`, `GallerySection.tsx`, `FAQSection.tsx`, `PoliciesSection.tsx`, `LocationSection.tsx`, `ReviewsSection.tsx`, `ServicesSection.tsx`
+
+**Phase 15–16 (prior session):**
+- `PlannedNeedsPage.jsx` — planned needs remaining keys
+- `AccountForm.tsx` (form placeholders), `DiditPanel.tsx`, registration sub-components
+
+**Phase 17 (this session):**
+- `helperDirectory/ActiveFilterTags.tsx`, `SearchBar.tsx`, `SortControls.tsx`, `FilterPanel.tsx` (zip placeholder), `EmptyState.tsx`
+- `BadgeDisplay.jsx` — BADGE_CONFIG restructured to use `t()` for labels
+- `NotificationCenter.jsx`, `QuickAddTemplates.jsx`, `HelperOffersCard.jsx`, `TermsGate.tsx`, `LegalPageLayout.tsx`
+- `PulseScoreSettings.jsx` — GROUPS constant restructured (groupKey + source keys only; labels via `t()`)
+- `helperProfile/chat/`: `StatusBadge.tsx`, `MessageBubble.tsx`, `ChatTimeline.tsx`, `HandoffBanner.tsx`, `ChatDestinationDropdown.tsx`, `ChatPanel.tsx`
+- `helperProfile/DynamicBlocks.tsx` — availability/pricing/slots blocks
+- `helperProfile/HoursSection.tsx` — day names via `Intl.DateTimeFormat(i18n.language)` (no translation keys)
+- `helperRegister/Step5ChoosePlan.tsx` — plan selection UI
+- `BusinessProfilePage.jsx` badge labels + gallery alt (used `t` passed as parameter to `buildBadges`)
+
+**New locale keys (all 4 languages):**
+- `helperProfile.chat` sub-namespace (44 keys)
+- `helperRegister.step5` (28 keys added to es/fr/ht; already existed in en)
+- `helpersDir`: `zipPlaceholder`, `badgeBackgroundChecked/IdVerified/Licensed/Insured`, sort labels, aria labels, result count plurals
+- `businessProfile.galleryAlt`
+- `register`: `firstNamePlaceholder`, `lastNamePlaceholder`, `businessNamePlaceholder`, `addressPlaceholder`
+- New top-level namespaces: `quickAddTemplates`, `helperOffers`, `termsGate`, `notificationCenter`, `badge`, `pulseSettings`, `legalPage`
+
+**PR:** #181 on branch `claude/complete-multilingual-support-wjTbH`
