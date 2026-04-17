@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Send, Paperclip, Image, Smile } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ChatStatus } from '../../../types/helperProfile';
 
 interface MessageComposerProps {
@@ -15,6 +16,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   onSend,
   placeholder,
 }) => {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isDisabled = DISABLED_STATUSES.includes(status);
@@ -56,10 +58,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
   const defaultPlaceholder =
     status === 'offline'
-      ? 'This helper is currently offline.'
+      ? t('messages.offlinePlaceholder')
       : status === 'message_mode'
-      ? "Leave a message — they'll reply soon..."
-      : 'Type a message…';
+      ? t('messages.leaveMessagePlaceholder')
+      : t('messages.typeMessage');
 
   return (
     <div
@@ -72,7 +74,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       <div className="flex items-center gap-1 mb-2">
         <button
           className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
-          aria-label="Attach file (coming soon)"
+          aria-label={t('messages.attachFile')}
           disabled
           title="Attach file"
         >
@@ -80,7 +82,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         </button>
         <button
           className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
-          aria-label="Attach image (coming soon)"
+          aria-label={t('messages.attachImage')}
           disabled
           title="Attach image"
         >
@@ -88,13 +90,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         </button>
         <button
           className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
-          aria-label="Add emoji (coming soon)"
+          aria-label={t('messages.addEmoji')}
           disabled
           title="Emoji"
         >
           <Smile className="w-4 h-4" aria-hidden="true" />
         </button>
-        <span className="text-xs text-gray-600 ml-auto hidden sm:block">Shift+Enter for new line</span>
+        <span className="text-xs text-gray-600 ml-auto hidden sm:block">{t('messages.shiftEnter')}</span>
       </div>
 
       {/* Input row */}
@@ -109,7 +111,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           disabled={isDisabled}
           rows={1}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-colors disabled:cursor-not-allowed leading-relaxed"
-          aria-label="Message input"
+          aria-label={t('messages.messageInput')}
           aria-multiline="true"
           style={{ minHeight: '40px', maxHeight: '120px', fontSize: '16px' }}
         />
@@ -117,7 +119,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           onClick={submit}
           disabled={!text.trim() || isDisabled}
           className="flex-shrink-0 w-10 h-10 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:bg-gray-700 disabled:text-gray-500 text-white flex items-center justify-center transition-colors"
-          aria-label="Send message"
+          aria-label={t('messages.sendMessage')}
         >
           <Send className="w-4 h-4" aria-hidden="true" />
         </button>
