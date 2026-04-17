@@ -167,13 +167,13 @@ const getMessages = async (req, res) => {
 
     // Verify user is part of conversation (direct participant or active business rep)
     const conv = await pool.query(
-      `SELECT customer_id, helper_id, business_id FROM conversations
-       WHERE id = $1 AND (
-         customer_id = $2
-         OR helper_id = $2
-         OR (business_id IS NOT NULL AND EXISTS(
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
            SELECT 1 FROM business_members bm
-           WHERE bm.business_id = business_id AND bm.member_id = $2 AND bm.status = 'active'
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
          ))
        )`,
       [conversationId, userId]
