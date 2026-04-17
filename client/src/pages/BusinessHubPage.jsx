@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
@@ -50,16 +51,17 @@ const DEFAULT_GOAL_FORM  = { title: '', goal_type: 'revenue', period: 'monthly',
 // ── main component ────────────────────────────────────────────────────────────
 export default function BusinessHubPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   // guard
   if (!user || !HELPER_ROLES.includes(user.role)) {
     return (
       <PageShell>
-        <PageMeta title="Business Hub — OxSteed" description="Manage your service business finances, invoices, and goals." />
+        <PageMeta title={t('businessHub.metaTitle')} description={t('businessHub.metaDesc')} />
         <div className="bh-page">
           <div className="bh-empty" style={{ marginTop: '3rem' }}>
-            <p style={{ fontWeight: 700 }}>Helpers only</p>
-            <p>The Business Hub is available to Helper, Helper Pro, and Broker accounts.</p>
+            <p style={{ fontWeight: 700 }}>{t('businessHub.helpersOnly')}</p>
+            <p>{t('businessHub.helpersOnlyDesc')}</p>
           </div>
         </div>
       </PageShell>
@@ -70,6 +72,7 @@ export default function BusinessHubPage() {
 }
 
 function BusinessHubInner() {
+  const { t } = useTranslation();
   const [businesses, setBusinesses]   = useState([]);
   const [bizId, setBizId]             = useState(() => localStorage.getItem(LS_KEY) || '');
   const [tab, setTab]                 = useState('overview');
@@ -124,10 +127,8 @@ function BusinessHubInner() {
         listBusinesses(),
         listManagedBusinesses().catch(() => []),
       ]);
-      // Tag each entry so the UI knows the caller's relationship to it.
       const ownedTagged   = owned.map(b   => ({ ...b, _role: 'owner'    }));
-      const managedTagged = managed.map(b => ({ ...b, _role: b.role })); // 'manager' | 'representative'
-      // Deduplicate: if the user somehow owns AND is a member, prefer 'owner'.
+      const managedTagged = managed.map(b => ({ ...b, _role: b.role }));
       const seen = new Set(ownedTagged.map(b => String(b.id)));
       const merged = [
         ...ownedTagged,
@@ -141,9 +142,9 @@ function BusinessHubInner() {
         setBizId(chosen);
         localStorage.setItem(LS_KEY, chosen);
       }
-    } catch { toast.error('Failed to load businesses'); }
+    } catch { toast.error(t('businessHub.toastLoadBizFail')); }
     finally { setLoadingBiz(false); }
-  }, []);
+  }, [t]);
 
   useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
 
@@ -152,33 +153,33 @@ function BusinessHubInner() {
     if (!bizId) return;
     setAnalyticsLoading(true);
     try { setAnalytics(await getAnalytics(bizId)); }
-    catch { toast.error('Failed to load analytics'); }
+    catch { toast.error(t('businessHub.errorAnalytics')); }
     finally { setAnalyticsLoading(false); }
-  }, [bizId]);
+  }, [bizId, t]);
 
   const loadInvoices = useCallback(async () => {
     if (!bizId) return;
     setInvoicesLoading(true);
     try { setInvoiceData(await listInvoices(bizId)); }
-    catch { toast.error('Failed to load invoices'); }
+    catch { toast.error(t('businessHub.toastLoadInvoicesFail')); }
     finally { setInvoicesLoading(false); }
-  }, [bizId]);
+  }, [bizId, t]);
 
   const loadTax = useCallback(async () => {
     if (!bizId) return;
     setTaxLoading(true);
     try { setTaxData(await getTax(bizId)); }
-    catch { toast.error('Failed to load tax estimates'); }
+    catch { toast.error(t('businessHub.toastLoadTaxFail')); }
     finally { setTaxLoading(false); }
-  }, [bizId]);
+  }, [bizId, t]);
 
   const loadGoals = useCallback(async () => {
     if (!bizId) return;
     setGoalsLoading(true);
     try { setGoals(await listGoals(bizId)); }
-    catch { toast.error('Failed to load goals'); }
+    catch { toast.error(t('businessHub.toastLoadGoalsFail')); }
     finally { setGoalsLoading(false); }
-  }, [bizId]);
+  }, [bizId, t]);
 
   const loadTeam = useCallback(async () => {
     if (!bizId) return;
@@ -194,9 +195,9 @@ function BusinessHubInner() {
       setInvitations(inv);
       setManagedBiz(managed);
       setVortexTokens(tokens);
-    } catch { toast.error('Failed to load team'); }
+    } catch { toast.error(t('businessHub.toastLoadTeamFail')); }
     finally { setMembersLoading(false); }
-  }, [bizId]);
+  }, [bizId, t]);
 
   const loadProfile = useCallback(async () => {
     if (!bizId) return;
@@ -229,20 +230,18 @@ function BusinessHubInner() {
       setCoverPreview(biz.cover_photo_url || null);
       setLogoFile(null);
       setCoverFile(null);
-    } catch { setProfileErr('Failed to load business profile.'); }
+    } catch { setProfileErr(t('businessHub.errorProfileLoad')); }
     finally { setProfileLoading(false); }
-  }, [bizId]);
+  }, [bizId, t]);
 
   const handleSaveProfile = useCallback(async () => {
     if (!profileForm) return;
     setProfileSaving(true);
     setProfileErr('');
     try {
-      // 1. Upload photos first if files were selected
       if (logoFile || coverFile) {
         await uploadBusinessPhotos(bizId, logoFile || null, coverFile || null);
       }
-      // 2. Save text fields (logo_url / cover_photo_url included if typed manually)
       const photoPatch = {};
       if (!logoFile) {
         if (profileForm.logo_url)
@@ -283,17 +282,16 @@ function BusinessHubInner() {
         }
       }
       await updateBusiness(bizId, body);
-      toast.success('Profile saved');
-      // Reload so form reflects persisted values
+      toast.success(t('businessHub.toastProfileSaved'));
       setLogoFile(null);
       setCoverFile(null);
       await loadProfile();
     } catch (e) {
-      setProfileErr(e?.response?.data?.error || 'Failed to save profile');
+      setProfileErr(e?.response?.data?.error || t('businessHub.errorProfileSave'));
     } finally {
       setProfileSaving(false);
     }
-  }, [bizId, profileForm, logoFile, coverFile, loadProfile]);
+  }, [bizId, profileForm, logoFile, coverFile, loadProfile, t]);
 
   useEffect(() => {
     if (!bizId) return;
@@ -327,23 +325,23 @@ function BusinessHubInner() {
 
   // ── add business ──────────────────────────────────────────────────────────
   async function handleAddBiz() {
-    if (!form.business_name?.trim()) { setFormErr('Business name is required.'); return; }
+    if (!form.business_name?.trim()) { setFormErr(t('businessHub.errBusinessNameRequired')); return; }
     setSaving(true);
     try {
       await createBusiness({ ...form, tax_rate: form.tax_rate ? parseFloat(form.tax_rate) : undefined });
-      toast.success('Business added');
+      toast.success(t('businessHub.toastBizAdded'));
       closeModal();
       await loadBusinesses();
-    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed to create business'); }
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastBizCreateFail')); }
     finally { setSaving(false); }
   }
 
   // ── invoice CRUD ──────────────────────────────────────────────────────────
   async function handleSaveInvoice() {
-    if (!form.client_name?.trim()) { setFormErr('Client name is required.'); return; }
-    if (!form.due_date) { setFormErr('Due date is required.'); return; }
+    if (!form.client_name?.trim()) { setFormErr(t('businessHub.errClientNameRequired')); return; }
+    if (!form.due_date) { setFormErr(t('businessHub.errDueDateRequired')); return; }
     const items = (form.line_items || []).filter(li => li.description?.trim());
-    if (items.length === 0) { setFormErr('At least one line item is required.'); return; }
+    if (items.length === 0) { setFormErr(t('businessHub.errLineItemRequired')); return; }
     setSaving(true);
     try {
       const payload = {
@@ -357,14 +355,14 @@ function BusinessHubInner() {
       };
       if (modal === 'add-inv') {
         await createInvoice(bizId, payload);
-        toast.success('Invoice created');
+        toast.success(t('businessHub.toastInvoiceCreated'));
       } else {
         await updateInvoice(bizId, selected.id, payload);
-        toast.success('Invoice updated');
+        toast.success(t('businessHub.toastInvoiceUpdated'));
       }
       closeModal();
       await loadInvoices();
-    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed to save invoice'); }
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastInvoiceSaveFail')); }
     finally { setSaving(false); }
   }
 
@@ -372,46 +370,46 @@ function BusinessHubInner() {
     setSaving(true);
     try {
       await markInvoicePaid(bizId, selected.id, form.amount ? parseFloat(form.amount) : undefined);
-      toast.success('Invoice marked paid');
+      toast.success(t('businessHub.toastInvoicePaid'));
       closeModal();
       await loadInvoices();
-    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed'); }
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastGenericFail')); }
     finally { setSaving(false); }
   }
 
   async function handleDeleteInvoice(inv) {
-    if (!window.confirm(`Delete invoice ${inv.invoice_number}?`)) return;
+    if (!window.confirm(t('businessHub.confirmDeleteInvoice', { num: inv.invoice_number }))) return;
     try {
       await deleteInvoice(bizId, inv.id);
-      toast.success('Invoice deleted');
+      toast.success(t('businessHub.toastInvoiceDeleted'));
       await loadInvoices();
-    } catch { toast.error('Failed to delete invoice'); }
+    } catch { toast.error(t('businessHub.toastInvoiceDeleteFail')); }
   }
 
   // ── tax ───────────────────────────────────────────────────────────────────
   async function handleRefreshTax() {
     try {
       await refreshTax(bizId);
-      toast.success('Tax estimates refreshed');
+      toast.success(t('businessHub.toastTaxRefreshed'));
       await loadTax();
-    } catch { toast.error('Failed to refresh tax estimates'); }
+    } catch { toast.error(t('businessHub.toastTaxRefreshFail')); }
   }
 
   async function handleMarkTaxPaid() {
     setSaving(true);
     try {
       await markTaxPaid(bizId, selected.id, form.amount ? parseFloat(form.amount) : undefined);
-      toast.success('Tax payment recorded');
+      toast.success(t('businessHub.toastTaxPaid'));
       closeModal();
       await loadTax();
-    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed'); }
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastGenericFail')); }
     finally { setSaving(false); }
   }
 
   // ── goals ─────────────────────────────────────────────────────────────────
   async function handleSaveGoal() {
-    if (!form.title?.trim()) { setFormErr('Title is required.'); return; }
-    if (!form.target_value) { setFormErr('Target value is required.'); return; }
+    if (!form.title?.trim()) { setFormErr(t('businessHub.errTitleRequired')); return; }
+    if (!form.target_value) { setFormErr(t('businessHub.errTargetRequired')); return; }
     setSaving(true);
     try {
       const payload = {
@@ -421,64 +419,66 @@ function BusinessHubInner() {
       };
       if (modal === 'add-goal') {
         await createGoal(bizId, payload);
-        toast.success('Goal added');
+        toast.success(t('businessHub.toastGoalAdded'));
       } else {
         await updateGoal(bizId, selected.id, payload);
-        toast.success('Goal updated');
+        toast.success(t('businessHub.toastGoalUpdated'));
       }
       closeModal();
       await loadGoals();
-    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed to save goal'); }
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastGoalSaveFail')); }
     finally { setSaving(false); }
   }
 
   async function handleDeleteGoal(g) {
-    if (!window.confirm(`Delete goal "${g.title}"?`)) return;
+    if (!window.confirm(t('businessHub.confirmDeleteGoal', { title: g.title }))) return;
     try {
       await deleteGoal(bizId, g.id);
-      toast.success('Goal deleted');
+      toast.success(t('businessHub.toastGoalDeleted'));
       await loadGoals();
-    } catch { toast.error('Failed to delete goal'); }
+    } catch { toast.error(t('businessHub.toastGoalDeleteFail')); }
   }
 
   // ── team ──────────────────────────────────────────────────────────────────
   async function handleInviteMember() {
-    if (!form.invite_email?.trim()) { setFormErr('Email is required.'); return; }
-    if (!form.invite_role) { setFormErr('Role is required.'); return; }
+    if (!form.invite_email?.trim()) { setFormErr(t('businessHub.errEmailRequired')); return; }
+    if (!form.invite_role) { setFormErr(t('businessHub.errRoleRequired')); return; }
     setSaving(true);
     try {
       const result = await inviteMember(bizId, { email: form.invite_email.trim(), role: form.invite_role });
-      toast.success(result.user_found ? 'Invitation sent' : `Invite recorded — they'll see it when they sign up`);
+      toast.success(result.user_found ? t('businessHub.toastInviteSent') : t('businessHub.toastInviteRecorded'));
       closeModal();
       await loadTeam();
-    } catch (e) { setFormErr(e?.response?.data?.error || 'Failed to send invite'); }
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastInviteSendFail')); }
     finally { setSaving(false); }
   }
 
   async function handleRevokeMember(member) {
-    const label = member.status === 'pending' ? `Cancel invite to ${member.invite_email}?` : `Remove ${member.first_name || member.invite_email} from this business?`;
+    const label = member.status === 'pending'
+      ? t('businessHub.confirmCancelInvite', { email: member.invite_email })
+      : t('businessHub.confirmRemoveMember', { name: member.first_name || member.invite_email });
     if (!window.confirm(label)) return;
     try {
       await revokeMember(bizId, member.id);
-      toast.success('Member removed');
+      toast.success(t('businessHub.toastMemberRemoved'));
       await loadTeam();
-    } catch { toast.error('Failed to remove member'); }
+    } catch { toast.error(t('businessHub.toastMemberRemoveFail')); }
   }
 
   async function handleAcceptInvitation(inv) {
     try {
       await acceptInvitation(inv.id);
-      toast.success(`Joined "${inv.business_name}"`);
+      toast.success(t('businessHub.toastInviteAccepted', { name: inv.business_name }));
       await loadTeam();
-    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to accept'); }
+    } catch (e) { toast.error(e?.response?.data?.error || t('businessHub.toastInviteAcceptFail')); }
   }
 
   async function handleDeclineInvitation(inv) {
     try {
       await declineInvitation(inv.id);
-      toast.success('Invitation declined');
+      toast.success(t('businessHub.toastInviteDeclined'));
       await loadTeam();
-    } catch { toast.error('Failed to decline'); }
+    } catch { toast.error(t('businessHub.toastInviteDeclineFail')); }
   }
 
   // ── vortex token handlers ─────────────────────────────────────────────────
@@ -487,10 +487,10 @@ function BusinessHubInner() {
     setGeneratingToken(true);
     try {
       await generateVortexToken(bizId, tokenForm);
-      toast.success('Vortex token generated');
+      toast.success(t('businessHub.toastVortexGenerated'));
       const tokens = await listVortexTokens(bizId).catch(() => []);
       setVortexTokens(tokens);
-    } catch (e) { toast.error(e?.response?.data?.error || 'Failed to generate token'); }
+    } catch (e) { toast.error(e?.response?.data?.error || t('businessHub.toastVortexGenerateFail')); }
     finally { setGeneratingToken(false); }
   }
 
@@ -498,10 +498,10 @@ function BusinessHubInner() {
     if (!bizId) return;
     try {
       await revokeVortexToken(bizId, tokenId);
-      toast.success('Token revoked');
+      toast.success(t('businessHub.toastTokenRevoked'));
       const tokens = await listVortexTokens(bizId).catch(() => []);
       setVortexTokens(tokens);
-    } catch { toast.error('Failed to revoke token'); }
+    } catch { toast.error(t('businessHub.toastTokenRevokeFail')); }
   }
 
   // ── invoice line items helpers ────────────────────────────────────────────
@@ -526,18 +526,16 @@ function BusinessHubInner() {
 
   // ── current biz object + caller's role ───────────────────────────────────
   const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
-  const currentRole = currentBiz?._role || 'owner'; // 'owner' | 'manager' | 'representative'
+  const currentRole = currentBiz?._role || 'owner';
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
-  /** Representatives handle team / messaging context only — no P&L, invoices, tax, or goals in API. */
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
-  const visibleTabs = ['profile', ...financeTabIds, 'team'].filter((t) => {
-    if (t === 'profile' && !canEditBizProfile) return false;
-    if (financeTabIds.includes(t) && !canViewFinanceHub) return false;
+  const visibleTabs = ['profile', ...financeTabIds, 'team'].filter((tb) => {
+    if (tb === 'profile' && !canEditBizProfile) return false;
+    if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
     return true;
   });
 
-  // If the user switches to a business where they can't edit profile, fall back
   useEffect(() => {
     if (tab === 'profile' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
@@ -547,52 +545,63 @@ function BusinessHubInner() {
     }
   }, [bizId, canEditBizProfile, canViewFinanceHub, tab]);
 
+  // tab label resolver
+  const tabLabel = (tb) => {
+    if (tb === 'profile') return t('businessHub.tabEditProfile');
+    if (tb === 'team') return t('businessHub.tabTeamLabel');
+    if (tb === 'overview') return t('businessHub.tabOverviewLabel');
+    if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
+    if (tb === 'tax') return t('businessHub.tabTaxLabel');
+    if (tb === 'goals') return t('businessHub.tabGoalsLabel');
+    return tb;
+  };
+
   // ── render ────────────────────────────────────────────────────────────────
   return (
     <PageShell>
-      <PageMeta title="Business Hub — OxSteed" description="Manage your service business finances, invoices, and goals." />
+      <PageMeta title={t('businessHub.metaTitle')} description={t('businessHub.metaDesc')} />
       <div className="bh-page">
 
         {/* Header */}
         <div className="bh-header">
           <div>
-            <h1>Business Hub</h1>
-            <p>Manage invoices, track taxes, and monitor your business goals.</p>
+            <h1>{t('businessHub.header')}</h1>
+            <p>{t('businessHub.headerDesc')}</p>
           </div>
           <div className="bh-header-actions">
             <button className="bh-btn primary" onClick={() => { setForm(DEFAULT_BIZ_FORM); setFormErr(''); setModal('add-biz'); }}>
-              + Add Business
+              + {t('businessHub.addBusiness')}
             </button>
           </div>
         </div>
 
         {/* Business switcher */}
         {loadingBiz ? (
-          <p className="bh-loading">Loading businesses…</p>
+          <p className="bh-loading">{t('businessHub.loadingBusinesses')}</p>
         ) : businesses.length === 0 ? (
           <div className="bh-empty">
-            <p style={{ fontWeight: 700 }}>No businesses yet</p>
-            <p>Add your first business to start tracking invoices, taxes, and goals.</p>
+            <p style={{ fontWeight: 700 }}>{t('businessHub.noBiz')}</p>
+            <p>{t('businessHub.noBizDesc')}</p>
             <button className="bh-btn primary" onClick={() => { setForm(DEFAULT_BIZ_FORM); setFormErr(''); setModal('add-biz'); }}>
-              Add a Business
+              {t('businessHub.addABusiness')}
             </button>
           </div>
         ) : (
           <>
             <div className="bh-switcher">
-              <span className="bh-switcher-label">Business</span>
+              <span className="bh-switcher-label">{t('businessHub.switcherLabel')}</span>
               <select value={bizId} onChange={e => handleSwitchBiz(e.target.value)}>
                 {businesses.map(b => (
                   <option key={b.id} value={b.id}>
                     {b.business_name}
-                    {b._role !== 'owner' ? ` (${b._role})` : ''}
+                    {b._role !== 'owner' ? ` (${b._role === 'manager' ? t('businessHub.roleManager') : t('businessHub.roleRepresentative')})` : ''}
                   </option>
                 ))}
               </select>
-              {currentBiz?.is_primary && currentRole === 'owner' && <span className="bh-primary-tag">Primary</span>}
+              {currentBiz?.is_primary && currentRole === 'owner' && <span className="bh-primary-tag">{t('businessHub.tagPrimary')}</span>}
               {currentRole !== 'owner' && (
                 <span className="bh-primary-tag" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', borderColor: 'rgba(99,102,241,0.3)' }}>
-                  {currentRole === 'manager' ? 'Manager' : 'Representative'}
+                  {currentRole === 'manager' ? t('businessHub.tagManager') : t('businessHub.tagRepresentative')}
                 </span>
               )}
               {bizId && (
@@ -601,30 +610,30 @@ function BusinessHubInner() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bh-view-profile-link"
-                  title="View public profile"
+                  title={t('businessHub.viewPublicProfile')}
                 >
-                  View Profile ↗
+                  {t('businessHub.viewProfile')} ↗
                 </Link>
               )}
             </div>
 
             {/* Tabs */}
             <div className="bh-tabs">
-              {visibleTabs.map(t => (
-                <button key={t} className={`bh-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-                  {t === 'profile' ? 'Edit Profile' : t === 'team' ? 'Team' : t.charAt(0).toUpperCase() + t.slice(1)}
+              {visibleTabs.map(tb => (
+                <button key={tb} className={`bh-tab${tab === tb ? ' active' : ''}`} onClick={() => setTab(tb)}>
+                  {tabLabel(tb)}
                 </button>
               ))}
             </div>
 
             {/* ── Profile tab ──────────────────────────────────────── */}
             {tab === 'profile' && (
-              profileLoading ? <p className="bh-loading">Loading profile…</p> :
+              profileLoading ? <p className="bh-loading">{t('businessHub.loadingProfile')}</p> :
               !profileForm && profileErr ? (
                 <div className="bh-empty" style={{ marginTop: '1rem' }}>
                   <p className="bh-error" style={{ marginBottom: '1rem' }}>{profileErr}</p>
                   <button type="button" className="bh-btn primary" onClick={() => loadProfile()}>
-                    Try again
+                    {t('businessHub.tryAgain')}
                   </button>
                 </div>
               ) :
@@ -651,14 +660,14 @@ function BusinessHubInner() {
 
             {/* ── Overview tab ────────────────────────────────────── */}
             {tab === 'overview' && (
-              analyticsLoading ? <p className="bh-loading">Loading analytics…</p> :
-              !analytics ? <p className="bh-error">Could not load analytics.</p> :
+              analyticsLoading ? <p className="bh-loading">{t('businessHub.loadingAnalytics')}</p> :
+              !analytics ? <p className="bh-error">{t('businessHub.errorAnalytics')}</p> :
               <OverviewTab analytics={analytics} />
             )}
 
             {/* ── Invoices tab ─────────────────────────────────────── */}
             {tab === 'invoices' && (
-              invoicesLoading ? <p className="bh-loading">Loading invoices…</p> :
+              invoicesLoading ? <p className="bh-loading">{t('businessHub.loadingInvoices')}</p> :
               <InvoicesTab
                 data={invoiceData}
                 onNew={() => { setForm(DEFAULT_INV_FORM); setFormErr(''); setModal('add-inv'); }}
@@ -684,7 +693,7 @@ function BusinessHubInner() {
 
             {/* ── Tax tab ──────────────────────────────────────────── */}
             {tab === 'tax' && (
-              taxLoading ? <p className="bh-loading">Loading tax estimates…</p> :
+              taxLoading ? <p className="bh-loading">{t('businessHub.loadingTax')}</p> :
               <TaxTab
                 data={taxData}
                 onRefresh={handleRefreshTax}
@@ -694,7 +703,7 @@ function BusinessHubInner() {
 
             {/* ── Goals tab ────────────────────────────────────────── */}
             {tab === 'goals' && (
-              goalsLoading ? <p className="bh-loading">Loading goals…</p> :
+              goalsLoading ? <p className="bh-loading">{t('businessHub.loadingGoals')}</p> :
               <GoalsTab
                 goals={goals}
                 analytics={analytics}
@@ -717,7 +726,7 @@ function BusinessHubInner() {
 
             {/* ── Team tab ─────────────────────────────────────────── */}
             {tab === 'team' && (
-              membersLoading ? <p className="bh-loading">Loading team…</p> :
+              membersLoading ? <p className="bh-loading">{t('businessHub.loadingTeam')}</p> :
               <TeamTab
                 members={members}
                 invitations={invitations}
@@ -741,18 +750,18 @@ function BusinessHubInner() {
         {modal === 'add-biz' && (
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
-              <h2>Add Business</h2>
-              <div className="bh-field"><label>Name *</label><input name="business_name" value={form.business_name || ''} onChange={fc} placeholder="My Service Co." /></div>
-              <div className="bh-field"><label>Description</label><textarea name="description" value={form.description || ''} onChange={fc} rows={2} /></div>
+              <h2>{t('businessHub.modalAddBiz')}</h2>
+              <div className="bh-field"><label>{t('businessHub.fieldNameRequired')}</label><input name="business_name" value={form.business_name || ''} onChange={fc} placeholder={t('businessHub.placeholderBizName')} /></div>
+              <div className="bh-field"><label>{t('businessHub.fieldDescription')}</label><textarea name="description" value={form.description || ''} onChange={fc} rows={2} /></div>
               <div className="bh-field-row">
-                <div className="bh-field"><label>Phone</label><input name="phone" value={form.phone || ''} onChange={fc} /></div>
-                <div className="bh-field"><label>Website</label><input name="website" value={form.website || ''} onChange={fc} placeholder="https://" /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldPhone')}</label><input name="phone" value={form.phone || ''} onChange={fc} /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldWebsite')}</label><input name="website" value={form.website || ''} onChange={fc} placeholder={t('businessHub.placeholderWebsite')} /></div>
               </div>
-              <div className="bh-field"><label>Default Tax Rate (%)</label><input type="number" name="tax_rate" value={form.tax_rate || ''} onChange={fc} placeholder="0" min="0" max="100" step="0.01" /></div>
+              <div className="bh-field"><label>{t('businessHub.fieldDefaultTaxRate')}</label><input type="number" name="tax_rate" value={form.tax_rate || ''} onChange={fc} placeholder="0" min="0" max="100" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>Cancel</button>
-                <button className="bh-btn primary" onClick={handleAddBiz} disabled={saving}>{saving ? 'Saving…' : 'Add Business'}</button>
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleAddBiz} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.addBusiness')}</button>
               </div>
             </div>
           </div>
@@ -762,40 +771,40 @@ function BusinessHubInner() {
         {(modal === 'add-inv' || modal === 'edit-inv') && (
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
-              <h2>{modal === 'add-inv' ? 'New Invoice' : 'Edit Invoice'}</h2>
+              <h2>{modal === 'add-inv' ? t('businessHub.modalNewInvoice') : t('businessHub.modalEditInvoice')}</h2>
               <div className="bh-field-row">
-                <div className="bh-field"><label>Client Name *</label><input name="client_name" value={form.client_name || ''} onChange={fc} /></div>
-                <div className="bh-field"><label>Client Email</label><input type="email" name="client_email" value={form.client_email || ''} onChange={fc} /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldClientNameRequired')}</label><input name="client_name" value={form.client_name || ''} onChange={fc} /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldClientEmail')}</label><input type="email" name="client_email" value={form.client_email || ''} onChange={fc} /></div>
               </div>
               <div className="bh-field-row">
-                <div className="bh-field"><label>Company</label><input name="client_company" value={form.client_company || ''} onChange={fc} /></div>
-                <div className="bh-field"><label>Due Date *</label><input type="date" name="due_date" value={form.due_date || ''} onChange={fc} /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldCompany')}</label><input name="client_company" value={form.client_company || ''} onChange={fc} /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldDueDateRequired')}</label><input type="date" name="due_date" value={form.due_date || ''} onChange={fc} /></div>
               </div>
               <div className="bh-field-row">
-                <div className="bh-field"><label>Tax Rate (%)</label><input type="number" name="invoice_tax_rate" value={form.invoice_tax_rate ?? ''} onChange={fc} placeholder="0" min="0" max="100" step="0.01" /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldTaxRate')}</label><input type="number" name="invoice_tax_rate" value={form.invoice_tax_rate ?? ''} onChange={fc} placeholder="0" min="0" max="100" step="0.01" /></div>
                 <div className="bh-field">
-                  <label>Status</label>
+                  <label>{t('businessHub.fieldStatus')}</label>
                   <select name="status" value={form.status || 'draft'} onChange={fc}>
-                    <option value="draft">Draft</option>
-                    <option value="sent">Sent</option>
-                    <option value="paid">Paid</option>
-                    <option value="cancelled">Cancelled</option>
+                    <option value="draft">{t('businessHub.statusDraft')}</option>
+                    <option value="sent">{t('businessHub.statusSent')}</option>
+                    <option value="paid">{t('businessHub.statusPaid')}</option>
+                    <option value="cancelled">{t('businessHub.statusCancelled')}</option>
                   </select>
                 </div>
               </div>
 
               {/* Line items */}
-              <div className="bh-field"><label>Line Items</label></div>
+              <div className="bh-field"><label>{t('businessHub.fieldLineItems')}</label></div>
               <div className="bh-line-items">
                 {(form.line_items || []).map((li, i) => (
                   <div key={i} className="bh-line-item">
-                    <input placeholder="Description" value={li.description || ''} onChange={e => updateLineItem(i, 'description', e.target.value)} />
-                    <input type="number" placeholder="Qty" value={li.quantity || ''} onChange={e => updateLineItem(i, 'quantity', e.target.value)} min="0" step="0.01" />
-                    <input type="number" placeholder="Unit $" value={li.unit_price || ''} onChange={e => updateLineItem(i, 'unit_price', e.target.value)} min="0" step="0.01" />
+                    <input placeholder={t('businessHub.placeholderLineDesc')} value={li.description || ''} onChange={e => updateLineItem(i, 'description', e.target.value)} />
+                    <input type="number" placeholder={t('businessHub.placeholderLineQty')} value={li.quantity || ''} onChange={e => updateLineItem(i, 'quantity', e.target.value)} min="0" step="0.01" />
+                    <input type="number" placeholder={t('businessHub.placeholderLineUnit')} value={li.unit_price || ''} onChange={e => updateLineItem(i, 'unit_price', e.target.value)} min="0" step="0.01" />
                     <button className="bh-line-remove" onClick={() => removeLineItem(i)} disabled={(form.line_items || []).length <= 1}>×</button>
                   </div>
                 ))}
-                <button className="bh-line-add" onClick={addLineItem}>+ Add line item</button>
+                <button className="bh-line-add" onClick={addLineItem}>{t('businessHub.addLineItem')}</button>
               </div>
 
               {/* Live totals preview */}
@@ -803,18 +812,18 @@ function BusinessHubInner() {
                 const { subtotal, taxAmt, total } = calcTotals(form.line_items, form.invoice_tax_rate);
                 return (
                   <div className="bh-totals">
-                    <div>Subtotal: {fmt$(subtotal)}</div>
-                    {taxAmt > 0 && <div>Tax ({form.invoice_tax_rate || 0}%): {fmt$(taxAmt)}</div>}
-                    <div className="grand">Total: {fmt$(total)}</div>
+                    <div>{t('businessHub.subtotal')}: {fmt$(subtotal)}</div>
+                    {taxAmt > 0 && <div>{t('businessHub.taxLabel')} ({form.invoice_tax_rate || 0}%): {fmt$(taxAmt)}</div>}
+                    <div className="grand">{t('businessHub.total')}: {fmt$(total)}</div>
                   </div>
                 );
               })()}
 
-              <div className="bh-field"><label>Notes</label><textarea name="notes" value={form.notes || ''} onChange={fc} rows={2} /></div>
+              <div className="bh-field"><label>{t('businessHub.fieldNotes')}</label><textarea name="notes" value={form.notes || ''} onChange={fc} rows={2} /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>Cancel</button>
-                <button className="bh-btn primary" onClick={handleSaveInvoice} disabled={saving}>{saving ? 'Saving…' : modal === 'add-inv' ? 'Create Invoice' : 'Save Changes'}</button>
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveInvoice} disabled={saving}>{saving ? t('businessHub.btnSaving') : modal === 'add-inv' ? t('businessHub.btnCreateInvoice') : t('businessHub.btnSaveChanges')}</button>
               </div>
             </div>
           </div>
@@ -824,15 +833,15 @@ function BusinessHubInner() {
         {modal === 'pay-inv' && selected && (
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
-              <h2>Mark Invoice Paid</h2>
+              <h2>{t('businessHub.modalMarkInvoicePaid')}</h2>
               <p style={{ fontSize: '0.88rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
-                Invoice {selected.invoice_number} · Total {fmt$(selected.total)}
+                {t('businessHub.invoiceTotalLabel', { num: selected.invoice_number, total: fmt$(selected.total) })}
               </p>
-              <div className="bh-field"><label>Amount Received ($)</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
+              <div className="bh-field"><label>{t('businessHub.fieldAmountReceived')}</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>Cancel</button>
-                <button className="bh-btn primary" onClick={handleMarkInvoicePaid} disabled={saving}>{saving ? 'Saving…' : 'Mark Paid'}</button>
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleMarkInvoicePaid} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnMarkPaid')}</button>
               </div>
             </div>
           </div>
@@ -842,37 +851,37 @@ function BusinessHubInner() {
         {(modal === 'add-goal' || modal === 'edit-goal') && (
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
-              <h2>{modal === 'add-goal' ? 'Add Goal' : 'Edit Goal'}</h2>
-              <div className="bh-field"><label>Title *</label><input name="title" value={form.title || ''} onChange={fc} placeholder="e.g. Monthly Revenue Target" /></div>
+              <h2>{modal === 'add-goal' ? t('businessHub.modalAddGoal') : t('businessHub.modalEditGoal')}</h2>
+              <div className="bh-field"><label>{t('businessHub.fieldTitleRequired')}</label><input name="title" value={form.title || ''} onChange={fc} placeholder={t('businessHub.placeholderGoalTitle')} /></div>
               <div className="bh-field-row">
                 <div className="bh-field">
-                  <label>Type</label>
+                  <label>{t('businessHub.fieldType')}</label>
                   <select name="goal_type" value={form.goal_type || 'revenue'} onChange={fc}>
-                    <option value="revenue">Revenue</option>
-                    <option value="profit">Profit</option>
-                    <option value="jobs">Jobs Completed</option>
-                    <option value="clients">Clients</option>
-                    <option value="invoiced">Invoiced</option>
+                    <option value="revenue">{t('businessHub.goalTypeRevenue')}</option>
+                    <option value="profit">{t('businessHub.goalTypeProfit')}</option>
+                    <option value="jobs">{t('businessHub.goalTypeJobs')}</option>
+                    <option value="clients">{t('businessHub.goalTypeClients')}</option>
+                    <option value="invoiced">{t('businessHub.goalTypeInvoiced')}</option>
                   </select>
                 </div>
                 <div className="bh-field">
-                  <label>Period</label>
+                  <label>{t('businessHub.fieldPeriod')}</label>
                   <select name="period" value={form.period || 'monthly'} onChange={fc}>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="yearly">Yearly</option>
+                    <option value="weekly">{t('businessHub.periodWeekly')}</option>
+                    <option value="monthly">{t('businessHub.periodMonthly')}</option>
+                    <option value="quarterly">{t('businessHub.periodQuarterly')}</option>
+                    <option value="yearly">{t('businessHub.periodYearly')}</option>
                   </select>
                 </div>
               </div>
               <div className="bh-field-row">
-                <div className="bh-field"><label>Target Value *</label><input type="number" name="target_value" value={form.target_value || ''} onChange={fc} min="0" step="0.01" /></div>
-                <div className="bh-field"><label>Current Value</label><input type="number" name="current_value" value={form.current_value ?? ''} onChange={fc} min="0" step="0.01" /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldTargetValueRequired')}</label><input type="number" name="target_value" value={form.target_value || ''} onChange={fc} min="0" step="0.01" /></div>
+                <div className="bh-field"><label>{t('businessHub.fieldCurrentValue')}</label><input type="number" name="current_value" value={form.current_value ?? ''} onChange={fc} min="0" step="0.01" /></div>
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>Cancel</button>
-                <button className="bh-btn primary" onClick={handleSaveGoal} disabled={saving}>{saving ? 'Saving…' : modal === 'add-goal' ? 'Add Goal' : 'Save Changes'}</button>
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveGoal} disabled={saving}>{saving ? t('businessHub.btnSaving') : modal === 'add-goal' ? t('businessHub.btnAddGoal') : t('businessHub.btnSaveChanges')}</button>
               </div>
             </div>
           </div>
@@ -882,15 +891,15 @@ function BusinessHubInner() {
         {modal === 'pay-tax' && selected && (
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
-              <h2>Record Tax Payment</h2>
+              <h2>{t('businessHub.modalRecordTaxPayment')}</h2>
               <p style={{ fontSize: '0.88rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
-                Q{selected.quarter} {selected.tax_year} · Estimated {fmt$(selected.estimated_tax)}
+                {t('businessHub.taxQuarterLabel', { quarter: selected.quarter, year: selected.tax_year, amount: fmt$(selected.estimated_tax) })}
               </p>
-              <div className="bh-field"><label>Amount Paid ($)</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
+              <div className="bh-field"><label>{t('businessHub.fieldAmountPaid')}</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>Cancel</button>
-                <button className="bh-btn primary" onClick={handleMarkTaxPaid} disabled={saving}>{saving ? 'Saving…' : 'Record Payment'}</button>
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleMarkTaxPaid} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnRecordPayment')}</button>
               </div>
             </div>
           </div>
@@ -900,31 +909,31 @@ function BusinessHubInner() {
         {modal === 'invite-member' && (
           <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="bh-modal">
-              <h2>Invite Team Member</h2>
+              <h2>{t('businessHub.modalInviteMember')}</h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
-                Invite someone to represent or manage this business. They'll get a notification to accept.
+                {t('businessHub.inviteMemberDesc')}
               </p>
               <div className="bh-field">
-                <label>Email *</label>
+                <label>{t('businessHub.fieldEmailRequired')}</label>
                 <input
                   type="email"
                   name="invite_email"
                   value={form.invite_email || ''}
                   onChange={fc}
-                  placeholder="teammate@example.com"
+                  placeholder={t('businessHub.placeholderInviteEmail')}
                 />
               </div>
               <div className="bh-field">
-                <label>Role *</label>
+                <label>{t('businessHub.fieldRoleRequired')}</label>
                 <select name="invite_role" value={form.invite_role || 'representative'} onChange={fc}>
-                  <option value="representative">Representative — handles customer chat &amp; job acceptance</option>
-                  <option value="manager">Manager — full access to invoices, tax &amp; analytics</option>
+                  <option value="representative">{t('businessHub.roleRepresentativeDesc')}</option>
+                  <option value="manager">{t('businessHub.roleManagerDesc')}</option>
                 </select>
               </div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
               <div className="bh-modal-actions">
-                <button className="bh-btn" onClick={closeModal}>Cancel</button>
-                <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving}>{saving ? 'Sending…' : 'Send Invite'}</button>
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving}>{saving ? t('businessHub.btnSending') : t('businessHub.btnSendInvite')}</button>
               </div>
             </div>
           </div>
@@ -944,12 +953,26 @@ const US_STATES = [
 ];
 
 const BIZ_TYPES = [
-  'Handyman', 'Plumbing', 'Electrical', 'HVAC', 'Landscaping', 'Cleaning',
-  'Painting', 'Carpentry', 'Roofing', 'Flooring', 'Moving', 'Pest Control',
-  'Pool Service', 'Auto Repair', 'General Labor', 'Other',
+  { value: 'Handyman',       labelKey: 'bizTypeHandyman' },
+  { value: 'Plumbing',       labelKey: 'bizTypePlumbing' },
+  { value: 'Electrical',     labelKey: 'bizTypeElectrical' },
+  { value: 'HVAC',           labelKey: 'bizTypeHVAC' },
+  { value: 'Landscaping',    labelKey: 'bizTypeLandscaping' },
+  { value: 'Cleaning',       labelKey: 'bizTypeCleaning' },
+  { value: 'Painting',       labelKey: 'bizTypePainting' },
+  { value: 'Carpentry',      labelKey: 'bizTypeCarpentry' },
+  { value: 'Roofing',        labelKey: 'bizTypeRoofing' },
+  { value: 'Flooring',       labelKey: 'bizTypeFlooring' },
+  { value: 'Moving',         labelKey: 'bizTypeMoving' },
+  { value: 'Pest Control',   labelKey: 'bizTypePestControl' },
+  { value: 'Pool Service',   labelKey: 'bizTypePoolService' },
+  { value: 'Auto Repair',    labelKey: 'bizTypeAutoRepair' },
+  { value: 'General Labor',  labelKey: 'bizTypeGeneralLabor' },
+  { value: 'Other',          labelKey: 'bizTypeOther' },
 ];
 
 function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole, onChange, onLogoChange, onCoverChange, onSave, bizId }) {
+  const { t } = useTranslation();
   if (!form) return null;
 
   function pf(e) {
@@ -961,13 +984,15 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
     <div className="bh-profile-tab">
       <div className="bh-profile-header">
         <div>
-          <h2 className="bh-profile-title">Public Profile</h2>
+          <h2 className="bh-profile-title">{t('businessHub.publicProfile')}</h2>
           <p className="bh-profile-subtitle">
-            This information appears on your business's public page visible to customers.
+            {t('businessHub.publicProfileSubtitle')}
           </p>
           {currentRole === 'manager' && (
             <p className="bh-profile-note" style={{ marginTop: '0.4rem', color: '#818cf8', fontSize: '0.82rem' }}>
-              You are editing as a <strong>Manager</strong>. Changes apply to the business owner's public profile.
+              <Trans i18nKey="businessHub.managerNote">
+                You are editing as a <strong>Manager</strong>. Changes apply to the business owner's public profile.
+              </Trans>
             </p>
           )}
         </div>
@@ -978,23 +1003,23 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
             rel="noopener noreferrer"
             className="bh-btn sm"
           >
-            Preview ↗
+            {t('businessHub.preview')} ↗
           </a>
         )}
       </div>
 
       {/* ── Photos ──────────────────────────────────────────────────── */}
       <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">Photos</h3>
+        <h3 className="bh-profile-section-title">{t('businessHub.sectionPhotos')}</h3>
         <div className="bh-photo-row">
 
           {/* Logo */}
           <div className="bh-photo-field">
-            <label className="bh-photo-label">Business Logo</label>
+            <label className="bh-photo-label">{t('businessHub.businessLogo')}</label>
             <div className="bh-photo-preview bh-photo-preview--logo">
               {logoPreview
-                ? <img src={logoPreview} alt="Logo preview" className="bh-photo-img" />
-                : <span className="bh-photo-placeholder">No logo</span>}
+                ? <img src={logoPreview} alt={t('businessHub.logoPreviewAlt')} className="bh-photo-img" />
+                : <span className="bh-photo-placeholder">{t('businessHub.noLogo')}</span>}
             </div>
             <input
               type="file"
@@ -1004,7 +1029,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
               id="bh-logo-input"
             />
             <label htmlFor="bh-logo-input" className="bh-btn sm" style={{ cursor: 'pointer', display: 'inline-block' }}>
-              {logoPreview ? 'Change Logo' : 'Upload Logo'}
+              {logoPreview ? t('businessHub.changeLogo') : t('businessHub.uploadLogo')}
             </label>
             {logoPreview && (
               <button
@@ -1012,18 +1037,18 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
                 onClick={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
                 style={{ marginLeft: '0.5rem' }}
               >
-                Remove
+                {t('businessHub.remove')}
               </button>
             )}
           </div>
 
           {/* Cover photo */}
           <div className="bh-photo-field">
-            <label className="bh-photo-label">Cover Photo</label>
+            <label className="bh-photo-label">{t('businessHub.coverPhoto')}</label>
             <div className="bh-photo-preview bh-photo-preview--cover">
               {coverPreview
-                ? <img src={coverPreview} alt="Cover preview" className="bh-photo-img" />
-                : <span className="bh-photo-placeholder">No cover photo</span>}
+                ? <img src={coverPreview} alt={t('businessHub.coverPreviewAlt')} className="bh-photo-img" />
+                : <span className="bh-photo-placeholder">{t('businessHub.noCoverPhoto')}</span>}
             </div>
             <input
               type="file"
@@ -1033,7 +1058,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
               id="bh-cover-input"
             />
             <label htmlFor="bh-cover-input" className="bh-btn sm" style={{ cursor: 'pointer', display: 'inline-block' }}>
-              {coverPreview ? 'Change Cover' : 'Upload Cover'}
+              {coverPreview ? t('businessHub.changeCover') : t('businessHub.uploadCover')}
             </label>
             {coverPreview && (
               <button
@@ -1041,7 +1066,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
                 onClick={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
                 style={{ marginLeft: '0.5rem' }}
               >
-                Remove
+                {t('businessHub.remove')}
               </button>
             )}
           </div>
@@ -1050,91 +1075,91 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
 
       {/* ── Business identity ────────────────────────────────────────── */}
       <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">Business Identity</h3>
+        <h3 className="bh-profile-section-title">{t('businessHub.sectionBusinessIdentity')}</h3>
         <div className="bh-field-row">
           <div className="bh-field">
-            <label>Business Name *</label>
-            <input name="business_name" value={form.business_name} onChange={pf} placeholder="My Service Co." />
+            <label>{t('businessHub.fieldBusinessNameRequired')}</label>
+            <input name="business_name" value={form.business_name} onChange={pf} placeholder={t('businessHub.placeholderBizName')} />
           </div>
           <div className="bh-field">
-            <label>Business Type</label>
+            <label>{t('businessHub.fieldBusinessType')}</label>
             <select name="business_type" value={form.business_type} onChange={pf}>
-              <option value="">— Select a type —</option>
-              {BIZ_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="">{t('businessHub.selectTypePlaceholder')}</option>
+              {BIZ_TYPES.map(bt => <option key={bt.value} value={bt.value}>{t(`businessHub.${bt.labelKey}`)}</option>)}
             </select>
           </div>
         </div>
         <div className="bh-field">
-          <label>Tagline / Headline</label>
+          <label>{t('businessHub.fieldTagline')}</label>
           <input
             name="profile_headline"
             value={form.profile_headline}
             onChange={pf}
-            placeholder="e.g. Reliable plumbing &amp; HVAC service since 2010"
+            placeholder={t('businessHub.placeholderTagline')}
             maxLength={120}
           />
-          <span className="bh-field-hint">Shown below your business name. Max 120 chars.</span>
+          <span className="bh-field-hint">{t('businessHub.taglineHint')}</span>
         </div>
         <div className="bh-field">
-          <label>About / Description</label>
+          <label>{t('businessHub.fieldAbout')}</label>
           <textarea
             name="description"
             value={form.description}
             onChange={pf}
             rows={4}
-            placeholder="Tell customers about your business, specialties, and what makes you stand out…"
+            placeholder={t('businessHub.placeholderAbout')}
           />
         </div>
       </section>
 
       {/* ── Contact info ────────────────────────────────────────────── */}
       <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">Contact Info</h3>
+        <h3 className="bh-profile-section-title">{t('businessHub.sectionContact')}</h3>
         <div className="bh-field-row">
           <div className="bh-field">
-            <label>Phone</label>
-            <input name="phone" value={form.phone} onChange={pf} placeholder="(555) 000-0000" type="tel" />
+            <label>{t('businessHub.fieldPhone')}</label>
+            <input name="phone" value={form.phone} onChange={pf} placeholder={t('businessHub.placeholderPhone')} type="tel" />
           </div>
           <div className="bh-field">
-            <label>Website</label>
-            <input name="website" value={form.website} onChange={pf} placeholder="https://yoursite.com" type="url" />
+            <label>{t('businessHub.fieldWebsite')}</label>
+            <input name="website" value={form.website} onChange={pf} placeholder={t('businessHub.placeholderWebsiteFull')} type="url" />
           </div>
         </div>
       </section>
 
       {/* ── Location & service area ──────────────────────────────────── */}
       <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">Location &amp; Service Area</h3>
+        <h3 className="bh-profile-section-title">{t('businessHub.sectionLocation')}</h3>
         <div className="bh-field">
-          <label>Street Address</label>
-          <input name="address_street" value={form.address_street} onChange={pf} placeholder="123 Main St (optional — not shown publicly)" />
-          <span className="bh-field-hint">Street address is not displayed publicly.</span>
+          <label>{t('businessHub.fieldStreetAddress')}</label>
+          <input name="address_street" value={form.address_street} onChange={pf} placeholder={t('businessHub.placeholderStreet')} />
+          <span className="bh-field-hint">{t('businessHub.streetHint')}</span>
         </div>
         <div className="bh-field-row">
           <div className="bh-field">
-            <label>City</label>
-            <input name="address_city" value={form.address_city} onChange={pf} placeholder="Austin" />
+            <label>{t('businessHub.fieldCity')}</label>
+            <input name="address_city" value={form.address_city} onChange={pf} placeholder={t('businessHub.placeholderCity')} />
           </div>
           <div className="bh-field">
-            <label>State</label>
+            <label>{t('businessHub.fieldState')}</label>
             <select name="address_state" value={form.address_state} onChange={pf}>
-              <option value="">— Select —</option>
+              <option value="">{t('businessHub.selectStatePlaceholder')}</option>
               {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className="bh-field" style={{ maxWidth: '120px' }}>
-            <label>ZIP</label>
-            <input name="address_zip" value={form.address_zip} onChange={pf} placeholder="78701" maxLength={10} />
+            <label>{t('businessHub.fieldZip')}</label>
+            <input name="address_zip" value={form.address_zip} onChange={pf} placeholder={t('businessHub.placeholderZip')} maxLength={10} />
           </div>
         </div>
         <div className="bh-field" style={{ maxWidth: '200px' }}>
-          <label>Service Radius (miles)</label>
+          <label>{t('businessHub.fieldServiceRadius')}</label>
           <input
             type="number"
             name="service_radius_miles"
             value={form.service_radius_miles}
             onChange={pf}
-            placeholder="25"
+            placeholder={t('businessHub.placeholderRadius')}
             min="1"
             max="200"
           />
@@ -1145,11 +1170,12 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
 
       <div className="bh-profile-actions">
         <button className="bh-btn primary" onClick={onSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save Profile'}
+          {saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
         </button>
         <p className="bh-profile-note">
-          Services, gallery, availability, and policies are managed from your{' '}
-          <a href="/dashboard" className="bh-profile-link">helper profile settings</a>.
+          <Trans i18nKey="businessHub.profileFooterNote">
+            Services, gallery, availability, and policies are managed from your <a href="/dashboard" className="bh-profile-link">helper profile settings</a>.
+          </Trans>
         </p>
       </div>
     </div>
@@ -1158,6 +1184,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 function OverviewTab({ analytics }) {
+  const { t } = useTranslation();
   const a = analytics;
   const monthly = a?.monthly || [];
   const profitCls = value => {
@@ -1176,24 +1203,24 @@ function OverviewTab({ analytics }) {
     <>
       {/* KPI grid */}
       <div className="bh-kpi-grid">
-        <KPI label="MTD Revenue"    value={fmt$(a?.mtd?.revenue)}    cls="positive" />
-        <KPI label="MTD Profit"     value={fmt$(a?.mtd?.profit)}     cls={profitCls(a?.mtd?.profit)} />
-        <KPI label="Last Mo Revenue" value={fmt$(a?.last_month?.revenue)} />
-        <KPI label="YTD Revenue"    value={fmt$(a?.ytd?.revenue)}    cls="positive" />
-        <KPI label="YTD Profit"     value={fmt$(a?.ytd?.profit)}     cls={profitCls(a?.ytd?.profit)} />
-        <KPI label="Outstanding"    value={fmt$(a?.invoices?.outstanding_total)} cls="warn"
-          sub={`${a?.invoices?.sent || 0} sent`} />
-        <KPI label="Overdue"        value={fmt$(a?.invoices?.overdue_total)}     cls="negative"
-          sub={`${a?.invoices?.overdue_count || 0} invoices`} />
-        <KPI label="Jobs (6m)"      value={a?.jobs?.completed_6m ?? '—'} />
-        <KPI label="Avg Job Value"  value={fmt$(a?.jobs?.avg_value)} />
+        <KPI label={t('businessHub.kpiMtdRevenue')}    value={fmt$(a?.mtd?.revenue)}    cls="positive" />
+        <KPI label={t('businessHub.kpiMtdProfit')}     value={fmt$(a?.mtd?.profit)}     cls={profitCls(a?.mtd?.profit)} />
+        <KPI label={t('businessHub.kpiLastMonthRevenue')} value={fmt$(a?.last_month?.revenue)} />
+        <KPI label={t('businessHub.kpiYtdRevenue')}    value={fmt$(a?.ytd?.revenue)}    cls="positive" />
+        <KPI label={t('businessHub.kpiYtdProfit')}     value={fmt$(a?.ytd?.profit)}     cls={profitCls(a?.ytd?.profit)} />
+        <KPI label={t('businessHub.kpiOutstanding')}    value={fmt$(a?.invoices?.outstanding_total)} cls="warn"
+          sub={t('businessHub.kpiInvoicesSent', { count: a?.invoices?.sent || 0 })} />
+        <KPI label={t('businessHub.kpiOverdue')}        value={fmt$(a?.invoices?.overdue_total)}     cls="negative"
+          sub={t('businessHub.kpiInvoicesCount', { count: a?.invoices?.overdue_count || 0 })} />
+        <KPI label={t('businessHub.kpiJobs6m')}      value={a?.jobs?.completed_6m ?? '—'} />
+        <KPI label={t('businessHub.kpiAvgJobValue')}  value={fmt$(a?.jobs?.avg_value)} />
       </div>
 
       {/* 6-month P&L bar chart */}
       {monthly.length > 0 && (
         <div className="bh-card">
           <div className="bh-card-header">
-            <div><h2>6-Month P&amp;L</h2></div>
+            <div><h2>{t('businessHub.chartTitle')}</h2></div>
           </div>
           <div className="bh-chart">
             {monthly.map((m, i) => {
@@ -1204,9 +1231,9 @@ function OverviewTab({ analytics }) {
               return (
                 <div key={i} className="bh-chart-bar-group">
                   <div className="bh-chart-bars">
-                    <div className="bh-chart-bar revenue" style={{ height: pct(rev) }} title={`Revenue: ${fmt$(rev)}`} />
-                    <div className="bh-chart-bar expense" style={{ height: pct(exp) }} title={`Expenses: ${fmt$(exp)}`} />
-                    <div className="bh-chart-bar profit"  style={{ height: pct(pro) }} title={`Profit: ${fmt$(pro)}`} />
+                    <div className="bh-chart-bar revenue" style={{ height: pct(rev) }} title={t('businessHub.tooltipRevenue', { amount: fmt$(rev) })} />
+                    <div className="bh-chart-bar expense" style={{ height: pct(exp) }} title={t('businessHub.tooltipExpenses', { amount: fmt$(exp) })} />
+                    <div className="bh-chart-bar profit"  style={{ height: pct(pro) }} title={t('businessHub.tooltipProfit', { amount: fmt$(pro) })} />
                   </div>
                   <span className="bh-chart-month">{fmtMonth(m.month)}</span>
                 </div>
@@ -1214,7 +1241,11 @@ function OverviewTab({ analytics }) {
             })}
           </div>
           <div className="bh-chart-legend">
-            {[['revenue', '#4ade80', 'Revenue'], ['expense', '#f87171', 'Expenses'], ['profit', '#60a5fa', 'Profit']].map(([, color, label]) => (
+            {[
+              ['revenue', '#4ade80', t('businessHub.chartRevenue')],
+              ['expense', '#f87171', t('businessHub.chartExpenses')],
+              ['profit',  '#60a5fa', t('businessHub.chartProfit')],
+            ].map(([, color, label]) => (
               <span key={label} className="bh-chart-legend-item">
                 <span className="bh-chart-legend-dot" style={{ background: color }} />
                 {label}
@@ -1239,35 +1270,47 @@ function KPI({ label, value, cls, sub }) {
 
 // ── Invoices tab ──────────────────────────────────────────────────────────────
 function InvoicesTab({ data, onNew, onEdit, onPay, onDelete }) {
+  const { t } = useTranslation();
   const invoices = data?.invoices || [];
   const summary  = data?.summary  || {};
+
+  const statusLabel = (status) => {
+    const map = {
+      draft: t('businessHub.invoiceStatusDraft'),
+      sent: t('businessHub.invoiceStatusSent'),
+      paid: t('businessHub.invoiceStatusPaid'),
+      overdue: t('businessHub.invoiceStatusOverdue'),
+      cancelled: t('businessHub.statusCancelled'),
+    };
+    return map[status] || status;
+  };
 
   return (
     <>
       {/* Summary counts */}
       <div className="bh-kpi-grid" style={{ marginBottom: '1rem' }}>
-        <KPI label="Draft"       value={summary.draft       || 0} />
-        <KPI label="Sent"        value={summary.sent        || 0} />
-        <KPI label="Paid"        value={summary.paid        || 0} cls="positive" />
-        <KPI label="Overdue"     value={summary.overdue     || 0} cls="negative" />
-        <KPI label="Outstanding" value={fmt$(summary.outstanding_total)} cls="warn" />
+        <KPI label={t('businessHub.invoiceStatusDraft')}       value={summary.draft       || 0} />
+        <KPI label={t('businessHub.invoiceStatusSent')}        value={summary.sent        || 0} />
+        <KPI label={t('businessHub.invoiceStatusPaid')}        value={summary.paid        || 0} cls="positive" />
+        <KPI label={t('businessHub.invoiceStatusOverdue')}     value={summary.overdue     || 0} cls="negative" />
+        <KPI label={t('businessHub.invoiceStatusOutstanding')} value={fmt$(summary.outstanding_total)} cls="warn" />
       </div>
 
       <div className="bh-card">
         <div className="bh-card-header">
-          <div><h2>Invoices</h2></div>
-          <button className="bh-btn primary sm" onClick={onNew}>+ New Invoice</button>
+          <div><h2>{t('businessHub.invoicesSection')}</h2></div>
+          <button className="bh-btn primary sm" onClick={onNew}>{t('businessHub.btnNewInvoice')}</button>
         </div>
 
         {invoices.length === 0 ? (
-          <div className="bh-empty"><p>No invoices yet.</p><button className="bh-btn primary" onClick={onNew}>Create Invoice</button></div>
+          <div className="bh-empty"><p>{t('businessHub.noInvoicesYet')}</p><button className="bh-btn primary" onClick={onNew}>{t('businessHub.btnCreateInvoiceShort')}</button></div>
         ) : (
           <div className="bh-table-wrap">
             <table className="bh-table">
               <thead>
                 <tr>
-                  <th>#</th><th>Client</th><th>Status</th><th>Due</th>
-                  <th className="num">Total</th><th className="num">Paid</th><th></th>
+                  <th>{t('businessHub.colNumber')}</th><th>{t('businessHub.colClient')}</th><th>{t('businessHub.colStatus')}</th><th>{t('businessHub.colDue')}</th>
+                  <th className="num">{t('businessHub.colTotal')}</th><th className="num">{t('businessHub.colPaid')}</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -1278,16 +1321,16 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete }) {
                       <div>{inv.client_name}</div>
                       {inv.client_company && <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>{inv.client_company}</div>}
                     </td>
-                    <td><span className={`bh-status ${inv.status}`}>{inv.status}</span></td>
+                    <td><span className={`bh-status ${inv.status}`}>{statusLabel(inv.status)}</span></td>
                     <td style={{ whiteSpace: 'nowrap', color: inv.status === 'overdue' ? '#f87171' : undefined }}>{fmtDate(inv.due_date)}</td>
                     <td className="num">{fmt$(inv.total)}</td>
                     <td className="num">{fmt$(inv.amount_paid)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {inv.status !== 'paid' && inv.status !== 'cancelled' && (
-                        <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onPay(inv)}>Mark Paid</button>
+                        <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onPay(inv)}>{t('businessHub.btnMarkPaid')}</button>
                       )}
-                      <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onEdit(inv)}>Edit</button>
-                      <button className="bh-btn sm danger" onClick={() => onDelete(inv)}>Delete</button>
+                      <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onEdit(inv)}>{t('businessHub.btnEdit')}</button>
+                      <button className="bh-btn sm danger" onClick={() => onDelete(inv)}>{t('businessHub.btnDelete')}</button>
                     </td>
                   </tr>
                 ))}
@@ -1302,39 +1345,51 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete }) {
 
 // ── Tax tab ───────────────────────────────────────────────────────────────────
 function TaxTab({ data, onRefresh, onPay }) {
+  const { t } = useTranslation();
   const estimates = data?.estimates || [];
+
+  const taxStatusLabel = (status) => {
+    const map = {
+      paid: t('businessHub.statusPaid'),
+      overdue: t('businessHub.statusOverdue'),
+      draft: t('businessHub.statusDraft'),
+      sent: t('businessHub.statusSent'),
+    };
+    return map[status] || status;
+  };
+
   return (
     <div className="bh-card">
       <div className="bh-card-header">
         <div>
-          <h2>Quarterly Tax Estimates</h2>
-          <p>Based on OxSteed earnings + paid invoices − expenses.</p>
+          <h2>{t('businessHub.taxSection')}</h2>
+          <p>{t('businessHub.taxSectionDesc')}</p>
         </div>
-        <button className="bh-btn sm" onClick={onRefresh}>Refresh Estimates</button>
+        <button className="bh-btn sm" onClick={onRefresh}>{t('businessHub.btnRefreshEstimates')}</button>
       </div>
 
       {estimates.length === 0 ? (
-        <div className="bh-empty"><p>No tax estimates yet. Click "Refresh Estimates" to calculate.</p></div>
+        <div className="bh-empty"><p>{t('businessHub.noTaxEstimates')}</p></div>
       ) : (
         <div className="bh-table-wrap">
           <table className="bh-table">
             <thead>
               <tr>
-                <th>Quarter</th><th>Due</th><th>Status</th>
-                <th className="num">Est. Net Income</th><th className="num">Est. Tax</th><th></th>
+                <th>{t('businessHub.colQuarter')}</th><th>{t('businessHub.colDue')}</th><th>{t('businessHub.colStatus')}</th>
+                <th className="num">{t('businessHub.colEstNetIncome')}</th><th className="num">{t('businessHub.colEstTax')}</th><th></th>
               </tr>
             </thead>
             <tbody>
               {estimates.map(est => (
                 <tr key={est.id}>
-                  <td>Q{est.quarter} {est.tax_year}</td>
+                  <td>{t('businessHub.quarterLabel', { q: est.quarter, year: est.tax_year })}</td>
                   <td style={{ whiteSpace: 'nowrap', color: est.status === 'overdue' ? '#f87171' : undefined }}>{fmtDate(est.due_date)}</td>
-                  <td><span className={`bh-status ${est.status}`}>{est.status}</span></td>
+                  <td><span className={`bh-status ${est.status}`}>{taxStatusLabel(est.status)}</span></td>
                   <td className="num">{fmt$(est.estimated_net_income)}</td>
                   <td className="num">{fmt$(est.estimated_tax)}</td>
                   <td>
                     {est.status !== 'paid' && (
-                      <button className="bh-btn sm" onClick={() => onPay(est)}>Mark Paid</button>
+                      <button className="bh-btn sm" onClick={() => onPay(est)}>{t('businessHub.btnMarkPaid')}</button>
                     )}
                   </td>
                 </tr>
@@ -1349,19 +1404,40 @@ function TaxTab({ data, onRefresh, onPay }) {
 
 // ── Goals tab ─────────────────────────────────────────────────────────────────
 function GoalsTab({ goals, analytics, onNew, onEdit, onDelete }) {
+  const { t } = useTranslation();
+
+  const goalTypeLabel = (gt) => {
+    const map = {
+      revenue: t('businessHub.goalTypeRevenue'),
+      profit: t('businessHub.goalTypeProfit'),
+      jobs: t('businessHub.goalTypeJobs'),
+      clients: t('businessHub.goalTypeClients'),
+      invoiced: t('businessHub.goalTypeInvoiced'),
+    };
+    return map[gt] || gt;
+  };
+  const periodLabel = (p) => {
+    const map = {
+      weekly: t('businessHub.periodWeekly'),
+      monthly: t('businessHub.periodMonthly'),
+      quarterly: t('businessHub.periodQuarterly'),
+      yearly: t('businessHub.periodYearly'),
+    };
+    return map[p] || p;
+  };
+
   return (
     <div className="bh-card">
       <div className="bh-card-header">
-        <div><h2>Goals</h2></div>
-        <button className="bh-btn primary sm" onClick={onNew}>+ Add Goal</button>
+        <div><h2>{t('businessHub.goalsSection')}</h2></div>
+        <button className="bh-btn primary sm" onClick={onNew}>{t('businessHub.btnAddGoalShort')}</button>
       </div>
 
       {goals.length === 0 ? (
-        <div className="bh-empty"><p>No goals yet.</p><button className="bh-btn primary" onClick={onNew}>Add a Goal</button></div>
+        <div className="bh-empty"><p>{t('businessHub.noGoalsYet')}</p><button className="bh-btn primary" onClick={onNew}>{t('businessHub.btnAddAGoal')}</button></div>
       ) : (
         <div className="bh-goal-list">
           {goals.map(g => {
-            // optionally pull current value from analytics for revenue/profit types
             let current = parseFloat(g.current_value) || 0;
             if (g.goal_type === 'revenue' && analytics?.mtd?.revenue)   current = Math.max(current, parseFloat(analytics.mtd.revenue)  || 0);
             if (g.goal_type === 'profit'  && analytics?.mtd?.profit)    current = Math.max(current, parseFloat(analytics.mtd.profit)   || 0);
@@ -1373,18 +1449,18 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete }) {
                 <div className="bh-goal-row">
                   <div>
                     <div className="bh-goal-title">{g.title}</div>
-                    <div className="bh-goal-meta">{g.goal_type} · {g.period}</div>
+                    <div className="bh-goal-meta">{goalTypeLabel(g.goal_type)} · {periodLabel(g.period)}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button className="bh-btn sm" onClick={() => onEdit(g)}>Edit</button>
-                    <button className="bh-btn sm danger" onClick={() => onDelete(g)}>Delete</button>
+                    <button className="bh-btn sm" onClick={() => onEdit(g)}>{t('businessHub.btnEdit')}</button>
+                    <button className="bh-btn sm danger" onClick={() => onDelete(g)}>{t('businessHub.btnDelete')}</button>
                   </div>
                 </div>
                 <div className="bh-goal-progress-track">
                   <div className={`bh-goal-progress-fill${done ? ' done' : ''}`} style={{ width: `${pct}%` }} />
                 </div>
                 <div className="bh-goal-stats">
-                  <span><strong>{pct}%</strong> complete</span>
+                  <span>{t('businessHub.goalPercentComplete', { pct })}</span>
                   <span>{fmt$(current)} / <strong>{fmt$(target)}</strong></span>
                 </div>
               </div>
@@ -1402,7 +1478,12 @@ function TeamTab({
   vortexTokens, tokenForm, onTokenFormChange, onGenerateToken, generatingToken, onRevokeToken,
   onInvite, onRevoke, onAccept, onDecline,
 }) {
-  const ROLE_LABEL = { manager: 'Manager', representative: 'Representative' };
+  const { t } = useTranslation();
+  const roleLabel = (role) => {
+    if (role === 'manager') return t('businessHub.roleManager');
+    if (role === 'representative') return t('businessHub.roleRepresentative');
+    return role;
+  };
 
   const [copiedTokenId, setCopiedTokenId] = useState(null);
 
@@ -1415,25 +1496,35 @@ function TeamTab({
 
   const STATUS_COLOR = { active: '#4ade80', used: '#94a3b8', expired: '#f97316', revoked: '#ef4444' };
 
+  const vortexStatusLabel = (status) => {
+    const map = {
+      active: t('businessHub.vortexStatusActive'),
+      used: t('businessHub.vortexStatusUsed'),
+      expired: t('businessHub.vortexStatusExpired'),
+      revoked: t('businessHub.vortexStatusRevoked'),
+    };
+    return map[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : '');
+  };
+
   return (
     <div className="bh-team">
 
       {/* ── Pending invitations received by the logged-in user ─────────── */}
       {invitations.length > 0 && (
         <div className="bh-team-section">
-          <h3 className="bh-team-heading">Pending Invitations</h3>
+          <h3 className="bh-team-heading">{t('businessHub.pendingInvitations')}</h3>
           <div className="bh-team-invites">
             {invitations.map(inv => (
               <div key={inv.id} className="bh-team-invite-card">
                 <div className="bh-team-invite-info">
                   <span className="bh-team-invite-biz">{inv.business_name}</span>
                   <span className="bh-team-invite-from">
-                    from {inv.owner_first_name} {inv.owner_last_name} · {ROLE_LABEL[inv.role] || inv.role}
+                    {t('businessHub.inviteFromLabel', { first: inv.owner_first_name, last: inv.owner_last_name, role: roleLabel(inv.role) })}
                   </span>
                 </div>
                 <div className="bh-team-invite-actions">
-                  <button className="bh-btn primary" onClick={() => onAccept(inv)}>Accept</button>
-                  <button className="bh-btn" onClick={() => onDecline(inv)}>Decline</button>
+                  <button className="bh-btn primary" onClick={() => onAccept(inv)}>{t('businessHub.btnAccept')}</button>
+                  <button className="bh-btn" onClick={() => onDecline(inv)}>{t('businessHub.btnDecline')}</button>
                 </div>
               </div>
             ))}
@@ -1444,7 +1535,7 @@ function TeamTab({
       {/* ── Businesses I manage as a representative / manager ──────────── */}
       {managedBiz.length > 0 && (
         <div className="bh-team-section">
-          <h3 className="bh-team-heading">Businesses I Manage</h3>
+          <h3 className="bh-team-heading">{t('businessHub.businessesIManage')}</h3>
           <div className="bh-team-managed">
             {managedBiz.map(b => (
               <div key={b.id} className="bh-team-managed-card">
@@ -1454,7 +1545,7 @@ function TeamTab({
                 }
                 <div>
                   <p className="bh-team-managed-name">{b.business_name}</p>
-                  <p className="bh-team-managed-role">{ROLE_LABEL[b.role] || b.role} · owner: {b.owner_first_name} {b.owner_last_name}</p>
+                  <p className="bh-team-managed-role">{t('businessHub.managedRoleLabel', { role: roleLabel(b.role), first: b.owner_first_name, last: b.owner_last_name })}</p>
                 </div>
               </div>
             ))}
@@ -1464,10 +1555,9 @@ function TeamTab({
 
       {/* ── Vortex token generator ────────────────────────────────────────── */}
       <div className="bh-team-section">
-        <h3 className="bh-team-heading">Vortex — Self-Onboarding Tokens</h3>
+        <h3 className="bh-team-heading">{t('businessHub.vortexSection')}</h3>
         <p className="bh-team-vortex-desc">
-          Generate a 64-character single-use token. Share it with a representative out-of-band — they click
-          "Vortex" in the footer after signing up, enter the token, and are instantly linked to this business.
+          {t('businessHub.vortexDesc')}
         </p>
         <div className="bh-team-vortex-gen">
           <select
@@ -1475,71 +1565,69 @@ function TeamTab({
             value={tokenForm.role}
             onChange={e => onTokenFormChange({ role: e.target.value })}
           >
-            <option value="representative">Representative</option>
-            <option value="manager">Manager</option>
+            <option value="representative">{t('businessHub.vortexRoleRepresentative')}</option>
+            <option value="manager">{t('businessHub.vortexRoleManager')}</option>
           </select>
           <select
             className="bh-select"
             value={tokenForm.expires_in}
             onChange={e => onTokenFormChange({ expires_in: e.target.value })}
           >
-            <option value="24h">Expires in 24 hours</option>
-            <option value="7d">Expires in 7 days</option>
-            <option value="30d">Expires in 30 days</option>
-            <option value="60d">Expires in 60 days</option>
+            <option value="24h">{t('businessHub.vortexExpires24h')}</option>
+            <option value="7d">{t('businessHub.vortexExpires7d')}</option>
+            <option value="30d">{t('businessHub.vortexExpires30d')}</option>
+            <option value="60d">{t('businessHub.vortexExpires60d')}</option>
           </select>
           <button className="bh-btn primary" onClick={onGenerateToken} disabled={generatingToken}>
-            {generatingToken ? 'Generating…' : '+ Generate Token'}
+            {generatingToken ? t('businessHub.btnGenerating') : t('businessHub.btnGenerateToken')}
           </button>
         </div>
 
         {vortexTokens.length > 0 && (
           <div className="bh-vortex-tokens">
-            {vortexTokens.map(t => {
-              // t.token is NULL for active tokens the requesting manager did not create.
-              // Guard every access to prevent TypeError crashes.
-              const tokenStr = t.token ?? null;
-              const tokenHidden = t.status === 'active' && tokenStr === null;
+            {vortexTokens.map(tk => {
+              const tokenStr = tk.token ?? null;
+              const tokenHidden = tk.status === 'active' && tokenStr === null;
               const tokenPrefix = tokenStr ? tokenStr.slice(0, 16) : null;
-              const rowKey = t.id;
+              const rowKey = tk.id;
 
               return (
-                <div key={rowKey} className={`bh-vortex-token-row bh-vortex-${t.status}`}>
+                <div key={rowKey} className={`bh-vortex-token-row bh-vortex-${tk.status}`}>
                   <div className="bh-vortex-token-info">
                     {tokenHidden ? (
-                      <code className="bh-vortex-code bh-vortex-code--hidden" title="Created by another manager">
+                      <code className="bh-vortex-code bh-vortex-code--hidden" title={t('businessHub.tokenHiddenTitle')}>
                         ••••••••••••••••
                       </code>
                     ) : (
                       <code className="bh-vortex-code">{tokenPrefix}…</code>
                     )}
-                    <span className="bh-role-badge bh-role-representative" style={{ marginLeft: '0.5rem' }}>{ROLE_LABEL[t.role] || t.role}</span>
-                    <span className="bh-vortex-status" style={{ color: STATUS_COLOR[t.status] || 'inherit' }}>
-                      {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                    <span className="bh-role-badge bh-role-representative" style={{ marginLeft: '0.5rem' }}>{roleLabel(tk.role)}</span>
+                    <span className="bh-vortex-status" style={{ color: STATUS_COLOR[tk.status] || 'inherit' }}>
+                      {vortexStatusLabel(tk.status)}
                     </span>
-                    {t.status === 'used' && t.used_by_first && (
-                      <span className="bh-vortex-used-by">Used by {t.used_by_first} {t.used_by_last}</span>
+                    {tk.status === 'used' && tk.used_by_first && (
+                      <span className="bh-vortex-used-by">{t('businessHub.vortexUsedBy', { first: tk.used_by_first, last: tk.used_by_last })}</span>
                     )}
-                    {t.status === 'active' && (
-                      <span className="bh-vortex-expires">Expires {new Date(t.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    {tk.status === 'active' && (
+                      <span className="bh-vortex-expires">{t('businessHub.vortexExpiresOn', { date: new Date(tk.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) })}</span>
                     )}
-                    {t.created_by_first && (
+                    {tk.created_by_first && (
                       <span className="bh-vortex-creator" style={{ fontSize: '0.75rem', color: 'var(--muted-text)', marginLeft: '0.4rem' }}>
-                        by {t.created_by_first} {t.created_by_last}
+                        {t('businessHub.vortexCreatedBy', { first: tk.created_by_first, last: tk.created_by_last })}
                       </span>
                     )}
                   </div>
                   <div className="bh-vortex-token-actions">
-                    {t.status === 'active' && !tokenHidden && (
+                    {tk.status === 'active' && !tokenHidden && (
                       <>
                         <button
                           className="bh-btn"
-                          onClick={() => copyToken(tokenStr, t.id)}
+                          onClick={() => copyToken(tokenStr, tk.id)}
                           style={{ fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
                         >
-                          {copiedTokenId === t.id ? 'Copied!' : 'Copy'}
+                          {copiedTokenId === tk.id ? t('businessHub.btnCopied') : t('businessHub.btnCopy')}
                         </button>
-                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(t.id)}>Revoke</button>
+                        <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevokeToken(tk.id)}>{t('businessHub.btnRevoke')}</button>
                       </>
                     )}
                   </div>
@@ -1553,22 +1641,22 @@ function TeamTab({
       {/* ── Members of the currently selected business ─────────────────── */}
       <div className="bh-team-section">
         <div className="bh-team-heading-row">
-          <h3 className="bh-team-heading">Team Members</h3>
-          <button className="bh-btn primary" onClick={onInvite}>+ Invite</button>
+          <h3 className="bh-team-heading">{t('businessHub.teamMembersSection')}</h3>
+          <button className="bh-btn primary" onClick={onInvite}>{t('businessHub.btnInvite')}</button>
         </div>
 
         {members.length === 0 ? (
           <div className="bh-empty" style={{ padding: '2rem 0' }}>
-            <p>No team members yet. Invite a representative or manager to help run this business.</p>
+            <p>{t('businessHub.noTeamYet')}</p>
           </div>
         ) : (
           <table className="bh-team-table">
             <thead>
               <tr>
-                <th>Name / Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Since</th>
+                <th>{t('businessHub.colNameEmail')}</th>
+                <th>{t('businessHub.colRole')}</th>
+                <th>{t('businessHub.colStatus')}</th>
+                <th>{t('businessHub.colSince')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -1581,10 +1669,10 @@ function TeamTab({
                     </div>
                     <div className="bh-team-member-email">{m.member_email || m.invite_email}</div>
                   </td>
-                  <td><span className={`bh-role-badge bh-role-${m.role}`}>{ROLE_LABEL[m.role] || m.role}</span></td>
+                  <td><span className={`bh-role-badge bh-role-${m.role}`}>{roleLabel(m.role)}</span></td>
                   <td>
                     <span className={`bh-status-badge bh-status-${m.status}`}>
-                      {m.status === 'pending' ? 'Invite sent' : 'Active'}
+                      {m.status === 'pending' ? t('businessHub.statusInviteSent') : t('businessHub.statusActive')}
                     </span>
                   </td>
                   <td style={{ fontSize: '0.82rem', color: 'var(--muted-text)' }}>
@@ -1595,7 +1683,7 @@ function TeamTab({
                   </td>
                   <td>
                     <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
-                      {m.status === 'pending' ? 'Cancel' : 'Remove'}
+                      {m.status === 'pending' ? t('businessHub.btnCancelInvite') : t('businessHub.btnRemoveMember')}
                     </button>
                   </td>
                 </tr>

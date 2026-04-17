@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import { useSocket } from '../hooks/useSocket';
 import Navbar from '../components/Navbar';
@@ -7,6 +8,7 @@ import Footer from '../components/Footer';
 import { formatInboxTime } from '../utils/inboxTimeFormat';
 
 export default function HelperInboxPage() {
+  const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   // Track conversation IDs that have arrived since the list was last refreshed
@@ -101,14 +103,14 @@ export default function HelperInboxPage() {
       <Navbar />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Messages</h1>
+          <h1 className="text-2xl font-bold text-white">{t('messages.title')}</h1>
           {managedBusinesses.length > 0 && (
             <select
               value={businessFilter}
               onChange={e => { setBusinessFilter(e.target.value); setLoading(true); }}
               className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-orange-500"
             >
-              <option value="all">All conversations</option>
+              <option value="all">{t('messages.allConversations')}</option>
               {managedBusinesses.map(b => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -122,9 +124,9 @@ export default function HelperInboxPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
-            <h3 className="text-sm font-semibold text-white mb-1">No messages yet</h3>
+            <h3 className="text-sm font-semibold text-white mb-1">{t('messages.noMessages')}</h3>
             <p className="text-sm text-gray-500">
-              When a customer contacts you from your profile, their message will appear here.
+              {t('messages.helperNoConvSub')}
             </p>
           </div>
         ) : (
@@ -132,7 +134,7 @@ export default function HelperInboxPage() {
             {conversations.map((conv) => {
               const isNew  = newInbound.has(String(conv.id));
               const unread = parseInt(conv.unread_count) > 0 || isNew;
-              const badge  = isNew && !parseInt(conv.unread_count) ? 'New' : conv.unread_count;
+              const badge  = isNew && !parseInt(conv.unread_count) ? t('messages.newBadge') : conv.unread_count;
               return (
                 <button
                   key={conv.id}
@@ -150,12 +152,12 @@ export default function HelperInboxPage() {
                     <div className="flex items-center justify-between mb-0.5">
                       <div className="min-w-0 flex-1 mr-2">
                         <p className={`text-sm truncate ${unread ? 'font-semibold text-white' : 'font-medium text-gray-300'}`}>
-                          {conv.other_user_name || 'Customer'}
+                          {conv.other_user_name || t('messages.customer')}
                         </p>
                         {/* Show which of the helper's businesses this conversation is under */}
                         {(conv.conversation_business_name || conv.helper_business_name) && (
                           <p className="text-xs text-gray-600 truncate leading-tight">
-                            via {conv.conversation_business_name || conv.helper_business_name}
+                            {t('messages.via', { name: conv.conversation_business_name || conv.helper_business_name })}
                           </p>
                         )}
                       </div>
@@ -164,10 +166,10 @@ export default function HelperInboxPage() {
                       </span>
                     </div>
                     {conv.job_title && (
-                      <p className="text-xs text-orange-400/80 mb-0.5 truncate">Re: {conv.job_title}</p>
+                      <p className="text-xs text-orange-400/80 mb-0.5 truncate">{t('messages.re', { title: conv.job_title })}</p>
                     )}
                     <p className={`text-sm truncate ${unread ? 'text-gray-300' : 'text-gray-500'}`}>
-                      {conv.last_message || 'No messages yet'}
+                      {conv.last_message || t('messages.lastMessageFallback')}
                     </p>
                   </div>
 
