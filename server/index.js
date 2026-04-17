@@ -30,6 +30,7 @@ const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = req
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
 
 // ── ROUTES ───────────────────────────────────────────────────
+const sitemapRoutes = require('./routes/sitemap');
 const authRoutes = require('./routes/auth');
 const subscriptionRoutes = require('./routes/subscription');
 const webhookRoutes = require('./routes/webhook');
@@ -291,8 +292,15 @@ const { getPublicProfile } = require('./controllers/authController');
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
+// Sitemap — works in all environments, no auth required
+app.use('/sitemap.xml', sitemapRoutes);
+
 // ── PRODUCTION STATIC SERVING ────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
+  // Prerender SEO shell for /, /helpers, /helpers/:id before express.static
+  // (express.static would serve bare index.html for / without structured data)
+  app.use(prerenderHelperProfile);
+
   app.use(express.static(path.join(__dirname, '../client/dist')));
 
   // Admin SPA - serve admin.html for all /admin/* routes
@@ -300,8 +308,6 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, '../client/dist/admin.html'));
   });
 
-  // Pre-render helper profile pages with SEO shell + JSON-LD (Issue #35)
-  app.get('/helpers/*', prerenderHelperProfile);
   // Main SPA - catch-all for everything else
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
