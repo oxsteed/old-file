@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import TrialBanner from '../components/TrialBanner';
+import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import NotificationPreferences from '../components/NotificationPreferences';
 import ReferralPanel from '../components/ReferralPanel';
@@ -65,22 +67,25 @@ const IconTrash = () => (
   </svg>
 );
 
-// ── Tab definitions ───────────────────────────────────────────────────────────
-const TABS = [
-  { key: 'profile',       label: 'Profile',       icon: <IconUser /> },
-  { key: 'security',      label: 'Security',      icon: <IconShield /> },
-  { key: 'subscription',  label: 'Subscription',  icon: <IconCard /> },
-  { key: 'businesses',    label: 'Businesses',    icon: <IconBuilding /> },
-  { key: 'notifications', label: 'Notifications', icon: <IconBell /> },
-  { key: 'referral',      label: 'Referral',      icon: <IconGift /> },
-  { key: 'privacy',       label: 'Privacy & Data',icon: <IconDatabase /> },
-  { key: 'account',       label: 'Account Type',  icon: <IconRefresh /> },
-  { key: 'danger',        label: 'Danger Zone',   icon: <IconTrash />, danger: true },
-];
+// ── Tab definitions (moved inside component for i18n) ─────────────────────────
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
+
+  const TABS = useMemo(() => [
+    { key: 'profile',       label: t('settings.tabs.profile'),       icon: <IconUser /> },
+    { key: 'security',      label: t('settings.tabs.security'),      icon: <IconShield /> },
+    { key: 'subscription',  label: t('settings.tabs.subscription'),  icon: <IconCard /> },
+    { key: 'businesses',    label: t('settings.tabs.businesses'),    icon: <IconBuilding /> },
+    { key: 'notifications', label: t('settings.tabs.notifications'), icon: <IconBell /> },
+    { key: 'referral',      label: t('settings.tabs.referral'),      icon: <IconGift /> },
+    { key: 'privacy',       label: t('settings.tabs.privacy'),       icon: <IconDatabase /> },
+    { key: 'account',       label: t('settings.tabs.accountType'),   icon: <IconRefresh /> },
+    { key: 'danger',        label: t('settings.tabs.dangerZone'),    icon: <IconTrash />, danger: true },
+  ], [t]);
+
   const [activeTab, setActiveTab] = useState('profile');
   const [switchingRole, setSwitchingRole] = useState(false);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
@@ -94,8 +99,8 @@ export default function SettingsPage() {
       setShowSwitchConfirm(false);
       toast.success(
         targetRole === 'helper'
-          ? 'Switched to Helper mode! Set up your profile and go online when ready.'
-          : 'Switched to Customer mode. Your helper profile is saved and waiting.',
+          ? t('settings.switch.successHelper')
+          : t('settings.switch.successCustomer'),
       );
       navigate(targetRole === 'helper' ? '/dashboard' : '/dashboard', { replace: true });
       window.location.reload();
@@ -255,16 +260,16 @@ export default function SettingsPage() {
   const tabProfile = (
     <form onSubmit={saveProfile}>
       <div className="sp-card">
-        <h2 className="sp-card-title">Edit Profile</h2>
-        <p className="sp-card-subtitle">Manage your personal information.</p>
+        <h2 className="sp-card-title">{t('settings.profile.title')}</h2>
+        <p className="sp-card-subtitle">{t('settings.profile.subtitle')}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="sp-label">First Name</label>
+            <label className="sp-label">{t('settings.profile.firstName')}</label>
             <input className="sp-input" value={profile.first_name || ''} readOnly disabled />
           </div>
           <div>
-            <label className="sp-label">Last Name</label>
+            <label className="sp-label">{t('settings.profile.lastName')}</label>
             <input className="sp-input" value={profile.last_name || ''} readOnly disabled />
           </div>
         </div>
@@ -274,37 +279,37 @@ export default function SettingsPage() {
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           <span>
-            Name changes require identity verification and must be processed by our team.{' '}
-            <a href="mailto:support@oxsteed.com" className="underline opacity-80 hover:opacity-100">Email support@oxsteed.com</a>
+            {t('settings.profile.verificationNotice')}{' '}
+            <a href="mailto:support@oxsteed.com" className="underline opacity-80 hover:opacity-100">support@oxsteed.com</a>
             {' '}or use the{' '}
-            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline opacity-80 hover:opacity-100">support chat</button>.
+            <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('oxsteed:open-support'))} className="underline opacity-80 hover:opacity-100">{t('settings.profile.supportChat')}</button>.
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="sp-label">Phone</label>
+            <label className="sp-label">{t('settings.profile.phone')}</label>
             <input className="sp-input" value={profile.phone || ''} onChange={e => setProfile({ ...profile, phone: e.target.value })} />
           </div>
           <div>
-            <label className="sp-label">Zip Code</label>
+            <label className="sp-label">{t('settings.profile.zipCode')}</label>
             <input className="sp-input" value={profile.zipcode || ''} onChange={e => setProfile({ ...profile, zipcode: e.target.value })} />
           </div>
         </div>
 
         <div className="mb-4">
-          <label className="sp-label">Bio</label>
+          <label className="sp-label">{t('settings.profile.bio')}</label>
           <textarea className="sp-textarea" value={profile.bio || ''} onChange={e => setProfile({ ...profile, bio: e.target.value })} />
         </div>
 
         <div className="mb-5">
-          <label className="sp-label">Display Name</label>
-          <p className="text-xs mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>Choose how your name appears to others on the platform.</p>
+          <label className="sp-label">{t('settings.profile.displayName')}</label>
+          <p className="text-xs mb-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>{t('settings.profile.displayNameSub')}</p>
           <div className="sp-name-options">
             {[
-              { value: 'first_name',    label: 'First name only', example: user?.first_name || 'Alex' },
-              { value: 'full_name',     label: 'Full name',       example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
-              { value: 'business_name', label: 'Business name',   example: 'My Services LLC' },
+              { value: 'first_name',    label: t('settings.profile.names.firstName'),    example: user?.first_name || 'Alex' },
+              { value: 'full_name',     label: t('settings.profile.names.fullName'),     example: `${user?.first_name || 'Alex'} ${user?.last_name || 'Smith'}` },
+              { value: 'business_name', label: t('settings.profile.names.businessName'), example: 'My Services LLC' },
             ].map(opt => (
               <button
                 key={opt.value}
@@ -318,12 +323,12 @@ export default function SettingsPage() {
             ))}
           </div>
           {profile.display_name_preference === 'business_name' && (
-            <p className="text-xs mt-2" style={{ color: '#fb923c' }}>⚠ If you have no business added, this falls back to your first name.</p>
+            <p className="text-xs mt-2" style={{ color: '#fb923c' }}>{t('settings.profile.businessWarning')}</p>
           )}
         </div>
 
         <button type="submit" disabled={saving} className="sp-btn sp-btn-primary">
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? t('settings.profile.saving') : t('settings.profile.saveChanges')}
         </button>
       </div>
     </form>
@@ -333,66 +338,66 @@ export default function SettingsPage() {
     <>
       <form onSubmit={changePassword}>
         <div className="sp-card">
-          <h2 className="sp-card-title">Change Password</h2>
-          <p className="sp-card-subtitle">Use a strong, unique password for your account.</p>
+          <h2 className="sp-card-title">{t('settings.security.changePassword')}</h2>
+          <p className="sp-card-subtitle">{t('settings.security.passwordDesc')}</p>
           <div className="space-y-3 mb-5">
             <div>
-              <label className="sp-label">Current Password</label>
+              <label className="sp-label">{t('settings.security.currentPassword')}</label>
               <input type="password" className="sp-input" placeholder="••••••••" value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} />
             </div>
             <div>
-              <label className="sp-label">New Password</label>
+              <label className="sp-label">{t('settings.security.newPassword')}</label>
               <input type="password" className="sp-input" placeholder="••••••••" value={passwords.newPass} onChange={e => setPasswords({ ...passwords, newPass: e.target.value })} />
             </div>
             <div>
-              <label className="sp-label">Confirm New Password</label>
+              <label className="sp-label">{t('settings.security.confirmPassword')}</label>
               <input type="password" className="sp-input" placeholder="••••••••" value={passwords.confirm} onChange={e => setPasswords({ ...passwords, confirm: e.target.value })} />
             </div>
           </div>
-          <button type="submit" className="sp-btn sp-btn-primary">Update Password</button>
+          <button type="submit" className="sp-btn sp-btn-primary">{t('settings.security.updatePassword')}</button>
         </div>
       </form>
 
       <div className="sp-card">
-        <h2 className="sp-card-title">Two-Factor Authentication</h2>
-        <p className="sp-card-subtitle">Add an extra layer of security to your account.</p>
-        <Link to="/settings/2fa" className="sp-btn sp-btn-ghost">Manage 2FA</Link>
+        <h2 className="sp-card-title">{t('settings.security.twoFactor')}</h2>
+        <p className="sp-card-subtitle">{t('settings.security.twoFactorDesc')}</p>
+        <Link to="/settings/2fa" className="sp-btn sp-btn-ghost">{t('settings.security.manage2fa')}</Link>
       </div>
     </>
   );
 
   const tabSubscription = (
     <div className="sp-card">
-      <h2 className="sp-card-title">Subscription & Billing</h2>
-      <p className="sp-card-subtitle">Manage your plan and payment details.</p>
+      <h2 className="sp-card-title">{t('settings.subscription.title')}</h2>
+      <p className="sp-card-subtitle">{t('settings.subscription.subtitle')}</p>
       {subLoading ? (
-        <p className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>Loading subscription…</p>
+        <p className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{t('settings.subscription.loading')}</p>
       ) : subscription ? (
         <div>
           <div className="flex items-center gap-3 mb-3">
             <span className="sp-badge sp-badge-green">
-              {subscription.status === 'active' ? 'Active' : subscription.status}
+              {subscription.status === 'active' ? t('settings.subscription.active') : subscription.status}
             </span>
             <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{subscription.plan_name || 'Pro Plan'}</span>
           </div>
           {subscription.current_period_end && (
             <p className="text-sm mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-              Next billing: {new Date(subscription.current_period_end).toLocaleDateString()}
+              {t('settings.subscription.nextBilling', { date: new Date(subscription.current_period_end).toLocaleDateString() })}
             </p>
           )}
           {subscription.cancel_at_period_end && (
             <p className="text-sm mb-3" style={{ color: '#fbbf24' }}>
-              Subscription will cancel at end of billing period.
+              {t('settings.subscription.cancelNotice')}
             </p>
           )}
           <div className="flex gap-3 flex-wrap">
-            <button onClick={openPortal} className="sp-btn sp-btn-primary">Manage Billing</button>
+            <button onClick={openPortal} className="sp-btn sp-btn-primary">{t('settings.subscription.manageBilling')}</button>
             {!subscription.cancel_at_period_end && (
               <button
-                onClick={() => { if (confirm('Cancel your subscription? You will retain access until the end of your billing period.')) cancelSubscription(); }}
+                onClick={() => { if (confirm(t('settings.subscription.cancelConfirm'))) cancelSubscription(); }}
                 className="sp-btn sp-btn-danger"
               >
-                Cancel Plan
+                {t('settings.subscription.cancelPlan')}
               </button>
             )}
           </div>
@@ -400,12 +405,12 @@ export default function SettingsPage() {
       ) : (
         <div>
           <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-            You are on the Free plan. Upgrade to unlock more features.
+            {t('settings.subscription.freePlanNotice')}
           </p>
           <div className="flex gap-3 flex-wrap">
             {plans.filter(p => p.slug !== 'free').map(plan => (
               <button key={plan.id} onClick={() => createCheckout(plan.slug)} className="sp-btn sp-btn-primary">
-                Upgrade to {plan.name} — ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? 'year' : 'mo'}
+                {t('settings.subscription.upgradeTo', { name: plan.name })} — ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? t('settings.subscription.year') : t('settings.subscription.mo')}
               </button>
             ))}
           </div>
@@ -417,17 +422,17 @@ export default function SettingsPage() {
   const tabBusinesses = (
     <div className="sp-card">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="sp-card-title">My Businesses</h2>
-        <button onClick={openAddBiz} className="sp-btn sp-btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.8125rem' }}>+ Add Business</button>
+        <h2 className="sp-card-title">{t('settings.businesses.title')}</h2>
+        <button onClick={openAddBiz} className="sp-btn sp-btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.8125rem' }}>{t('settings.businesses.add')}</button>
       </div>
-      <p className="sp-card-subtitle">Manage your LLCs and business entities. Jobs and payouts can be tied to a specific business.</p>
+      <p className="sp-card-subtitle">{t('settings.businesses.subtitle')}</p>
 
       {bizLoading ? (
-        <p className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>Loading businesses…</p>
+        <p className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{t('settings.businesses.loading')}</p>
       ) : businesses.length === 0 ? (
         <div className="sp-empty">
-          <p>No businesses added yet</p>
-          <p>Add your LLC or business entity to use on jobs and invoices.</p>
+          <p>{t('settings.businesses.empty')}</p>
+          <p>{t('settings.businesses.emptyDesc')}</p>
         </div>
       ) : (
         <div>
@@ -442,7 +447,7 @@ export default function SettingsPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm truncate" style={{ color: 'var(--app-text,#f1f5f9)' }}>{biz.business_name}</span>
-                    {biz.is_primary && <span className="sp-badge sp-badge-orange">Primary</span>}
+                    {biz.is_primary && <span className="sp-badge sp-badge-orange">{t('settings.businesses.primary')}</span>}
                   </div>
                   <p className="text-xs truncate" style={{ color: 'var(--muted-text,#94a3b8)' }}>
                     {BIZ_TYPES.find(t => t.value === biz.business_type)?.label || biz.business_type || 'Business'}
@@ -452,9 +457,9 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center gap-1 shrink-0 ml-3">
                 {!biz.is_primary && (
-                  <button onClick={() => setPrimaryBiz(biz.id)} title="Set as primary" className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}>★</button>
+                  <button onClick={() => setPrimaryBiz(biz.id)} title={t('settings.businesses.setPrimary')} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}>★</button>
                 )}
-                <button onClick={() => openEditBiz(biz)} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }}>Edit</button>
+                <button onClick={() => openEditBiz(biz)} className="sp-btn sp-btn-ghost" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }}>{t('common.edit')}</button>
                 <button onClick={() => deleteBusiness(biz.id)} className="sp-btn sp-btn-danger" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }}>✕</button>
               </div>
             </div>
@@ -465,38 +470,38 @@ export default function SettingsPage() {
       {showAddBiz && (
         <form onSubmit={saveBusiness} className="sp-biz-form-panel">
           <h3 className="font-semibold text-sm mb-4" style={{ color: 'var(--app-text,#f1f5f9)' }}>
-            {editingBiz ? 'Edit Business' : 'Add a Business'}
+            {editingBiz ? t('settings.businesses.edit') : t('settings.businesses.addHeader')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="sp-label">Business Name *</label>
+              <label className="sp-label">{t('settings.businesses.form.name')}</label>
               <input className="sp-input" value={bizForm.business_name} onChange={e => setBizForm({ ...bizForm, business_name: e.target.value })} placeholder="Mika's Plumbing LLC" required />
             </div>
             <div>
-              <label className="sp-label">Business Type</label>
+              <label className="sp-label">{t('settings.businesses.form.type')}</label>
               <select className="sp-select" value={bizForm.business_type} onChange={e => setBizForm({ ...bizForm, business_type: e.target.value })}>
                 {BIZ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="sp-label">EIN <span style={{ opacity: 0.5 }}>(optional)</span></label>
+              <label className="sp-label">{t('settings.businesses.form.ein')} <span style={{ opacity: 0.5 }}>({t('common.optional')})</span></label>
               <input className="sp-input" value={bizForm.ein} onChange={e => setBizForm({ ...bizForm, ein: e.target.value })} placeholder="XX-XXXXXXX" />
             </div>
           </div>
           <div className="mb-4">
-            <label className="sp-label">Business Address</label>
+            <label className="sp-label">{t('settings.businesses.form.address')}</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input className="sp-input" placeholder="Street" value={bizForm.address_street} onChange={e => setBizForm({ ...bizForm, address_street: e.target.value })} />
-              <input className="sp-input" placeholder="City" value={bizForm.address_city} onChange={e => setBizForm({ ...bizForm, address_city: e.target.value })} />
-              <input className="sp-input" placeholder="State" value={bizForm.address_state} onChange={e => setBizForm({ ...bizForm, address_state: e.target.value })} />
-              <input className="sp-input" placeholder="Zip" value={bizForm.address_zip} onChange={e => setBizForm({ ...bizForm, address_zip: e.target.value })} />
+              <input className="sp-input" placeholder={t('settings.businesses.form.street')} value={bizForm.address_street} onChange={e => setBizForm({ ...bizForm, address_street: e.target.value })} />
+              <input className="sp-input" placeholder={t('settings.businesses.form.city')} value={bizForm.address_city} onChange={e => setBizForm({ ...bizForm, address_city: e.target.value })} />
+              <input className="sp-input" placeholder={t('settings.businesses.form.state')} value={bizForm.address_state} onChange={e => setBizForm({ ...bizForm, address_state: e.target.value })} />
+              <input className="sp-input" placeholder={t('settings.businesses.form.zip')} value={bizForm.address_zip} onChange={e => setBizForm({ ...bizForm, address_zip: e.target.value })} />
             </div>
           </div>
           <div className="flex gap-3">
             <button type="submit" disabled={bizSaving} className="sp-btn sp-btn-primary">
-              {bizSaving ? 'Saving…' : editingBiz ? 'Update Business' : 'Add Business'}
+              {bizSaving ? t('common.saving') : editingBiz ? t('settings.businesses.update') : t('settings.businesses.add')}
             </button>
-            <button type="button" onClick={resetBizForm} className="sp-btn sp-btn-ghost">Cancel</button>
+            <button type="button" onClick={resetBizForm} className="sp-btn sp-btn-ghost">{t('common.cancel')}</button>
           </div>
         </form>
       )}
@@ -508,16 +513,16 @@ export default function SettingsPage() {
 
   const tabReferral = (
     <div className="sp-card">
-      <h2 className="sp-card-title">Referral Program</h2>
-      <p className="sp-card-subtitle">Invite friends to OxSteed and track your referrals.</p>
+      <h2 className="sp-card-title">{t('settings.referral.title')}</h2>
+      <p className="sp-card-subtitle">{t('settings.referral.subtitle')}</p>
       <ReferralPanel />
     </div>
   );
 
   const tabPrivacy = (
     <div className="sp-card">
-      <h2 className="sp-card-title">Privacy & Data</h2>
-      <p className="sp-card-subtitle">Download a copy of all your data as required by GDPR/CCPA.</p>
+      <h2 className="sp-card-title">{t('settings.privacy.title')}</h2>
+      <p className="sp-card-subtitle">{t('settings.privacy.subtitle')}</p>
       <button
         className="sp-btn sp-btn-ghost"
         onClick={() => {
@@ -529,29 +534,29 @@ export default function SettingsPage() {
               a.href = url;
               a.download = 'my-data.json';
               a.click();
-              toast.success('Data exported');
+              toast.success(t('settings.privacy.exportSuccess'));
             })
-            .catch(() => toast.error('Export failed'));
+            .catch(() => toast.error(t('settings.privacy.exportFailed')));
         }}
       >
-        Export My Data
+        {t('settings.privacy.exportBtn')}
       </button>
     </div>
   );
 
   const tabAccount = (
     <div className="sp-card">
-      <h2 className="sp-card-title">Account Type</h2>
+      <h2 className="sp-card-title">{t('settings.account.title')}</h2>
       <p className="sp-card-subtitle">
         {isHelper
-          ? 'You are currently a Helper — you can receive job offers and appear in the helper directory. Switch to Customer mode to browse and post jobs instead.'
-          : 'You are currently a Customer — you can post jobs and browse helpers. Switch to Helper mode to offer your services on OxSteed.'}
+          ? t('settings.account.helperDesc')
+          : t('settings.account.customerDesc')}
       </p>
       <div className="flex items-center gap-3 mb-5">
         <span className={`sp-role-badge ${isHelper ? 'sp-role-helper' : 'sp-role-customer'}`}>
-          {isHelper ? 'Helper' : 'Customer'}
+          {isHelper ? t('common.helper') : t('common.customer')}
         </span>
-        <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>Current role</span>
+        <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{t('settings.account.currentRole')}</span>
       </div>
 
       {!showSwitchConfirm ? (
@@ -559,25 +564,22 @@ export default function SettingsPage() {
           onClick={() => setShowSwitchConfirm(true)}
           className={`sp-btn ${isHelper ? 'sp-btn-ghost' : 'sp-btn-primary'}`}
         >
-          {isHelper ? 'Switch to Customer Mode' : 'Switch to Helper Mode'}
+          {isHelper ? t('settings.account.switchToCustomer') : t('settings.account.switchToHelper')}
         </button>
       ) : (
         <div className="sp-confirm-box">
           {isHelper ? (
             <>
-              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>Switch to Customer Mode?</p>
+              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>{t('settings.account.confirmSwitchCustomer')}</p>
               <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                Your helper profile and all your data will be saved. You can switch back at any time.
-                You will no longer appear in the helper directory while in Customer mode.
+                {t('settings.account.switchCustomerNotice')}
               </p>
             </>
           ) : (
             <>
-              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>Switch to Helper Mode?</p>
+              <p className="text-sm font-semibold mb-1" style={{ color: 'var(--app-text,#f1f5f9)' }}>{t('settings.account.confirmSwitchHelper')}</p>
               <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-                A helper profile will be created for you. You will start as <strong style={{ color: 'var(--app-text,#f1f5f9)' }}>offline</strong> — you
-                control when you appear in the directory using the online/offline toggle in your dashboard.
-                You can switch back to Customer mode at any time.
+                {t('settings.account.switchHelperNotice')}
               </p>
             </>
           )}
@@ -587,9 +589,9 @@ export default function SettingsPage() {
               disabled={switchingRole}
               className={`sp-btn ${isHelper ? 'sp-btn-ghost' : 'sp-btn-primary'} disabled:opacity-50`}
             >
-              {switchingRole ? 'Switching…' : 'Yes, Switch'}
+              {switchingRole ? t('common.switching') : t('settings.account.yesSwitch')}
             </button>
-            <button onClick={() => setShowSwitchConfirm(false)} className="sp-btn sp-btn-ghost">Cancel</button>
+            <button onClick={() => setShowSwitchConfirm(false)} className="sp-btn sp-btn-ghost">{t('common.cancel')}</button>
           </div>
         </div>
       )}
@@ -598,20 +600,20 @@ export default function SettingsPage() {
 
   const tabDanger = (
     <div className="sp-card sp-danger-card">
-      <h2 className="sp-card-title" style={{ color: '#f87171' }}>Danger Zone</h2>
-      <p className="sp-card-subtitle">Permanently delete your account and all associated data. This action cannot be undone.</p>
+      <h2 className="sp-card-title" style={{ color: '#f87171' }}>{t('settings.danger.title')}</h2>
+      <p className="sp-card-subtitle">{t('settings.danger.subtitle')}</p>
 
       {!showDelete ? (
-        <button onClick={() => setShowDelete(true)} className="sp-btn sp-btn-danger">Delete My Account</button>
+        <button onClick={() => setShowDelete(true)} className="sp-btn sp-btn-danger">{t('settings.danger.deleteAccount')}</button>
       ) : (
         <div className="sp-confirm-box">
-          <p className="text-sm font-semibold mb-1" style={{ color: '#f87171' }}>Are you absolutely sure?</p>
+          <p className="text-sm font-semibold mb-1" style={{ color: '#f87171' }}>{t('settings.danger.confirmTitle')}</p>
           <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-            This will permanently delete your account, profile, job history, and all associated data. You cannot undo this.
+            {t('settings.danger.confirmDesc')}
           </p>
           <div className="flex gap-3">
-            <button onClick={deleteAccount} className="sp-btn sp-btn-danger">Yes, Delete My Account</button>
-            <button onClick={() => setShowDelete(false)} className="sp-btn sp-btn-ghost">Cancel</button>
+            <button onClick={deleteAccount} className="sp-btn sp-btn-danger">{t('settings.danger.yesDelete')}</button>
+            <button onClick={() => setShowDelete(false)} className="sp-btn sp-btn-ghost">{t('common.cancel')}</button>
           </div>
         </div>
       )}
@@ -631,11 +633,12 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="sp-page">
+    <div className="min-h-screen sp-bg">
+      <PageMeta title={t('settings.title')} description={t('settings.metaDesc')} noIndex={true} />
       <Navbar />
       <div className="sp-shell">
         <div className="sp-header">
-          <h1 className="sp-title">Settings</h1>
+          <h1 className="sp-title">{t('settings.title')}</h1>
           <div className="mt-3">
             <TrialBanner />
           </div>

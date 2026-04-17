@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 
 export default function ReferralPanel() {
+  const { t } = useTranslation();
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied]   = useState(false);
@@ -19,9 +21,9 @@ export default function ReferralPanel() {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast.success('Copied to clipboard!');
+      toast.success(t('referral.copySuccess'));
     } catch {
-      toast.error('Copy failed — please copy manually.');
+      toast.error(t('referral.copyError'));
     }
   };
 
@@ -40,7 +42,7 @@ export default function ReferralPanel() {
     <div className="space-y-4">
       {/* Share link */}
       <div className="bg-gray-800 border border-gray-700 rounded-xl p-5">
-        <p className="text-sm text-gray-400 mb-1">Your referral link</p>
+        <p className="text-sm text-gray-400 mb-1">{t('referral.yourLink')}</p>
         <div className="flex items-center gap-2">
           <code className="flex-1 bg-gray-900 text-orange-400 text-sm px-3 py-2 rounded-lg truncate select-all border border-gray-700">
             {share_url}
@@ -49,11 +51,11 @@ export default function ReferralPanel() {
             onClick={() => copy(share_url)}
             className="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors"
           >
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? t('common.copied') : t('common.copy')}
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Share this link. When someone signs up through it, they're linked to your account.
+          {t('referral.shareDesc')}
         </p>
       </div>
 
@@ -61,11 +63,11 @@ export default function ReferralPanel() {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-white">{referrals_count}</p>
-          <p className="text-xs text-gray-400 mt-1">People referred</p>
+          <p className="text-xs text-gray-400 mt-1">{t('referral.peopleReferred')}</p>
         </div>
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-orange-400">{referral_conversions_count}</p>
-          <p className="text-xs text-gray-400 mt-1">Converted</p>
+          <p className="text-xs text-gray-400 mt-1">{t('referral.converted')}</p>
         </div>
       </div>
 
@@ -73,10 +75,10 @@ export default function ReferralPanel() {
       {reward_type && reward_type !== 'none' && (
         <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
           <p className="text-sm text-orange-300 font-medium">
-            🎁 Reward: {reward_type}
+            🎁 {t('referral.reward')}: {reward_type}
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            Earned for each friend who signs up and completes their first job.
+            {t('referral.rewardDesc')}
           </p>
         </div>
       )}
@@ -85,14 +87,14 @@ export default function ReferralPanel() {
       {referred_users?.length > 0 && (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
           <p className="text-sm font-semibold text-gray-300 mb-3">
-            People you've referred
+            {t('referral.referredPeople')}
           </p>
           <ul className="space-y-2">
             {referred_users.map(u => (
               <li key={u.id} className="flex items-center justify-between text-sm">
                 <span className="text-gray-200">{u.first_name}</span>
                 <span className="text-xs text-gray-500">
-                  {new Date(u.joined_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {new Date(u.joined_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               </li>
             ))}

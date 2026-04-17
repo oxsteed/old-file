@@ -1,69 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-
-const LABELS = {
-  in_app_new_bid:          'New bid received',
-  in_app_bid_accepted:     'Bid accepted',
-  in_app_job_started:      'Job started',
-  in_app_job_completed:    'Job completed',
-  in_app_payment_released: 'Payment released',
-  in_app_new_review:       'New review',
-  in_app_dispute_update:   'Dispute update',
-  in_app_subscription:     'Subscription changes',
-  push_new_job_nearby:     'New jobs nearby',
-  push_new_bid:            'New bid on your job',
-  push_bid_accepted:       'Your bid was accepted',
-  push_payment_released:   'Payment released',
-  push_dispute_update:     'Dispute update',
-  email_bid_accepted:      'Bid accepted',
-  email_payment_released:  'Payment released',
-  email_subscription:      'Subscription changes',
-  email_dispute_update:    'Dispute update',
-  email_weekly_summary:    'Weekly summary',
-};
-
-const SECTIONS = [
-  {
-    key: 'in_app',
-    title: 'In-App',
-    description: 'Notifications shown inside the app.',
-    keys: [
-      'in_app_new_bid',
-      'in_app_bid_accepted',
-      'in_app_job_started',
-      'in_app_job_completed',
-      'in_app_payment_released',
-      'in_app_new_review',
-      'in_app_dispute_update',
-      'in_app_subscription',
-    ],
-  },
-  {
-    key: 'push',
-    title: 'Push Notifications',
-    description: 'Alerts sent to your device.',
-    keys: [
-      'push_new_job_nearby',
-      'push_new_bid',
-      'push_bid_accepted',
-      'push_payment_released',
-      'push_dispute_update',
-    ],
-  },
-  {
-    key: 'email',
-    title: 'Email',
-    description: 'Messages sent to your email address.',
-    keys: [
-      'email_bid_accepted',
-      'email_payment_released',
-      'email_subscription',
-      'email_dispute_update',
-      'email_weekly_summary',
-    ],
-  },
-];
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -87,9 +25,73 @@ function Toggle({ checked, onChange, disabled }) {
 }
 
 export default function NotificationPreferences() {
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const LABELS = useMemo(() => ({
+    in_app_new_bid:          t('notifications.labels.inAppNewBid'),
+    in_app_bid_accepted:     t('notifications.labels.inAppBidAccepted'),
+    in_app_job_started:      t('notifications.labels.inAppJobStarted'),
+    in_app_job_completed:    t('notifications.labels.inAppJobCompleted'),
+    in_app_payment_released: t('notifications.labels.inAppPaymentReleased'),
+    in_app_new_review:       t('notifications.labels.inAppNewReview'),
+    in_app_dispute_update:   t('notifications.labels.inAppDisputeUpdate'),
+    in_app_subscription:     t('notifications.labels.inAppSubscription'),
+    push_new_job_nearby:     t('notifications.labels.pushNewJobNearby'),
+    push_new_bid:            t('notifications.labels.pushNewBid'),
+    push_bid_accepted:       t('notifications.labels.pushBidAccepted'),
+    push_payment_released:   t('notifications.labels.pushPaymentReleased'),
+    push_dispute_update:     t('notifications.labels.pushDisputeUpdate'),
+    email_bid_accepted:      t('notifications.labels.emailBidAccepted'),
+    email_payment_released:  t('notifications.labels.emailPaymentReleased'),
+    email_subscription:      t('notifications.labels.emailSubscription'),
+    email_dispute_update:    t('notifications.labels.emailDisputeUpdate'),
+    email_weekly_summary:    t('notifications.labels.emailWeeklySummary'),
+  }), [t]);
+
+  const SECTIONS = useMemo(() => [
+    {
+      key: 'in_app',
+      title: t('notifications.sections.inApp.title'),
+      description: t('notifications.sections.inApp.desc'),
+      keys: [
+        'in_app_new_bid',
+        'in_app_bid_accepted',
+        'in_app_job_started',
+        'in_app_job_completed',
+        'in_app_payment_released',
+        'in_app_new_review',
+        'in_app_dispute_update',
+        'in_app_subscription',
+      ],
+    },
+    {
+      key: 'push',
+      title: t('notifications.sections.push.title'),
+      description: t('notifications.sections.push.desc'),
+      keys: [
+        'push_new_job_nearby',
+        'push_new_bid',
+        'push_bid_accepted',
+        'push_payment_released',
+        'push_dispute_update',
+      ],
+    },
+    {
+      key: 'email',
+      title: t('notifications.sections.email.title'),
+      description: t('notifications.sections.email.desc'),
+      keys: [
+        'email_bid_accepted',
+        'email_payment_released',
+        'email_subscription',
+        'email_dispute_update',
+        'email_weekly_summary',
+      ],
+    },
+  ], [t]);
 
   useEffect(() => {
     api.get('/notifications/preferences')
@@ -98,36 +100,36 @@ export default function NotificationPreferences() {
         setLoading(false);
       })
       .catch(() => {
-        toast.error('Failed to load notification preferences');
+        toast.error(t('notifications.loadError'));
         setLoading(false);
       });
-  }, []);
+  }, [t]);
 
   const handleToggle = useCallback(async (key, value) => {
     setPrefs(prev => ({ ...prev, [key]: value }));
     setSaving(true);
     try {
       await api.put('/notifications/preferences', { [key]: value });
-      toast.success('Preference saved');
+      toast.success(t('notifications.saveSuccess'));
     } catch {
       // Revert on failure
       setPrefs(prev => ({ ...prev, [key]: !value }));
-      toast.error('Failed to save preference');
+      toast.error(t('notifications.saveError'));
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [t]);
 
   if (loading) {
     return (
       <div className="sp-card">
-        <h2 className="sp-card-title">Notification Preferences</h2>
+        <h2 className="sp-card-title">{t('notifications.title')}</h2>
         <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>
           <svg className="animate-spin h-4 w-4" style={{ color: '#f97316' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
-          Loading preferences...
+          {t('common.loading')}
         </div>
       </div>
     );
@@ -136,18 +138,18 @@ export default function NotificationPreferences() {
   return (
     <div className="sp-card">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="sp-card-title" style={{ marginBottom: 0 }}>Notification Preferences</h2>
+        <h2 className="sp-card-title" style={{ marginBottom: 0 }}>{t('notifications.title')}</h2>
         {saving && (
           <span className="flex items-center gap-1.5 text-xs" style={{ color: '#f97316' }}>
             <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
-            Saving...
+            {t('common.saving')}
           </span>
         )}
       </div>
-      <p className="sp-card-subtitle">Choose how you want to be notified about activity on your account.</p>
+      <p className="sp-card-subtitle">{t('notifications.subtitle')}</p>
 
       <div className="space-y-8">
         {SECTIONS.map((section, sIdx) => (

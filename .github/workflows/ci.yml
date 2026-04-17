@@ -22,11 +22,11 @@ jobs:
 
       - name: Install server dependencies
         working-directory: server
-        run: npm ci
+        run: npm install
 
       - name: Install client dependencies
         working-directory: client
-        run: npm ci
+        run: npm install
 
   deploy:
     name: Deploy to Coolify

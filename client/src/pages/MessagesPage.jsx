@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import { useSocket } from '../hooks/useSocket';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import PageMeta from '../components/PageMeta';
 import { formatInboxTime } from '../utils/inboxTimeFormat';
 
 export default function MessagesPage() {
+  const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -68,18 +71,19 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen bg-ox-900">
+      <PageMeta title={t('messages.title')} description={t('messages.metaDesc')} noIndex={true} />
       <Navbar />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Messages</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('messages.title')}</h1>
 
         {conversations.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-10 text-center">
             <svg className="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">No messages yet</h3>
-            <p className="text-sm text-gray-500">Start a conversation by contacting a helper on a job listing.</p>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">{t('messages.empty')}</h3>
+            <p className="text-sm text-gray-500">{t('messages.emptyDesc')}</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow divide-y divide-gray-100 overflow-hidden">
@@ -100,7 +104,7 @@ export default function MessagesPage() {
                     <div className="flex items-center justify-between mb-0.5">
                       <div className="min-w-0 flex-1 mr-2">
                         <p className={`text-sm truncate ${unread ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
-                          {conv.other_user_name || 'Helper'}
+                          {conv.other_user_name || t('common.helper')}
                         </p>
                         {conv.helper_business_name && (
                           <p className="text-xs text-gray-500 truncate leading-tight">
@@ -113,10 +117,10 @@ export default function MessagesPage() {
                       </span>
                     </div>
                     {conv.job_title && (
-                      <p className="text-xs text-blue-600 mb-0.5 truncate">Re: {conv.job_title}</p>
+                      <p className="text-xs text-blue-600 mb-0.5 truncate">{t('messages.re')}: {conv.job_title}</p>
                     )}
                     <p className={`text-sm truncate ${unread ? 'text-gray-700' : 'text-gray-400'}`}>
-                      {conv.last_message || 'No messages yet'}
+                      {conv.last_message || t('messages.noMessages')}
                     </p>
                   </div>
 

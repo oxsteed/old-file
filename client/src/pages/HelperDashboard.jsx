@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import useLifeDashboard from '../hooks/useLifeDashboard';
@@ -79,6 +80,7 @@ function OnboardingProgress({user,onResume}){
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HelperDashboard() {
+  const { t } = useTranslation();
   const { user, isOnboardingComplete, refreshUser } = useAuth();
   const { subscription, openPortal, createCheckout, refresh: refreshSubscription } = useSubscription();
   const life = useLifeDashboard();
@@ -788,11 +790,10 @@ export default function HelperDashboard() {
       .catch(() => {});
   }, []);
 
-  const handleToggleListing = async () => {
-    const next = !isListed;
+  const handleToggleListing = async (newStatus) => {
     setListingLoading(true);
     try {
-      const { data } = await api.put('/helpers/me/listing', { is_listed: next });
+      const { data } = await api.put('/helpers/me/listing', { is_listed: newStatus });
       setIsListed(!!data.is_listed);
       toast.success(data.is_listed ? 'You are now online — visible in the helper directory.' : 'You are now offline — hidden from the directory.');
     } catch (err) {
@@ -819,9 +820,8 @@ export default function HelperDashboard() {
   const fp=life.financialPulse;
 
   const tabs = showOnboarding
-    ? [{id:'pulse',label:'Get Started'}]
+    ? [{id:'pulse',label:t('dashboard.tabs.getStarted')}]
     : [
-        {id:'pulse',      label:'My Pulse'},
         {id:'editprofile',label:'Edit Profile'},
         {id:'earnings',   label:'Earnings'},
         {id:'jobs',       label:'Find Jobs'},
@@ -840,51 +840,47 @@ export default function HelperDashboard() {
   return(
     <PageShell>
     <div className="min-h-screen text-white">
-      <PageMeta title="Helper Dashboard" description="Manage your jobs, earnings, bids, and skills." noIndex={true} />
+      <PageMeta title={t('helperDashboard.title')} description={t('helperDashboard.metaDesc')} noIndex={true} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        <div className="mb-5"><TrialBanner /></div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div>
+            <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+              {t('dashboard.welcome', { name: user?.first_name || 'there' })}
+            </h1>
+            <p className="text-gray-400 font-medium">
+              {t('dashboard.atAGlanceHelper')}
+            </p>
+          </div>
+          <TrialBanner />
+        </div>
         <HelperOffersCard />
 
         {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
 
-        {/* Offline notice */}
-        {!showOnboarding && !isListed && (
-          <div className="mb-4 flex items-center justify-between gap-3 p-3 bg-gray-800/80 border border-gray-700 rounded-xl text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0"/>
-              <span>You are <strong className="text-white">offline</strong> — you are not visible in the helper directory right now.</span>
+        {/* Status bar */}
+        {!showOnboarding && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 bg-gray-900/60 border border-gray-700/40 rounded-2xl p-4">
+            <div className="flex items-center gap-4">
+              <div className={`w-3 h-3 rounded-full ${isListed ? 'bg-emerald-500 animate-pulse' : 'bg-gray-600'}`} />
+              <div>
+                <p className="text-sm font-bold text-white">
+                  {isListed ? t('helperDashboard.online') : t('helperDashboard.offline')}
+                </p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mt-0.5">
+                  {isListed ? t('dashboard.status.onlineSub') : t('dashboard.status.offlineSub')}
+                </p>
+              </div>
             </div>
-            <button onClick={handleToggleListing} disabled={listingLoading}
-              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50 whitespace-nowrap">
-              Go Online
-            </button>
+            <Btn 
+              variant={isListed ? 'secondary' : 'primary'}
+              onClick={() => handleToggleListing(!isListed)}
+              disabled={listingLoading}
+            >
+              {isListed ? t('helperDashboard.goOffline') : t('helperDashboard.goOnline')}
+            </Btn>
           </div>
         )}
-
-        {/* Greeting + Online/Offline toggle */}
-        <div className="flex items-start justify-between mb-1">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-bold">{showOnboarding?`Welcome, ${displayName||'Helper'}!`:`${greeting}, ${displayName||'Helper'}.`}</h1>
-              {!showOnboarding&&<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" className="animate-pulse"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>}
-            </div>
-            <p className="text-gray-500 mt-1 text-sm">{showOnboarding?'Finish setup to go live.':`${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} — Let's get to work.`}</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <BadgeDisplay badges={user?.badges} size="large"/>
-            {!showOnboarding && (
-              <button onClick={handleToggleListing} disabled={listingLoading}
-                title={isListed ? 'Click to go offline' : 'Click to go online'}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all disabled:opacity-60 border ${
-                  isListed ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
-                           : 'bg-gray-700/60 border-gray-600 text-gray-400 hover:bg-gray-700'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isListed ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`}/>
-                {listingLoading ? 'Updating…' : isListed ? 'Online' : 'Offline'}
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* Tabs */}
         {tabs.length>1&&(
