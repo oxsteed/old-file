@@ -597,7 +597,24 @@
       "switchConfirmDesc": "You can always switch back later.",
       "switching": "Switching..."
     },
-    "preferencesTab": "Preferans"
+    "preferencesTab": "Preferans",
+    "profileUpdated": "Pwofil mete ajou",
+    "profileFailed": "Erè mete ajou",
+    "passwordNoMatch": "Modpas yo pa egal",
+    "passwordTooShort": "Modpas dwe gen omwen 8 karaktè",
+    "passwordChanged": "Modpas chanje",
+    "passwordChangeFailed": "Erè chanj modpas",
+    "accountDeleted": "Kont efase",
+    "accountDeleteFailed": "Erè efase kont",
+    "businessNameRequired": "Non biznis obligatwa",
+    "businessUpdated": "Biznis mete ajou",
+    "businessAdded": "Biznis ajoute",
+    "businessSaveFailed": "Erè sove biznis",
+    "businessRemoved": "Biznis efase",
+    "businessRemoveFailed": "Erè efase biznis",
+    "primaryBusinessUpdated": "Biznis prensipal mete ajou",
+    "primaryBusinessFailed": "Erè mete ajou biznis prensipal",
+    "roleSwitchFailed": "Erè chanj wèl"
   },
   "messages": {
     "title": "Mesaj",

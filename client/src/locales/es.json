@@ -535,7 +535,24 @@
       "switchConfirmDesc": "You can always switch back later.",
       "switching": "Switching..."
     },
-    "preferencesTab": "Preferencias"
+    "preferencesTab": "Preferencias",
+    "profileUpdated": "Perfil actualizado",
+    "profileFailed": "Error al actualizar",
+    "passwordNoMatch": "Las contraseñas no coinciden",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+    "passwordChanged": "Contraseña cambiada",
+    "passwordChangeFailed": "Error al cambiar la contraseña",
+    "accountDeleted": "Cuenta eliminada",
+    "accountDeleteFailed": "Error al eliminar la cuenta",
+    "businessNameRequired": "El nombre del negocio es obligatorio",
+    "businessUpdated": "Negocio actualizado",
+    "businessAdded": "Negocio agregado",
+    "businessSaveFailed": "Error al guardar el negocio",
+    "businessRemoved": "Negocio eliminado",
+    "businessRemoveFailed": "Error al eliminar el negocio",
+    "primaryBusinessUpdated": "Negocio principal actualizado",
+    "primaryBusinessFailed": "Error al actualizar el negocio principal",
+    "roleSwitchFailed": "Error al cambiar de rol"
   },
   "messages": {
     "title": "Mensajes",

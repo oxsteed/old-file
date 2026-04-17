@@ -535,7 +535,24 @@
       "switchConfirmDesc": "You can always switch back later.",
       "switching": "Switching..."
     },
-    "preferencesTab": "Préférences"
+    "preferencesTab": "Préférences",
+    "profileUpdated": "Profil mis à jour",
+    "profileFailed": "Erreur lors de la mise à jour",
+    "passwordNoMatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordChanged": "Mot de passe changé",
+    "passwordChangeFailed": "Erreur lors du changement du mot de passe",
+    "accountDeleted": "Compte supprimé",
+    "accountDeleteFailed": "Erreur lors de la suppression du compte",
+    "businessNameRequired": "Le nom de l'entreprise est obligatoire",
+    "businessUpdated": "Entreprise mise à jour",
+    "businessAdded": "Entreprise ajoutée",
+    "businessSaveFailed": "Erreur lors de l'enregistrement de l'entreprise",
+    "businessRemoved": "Entreprise supprimée",
+    "businessRemoveFailed": "Erreur lors de la suppression de l'entreprise",
+    "primaryBusinessUpdated": "Entreprise principale mise à jour",
+    "primaryBusinessFailed": "Erreur lors de la mise à jour de l'entreprise principale",
+    "roleSwitchFailed": "Erreur lors du changement de rôle"
   },
   "messages": {
     "title": "Messages",

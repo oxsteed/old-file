@@ -105,7 +105,7 @@ export default function SettingsPage() {
       navigate(targetRole === 'helper' ? '/dashboard' : '/dashboard', { replace: true });
       window.location.reload();
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to switch role');
+      toast.error(err?.response?.data?.error || t('settings.roleSwitchFailed'));
     }
     setSwitchingRole(false);
   };
@@ -157,29 +157,29 @@ export default function SettingsPage() {
     try {
       const { first_name, last_name, bio, ...updatableFields } = profile;
       await api.put('/auth/profile', updatableFields);
-      toast.success('Profile updated');
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to update'); }
+      toast.success(t('settings.profileUpdated'));
+    } catch (err) { toast.error(err.response?.data?.error || t('settings.profileFailed')); }
     setSaving(false);
   };
 
   const changePassword = async (e) => {
     e.preventDefault();
-    if (passwords.newPass !== passwords.confirm) return toast.error('Passwords do not match');
-    if (passwords.newPass.length < 8) return toast.error('Password must be at least 8 characters');
+    if (passwords.newPass !== passwords.confirm) return toast.error(t('settings.passwordNoMatch'));
+    if (passwords.newPass.length < 8) return toast.error(t('settings.passwordTooShort'));
     try {
       await api.put('/auth/change-password', { currentPassword: passwords.current, newPassword: passwords.newPass });
-      toast.success('Password changed');
+      toast.success(t('settings.passwordChanged'));
       setPasswords({ current: '', newPass: '', confirm: '' });
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to change password'); }
+    } catch (err) { toast.error(err.response?.data?.error || t('settings.passwordChangeFailed')); }
   };
 
   const deleteAccount = async () => {
     try {
       await api.delete('/privacy/delete-account');
-      toast.success('Account deleted');
+      toast.success(t('settings.accountDeleted'));
       logout();
       navigate('/');
-    } catch (err) { toast.error('Failed to delete account'); }
+    } catch (err) { toast.error(t('settings.accountDeleteFailed')); }
   };
 
   const resetBizForm = () => {
@@ -206,20 +206,20 @@ export default function SettingsPage() {
 
   const saveBusiness = async (e) => {
     e.preventDefault();
-    if (!bizForm.business_name.trim()) return toast.error('Business name is required');
+    if (!bizForm.business_name.trim()) return toast.error(t('settings.businessNameRequired'));
     setBizSaving(true);
     try {
       if (editingBiz) {
         const { data } = await api.put(`/businesses/${editingBiz.id}`, bizForm);
         setBusinesses(prev => prev.map(b => b.id === editingBiz.id ? data.business : b));
-        toast.success('Business updated');
+        toast.success(t('settings.businessUpdated'));
       } else {
         const { data } = await api.post('/businesses', bizForm);
         setBusinesses(prev => [...prev, data.business]);
-        toast.success('Business added');
+        toast.success(t('settings.businessAdded'));
       }
       resetBizForm();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save business'); }
+    } catch (err) { toast.error(err.response?.data?.error || t('settings.businessSaveFailed')); }
     setBizSaving(false);
   };
 
@@ -228,16 +228,16 @@ export default function SettingsPage() {
     try {
       await api.delete(`/businesses/${id}`);
       setBusinesses(prev => prev.filter(b => b.id !== id));
-      toast.success('Business removed');
-    } catch (err) { toast.error('Failed to remove business'); }
+      toast.success(t('settings.businessRemoved'));
+    } catch (err) { toast.error(t('settings.businessRemoveFailed')); }
   };
 
   const setPrimaryBiz = async (id) => {
     try {
       await api.put(`/businesses/${id}/primary`);
       setBusinesses(prev => prev.map(b => ({ ...b, is_primary: b.id === id })));
-      toast.success('Primary business updated');
-    } catch (err) { toast.error('Failed to update primary business'); }
+      toast.success(t('settings.primaryBusinessUpdated'));
+    } catch (err) { toast.error(t('settings.primaryBusinessFailed')); }
   };
 
   const BIZ_TYPES = [
