@@ -1,6 +1,7 @@
 'use strict';
 const db = require('../db');
 const { logAdminAction } = require('../services/auditService');
+const logger = require('../utils/logger');
 
 // ── Permission scopes catalogue ───────────────────────────────────────────────
 const PERMISSION_SCOPES = {
@@ -67,7 +68,7 @@ exports.listGrants = async (req, res) => {
 
     res.json({ grants: rows });
   } catch (err) {
-    console.error('listGrants error:', err);
+    logger.error('listGrants error:', { err: err });
     res.status(500).json({ error: 'Failed to fetch grants.' });
   }
 };
@@ -133,7 +134,7 @@ exports.createGrant = async (req, res) => {
 
     res.status(201).json({ grant: rows[0] });
   } catch (err) {
-    console.error('createGrant error:', err);
+    logger.error('createGrant error:', { err: err });
     res.status(500).json({ error: 'Failed to create grant.' });
   }
 };
@@ -173,7 +174,7 @@ exports.revokeGrant = async (req, res) => {
 
     res.json({ message: 'Grant revoked.' });
   } catch (err) {
-    console.error('revokeGrant error:', err);
+    logger.error('revokeGrant error:', { err: err });
     res.status(500).json({ error: 'Failed to revoke grant.' });
   }
 };

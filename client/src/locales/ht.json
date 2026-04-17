@@ -979,7 +979,7 @@
       "modelLabel": "Modèl",
       "modelPlaceholder": "egz. DWE7491RS",
       "toolCategoryPlaceholder": "egz. Zouti Elektrik, Jaden, Leve",
-      "dailyRateLabel": "Tarif Jounalye ($/jou)",
+      "dailyRateLabel": "Tarif Jounen ($)",
       "hourlyRateToolLabel": "Tarif pa Lè ($/lè)",
       "conditionLabel": "Kondisyon",
       "conditionExcellent": "Ekselan",
@@ -1010,7 +1010,6 @@
       "availableForHireToggle": "Disponib pou travay",
       "updateSkillBtn": "Mete Konpetans Ajou",
       "toolCatPlaceholder": "egz. Zouti Elektrik, Jaden",
-      "dailyRateLabel": "Tarif Jounen ($)",
       "hourlyRateToolOptLabel": "Tarif pa Lè ($, opsyonèl)",
       "brandOptLabel": "Mak (opsyonèl)",
       "modelOptLabel": "Modèl (opsyonèl)",
@@ -1213,7 +1212,14 @@
     "activeBidsCount": "{{count}} aktif",
     "wonBidsCount": "{{count}} genyen",
     "noBidsYet": "Pa gen òf toujou. Eksplore travay disponib pou kòmanse.",
-    "viewPublicProfile": "Wè Pwofil Piblik →"
+    "viewPublicProfile": "Wè Pwofil Piblik →",
+    "tabs": {
+      "editProfile": "Modifye pwofil",
+      "earnings": "Revni",
+      "findJobs": "Jwenn travay",
+      "myBids": "Òf mwen yo",
+      "reviews": "Kritik"
+    }
   },
   "postJob": {
     "title": "Pibliye yon Travay",

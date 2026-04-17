@@ -58,6 +58,64 @@ exports.stripeWebhook = async (req, res) => {
         }
         break;
       }
+      case 'customer.subscription.created': {
+        // Subscriptions created through Checkout are already handled by
+        // checkout.session.completed (which fires first and creates the row).
+        // This case exists for subscriptions created via the Stripe dashboard
+        // or API — without it, those subscriptions are invisible to the app.
+        const sub = event.data.object;
+        const { rows: existing } = await db.query(
+          'SELECT id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
+        );
+        if (existing.length > 0) break; // Already handled by checkout.session.completed
+
+        // Look up the user via their Stripe customer ID
+        const { rows: userRows } = await db.query(
+          'SELECT id FROM users WHERE stripe_customer_id = $1 LIMIT 1',
+          [sub.customer]
+        );
+        if (!userRows.length) {
+          logger.warn('[webhook] customer.subscription.created: no user found for Stripe customer', {
+            stripeCustomerId: sub.customer, subscriptionId: sub.id,
+          });
+          break;
+        }
+
+        // Resolve plan by matching the Stripe price ID
+        const priceId = sub.items?.data?.[0]?.price?.id;
+        let planId = null;
+        if (priceId) {
+          const { rows: planRows } = await db.query(
+            'SELECT id FROM plans WHERE stripe_price_id = $1 LIMIT 1', [priceId]
+          );
+          planId = planRows[0]?.id ?? null;
+        }
+
+        await db.query(
+          `INSERT INTO subscriptions
+             (user_id, plan_id, stripe_subscription_id, stripe_customer_id,
+              status, current_period_start, current_period_end)
+           VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
+           ON CONFLICT (stripe_subscription_id) DO NOTHING`,
+          [userRows[0].id, planId, sub.id, sub.customer, sub.status,
+           sub.current_period_start, sub.current_period_end]
+        );
+
+        if (planId) {
+          const { rows: planMeta } = await db.query(
+            'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
+          );
+          const planSlug = planMeta[0]?.slug || planMeta[0]?.tier_slug || 'pro';
+          const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
+          await db.query(
+            `UPDATE users SET tier = $1, subscription_status = 'active', tier_selected = TRUE
+             WHERE id = $2`,
+            [userTier, userRows[0].id]
+          );
+          await recalculateBadges(userRows[0].id);
+        }
+        break;
+      }
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         await db.query(

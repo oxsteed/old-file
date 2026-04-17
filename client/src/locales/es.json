@@ -842,7 +842,7 @@
       "modelLabel": "Modelo",
       "modelPlaceholder": "ej. DWE7491RS",
       "toolCategoryPlaceholder": "ej. Herramientas eléctricas, Jardinería, Elevación",
-      "dailyRateLabel": "Tarifa Diaria ($/día)",
+      "dailyRateLabel": "Tarifa Diaria ($)",
       "hourlyRateToolLabel": "Tarifa por Hora ($/hr)",
       "conditionLabel": "Estado",
       "conditionExcellent": "Excelente",
@@ -873,7 +873,6 @@
       "availableForHireToggle": "Disponible para contratar",
       "updateSkillBtn": "Actualizar Habilidad",
       "toolCatPlaceholder": "ej. Herramientas Eléctricas, Jardinería",
-      "dailyRateLabel": "Tarifa Diaria ($)",
       "hourlyRateToolOptLabel": "Tarifa por Hora ($, opcional)",
       "brandOptLabel": "Marca (opcional)",
       "modelOptLabel": "Modelo (opcional)",
@@ -971,7 +970,7 @@
       "editVehicle": "Editar Vehículo",
       "notesLbl": "Notas",
       "notesPrivate": "(privado)",
-      "notesPlaceholder": "Recordatorios, particularidades, historial de mantenimiento…",
+      "notesPlaceholder": "Nombre del taller, kilometraje actual, etc.",
       "saving": "Guardando…",
       "saveChanges": "Guardar Cambios",
       "notSpecified": "No especificado",
@@ -1029,7 +1028,6 @@
       "estimatedCostLabel": "Costo estimado ($, opcional)",
       "estimatedCostPlaceholder": "ej. 45.00 — contribuye al puntaje de Pulso de Vida",
       "notesOptLabel": "Notas (opcional)",
-      "notesPlaceholder": "Nombre del taller, kilometraje actual, etc.",
       "addServiceBtn": "Añadir Servicio",
       "vinDecodeError": "No se pudo decodificar el VIN.",
       "catOilChange": "Cambio de Aceite",
@@ -1190,7 +1188,14 @@
     "activeBidsCount": "{{count}} activas",
     "wonBidsCount": "{{count}} ganadas",
     "noBidsYet": "Sin ofertas aún. Explora trabajos disponibles para empezar.",
-    "viewPublicProfile": "Ver perfil público →"
+    "viewPublicProfile": "Ver perfil público →",
+    "tabs": {
+      "editProfile": "Editar perfil",
+      "earnings": "Ganancias",
+      "findJobs": "Buscar trabajos",
+      "myBids": "Mis ofertas",
+      "reviews": "Reseñas"
+    }
   },
   "postJob": {
     "title": "Publicar un trabajo",

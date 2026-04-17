@@ -851,7 +851,7 @@
       "modelLabel": "Model",
       "modelPlaceholder": "e.g. DWE7491RS",
       "toolCategoryPlaceholder": "e.g. Power Tools, Landscaping, Lifting",
-      "dailyRateLabel": "Daily Rate ($/day)",
+      "dailyRateLabel": "Daily Rate ($)",
       "hourlyRateToolLabel": "Hourly Rate ($/hr)",
       "conditionLabel": "Condition",
       "conditionExcellent": "Excellent",
@@ -882,7 +882,6 @@
       "availableForHireToggle": "Available for hire",
       "updateSkillBtn": "Update Skill",
       "toolCatPlaceholder": "e.g. Power Tools, Landscaping, Cleaning",
-      "dailyRateLabel": "Daily Rate ($)",
       "hourlyRateToolOptLabel": "Hourly Rate ($, optional)",
       "brandOptLabel": "Brand (optional)",
       "modelOptLabel": "Model (optional)",
@@ -980,7 +979,7 @@
       "editVehicle": "Edit Vehicle",
       "notesLbl": "Notes",
       "notesPrivate": "(private)",
-      "notesPlaceholder": "Reminders, quirks, service history…",
+      "notesPlaceholder": "Shop name, current mileage, etc.",
       "saving": "Saving…",
       "saveChanges": "Save Changes",
       "notSpecified": "Not specified",
@@ -997,7 +996,6 @@
       "recurring": "Recurring",
       "overdueDot": "Overdue · ",
       "noServicesSub": "Use the quick-add buttons above or add your own.",
-      "getHelp": "Get Help →",
       "vinPlaceholder": "Enter 17-character VIN",
       "vinBodyLabel": "Body:",
       "vinCylindersLabel": "Cylinders:",
@@ -1040,7 +1038,6 @@
       "estimatedCostLabel": "Estimated Cost ($, optional)",
       "estimatedCostPlaceholder": "e.g. 45.00 — feeds into Life Pulse score",
       "notesOptLabel": "Notes (optional)",
-      "notesPlaceholder": "Shop name, current mileage, etc.",
       "addServiceBtn": "Add Service",
       "vinDecodeError": "Could not decode VIN.",
       "catOilChange": "Oil Change",
@@ -1201,7 +1198,14 @@
     "activeBidsCount": "{{count}} active",
     "wonBidsCount": "{{count}} won",
     "noBidsYet": "No bids yet. Browse available jobs to start bidding.",
-    "viewPublicProfile": "View Public Profile →"
+    "viewPublicProfile": "View Public Profile →",
+    "tabs": {
+      "editProfile": "Edit Profile",
+      "earnings": "Earnings",
+      "findJobs": "Find Jobs",
+      "myBids": "My Bids",
+      "reviews": "Reviews"
+    }
   },
   "postJob": {
     "title": "Post a Job",

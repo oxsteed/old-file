@@ -44,6 +44,17 @@ export const useSocket = () => {
       console.error('[Socket] Connection error:', err.message);
     });
 
+    // Server emits this when an admin bans or deactivates the account.
+    // Clear auth state immediately — don't wait for the next API call to 401.
+    socketInstance.on('force_logout', () => {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      socketInstance?.disconnect();
+      socketInstance = null;
+      window.location.replace('/login');
+    });
+
     socketRef.current = socketInstance;
 
     return () => {

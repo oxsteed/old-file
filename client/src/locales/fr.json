@@ -951,7 +951,7 @@
       "modelLabel": "Modèle",
       "modelPlaceholder": "ex. DWE7491RS",
       "toolCategoryPlaceholder": "ex. Outillage électrique, Jardinage, Levage",
-      "dailyRateLabel": "Tarif Journalier ($/jour)",
+      "dailyRateLabel": "Tarif Journalier ($)",
       "hourlyRateToolLabel": "Tarif Horaire ($/h)",
       "conditionLabel": "État",
       "conditionExcellent": "Excellent",
@@ -982,7 +982,6 @@
       "availableForHireToggle": "Disponible à l'embauche",
       "updateSkillBtn": "Mettre à jour la Compétence",
       "toolCatPlaceholder": "ex. Outils électriques, Jardinage",
-      "dailyRateLabel": "Tarif Journalier ($)",
       "hourlyRateToolOptLabel": "Tarif Horaire ($, optionnel)",
       "brandOptLabel": "Marque (optionnel)",
       "modelOptLabel": "Modèle (optionnel)",
@@ -1080,7 +1079,7 @@
       "editVehicle": "Modifier le Véhicule",
       "notesLbl": "Notes",
       "notesPrivate": "(privé)",
-      "notesPlaceholder": "Rappels, particularités, historique d'entretien…",
+      "notesPlaceholder": "Nom du garage, kilométrage actuel, etc.",
       "saving": "Enregistrement…",
       "saveChanges": "Enregistrer les Modifications",
       "notSpecified": "Non spécifié",
@@ -1138,7 +1137,6 @@
       "estimatedCostLabel": "Coût estimé ($, optionnel)",
       "estimatedCostPlaceholder": "ex. 45.00 — contribue au score Pouls de Vie",
       "notesOptLabel": "Notes (optionnel)",
-      "notesPlaceholder": "Nom du garage, kilométrage actuel, etc.",
       "addServiceBtn": "Ajouter le Service",
       "vinDecodeError": "Impossible de décoder le VIN.",
       "catOilChange": "Vidange",
@@ -1299,7 +1297,14 @@
     "activeBidsCount": "{{count}} actives",
     "wonBidsCount": "{{count}} gagnées",
     "noBidsYet": "Aucune offre pour l'instant. Parcourez les missions disponibles.",
-    "viewPublicProfile": "Voir le profil public →"
+    "viewPublicProfile": "Voir le profil public →",
+    "tabs": {
+      "editProfile": "Modifier le profil",
+      "earnings": "Revenus",
+      "findJobs": "Trouver des emplois",
+      "myBids": "Mes offres",
+      "reviews": "Avis"
+    }
   },
   "postJob": {
     "title": "Publier une mission",

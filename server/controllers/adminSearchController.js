@@ -1,6 +1,7 @@
 'use strict';
 const db = require('../db');
 const { hashIP } = require('../utils/encryption');
+const logger = require('../utils/logger');
 
 // ── Valid entity types the search engine covers ───────────────────────────────
 const ALL_ENTITY_TYPES = [
@@ -304,7 +305,7 @@ exports.search = async (req, res) => {
       `INSERT INTO admin_search_log (admin_id, query, entity_types, result_count, ip_address)
        VALUES ($1, $2, $3, $4, $5)`,
       [adminId, rawQuery, requestedTypes, totalCount, ipAddress]
-    ).catch(err => console.error('adminSearchLog insert error:', err));
+    ).catch(err => logger.error('adminSearchLog insert error:', { err: err }));
 
     res.json({
       query:        rawQuery,
@@ -325,7 +326,7 @@ exports.search = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('adminSearch error:', err);
+    logger.error('adminSearch error:', { err: err });
     res.status(500).json({ error: 'Search failed.' });
   }
 };
@@ -382,7 +383,7 @@ exports.getSearchLogs = async (req, res) => {
       offset: pageOffset,
     });
   } catch (err) {
-    console.error('getSearchLogs error:', err);
+    logger.error('getSearchLogs error:', { err: err });
     res.status(500).json({ error: 'Failed to fetch search logs.' });
   }
 };
@@ -429,7 +430,7 @@ exports.getSearchStats = async (req, res) => {
 
     res.json({ summary: rows[0], top_queries: topQueries, top_admins: topAdmins });
   } catch (err) {
-    console.error('getSearchStats error:', err);
+    logger.error('getSearchStats error:', { err: err });
     res.status(500).json({ error: 'Failed to fetch search stats.' });
   }
 };

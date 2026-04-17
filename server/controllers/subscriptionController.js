@@ -1,8 +1,9 @@
 if (!process.env.STRIPE_SECRET_KEY) {
-  console.error('[FATAL] STRIPE_SECRET_KEY is not set — subscription features will fail.');
+  logger.error('[FATAL] STRIPE_SECRET_KEY is not set — subscription features will fail.');
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
+const logger = require('../utils/logger');
 
 async function getPlansActiveColumn() {
   const { rows } = await db.query(
@@ -40,7 +41,7 @@ exports.getPlans = async (req, res) => {
       }))
     });
   } catch (err) {
-    console.error('Get plans error:', err);
+    logger.error('Get plans error:', { err: err });
     res.status(500).json({ error: 'Failed to fetch plans.' });
   }
 };
@@ -117,7 +118,7 @@ exports.createCheckout = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    console.error('Create checkout error:', err);
+    logger.error('Create checkout error:', { err: err });
     res.status(500).json({ error: 'Failed to create checkout session.' });
   }
 };
@@ -135,7 +136,7 @@ exports.getSubscription = async (req, res) => {
     );
     res.json({ subscription: rows[0] || null });
   } catch (err) {
-    console.error('Get subscription error:', err);
+    logger.error('Get subscription error:', { err: err });
     res.status(500).json({ error: 'Failed to fetch subscription.' });
   }
 };
@@ -167,7 +168,7 @@ exports.cancelSubscription = async (req, res) => {
 
     res.json({ message: 'Subscription cancellation scheduled successfully.', cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString() });
   } catch (err) {
-    console.error('Cancel subscription error:', err);
+    logger.error('Cancel subscription error:', { err: err });
     res.status(500).json({ error: 'Failed to cancel subscription.' });
   }
 };
@@ -196,7 +197,7 @@ exports.createPortalSession = async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error('Portal session error:', err);
+    logger.error('Portal session error:', { err: err });
     res.status(500).json({ error: 'Failed to create portal session.' });
   }
 };

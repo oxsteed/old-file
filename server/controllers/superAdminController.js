@@ -3,6 +3,7 @@ const { logAdminAction } = require('../services/auditService');
 const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
+const socketService = require('../services/socketService');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -40,7 +41,7 @@ exports.getDashboardStats = async (req, res) => {
     `);
     res.json({ stats: rows[0], mrr: 0 });
   } catch (err) {
-    console.error('getDashboardStats error:', err);
+    logger.error('getDashboardStats error', { err });
     res.status(500).json({ error: 'Failed to load dashboard stats.' });
   }
 };
@@ -55,7 +56,7 @@ exports.getRevenueChart = async (req, res) => {
     const { rows } = await db.query(`SELECT date_trunc($1, created_at) AS period, SUM(GREATEST(amount_cents,0)) AS gross_cents FROM platform_ledger WHERE created_at >= now() - $2::interval GROUP BY 1 ORDER BY 1 ASC`, [trunc, interval]);
     res.json({ chart: rows, period });
   } catch (err) {
-    console.error('getRevenueChart error:', err);
+    logger.error('getRevenueChart error', { err });
     res.status(500).json({ error: 'Failed to load revenue chart.' });
   }
 };
@@ -122,7 +123,7 @@ exports.getUsers = async (req, res) => {
     `, params);
     res.json({ users, total: parseInt(countRows[0].count), page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(countRows[0].count / limit) });
   } catch (err) {
-    console.error('getUsers error:', err);
+    logger.error('getUsers error', { err });
     res.status(500).json({ error: 'Failed to fetch users.' });
   }
 };
@@ -212,8 +213,10 @@ exports.toggleUserBan = async (req, res) => {
     await db.query('UPDATE users SET is_active = $1 WHERE id = $2', [newStatus, userId]);
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
+    // Kick any live WebSocket session immediately so the user can't keep browsing
+    if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
-  } catch (err) { console.error('toggleUserBan error:', err); res.status(500).json({ error: 'Failed to update user status.' }); }
+  } catch (err) { logger.error('toggleUserBan error', { err }); res.status(500).json({ error: 'Failed to update user status.' }); }
 };
 
 exports.verifyUser = async (req, res) => {
@@ -227,7 +230,7 @@ exports.verifyUser = async (req, res) => {
     await db.query(`UPDATE helper_profiles SET ${field} = $1, updated_at = now() WHERE user_id = $2`, [true, userId]);
     try { await logAdminAction({ adminId, action: 'user_verified', targetType: 'user', targetId: userId, description: `Admin set ${field} = true`, req }); } catch(e) {}
     res.json({ message: `User ${field} updated successfully.` });
-  } catch (err) { console.error('verifyUser error:', err); res.status(500).json({ error: 'Failed to verify user.' }); }
+  } catch (err) { logger.error('verifyUser error', { err }); res.status(500).json({ error: 'Failed to verify user.' }); }
 };
 
 exports.updateUserRole = async (req, res) => {
@@ -242,7 +245,7 @@ exports.updateUserRole = async (req, res) => {
     await db.query('UPDATE users SET role = $1 WHERE id = $2', [role, userId]);
     try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0]?.role }, after: { role }, req }); } catch(e) {}
     res.json({ message: `User role updated to ${role}.` });
-  } catch (err) { console.error('updateUserRole error:', err); res.status(500).json({ error: 'Failed to update role.' }); }
+  } catch (err) { logger.error('updateUserRole error', { err }); res.status(500).json({ error: 'Failed to update role.' }); }
 };
 
 exports.updateUserName = async (req, res) => {
@@ -259,7 +262,7 @@ exports.updateUserName = async (req, res) => {
     await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3', [trimFirst, trimLast, userId]);
     try { await logAdminAction({ adminId, action: 'user_name_changed', targetType: 'user', targetId: userId, before: { first_name: before[0].first_name, last_name: before[0].last_name }, after: { first_name: trimFirst, last_name: trimLast }, req }); } catch(e) {}
     res.json({ message: 'User name updated successfully.' });
-  } catch (err) { console.error('updateUserName error:', err); res.status(500).json({ error: 'Failed to update name.' }); }
+  } catch (err) { logger.error('updateUserName error', { err }); res.status(500).json({ error: 'Failed to update name.' }); }
 };
 
 // JOB MANAGEMENT
@@ -276,7 +279,7 @@ exports.getJobs = async (req, res) => {
     const { rows } = await db.query(`SELECT j.id, j.title, j.status, j.budget_min, j.budget_max, j.job_value, j.is_broker_mediated, j.created_at, j.bid_count, j.location_city, j.location_state, j.category_name, u_c.first_name || ' ' || u_c.last_name AS client_name, u_c.email AS client_email, u_h.first_name || ' ' || u_h.last_name AS helper_name FROM jobs j JOIN users u_c ON j.client_id = u_c.id LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id ${wc} ORDER BY j.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM jobs j ${wc}`, params);
     res.json({ jobs: rows, total: parseInt(countRows[0].count), page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(countRows[0].count / limit) });
-  } catch (err) { console.error('getJobs error:', err); res.status(500).json({ error: 'Failed to fetch jobs.' }); }
+  } catch (err) { logger.error('getJobs error', { err }); res.status(500).json({ error: 'Failed to fetch jobs.' }); }
 };
 
 exports.forceJobAction = async (req, res) => {
@@ -294,7 +297,7 @@ exports.forceJobAction = async (req, res) => {
     if (action === 'unflag') await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1`, [jobId]);
     try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
     res.json({ message: `Job ${action} successful.` });
-  } catch (err) { console.error('forceJobAction error:', err); res.status(500).json({ error: 'Failed to perform job action.' }); }
+  } catch (err) { logger.error('forceJobAction error', { err }); res.status(500).json({ error: 'Failed to perform job action.' }); }
 };
 
 exports.deleteJob = async (req, res) => {
@@ -471,7 +474,7 @@ exports.getFinancials = async (req, res) => {
     const { rows } = await db.query(`SELECT pl.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email FROM platform_ledger pl LEFT JOIN users u ON pl.user_id = u.id ${condition} ORDER BY pl.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     const { rows: totals } = await db.query(`SELECT SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END) AS gross_revenue_cents, SUM(amount_cents) AS net_revenue_cents FROM platform_ledger`);
     res.json({ ledger: rows, totals: totals[0], page: parseInt(page), limit: parseInt(limit) });
-  } catch (err) { console.error('getFinancials error:', err); res.status(500).json({ error: 'Failed to fetch financials.' }); }
+  } catch (err) { logger.error('getFinancials error', { err }); res.status(500).json({ error: 'Failed to fetch financials.' }); }
 };
 
 exports.issueManualRefund = async (req, res) => {
@@ -481,7 +484,7 @@ exports.issueManualRefund = async (req, res) => {
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
     const refund = await issueRefund(jobId, reason, amount_cents || null);
     res.json({ message: `Refund issued successfully.`, refundId: refund.id });
-  } catch (err) { console.error('issueManualRefund error:', err); res.status(500).json({ error: 'Refund failed.' }); }
+  } catch (err) { logger.error('issueManualRefund error', { err }); res.status(500).json({ error: 'Refund failed.' }); }
 };
 
 exports.getPayouts = async (req, res) => {
@@ -657,7 +660,7 @@ exports.getSettings = async (req, res) => {
     let flags = [];
     if (await tableExists('feature_flags')) { const r = await db.query('SELECT * FROM feature_flags ORDER BY key ASC'); flags = r.rows; }
     res.json({ settings, flags });
-  } catch (err) { console.error('getSettings error:', err); res.status(500).json({ error: 'Failed to fetch settings.' }); }
+  } catch (err) { logger.error('getSettings error', { err }); res.status(500).json({ error: 'Failed to fetch settings.' }); }
 };
 
 exports.updateSetting = async (req, res) => {
@@ -667,7 +670,7 @@ exports.updateSetting = async (req, res) => {
     const adminId = req.user.id;
     await db.query('UPDATE platform_settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = $3', [String(value), adminId, key]);
     res.json({ message: `Setting "${key}" updated.` });
-  } catch (err) { console.error('updateSetting error:', err); res.status(500).json({ error: 'Failed to update setting.' }); }
+  } catch (err) { logger.error('updateSetting error', { err }); res.status(500).json({ error: 'Failed to update setting.' }); }
 };
 
 exports.updateFeatureFlag = async (req, res) => {
@@ -677,7 +680,7 @@ exports.updateFeatureFlag = async (req, res) => {
     const adminId = req.user.id;
     await db.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3', [Boolean(enabled), adminId, key]);
     res.json({ message: `Feature flag "${key}" set to ${enabled}.` });
-  } catch (err) { console.error('updateFeatureFlag error:', err); res.status(500).json({ error: 'Failed to update feature flag.' }); }
+  } catch (err) { logger.error('updateFeatureFlag error', { err }); res.status(500).json({ error: 'Failed to update feature flag.' }); }
 };
 
 // AUDIT LOG
@@ -693,7 +696,7 @@ exports.getAuditLog = async (req, res) => {
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     res.json({ log: rows, page: parseInt(page), limit: parseInt(limit) });
-  } catch (err) { console.error('getAuditLog error:', err); res.status(500).json({ error: 'Failed to fetch audit log.' }); }
+  } catch (err) { logger.error('getAuditLog error', { err }); res.status(500).json({ error: 'Failed to fetch audit log.' }); }
 };
 
 // DATA EXPORT
@@ -719,7 +722,7 @@ exports.exportData = async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="oxsteed_${type}_${new Date().toISOString().split('T')[0]}.csv"`);
     res.send(csv);
-  } catch (err) { console.error('exportData error:', err); res.status(500).json({ error: 'Export failed.' }); }
+  } catch (err) { logger.error('exportData error', { err }); res.status(500).json({ error: 'Export failed.' }); }
 };
 
 // DELETE USER ACCOUNT
@@ -784,7 +787,7 @@ exports.deleteUser = async (req, res) => {
 
     res.json({ message: `User ${user.email} deleted successfully.` });
   } catch (err) {
-    console.error('deleteUser error:', err);
+    logger.error('deleteUser error', { err });
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 };
@@ -870,8 +873,9 @@ exports.toggleAdminAccountStatus = async (req, res) => {
     }
     const newStatus = !rows[0].is_active;
     await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2', [newStatus, id]);
-    // Invalidate all sessions for this admin
+    // Invalidate all sessions for this admin and kick any live WebSocket connection
     await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [id]);
+    if (!newStatus) socketService.broadcastToUser(id, 'force_logout', { reason: 'account_disabled' });
     await logAdminAction({
       adminId: req.user.id,
       action: newStatus ? 'admin_account_enabled' : 'admin_account_disabled',
