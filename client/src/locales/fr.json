@@ -797,7 +797,7 @@
       "offline": "Vous êtes hors ligne — masqué dans l'annuaire.",
       "onlineSub": "Visible dans l'annuaire",
       "offlineSub": "Masqué dans l'annuaire"
-    },
+    }
   },
   "helperDashboard": {
     "title": "Tableau de bord prestataire",
