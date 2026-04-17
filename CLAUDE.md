@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-17 (✅ **i18n COMPLETE** — all 2716 keys perfectly aligned across EN/ES/FR/HT; comprehensive audit fixed HelperDashboard, Dashboard, SettingsPage, JobDetailPage, Admin UI, and all hardcoded strings; PRs #183 & #184 merged to main)
+**Last updated:** 2026-04-17 (✅ **i18n COMPLETE** — all 2722 keys perfectly aligned across EN/ES/FR/HT; Dashboard & HelperDashboard fully migrated with 6 new keys: floodZone, savedHelperFallback, unknownModel, jobNumber, newHelper, jobsLabel; zero hardcoded user-facing strings remaining; PRs #183, #184 & commit 11ff5cf completed)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -1098,3 +1098,49 @@ Completed all remaining i18n work. Every user-visible string in the application 
 - New top-level namespaces: `quickAddTemplates`, `helperOffers`, `termsGate`, `notificationCenter`, `badge`, `pulseSettings`, `legalPage`
 
 **PR:** #181 on branch `claude/complete-multilingual-support-wjTbH`
+
+### Session — 2026-04-17 (final i18n pass: Dashboard & HelperDashboard hardcoded strings)
+
+**Objective:** Complete the i18n migration by identifying and fixing all remaining hardcoded English strings in Dashboard.jsx and HelperDashboard.jsx per the user's explicit request: "do another hard review on dashboard and helper dashboard to find any raw key that we miss."
+
+**Work completed:**
+
+1. **Added 6 new translation keys to all 4 locale files (EN/ES/FR/HT):**
+   - `dashboard.home.floodZone` — "Flood Zone {{zone}}" (with dynamic zone interpolation)
+   - `dashboard.home.savedHelperFallback` — "Helper" (fallback for helpers with no category)
+   - `dashboard.carCare.unknownModel` — "Unknown Model" (fallback for VIN decode failures)
+   - `helperDashboard.jobNumber` — "Job #{{id}}" (with dynamic job ID interpolation)
+   - `dashboard.home.newHelper` — "New" (displayed when helper has no rating)
+   - `dashboard.home.jobsLabel` — "jobs" (plural label for completed jobs count)
+
+2. **Updated Dashboard.jsx (5 hardcoded strings → i18n):**
+   - Line 535: Car model fallback now uses `t('dashboard.carCare.unknownModel')`
+   - Line 1302: Flood zone display now uses `t('dashboard.home.floodZone', { zone: ... })`
+   - Line 1418: Helper category fallback now uses `t('dashboard.home.savedHelperFallback')`
+   - Line 1418: Rating/jobs display now uses `t('dashboard.home.newHelper')` and `t('dashboard.home.jobsLabel')`
+   - Line 2258: Skill name placeholder now uses `t('dashboard.skillsTools.skillNamePlaceholder')`
+
+3. **Updated HelperDashboard.jsx (5 hardcoded strings → i18n):**
+   - Line 494: Car model fallback now uses `t('dashboard.carCare.unknownModel')`
+   - Line 1273: Flood zone display now uses `t('dashboard.home.floodZone', { zone: ... })`
+   - Line 1387: Helper category fallback now uses `t('dashboard.home.savedHelperFallback')`
+   - Line 1387: Rating/jobs display now uses `t('dashboard.home.newHelper')` and `t('dashboard.home.jobsLabel')`
+   - Line 1715: Job number fallback now uses `t('helperDashboard.jobNumber', { id: bid.job_id })`
+
+4. **Verification:**
+   - Confirmed zero remaining hardcoded toast/alert/prompt messages
+   - Confirmed all user-visible fallback strings now use i18n keys
+   - Remaining || operators are for internal state (form data, icons) and do not display to users
+   - All 4 locale files now have 2722 perfectly synchronized keys
+
+**Files changed:**
+- `client/src/pages/Dashboard.jsx` — 5 hardcoded strings → i18n
+- `client/src/pages/HelperDashboard.jsx` — 5 hardcoded strings → i18n
+- `client/src/locales/en.json` — 6 new keys added
+- `client/src/locales/es.json` — 6 new keys added with Spanish translations
+- `client/src/locales/fr.json` — 6 new keys added with French translations
+- `client/src/locales/ht.json` — 6 new keys added with Haitian Creole translations
+
+**Commit:** `11ff5cf` — `feat(i18n): Complete Dashboard/HelperDashboard i18n migration`
+
+**Result:** 100% i18n coverage across all 2722 keys. Dashboard and HelperDashboard pages now display properly in all 4 supported languages (EN/ES/FR/HT) with zero hardcoded user-facing English strings.
