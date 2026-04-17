@@ -75,15 +75,15 @@ export default function SettingsPage() {
   const navigate = useNavigate();
 
   const TABS = useMemo(() => [
-    { key: 'profile',       label: t('settings.tabs.profile'),       icon: <IconUser /> },
-    { key: 'security',      label: t('settings.tabs.security'),      icon: <IconShield /> },
-    { key: 'subscription',  label: t('settings.tabs.subscription'),  icon: <IconCard /> },
-    { key: 'businesses',    label: t('settings.tabs.businesses'),    icon: <IconBuilding /> },
-    { key: 'notifications', label: t('settings.tabs.notifications'), icon: <IconBell /> },
-    { key: 'referral',      label: t('settings.tabs.referral'),      icon: <IconGift /> },
-    { key: 'privacy',       label: t('settings.tabs.privacy'),       icon: <IconDatabase /> },
-    { key: 'account',       label: t('settings.tabs.accountType'),   icon: <IconRefresh /> },
-    { key: 'danger',        label: t('settings.tabs.dangerZone'),    icon: <IconTrash />, danger: true },
+    { key: 'profile',       label: t('settings.tabProfile'),       icon: <IconUser /> },
+    { key: 'security',      label: t('settings.tabSecurity'),      icon: <IconShield /> },
+    { key: 'subscription',  label: t('settings.tabSubscription'),  icon: <IconCard /> },
+    { key: 'businesses',    label: t('settings.tabBusinesses'),    icon: <IconBuilding /> },
+    { key: 'notifications', label: t('settings.tabNotifications'), icon: <IconBell /> },
+    { key: 'referral',      label: t('settings.tabReferral'),      icon: <IconGift /> },
+    { key: 'privacy',       label: t('settings.tabPrivacy'),       icon: <IconDatabase /> },
+    { key: 'account',       label: t('settings.tabAccount'),       icon: <IconRefresh /> },
+    { key: 'danger',        label: t('settings.tabDanger'),        icon: <IconTrash />, danger: true },
   ], [t]);
 
   const [activeTab, setActiveTab] = useState('profile');

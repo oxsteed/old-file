@@ -62,7 +62,10 @@
     "copyLink": "Copy Link",
     "copied": "Copied!",
     "noResults": "No results found",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "helper": "Helper",
+    "customer": "Customer",
+    "switching": "Switching..."
   },
   "jobs": {
     "title": "Job Details",
@@ -536,7 +539,17 @@
     "businessRemoveFailed": "Failed to remove business",
     "primaryBusinessUpdated": "Primary business updated",
     "primaryBusinessFailed": "Failed to update primary business",
-    "roleSwitchFailed": "Failed to switch role"
+    "roleSwitchFailed": "Failed to switch role",
+    "switch": {
+      "successHelper": "Switched to helper mode",
+      "successCustomer": "Switched to customer mode"
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Update your personal information",
+      "firstName": "First Name",
+      "lastName": "Last Name"
+    }
   },
   "messages": {
     "title": "Messages",
@@ -591,7 +604,12 @@
     "attachImage": "Attach image (coming soon)",
     "addEmoji": "Add emoji (coming soon)",
     "sendMessage": "Send message",
-    "messageInput": "Message input"
+    "messageInput": "Message input",
+    "conversationNotFound": "Conversation not found",
+    "noMessagesStart": "No messages yet. Start the conversation!",
+    "typeAMessage": "Type a message...",
+    "empty": "No messages",
+    "emptyDesc": "Your message history is empty"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",
@@ -670,9 +688,21 @@
       "subtitle": "Your profile is hidden until setup is finished.",
       "resume": "Continue Setup →",
       "addProfile": "Add Profile & Location →",
-      "choosePlan": "Choose a Plan →",
+      "choosePlan": "Choose Plan",
       "addTax": "Add Tax Info →",
-      "reviewGoLive": "Review & Go Live →"
+      "reviewGoLive": "Review & Go Live →",
+      "createAccount": "Create Account",
+      "createAccountDesc": "Set up your account",
+      "verifyEmail": "Verify Email",
+      "verifyEmailDesc": "Confirm your email address",
+      "taxInfo": "Tax Info",
+      "taxInfoDesc": "Add your tax information",
+      "profileLocation": "Profile Location",
+      "profileLocationDesc": "Set your service area",
+      "reviewComplete": "Review Complete",
+      "reviewCompleteDesc": "You're all set!",
+      "choosePlanDesc": "Select your membership tier",
+      "choosePlan_btn": "Choose Plan"
     },
     "plannedNeeds": {
       "title": "Planned Needs",
@@ -752,7 +782,10 @@
       "startDateLabel": "Start Date (optional)",
       "endDateLabel": "End Date (optional)",
       "selectCategoryPlaceholder": "Select a category...",
-      "categoryPlaceholder": "e.g. Gas, Supplies, Gig Payment"
+      "categoryPlaceholder": "e.g. Gas, Supplies, Gig Payment",
+      "incomeLogged": "Income logged",
+      "expenseLogged": "Expense logged",
+      "saveFailed": "Failed to save"
     },
     "home": {
       "myProperties": "My Properties",
@@ -780,7 +813,11 @@
       "noDueDate": "No due date",
       "everyNDays": "Every {{n}}d",
       "removed": "Removed",
-      "addressNotFound": "Address not found."
+      "addressNotFound": "Address not found.",
+      "taskAdded": "Home task added",
+      "saveFailed": "Failed to save home task",
+      "updateFailed": "Failed to update home task",
+      "removeFailed": "Failed to remove home task"
     },
     "goals": {
       "title": "My Goals",
@@ -842,7 +879,8 @@
       "addItemBtn": "Add Item",
       "currentAmountLabel": "Current Amount ($)",
       "targetProgress": "Target: ${{target}} · {{pct}}% complete",
-      "estimatedCostPlaceholder": "e.g. 150"
+      "estimatedCostPlaceholder": "e.g. 150",
+      "itemRemoved": "Goal removed"
     },
     "jobs": {
       "total": "Total",
@@ -936,7 +974,19 @@
       "availableForRentToggle": "Available for rent",
       "requiresDepositToggle": "Requires deposit",
       "deliveryAvailableToggle": "Delivery available",
-      "updateToolBtn": "Update Tool"
+      "updateToolBtn": "Update Tool",
+      "skillUpdated": "Skill updated",
+      "skillAdded": "Skill added",
+      "skillSaveFailed": "Failed to save skill",
+      "skillRemoved": "Skill removed",
+      "skillRemoveFailed": "Failed to remove skill",
+      "removeSkillConfirm": "Are you sure you want to remove this skill?",
+      "toolUpdated": "Tool updated",
+      "toolListed": "Tool listed",
+      "toolSaveFailed": "Failed to save tool",
+      "toolRemoved": "Tool removed",
+      "toolRemoveFailed": "Failed to remove tool",
+      "removeToolConfirm": "Are you sure you want to remove this tool?"
     },
     "personalCare": {
       "title": "My Health & Wellness",
@@ -1101,7 +1151,13 @@
       "garageModeSummary": "Search by Make/Model",
       "garageModeVin": "Decode VIN",
       "yearOptional": "Year (optional)",
-      "addVinSave": "+ Save"
+      "addVinSave": "+ Save",
+      "serviceAdded": "Car service added",
+      "vehicleAdded": "Vehicle added",
+      "saveFailed": "Failed to save car service",
+      "updateFailed": "Failed to update car service",
+      "removeFailed": "Failed to remove car service",
+      "removed": "Car service removed"
     },
     "products": {
       "title": "My Products & Gear",
@@ -1231,7 +1287,7 @@
     "photoAdded": "Photo added",
     "failedAddPhoto": "Failed to add photo",
     "profileSaved": "Profile saved!",
-    "failedSave": "Failed to save",
+    "failedSave": "Error al guardar",
     "saving": "Saving…",
     "delete": "Delete",
     "availableJobsTitle": "Available Jobs",
@@ -1249,7 +1305,87 @@
       "findJobs": "Find Jobs",
       "myBids": "My Bids",
       "reviews": "Reviews"
-    }
+    },
+    "proActivated": "Plan Pro activado",
+    "products": {
+      "nameRequired": "El nombre del producto es obligatorio",
+      "invalidPrice": "El precio debe ser mayor que 0",
+      "updated": "Producto actualizado",
+      "listed": "Producto listado",
+      "saveFailed": "Error al guardar el producto",
+      "removed": "Producto removido",
+      "removeFailed": "Error al remover el producto"
+    },
+    "failedUpdate": "Error al actualizar",
+    "skills": {
+      "updated": "Habilidad actualizada",
+      "added": "Habilidad agregada",
+      "saveFailed": "Error al guardar la habilidad",
+      "removed": "Habilidad removida",
+      "removeFailed": "Error al remover la habilidad"
+    },
+    "tools": {
+      "updated": "Herramienta actualizada",
+      "listed": "Herramienta listada",
+      "saveFailed": "Error al guardar la herramienta",
+      "removed": "Herramienta removida",
+      "removeFailed": "Error al remover la herramienta"
+    },
+    "personalCare": {
+      "added": "Cuidado personal agregado"
+    },
+    "removed": "Removido",
+    "failedRemove": "Error al remover",
+    "failedAdd": "Error al agregar",
+    "carCare": {
+      "added": "Servicio de automóvil agregado"
+    },
+    "incomeLogged": "Ingreso registrado",
+    "expenseLogged": "Gasto registrado",
+    "goalCreated": "Objetivo creado",
+    "failed": "Error",
+    "taskAdded2": "Tarea agregada",
+    "addressNotFound": "Dirección no encontrada",
+    "homeAdded": "Hogar agregado",
+    "failedAddHome": "Error al agregar hogar",
+    "checklistAdded": "Lista de verificación agregada",
+    "progressUpdated": "Progreso actualizado",
+    "failedUpdateStatus": "Error al actualizar el estado",
+    "loadingDashboard": "Cargando panel",
+    "someDataFailed": "Error cargando algunos datos",
+    "next30Days": "Próximos 30 días",
+    "jobsCompleted": "Trabajos completados",
+    "noReviewsYet": "Sin reseñas aún",
+    "accepted": "Aceptado",
+    "goalsLabel": "Objetivos",
+    "inProgress": "En progreso",
+    "subscription": "Suscripción",
+    "active": "Activo",
+    "manageBilling": "Administrar facturación",
+    "paymentPending": "Pago pendiente",
+    "selectedProNoPay": "Pro seleccionado sin pago",
+    "completeUpgrade": "Completar actualización",
+    "free": "Gratuito",
+    "upgradeHint": "Actualiza a Pro para desbloquear más funciones",
+    "upgradeToPro": "Actualizar a Pro",
+    "backgroundCheck": "Verificación de antecedentes",
+    "bgCheckHint": "Completa la verificación de antecedentes",
+    "startCheck": "Iniciar verificación",
+    "requiresPro": "Requiere Pro",
+    "idVerification": "Verificación de identidad",
+    "idVerificationHint": "Completa la verificación de identidad",
+    "verifyId": "Verificar identidad",
+    "findJobs": "Encontrar trabajos",
+    "disputes": "Disputas",
+    "jobsNearYou": "Trabajos cerca de ti",
+    "noNearbyJobs": "Sin trabajos cerca de ti",
+    "browseAllJobs": "Examinar todos los trabajos",
+    "upgradeProDesc": "Actualiza a nuestro plan Pro para acceder a más funciones y mejores oportunidades.",
+    "viewPlans": "Ver planes",
+    "deleted": "Eliminado",
+    "browseCTA": "Examinar",
+    "personalCareDesc": "Descripción del cuidado personal",
+    "taskAdded": "Tarea agregada: {title}"
   },
   "postJob": {
     "title": "Post a Job",

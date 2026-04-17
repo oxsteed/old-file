@@ -64,7 +64,10 @@
     "noResults": "Aucun résultat",
     "tryAgain": "Réessayer",
     "basic": "Basique",
-    "premium": "Premium"
+    "premium": "Premium",
+    "helper": "Assistant",
+    "customer": "Client",
+    "switching": "Changement..."
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -552,7 +555,17 @@
     "businessRemoveFailed": "Erreur lors de la suppression de l'entreprise",
     "primaryBusinessUpdated": "Entreprise principale mise à jour",
     "primaryBusinessFailed": "Erreur lors de la mise à jour de l'entreprise principale",
-    "roleSwitchFailed": "Erreur lors du changement de rôle"
+    "roleSwitchFailed": "Erreur lors du changement de rôle",
+    "switch": {
+      "successHelper": "Basculé vers le mode assistant",
+      "successCustomer": "Basculé vers le mode client"
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Mettez à jour vos informations personnelles",
+      "firstName": "Prénom",
+      "lastName": "Nom de Famille"
+    }
   },
   "messages": {
     "title": "Messages",
@@ -607,7 +620,12 @@
     "attachImage": "Joindre une image (bientôt disponible)",
     "addEmoji": "Ajouter un emoji (bientôt disponible)",
     "sendMessage": "Envoyer le message",
-    "messageInput": "Saisie du message"
+    "messageInput": "Saisie du message",
+    "conversationNotFound": "Conversation non trouvée",
+    "noMessagesStart": "Pas de messages encore. Commencez la conversation!",
+    "typeAMessage": "Tapez un message...",
+    "empty": "Pas de messages",
+    "emptyDesc": "Votre historique de messages est vide"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
@@ -686,9 +704,21 @@
       "subtitle": "Votre profil est masqué tant que la configuration n'est pas terminée.",
       "resume": "Continuer la configuration →",
       "addProfile": "Ajouter profil & lieu →",
-      "choosePlan": "Choisir un plan →",
+      "choosePlan": "Choisir un Plan",
       "addTax": "Ajouter infos fiscales →",
-      "reviewGoLive": "Vérifier & Publier →"
+      "reviewGoLive": "Vérifier & Publier →",
+      "createAccount": "Créer un Compte",
+      "createAccountDesc": "Configurez votre compte",
+      "verifyEmail": "Vérifier l'Email",
+      "verifyEmailDesc": "Confirmez votre adresse e-mail",
+      "taxInfo": "Information Fiscale",
+      "taxInfoDesc": "Ajoutez vos informations fiscales",
+      "profileLocation": "Localisation du Profil",
+      "profileLocationDesc": "Définissez votre zone de service",
+      "reviewComplete": "Examen Complet",
+      "reviewCompleteDesc": "Vous êtes prêt!",
+      "choosePlanDesc": "Sélectionnez votre niveau d'adhésion",
+      "choosePlan_btn": "Choisir un Plan"
     },
     "plannedNeeds": {
       "title": "Besoins Planifiés",
@@ -786,7 +816,10 @@
       "endDate": "Date de fin",
       "estimatedCost": "Coût estimé",
       "budgetAmount": "Montant du budget",
-      "budgetPeriod": "Période du budget"
+      "budgetPeriod": "Période du budget",
+      "incomeLogged": "Revenu enregistré",
+      "expenseLogged": "Dépense enregistrée",
+      "saveFailed": "Erreur lors de l'enregistrement"
     },
     "home": {
       "myProperties": "Mes Propriétés",
@@ -814,7 +847,11 @@
       "removed": "Supprimé",
       "homeAddFailed": "Échec de l'ajout de la propriété.",
       "homeAdded": "Propriété sauvegardée !",
-      "addressNotFound": "Adresse introuvable."
+      "addressNotFound": "Adresse introuvable.",
+      "taskAdded": "Tâche ménagère ajoutée",
+      "saveFailed": "Erreur lors de l'enregistrement de la tâche ménagère",
+      "updateFailed": "Erreur lors de la mise à jour de la tâche ménagère",
+      "removeFailed": "Erreur lors de la suppression de la tâche ménagère"
     },
     "goals": {
       "title": "Mes Objectifs",
@@ -876,7 +913,8 @@
       "addItemBtn": "Ajouter l'Élément",
       "currentAmountLabel": "Montant Actuel ($)",
       "targetProgress": "Objectif: ${{target}} · {{pct}}% complété",
-      "estimatedCostPlaceholder": "ex. 150"
+      "estimatedCostPlaceholder": "ex. 150",
+      "itemRemoved": "Objectif supprimé"
     },
     "jobs": {
       "total": "Total",
@@ -970,7 +1008,19 @@
       "availableForRentToggle": "Disponible à la location",
       "requiresDepositToggle": "Dépôt requis",
       "deliveryAvailableToggle": "Livraison disponible",
-      "updateToolBtn": "Mettre à jour l'Outil"
+      "updateToolBtn": "Mettre à jour l'Outil",
+      "skillUpdated": "Compétence mise à jour",
+      "skillAdded": "Compétence ajoutée",
+      "skillSaveFailed": "Erreur lors de l'enregistrement de la compétence",
+      "skillRemoved": "Compétence supprimée",
+      "skillRemoveFailed": "Erreur lors de la suppression de la compétence",
+      "removeSkillConfirm": "Êtes-vous sûr de vouloir supprimer cette compétence?",
+      "toolUpdated": "Outil mis à jour",
+      "toolListed": "Outil listé",
+      "toolSaveFailed": "Erreur lors de l'enregistrement de l'outil",
+      "toolRemoved": "Outil supprimé",
+      "toolRemoveFailed": "Erreur lors de la suppression de l'outil",
+      "removeToolConfirm": "Êtes-vous sûr de vouloir supprimer cet outil?"
     },
     "personalCare": {
       "title": "Ma Santé & Bien-être",
@@ -1135,7 +1185,13 @@
       "garageModeVin": "Décoder VIN",
       "yearOptional": "Année (optionnel)",
       "addVinSave": "+ Enregistrer",
-      "deleteConfirmMsg": "Remove <strong>{{name}}</strong>?"
+      "deleteConfirmMsg": "Remove <strong>{{name}}</strong>?",
+      "serviceAdded": "Service automobile ajouté",
+      "vehicleAdded": "Véhicule ajouté",
+      "saveFailed": "Erreur lors de l'enregistrement du service automobile",
+      "updateFailed": "Erreur lors de la mise à jour du service automobile",
+      "removeFailed": "Erreur lors de la suppression du service automobile",
+      "removed": "Service automobile supprimé"
     },
     "products": {
       "title": "Mes Produits & Équipement",
@@ -1265,7 +1321,7 @@
     "photoAdded": "Photo ajoutée",
     "failedAddPhoto": "Échec de l'ajout de la photo",
     "profileSaved": "Profil enregistré !",
-    "failedSave": "Échec de l'enregistrement",
+    "failedSave": "Erreur lors de l'enregistrement",
     "saving": "Enregistrement…",
     "delete": "Supprimer",
     "availableJobsTitle": "Missions Disponibles",
@@ -1291,7 +1347,86 @@
     "addSkill": "Ajouter une compétence",
     "manageSkills": "Gérer les compétences",
     "addTool": "Ajouter un outil",
-    "manageTools": "Gérer les outils"
+    "manageTools": "Gérer les outils",
+    "proActivated": "Plan Pro activé",
+    "products": {
+      "nameRequired": "Le nom du produit est requis",
+      "invalidPrice": "Le prix doit être supérieur à 0",
+      "updated": "Produit mis à jour",
+      "listed": "Produit listé",
+      "saveFailed": "Erreur lors de l'enregistrement du produit",
+      "removed": "Produit supprimé",
+      "removeFailed": "Erreur lors de la suppression du produit"
+    },
+    "failedUpdate": "Erreur lors de la mise à jour",
+    "skills": {
+      "updated": "Compétence mise à jour",
+      "added": "Compétence ajoutée",
+      "saveFailed": "Erreur lors de l'enregistrement de la compétence",
+      "removed": "Compétence supprimée",
+      "removeFailed": "Erreur lors de la suppression de la compétence"
+    },
+    "tools": {
+      "updated": "Outil mis à jour",
+      "listed": "Outil listé",
+      "saveFailed": "Erreur lors de l'enregistrement de l'outil",
+      "removed": "Outil supprimé",
+      "removeFailed": "Erreur lors de la suppression de l'outil"
+    },
+    "personalCare": {
+      "added": "Soins personnels ajoutés"
+    },
+    "removed": "Supprimé",
+    "failedRemove": "Erreur lors de la suppression",
+    "failedAdd": "Erreur lors de l'ajout",
+    "carCare": {
+      "added": "Service automobile ajouté"
+    },
+    "incomeLogged": "Revenu enregistré",
+    "expenseLogged": "Dépense enregistrée",
+    "goalCreated": "Objectif créé",
+    "failed": "Erreur",
+    "taskAdded2": "Tâche ajoutée",
+    "addressNotFound": "Adresse non trouvée",
+    "homeAdded": "Domicile ajouté",
+    "failedAddHome": "Erreur lors de l'ajout du domicile",
+    "checklistAdded": "Liste de contrôle ajoutée",
+    "progressUpdated": "Progression mise à jour",
+    "failedUpdateStatus": "Erreur lors de la mise à jour du statut",
+    "loadingDashboard": "Chargement du tableau de bord",
+    "someDataFailed": "Erreur lors du chargement de certaines données",
+    "next30Days": "30 prochains jours",
+    "noReviewsYet": "Pas d'avis encore",
+    "accepted": "Accepté",
+    "goalsLabel": "Objectifs",
+    "inProgress": "En cours",
+    "subscription": "Abonnement",
+    "active": "Actif",
+    "manageBilling": "Gérer la facturation",
+    "paymentPending": "Paiement en attente",
+    "selectedProNoPay": "Pro sélectionné sans paiement",
+    "completeUpgrade": "Terminer la mise à niveau",
+    "free": "Gratuit",
+    "upgradeHint": "Passez à Pro pour déverrouiller plus de fonctionnalités",
+    "upgradeToPro": "Passer à Pro",
+    "backgroundCheck": "Vérification des antécédents",
+    "bgCheckHint": "Complétez la vérification des antécédents",
+    "startCheck": "Commencer la vérification",
+    "requiresPro": "Nécessite Pro",
+    "idVerification": "Vérification d'identité",
+    "idVerificationHint": "Complétez la vérification d'identité",
+    "verifyId": "Vérifier l'identité",
+    "findJobs": "Trouver des emplois",
+    "disputes": "Litiges",
+    "jobsNearYou": "Emplois près de vous",
+    "noNearbyJobs": "Pas d'emplois près de vous",
+    "browseAllJobs": "Parcourir tous les emplois",
+    "upgradeProDesc": "Passez à notre plan Pro pour accéder à plus de fonctionnalités et de meilleures opportunités.",
+    "viewPlans": "Voir les plans",
+    "deleted": "Supprimé",
+    "browseCTA": "Parcourir",
+    "personalCareDesc": "Description des soins personnels",
+    "taskAdded": "Tâche ajoutée : {title}"
   },
   "postJob": {
     "title": "Publier une mission",
