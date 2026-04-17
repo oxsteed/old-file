@@ -87,7 +87,8 @@
       "jobListings": "Offres d'emploi",
       "mainNavigation": "Navigation principale",
       "location": "Localisation"
-    }
+    },
+    "failed": "Erreur"
   },
   "jobs": {
     "title": "Détails de la mission",

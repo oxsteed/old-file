@@ -87,7 +87,8 @@
       "jobListings": "Job listings",
       "mainNavigation": "Main navigation",
       "location": "Location"
-    }
+    },
+    "failed": "Failed"
   },
   "jobs": {
     "title": "Job Details",

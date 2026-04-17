@@ -87,7 +87,8 @@
       "jobListings": "Lis travay",
       "mainNavigation": "Navigasyon prensipal",
       "location": "Lokasyon"
-    }
+    },
+    "failed": "Erè"
   },
   "trial": {
     "active": "Trial is active",

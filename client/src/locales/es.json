@@ -87,7 +87,8 @@
       "jobListings": "Listado de trabajos",
       "mainNavigation": "Navegación principal",
       "location": "Ubicación"
-    }
+    },
+    "failed": "Error"
   },
   "jobs": {
     "title": "Detalles del Trabajo",
