@@ -62,7 +62,9 @@
     "copyLink": "Copier le lien",
     "copied": "Copié !",
     "noResults": "Aucun résultat",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "basic": "Basique",
+    "premium": "Premium"
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -88,7 +90,14 @@
     "category": "Catégorie",
     "location": "Lieu",
     "requirements": "Exigences",
-    "media": "Photos et médias"
+    "media": "Photos et médias",
+    "timeframe": "Délai",
+    "noResultsTitle": "Aucun travail disponible",
+    "noResultsDesc": "Essayez d'ajuster vos filtres",
+    "apply": "Postuler",
+    "timeline": "Calendrier",
+    "about": "À propos",
+    "description": "Description"
   },
   "auth": {
     "email": "Adresse e-mail",
@@ -129,7 +138,10 @@
     "postJob": "Publier une offre",
     "listSkills": "Proposer mes services",
     "welcomeBackToast": "Bon retour !",
-    "verifyIdentityToast": "Bon retour ! Veuillez compléter la vérification de votre identité."
+    "verifyIdentityToast": "Bon retour ! Veuillez compléter la vérification de votre identité.",
+    "emailRequired": "L'e-mail est requis",
+    "passwordRequired": "Le mot de passe est obligatoire",
+    "invalidCredentials": "Identifiants invalides"
   },
   "forgotPassword": {
     "title": "Réinitialiser votre mot de passe",
@@ -217,10 +229,12 @@
     "stepOf": "Étape {{current}} sur 2",
     "step1Label": "Créez votre profil",
     "step2Label": "Vérifiez votre identité",
-    "firstNamePlaceholder": "Toussaint",
-    "lastNamePlaceholder": "Louverture",
-    "businessNamePlaceholder": "Mon Entreprise SARL",
-    "addressPlaceholder": "123 rue Principale, Paris"
+    "firstNamePlaceholder": "Prénom",
+    "lastNamePlaceholder": "Nom de famille",
+    "businessNamePlaceholder": "Nom de l'entreprise",
+    "addressPlaceholder": "Adresse",
+    "agreeToTerms": "J'accepte les conditions",
+    "haveAccount": "Vous avez déjà un compte?"
   },
   "didit": {
     "title": "Vérifiez votre identité",
@@ -276,8 +290,8 @@
     "accessibility": "Accessibilité",
     "manageCookies": "Gérer les cookies",
     "vortex": "Vortex",
-    "vortexTitle": "Vortex",
-    "vortexDesc": "Entrez un token Vortex de 64 caractères partagé par un propriétaire d'entreprise pour rejoindre son équipe.",
+    "vortexTitle": "Systèmes Vortex",
+    "vortexDesc": "Plateforme de gestion d'entreprise",
     "vortexPlaceholder": "Collez votre token de 64 caractères…",
     "vortexChars": "{{count}} / 64 caractères",
     "vortexTokenError": "Le token doit faire exactement 64 caractères.",
@@ -353,7 +367,7 @@
     "freeDesc": "Commencez avec l'essentiel",
     "freeForever": "/toujours",
     "currentPlan": "Votre forfait actuel",
-    "proTitle": "Pro",
+    "proTitle": "Plan Professionnel",
     "proDesc": "Tout ce dont vous avez besoin pour vous développer",
     "subscribePro": "S'abonner à Pro",
     "recommended": "Recommandé",
@@ -425,7 +439,8 @@
     "compareF14": "Informations communautaires",
     "compareF15": "Éligible à la Protection OxSteed",
     "protectionDesc": "Lorsque vous utilisez la Protection OxSteed, les paiements sont traités de manière sécurisée via Stripe. Le client paie le prix de la mission convenu, et OxSteed prend une simple commission de plateforme de 7,1 % (minimum 5 $). C'est tout — des frais transparents qui couvrent le traitement des paiements, la médiation des litiges et le support de la plateforme.",
-    "protectionNote": "* La Protection OxSteed nécessite une vérification d'ID pour les clients et une vérification d'ID + vérification des antécédents + compte Stripe pour les prestataires."
+    "protectionNote": "* La Protection OxSteed nécessite une vérification d'ID pour les clients et une vérification d'ID + vérification des antécédents + compte Stripe pour les prestataires.",
+    "proFeatures": "Caractéristiques professionnelles"
   },
   "jobList": {
     "title": "Trouvez des services locaux près de chez vous",
@@ -462,178 +477,90 @@
     "switchedToCustomer": "Basculé en mode Client. Votre profil de prestataire est sauvegardé et en attente.",
     "switchFailed": "Échec du changement de rôle",
     "profileTab": {
-      "title": "Profil",
-      "firstName": "Prénom",
-      "lastName": "Nom",
-      "phone": "Téléphone",
-      "bio": "Biographie",
-      "zipcode": "Code Postal",
-      "saveProfile": "Enregistrer Profil",
-      "saved": "Profil enregistré !",
-      "editProfile": "Modifier le Profil",
-      "subtitle": "Gérez vos informations personnelles.",
-      "nameLocked": "Les changements de nom nécessitent une vérification d'identité et doivent être traités par notre équipe.",
-      "displayName": "Nom affiché",
-      "displayNameSub": "Choisissez comment votre nom apparaît aux autres sur la plateforme.",
+      "title": "Profile",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "phone": "Phone",
+      "bio": "Bio",
+      "zipcode": "Zip Code",
+      "saveProfile": "Save Profile",
+      "saved": "Profile saved!",
+      "editProfile": "Edit Profile",
+      "subtitle": "Manage your personal information.",
+      "nameLocked": "Name changes require identity verification and must be processed by our team.",
+      "displayName": "Display Name",
+      "displayNameSub": "Choose how your name appears to others on the platform.",
       "displayNameOpt": {
-        "firstName": "Prénom uniquement",
-        "fullName": "Nom complet",
-        "businessName": "Nom de l'entreprise"
+        "firstName": "First name only",
+        "fullName": "Full name",
+        "businessName": "Business name"
       },
-      "businessFallback": "⚠ Si vous n'avez pas d'entreprise ajoutée, votre prénom sera affiché par défaut."
+      "businessFallback": "⚠ If you have no business added, this falls back to your first name."
     },
     "securityTab": {
-      "title": "Sécurité",
-      "currentPassword": "Mot de passe actuel",
-      "newPassword": "Nouveau mot de passe",
-      "confirmPassword": "Confirmer le mot de passe",
-      "changePassword": "Changer le mot de passe",
-      "twoFactor": "Authentification à deux facteurs",
-      "enable2fa": "Activer 2FA",
-      "disable2fa": "Désactiver 2FA",
-      "saved": "Mot de passe mis à jour !",
-      "subtitle": "Utilisez un mot de passe fort et unique pour votre compte.",
-      "manage2fa": "Gérer 2FA",
-      "extraLayer": "Ajoutez une couche de sécurité supplémentaire à votre compte."
+      "title": "Security",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "changePassword": "Change Password",
+      "twoFactor": "Two-Factor Authentication",
+      "enable2fa": "Enable 2FA",
+      "disable2fa": "Disable 2FA",
+      "saved": "Password updated!",
+      "subtitle": "Use a strong, unique password for your account.",
+      "manage2fa": "Manage 2FA",
+      "extraLayer": "Add an extra layer of security to your account."
     },
     "subscriptionTab": {
-      "title": "Abonnement & Facturation",
-      "subtitle": "Gérez votre forfait et vos détails de paiement.",
-      "loading": "Chargement de l'abonnement…",
-      "active": "Actif",
-      "nextBilling": "Prochaine facturation : {{date}}",
-      "cancelPending": "L'abonnement sera résilié à la fin de la période de facturation.",
-      "manageBilling": "Gérer la facturation",
-      "cancelPlan": "Résilier le forfait",
-      "cancelConfirm": "Résilier votre abonnement ? Vous conserverez l'accès jusqu'à la fin de votre période de facturation.",
-      "freePlanSub": "Vous êtes sur le forfait Gratuit. Passez à un forfait supérieur pour débloquer plus de fonctionnalités.",
-      "upgradeTo": "Passer à {{name}} — {{price}}$/{{period}}"
-    },
-    "businessesTab": {
-      "title": "Mes Entreprises",
-      "addBusiness": "+ Ajouter Entreprise",
-      "subtitle": "Gérez vos LLC et entités commerciales. Les jobs et paiements peuvent être liés à une entreprise spécifique.",
-      "loading": "Chargement des entreprises…",
-      "noBusinesses": "Aucune entreprise ajoutée",
-      "noBusinessesSub": "Ajoutez votre LLC ou entité commerciale pour l'utiliser sur les jobs et factures.",
-      "primary": "Principale",
-      "edit": "Modifier",
-      "remove": "Supprimer",
-      "removeConfirm": "Supprimer cette entreprise ?",
-      "setPrimary": "Définir comme principale",
-      "editTitle": "Modifier Entreprise",
-      "addTitle": "Ajouter une Entreprise",
-      "name": "Nom de l'entreprise *",
-      "type": "Type d'entreprise",
-      "ein": "EIN (optionnel)",
-      "address": "Adresse de l'entreprise",
-      "street": "Rue",
-      "city": "Ville",
-      "state": "État",
-      "zip": "Code postal",
-      "update": "Mettre à jour l'entreprise",
-      "types": {
-        "sole_prop": "Entreprise individuelle",
-        "llc": "LLC",
-        "corp": "Corporation",
-        "partnership": "Partenariat"
-      }
-    },
-    "notificationsTab": {
-      "title": "Préférences de Notification",
-      "subtitle": "Choisissez comment vous souhaitez être informé de l'activité sur votre compte.",
-      "loading": "Chargement des préférences...",
-      "saving": "Enregistrement...",
-      "saved": "Préférence enregistrée",
-      "groups": {
-        "in_app": {
-          "title": "Notifications In-App",
-          "desc": "Affichées dans l'application dans votre centre de notifications."
-        },
-        "push": {
-          "title": "Notifications Push",
-          "desc": "Alertes envoyées directement sur votre appareil."
-        },
-        "email": {
-          "title": "Notifications par Email",
-          "desc": "Messages envoyés à votre adresse email enregistrée."
-        }
-      },
-      "labels": {
-        "new_bid": "Nouvelle offre reçue",
-        "bid_accepted": "Offre acceptée",
-        "job_started": "Job commencé",
-        "job_completed": "Job terminé",
-        "payment_released": "Paiement libéré",
-        "new_review": "Nouvel avis reçu",
-        "dispute_update": "Mises à jour des litiges",
-        "subscription": "Mises à jour d'abonnement",
-        "new_job_nearby": "Nouveaux jobs à proximité",
-        "weekly_summary": "Résumé d'activité hebdomadaire"
-      }
-    },
-    "privacyTab": {
-      "title": "Confidentialité & Données",
-      "subtitle": "Téléchargez une copie de toutes vos données comme requis par le RGPD/CCPA.",
-      "exportData": "Exporter mes données",
-      "exported": "Données exportées",
-      "exportFailed": "Échec de l'exportation"
-    },
-    "accountTypeTab": {
-      "title": "Type de Compte",
-      "helperDesc": "Vous êtes actuellement un Aide — vous pouvez recevoir des offres de job et apparaître dans l'annuaire. Passez en mode Client pour parcourir et poster des jobs.",
-      "customerDesc": "Vous êtes actuellement un Client — vous pouvez poster des jobs et parcourir les aides. Passez en mode Aide pour proposer vos services.",
-      "currentRole": "Rôle actuel",
-      "switchToCustomer": "Passer en mode Client",
-      "switchToHelper": "Passer en mode Aide",
-      "confirmTitle": "Passer en mode {{role}} ?",
-      "helperToCustomer": "Votre profil d'aide et toutes vos données seront sauvegardés. Vous pourrez revenir en arrière à tout moment. Vous n'apparaîtrez plus dans l'annuaire tant que vous serez en mode Client.",
-      "customerToHelper": "Un profil d'aide sera créé pour vous. Vous commencerez en mode hors ligne — vous contrôlez quand apparaître dans l'annuaire via votre tableau de bord. Vous pourrez revenir en mode Client à tout moment.",
-      "yesSwitch": "Oui, changer",
-      "switching": "Changement..."
+      "pro": "Pro",
+      "manageBilling": "Manage Billing",
+      "upgrade": "Upgrade to Pro",
+      "cancel": "Cancel Subscription",
+      "renews": "Renews {{date}}"
     },
     "dangerTab": {
-      "title": "Zone de Danger",
-      "subtitle": "Supprimez définitivement votre compte et toutes les données associées. Cette action est irréversible.",
-      "deleteAccount": "Supprimer mon compte",
-      "confirmTitle": "Êtes-vous absolument sûr ?",
-      "confirmDesc": "Cela supprimera définitivement votre compte, votre profil, votre historique de jobs et toutes les données associées. Vous ne pourrez pas annuler cette action.",
-      "yesDelete": "Oui, supprimer mon compte"
+      "title": "Danger Zone",
+      "deleteAccount": "Delete Account",
+      "deleteWarning": "This action cannot be undone. All your data will be permanently deleted.",
+      "deleteButton": "Delete My Account",
+      "confirmDelete": "Are you sure? Type DELETE to confirm.",
+      "deleted": "Account deleted"
     },
-    "twoFactor": {
-      "title": "Authentification à deux facteurs",
-      "subtitle": "Ajoutez une couche de sécurité supplémentaire à votre compte",
-      "notEnabled": "La 2FA n'est pas activée",
-      "secureDesc": "Sécurisez votre compte avec une application d'authentification",
-      "enable": "Activer l'authentification à deux facteurs",
-      "setupDesc": "Scannez ce code QR avec votre application d'authentification (Google Authenticator, Authy, etc.)",
-      "manualKey": "Clé de saisie manuelle :",
-      "saveBackup": "Sauvegardez vos codes de secours !",
-      "backupDesc": "Conservez-les en lieu sûr. Chaque code ne peut être utilisé qu'une seule fois.",
-      "copyCodes": "Copier tous les codes",
-      "enterCode": "Entrez le code à 6 chiffres de votre application",
-      "verifyEnable": "Vérifier & Activer la 2FA",
-      "enabled": "La 2FA est activée",
-      "protectedDesc": "Votre compte est protégé par TOTP",
-      "manage": "Gérer la 2FA",
-      "disable": "Désactiver la 2FA",
-      "newBackup": "Nouveaux codes de secours",
-      "invalidOld": "Les codes précédents sont désormais invalides. Sauvegardez ceux-ci en toute sécurité.",
-      "done": "Terminé",
-      "codePlaceholder": "000000",
-      "managePlaceholder": "Entrez le code à 6 chiffres pour gérer"
-    }
+    "accountTab": {
+      "title": "Account Type",
+      "currentRole": "Current role",
+      "switchTo": "Switch to {{role}}",
+      "switchConfirmHelper": "Switch to Helper mode?",
+      "switchConfirmCustomer": "Switch to Customer mode?",
+      "switchConfirmDesc": "You can always switch back later.",
+      "switching": "Switching..."
+    },
+    "preferencesTab": "Préférences",
+    "profileUpdated": "Profil mis à jour",
+    "profileFailed": "Erreur lors de la mise à jour",
+    "passwordNoMatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordChanged": "Mot de passe changé",
+    "passwordChangeFailed": "Erreur lors du changement du mot de passe",
+    "accountDeleted": "Compte supprimé",
+    "accountDeleteFailed": "Erreur lors de la suppression du compte",
+    "businessNameRequired": "Le nom de l'entreprise est obligatoire",
+    "businessUpdated": "Entreprise mise à jour",
+    "businessAdded": "Entreprise ajoutée",
+    "businessSaveFailed": "Erreur lors de l'enregistrement de l'entreprise",
+    "businessRemoved": "Entreprise supprimée",
+    "businessRemoveFailed": "Erreur lors de la suppression de l'entreprise",
+    "primaryBusinessUpdated": "Entreprise principale mise à jour",
+    "primaryBusinessFailed": "Erreur lors de la mise à jour de l'entreprise principale",
+    "roleSwitchFailed": "Erreur lors du changement de rôle"
   },
   "messages": {
     "title": "Messages",
     "noMessages": "Pas encore de messages",
     "noMessagesSub": "Commencez une conversation en contactant un aide sur une annonce.",
-    "helperInboxSub": "Lorsqu'un client vous contacte depuis votre profil, son message apparaîtra ici.",
     "allConversations": "Toutes les Conversations",
-    "re": "Re: {{title}}",
+    "re": "Rép:",
     "via": "via {{name}}",
-    "unread_one": "{{count}} message non lu",
-    "unread_other": "{{count}} messages non lus",
     "typeMessage": "Tapez un message…",
     "typeReply": "Tapez votre réponse...",
     "send": "Envoyer",
@@ -641,8 +568,6 @@
     "back": "Retour",
     "backToMessages": "Retour aux Messages",
     "notFound": "Conversation introuvable.",
-    "sayHello": "Pas encore de messages. Dites bonjour !",
-    "noMessagesHelper": "Pas encore de messages. Envoyez la première réponse ci-dessous.",
     "seen": "Vu",
     "enterToSend": "Appuyez sur Entrée pour envoyer",
     "helperTitle": "Boîte de réception",
@@ -654,8 +579,6 @@
     "today": "Aujourd'hui",
     "yesterday": "Hier",
     "loadingMessages": "Chargement des messages…",
-    "noMessagesOld": "Aucun message pour l'instant",
-    "noMessagesSubOld": "Lancez la conversation !",
     "helperNoConvSub": "Lorsqu'un client vous contacte depuis votre profil, son message apparaîtra ici.",
     "newBadge": "Nouveau",
     "notFoundSub": "Cette conversation n'existe pas ou vous n'y avez pas accès.",
@@ -835,7 +758,35 @@
       "startDateLabel": "Date de début (optionnel)",
       "endDateLabel": "Date de fin (optionnel)",
       "selectCategoryPlaceholder": "Sélectionner une catégorie...",
-      "categoryPlaceholder": "ex. Carburant, Fournitures, Paiement freelance"
+      "categoryPlaceholder": "Sélectionner une catégorie",
+      "modalNewGoal": "Nouvel objectif",
+      "modalUpdateProgress": "Mettre à jour la progression",
+      "modalAddHomeTask": "Ajouter une tâche ménagère",
+      "modalAddChecklist": "Ajouter une liste de contrôle",
+      "modalAddHealth": "Ajouter un soin personnel",
+      "modalAddCarService": "Ajouter un service automobile",
+      "modalAddSkill": "Ajouter une compétence",
+      "modalEditSkill": "Modifier la compétence",
+      "modalAddTool": "Ajouter un outil",
+      "modalEditTool": "Modifier l'outil",
+      "addTransaction": "Ajouter une transaction",
+      "description": "Description",
+      "amount": "Montant",
+      "date": "Date",
+      "category": "Catégorie",
+      "frequency": "Fréquence",
+      "oneTime": "Une seule fois",
+      "daily": "Quotidien",
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuel",
+      "quarterly": "Trimestriel",
+      "yearly": "Annuel",
+      "recurring": "Récurrent",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "estimatedCost": "Coût estimé",
+      "budgetAmount": "Montant du budget",
+      "budgetPeriod": "Période du budget"
     },
     "home": {
       "myProperties": "Mes Propriétés",
@@ -1183,7 +1134,8 @@
       "garageModeSummary": "Recherche par Marque/Modèle",
       "garageModeVin": "Décoder VIN",
       "yearOptional": "Année (optionnel)",
-      "addVinSave": "+ Enregistrer"
+      "addVinSave": "+ Enregistrer",
+      "deleteConfirmMsg": "Remove <strong>{{name}}</strong>?"
     },
     "products": {
       "title": "Mes Produits & Équipement",
@@ -1324,14 +1276,22 @@
     "activeBidsCount": "{{count}} actives",
     "wonBidsCount": "{{count}} gagnées",
     "noBidsYet": "Aucune offre pour l'instant. Parcourez les missions disponibles.",
-    "viewPublicProfile": "Voir le profil public →",
+    "viewPublicProfile": "Voir le profil public",
     "tabs": {
       "editProfile": "Modifier le profil",
       "earnings": "Revenus",
       "findJobs": "Trouver des emplois",
       "myBids": "Mes offres",
       "reviews": "Avis"
-    }
+    },
+    "jobsCompleted": "Travaux terminés",
+    "earnedThisMonth": "Gains ce mois",
+    "averageRating": "Note moyenne",
+    "editProfile": "Éditer le profil",
+    "addSkill": "Ajouter une compétence",
+    "manageSkills": "Gérer les compétences",
+    "addTool": "Ajouter un outil",
+    "manageTools": "Gérer les outils"
   },
   "postJob": {
     "title": "Publier une mission",
@@ -1889,44 +1849,46 @@
     "referredPeople": "Personnes que vous avez parrainées"
   },
   "notifications": {
-    "title": "Préférences de Notification",
-    "subtitle": "Choisissez comment vous souhaitez être informé de l'activité sur votre compte.",
-    "loadError": "Échec du chargement des préférences de notification",
-    "saveSuccess": "Préférence enregistrée",
-    "saveError": "Échec de l'enregistrement de la préférence",
-    "labels": {
-      "inAppNewBid": "Nouvelle offre reçue",
-      "inAppBidAccepted": "Offre acceptée",
-      "inAppJobStarted": "Mission commencée",
-      "inAppJobCompleted": "Mission terminée",
-      "inAppPaymentReleased": "Paiement libéré",
-      "inAppNewReview": "Nouvel avis",
-      "inAppDisputeUpdate": "Mise à jour du litige",
-      "inAppSubscription": "Changements d'abonnement",
-      "pushNewJobNearby": "Nouvelles missions à proximité",
-      "pushNewBid": "Nouvelle offre sur votre mission",
-      "pushBidAccepted": "Votre offre a été acceptée",
-      "pushPaymentReleased": "Paiement libéré",
-      "pushDisputeUpdate": "Mise à jour du litige",
-      "emailBidAccepted": "Offre acceptée",
-      "emailPaymentReleased": "Paiement libéré",
-      "emailSubscription": "Changements d'abonnement",
-      "emailDisputeUpdate": "Mise à jour du litige",
-      "emailWeeklySummary": "Résumé hebdomadaire"
-    },
-    "sections": {
-      "inApp": {
-        "title": "Dans l'application",
-        "desc": "Notifications affichées dans l'application."
+    "title": "Préférences de Notifications",
+    "subtitle": "Choisissez comment et quand vous recevez des notifications",
+    "backToSettings": "Retour aux Paramètres",
+    "saving": "Enregistrement...",
+    "prefSaved": "Préférence enregistrée",
+    "failedLoad": "Impossible de charger les préférences",
+    "failedSave": "Impossible d'enregistrer la préférence",
+    "groups": {
+      "in_app": {
+        "label": "Notifications dans l'Application",
+        "description": "Notifications affichées à l'intérieur de l'application"
       },
       "push": {
-        "title": "Notifications Push",
-        "desc": "Alertes envoyées sur votre appareil."
+        "label": "Notifications Push",
+        "description": "Notifications envoyées sur votre appareil"
       },
       "email": {
-        "title": "E-mail",
-        "desc": "Notifications envoyées à votre adresse e-mail."
+        "label": "Notifications par Email",
+        "description": "Mises à jour envoyées à votre adresse email"
       }
+    },
+    "prefs": {
+      "in_app_new_bid": "Nouvelle offre sur votre mission",
+      "in_app_bid_accepted": "Votre offre a été acceptée",
+      "in_app_job_started": "Mission commencée",
+      "in_app_job_completed": "Mission terminée",
+      "in_app_payment_released": "Paiement libéré",
+      "in_app_new_review": "Nouvel avis reçu",
+      "in_app_dispute_update": "Mise à jour du litige",
+      "in_app_subscription": "Mises à jour de l'abonnement",
+      "push_new_job_nearby": "Nouvelle mission à proximité",
+      "push_new_bid": "Nouvelle offre reçue",
+      "push_bid_accepted": "Offre acceptée",
+      "push_payment_released": "Paiement libéré",
+      "push_dispute_update": "Mise à jour du litige",
+      "email_bid_accepted": "Offre acceptée",
+      "email_payment_released": "Paiement libéré",
+      "email_subscription": "Mises à jour de l'abonnement",
+      "email_dispute_update": "Mise à jour du litige",
+      "email_weekly_summary": "Résumé hebdomadaire"
     }
   },
   "plannedNeeds": {
@@ -2072,36 +2034,46 @@
     "daysCount": "{{count}} jours",
     "daysWeeks": "{{count}} sem",
     "daysMonths": "{{count}} mois",
-    "daysYears": "{{count}} an"
+    "daysYears": "{{count}} an",
+    "category": "Catégorie",
+    "carCare": "Entretien automobile",
+    "personalCare": "Soins personnels",
+    "homeRepair": "Réparation à domicile",
+    "other": "Autre",
+    "dueDate": "Date d'échéance",
+    "leadDays": "Jours d'anticipation",
+    "recurring": "Récurrent",
+    "fixedRecurrence": "Récurrence fixe",
+    "floatingRecurrence": "Récurrence flottante"
   },
   "helperRegister": {
     "step4": {
-      "heading": "Profil et Localisation",
-      "profilePhotoLabel": "Photo de Profil",
-      "uploadPhoto": "Télécharger une photo",
       "changePhoto": "Changer la photo",
-      "headline": "Titre professionnel",
-      "headlinePlaceholder": "ex. Électricien certifié avec 10 ans d'expérience",
-      "bio": "Biographie / Description",
-      "bioPlaceholder": "Présentez votre expérience, vos spécialités et pourquoi les clients devraient vous choisir...",
-      "bioCount": "{{count}}/1000",
       "skillsLabel": "Compétences et Services",
-      "skillsPlaceholder": "Rechercher des compétences...",
-      "skillCount_one": "{{count}} sélectionnée",
-      "skillCount_other": "{{count}} sélectionnées",
       "noSkillsFound": "Aucune compétence trouvée pour « {{query}} »",
-      "serviceRadius": "Rayon de Service (miles)",
-      "serviceRadiusPlaceholder": "ex. 25",
-      "address": "Adresse",
-      "addressPlaceholder": "Numéro et rue",
-      "city": "Ville",
-      "cityPlaceholder": "Ville",
-      "state": "État / Province",
-      "zip": "Code Postal",
-      "zipPlaceholder": "Code postal",
-      "requiredField": "Ce champ est obligatoire",
-      "invalidZip": "Code postal invalide",
-      "invalidRadius": "Entrez un rayon entre 1 et 200"
+      "phoneLabel": "Phone Number",
+      "zipLabel": "Zip Code",
+      "photoLabel": "Profile Photo",
+      "photoOptional": "(optional)",
+      "uploading": "Uploading...",
+      "addPhoto": "Add Photo",
+      "photoHelp": "Helpers with photos get 2x more job requests.",
+      "skillsHint": "(select 1–8)",
+      "skillSearch": "Search skills (e.g. Plumbing, Painting, Pet Care…)",
+      "searching": "Searching…",
+      "skillCount": "{{count}}/8 selected",
+      "bioLabel": "Short Bio",
+      "bioPh": "Tell customers about your experience...",
+      "back": "Back",
+      "continue": "Continue",
+      "saving": "Saving...",
+      "errorPhone": "Enter a valid 10-digit US phone number",
+      "errorZip": "Enter a valid 5-digit zip code",
+      "errorSkills": "Select at least one skill",
+      "errorPhotoNotImage": "Please select an image file",
+      "errorPhotoSize": "Image must be under 5MB",
+      "errorPhotoUpload": "Photo upload failed",
+      "errorSave": "Failed to save profile"
     },
     "step5": {
       "freeName": "Gratuit",
@@ -2131,68 +2103,90 @@
       "failedSave": "Échec de l'enregistrement du plan"
     },
     "step6": {
-      "heading": "Informations Fiscales",
       "taxTypeLabel": "Type d'Identifiant Fiscal",
-      "ssn": "SSN (Numéro de Sécurité Sociale)",
-      "ein": "EIN (Numéro d'Identification de l'Employeur)",
       "ssnLabel": "Numéro de Sécurité Sociale",
       "einLabel": "Numéro d'Identification de l'Employeur",
-      "ssnPlaceholder": "XXX-XX-XXXX",
-      "einPlaceholder": "XX-XXXXXXX",
       "show": "Afficher",
       "hide": "Masquer",
-      "whyLabel": "Pourquoi avons-nous besoin de cela ?",
       "whyText": "En tant que prestataire indépendant sur OxSteed, vous devrez déclarer vos revenus. Nous collectons cette information de manière sécurisée pour émettre des formulaires 1099 si vous gagnez plus de 600 $ par an.",
-      "skipForNow": "Passer pour l'instant",
-      "saveAndContinue": "Enregistrer et Continuer",
-      "invalidSsn": "Entrez un SSN valide (XXX-XX-XXXX)",
-      "invalidEin": "Entrez un EIN valide (XX-XXXXXXX)"
+      "whyTitle": "Why do we need this?",
+      "securityLink": "Security Policy",
+      "ssnButton": "SSN (Individual)",
+      "einButton": "EIN (Business)",
+      "legalNameLabel": "Legal Name (as shown on tax return)",
+      "legalNamePh": "Jane A. Doe",
+      "legalNameHint": "This should match your government-issued ID exactly. Edit if your legal name differs from your display name.",
+      "mailingLabel": "Mailing Address",
+      "streetPh": "Street address",
+      "cityPh": "City",
+      "statePh": "ST",
+      "zipPh": "Zip",
+      "back": "← Back",
+      "continue": "Continue →",
+      "saving": "Saving...",
+      "errorLegalName": "Legal name is required",
+      "errorSsn": "SSN must be 9 digits",
+      "errorEin": "EIN must be 9 digits",
+      "errorStreet": "Street address is required",
+      "errorCity": "City is required",
+      "errorState": "Enter 2-letter state code",
+      "errorZip": "Enter a valid zip code",
+      "errorSave": "Failed to save tax info"
     },
     "step7": {
-      "heading": "Vérification et Finalisation",
-      "personalInfoSection": "Informations Personnelles",
-      "locationSection": "Localisation",
-      "skillsSection": "Compétences",
-      "taxSection": "Informations Fiscales",
-      "nameLabel": "Nom",
-      "emailLabel": "Email",
-      "phoneLabel": "Téléphone",
-      "addressLabel": "Adresse",
-      "radiusLabel": "Rayon de Service",
-      "radiusMiles": "{{count}} miles",
-      "taxTypeLabel": "Type",
-      "taxIdLabel": "Identifiant Fiscal",
       "notProvided": "Non fourni",
       "contractorText": "Je reconnais que je m'inscris en tant que <1>prestataire indépendant, et non comme employé</1> d'OxSteed. Je suis responsable de mes propres impôts, assurances et activités commerciales.",
-      "agreeTerms": "J'accepte les Conditions d'utilisation et la Politique de confidentialité",
-      "completeRegistration": "Finaliser l'Inscription",
       "successTitle": "Inscription Finalisée !",
-      "successMessage": "Votre profil de prestataire a été créé. Commencez à chercher des missions.",
-      "goToDashboard": "Accéder au Tableau de Bord"
+      "goToDashboard": "Accéder au Tableau de Bord",
+      "sectionAccount": "Account",
+      "sectionProfile": "Profile & Location",
+      "sectionPlan": "Plan",
+      "sectionTax": "Tax Information",
+      "phoneRow": "Phone: {{value}}",
+      "locationRow": "Location: {{value}}",
+      "skillsRow": "Skills: {{value}}",
+      "bioRow": "Bio: {{value}}",
+      "legalNameRow": "Legal Name: {{value}}",
+      "taxIdRow": "Tax ID: {{value}}",
+      "addressRow": "Address: {{value}}",
+      "proLabel": "Pro — $19.99/mo",
+      "freeLabel": "Free",
+      "editBtn": "[Edit]",
+      "termsText": "I agree to the",
+      "termsLink": "Terms of Service",
+      "privacyLink": "Privacy Policy",
+      "andText": "and",
+      "mustAcceptBoth": "You must accept both checkboxes to continue.",
+      "completeBtn": "Complete Registration",
+      "completing": "Completing...",
+      "errorComplete": "Failed to complete registration",
+      "successSubtitle": "Your helper account is ready. Here's what happens next:",
+      "successStep1": "Your profile is now visible to customers in your area.",
+      "successStep2": "Browse available jobs and start bidding.",
+      "successStep3": "Check your email for a welcome message with tips to get your first job."
     }
   },
   "helperProfile": {
     "reviews": {
       "ratingDistribution": "Répartition des notes",
-      "star_one": "{{count}} étoile",
-      "star_other": "{{count}} étoiles",
-      "reviews": "avis",
       "verifiedReviews": "{{count}} avis vérifiés",
-      "foundHelpful_one": "{{count}} personne a trouvé cela utile",
-      "foundHelpful_other": "{{count}} personnes ont trouvé cela utile",
       "showAll": "Voir les {{count}} avis",
-      "noReviews": "Aucun avis pour l'instant",
-      "noReviewsSub": "Les avis apparaîtront ici une fois les missions terminées."
+      "title": "Reviews",
+      "reviewCount": "{{count}} reviews",
+      "foundHelpful": "{{count}} found helpful",
+      "helperReplied": "Helper replied",
+      "responseFromHelper": "Response from the helper",
+      "verifiedPurchase": "Verified purchase",
+      "showFewer": "Show fewer"
     },
     "services": {
       "quote": "Sur devis",
       "from": "À partir de {{price}} $",
-      "perHour": "/h",
-      "flat": "forfait",
       "popular": "Populaire",
       "popularAria": "Service populaire",
-      "noServices": "Aucun service répertorié",
-      "noServicesSub": "Ce prestataire n'a pas encore listé de services."
+      "title": "Services & Pricing",
+      "subtitle": "All prices include labor. Materials billed separately if required.",
+      "emptySub": "Send them a message to ask about what they offer."
     },
     "header": {
       "reviewsCount": "({{count}} avis)",
@@ -2325,36 +2319,34 @@
     "center": {
       "title": "Centre de Litiges",
       "noDisputes": "Aucun litige en cours",
-      "status_open": "Ouvert",
-      "status_under_review": "En Cours d'Examen",
-      "status_resolved": "Résolu",
-      "status_closed": "Clôturé",
-      "resolution_refund_customer": "Remboursement au Client",
-      "resolution_release_to_helper": "Paiement au Prestataire",
-      "resolution_split": "Partage",
-      "resolution_no_action": "Aucune Action",
-      "openedOn": "Ouvert le {{date}}",
-      "viewDetails": "Voir les Détails"
+      "subtitle": "View and manage your active disputes",
+      "loading": "Loading...",
+      "noDisputesSub": "Disputes can be opened on completed jobs within the review period."
     },
     "detail": {
-      "back": "Retour au Centre de Litiges",
       "notFound": "Litige introuvable",
       "disputeNumber": "Litige n°{{number}}",
       "reason": "Motif : {{reason}}",
-      "status": "Statut",
       "resolvedBy": "Résolu par {{name}}",
       "refund": "Remboursement : {{amount}} $",
-      "description": "Description",
       "evidenceTitle": "Preuves ({{count}} fichiers)",
-      "yourEvidence": "Vos Preuves",
       "submitEvidence": "Soumettre des Preuves",
-      "evidenceLabel": "Fichiers de Preuves",
-      "evidenceDesc": "Description",
-      "evidenceDescPlaceholder": "Décrivez vos preuves...",
-      "submit": "Soumettre",
       "submitting": "Envoi en cours...",
-      "submitSuccess": "Preuves soumises avec succès",
-      "submitError": "Erreur lors de la soumission des preuves"
+      "loading": "Loading dispute...",
+      "originalDescription": "Original Description",
+      "filedBy": "Filed by",
+      "against": "Against",
+      "resolutionTitle": "Resolution",
+      "noEvidence": "No evidence submitted yet.",
+      "evidencePh": "Describe what happened, provide context, links, or any relevant information...",
+      "attachFiles": "Attach files (images, videos, documents — max 5)",
+      "evidenceClosed": "Evidence window closed. Awaiting admin review.",
+      "messagesTitle": "Messages",
+      "noMessages": "No messages yet. Send a message to communicate with the other party.",
+      "typeMessage": "Type a message...",
+      "failedSend": "Failed to send.",
+      "failedEvidence": "Failed to submit evidence.",
+      "evidenceRequired": "Please provide text or files as evidence."
     }
   },
   "twoFactor": {
@@ -2389,97 +2381,121 @@
     "failedRegen": "Impossible de régénérer les codes de secours",
     "backupCopied": "Codes copiés dans le presse-papiers"
   },
-  "notifications": {
-    "title": "Préférences de Notifications",
-    "subtitle": "Choisissez comment et quand vous recevez des notifications",
-    "backToSettings": "Retour aux Paramètres",
-    "saving": "Enregistrement...",
-    "prefSaved": "Préférence enregistrée",
-    "failedLoad": "Impossible de charger les préférences",
-    "failedSave": "Impossible d'enregistrer la préférence",
-    "groups": {
-      "in_app": {
-        "label": "Notifications dans l'Application",
-        "description": "Notifications affichées à l'intérieur de l'application"
-      },
-      "push": {
-        "label": "Notifications Push",
-        "description": "Notifications envoyées sur votre appareil"
-      },
-      "email": {
-        "label": "Notifications par Email",
-        "description": "Mises à jour envoyées à votre adresse email"
-      }
-    },
-    "prefs": {
-      "in_app_new_bid": "Nouvelle offre sur votre mission",
-      "in_app_bid_accepted": "Votre offre a été acceptée",
-      "in_app_job_started": "Mission commencée",
-      "in_app_job_completed": "Mission terminée",
-      "in_app_payment_released": "Paiement libéré",
-      "in_app_new_review": "Nouvel avis reçu",
-      "in_app_dispute_update": "Mise à jour du litige",
-      "in_app_subscription": "Mises à jour de l'abonnement",
-      "push_new_job_nearby": "Nouvelle mission à proximité",
-      "push_new_bid": "Nouvelle offre reçue",
-      "push_bid_accepted": "Offre acceptée",
-      "push_payment_released": "Paiement libéré",
-      "push_dispute_update": "Mise à jour du litige",
-      "email_bid_accepted": "Offre acceptée",
-      "email_payment_released": "Paiement libéré",
-      "email_subscription": "Mises à jour de l'abonnement",
-      "email_dispute_update": "Mise à jour du litige",
-      "email_weekly_summary": "Résumé hebdomadaire"
-    }
-  },
   "homePage": {
     "search": {
-      "tabJobs": "Publier une Mission",
-      "tabHelpers": "Trouver un Prestataire",
-      "whatLabel": "De quoi avez-vous besoin ?",
-      "whatPlaceholder": "ex. plomberie, déménagement, nettoyage...",
-      "whereLabel": "Où ?",
-      "wherePlaceholder": "Ville, État ou Code Postal",
-      "availableToday": "Disponible aujourd'hui",
-      "findHelpers": "Trouver des Prestataires",
-      "postJob": "Publier une Mission"
+      "findHelper": "Find a Helper",
+      "browseJobs": "Browse Jobs",
+      "helperLabel": "Search for a service or skill",
+      "jobsLabel": "Search jobs",
+      "helperPh": "e.g. plumbing, lawn care…",
+      "jobsPh": "Search jobs by keyword…",
+      "locationPh": "City or ZIP",
+      "clearSearch": "Clear search",
+      "clearLocation": "Clear location",
+      "locationSuggestions": "Location suggestions",
+      "skillSuggestions": "Skill suggestions",
+      "searchMode": "Search mode",
+      "availToday": "Today",
+      "availTodayTitle": "Show only helpers available today",
+      "findJobs": "Find Jobs",
+      "search": "Search"
     },
     "skills": {
-      "heading": "Explorez par Compétence",
-      "subtitle": "Des réparations d'urgence aux projets planifiés",
       "showMore": "Voir plus de compétences",
       "showFewer": "Voir moins de compétences",
-      "cantFind": "Vous ne trouvez pas votre service ?",
-      "postAnything": "Publiez n'importe quelle mission",
       "tiles": {
-        "electrical": { "name": "Électricité", "desc": "Prises, tableaux, bornes EV" },
-        "plumbing": { "name": "Plomberie", "desc": "Fuites, canalisations, chauffe-eau" },
-        "hvac": { "name": "CVC", "desc": "Chauffage, climatisation, ventilation" },
-        "carpentry": { "name": "Menuiserie", "desc": "Charpente, finitions, réparations" },
-        "painting": { "name": "Peinture", "desc": "Intérieur, extérieur, pistolet" },
-        "landscaping": { "name": "Jardinage", "desc": "Pelouse, jardins, terrasse" },
-        "cleaning": { "name": "Nettoyage", "desc": "Maison, bureau, déménagement" },
-        "moving": { "name": "Déménagement", "desc": "Chargement, transport, emballage" },
-        "roofing": { "name": "Toiture", "desc": "Réparations, fuites, installation" },
-        "flooring": { "name": "Revêtement de Sol", "desc": "Parquet, carrelage, moquette, vinyle" },
-        "concrete": { "name": "Béton", "desc": "Allées, entrées, dalles" },
-        "fencing": { "name": "Clôtures", "desc": "Installation, réparation, portails" },
-        "appliance_repair": { "name": "Réparation d'Appareils", "desc": "Lave-linge, réfrigérateurs, cuisinières" },
-        "auto_repair": { "name": "Mécanique Auto", "desc": "Vidange, freins, diagnostic" },
-        "tutoring": { "name": "Tutorat", "desc": "Maths, langues, préparation aux examens" },
-        "personal_training": { "name": "Entraînement Personnel", "desc": "Fitness, nutrition, bien-être" },
-        "photography": { "name": "Photographie", "desc": "Événements, portraits, immobilier" },
-        "it_support": { "name": "Support Informatique", "desc": "PC, réseaux, cybersécurité" },
-        "general_labor": { "name": "Main-d'Œuvre Générale", "desc": "Aide générale, travaux pénibles" }
-      }
+        "electrical": {
+          "name": "Électricité",
+          "desc": "Prises, tableaux, bornes EV"
+        },
+        "plumbing": {
+          "name": "Plomberie",
+          "desc": "Fuites, canalisations, chauffe-eau"
+        },
+        "hvac": {
+          "name": "CVC",
+          "desc": "Chauffage, climatisation, ventilation"
+        },
+        "carpentry": {
+          "name": "Menuiserie",
+          "desc": "Charpente, finitions, réparations"
+        },
+        "painting": {
+          "name": "Peinture",
+          "desc": "Intérieur, extérieur, pistolet"
+        },
+        "landscaping": {
+          "name": "Jardinage",
+          "desc": "Pelouse, jardins, terrasse"
+        },
+        "cleaning": {
+          "name": "Nettoyage",
+          "desc": "Maison, bureau, déménagement"
+        },
+        "moving": {
+          "name": "Déménagement",
+          "desc": "Chargement, transport, emballage"
+        },
+        "roofing": {
+          "name": "Toiture",
+          "desc": "Réparations, fuites, installation"
+        },
+        "flooring": {
+          "name": "Revêtement de Sol",
+          "desc": "Parquet, carrelage, moquette, vinyle"
+        },
+        "concrete": {
+          "name": "Béton",
+          "desc": "Allées, entrées, dalles"
+        },
+        "tutoring": {
+          "name": "Tutorat",
+          "desc": "Maths, langues, préparation aux examens"
+        },
+        "pest-control": {
+          "name": "Pest Control",
+          "desc": "Rodents, termites, insects"
+        },
+        "auto": {
+          "name": "Auto Repair",
+          "desc": "Mobile mechanic, detailing"
+        },
+        "appliance": {
+          "name": "Appliance Repair",
+          "desc": "Washer, dryer, refrigerator"
+        },
+        "welding": {
+          "name": "Welding",
+          "desc": "Metal fab, gates, structural"
+        },
+        "home-repair": {
+          "name": "Home Repair",
+          "desc": "Drywall, fixtures, handyman"
+        },
+        "security": {
+          "name": "Security",
+          "desc": "Cameras, alarms, smart home"
+        },
+        "pet-care": {
+          "name": "Pet Care",
+          "desc": "Sitting, walking, grooming"
+        }
+      },
+      "sectionTitle": "Browse by Skill",
+      "sectionSubtitle": "Find a local helper for the exact job you need done.",
+      "dontSeeSkill": "Don't see your skill?",
+      "postJobLink": "Post a job",
+      "dontSeeEnd": "and let qualified helpers come to you."
     },
     "cta": {
       "title": "Prêt à commencer ?",
       "titleEm": "commencer",
       "desc": "Rejoignez des milliers de voisins qui font confiance à OxSteed pour leurs besoins à domicile et plus encore.",
       "postJob": "Publier une Mission",
-      "offerSkills": "Proposer Mes Services",
-      "signIn": "Se Connecter"
+      "goToDashboard": "Go to Dashboard",
+      "viewDashboard": "View Dashboard",
+      "listSkills": "List Your Skills",
+      "postJobInstead": "Post a Job Instead"
     }
   },
   "preferredHelper": {
@@ -2616,21 +2632,66 @@
       "plans": "Plans et obligations"
     },
     "sources": {
-      "include_manual_income": { "label": "Revenus manuels", "desc": "Revenus ponctuels que vous enregistrez (salaires, missions, etc.)" },
-      "include_recurring_income": { "label": "Revenus récurrents", "desc": "Salaire, abonnements reçus, entrées régulières" },
-      "include_oxsteed_income": { "label": "Revenus des travaux OxSteed", "desc": "Paiements réglés des travaux terminés sur la plateforme" },
-      "include_predicted_jobs": { "label": "Revenus des travaux en cours", "desc": "Séquestre autorisé — paiement retenu, libéré à la fin" },
-      "include_tool_rentals": { "label": "Revenus de location d'outils", "desc": "Revenus enregistrés sous les catégories outil/équipement/location" },
-      "include_manual_expenses": { "label": "Dépenses manuelles", "desc": "Dépenses ponctuelles que vous enregistrez" },
-      "include_recurring_expenses": { "label": "Dépenses récurrentes", "desc": "Abonnements, factures, sorties régulières" },
-      "include_debt_obligations": { "label": "Obligations de dette mensuelle", "desc": "Paiements récurrents de prêts, hypothèques et crédits" },
-      "include_home_maintenance": { "label": "Plan d'entretien de la maison", "desc": "Tâches ménagères récurrentes avec un coût estimé" },
-      "include_car_care": { "label": "Plan d'entretien du véhicule", "desc": "Tâches récurrentes pour le véhicule avec un coût estimé" },
-      "include_personal_care": { "label": "Plan de soins personnels", "desc": "Tâches de soins personnels récurrentes avec un coût estimé" },
-      "include_business_pl": { "label": "P&P de l'entreprise", "desc": "Revenus des factures payées dans toutes vos entreprises" },
-      "include_pending_invoices": { "label": "Revenus des factures en attente", "desc": "Factures en attente comptées à 80% de confiance" },
-      "include_tax_obligations": { "label": "Obligations fiscales à venir", "desc": "Paiements d'impôts estimés dans la fenêtre sélectionnée" },
-      "include_planned_needs": { "label": "Fonds de besoins planifiés", "desc": "Dépenses futures pour lesquelles vous épargnez (vacances, réparations, etc.)" }
+      "include_manual_income": {
+        "label": "Revenus manuels",
+        "desc": "Revenus ponctuels que vous enregistrez (salaires, missions, etc.)"
+      },
+      "include_recurring_income": {
+        "label": "Revenus récurrents",
+        "desc": "Salaire, abonnements reçus, entrées régulières"
+      },
+      "include_oxsteed_income": {
+        "label": "Revenus des travaux OxSteed",
+        "desc": "Paiements réglés des travaux terminés sur la plateforme"
+      },
+      "include_predicted_jobs": {
+        "label": "Revenus des travaux en cours",
+        "desc": "Séquestre autorisé — paiement retenu, libéré à la fin"
+      },
+      "include_tool_rentals": {
+        "label": "Revenus de location d'outils",
+        "desc": "Revenus enregistrés sous les catégories outil/équipement/location"
+      },
+      "include_manual_expenses": {
+        "label": "Dépenses manuelles",
+        "desc": "Dépenses ponctuelles que vous enregistrez"
+      },
+      "include_recurring_expenses": {
+        "label": "Dépenses récurrentes",
+        "desc": "Abonnements, factures, sorties régulières"
+      },
+      "include_debt_obligations": {
+        "label": "Obligations de dette mensuelle",
+        "desc": "Paiements récurrents de prêts, hypothèques et crédits"
+      },
+      "include_home_maintenance": {
+        "label": "Plan d'entretien de la maison",
+        "desc": "Tâches ménagères récurrentes avec un coût estimé"
+      },
+      "include_car_care": {
+        "label": "Plan d'entretien du véhicule",
+        "desc": "Tâches récurrentes pour le véhicule avec un coût estimé"
+      },
+      "include_personal_care": {
+        "label": "Plan de soins personnels",
+        "desc": "Tâches de soins personnels récurrentes avec un coût estimé"
+      },
+      "include_business_pl": {
+        "label": "P&P de l'entreprise",
+        "desc": "Revenus des factures payées dans toutes vos entreprises"
+      },
+      "include_pending_invoices": {
+        "label": "Revenus des factures en attente",
+        "desc": "Factures en attente comptées à 80% de confiance"
+      },
+      "include_tax_obligations": {
+        "label": "Obligations fiscales à venir",
+        "desc": "Paiements d'impôts estimés dans la fenêtre sélectionnée"
+      },
+      "include_planned_needs": {
+        "label": "Fonds de besoins planifiés",
+        "desc": "Dépenses futures pour lesquelles vous épargnez (vacances, réparations, etc.)"
+      }
     }
   },
   "legalPage": {
@@ -2641,5 +2702,65 @@
     "goBackAria": "Retourner à la page précédente",
     "backToTopAria": "Défiler vers le haut de la page",
     "sectionsAria": "Sections de {{title}}"
+  },
+  "payments": {
+    "pending": "En attente",
+    "completed": "Terminé",
+    "failed": "Échec",
+    "refunded": "Remboursé",
+    "chargeAmount": "Montant du débit",
+    "paymentMethod": "Mode de paiement",
+    "date": "Date"
+  },
+  "profile": {
+    "name": "Nom",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "address": "Adresse",
+    "city": "Ville",
+    "state": "État",
+    "zipCode": "Code postal",
+    "bio": "Biographie",
+    "save": "Enregistrer les modifications"
+  },
+  "verification": {
+    "pending": "En attente",
+    "verified": "Vérifié",
+    "failed": "Échec",
+    "start": "Commencer la vérification",
+    "retry": "Réessayer"
+  },
+  "bids": {
+    "myBids": "Mes offres",
+    "placeBid": "Faire une offre",
+    "bidAmount": "Montant de l'offre",
+    "bidMessage": "Message d'offre",
+    "withdraw": "Retirer l'offre",
+    "withdrawn": "Offre retirée",
+    "accepted": "Accepté",
+    "rejected": "Rejeté"
+  },
+  "reviews": {
+    "submitReview": "Soumettre l'avis",
+    "rating": "Note",
+    "comment": "Commentaire",
+    "yourReview": "Votre avis",
+    "helperReview": "Avis du assistant"
+  },
+  "subscription": {
+    "tier1": "Niveau 1",
+    "tier2": "Niveau 2",
+    "tier3": "Niveau 3",
+    "features": "Caractéristiques",
+    "price": "Prix",
+    "perMonth": "par mois"
+  },
+  "modal": {
+    "title": "Titre",
+    "body": "Corps",
+    "error": "Erreur",
+    "success": "Succès",
+    "warning": "Avertissement",
+    "info": "Information"
   }
 }

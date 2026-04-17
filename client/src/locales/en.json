@@ -519,7 +519,24 @@
       "switchConfirmCustomer": "Switch to Customer mode?",
       "switchConfirmDesc": "You can always switch back later.",
       "switching": "Switching..."
-    }
+    },
+    "profileUpdated": "Profile updated",
+    "profileFailed": "Failed to update",
+    "passwordNoMatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordChanged": "Password changed",
+    "passwordChangeFailed": "Failed to change password",
+    "accountDeleted": "Account deleted",
+    "accountDeleteFailed": "Failed to delete account",
+    "businessNameRequired": "Business name is required",
+    "businessUpdated": "Business updated",
+    "businessAdded": "Business added",
+    "businessSaveFailed": "Failed to save business",
+    "businessRemoved": "Business removed",
+    "businessRemoveFailed": "Failed to remove business",
+    "primaryBusinessUpdated": "Primary business updated",
+    "primaryBusinessFailed": "Failed to update primary business",
+    "roleSwitchFailed": "Failed to switch role"
   },
   "messages": {
     "title": "Messages",
@@ -1790,44 +1807,46 @@
     "referredPeople": "People you've referred"
   },
   "notifications": {
-    "title": "Notification Preferences",
-    "subtitle": "Choose how you want to be notified about activity on your account.",
-    "loadError": "Failed to load notification preferences",
-    "saveSuccess": "Preference saved",
-    "saveError": "Failed to save preference",
-    "labels": {
-      "inAppNewBid": "New bid received",
-      "inAppBidAccepted": "Bid accepted",
-      "inAppJobStarted": "Job started",
-      "inAppJobCompleted": "Job completed",
-      "inAppPaymentReleased": "Payment released",
-      "inAppNewReview": "New review",
-      "inAppDisputeUpdate": "Dispute update",
-      "inAppSubscription": "Subscription changes",
-      "pushNewJobNearby": "New jobs nearby",
-      "pushNewBid": "New bid on your job",
-      "pushBidAccepted": "Your bid was accepted",
-      "pushPaymentReleased": "Payment released",
-      "pushDisputeUpdate": "Dispute update",
-      "emailBidAccepted": "Bid accepted",
-      "emailPaymentReleased": "Payment released",
-      "emailSubscription": "Subscription changes",
-      "emailDisputeUpdate": "Dispute update",
-      "emailWeeklySummary": "Weekly summary"
-    },
-    "sections": {
-      "inApp": {
-        "title": "In-App",
-        "desc": "Notifications shown inside the app."
+    "title": "Notification Settings",
+    "subtitle": "Choose how and when you receive notifications.",
+    "backToSettings": "Back to Settings",
+    "saving": "Saving...",
+    "prefSaved": "Preference saved",
+    "failedSave": "Failed to save preference",
+    "failedLoad": "Failed to load notification preferences",
+    "groups": {
+      "in_app": {
+        "label": "In-App Notifications",
+        "description": "Shown inside the app in your notification center."
       },
       "push": {
-        "title": "Push Notifications",
-        "desc": "Alerts sent to your device."
+        "label": "Push Notifications",
+        "description": "Alerts sent directly to your device."
       },
       "email": {
-        "title": "Email",
-        "desc": "Notifications sent to your email address."
+        "label": "Email Notifications",
+        "description": "Messages sent to your registered email address."
       }
+    },
+    "prefs": {
+      "in_app_new_bid": "New bid on my job",
+      "in_app_bid_accepted": "My bid was accepted",
+      "in_app_job_started": "Job started",
+      "in_app_job_completed": "Job completed",
+      "in_app_payment_released": "Payment released",
+      "in_app_new_review": "New review received",
+      "in_app_dispute_update": "Dispute updates",
+      "in_app_subscription": "Subscription updates",
+      "push_new_job_nearby": "New jobs near me",
+      "push_new_bid": "New bid on my job",
+      "push_bid_accepted": "My bid was accepted",
+      "push_payment_released": "Payment released",
+      "push_dispute_update": "Dispute updates",
+      "email_bid_accepted": "Bid accepted",
+      "email_payment_released": "Payment released",
+      "email_subscription": "Subscription events",
+      "email_dispute_update": "Dispute updates",
+      "email_weekly_summary": "Weekly activity summary"
     }
   },
   "plannedNeeds": {
@@ -2310,40 +2329,6 @@
     "invalidCode": "Invalid code",
     "failedRegen": "Failed"
   },
-  "notifications": {
-    "title": "Notification Settings",
-    "subtitle": "Choose how and when you receive notifications.",
-    "backToSettings": "Back to Settings",
-    "saving": "Saving...",
-    "prefSaved": "Preference saved",
-    "failedSave": "Failed to save preference",
-    "failedLoad": "Failed to load notification preferences",
-    "groups": {
-      "in_app": { "label": "In-App Notifications", "description": "Shown inside the app in your notification center." },
-      "push": { "label": "Push Notifications", "description": "Alerts sent directly to your device." },
-      "email": { "label": "Email Notifications", "description": "Messages sent to your registered email address." }
-    },
-    "prefs": {
-      "in_app_new_bid": "New bid on my job",
-      "in_app_bid_accepted": "My bid was accepted",
-      "in_app_job_started": "Job started",
-      "in_app_job_completed": "Job completed",
-      "in_app_payment_released": "Payment released",
-      "in_app_new_review": "New review received",
-      "in_app_dispute_update": "Dispute updates",
-      "in_app_subscription": "Subscription updates",
-      "push_new_job_nearby": "New jobs near me",
-      "push_new_bid": "New bid on my job",
-      "push_bid_accepted": "My bid was accepted",
-      "push_payment_released": "Payment released",
-      "push_dispute_update": "Dispute updates",
-      "email_bid_accepted": "Bid accepted",
-      "email_payment_released": "Payment released",
-      "email_subscription": "Subscription events",
-      "email_dispute_update": "Dispute updates",
-      "email_weekly_summary": "Weekly activity summary"
-    }
-  },
   "homePage": {
     "search": {
       "findHelper": "Find a Helper",
@@ -2372,25 +2357,82 @@
       "postJobLink": "Post a job",
       "dontSeeEnd": "and let qualified helpers come to you.",
       "tiles": {
-        "electrical": { "name": "Electrical", "desc": "Outlets, panels, EV chargers" },
-        "plumbing": { "name": "Plumbing", "desc": "Leaks, drains, water heaters" },
-        "hvac": { "name": "HVAC", "desc": "AC, heating, duct work" },
-        "carpentry": { "name": "Carpentry", "desc": "Decks, trim, custom builds" },
-        "painting": { "name": "Painting", "desc": "Interior & exterior" },
-        "roofing": { "name": "Roofing", "desc": "Repair, replacement, gutters" },
-        "flooring": { "name": "Flooring", "desc": "Hardwood, tile, carpet" },
-        "landscaping": { "name": "Landscaping", "desc": "Lawn, garden, tree care" },
-        "moving": { "name": "Moving", "desc": "Packing, loading, hauling" },
-        "cleaning": { "name": "Cleaning", "desc": "Deep clean, move-out, regular" },
-        "pest-control": { "name": "Pest Control", "desc": "Rodents, termites, insects" },
-        "auto": { "name": "Auto Repair", "desc": "Mobile mechanic, detailing" },
-        "appliance": { "name": "Appliance Repair", "desc": "Washer, dryer, refrigerator" },
-        "concrete": { "name": "Concrete", "desc": "Driveways, patios, slabs" },
-        "welding": { "name": "Welding", "desc": "Metal fab, gates, structural" },
-        "home-repair": { "name": "Home Repair", "desc": "Drywall, fixtures, handyman" },
-        "security": { "name": "Security", "desc": "Cameras, alarms, smart home" },
-        "pet-care": { "name": "Pet Care", "desc": "Sitting, walking, grooming" },
-        "tutoring": { "name": "Tutoring", "desc": "Math, reading, test prep" }
+        "electrical": {
+          "name": "Electrical",
+          "desc": "Outlets, panels, EV chargers"
+        },
+        "plumbing": {
+          "name": "Plumbing",
+          "desc": "Leaks, drains, water heaters"
+        },
+        "hvac": {
+          "name": "HVAC",
+          "desc": "AC, heating, duct work"
+        },
+        "carpentry": {
+          "name": "Carpentry",
+          "desc": "Decks, trim, custom builds"
+        },
+        "painting": {
+          "name": "Painting",
+          "desc": "Interior & exterior"
+        },
+        "roofing": {
+          "name": "Roofing",
+          "desc": "Repair, replacement, gutters"
+        },
+        "flooring": {
+          "name": "Flooring",
+          "desc": "Hardwood, tile, carpet"
+        },
+        "landscaping": {
+          "name": "Landscaping",
+          "desc": "Lawn, garden, tree care"
+        },
+        "moving": {
+          "name": "Moving",
+          "desc": "Packing, loading, hauling"
+        },
+        "cleaning": {
+          "name": "Cleaning",
+          "desc": "Deep clean, move-out, regular"
+        },
+        "pest-control": {
+          "name": "Pest Control",
+          "desc": "Rodents, termites, insects"
+        },
+        "auto": {
+          "name": "Auto Repair",
+          "desc": "Mobile mechanic, detailing"
+        },
+        "appliance": {
+          "name": "Appliance Repair",
+          "desc": "Washer, dryer, refrigerator"
+        },
+        "concrete": {
+          "name": "Concrete",
+          "desc": "Driveways, patios, slabs"
+        },
+        "welding": {
+          "name": "Welding",
+          "desc": "Metal fab, gates, structural"
+        },
+        "home-repair": {
+          "name": "Home Repair",
+          "desc": "Drywall, fixtures, handyman"
+        },
+        "security": {
+          "name": "Security",
+          "desc": "Cameras, alarms, smart home"
+        },
+        "pet-care": {
+          "name": "Pet Care",
+          "desc": "Sitting, walking, grooming"
+        },
+        "tutoring": {
+          "name": "Tutoring",
+          "desc": "Math, reading, test prep"
+        }
       }
     },
     "cta": {
@@ -2538,21 +2580,66 @@
       "plans": "Plans & Obligations"
     },
     "sources": {
-      "include_manual_income": { "label": "Manual income entries", "desc": "One-time income you log (wages, gigs, etc.)" },
-      "include_recurring_income": { "label": "Recurring income", "desc": "Salary, subscriptions received, regular inflows" },
-      "include_oxsteed_income": { "label": "OxSteed job income", "desc": "Settled payouts from completed platform jobs" },
-      "include_predicted_jobs": { "label": "In-progress job income", "desc": "Authorized escrow — payment held, released on completion" },
-      "include_tool_rentals": { "label": "Tool rental income", "desc": "Income logged under tool / equipment / rental categories" },
-      "include_manual_expenses": { "label": "Manual expense entries", "desc": "One-time expenses you log" },
-      "include_recurring_expenses": { "label": "Recurring expenses", "desc": "Subscriptions, bills, regular outflows" },
-      "include_debt_obligations": { "label": "Monthly debt obligations", "desc": "Recurring loan, mortgage, and credit payments" },
-      "include_home_maintenance": { "label": "Home maintenance plan", "desc": "Recurring home tasks with an estimated cost" },
-      "include_car_care": { "label": "Car care plan", "desc": "Recurring vehicle tasks with an estimated cost" },
-      "include_personal_care": { "label": "Personal care plan", "desc": "Recurring personal care tasks with an estimated cost" },
-      "include_business_pl": { "label": "Business P&L", "desc": "Paid invoice income across all your businesses" },
-      "include_pending_invoices": { "label": "Pending invoice income", "desc": "Outstanding invoices counted at 80% confidence" },
-      "include_tax_obligations": { "label": "Upcoming tax obligations", "desc": "Estimated tax payments due within the selected window" },
-      "include_planned_needs": { "label": "Planned needs sinking fund", "desc": "Future expenses you are saving toward (vacation, repairs, etc.)" }
+      "include_manual_income": {
+        "label": "Manual income entries",
+        "desc": "One-time income you log (wages, gigs, etc.)"
+      },
+      "include_recurring_income": {
+        "label": "Recurring income",
+        "desc": "Salary, subscriptions received, regular inflows"
+      },
+      "include_oxsteed_income": {
+        "label": "OxSteed job income",
+        "desc": "Settled payouts from completed platform jobs"
+      },
+      "include_predicted_jobs": {
+        "label": "In-progress job income",
+        "desc": "Authorized escrow — payment held, released on completion"
+      },
+      "include_tool_rentals": {
+        "label": "Tool rental income",
+        "desc": "Income logged under tool / equipment / rental categories"
+      },
+      "include_manual_expenses": {
+        "label": "Manual expense entries",
+        "desc": "One-time expenses you log"
+      },
+      "include_recurring_expenses": {
+        "label": "Recurring expenses",
+        "desc": "Subscriptions, bills, regular outflows"
+      },
+      "include_debt_obligations": {
+        "label": "Monthly debt obligations",
+        "desc": "Recurring loan, mortgage, and credit payments"
+      },
+      "include_home_maintenance": {
+        "label": "Home maintenance plan",
+        "desc": "Recurring home tasks with an estimated cost"
+      },
+      "include_car_care": {
+        "label": "Car care plan",
+        "desc": "Recurring vehicle tasks with an estimated cost"
+      },
+      "include_personal_care": {
+        "label": "Personal care plan",
+        "desc": "Recurring personal care tasks with an estimated cost"
+      },
+      "include_business_pl": {
+        "label": "Business P&L",
+        "desc": "Paid invoice income across all your businesses"
+      },
+      "include_pending_invoices": {
+        "label": "Pending invoice income",
+        "desc": "Outstanding invoices counted at 80% confidence"
+      },
+      "include_tax_obligations": {
+        "label": "Upcoming tax obligations",
+        "desc": "Estimated tax payments due within the selected window"
+      },
+      "include_planned_needs": {
+        "label": "Planned needs sinking fund",
+        "desc": "Future expenses you are saving toward (vacation, repairs, etc.)"
+      }
     }
   },
   "legalPage": {

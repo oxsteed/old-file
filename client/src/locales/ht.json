@@ -62,7 +62,9 @@
     "dueThisWeek": "Semèn sa a",
     "available": "Disponib",
     "unavailable": "Pa disponib",
-    "pro": "Pro"
+    "pro": "Pro",
+    "basic": "Barik",
+    "premium": "Premium"
   },
   "trial": {
     "active": "Trial is active",
@@ -84,44 +86,46 @@
     "referredPeople": "People you've referred"
   },
   "notifications": {
-    "title": "Notification Preferences",
-    "subtitle": "Choose how you want to be notified about activity on your account.",
-    "loadError": "Failed to load notification preferences",
-    "saveSuccess": "Preference saved",
-    "saveError": "Failed to save preference",
-    "labels": {
-      "inAppNewBid": "New bid received",
-      "inAppBidAccepted": "Bid accepted",
-      "inAppJobStarted": "Job started",
-      "inAppJobCompleted": "Job completed",
-      "inAppPaymentReleased": "Payment released",
-      "inAppNewReview": "New review",
-      "inAppDisputeUpdate": "Dispute update",
-      "inAppSubscription": "Subscription changes",
-      "pushNewJobNearby": "New jobs nearby",
-      "pushNewBid": "New bid on your job",
-      "pushBidAccepted": "Your bid was accepted",
-      "pushPaymentReleased": "Payment released",
-      "pushDisputeUpdate": "Dispute update",
-      "emailBidAccepted": "Bid accepted",
-      "emailPaymentReleased": "Payment released",
-      "emailSubscription": "Subscription changes",
-      "emailDisputeUpdate": "Dispute update",
-      "emailWeeklySummary": "Weekly summary"
-    },
-    "sections": {
-      "inApp": {
-        "title": "In-App",
-        "desc": "Notifications shown inside the app."
+    "title": "Preferans Notifikasyon",
+    "subtitle": "Chwazi kijan ak kilè ou resevwa notifikasyon",
+    "backToSettings": "Tounen nan Paramèt",
+    "saving": "Ap sove...",
+    "prefSaved": "Preferans sove",
+    "failedLoad": "Echèk chajman preferans",
+    "failedSave": "Echèk sove preferans",
+    "groups": {
+      "in_app": {
+        "label": "Notifikasyon nan Aplikasyon",
+        "description": "Notifikasyon ki parèt anndan aplikasyon an"
       },
       "push": {
-        "title": "Push Notifications",
-        "desc": "Alerts sent to your device."
+        "label": "Notifikasyon Push",
+        "description": "Notifikasyon voye nan aparèy ou"
       },
       "email": {
-        "title": "Email",
-        "desc": "Notifications sent to your email address."
+        "label": "Notifikasyon pa Imèl",
+        "description": "Mizajou voye nan adrès imèl ou"
       }
+    },
+    "prefs": {
+      "in_app_new_bid": "Nouvo òf sou travay ou",
+      "in_app_bid_accepted": "Òf ou aksepte",
+      "in_app_job_started": "Travay kòmanse",
+      "in_app_job_completed": "Travay fini",
+      "in_app_payment_released": "Peman libere",
+      "in_app_new_review": "Nouvo kòmantè resevwa",
+      "in_app_dispute_update": "Mizajou dispute",
+      "in_app_subscription": "Mizajou abònman",
+      "push_new_job_nearby": "Nouvo travay pre ou",
+      "push_new_bid": "Nouvo òf resevwa",
+      "push_bid_accepted": "Òf aksepte",
+      "push_payment_released": "Peman libere",
+      "push_dispute_update": "Mizajou dispute",
+      "email_bid_accepted": "Òf aksepte",
+      "email_payment_released": "Peman libere",
+      "email_subscription": "Mizajou abònman",
+      "email_dispute_update": "Mizajou dispute",
+      "email_weekly_summary": "Rezime chak semèn"
     }
   },
   "jobs": {
@@ -135,7 +139,7 @@
     "urgency": "Ijans",
     "asap": "Pi vit Posib",
     "thisWeek": "Semèn sa a",
-    "flexible": "Fleksib",
+    "flexible": "Flexib",
     "placeBid": "Fè Òf",
     "cancelJob": "Anile Travay",
     "markComplete": "Mak kòm Fini",
@@ -147,8 +151,15 @@
     "postedBy": "Pibliye pa",
     "category": "Kategori",
     "location": "Kote",
-    "requirements": "Kondisyon",
-    "media": "Foto ak Medya"
+    "requirements": "Egzijans",
+    "media": "Foto ak Medya",
+    "timeframe": "Deline",
+    "noResultsTitle": "Pa gen travay disponib",
+    "noResultsDesc": "Eseye ajiste filtfil ou yo",
+    "apply": "Poste",
+    "timeline": "Deline",
+    "about": "Sou",
+    "description": "Deskripsyon"
   },
   "auth": {
     "email": "Adrès imèl",
@@ -189,7 +200,10 @@
     "postJob": "Pibliye Travay",
     "listSkills": "Ofri Sèvis Ou",
     "welcomeBackToast": "Byenvini tounen!",
-    "verifyIdentityToast": "Byenvini tounen! Tanpri konplete verifikasyon idantite ou."
+    "verifyIdentityToast": "Byenvini tounen! Tanpri konplete verifikasyon idantite ou.",
+    "emailRequired": "Imel obligatwa",
+    "passwordRequired": "Modpas obligatwa",
+    "invalidCredentials": "Kredansyal envalid"
   },
   "forgotPassword": {
     "title": "Reyinisyalize modpas ou",
@@ -277,10 +291,12 @@
     "stepOf": "Etap {{current}} sou 2",
     "step1Label": "Kreye pwofil ou",
     "step2Label": "Verifye idantite ou",
-    "firstNamePlaceholder": "Toussaint",
-    "lastNamePlaceholder": "Louverture",
-    "businessNamePlaceholder": "Non Biznis Mwen LLC",
-    "addressPlaceholder": "123 Ri Prensipal, Pòtoprens"
+    "firstNamePlaceholder": "Premye non",
+    "lastNamePlaceholder": "Dènye non",
+    "businessNamePlaceholder": "Non biznis",
+    "addressPlaceholder": "Adrès",
+    "agreeToTerms": "Dakò avèk kondisyon",
+    "haveAccount": "Ou deja gen kont?"
   },
   "didit": {
     "title": "Verifye idantite ou",
@@ -336,8 +352,8 @@
     "accessibility": "Aksesibilite",
     "manageCookies": "Jere Bonbon",
     "vortex": "Vortex",
-    "vortexTitle": "Vortex",
-    "vortexDesc": "Antre yon token Vortex 64 karaktè pwopriyetè biznis pataje pou ou ka rejwenn ekip yo.",
+    "vortexTitle": "Sistèm Vortex",
+    "vortexDesc": "Platfòm jestyon biznis",
     "vortexPlaceholder": "Kole token 64 karaktè ou…",
     "vortexChars": "{{count}} / 64 karaktè",
     "vortexTokenError": "Token dwe gen egzakteman 64 karaktè.",
@@ -413,7 +429,7 @@
     "freeDesc": "Kòmanse ak debaz yo",
     "freeForever": "/pou toujou",
     "currentPlan": "Plan ou kounye a",
-    "proTitle": "Pro",
+    "proTitle": "Plan Pwofesyonèl",
     "proDesc": "Tout sa ou bezwen pou grandi",
     "subscribePro": "Abonnen nan Pro",
     "recommended": "Rekòmande",
@@ -485,7 +501,8 @@
     "compareF14": "Enfòmasyon kominotè",
     "compareF15": "Elejib pou Pwoteksyon OxSteed",
     "protectionDesc": "Lè ou sèvi ak Pwoteksyon OxSteed, pèman trete an sekirite atravè Stripe. Kliyan an peye pri travay akòde a, epi OxSteed pran yon sèl frè platfòm 7.1% (minimòm $5). Sa tout — yon frè transparan ki kouvri tretman pèman, mediasyon konfli, ak sipò platfòm.",
-    "protectionNote": "* Pwoteksyon OxSteed mande verifikasyon ID pou kliyan ak verifikasyon ID + verifikasyon dosye kriminèl + kont Stripe pou pwofesyonèl yo."
+    "protectionNote": "* Pwoteksyon OxSteed mande verifikasyon ID pou kliyan ak verifikasyon ID + verifikasyon dosye kriminèl + kont Stripe pou pwofesyonèl yo.",
+    "proFeatures": "Karakteristik pwofesyonèl"
   },
   "jobList": {
     "title": "Jwenn Sèvis Lokal Prè Ou",
@@ -522,167 +539,82 @@
     "switchedToCustomer": "Chanje nan mòd Kliyan. Pwofil pwofesyonèl ou sove epi ap tann.",
     "switchFailed": "Echwe pou chanje wòl",
     "profileTab": {
-      "title": "Pwofil",
-      "firstName": "Prenon",
-      "lastName": "Non",
-      "phone": "Telefòn",
-      "bio": "Biyo",
-      "zipcode": "Kòd Postal",
-      "saveProfile": "Sove Pwofil",
-      "saved": "Pwofil sove!",
-      "editProfile": "Modifye Pwofil",
-      "subtitle": "Jere enfòmasyon pèsonèl ou.",
-      "nameLocked": "Chanjman non mande verifikasyon idantite epi ekip nou an dwe trete sa.",
-      "displayName": "Non pou parèt",
-      "displayNameSub": "Chwazi kijan non ou parèt devan lòt moun sou platfòm lan.",
+      "title": "Profile",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "phone": "Phone",
+      "bio": "Bio",
+      "zipcode": "Zip Code",
+      "saveProfile": "Save Profile",
+      "saved": "Profile saved!",
+      "editProfile": "Edit Profile",
+      "subtitle": "Manage your personal information.",
+      "nameLocked": "Name changes require identity verification and must be processed by our team.",
+      "displayName": "Display Name",
+      "displayNameSub": "Choose how your name appears to others on the platform.",
       "displayNameOpt": {
-        "firstName": "Prenon sèlman",
-        "fullName": "Non konplè",
-        "businessName": "Non biznis"
+        "firstName": "First name only",
+        "fullName": "Full name",
+        "businessName": "Business name"
       },
-      "businessFallback": "⚠ Si ou pa gen okenn biznis ajoute, sa ap tounen sou prenon ou sèlman."
+      "businessFallback": "⚠ If you have no business added, this falls back to your first name."
     },
     "securityTab": {
-      "title": "Sekirite",
-      "currentPassword": "Modpas aktyèl",
-      "newPassword": "Nouvo modpas",
-      "confirmPassword": "Konfime nouvo modpas",
-      "changePassword": "Chanje modpas",
-      "twoFactor": "Otantifikasyon de faktè",
-      "enable2fa": "Aktive 2FA",
-      "disable2fa": "Dezaktive 2FA",
-      "saved": "Modpas mete ajou!",
-      "subtitle": "Sèvi ak yon modpas solid ak inik pou kont ou.",
-      "manage2fa": "Jere 2FA",
-      "extraLayer": "Ajoute yon kouch sekirite anplis nan kont ou."
+      "title": "Security",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "changePassword": "Change Password",
+      "twoFactor": "Two-Factor Authentication",
+      "enable2fa": "Enable 2FA",
+      "disable2fa": "Disable 2FA",
+      "saved": "Password updated!",
+      "subtitle": "Use a strong, unique password for your account.",
+      "manage2fa": "Manage 2FA",
+      "extraLayer": "Add an extra layer of security to your account."
     },
     "subscriptionTab": {
-      "title": "Abònman ak Faktirasyon",
-      "subtitle": "Jere plan ak enfòmasyon peman ou.",
-      "loading": "Ap chaje abònman…",
-      "active": "Aktif",
-      "nextBilling": "Pwochèn faktirasyon: {{date}}",
-      "cancelPending": "Abònman an ap anile nan fen peryòd faktirasyon an.",
-      "manageBilling": "Jere Faktirasyon",
-      "cancelPlan": "Anile Plan",
-      "cancelConfirm": "Anile abònman ou? W ap toujou gen aksè jiska fen peryòd faktirasyon ou an.",
-      "freePlanSub": "Ou sou plan Gratis la. Amelyore pou debloke plis karakteristik.",
-      "upgradeTo": "Amelyore nan {{name}} — ${{price}}/{{period}}"
-    },
-    "businessesTab": {
-      "title": "Biznis mwen yo",
-      "addBusiness": "+ Ajoute Biznis",
-      "subtitle": "Jere LLC ou yo ak antite biznis ou yo. Travay ak peman yo ka lye ak yon biznis espesifik.",
-      "loading": "Ap chaje biznis yo…",
-      "noBusinesses": "Pa gen biznis ajoute ankò",
-      "noBusinessesSub": "Ajoute LLC ou oswa antite biznis ou pou sèvi nan travay ak fakti.",
-      "primary": "Prensipal",
-      "edit": "Modifye",
-      "remove": "Retire",
-      "removeConfirm": "Retire biznis sa a?",
-      "setPrimary": "Mete kòm prensipal",
-      "editTitle": "Modifye Biznis",
-      "addTitle": "Ajoute yon Biznis",
-      "name": "Non Biznis *",
-      "type": "Kalite Biznis",
-      "ein": "EIN (opsyonèl)",
-      "address": "Adrès Biznis",
-      "street": "Ri",
-      "city": "Vil",
-      "state": "Leta",
-      "zip": "Kòd Postal",
-      "update": "Mete ajou Biznis",
-      "types": {
-        "sole_prop": "Pwopriyetè sèl",
-        "llc": "LLC",
-        "corp": "Kòporasyon",
-        "partnership": "Patenarya"
-      }
-    },
-    "notificationsTab": {
-      "title": "Preferans Notifikasyon",
-      "subtitle": "Chwazi kijan ou vle yo fè ou konnen aktivite sou kont ou.",
-      "loading": "Ap chaje preferans...",
-      "saving": "Ap sove...",
-      "saved": "Preferans sove",
-      "groups": {
-        "in_app": {
-          "title": "Notifikasyon nan Aplikasyon an",
-          "desc": "Yo parèt andedan aplikasyon an nan sant notifikasyon ou."
-        },
-        "push": {
-          "title": "Notifikasyon Push",
-          "desc": "Alèt yo voye dirèkteman sou aparèy ou an."
-        },
-        "email": {
-          "title": "Notifikasyon pa Imèl",
-          "desc": "Mesaj yo voye nan adrès imèl ou anrejistre a."
-        }
-      },
-      "labels": {
-        "new_bid": "Nouvo òf resevwa",
-        "bid_accepted": "Òf aksepte",
-        "job_started": "Travay kòmanse",
-        "job_completed": "Travay fini",
-        "payment_released": "Peman lage",
-        "new_review": "Nouvo kòmantè resevwa",
-        "dispute_update": "Mizajou dispit",
-        "subscription": "Mizajou abònman",
-        "new_job_nearby": "Nouvo travay toupre mwen",
-        "weekly_summary": "Rezime aktivite semèn"
-      }
-    },
-    "privacyTab": {
-      "title": "Konfidansyalite ak Done",
-      "subtitle": "Telechaje yon kopi tout done ou yo jan GDPR/CCPA mande sa.",
-      "exportData": "Ekspòte done mwen yo",
-      "exported": "Done ekspòte",
-      "exportFailed": "Ekspòtasyon echwe"
-    },
-    "accountTypeTab": {
-      "title": "Kalite Kont",
-      "helperDesc": "Ou se yon Èd kounye a — ou ka resevwa òf travay epi parèt nan anyè èd la. Chanje nan mòd Kliyan pou w ka gade ak pibliye travay pito.",
-      "customerDesc": "Ou se yon Kliyan kounye a — ou ka pibliye travay ak gade èd yo. Chanje nan mòd Èd pou ofri sèvis ou sou OxSteed.",
-      "currentRole": "Wòl aktyèl",
-      "switchToCustomer": "Chanje nan Mòd Kliyan",
-      "switchToHelper": "Chanje nan Mòd Èd",
-      "confirmTitle": "Chanje nan mòd {{role}}?",
-      "helperToCustomer": "Pwofil èd ou ak tout done ou yo ap sove. Ou ka tounen nenpòt lè. Ou p ap parèt nan anyè èd la ankò pandan ou nan mòd Kliyan.",
-      "customerToHelper": "Y ap kreye yon pwofil èd pou ou. W ap kòmanse kòm offline — ou kontwole lè ou parèt nan anyè a lè ou sèvi ak switch nan tablodbò ou an. Ou ka tounen nan mòd Kliyan nenpòt lè.",
-      "yesSwitch": "Wi, Chanje",
-      "switching": "Ap chanje..."
+      "pro": "Pro",
+      "manageBilling": "Manage Billing",
+      "upgrade": "Upgrade to Pro",
+      "cancel": "Cancel Subscription",
+      "renews": "Renews {{date}}"
     },
     "dangerTab": {
-      "title": "Zòn Danje",
-      "subtitle": "Eseye efase kont ou nèt ak tout done ki mache avè l yo. Aksyon sa a pa ka anile.",
-      "deleteAccount": "Efase Kont mwen an",
-      "confirmTitle": "Èske ou sèten nèt?",
-      "confirmDesc": "Sa pral efase kont ou, pwofil ou, istwa travay ou, ak tout done ki mache avè l yo nèt ale. Ou pa ka anile sa.",
-      "yesDelete": "Wi, Efase Kont mwen an"
+      "title": "Danger Zone",
+      "deleteAccount": "Delete Account",
+      "deleteWarning": "This action cannot be undone. All your data will be permanently deleted.",
+      "deleteButton": "Delete My Account",
+      "confirmDelete": "Are you sure? Type DELETE to confirm.",
+      "deleted": "Account deleted"
     },
-    "twoFactor": {
-      "title": "Otantifikasyon de faktè",
-      "subtitle": "Ajoute yon kouch sekirite anplis nan kont ou",
-      "notEnabled": "2FA pa aktive",
-      "secureDesc": "Sekirize kont ou ak yon aplikasyon otantifikasyon",
-      "enable": "Aktive Otantifikasyon de Faktè",
-      "setupDesc": "Eskane kòd QR sa a ak aplikasyon otantifikasyon ou an (Google Authenticator, Authy, elatriye.)",
-      "manualKey": "Kle antre manyèl:",
-      "saveBackup": "Sove kòd sekou ou yo!",
-      "backupDesc": "Kenbe sa yo nan yon kote ki an sekirite. Chak kòd ka sèvi yon sèl fwa sèlman.",
-      "copyCodes": "Kopye tout kòd yo",
-      "enterCode": "Antre kòd 6 chif ki nan aplikasyon ou an",
-      "verifyEnable": "Verifye ak Aktive 2FA",
-      "enabled": "2FA aktive",
-      "protectedDesc": "Kont ou pwoteje ak TOTP",
-      "manage": "Jere 2FA",
-      "disable": "Dezaktive 2FA",
-      "newBackup": "Nouvo Kòd Sekou",
-      "invalidOld": "Kòd anvan yo pa bon ankò. Sove sa yo byen an sekirite.",
-      "done": "Fini",
-      "codePlaceholder": "000000",
-      "managePlaceholder": "Antre kòd 6 chif pou jere"
-    }
+    "accountTab": {
+      "title": "Account Type",
+      "currentRole": "Current role",
+      "switchTo": "Switch to {{role}}",
+      "switchConfirmHelper": "Switch to Helper mode?",
+      "switchConfirmCustomer": "Switch to Customer mode?",
+      "switchConfirmDesc": "You can always switch back later.",
+      "switching": "Switching..."
+    },
+    "preferencesTab": "Preferans",
+    "profileUpdated": "Pwofil mete ajou",
+    "profileFailed": "Erè mete ajou",
+    "passwordNoMatch": "Modpas yo pa egal",
+    "passwordTooShort": "Modpas dwe gen omwen 8 karaktè",
+    "passwordChanged": "Modpas chanje",
+    "passwordChangeFailed": "Erè chanj modpas",
+    "accountDeleted": "Kont efase",
+    "accountDeleteFailed": "Erè efase kont",
+    "businessNameRequired": "Non biznis obligatwa",
+    "businessUpdated": "Biznis mete ajou",
+    "businessAdded": "Biznis ajoute",
+    "businessSaveFailed": "Erè sove biznis",
+    "businessRemoved": "Biznis efase",
+    "businessRemoveFailed": "Erè efase biznis",
+    "primaryBusinessUpdated": "Biznis prensipal mete ajou",
+    "primaryBusinessFailed": "Erè mete ajou biznis prensipal",
+    "roleSwitchFailed": "Erè chanj wèl"
   },
   "messages": {
     "title": "Mesaj",
@@ -690,12 +622,9 @@
     "metaDesc": "View and respond to your messages on OxSteed.",
     "noMessages": "Pa gen mesaj ankò",
     "noMessagesSub": "Kòmanse yon konvèsasyon lè ou kontakte yon èd nan yon lis travay.",
-    "helperInboxSub": "Lè yon kliyan kontakte ou depi nan pwofil ou, mesaj li ap parèt isit la.",
     "allConversations": "Tout Konvèsasyon",
-    "re": "Re: {{title}}",
+    "re": "Rèp:",
     "via": "via {{name}}",
-    "unread_one": "{{count}} mesaj ki pa li",
-    "unread_other": "{{count}} mesaj ki pa li",
     "typeMessage": "Tape yon mesaj…",
     "typeReply": "Tape repons ou...",
     "send": "Voye",
@@ -703,8 +632,6 @@
     "back": "Tounen",
     "backToMessages": "Retounen nan Mesaj",
     "notFound": "Konvèsasyon pa jwenn.",
-    "sayHello": "Pa gen mesaj ankò. Di alo!",
-    "noMessagesHelper": "Pa gen mesaj ankò. Voye premye repons lan anba a.",
     "seen": "Li",
     "enterToSend": "Peze Antre pou voye",
     "helperNoConvSub": "Lè yon kliyan kontakte ou depi nan pwofil ou, mesaj li ap parèt isit la.",
@@ -712,7 +639,37 @@
     "notFoundSub": "Konvèsasyon sa a pa egziste oswa ou pa gen aksè.",
     "noMessagesReply": "Pa gen mesaj ankò. Fè premye moun pou reponn.",
     "customer": "Kliyan",
-    "lastMessageFallback": "Pa gen mesaj ankò"
+    "lastMessageFallback": "Pa gen mesaj ankò",
+    "helperTitle": "Inbox",
+    "noConversations": "No conversations yet",
+    "noConversationsSub": "When you connect with a helper or customer, your messages will appear here.",
+    "typing": "typing…",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "loadingMessages": "Loading messages…",
+    "chat": "Chat",
+    "closeChat": "Close chat",
+    "isOffline": "{{name}} is offline",
+    "leaveMessage": "Leave a message and they'll get back to you as soon as possible.",
+    "talkingToSupport": "You are now talking to OxSteed platform support, not {{name}}.",
+    "oxsteedSupport": "OxSteed platform support",
+    "helperIsOnline": "{{name}} is online.",
+    "signInForReal": "Sign in to send a real message — AI is responding in the meantime.",
+    "messageSentWaiting": "Message sent — {{name}} will reply shortly.",
+    "helperOnlineSignIn": "{{name}} is online — sign in to send them a direct message.",
+    "helperAiWelcome": "Hi! I'm {{name}}'s AI assistant. Ask me about their services, availability, or pricing — I'm happy to help.",
+    "oxsteedAiWelcome": "Hi! I'm OxSteed's support assistant. Ask me anything about how the platform works.",
+    "aiError": "Sorry, I'm having trouble right now. Please try again or contact support@oxsteed.com.",
+    "helperWillReceive": "{{name}} is online and will receive your message",
+    "aiMonitored": "AI assistant · Conversations monitored for safety",
+    "offlinePlaceholder": "This helper is currently offline.",
+    "leaveMessagePlaceholder": "Leave a message — they'll reply soon...",
+    "shiftEnter": "Shift+Enter for new line",
+    "attachFile": "Attach file (coming soon)",
+    "attachImage": "Attach image (coming soon)",
+    "addEmoji": "Add emoji (coming soon)",
+    "sendMessage": "Send message",
+    "messageInput": "Message input"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -863,7 +820,35 @@
       "startDateLabel": "Dat Kòmansman (opsyonèl)",
       "endDateLabel": "Dat Fen (opsyonèl)",
       "selectCategoryPlaceholder": "Chwazi yon kategori...",
-      "categoryPlaceholder": "pa egzanp. Gaz, Founiti, Pèman travay"
+      "categoryPlaceholder": "Chwazi kategori",
+      "modalNewGoal": "Nouvo objektif",
+      "modalUpdateProgress": "Mete ajou pwogwe",
+      "modalAddHomeTask": "Ajoute travay kay",
+      "modalAddChecklist": "Ajoute lis verifiye",
+      "modalAddHealth": "Ajoute swen pèsonèl",
+      "modalAddCarService": "Ajoute sèvis otomobil",
+      "modalAddSkill": "Ajoute kapasite",
+      "modalEditSkill": "Edite kapasite",
+      "modalAddTool": "Ajoute zouti",
+      "modalEditTool": "Edite zouti",
+      "addTransaction": "Ajoute tranzaksyon",
+      "description": "Deskripsyon",
+      "amount": "Montan",
+      "date": "Dat",
+      "category": "Kategori",
+      "frequency": "Frekans",
+      "oneTime": "Yon sèl fwa",
+      "daily": "Chak jou",
+      "weekly": "Chak semèn",
+      "monthly": "Chak mwa",
+      "quarterly": "Chak trimèst",
+      "yearly": "Chak an",
+      "recurring": "Repete",
+      "startDate": "Dat dèma",
+      "endDate": "Dat final",
+      "estimatedCost": "Kosyan estime",
+      "budgetAmount": "Montan bidjè",
+      "budgetPeriod": "Peryòd bidjè"
     },
     "home": {
       "myProperties": "Kay mwen yo",
@@ -1185,7 +1170,34 @@
       "garageModeSummary": "Chèche pa Mak/Modèl",
       "garageModeVin": "Dekode VIN",
       "yearOptional": "Ane (opsyonèl)",
-      "addVinSave": "+ Sovgade"
+      "addVinSave": "+ Sovgade",
+      "pageTitle": "Car Care",
+      "pageDesc": "Search and save your vehicles. Data from the U.S. NHTSA vPIC API — free government data, always up to date.",
+      "addVehicle": "Add a Vehicle",
+      "makeLbl": "Make",
+      "modelLbl": "Model",
+      "loadingMakes": "Loading makes…",
+      "loadingModels": "Loading models…",
+      "clearMake": "Clear make",
+      "clearModel": "Clear model",
+      "adding": "Adding…",
+      "addToGarageBtn": "+ Add to My Garage",
+      "failedAdd": "Failed to add vehicle.",
+      "noVehiclesYet": "No vehicles saved yet. Search above to add your first one.",
+      "editVehicle": "Edit Vehicle",
+      "notesLbl": "Notes",
+      "notesPrivate": "(private)",
+      "saving": "Saving…",
+      "saveChanges": "Save Changes",
+      "notSpecified": "Not specified",
+      "removeVehicle": "Remove Vehicle",
+      "removeConfirm": "Remove {{name}} from your garage?",
+      "keepIt": "Keep It",
+      "removeBtn": "Remove",
+      "removing": "Removing…",
+      "editBtn": "Edit",
+      "failedSave": "Failed to save.",
+      "deleteConfirmMsg": "Remove <strong>{{name}}</strong>?"
     },
     "products": {
       "title": "Pwodwi ak Ekipman mwen",
@@ -1239,14 +1251,109 @@
     "activeBidsCount": "{{count}} aktif",
     "wonBidsCount": "{{count}} genyen",
     "noBidsYet": "Pa gen òf toujou. Eksplore travay disponib pou kòmanse.",
-    "viewPublicProfile": "Wè Pwofil Piblik →",
+    "viewPublicProfile": "Wè pwofil piblik",
     "tabs": {
       "editProfile": "Modifye pwofil",
       "earnings": "Revni",
       "findJobs": "Jwenn travay",
       "myBids": "Òf mwen yo",
       "reviews": "Kritik"
-    }
+    },
+    "profileCompleteness": "Profile completeness",
+    "missingLabel": "Missing: {{label}}",
+    "sectionBasicInfo": "Basic Info",
+    "sectionAvailability": "Availability",
+    "sectionServices": "Services",
+    "sectionFaqs": "FAQs",
+    "sectionPolicies": "Policies",
+    "sectionPhotos": "Photos",
+    "loadingProfile": "Loading…",
+    "failedLoadProfile": "Failed to load profile",
+    "tagline": "Tagline / Headline",
+    "taglinePlaceholder": "e.g. Reliable handyman serving Austin, TX",
+    "bio": "Bio",
+    "bioPlaceholder": "Tell customers about your experience and what you love doing.",
+    "minRate": "Min rate ($/hr)",
+    "maxRate": "Max rate ($/hr)",
+    "city": "City",
+    "state": "State",
+    "serviceRadius": "Service radius (miles)",
+    "availableNow": "Mark me as available right now",
+    "saveBasicInfo": "Save Basic Info",
+    "businessHours": "Business Hours",
+    "hoursHint": "Click a day to toggle it open/closed. Set hours for open days.",
+    "dayOff": "Off",
+    "dayOpen": "Open",
+    "to": "to",
+    "saveHours": "Save Hours",
+    "servicePricing": "Services & Pricing",
+    "noServices": "No services yet — add your first one below.",
+    "addServiceHeader": "Add a service",
+    "serviceName": "Service name",
+    "serviceNamePlaceholder": "e.g. Lawn Mowing & Edging",
+    "serviceDesc": "Description",
+    "serviceDescPlaceholder": "What's included?",
+    "priceLabel": "Price ($)",
+    "priceUnit": "Unit",
+    "unitFlat": "Flat",
+    "unitHour": "Per hour",
+    "unitStartingAt": "Starting at",
+    "unitQuote": "Quote",
+    "duration": "Duration",
+    "durationPlaceholder": "2 hrs",
+    "category": "Category",
+    "categoryPlaceholder": "e.g. Landscaping",
+    "markPopular": "Mark as popular",
+    "addServiceBtn": "+ Add Service",
+    "serviceAdded": "Service added",
+    "failedAddService": "Failed to add service",
+    "failedDelete": "Failed to delete",
+    "faqsTitle": "Frequently Asked Questions",
+    "noFaqs": "No FAQs yet — add common questions customers ask.",
+    "addFaqHeader": "Add a FAQ",
+    "questionLabel": "Question",
+    "questionPlaceholder": "e.g. Do you bring your own equipment?",
+    "answerLabel": "Answer",
+    "addFaqBtn": "+ Add FAQ",
+    "faqAdded": "FAQ added",
+    "failedAddFaq": "Failed to add FAQ",
+    "policiesTitle": "Policies",
+    "noPolicies": "No policies yet. Add your cancellation, payment, or materials policies.",
+    "addPolicyHeader": "Add a policy",
+    "policyTitle": "Title",
+    "policyTitlePlaceholder": "e.g. Cancellation Policy",
+    "policyDetails": "Details",
+    "iconLabel": "Icon",
+    "iconCancellation": "Cancellation",
+    "iconPayment": "Payment",
+    "iconSafetyGuarantee": "Safety / Guarantee",
+    "iconGeneral": "General",
+    "addPolicyBtn": "+ Add Policy",
+    "policyAdded": "Policy added",
+    "failedAddPolicy": "Failed to add policy",
+    "workPhotos": "Work Photos",
+    "photosHint": "Add direct image URLs from your cloud storage, Imgur, or any public host.",
+    "noPhotos": "No photos yet — photos increase bookings significantly.",
+    "addPhotoHeader": "Add a photo",
+    "imageUrl": "Image URL",
+    "imageUrlPlaceholder": "https://…",
+    "captionLabel": "Caption (optional)",
+    "captionPlaceholder": "e.g. Completed lawn renovation",
+    "addPhotoBtn": "+ Add Photo",
+    "photoAdded": "Photo added",
+    "failedAddPhoto": "Failed to add photo",
+    "profileSaved": "Profile saved!",
+    "failedSave": "Failed to save",
+    "saving": "Saving…",
+    "delete": "Delete",
+    "jobsCompleted": "Travay konplete",
+    "earnedThisMonth": "Genyen mwa sa a",
+    "averageRating": "Nòt mwayèn",
+    "editProfile": "Edite pwofil",
+    "addSkill": "Ajoute kapasite",
+    "manageSkills": "Jere kapasites",
+    "addTool": "Ajoute zouti",
+    "manageTools": "Jere zoutis"
   },
   "postJob": {
     "title": "Pibliye yon Travay",
@@ -1300,7 +1407,31 @@
     "openBids": "Ouvè pou Òf",
     "urgencyASAP": "Ijan",
     "urgencyWeek": "Semèn sa a",
-    "urgencyFlexible": "Fleksib"
+    "urgencyFlexible": "Fleksib",
+    "reviewBtn": "Leave a Review",
+    "reviewTitle": "Review {{name}}",
+    "reviewSubmitted": "Review submitted!",
+    "reviewThanks": "Thank you for your feedback.",
+    "overallRating": "Overall Rating",
+    "headline": "Headline",
+    "headlinePlaceholder": "Summarize your experience...",
+    "writtenReview": "Written Review",
+    "writtenReviewPlaceholder": "Share details about your experience...",
+    "ratingRequired": "Please select a star rating.",
+    "reviewFailed": "Failed to submit review.",
+    "submitting": "Submitting...",
+    "submitReview": "Submit Review",
+    "ratingPoor": "Poor",
+    "ratingFair": "Fair",
+    "ratingGood": "Good",
+    "ratingGreat": "Great",
+    "ratingExcellent": "Excellent!",
+    "reviewCount_one": "{{count}} review",
+    "reviewCount_other": "{{count}} reviews",
+    "noReviews": "No reviews yet.",
+    "loadMoreReviews": "Load more reviews",
+    "jobLabel": "Job: {{title}}",
+    "responseFromOwner": "Response from owner"
   },
   "helpersDir": {
     "title": "Jwenn yon Pwofesyonèl Lokal",
@@ -1903,36 +2034,46 @@
     "daysCount": "{{count}} jou",
     "daysWeeks": "{{count}} sem",
     "daysMonths": "{{count}} mwa",
-    "daysYears": "{{count}} ane"
+    "daysYears": "{{count}} ane",
+    "category": "Kategori",
+    "carCare": "Swen otomobil",
+    "personalCare": "Swen pèsonèl",
+    "homeRepair": "Reparasyon kay",
+    "other": "Lòt",
+    "dueDate": "Dat li dwe",
+    "leadDays": "Jou antisipasyon",
+    "recurring": "Repete",
+    "fixedRecurrence": "Repète fiks",
+    "floatingRecurrence": "Repète flote"
   },
   "helperRegister": {
     "step4": {
-      "heading": "Pwofil ak Kote",
-      "profilePhotoLabel": "Foto Pwofil",
-      "uploadPhoto": "Telechaje foto",
       "changePhoto": "Chanje foto",
-      "headline": "Tit pwofesyonèl",
-      "headlinePlaceholder": "egz. Elektrisyen lisansye ak 10 ane eksperyans",
-      "bio": "Byografi / Deskripsyon",
-      "bioPlaceholder": "Di kliyan yo sou eksperyans ou, espesyalite ou, ak poukisa yo ta dwe chwazi ou...",
-      "bioCount": "{{count}}/1000",
       "skillsLabel": "Konpetans ak Sèvis",
-      "skillsPlaceholder": "Chèche konpetans...",
-      "skillCount_one": "{{count}} seleksyone",
-      "skillCount_other": "{{count}} seleksyone",
       "noSkillsFound": "Pa jwenn okenn konpetans pou «{{query}}»",
-      "serviceRadius": "Reyon Sèvis (mil)",
-      "serviceRadiusPlaceholder": "egz. 25",
-      "address": "Adrès",
-      "addressPlaceholder": "Nimewo ak ri",
-      "city": "Vil",
-      "cityPlaceholder": "Vil",
-      "state": "Eta",
-      "zip": "Kòd Postal",
-      "zipPlaceholder": "Kòd postal",
-      "requiredField": "Jaden sa a obligatwa",
-      "invalidZip": "Kòd postal pa valid",
-      "invalidRadius": "Antre yon reyon ant 1 ak 200 mil"
+      "phoneLabel": "Phone Number",
+      "zipLabel": "Zip Code",
+      "photoLabel": "Profile Photo",
+      "photoOptional": "(optional)",
+      "uploading": "Uploading...",
+      "addPhoto": "Add Photo",
+      "photoHelp": "Helpers with photos get 2x more job requests.",
+      "skillsHint": "(select 1–8)",
+      "skillSearch": "Search skills (e.g. Plumbing, Painting, Pet Care…)",
+      "searching": "Searching…",
+      "skillCount": "{{count}}/8 selected",
+      "bioLabel": "Short Bio",
+      "bioPh": "Tell customers about your experience...",
+      "back": "Back",
+      "continue": "Continue",
+      "saving": "Saving...",
+      "errorPhone": "Enter a valid 10-digit US phone number",
+      "errorZip": "Enter a valid 5-digit zip code",
+      "errorSkills": "Select at least one skill",
+      "errorPhotoNotImage": "Please select an image file",
+      "errorPhotoSize": "Image must be under 5MB",
+      "errorPhotoUpload": "Photo upload failed",
+      "errorSave": "Failed to save profile"
     },
     "step5": {
       "freeName": "Gratis",
@@ -1962,68 +2103,90 @@
       "failedSave": "Echèk pou sove plan an"
     },
     "step6": {
-      "heading": "Enfòmasyon Fiskal",
       "taxTypeLabel": "Tip Idantifyan Fiskal",
-      "ssn": "SSN (Nimewo Sekirite Sosyal)",
-      "ein": "EIN (Nimewo Idantifikasyon Anplwayè)",
       "ssnLabel": "Nimewo Sekirite Sosyal",
       "einLabel": "Nimewo Idantifikasyon Anplwayè",
-      "ssnPlaceholder": "XXX-XX-XXXX",
-      "einPlaceholder": "XX-XXXXXXX",
       "show": "Montre",
       "hide": "Kache",
-      "whyLabel": "Poukisa nou bezwen sa?",
       "whyText": "Kòm yon kontraktè endepandan sou OxSteed, ou pral oblije deklare revni ou. Nou kolekte enfòmasyon sa a an sekirite pou bay fòm 1099 si ou touche plis pase $600 pa ane.",
-      "skipForNow": "Sote pou kounye a",
-      "saveAndContinue": "Sove ak Kontinye",
-      "invalidSsn": "Antre yon SSN valid (XXX-XX-XXXX)",
-      "invalidEin": "Antre yon EIN valid (XX-XXXXXXX)"
+      "whyTitle": "Why do we need this?",
+      "securityLink": "Security Policy",
+      "ssnButton": "SSN (Individual)",
+      "einButton": "EIN (Business)",
+      "legalNameLabel": "Legal Name (as shown on tax return)",
+      "legalNamePh": "Jane A. Doe",
+      "legalNameHint": "This should match your government-issued ID exactly. Edit if your legal name differs from your display name.",
+      "mailingLabel": "Mailing Address",
+      "streetPh": "Street address",
+      "cityPh": "City",
+      "statePh": "ST",
+      "zipPh": "Zip",
+      "back": "← Back",
+      "continue": "Continue →",
+      "saving": "Saving...",
+      "errorLegalName": "Legal name is required",
+      "errorSsn": "SSN must be 9 digits",
+      "errorEin": "EIN must be 9 digits",
+      "errorStreet": "Street address is required",
+      "errorCity": "City is required",
+      "errorState": "Enter 2-letter state code",
+      "errorZip": "Enter a valid zip code",
+      "errorSave": "Failed to save tax info"
     },
     "step7": {
-      "heading": "Revize ak Fini",
-      "personalInfoSection": "Enfòmasyon Pèsonèl",
-      "locationSection": "Kote",
-      "skillsSection": "Konpetans",
-      "taxSection": "Enfòmasyon Fiskal",
-      "nameLabel": "Non",
-      "emailLabel": "Imèl",
-      "phoneLabel": "Telefòn",
-      "addressLabel": "Adrès",
-      "radiusLabel": "Reyon Sèvis",
-      "radiusMiles": "{{count}} mil",
-      "taxTypeLabel": "Tip",
-      "taxIdLabel": "ID Fiskal",
       "notProvided": "Pa founi",
       "contractorText": "Mwen rekonèt ke mwen ap enskri kòm <1>kontraktè endepandan, pa yon anplwaye</1> nan OxSteed. Mwen responsab pou taks pa mwen, asirans, ak operasyon biznis mwen.",
-      "agreeTerms": "Mwen aksepte Kondisyon Sèvis ak Règleman Konfidansyalite",
-      "completeRegistration": "Fini Enskripsyon",
       "successTitle": "Enskripsyon Fini!",
-      "successMessage": "Pwofil aidè ou kreye. Kòmanse chèche travay.",
-      "goToDashboard": "Ale nan Tablo de Bò"
+      "goToDashboard": "Ale nan Tablo de Bò",
+      "sectionAccount": "Account",
+      "sectionProfile": "Profile & Location",
+      "sectionPlan": "Plan",
+      "sectionTax": "Tax Information",
+      "phoneRow": "Phone: {{value}}",
+      "locationRow": "Location: {{value}}",
+      "skillsRow": "Skills: {{value}}",
+      "bioRow": "Bio: {{value}}",
+      "legalNameRow": "Legal Name: {{value}}",
+      "taxIdRow": "Tax ID: {{value}}",
+      "addressRow": "Address: {{value}}",
+      "proLabel": "Pro — $19.99/mo",
+      "freeLabel": "Free",
+      "editBtn": "[Edit]",
+      "termsText": "I agree to the",
+      "termsLink": "Terms of Service",
+      "privacyLink": "Privacy Policy",
+      "andText": "and",
+      "mustAcceptBoth": "You must accept both checkboxes to continue.",
+      "completeBtn": "Complete Registration",
+      "completing": "Completing...",
+      "errorComplete": "Failed to complete registration",
+      "successSubtitle": "Your helper account is ready. Here's what happens next:",
+      "successStep1": "Your profile is now visible to customers in your area.",
+      "successStep2": "Browse available jobs and start bidding.",
+      "successStep3": "Check your email for a welcome message with tips to get your first job."
     }
   },
   "helperProfile": {
     "reviews": {
       "ratingDistribution": "Distribisyon nòt yo",
-      "star_one": "{{count}} etwal",
-      "star_other": "{{count}} etwal",
-      "reviews": "kòmantè",
       "verifiedReviews": "{{count}} kòmantè verifye",
-      "foundHelpful_one": "{{count}} moun jwenn sa itil",
-      "foundHelpful_other": "{{count}} moun jwenn sa itil",
       "showAll": "Wè tout {{count}} kòmantè",
-      "noReviews": "Pa gen kòmantè pou kounye a",
-      "noReviewsSub": "Kòmantè pral parèt la a apre travay yo fini."
+      "title": "Reviews",
+      "reviewCount": "{{count}} reviews",
+      "foundHelpful": "{{count}} found helpful",
+      "helperReplied": "Helper replied",
+      "responseFromHelper": "Response from the helper",
+      "verifiedPurchase": "Verified purchase",
+      "showFewer": "Show fewer"
     },
     "services": {
       "quote": "Devis",
       "from": "Depi ${{price}}",
-      "perHour": "/è",
-      "flat": "pri fiks",
       "popular": "Popilè",
       "popularAria": "Sèvis popilè",
-      "noServices": "Pa gen sèvis liste",
-      "noServicesSub": "Aidè sa a poko liste okenn sèvis."
+      "title": "Services & Pricing",
+      "subtitle": "All prices include labor. Materials billed separately if required.",
+      "emptySub": "Send them a message to ask about what they offer."
     },
     "header": {
       "reviewsCount": "({{count}} evalyasyon)",
@@ -2156,36 +2319,34 @@
     "center": {
       "title": "Sant Dispute",
       "noDisputes": "Pa gen dispute ouvè",
-      "status_open": "Ouvè",
-      "status_under_review": "Anba Revizyon",
-      "status_resolved": "Rezoud",
-      "status_closed": "Fèmen",
-      "resolution_refund_customer": "Ranbosman bay Kliyan",
-      "resolution_release_to_helper": "Peman bay Aidè",
-      "resolution_split": "Pataje",
-      "resolution_no_action": "Pa Gen Aksyon",
-      "openedOn": "Ouvè {{date}}",
-      "viewDetails": "Wè Detay"
+      "subtitle": "View and manage your active disputes",
+      "loading": "Loading...",
+      "noDisputesSub": "Disputes can be opened on completed jobs within the review period."
     },
     "detail": {
-      "back": "Tounen nan Sant Dispute",
       "notFound": "Dispute pa jwenn",
       "disputeNumber": "Dispute #{{number}}",
       "reason": "Rezon: {{reason}}",
-      "status": "Estati",
       "resolvedBy": "Rezoud pa {{name}}",
       "refund": "Ranbosman: ${{amount}}",
-      "description": "Deskripsyon",
       "evidenceTitle": "Prèv ({{count}} fichye)",
-      "yourEvidence": "Prèv Ou",
       "submitEvidence": "Soumèt Prèv",
-      "evidenceLabel": "Fichye Prèv",
-      "evidenceDesc": "Deskripsyon",
-      "evidenceDescPlaceholder": "Dekri prèv ou...",
-      "submit": "Soumèt",
       "submitting": "Ap soumèt...",
-      "submitSuccess": "Prèv soumèt avèk siksè",
-      "submitError": "Erè pandan soumèt prèv"
+      "loading": "Loading dispute...",
+      "originalDescription": "Original Description",
+      "filedBy": "Filed by",
+      "against": "Against",
+      "resolutionTitle": "Resolution",
+      "noEvidence": "No evidence submitted yet.",
+      "evidencePh": "Describe what happened, provide context, links, or any relevant information...",
+      "attachFiles": "Attach files (images, videos, documents — max 5)",
+      "evidenceClosed": "Evidence window closed. Awaiting admin review.",
+      "messagesTitle": "Messages",
+      "noMessages": "No messages yet. Send a message to communicate with the other party.",
+      "typeMessage": "Type a message...",
+      "failedSend": "Failed to send.",
+      "failedEvidence": "Failed to submit evidence.",
+      "evidenceRequired": "Please provide text or files as evidence."
     }
   },
   "twoFactor": {
@@ -2220,97 +2381,121 @@
     "failedRegen": "Echèk rejenerasyon kòd sèkouris",
     "backupCopied": "Kòd kopye nan pwen kole"
   },
-  "notifications": {
-    "title": "Preferans Notifikasyon",
-    "subtitle": "Chwazi kijan ak kilè ou resevwa notifikasyon",
-    "backToSettings": "Tounen nan Paramèt",
-    "saving": "Ap sove...",
-    "prefSaved": "Preferans sove",
-    "failedLoad": "Echèk chajman preferans",
-    "failedSave": "Echèk sove preferans",
-    "groups": {
-      "in_app": {
-        "label": "Notifikasyon nan Aplikasyon",
-        "description": "Notifikasyon ki parèt anndan aplikasyon an"
-      },
-      "push": {
-        "label": "Notifikasyon Push",
-        "description": "Notifikasyon voye nan aparèy ou"
-      },
-      "email": {
-        "label": "Notifikasyon pa Imèl",
-        "description": "Mizajou voye nan adrès imèl ou"
-      }
-    },
-    "prefs": {
-      "in_app_new_bid": "Nouvo òf sou travay ou",
-      "in_app_bid_accepted": "Òf ou aksepte",
-      "in_app_job_started": "Travay kòmanse",
-      "in_app_job_completed": "Travay fini",
-      "in_app_payment_released": "Peman libere",
-      "in_app_new_review": "Nouvo kòmantè resevwa",
-      "in_app_dispute_update": "Mizajou dispute",
-      "in_app_subscription": "Mizajou abònman",
-      "push_new_job_nearby": "Nouvo travay pre ou",
-      "push_new_bid": "Nouvo òf resevwa",
-      "push_bid_accepted": "Òf aksepte",
-      "push_payment_released": "Peman libere",
-      "push_dispute_update": "Mizajou dispute",
-      "email_bid_accepted": "Òf aksepte",
-      "email_payment_released": "Peman libere",
-      "email_subscription": "Mizajou abònman",
-      "email_dispute_update": "Mizajou dispute",
-      "email_weekly_summary": "Rezime chak semèn"
-    }
-  },
   "homePage": {
     "search": {
-      "tabJobs": "Pibliye Travay",
-      "tabHelpers": "Jwenn Aidè",
-      "whatLabel": "Kisa ou bezwen?",
-      "whatPlaceholder": "egz. plonbri, demenajman, netwayaj...",
-      "whereLabel": "Kote?",
-      "wherePlaceholder": "Vil, Eta oswa Kòd Postal",
-      "availableToday": "Disponib jodi a",
-      "findHelpers": "Jwenn Aidè",
-      "postJob": "Pibliye Travay"
+      "findHelper": "Find a Helper",
+      "browseJobs": "Browse Jobs",
+      "helperLabel": "Search for a service or skill",
+      "jobsLabel": "Search jobs",
+      "helperPh": "e.g. plumbing, lawn care…",
+      "jobsPh": "Search jobs by keyword…",
+      "locationPh": "City or ZIP",
+      "clearSearch": "Clear search",
+      "clearLocation": "Clear location",
+      "locationSuggestions": "Location suggestions",
+      "skillSuggestions": "Skill suggestions",
+      "searchMode": "Search mode",
+      "availToday": "Today",
+      "availTodayTitle": "Show only helpers available today",
+      "findJobs": "Find Jobs",
+      "search": "Search"
     },
     "skills": {
-      "heading": "Eksplore pa Konpetans",
-      "subtitle": "Depi reparasyon dijans rive nan pwojè planifye",
       "showMore": "Wè plis konpetans",
       "showFewer": "Wè mwens konpetans",
-      "cantFind": "Ou pa jwenn sèvis ou?",
-      "postAnything": "Pibliye nenpòt travay",
       "tiles": {
-        "electrical": { "name": "Elektrisite", "desc": "Priz, panèl, chajè EV" },
-        "plumbing": { "name": "Plonbri", "desc": "Fwit, tiyo, chofaj dlo" },
-        "hvac": { "name": "HVAC", "desc": "Chofaj, AC, vantilasyon" },
-        "carpentry": { "name": "Chapant", "desc": "Chanbrann, finisyon, reparasyon" },
-        "painting": { "name": "Penti", "desc": "Enteryè, eksteryè, pistolè" },
-        "landscaping": { "name": "Jaden", "desc": "Gazon, jaden, lakou" },
-        "cleaning": { "name": "Netwayaj", "desc": "Kay, biwo, demenajman" },
-        "moving": { "name": "Demenajman", "desc": "Chajman, transpò, pakaj" },
-        "roofing": { "name": "Do Kay", "desc": "Reparasyon, fwit, enstalasyon" },
-        "flooring": { "name": "Planché", "desc": "Bwa, azulèj, mòkèt, vinèl" },
-        "concrete": { "name": "Beton", "desc": "Sèntral, antre, dallaj" },
-        "fencing": { "name": "Kloti", "desc": "Enstalasyon, reparasyon, pòtay" },
-        "appliance_repair": { "name": "Reparasyon Aparèy", "desc": "Machin lave, frijidè, fouwo" },
-        "auto_repair": { "name": "Mekanik Oto", "desc": "Chanjman lwil, fren, dyagnostik" },
-        "tutoring": { "name": "Répetisyon", "desc": "Matematik, lang, egzamen" },
-        "personal_training": { "name": "Antrenmàn Pèsonèl", "desc": "Fitnis, nitrisyon, byennèt" },
-        "photography": { "name": "Fotografi", "desc": "Evènman, pòtrè, imobilye" },
-        "it_support": { "name": "Sipò Enfòmatik", "desc": "PC, rezo, sekirite enfòmatik" },
-        "general_labor": { "name": "Travay Jeneral", "desc": "Èd jeneral, travay di" }
-      }
+        "electrical": {
+          "name": "Elektrisite",
+          "desc": "Priz, panèl, chajè EV"
+        },
+        "plumbing": {
+          "name": "Plonbri",
+          "desc": "Fwit, tiyo, chofaj dlo"
+        },
+        "hvac": {
+          "name": "HVAC",
+          "desc": "Chofaj, AC, vantilasyon"
+        },
+        "carpentry": {
+          "name": "Chapant",
+          "desc": "Chanbrann, finisyon, reparasyon"
+        },
+        "painting": {
+          "name": "Penti",
+          "desc": "Enteryè, eksteryè, pistolè"
+        },
+        "landscaping": {
+          "name": "Jaden",
+          "desc": "Gazon, jaden, lakou"
+        },
+        "cleaning": {
+          "name": "Netwayaj",
+          "desc": "Kay, biwo, demenajman"
+        },
+        "moving": {
+          "name": "Demenajman",
+          "desc": "Chajman, transpò, pakaj"
+        },
+        "roofing": {
+          "name": "Do Kay",
+          "desc": "Reparasyon, fwit, enstalasyon"
+        },
+        "flooring": {
+          "name": "Planché",
+          "desc": "Bwa, azulèj, mòkèt, vinèl"
+        },
+        "concrete": {
+          "name": "Beton",
+          "desc": "Sèntral, antre, dallaj"
+        },
+        "tutoring": {
+          "name": "Répetisyon",
+          "desc": "Matematik, lang, egzamen"
+        },
+        "pest-control": {
+          "name": "Pest Control",
+          "desc": "Rodents, termites, insects"
+        },
+        "auto": {
+          "name": "Auto Repair",
+          "desc": "Mobile mechanic, detailing"
+        },
+        "appliance": {
+          "name": "Appliance Repair",
+          "desc": "Washer, dryer, refrigerator"
+        },
+        "welding": {
+          "name": "Welding",
+          "desc": "Metal fab, gates, structural"
+        },
+        "home-repair": {
+          "name": "Home Repair",
+          "desc": "Drywall, fixtures, handyman"
+        },
+        "security": {
+          "name": "Security",
+          "desc": "Cameras, alarms, smart home"
+        },
+        "pet-care": {
+          "name": "Pet Care",
+          "desc": "Sitting, walking, grooming"
+        }
+      },
+      "sectionTitle": "Browse by Skill",
+      "sectionSubtitle": "Find a local helper for the exact job you need done.",
+      "dontSeeSkill": "Don't see your skill?",
+      "postJobLink": "Post a job",
+      "dontSeeEnd": "and let qualified helpers come to you."
     },
     "cta": {
       "title": "Pare pou kòmanse?",
       "titleEm": "kòmanse",
       "desc": "Jwenn dè milye vwazen ki fè konfyans OxSteed pou bezwen lakay yo ak plis.",
       "postJob": "Pibliye Travay",
-      "offerSkills": "Ofri Sèvis Mwen",
-      "signIn": "Konekte"
+      "goToDashboard": "Go to Dashboard",
+      "viewDashboard": "View Dashboard",
+      "listSkills": "List Your Skills",
+      "postJobInstead": "Post a Job Instead"
     }
   },
   "preferredHelper": {
@@ -2447,21 +2632,66 @@
       "plans": "Plan ak obligasyon"
     },
     "sources": {
-      "include_manual_income": { "label": "Revni manyèl", "desc": "Revni yon sèl fwa ou anrejistre (salè, travay, elatriye)" },
-      "include_recurring_income": { "label": "Revni regilye", "desc": "Salè, abònman resevwa, antre regilye" },
-      "include_oxsteed_income": { "label": "Revni travay OxSteed", "desc": "Pèman regle pou travay ki fini sou platfòm nan" },
-      "include_predicted_jobs": { "label": "Revni travay an kours", "desc": "Depo garanti otorize — pèman kenbe, liberasyon lè travay fini" },
-      "include_tool_rentals": { "label": "Revni lwaye zouti", "desc": "Revni anrejistre anba kategori zouti/ekipman/lwaye" },
-      "include_manual_expenses": { "label": "Depans manyèl", "desc": "Depans yon sèl fwa ou anrejistre" },
-      "include_recurring_expenses": { "label": "Depans regilye", "desc": "Abònman, fakti, sòti regilye" },
-      "include_debt_obligations": { "label": "Obligasyon dèt mansyèl", "desc": "Pèman regilye pou prè, ipotèk ak kredi" },
-      "include_home_maintenance": { "label": "Plan antretyen kay", "desc": "Travay kay regilye ak yon pri estimé" },
-      "include_car_care": { "label": "Plan swen machin", "desc": "Travay machin regilye ak yon pri estimé" },
-      "include_personal_care": { "label": "Plan swen pèsonèl", "desc": "Travay swen pèsonèl regilye ak yon pri estimé" },
-      "include_business_pl": { "label": "P&P biznis", "desc": "Revni fakti peye nan tout biznis ou yo" },
-      "include_pending_invoices": { "label": "Revni fakti an atant", "desc": "Fakti an atant konte a 80% konfyans" },
-      "include_tax_obligations": { "label": "Obligasyon fiskal k ap vini", "desc": "Pèman taks estimé nan fenèt seleksyone a" },
-      "include_planned_needs": { "label": "Fon bezwen planifye", "desc": "Depans pou lavni w ap epay pou yo (vakans, reparasyon, elatriye)" }
+      "include_manual_income": {
+        "label": "Revni manyèl",
+        "desc": "Revni yon sèl fwa ou anrejistre (salè, travay, elatriye)"
+      },
+      "include_recurring_income": {
+        "label": "Revni regilye",
+        "desc": "Salè, abònman resevwa, antre regilye"
+      },
+      "include_oxsteed_income": {
+        "label": "Revni travay OxSteed",
+        "desc": "Pèman regle pou travay ki fini sou platfòm nan"
+      },
+      "include_predicted_jobs": {
+        "label": "Revni travay an kours",
+        "desc": "Depo garanti otorize — pèman kenbe, liberasyon lè travay fini"
+      },
+      "include_tool_rentals": {
+        "label": "Revni lwaye zouti",
+        "desc": "Revni anrejistre anba kategori zouti/ekipman/lwaye"
+      },
+      "include_manual_expenses": {
+        "label": "Depans manyèl",
+        "desc": "Depans yon sèl fwa ou anrejistre"
+      },
+      "include_recurring_expenses": {
+        "label": "Depans regilye",
+        "desc": "Abònman, fakti, sòti regilye"
+      },
+      "include_debt_obligations": {
+        "label": "Obligasyon dèt mansyèl",
+        "desc": "Pèman regilye pou prè, ipotèk ak kredi"
+      },
+      "include_home_maintenance": {
+        "label": "Plan antretyen kay",
+        "desc": "Travay kay regilye ak yon pri estimé"
+      },
+      "include_car_care": {
+        "label": "Plan swen machin",
+        "desc": "Travay machin regilye ak yon pri estimé"
+      },
+      "include_personal_care": {
+        "label": "Plan swen pèsonèl",
+        "desc": "Travay swen pèsonèl regilye ak yon pri estimé"
+      },
+      "include_business_pl": {
+        "label": "P&P biznis",
+        "desc": "Revni fakti peye nan tout biznis ou yo"
+      },
+      "include_pending_invoices": {
+        "label": "Revni fakti an atant",
+        "desc": "Fakti an atant konte a 80% konfyans"
+      },
+      "include_tax_obligations": {
+        "label": "Obligasyon fiskal k ap vini",
+        "desc": "Pèman taks estimé nan fenèt seleksyone a"
+      },
+      "include_planned_needs": {
+        "label": "Fon bezwen planifye",
+        "desc": "Depans pou lavni w ap epay pou yo (vakans, reparasyon, elatriye)"
+      }
     }
   },
   "legalPage": {
@@ -2472,5 +2702,65 @@
     "goBackAria": "Retounen nan paj anvan an",
     "backToTopAria": "Ale nan tèt paj la",
     "sectionsAria": "Seksyon {{title}}"
+  },
+  "payments": {
+    "pending": "Antan",
+    "completed": "Konplete",
+    "failed": "Echwe",
+    "refunded": "Remize",
+    "chargeAmount": "Montan debi",
+    "paymentMethod": "Metod peyman",
+    "date": "Dat"
+  },
+  "profile": {
+    "name": "Non",
+    "email": "Imel",
+    "phone": "Telefon",
+    "address": "Adrès",
+    "city": "Vil",
+    "state": "Eta",
+    "zipCode": "Kod postal",
+    "bio": "Biografi",
+    "save": "Sove chanjman"
+  },
+  "verification": {
+    "pending": "Antan",
+    "verified": "Verifye",
+    "failed": "Echwe",
+    "start": "Dema verifiye",
+    "retry": "Eseye ankò"
+  },
+  "bids": {
+    "myBids": "Ofè mwen",
+    "placeBid": "Fè ofè",
+    "bidAmount": "Montan ofè",
+    "bidMessage": "Mesaj ofè",
+    "withdraw": "Retire ofè",
+    "withdrawn": "Ofè retire",
+    "accepted": "Aksepte",
+    "rejected": "Rejte"
+  },
+  "reviews": {
+    "submitReview": "Voye revizyon",
+    "rating": "Nòt",
+    "comment": "Kòmantè",
+    "yourReview": "Revizyon ou",
+    "helperReview": "Revizyon asistan"
+  },
+  "subscription": {
+    "tier1": "Nivo 1",
+    "tier2": "Nivo 2",
+    "tier3": "Nivo 3",
+    "features": "Karakteristik",
+    "price": "Pri",
+    "perMonth": "pa mwa"
+  },
+  "modal": {
+    "title": "Tit",
+    "body": "Ko",
+    "error": "Erè",
+    "success": "Siksè",
+    "warning": "Avètisman",
+    "info": "Enfòmasyon"
   }
 }
