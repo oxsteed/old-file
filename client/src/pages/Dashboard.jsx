@@ -987,6 +987,9 @@ export default function Dashboard() {
             );
           })()}
 
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Active Jobs</p>
               {loading
                 ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mt-1" />
                 : <p className="text-2xl font-bold text-orange-400">{activeJobs.length}</p>
