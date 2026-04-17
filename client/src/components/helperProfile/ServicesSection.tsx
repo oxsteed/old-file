@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Flame, Clock, ChevronRight } from 'lucide-react';
 import type { Service, PriceUnit } from '../../types/helperProfile';
 import SectionCard from './ui/SectionCard';
@@ -8,13 +9,13 @@ interface ServicesSectionProps {
   onSelectService?: (service: Service) => void;
 }
 
-function formatPrice(price: number, unit: PriceUnit): string {
-  if (unit === 'quote') return 'Get a quote';
+function formatPrice(price: number, unit: PriceUnit, t: (key: string, opts?: any) => string): string {
+  if (unit === 'quote') return t('helperProfile.services.quote');
   const formatted = price.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
   switch (unit) {
     case 'hour':      return `${formatted}/hr`;
     case 'flat':      return formatted;
-    case 'starting_at': return `From ${formatted}`;
+    case 'starting_at': return t('helperProfile.services.from', { price: formatted });
     default:          return formatted;
   }
 }
@@ -22,16 +23,17 @@ function formatPrice(price: number, unit: PriceUnit): string {
 const categoryOrder = ['Landscaping', 'Cleaning', 'Painting', 'Home Repair'];
 
 const ServicesSection: React.FC<ServicesSectionProps> = ({ services, onSelectService }) => {
+  const { t } = useTranslation();
+
   if (!services || services.length === 0) {
     return (
       <SectionCard
         id="services"
-        title="Services & Pricing"
-        subtitle="All prices include labor. Materials billed separately if required."
+        title={t('helperProfile.services.title')}
+        subtitle={t('helperProfile.services.subtitle')}
       >
         <div className="py-6 text-center">
-          <p className="text-sm text-gray-500">This helper hasn't listed their services yet.</p>
-          <p className="text-xs text-gray-600 mt-1">Send them a message to ask about what they offer.</p>
+          <p className="text-sm text-gray-500">{t('helperProfile.services.emptySub')}</p>
         </div>
       </SectionCard>
     );
@@ -56,8 +58,8 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({ services, onSelectSer
   return (
     <SectionCard
       id="services"
-      title="Services & Pricing"
-      subtitle="All prices include labor. Materials billed separately if required."
+      title={t('helperProfile.services.title')}
+      subtitle={t('helperProfile.services.subtitle')}
     >
       <div className="space-y-6">
         {Object.entries(grouped).map(([category, items]) => (
@@ -71,7 +73,7 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({ services, onSelectSer
                   <button
                     onClick={() => onSelectService?.(service)}
                     className="w-full text-left group flex items-start gap-3 p-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 border border-gray-700/50 hover:border-gray-600 transition-all"
-                    aria-label={`${service.name} — ${formatPrice(service.price, service.priceUnit)}`}
+                    aria-label={`${service.name} — ${formatPrice(service.price, service.priceUnit, t)}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -79,10 +81,10 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({ services, onSelectSer
                         {service.popular && (
                           <span
                             className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-900/40 text-orange-400 border border-orange-800 rounded-full text-xs font-medium"
-                            aria-label="Popular service"
+                            aria-label={t('helperProfile.services.popularAria')}
                           >
                             <Flame className="w-3 h-3" aria-hidden="true" />
-                            Popular
+                            {t('helperProfile.services.popular')}
                           </span>
                         )}
                       </div>
@@ -102,7 +104,7 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({ services, onSelectSer
                           service.priceUnit === 'quote' ? 'text-brand-400' : 'text-white'
                         }`}
                       >
-                        {formatPrice(service.price, service.priceUnit)}
+                        {formatPrice(service.price, service.priceUnit, t)}
                       </span>
                       <ChevronRight
                         className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors"

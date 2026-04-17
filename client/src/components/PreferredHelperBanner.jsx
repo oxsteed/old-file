@@ -1,13 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 
-/**
- * Task 6: Preferred-helper context banner for JobDetailPage.
- * Shows when the job was created from a planned need and the viewer is the preferred helper.
- * Import and render at the top of the job detail card in JobDetailPage.jsx:
- *   <PreferredHelperBanner job={job} />
- */
 export default function PreferredHelperBanner({ job }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   if (!job) return null;
 
@@ -31,18 +27,19 @@ export default function PreferredHelperBanner({ job }) {
     }}>
       {isPreferredHelper ? (
         <>
-          <strong style={{ color: '#1d4ed8' }}>You are the preferred helper for this job.</strong>
+          <strong style={{ color: '#1d4ed8' }}>{t('preferredHelper.preferredTitle')}</strong>
           <p style={{ margin: '4px 0 0', color: '#374151' }}>
-            This job was scheduled in advance by the customer and you were their preferred helper.
+            {t('preferredHelper.preferredDesc')}
             {hoursRemaining > 0 && (
-              <> You have <strong>{Math.round(hoursRemaining)}h</strong> remaining to respond.</>            )}
+              <> {t('preferredHelper.hoursRemaining', { hours: Math.round(hoursRemaining) })}</>
+            )}
           </p>
         </>
       ) : (
         <>
-          <strong style={{ color: '#15803d' }}>Planned Need</strong>
+          <strong style={{ color: '#15803d' }}>{t('preferredHelper.plannedNeedTitle')}</strong>
           <p style={{ margin: '4px 0 0', color: '#374151' }}>
-            This job was auto-posted from a planned need.
+            {t('preferredHelper.plannedNeedDesc')}
           </p>
         </>
       )}

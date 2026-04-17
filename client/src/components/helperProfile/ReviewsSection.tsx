@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ThumbsUp, CheckCircle2, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import type { Review } from '../../types/helperProfile';
 import StarRating from './ui/StarRating';
@@ -20,6 +21,7 @@ function formatDate(iso: string): string {
 }
 
 const RatingDistribution: React.FC<{ reviews: Review[] }> = ({ reviews }) => {
+  const { t } = useTranslation();
   const dist = [5, 4, 3, 2, 1].map((star) => ({
     star,
     count: reviews.filter((r) => Math.round(r.rating) === star).length,
@@ -27,7 +29,7 @@ const RatingDistribution: React.FC<{ reviews: Review[] }> = ({ reviews }) => {
   const max = Math.max(...dist.map((d) => d.count), 1);
 
   return (
-    <div className="space-y-1.5" aria-label="Rating distribution">
+    <div className="space-y-1.5" aria-label={t('helperProfile.reviews.ratingDistribution')}>
       {dist.map(({ star, count }) => (
         <div key={star} className="flex items-center gap-2 text-xs">
           <span className="text-gray-400 w-3 text-right">{star}</span>
@@ -52,6 +54,7 @@ const RatingDistribution: React.FC<{ reviews: Review[] }> = ({ reviews }) => {
 };
 
 const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
+  const { t } = useTranslation();
   const [replyOpen, setReplyOpen] = useState(false);
 
   return (
@@ -83,7 +86,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
               {review.verified && (
                 <CheckCircle2
                   className="w-3.5 h-3.5 text-emerald-400"
-                  aria-label="Verified purchase"
+                  aria-label={t('helperProfile.reviews.verifiedPurchase')}
                 />
               )}
             </div>
@@ -103,10 +106,10 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
       <footer className="flex items-center justify-between pt-1">
         <button
           className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-          aria-label={`Mark as helpful (${review.helpfulCount} found helpful)`}
+          aria-label={t('helperProfile.reviews.foundHelpful', { count: review.helpfulCount })}
         >
           <ThumbsUp className="w-3.5 h-3.5" aria-hidden="true" />
-          {review.helpfulCount} found helpful
+          {t('helperProfile.reviews.foundHelpful', { count: review.helpfulCount })}
         </button>
 
         {review.helperReply && (
@@ -117,7 +120,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
             aria-controls={`reply-${review.id}`}
           >
             <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
-            Helper replied
+            {t('helperProfile.reviews.helperReplied')}
             {replyOpen ? (
               <ChevronUp className="w-3 h-3" aria-hidden="true" />
             ) : (
@@ -133,7 +136,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
           id={`reply-${review.id}`}
           className="mt-1 pl-3 border-l-2 border-brand-500/50 space-y-1"
         >
-          <p className="text-xs font-semibold text-brand-400">Response from the helper</p>
+          <p className="text-xs font-semibold text-brand-400">{t('helperProfile.reviews.responseFromHelper')}</p>
           <p className="text-xs text-gray-400 leading-relaxed">{review.helperReply.content}</p>
           <p className="text-xs text-gray-600">{formatDate(review.helperReply.date)}</p>
         </div>
@@ -147,21 +150,22 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
   overallRating,
   totalCount,
 }) => {
+  const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
   const displayed = showAll ? reviews : reviews.slice(0, INITIAL_DISPLAY);
 
   return (
     <SectionCard
       id="reviews"
-      title="Reviews"
-      subtitle={`${totalCount} verified reviews`}
+      title={t('helperProfile.reviews.title')}
+      subtitle={t('helperProfile.reviews.verifiedReviews', { count: totalCount })}
     >
       {/* Summary row */}
       <div className="flex flex-col sm:flex-row gap-6 mb-6 p-4 bg-gray-800/40 rounded-xl border border-gray-700/50">
         <div className="flex flex-col items-center justify-center sm:border-r border-gray-700 sm:pr-6 sm:min-w-[96px]">
           <p className="text-5xl font-bold text-white">{overallRating.toFixed(1)}</p>
           <StarRating rating={overallRating} size="md" className="mt-1" />
-          <p className="text-xs text-gray-500 mt-1">{totalCount} reviews</p>
+          <p className="text-xs text-gray-500 mt-1">{t('helperProfile.reviews.reviewCount', { count: totalCount })}</p>
         </div>
         <div className="flex-1">
           <RatingDistribution reviews={reviews} />
@@ -182,9 +186,9 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
           aria-expanded={showAll}
         >
           {showAll ? (
-            <>Show fewer <ChevronUp className="w-4 h-4" aria-hidden="true" /></>
+            <>{t('helperProfile.reviews.showFewer')} <ChevronUp className="w-4 h-4" aria-hidden="true" /></>
           ) : (
-            <>Show all {totalCount} reviews <ChevronDown className="w-4 h-4" aria-hidden="true" /></>
+            <>{t('helperProfile.reviews.showAll', { count: totalCount })} <ChevronDown className="w-4 h-4" aria-hidden="true" /></>
           )}
         </button>
       )}

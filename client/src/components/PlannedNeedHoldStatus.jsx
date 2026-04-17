@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 
-/**
- * Task 4: Customer hold countdown + "Broadcast Now" button.
- * Task 6: Inline "Add to Fund" UI.
- * Render on each planned need card in PlannedNeedsPage.jsx:
- *   <PlannedNeedHoldStatus need={need} onUpdate={refreshNeeds} />
- */
 export default function PlannedNeedHoldStatus({ need, onUpdate }) {
+  const { t } = useTranslation();
   const [hoursLeft, setHoursLeft] = useState(null);
   const [fundAmount, setFundAmount] = useState('');
   const [showFund, setShowFund] = useState(false);
@@ -28,10 +24,10 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
   }, [need]);
 
   const handleBroadcast = async () => {
-    if (!window.confirm('Cancel the hold and open this job to all helpers?')) return;
+    if (!window.confirm(t('preferredHelper.confirmBroadcast'))) return;
     setBusy(true);
     try {
-      await api.post(`/api/planned-needs/${need.id}/broadcast`);
+      await api.post(`/planned-needs/${need.id}/broadcast`);
       onUpdate?.();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed');
@@ -45,7 +41,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
     if (!fundAmount || parseFloat(fundAmount) <= 0) return;
     setBusy(true);
     try {
-      await api.post(`/api/planned-needs/${need.id}/fund`, { amount: parseFloat(fundAmount) });
+      await api.post(`/planned-needs/${need.id}/fund`, { amount: parseFloat(fundAmount) });
       setFundAmount('');
       setShowFund(false);
       onUpdate?.();
@@ -58,7 +54,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
 
   return (
     <div style={{ marginTop: '8px' }}>
-      {/* Task 4: Hold countdown */}
+      {/* Hold countdown */}
       {need.preferred_helper_status === 'pending' && hoursLeft !== null && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
@@ -67,8 +63,10 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
           fontSize: '13px', marginBottom: '8px',
         }}>
           <span>
-            Waiting for <strong>{need.preferred_helper_first_name || 'helper'}</strong>
-            {' '}&mdash; <strong>{Math.round(hoursLeft)}h</strong> remaining
+            {t('preferredHelper.holdWaiting', {
+              name: need.preferred_helper_first_name || 'helper',
+              hours: Math.round(hoursLeft),
+            })}
           </span>
           <button
             onClick={handleBroadcast}
@@ -78,15 +76,15 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
               border: 'none', borderRadius: '4px', padding: '4px 10px',
               cursor: 'pointer', fontSize: '12px', fontWeight: 600,
             }}
-          >{busy ? '...' : 'Broadcast Now'}</button>
+          >{busy ? '...' : t('preferredHelper.broadcastNow')}</button>
         </div>
       )}
 
-      {/* Task 6: Sinking fund update */}
+      {/* Sinking fund update */}
       {!['cancelled', 'completed'].includes(need.status) && need.estimated_cost > 0 && (
         <div style={{ fontSize: '13px', color: '#6b7280' }}>
           <span>
-            Fund: <strong>${parseFloat(need.reserved_amount || 0).toFixed(2)}</strong>
+            {t('preferredHelper.fundLabel')} <strong>${parseFloat(need.reserved_amount || 0).toFixed(2)}</strong>
             {' / $'}{parseFloat(need.estimated_cost).toFixed(2)}
             {' ('}{need.estimated_cost > 0 ? Math.min(100, Math.round((need.reserved_amount / need.estimated_cost) * 100)) : 0}%)
           </span>
@@ -98,7 +96,7 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
                 borderRadius: '4px', padding: '2px 8px', cursor: 'pointer',
                 fontSize: '12px', color: '#2563eb',
               }}
-            >+ Add</button>
+            >{t('preferredHelper.addFund')}</button>
           ) : (
             <form onSubmit={handleAddFund} style={{ display: 'inline-flex', gap: '4px', marginLeft: '8px' }}>
               <input
@@ -110,11 +108,11 @@ export default function PlannedNeedHoldStatus({ need, onUpdate }) {
               <button type="submit" disabled={busy} style={{
                 background: '#16a34a', color: 'white', border: 'none',
                 borderRadius: '4px', padding: '2px 8px', fontSize: '12px', cursor: 'pointer',
-              }}>{busy ? '...' : 'Save'}</button>
+              }}>{busy ? '...' : t('preferredHelper.save')}</button>
               <button type="button" onClick={() => setShowFund(false)} style={{
                 background: 'none', border: 'none', color: '#9ca3af',
                 cursor: 'pointer', fontSize: '12px',
-              }}>Cancel</button>
+              }}>{t('preferredHelper.cancel')}</button>
             </form>
           )}
         </div>

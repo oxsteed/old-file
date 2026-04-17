@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 
 interface Props {
@@ -38,6 +39,7 @@ function useSkillSearch(q: string) {
 }
 
 export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     phone: '', zip: '', bio: '', skills: [] as string[], photoUrl: '',
   });
@@ -103,11 +105,11 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setErrors(prev => ({ ...prev, photo: 'Please select an image file' }));
+      setErrors(prev => ({ ...prev, photo: t('helperRegister.step4.errorPhotoNotImage') }));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, photo: 'Image must be under 5MB' }));
+      setErrors(prev => ({ ...prev, photo: t('helperRegister.step4.errorPhotoSize') }));
       return;
     }
     setUploading(true);
@@ -120,7 +122,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
       });
       set('photoUrl', data.photoUrl);
     } catch (err: any) {
-      setErrors(prev => ({ ...prev, photo: err.response?.data?.error || 'Photo upload failed' }));
+      setErrors(prev => ({ ...prev, photo: err.response?.data?.error || t('helperRegister.step4.errorPhotoUpload') }));
     } finally {
       setUploading(false);
     }
@@ -129,9 +131,9 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
   const validate = () => {
     const e: Record<string, string> = {};
     const digits = form.phone.replace(/\D/g, '');
-    if (digits.length < 10) e.phone = 'Enter a valid 10-digit US phone number';
-    if (form.zip.replace(/\D/g, '').length !== 5) e.zip = 'Enter a valid 5-digit zip code';
-    if (form.skills.length < 1) e.skills = 'Select at least one skill';
+    if (digits.length < 10) e.phone = t('helperRegister.step4.errorPhone');
+    if (form.zip.replace(/\D/g, '').length !== 5) e.zip = t('helperRegister.step4.errorZip');
+    if (form.skills.length < 1) e.skills = t('helperRegister.step4.errorSkills');
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -155,7 +157,6 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
         hourlyRate: null,
       });
 
-      // Update phone/zip on user record
       await api.post('/helper-registration/update-contact', { phone, zip });
 
       const parts = cityState.split(', ');
@@ -165,7 +166,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
         bio: form.bio, skills: form.skills, photoUrl: form.photoUrl,
       });
     } catch (err: any) {
-      setErrors({ general: err.response?.data?.error || 'Failed to save profile' });
+      setErrors({ general: err.response?.data?.error || t('helperRegister.step4.errorSave') });
     } finally {
       setLoading(false);
     }
@@ -181,7 +182,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
 
       {/* Phone */}
       <div>
-        <label htmlFor="phone" className="block text-sm text-gray-300 mb-1">Phone Number</label>
+        <label htmlFor="phone" className="block text-sm text-gray-300 mb-1">{t('helperRegister.step4.phoneLabel')}</label>
         <input id="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="(555) 123-4567"
           value={form.phone} onChange={e => set('phone', formatPhone(e.target.value))}
           className={inputClass} aria-required="true" />
@@ -190,7 +191,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
 
       {/* Zip */}
       <div>
-        <label htmlFor="zip" className="block text-sm text-gray-300 mb-1">Zip Code</label>
+        <label htmlFor="zip" className="block text-sm text-gray-300 mb-1">{t('helperRegister.step4.zipLabel')}</label>
         <input id="zip" type="text" inputMode="numeric" autoComplete="postal-code" placeholder="45505" maxLength={5}
           value={form.zip} onChange={e => set('zip', e.target.value.replace(/\D/g, '').slice(0, 5))}
           className={inputClass} aria-required="true" />
@@ -200,7 +201,9 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
 
       {/* Photo upload */}
       <div>
-        <label className="block text-sm text-gray-300 mb-1">Profile Photo <span className="text-gray-500">(optional)</span></label>
+        <label className="block text-sm text-gray-300 mb-1">
+          {t('helperRegister.step4.photoLabel')} <span className="text-gray-500">{t('helperRegister.step4.photoOptional')}</span>
+        </label>
         <div className="flex items-center gap-4">
           <button type="button" onClick={handlePhotoClick}
             className="w-16 h-16 rounded-full bg-gray-800 border-2 border-dashed border-gray-600 hover:border-orange-500 flex items-center justify-center text-gray-500 text-2xl cursor-pointer transition overflow-hidden">
@@ -209,9 +212,9 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
           <div>
             <button type="button" onClick={handlePhotoClick}
               className="text-sm text-orange-500 hover:text-orange-400 font-medium">
-              {form.photoUrl ? 'Change Photo' : uploading ? 'Uploading...' : 'Add Photo'}
+              {form.photoUrl ? t('helperRegister.step4.changePhoto') : uploading ? t('helperRegister.step4.uploading') : t('helperRegister.step4.addPhoto')}
             </button>
-            <p className="text-gray-500 text-xs mt-0.5">Helpers with photos get 2x more job requests.</p>
+            <p className="text-gray-500 text-xs mt-0.5">{t('helperRegister.step4.photoHelp')}</p>
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
         </div>
@@ -221,7 +224,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
       {/* Skills searchable input */}
       <div>
         <label className="block text-sm text-gray-300 mb-2">
-          Skills <span className="text-gray-500">(select 1–8)</span>
+          {t('helperRegister.step4.skillsLabel')} <span className="text-gray-500">{t('helperRegister.step4.skillsHint')}</span>
         </label>
 
         {/* Selected skill tags */}
@@ -246,7 +249,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
             <input
               ref={skillInputRef}
               type="text"
-              placeholder="Search skills (e.g. Plumbing, Painting, Pet Care…)"
+              placeholder={t('helperRegister.step4.skillSearch')}
               value={skillQuery}
               onChange={e => { setSkillQuery(e.target.value); setShowDropdown(true); }}
               onFocus={() => setShowDropdown(true)}
@@ -254,7 +257,7 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
               className={inputClass}
             />
             {skillSearching && (
-              <span className="absolute right-3 top-3 text-gray-500 text-xs">Searching…</span>
+              <span className="absolute right-3 top-3 text-gray-500 text-xs">{t('helperRegister.step4.searching')}</span>
             )}
             {showDropdown && skillResults.length > 0 && (
               <ul className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -277,20 +280,22 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
             )}
             {showDropdown && skillQuery.trim() && !skillSearching && skillResults.length === 0 && (
               <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-gray-500">
-                No skills found for "{skillQuery}"
+                {t('helperRegister.step4.noSkillsFound', { query: skillQuery })}
               </div>
             )}
           </div>
         )}
 
-        <p className="text-xs text-gray-500 mt-1">{form.skills.length}/8 selected</p>
+        <p className="text-xs text-gray-500 mt-1">{t('helperRegister.step4.skillCount', { count: form.skills.length })}</p>
         {errors.skills && <p className="text-red-400 text-xs mt-1" role="alert">{errors.skills}</p>}
       </div>
 
       {/* Bio */}
       <div>
-        <label htmlFor="bio" className="block text-sm text-gray-300 mb-1">Short Bio <span className="text-gray-500">(optional)</span></label>
-        <textarea id="bio" placeholder="Tell customers about your experience..." rows={3} maxLength={500}
+        <label htmlFor="bio" className="block text-sm text-gray-300 mb-1">
+          {t('helperRegister.step4.bioLabel')} <span className="text-gray-500">{t('helperRegister.step4.photoOptional')}</span>
+        </label>
+        <textarea id="bio" placeholder={t('helperRegister.step4.bioPh')} rows={3} maxLength={500}
           value={form.bio} onChange={e => set('bio', e.target.value)}
           className={inputClass + ' resize-none'} />
         <p className="text-xs text-gray-500 mt-1 text-right">{form.bio.length}/500</p>
@@ -300,11 +305,11 @@ export default function Step4ProfileLocation({ token, onSuccess, onBack }: Props
       <div className="flex gap-3">
         <button type="button" onClick={onBack}
           className="px-6 py-3 bg-transparent border border-gray-600 text-gray-300 hover:border-gray-500 rounded-lg transition">
-          Back
+          {t('helperRegister.step4.back')}
         </button>
         <button type="submit" disabled={loading}
           className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg disabled:opacity-50 transition">
-          {loading ? 'Saving...' : 'Continue'}
+          {loading ? t('helperRegister.step4.saving') : t('helperRegister.step4.continue')}
         </button>
       </div>
     </form>
