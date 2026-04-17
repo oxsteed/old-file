@@ -575,8 +575,6 @@ Full audit of the customer↔helper real-time chat system. Four bugs found and f
 
 **Namespaces (25 total):** `nav`, `hero`, `common`, `jobs`, `auth`, `errors`, `login`, `forgotPassword`, `resetPassword`, `register`, `didit`, `footer`, `howItWorks`, `upgrade`, `jobList`, `settings`, `messages`, `dashboard`, `helperDashboard`, `postJob`, `jobDetail`, `helpersDir`, `support`, `businessHub`, `plans`
 
-⚠️ `plannedNeeds` namespace does **NOT** exist yet — must be created in all 4 locale files during Phase 9.
-
 ### Phase progress
 
 | Phase | Scope | Status |
@@ -589,8 +587,8 @@ Full audit of the customer↔helper real-time chat system. Four bugs found and f
 | 6 | Dashboards + Settings + Messages (Dashboard, HelperDashboard, SettingsPage, MessagesPage, ConversationPage) | ✅ Done |
 | 7 | BusinessHubPage | ✅ Done |
 | 8 | HelperInboxPage, HelperConversationPage | ✅ Done |
-| 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ⏳ Pending |
-| 10 | helperDirectory components, chat components, review components, EditProfileTab | ⏳ Pending |
+| 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ⏳ 3/5 done — HelpersDirectoryPage + PlannedNeedsPage remain |
+| 10 | helperDirectory components, chat components, review components, EditProfileTab | ⏳ 3/4 done — helperDirectory sub-components remain (same file as Phase 9 HelpersDirectoryPage) |
 
 ### Migration pattern
 
@@ -619,6 +617,15 @@ toast.success(t('namespace.key'))
 
 Done: `HowItWorks.jsx`, `UpgradePage.jsx`, `CarCarePage.jsx` — all committed.
 
+### ✅ Phase 10 — Partially Complete
+
+Done (committed on `claude/update-claude-i18n-status-QBUJ3`):
+- `ReviewModal.jsx`, `ReviewsList.jsx` — `jobDetail.*` keys
+- `MessageComposer.tsx`, `ChatPanel.tsx` — `messages.*` keys
+- `EditProfileTab.jsx` — `helperDashboard.*` keys
+
+`plannedNeeds` namespace keys are already present in all 4 locale files (`en.json`, `es.json`, `fr.json`, `ht.json`).
+
 **Branch for remaining work:** `claude/update-claude-i18n-status-QBUJ3`
 
 ```bash
@@ -628,9 +635,9 @@ git config user.name "Claude"
 git checkout claude/update-claude-i18n-status-QBUJ3
 ```
 
-### ⏳ NEXT TASK FOR AI: Finish Phases 9 & 10
+### ⏳ NEXT TASK FOR AI: Finish Phases 9 & 10 (2 files remain)
 
-Two files remain. All locale keys already exist — do NOT add new keys, just migrate.
+All locale keys already exist — do NOT add new keys, just migrate.
 
 ---
 
@@ -730,7 +737,7 @@ All keys exist in `en.json` under the `plannedNeeds` namespace. This file is 770
     - `{pct}% funded` → `t('plannedNeeds.funded', { pct: fundPct })`
     - `Save {amount}/month...` → `t('plannedNeeds.sinkingFundHint', { amount: fmt$(monthly) })`
 
-Commit: `feat(i18n): phase 10 — HelpersDirectoryPage + PlannedNeedsPage complete`
+Commit: `feat(i18n): phases 9+10 complete — HelpersDirectoryPage + PlannedNeedsPage`
 
 Then push: `git push -u origin claude/update-claude-i18n-status-QBUJ3`
 
