@@ -532,7 +532,7 @@ export default function Dashboard() {
         make_id:    matchedMake?.id || 0,
         make_name:  vinResult.make,
         model_id:   0,
-        model_name: vinResult.model || 'Unknown Model',
+        model_name: vinResult.model || t('dashboard.carCare.unknownModel'),
         year:       vinResult.year  || undefined,
         nickname:   garageForm.nickname.trim() || undefined,
         notes:      vinResult.vin,
@@ -1299,7 +1299,7 @@ export default function Dashboard() {
                   {homeLookup.building?.buildingType && <span>🏗️ {homeLookup.building.buildingType}</span>}
                   {homeLookup.flood && (
                     <span className={homeLookup.flood.zone&&['A','AE','V','VE','AH','AO'].includes(homeLookup.flood.zone)?'text-red-400 font-semibold':'text-emerald-400'}>
-                      💧 {homeLookup.flood.label || `Flood Zone ${homeLookup.flood.zone}`}
+                      💧 {homeLookup.flood.label || t('dashboard.home.floodZone', { zone: homeLookup.flood.zone })}
                     </span>
                   )}
                   {!homeLookup.building && !homeLookup.flood && (
@@ -1415,7 +1415,7 @@ export default function Dashboard() {
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-purple-500/30 flex items-center justify-center font-bold text-sm flex-shrink-0">{(h.first_name||'?')[0]}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white">{h.first_name} {h.last_name}</p>
-                        <p className="text-xs text-gray-500 truncate">{h.categories||'Helper'} · {h.avg_rating?`${h.avg_rating}★`:'New'} · {h.completed_jobs||0} jobs</p>
+                        <p className="text-xs text-gray-500 truncate">{h.categories || t('dashboard.home.savedHelperFallback')} · {h.avg_rating?`${h.avg_rating}★`:t('dashboard.home.newHelper')} · {h.completed_jobs||0} {t('dashboard.home.jobsLabel')}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">{t('common.viewAll')}</Link>
@@ -2255,7 +2255,7 @@ export default function Dashboard() {
             <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.skillNameLabel')}</label>
             <input
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
-              placeholder="e.g. Drywall Repair"
+              placeholder={t('dashboard.skillsTools.skillNamePlaceholder')}
               required
               value={skillForm.skill_name}
               onChange={e => {

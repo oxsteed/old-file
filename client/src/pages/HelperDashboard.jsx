@@ -491,7 +491,7 @@ export default function HelperDashboard() {
         make_id:    matchedMake?.id || 0,
         make_name:  vinResult.make,
         model_id:   0,
-        model_name: vinResult.model || 'Unknown Model',
+        model_name: vinResult.model || t('dashboard.carCare.unknownModel'),
         year:       vinResult.year  || undefined,
         nickname:   garageForm.nickname.trim() || undefined,
         notes:      vinResult.vin,
@@ -1270,7 +1270,7 @@ export default function HelperDashboard() {
                   {homeLookup.building?.buildingType&&<span>🏗️ {homeLookup.building.buildingType}</span>}
                   {homeLookup.flood&&(
                     <span className={homeLookup.flood.zone&&['A','AE','V','VE','AH','AO'].includes(homeLookup.flood.zone)?'text-red-400 font-semibold':'text-emerald-400'}>
-                      💧 {homeLookup.flood.label||`Flood Zone ${homeLookup.flood.zone}`}
+                      💧 {homeLookup.flood.label || t('dashboard.home.floodZone', { zone: homeLookup.flood.zone })}
                     </span>
                   )}
                   {!homeLookup.building&&!homeLookup.flood&&(
@@ -1384,7 +1384,7 @@ export default function HelperDashboard() {
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-purple-500/30 flex items-center justify-center font-bold text-sm flex-shrink-0">{(h.first_name||'?')[0]}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white">{h.first_name} {h.last_name}</p>
-                        <p className="text-xs text-gray-500 truncate">{h.categories||'Helper'} · {h.avg_rating?`${h.avg_rating}★`:'New'} · {h.completed_jobs||0} jobs</p>
+                        <p className="text-xs text-gray-500 truncate">{h.categories || t('dashboard.home.savedHelperFallback')} · {h.avg_rating?`${h.avg_rating}★`:t('dashboard.home.newHelper')} · {h.completed_jobs||0} {t('dashboard.home.jobsLabel')}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">View</Link>
@@ -1712,7 +1712,7 @@ export default function HelperDashboard() {
             {myBids.length===0?<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">{t('helperDashboard.noBidsYet')}</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">{t('helperDashboard.browseJobs')}</Link></Card>
             :<div className="space-y-2">{myBids.map(bid=>(
               <Link key={bid.id} to={`/jobs/${bid.job_id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
-                <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title||`Job #${bid.job_id}`}</p><p className="text-xs text-gray-500 mt-1">Bid <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>
+                <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title || t('helperDashboard.jobNumber', { id: bid.job_id })}</p><p className="text-xs text-gray-500 mt-1">Bid <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>
                 <Tag text={bid.status.replace(/_/g,' ')} color={bid.status==='accepted'?'green':bid.status==='pending'?'orange':bid.status==='rejected'?'red':'gray'}/>
               </Link>
             ))}</div>}

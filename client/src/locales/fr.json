@@ -971,7 +971,11 @@
       "taskAdded": "Tâche ménagère ajoutée",
       "saveFailed": "Erreur lors de l'enregistrement de la tâche ménagère",
       "updateFailed": "Erreur lors de la mise à jour de la tâche ménagère",
-      "removeFailed": "Erreur lors de la suppression de la tâche ménagère"
+      "removeFailed": "Erreur lors de la suppression de la tâche ménagère",
+      "floodZone": "Zone d'inondation {{zone}}",
+      "savedHelperFallback": "Aide",
+      "newHelper": "Nouveau",
+      "jobsLabel": "travaux"
     },
     "goals": {
       "title": "Mes Objectifs",
@@ -1202,6 +1206,7 @@
       "makePlaceholder": "Marque (ex. Toyota)",
       "modelPlaceholder": "Modèle",
       "selectMakeFirst": "Sélectionnez d'abord la marque",
+      "unknownModel": "Modèle inconnu",
       "year": "Année",
       "nickname": "Surnom (optionnel)",
       "decoding": "Décodage…",
@@ -1458,6 +1463,7 @@
     "activeBidsCount": "{{count}} actives",
     "wonBidsCount": "{{count}} gagnées",
     "noBidsYet": "Aucune offre pour l'instant. Parcourez les missions disponibles.",
+    "jobNumber": "Mission #{{id}}",
     "viewPublicProfile": "Voir le profil public",
     "tabs": {
       "editProfile": "Modifier le profil",

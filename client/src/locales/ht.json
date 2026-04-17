@@ -1033,7 +1033,11 @@
       "taskAdded": "Travay kay ajoute",
       "saveFailed": "Erè sove travay kay",
       "updateFailed": "Erè mete ajou travay kay",
-      "removeFailed": "Erè efase travay kay"
+      "removeFailed": "Erè efase travay kay",
+      "floodZone": "Zòn Inondasyon {{zone}}",
+      "savedHelperFallback": "Asistan",
+      "newHelper": "Nouvo",
+      "jobsLabel": "travay"
     },
     "goals": {
       "title": "Objektif mwen yo",
@@ -1375,7 +1379,8 @@
       "removeFailed": "Erè efase sèvis otomobil",
       "removed": "Sèvis otomobil efase",
       "addFailed": "Erè ajoute sèvis otomobil",
-      "vinDecodeFailed": "Erè dekode VIN"
+      "vinDecodeFailed": "Erè dekode VIN",
+      "unknownModel": "Modèl Enkoni"
     },
     "products": {
       "title": "Pwodwi ak Ekipman mwen",
@@ -1616,7 +1621,8 @@
     "personalCareDesc": "Deskripsyon swen pèsonèl",
     "taskAdded": "Travay ajoute: {title}",
     "pro": "Pro",
-    "subscribed": "Souskebi"
+    "subscribed": "Souskebi",
+    "jobNumber": "Travay #{{id}}"
   },
   "postJob": {
     "title": "Pibliye yon Travay",

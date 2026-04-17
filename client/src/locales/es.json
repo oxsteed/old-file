@@ -971,7 +971,11 @@
       "taskAdded": "Tarea del hogar agregada",
       "saveFailed": "Error al guardar la tarea del hogar",
       "updateFailed": "Error al actualizar la tarea del hogar",
-      "removeFailed": "Error al remover la tarea del hogar"
+      "removeFailed": "Error al remover la tarea del hogar",
+      "floodZone": "Zona de inundación {{zone}}",
+      "savedHelperFallback": "Ayudante",
+      "newHelper": "Nuevo",
+      "jobsLabel": "trabajos"
     },
     "goals": {
       "title": "Mis Metas",
@@ -1202,6 +1206,7 @@
       "makePlaceholder": "Marca (ej. Toyota)",
       "modelPlaceholder": "Modelo",
       "selectMakeFirst": "Selecciona la marca primero",
+      "unknownModel": "Modelo desconocido",
       "year": "Año",
       "nickname": "Apodo (opcional)",
       "decoding": "Decodificando…",
@@ -1458,6 +1463,7 @@
     "activeBidsCount": "{{count}} activas",
     "wonBidsCount": "{{count}} ganadas",
     "noBidsYet": "Sin ofertas aún. Explora trabajos disponibles para empezar.",
+    "jobNumber": "Trabajo #{{id}}",
     "viewPublicProfile": "Ver perfil público",
     "tabs": {
       "editProfile": "Editar perfil",

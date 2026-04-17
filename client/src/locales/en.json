@@ -971,7 +971,11 @@
       "taskAdded": "Home task added",
       "saveFailed": "Failed to save home task",
       "updateFailed": "Failed to update home task",
-      "removeFailed": "Failed to remove home task"
+      "removeFailed": "Failed to remove home task",
+      "floodZone": "Flood Zone {{zone}}",
+      "savedHelperFallback": "Helper",
+      "newHelper": "New",
+      "jobsLabel": "jobs"
     },
     "goals": {
       "title": "My Goals",
@@ -1202,6 +1206,7 @@
       "makePlaceholder": "Make (e.g. Toyota)",
       "modelPlaceholder": "Model",
       "selectMakeFirst": "Select make first",
+      "unknownModel": "Unknown Model",
       "year": "Year",
       "nickname": "Nickname (optional)",
       "decoding": "Decoding…",
@@ -1458,6 +1463,7 @@
     "activeBidsCount": "{{count}} active",
     "wonBidsCount": "{{count}} won",
     "noBidsYet": "No bids yet. Browse available jobs to start bidding.",
+    "jobNumber": "Job #{{id}}",
     "viewPublicProfile": "View Public Profile →",
     "tabs": {
       "editProfile": "Edit Profile",
