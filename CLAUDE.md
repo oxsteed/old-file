@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-17 (i18n phases 1–11 complete)
+**Last updated:** 2026-04-17 (i18n phases 1–11 complete; security + SEO + review/webhook fixes; planned_needs FKs complete)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -875,9 +875,10 @@ Four gaps identified and fixed:
 
 5. **`lifeDashboardController.createHomeTask` used `console.error`** — replaced with `logger.error` (migration 069 session).
 
-**What is still not linked (deferred — needs more design):**
-- `planned_needs` table has no `home_id` or `vehicle_id` FK. Users can't say "this car care planned need is for my Toyota Camry." Requires a migration + PlannedNeedsPage form change.
-- The home task list cards don't yet show which property/vehicle a task belongs to (data is now stored, display pass deferred).
+**Both items below are now complete (verified 2026-04-17):**
+- Migration `070_planned_needs_fks.sql`: `vehicle_id` + `home_id` nullable FKs on `planned_needs`.
+- `plannedNeedsController.js`: reads/writes both fields with explicit assignment (supports clearing).
+- `PlannedNeedsPage.jsx`: vehicle picker shown when `category === 'car_care'`; property picker shown for all categories; both fields sent on create/update; card meta row shows `need.vehicle_name` / `need.home_name`.
 
 ### Session — 2026-04-16 (session review — 6 bug fixes)
 
