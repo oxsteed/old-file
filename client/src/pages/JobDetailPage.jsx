@@ -21,12 +21,7 @@ const JOB_TYPE_MAP = {
   tier3_escrow:   'Escrow Protected',
 };
 
-const URGENCY_MAP = {
-  asap:       { label: 'ASAP',       color: '#ef4444', bg: 'rgba(239,68,68,.15)' },
-  this_week:  { label: t('jobDetail.urgencyWeek'),  color: '#f97316', bg: 'rgba(249,115,22,.15)' },
-  this_month: { label: 'This Month', color: '#eab308', bg: 'rgba(234,179,8,.15)' },
-  flexible:   { label: t('jobDetail.urgencyFlexible'),   color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
-};
+// URGENCY_MAP is defined inside the component (see below) because it uses t().
 
 const REQ_META = {
   license:         { label: 'Licensed',         icon: '🪪' },
@@ -92,6 +87,13 @@ function daysUntil(dateStr) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function JobDetailPage() {
   const { t } = useTranslation();
+
+  const URGENCY_MAP = {
+    asap:       { label: 'ASAP',       color: '#ef4444', bg: 'rgba(239,68,68,.15)' },
+    this_week:  { label: t('jobDetail.urgencyWeek'),  color: '#f97316', bg: 'rgba(249,115,22,.15)' },
+    this_month: { label: 'This Month', color: '#eab308', bg: 'rgba(234,179,8,.15)' },
+    flexible:   { label: t('jobDetail.urgencyFlexible'),   color: '#4ade80', bg: 'rgba(74,222,128,.12)' },
+  };
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, canApplyToJobs, needsOnboarding } = useAuth();
