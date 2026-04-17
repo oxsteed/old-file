@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { SearchX, RotateCcw, MapPin, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ADJACENT_SKILLS, SKILL_TILES } from '../../types/helperDirectory';
 
 interface EmptyStateProps {
@@ -23,6 +24,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   maxDistance,
   onExpandRadius,
 }) => {
+  const { t } = useTranslation();
   const adjacentCategories = selectedCategory ? (ADJACENT_SKILLS[selectedCategory] ?? []) : [];
   const adjacentTiles = adjacentCategories
     .map((cat) => SKILL_TILES.find((t) => t.category === cat))
@@ -38,13 +40,13 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       </div>
 
       <div>
-        <p className="text-white font-semibold text-lg">No helpers found nearby</p>
+        <p className="text-white font-semibold text-lg">{t('helpersDir.noHelpersNearby')}</p>
         <p className="text-gray-400 text-sm mt-1 max-w-sm leading-relaxed">
           {query
-            ? `No results for "${query}".`
+            ? t('helpersDir.noResultsQuery', { query })
             : selectedCategory
-            ? `No ${selectedCategory} helpers match your current filters.`
-            : 'No helpers match your current filters.'}
+            ? t('helpersDir.noHelpersCat', { category: selectedCategory })
+            : t('helpersDir.noHelpersFiltered')}
         </p>
       </div>
 
@@ -57,7 +59,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-xl transition-colors"
           >
             <MapPin className="w-4 h-4" aria-hidden="true" />
-            Expand to {nextRadius} miles
+            {t('helpersDir.expandRadius', { miles: nextRadius })}
           </button>
         )}
 
@@ -68,7 +70,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium rounded-xl transition-colors"
           >
             <RotateCcw className="w-4 h-4" aria-hidden="true" />
-            Clear all filters
+            {t('helpersDir.clearAllFilters')}
           </button>
         )}
 
@@ -77,7 +79,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           to="/register/customer"
           className="w-full flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 text-sm font-medium rounded-xl transition-colors"
         >
-          Post a job — let helpers come to you
+          {t('helpersDir.postJobCta')}
           <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </Link>
       </div>
@@ -86,7 +88,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       {adjacentTiles.length > 0 && (
         <div className="mt-2">
           <p className="text-xs text-gray-500 mb-3">
-            Try a similar skill:
+            {t('helpersDir.trySimilarSkill')}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {adjacentTiles.map((tile) => (
@@ -104,9 +106,9 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       )}
 
       <p className="text-xs text-gray-600 max-w-xs">
-        Don't see what you need?{' '}
+        {t('helpersDir.dontSeeWhat')}{' '}
         <Link to="/register/customer" className="text-brand-500 hover:text-brand-400 transition-colors">
-          Post a job for free
+          {t('helpersDir.postForFree')}
         </Link>{' '}
         and qualified helpers will reach out to you.
       </p>

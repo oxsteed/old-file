@@ -1,73 +1,32 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Footer from '../components/Footer';
 
-const CUSTOMER_STEPS = [
-  {
-    step: '1',
-    title: 'Create a Free Account',
-    desc: 'Sign up in about 5 minutes. No credit card required.',
-  },
-  {
-    step: '2',
-    title: 'Post a Job',
-    desc: 'Describe what you need — handyman work, cleaning, yard work, moving help, and more. Set your budget and timeline.',
-  },
-  {
-    step: '3',
-    title: 'Receive Bids',
-    desc: 'Qualified local helpers see your job and send competitive bids. Compare profiles, ratings, and pricing side by side.',
-  },
-  {
-    step: '4',
-    title: 'Hire with Confidence',
-    desc: 'Choose the best fit, communicate through our messaging system, and get the job done. Leave a review when complete.',
-  },
-];
-
-const HELPER_STEPS = [
-  {
-    step: '1',
-    title: 'Apply to Become a Helper',
-    desc: 'Complete our quick registration process.',
-  },
-  {
-    step: '2',
-    title: 'Browse & Bid on Jobs',
-    desc: 'See real jobs posted by customers in your area. Submit competitive bids and showcase your experience.',
-  },
-  {
-    step: '3',
-    title: 'Get Hired & Get Paid',
-    desc: 'Win jobs, complete the work, and build your reputation with reviews. Grow your local business on your schedule.',
-  },
-];
-
-const FAQS = [
-  {
-    q: 'Is OxSteed free to use?',
-    a: 'Yes. Posting jobs as a customer is completely free. All users can sign up at no cost and bid on a limited number of jobs per month, or upgrade to a paid plan for expanded access.',
-  },
-  {
-    q: 'How does OxSteed verify its users?',
-    a: "Every user completes identity verification during registration. We may also run background checks and collect tax information (such as a W-9) when a user chooses to receive payment via OxSteed. Customer reviews further build each helper's reputation over time.",
-  },
-  {
-    q: 'What types of jobs can I post?',
-    a: "Handyman, plumbing, electrical, cleaning, moving, painting, landscaping, yard work, tool rental, general labor, and more. If it's a local service task, you can post it on OxSteed.",
-  },
-  {
-    q: 'How do I communicate with a helper or customer?',
-    a: "Once a bid is accepted, both parties can message each other securely through OxSteed's built-in messaging system without the need to share personal phone numbers.",
-  },
-  {
-    q: 'What if something goes wrong?',
-    a: "OxSteed is a marketplace that connects customers with independent business owners and does not control how individual jobs are performed or paid for. If there's an issue with a job, either party can open a case in our dispute resolution center, and our team will try to help mediate a fair outcome when possible.",
-  },
-];
-
 export default function HowItWorks() {
+  const { t } = useTranslation();
   const [openFaq, setOpenFaq] = useState(null);
+
+  const CUSTOMER_STEPS = [
+    { step: '1', title: t('howItWorks.customerStep1Title'), desc: t('howItWorks.customerStep1Desc') },
+    { step: '2', title: t('howItWorks.customerStep2Title'), desc: t('howItWorks.customerStep2Desc') },
+    { step: '3', title: t('howItWorks.customerStep3Title'), desc: t('howItWorks.customerStep3Desc') },
+    { step: '4', title: t('howItWorks.customerStep4Title'), desc: t('howItWorks.customerStep4Desc') },
+  ];
+
+  const HELPER_STEPS = [
+    { step: '1', title: t('howItWorks.helperStep1Title'), desc: t('howItWorks.helperStep1Desc') },
+    { step: '2', title: t('howItWorks.helperStep2Title'), desc: t('howItWorks.helperStep2Desc') },
+    { step: '3', title: t('howItWorks.helperStep3Title'), desc: t('howItWorks.helperStep3Desc') },
+  ];
+
+  const FAQS = [
+    { q: t('howItWorks.faq1Q'), a: t('howItWorks.faq1A') },
+    { q: t('howItWorks.faq2Q'), a: t('howItWorks.faq2A') },
+    { q: t('howItWorks.faq3Q'), a: t('howItWorks.faq3A') },
+    { q: t('howItWorks.faq4Q'), a: t('howItWorks.faq4A') },
+    { q: t('howItWorks.faq5Q'), a: t('howItWorks.faq5A') },
+  ];
 
   return (
     <div
@@ -93,17 +52,16 @@ export default function HowItWorks() {
             OxSteed
           </Link>
           <div className="flex items-center gap-3 sm:gap-6">
-            {/* Text links collapse on small screens — the hero CTAs cover these actions */}
             <Link to="/register/customer" className="hidden sm:inline"
               style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
               onMouseEnter={e => e.currentTarget.style.color = '#fff'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
-            >Post a Job</Link>
+            >{t('howItWorks.postJob')}</Link>
             <Link to="/register/helper" className="hidden sm:inline"
               style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none', transition: 'color 150ms' }}
               onMouseEnter={e => e.currentTarget.style.color = '#fff'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
-            >Become a Helper</Link>
+            >{t('howItWorks.becomeHelper')}</Link>
             <Link
               to="/login"
               style={{
@@ -119,7 +77,7 @@ export default function HowItWorks() {
               }}
               onMouseEnter={e => e.currentTarget.style.background = '#ea580c'}
               onMouseLeave={e => e.currentTarget.style.background = '#f97316'}
-            >Sign In</Link>
+            >{t('howItWorks.signIn')}</Link>
           </div>
         </div>
       </nav>
@@ -136,12 +94,10 @@ export default function HowItWorks() {
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
         >
-          {/* ambient glow */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: 'radial-gradient(ellipse 70% 55% at 50% -10%, rgba(249,115,22,0.13) 0%, transparent 70%)',
           }} />
-          {/* subtle grid */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03,
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
@@ -163,7 +119,7 @@ export default function HowItWorks() {
               marginBottom: '1.25rem',
             }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />
-              Platform Overview
+              {t('howItWorks.badge')}
             </div>
             <h1 style={{
               fontSize: 'clamp(2.5rem, 5vw, 3.75rem)',
@@ -173,7 +129,7 @@ export default function HowItWorks() {
               color: '#fff',
               marginBottom: '1.25rem',
             }}>
-              How OxSteed Works
+              {t('howItWorks.title')}
             </h1>
             <p style={{
               fontSize: '1.0625rem',
@@ -182,7 +138,7 @@ export default function HowItWorks() {
               maxWidth: '540px',
               margin: '0 auto 1.75rem',
             }}>
-              OxSteed connects customers with local helpers. Whether you need work done or want to earn money in your community, we make it simple and easy to use.
+              {t('howItWorks.subtitle')}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
               <Link
@@ -201,7 +157,7 @@ export default function HowItWorks() {
                 onMouseEnter={e => { e.currentTarget.style.background = '#ea580c'; e.currentTarget.style.boxShadow = '0 0 32px rgba(249,115,22,0.45)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#f97316'; e.currentTarget.style.boxShadow = '0 0 24px rgba(249,115,22,0.3)'; }}
               >
-                Post a Job — It's Free
+                {t('howItWorks.postJobFree')}
               </Link>
               <Link
                 to="/register/helper"
@@ -219,7 +175,7 @@ export default function HowItWorks() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(249,115,22,0.06)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
               >
-                Become a Helper
+                {t('howItWorks.becomeHelper')}
               </Link>
             </div>
           </div>
@@ -234,8 +190,8 @@ export default function HowItWorks() {
             alignItems: 'stretch',
           }}>
             {[
-              { eyebrow: 'For Customers', title: 'Get Help in 4 Easy Steps', steps: CUSTOMER_STEPS, cta: { to: '/register/customer', label: 'Create Your Free Account', style: 'solid' } },
-              { eyebrow: 'For Helpers',   title: 'Start Earning in Your Neighborhood', steps: HELPER_STEPS, cta: { to: '/register/helper', label: 'Apply to Become a Helper', style: 'outline' } },
+              { eyebrow: t('howItWorks.forCustomers'), title: t('howItWorks.customerTitle'), steps: CUSTOMER_STEPS, cta: { to: '/register/customer', label: t('howItWorks.customerCta'), style: 'solid' } },
+              { eyebrow: t('howItWorks.forHelpers'),   title: t('howItWorks.helperTitle'),   steps: HELPER_STEPS,   cta: { to: '/register/helper',   label: t('howItWorks.helperCta'),   style: 'outline' } },
             ].map((col) => (
               <div
                 key={col.eyebrow}
@@ -363,10 +319,12 @@ export default function HowItWorks() {
                   margin: '0 0 0.6rem',
                   lineHeight: 1.15,
                 }}>
-                  Frequently Asked<br />Questions
+                  {t('howItWorks.faqTitle').split('\n').map((line, i, a) => (
+                    <span key={i}>{line}{i < a.length - 1 ? <br /> : null}</span>
+                  ))}
                 </h2>
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0, maxWidth: '280px' }}>
-                  Quick answers to what most people ask about OxSteed.
+                  {t('howItWorks.faqSubtitle')}
                 </p>
               </div>
 
@@ -388,7 +346,6 @@ export default function HowItWorks() {
                         transition: 'background 200ms',
                       }}
                     >
-                      {/* Question row */}
                       <button
                         onClick={() => setOpenFaq(isOpen ? null : i)}
                         aria-expanded={isOpen}
@@ -414,7 +371,6 @@ export default function HowItWorks() {
                         }}>
                           {faq.q}
                         </span>
-                        {/* Chevron */}
                         <svg
                           width="18" height="18"
                           viewBox="0 0 24 24"
@@ -434,7 +390,6 @@ export default function HowItWorks() {
                         </svg>
                       </button>
 
-                      {/* Answer — smooth height via grid trick */}
                       <div style={{
                         display: 'grid',
                         gridTemplateRows: isOpen ? '1fr' : '0fr',
@@ -475,9 +430,9 @@ export default function HowItWorks() {
               letterSpacing: '-0.03em',
               marginBottom: '0.75rem',
               lineHeight: 1.15,
-            }}>Ready to Get Started?</h2>
+            }}>{t('howItWorks.readyTitle')}</h2>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '1rem', lineHeight: 1.65, maxWidth: '400px', margin: '0 auto 1.75rem' }}>
-              Join your local OxSteed community today. It only takes a couple of minutes.
+              {t('howItWorks.readySubtitle')}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
               <Link
@@ -496,7 +451,7 @@ export default function HowItWorks() {
                 onMouseEnter={e => { e.currentTarget.style.background = '#ea580c'; e.currentTarget.style.boxShadow = '0 0 40px rgba(249,115,22,0.5)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#f97316'; e.currentTarget.style.boxShadow = '0 0 28px rgba(249,115,22,0.35)'; }}
               >
-                Post a Job Free
+                {t('howItWorks.postJobFreeBtn')}
               </Link>
               <Link
                 to="/register/helper"
@@ -514,7 +469,7 @@ export default function HowItWorks() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(249,115,22,0.06)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.75)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
               >
-                Become a Helper
+                {t('howItWorks.becomeHelper')}
               </Link>
             </div>
           </div>

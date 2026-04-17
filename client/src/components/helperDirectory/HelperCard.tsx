@@ -13,6 +13,7 @@ import {
   CalendarCheck, Building2,
   BadgeCheck,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { HelperCardData } from '../../types/helperDirectory';
 import StarRating from '../helperProfile/ui/StarRating';
 
@@ -23,22 +24,23 @@ interface HelperCardProps {
   highlightCategory?: string;
 }
 
-function formatPrice(price: number, unit: string): string {
-  if (unit === 'quote') return 'Get a quote';
-  const f = price.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
-  if (unit === 'hour')       return `${f}/hr`;
-  if (unit === 'starting_at') return `From ${f}`;
-  return f;
-}
-
 function memberYear(iso: string): string {
   return String(new Date(iso).getFullYear());
 }
 
 const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCategory }) => {
+  const { t } = useTranslation();
   const isBusiness    = helper.type === 'business';
   const isExactMatch  = !!(highlightCategory && helper.categories.includes(highlightCategory));
   const profileLink   = helper.profileUrl ?? `/helpers/${helper.id}`;
+
+  const formatPrice = (price: number, unit: string): string => {
+    if (unit === 'quote') return t('helpersDir.getQuote');
+    const f = price.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+    if (unit === 'hour')        return `${f}${t('helpersDir.perHour')}`;
+    if (unit === 'starting_at') return `From ${f}`;
+    return f;
+  };
 
   return (
     <article
@@ -72,7 +74,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         {isBusiness && (
           <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-900/70 text-indigo-300 border border-indigo-700 rounded-full text-xs font-medium backdrop-blur-sm">
             <Briefcase className="w-2.5 h-2.5" aria-hidden="true" />
-            Business
+            {t('helpersDir.businessBadge')}
           </span>
         )}
 
@@ -80,7 +82,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         {!isBusiness && isExactMatch && (
           <span className="absolute top-2.5 left-3 inline-flex items-center gap-1 px-2 py-0.5 bg-brand-900/70 text-brand-300 border border-brand-700 rounded-full text-xs font-medium backdrop-blur-sm">
             <Zap className="w-2.5 h-2.5" aria-hidden="true" />
-            Exact match
+            {t('helpersDir.exactMatch')}
           </span>
         )}
 
@@ -88,7 +90,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         {helper.availableToday && (
           <span className="absolute top-2.5 right-3 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-900/70 text-emerald-400 border border-emerald-800 rounded-full text-xs font-medium backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
-            Available today
+            {t('helpersDir.availableTodayBadge')}
           </span>
         )}
       </div>
@@ -117,7 +119,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
 
         {/* Right — starting price */}
         <div className="text-right pb-1">
-          <p className="text-xs text-gray-500 leading-none">Starting from</p>
+          <p className="text-xs text-gray-500 leading-none">{t('helpersDir.startingFrom')}</p>
           <p className="text-lg font-bold text-white leading-tight">
             {formatPrice(helper.startingPrice, helper.startingPriceUnit)}
           </p>
@@ -136,8 +138,8 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           </Link>
           <p className="text-gray-500 text-xs mt-0.5">
             {isBusiness
-              ? `Owner: ${helper.ownerName}`
-              : `${helper.ownerName}${helper.memberSince ? ` · Since ${memberYear(helper.memberSince)}` : ''}`
+              ? t('helpersDir.ownerPrefix', { name: helper.ownerName })
+              : `${helper.ownerName}${helper.memberSince ? t('helpersDir.memberSince', { year: memberYear(helper.memberSince) }) : ''}`
             }
           </p>
         </div>
@@ -152,7 +154,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           <span className="text-gray-600">·</span>
           <span className="flex items-center gap-1 text-xs text-gray-400">
             <Briefcase className="w-3 h-3" aria-hidden="true" />
-            {helper.jobsCompleted} jobs
+            {t('helpersDir.jobsCount', { count: helper.jobsCompleted })}
           </span>
         </div>
 
@@ -183,7 +185,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           ))}
           {helper.skills.length > 2 && (
             <span className="px-2 py-0.5 bg-gray-800 text-gray-500 rounded-full text-xs border border-gray-700">
-              +{helper.skills.length - 2} more
+              {t('helpersDir.moreSkills', { count: helper.skills.length - 2 })}
             </span>
           )}
         </div>
@@ -208,19 +210,19 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           {helper.backgroundChecked && (
             <span className="flex items-center gap-1 text-emerald-400">
               <ShieldCheck className="w-3 h-3" aria-hidden="true" />
-              Background checked
+              {t('helpersDir.bgChecked')}
             </span>
           )}
           {helper.licenses.length > 0 && (
             <span className="flex items-center gap-1 text-violet-400">
               <Award className="w-3 h-3" aria-hidden="true" />
-              {helper.licenses.length} license{helper.licenses.length > 1 ? 's' : ''}
+              {t('helpersDir.licenseCount', { count: helper.licenses.length })}
             </span>
           )}
           {helper.insurance.length > 0 && (
             <span className="flex items-center gap-1 text-sky-400">
               <BadgeCheck className="w-3 h-3" aria-hidden="true" />
-              Insured
+              {t('helpersDir.insured')}
             </span>
           )}
         </div>
@@ -231,12 +233,12 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             <MapPin className="w-3 h-3" aria-hidden="true" />
             {helper.city}, {helper.state}
             {helper.distanceMiles !== undefined && (
-              <span className="text-gray-600 ml-1">· {helper.distanceMiles.toFixed(0)} mi</span>
+              <span className="text-gray-600 ml-1">· {t('helpersDir.milesAway', { miles: helper.distanceMiles.toFixed(0) })}</span>
             )}
           </span>
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" aria-hidden="true" />
-            Responds {helper.responseTime}
+            {t('helpersDir.responds', { time: helper.responseTime })}
           </span>
         </div>
 
@@ -269,7 +271,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             ))}
             {helper.insurance.length > 3 && (
               <span className="px-2 py-0.5 bg-gray-800 text-gray-500 rounded-full text-xs border border-gray-700">
-                +{helper.insurance.length - 3}
+                {t('helpersDir.moreInsurance', { count: helper.insurance.length - 3 })}
               </span>
             )}
           </div>
@@ -283,7 +285,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             aria-label={`Message ${helper.businessName}`}
           >
             <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
-            Message
+            {t('helpersDir.message')}
           </button>
           <Link
             to={profileLink}
@@ -293,7 +295,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
             aria-label={`View ${helper.businessName} profile`}
           >
             {isBusiness ? <Building2 className="w-3.5 h-3.5" aria-hidden="true" /> : <CalendarCheck className="w-3.5 h-3.5" aria-hidden="true" />}
-            {isBusiness ? 'View Business' : 'View & Book'}
+            {isBusiness ? t('helpersDir.viewBusiness') : t('helpersDir.viewAndBook')}
           </Link>
         </div>
       </div>
