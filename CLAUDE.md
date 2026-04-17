@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-17 (i18n phases 1–8 complete)
+**Last updated:** 2026-04-17 (i18n phases 1–11 complete)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -575,8 +575,6 @@ Full audit of the customer↔helper real-time chat system. Four bugs found and f
 
 **Namespaces (25 total):** `nav`, `hero`, `common`, `jobs`, `auth`, `errors`, `login`, `forgotPassword`, `resetPassword`, `register`, `didit`, `footer`, `howItWorks`, `upgrade`, `jobList`, `settings`, `messages`, `dashboard`, `helperDashboard`, `postJob`, `jobDetail`, `helpersDir`, `support`, `businessHub`, `plans`
 
-⚠️ `plannedNeeds` namespace does **NOT** exist yet — must be created in all 4 locale files during Phase 9.
-
 ### Phase progress
 
 | Phase | Scope | Status |
@@ -589,8 +587,9 @@ Full audit of the customer↔helper real-time chat system. Four bugs found and f
 | 6 | Dashboards + Settings + Messages (Dashboard, HelperDashboard, SettingsPage, MessagesPage, ConversationPage) | ✅ Done |
 | 7 | BusinessHubPage | ✅ Done |
 | 8 | HelperInboxPage, HelperConversationPage | ✅ Done |
-| 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ⏳ Pending |
-| 10 | helperDirectory components, chat components, review components, EditProfileTab | ⏳ Pending |
+| 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ✅ Done |
+| 10 | helperDirectory components, chat components, review components, EditProfileTab | ✅ Done |
+| 11 | Remaining hardcoded strings in Dashboard.jsx and HelperDashboard.jsx | ✅ Done |
 
 ### Migration pattern
 
@@ -615,57 +614,30 @@ toast.success(t('namespace.key'))
 
 ---
 
-### ⏳ NEXT TASK FOR AI: Phase 9 — Remaining Pages
+### ✅ Phase 9 — Complete
 
-**Branch:** `claude/pull-latest-main-9TlpK`
+All 5 files committed: `HowItWorks.jsx`, `UpgradePage.jsx`, `CarCarePage.jsx`, `HelpersDirectoryPage.tsx`, `PlannedNeedsPage.jsx`.
 
-```bash
-cd /home/user/old-file
-git config user.email "claude@oxsteed.dev"
-git config user.name "Claude"
-git fetch origin main && git merge origin/main --no-edit
-```
+Note: `HelpersDirectoryPage.tsx` was already fully migrated before this session.
 
-#### Files to migrate
+### ✅ Phase 10 — Complete
 
-**`client/src/pages/HowItWorks.jsx`** → namespace `howItWorks.*`
-All keys already exist in `en.json`. Add `useTranslation`, replace strings.
+All files committed on `claude/update-claude-i18n-status-QBUJ3`:
+- `ReviewModal.jsx`, `ReviewsList.jsx` — `jobDetail.*` keys
+- `MessageComposer.tsx`, `ChatPanel.tsx` — `messages.*` keys
+- `EditProfileTab.jsx` — `helperDashboard.*` keys
+- `HelpersDirectoryPage.tsx` sub-components — `helpersDir.*` keys (already done)
+- `PlannedNeedsPage.jsx` — `plannedNeeds.*` keys (completed this session)
 
-**`client/src/pages/UpgradePage.jsx`** → namespace `upgrade.*` (also `plans.*`)
-All keys already exist in `en.json`. Add `useTranslation`, replace strings.
+### ✅ Phase 11 — Complete
 
-**`client/src/pages/HelpersDirectoryPage.tsx`** → namespace `helpersDir.*`
-All keys already exist in `en.json`. Add `useTranslation`, replace strings.
+Remaining hardcoded strings in the two largest dashboard files:
+- `Dashboard.jsx` — money category placeholder, all modal labels/options/toasts for money, goals, personalCare, carCare sections
+- `HelperDashboard.jsx` — jobs tab, bids tab, car care modal (recurring, dates, cost, notes, submit), skill modal (all fields, toggles, submit), tool modal (all fields, condition options, toggles, submit), `Update →` goal button, `View Public Profile →` button, money category placeholder
+- Added `dashboard.money.categoryPlaceholder`, `helperDashboard.viewPublicProfile` to all 4 locale files
+- Fixed critical `t` variable shadow bug: `myTools.map(t=>` renamed to `myTools.map(tool=>`
 
-**`client/src/pages/CarCarePage.jsx`** → read first, use `dashboard.carCare.*` or add new keys to a `carCare` section if it has standalone page content that doesn't fit the dashboard namespace.
-
-**`client/src/pages/PlannedNeedsPage.jsx`** → ⚠️ **`plannedNeeds` namespace does NOT exist yet.**
-Steps:
-1. Read `PlannedNeedsPage.jsx` fully — it is large.
-2. Catalog all user-facing strings.
-3. Create `plannedNeeds: { ... }` section in `en.json`.
-4. Add translations to `es.json`, `fr.json`, `ht.json`.
-5. Migrate the component.
-
-Commit after all 5 files: `feat(i18n): phase 9 — remaining pages`
-
----
-
-### ⏳ NEXT TASK FOR AI: Phase 10 — Components
-
-**Files:**
-- `client/src/components/helperDirectory/FilterPanel.tsx` → `helpersDir.*`
-- `client/src/components/helperDirectory/HelperCard.tsx` → `helpersDir.*`
-- `client/src/components/helperDirectory/EmptyState.tsx` → `helpersDir.*`
-- `client/src/components/helperProfile/chat/ChatPanel.tsx` → `messages.*` or `support.*`
-- `client/src/components/helperProfile/chat/MessageComposer.tsx` → `messages.*`
-- `client/src/components/reviews/ReviewModal.jsx` → `jobDetail.*` or add `reviews.*` keys
-- `client/src/components/reviews/ReviewsList.jsx` → same
-- `client/src/components/EditProfileTab.jsx` → `settings.*` or `helperDashboard.*`
-
-For each: read the file, add any missing keys to `en.json` + 3 locale files, migrate.
-
-Commit: `feat(i18n): phase 10 — components`
+**All 11 i18n phases are complete. No remaining migration work.**
 
 ---
 

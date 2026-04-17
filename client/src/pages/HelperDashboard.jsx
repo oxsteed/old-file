@@ -54,26 +54,29 @@ const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 // ── Onboarding ─────────────────────────────────────────────────────────────
-const OB_STEPS = [
-  {key:'account',label:'Create Account',desc:'Name, email, and password',check:()=>true},
-  {key:'email',label:'Verify Email',desc:'Confirm your email address',check:u=>!!u?.email_verified},
-  {key:'profile',label:'Profile & Location',desc:'Phone, zip, skills, and a short bio',check:u=>!!u?.profile_completed},
-  {key:'plan',label:'Choose Your Plan',desc:'Free or Pro — upgrade anytime',check:u=>!!u?.tier_selected},
-  {key:'tax',label:'Tax Information',desc:'Required for Pro tier helpers (W-9)',check:u=>!!u?.w9_completed||u?.effective_tier==='free',onlyFor:u=>u?.effective_tier==='pro'},
-  {key:'review',label:'Review & Complete',desc:'Accept terms and go live',check:u=>!!u?.onboarding_completed},
-];
+function getOBSteps(t) {
+  return [
+    {key:'account',label:t('dashboard.onboarding.createAccount'),desc:t('dashboard.onboarding.createAccountDesc'),check:()=>true},
+    {key:'email',label:t('dashboard.onboarding.verifyEmail'),desc:t('dashboard.onboarding.verifyEmailDesc'),check:u=>!!u?.email_verified},
+    {key:'profile',label:t('dashboard.onboarding.profileLocation'),desc:t('dashboard.onboarding.profileLocationDesc'),check:u=>!!u?.profile_completed},
+    {key:'plan',label:t('dashboard.onboarding.choosePlan'),desc:t('dashboard.onboarding.choosePlanDesc'),check:u=>!!u?.tier_selected},
+    {key:'tax',label:t('dashboard.onboarding.taxInfo'),desc:t('dashboard.onboarding.taxInfoDesc'),check:u=>!!u?.w9_completed||u?.effective_tier==='free',onlyFor:u=>u?.effective_tier==='pro'},
+    {key:'review',label:t('dashboard.onboarding.reviewComplete'),desc:t('dashboard.onboarding.reviewCompleteDesc'),check:u=>!!u?.onboarding_completed},
+  ];
+}
 
 function OnboardingProgress({user,onResume}){
-  const steps=OB_STEPS.filter(s=>!s.onlyFor||s.onlyFor(user));
+  const { t } = useTranslation();
+  const steps=getOBSteps(t).filter(s=>!s.onlyFor||s.onlyFor(user));
   const done=steps.filter(s=>s.check(user)).length;
   const pct=Math.round((done/steps.length)*100);
   const next=steps.find(s=>!s.check(user));
   return(
     <div className="bg-gradient-to-br from-orange-500/[0.08] to-gray-900/90 border border-orange-500/30 rounded-2xl p-6 mb-6">
-      <div className="flex justify-between items-start mb-4"><div><h2 className="text-lg font-bold text-white mb-1">Complete Your Profile to Start Getting Jobs</h2><p className="text-sm text-gray-500">Your profile is hidden until setup is finished.</p></div><span className="text-2xl font-extrabold text-orange-400 ml-4">{pct}%</span></div>
+      <div className="flex justify-between items-start mb-4"><div><h2 className="text-lg font-bold text-white mb-1">{t('dashboard.onboarding.title')}</h2><p className="text-sm text-gray-500">{t('dashboard.onboarding.subtitle')}</p></div><span className="text-2xl font-extrabold text-orange-400 ml-4">{pct}%</span></div>
       <ProgressBar pct={pct} color="bg-orange-500"/>
       <ul className="mt-5 space-y-2">{steps.map(s=>{const d=s.check(user);return(<li key={s.key} className={`flex items-center gap-3 ${d?'opacity-50':''}`}><div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${d?'bg-emerald-500/20 text-emerald-400':'bg-gray-700/40 text-gray-500 border border-gray-600'}`}>{d?'✓':'○'}</div><div><span className={`text-sm font-semibold ${d?'text-gray-500 line-through':'text-gray-200'}`}>{s.label}</span><span className="text-xs text-gray-600 ml-2">{s.desc}</span></div></li>);})}</ul>
-      {next&&<button onClick={onResume} className="mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition text-sm">{next.key==='profile'?'Add Profile & Location →':next.key==='plan'?'Choose a Plan →':next.key==='tax'?'Add Tax Info →':next.key==='review'?'Review & Go Live →':'Continue Setup →'}</button>}
+      {next&&<button onClick={onResume} className="mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition text-sm">{next.key==='profile'?t('dashboard.onboarding.addProfile'):next.key==='plan'?t('dashboard.onboarding.choosePlan_btn'):next.key==='tax'?t('dashboard.onboarding.addTax'):next.key==='review'?t('dashboard.onboarding.reviewGoLive'):t('dashboard.onboarding.resume')}</button>}
     </div>
   );
 }
@@ -98,7 +101,7 @@ export default function HelperDashboard() {
   const [tab, setTab] = useState(() => searchParams.get('tab') || 'pulse');
   useEffect(()=>{
     if(searchParams.get('subscribed')==='true'){
-      toast.success('Pro subscription activated! Welcome to the Pro tier.');
+      toast.success(t('helperDashboard.proActivated'));
       refreshUser?.();
       refreshSubscription?.();
       setSearchParams({},{replace:true});
@@ -140,36 +143,36 @@ export default function HelperDashboard() {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     const dollars = parseFloat(productForm.price_cents);
-    if (!productForm.name.trim()) return toast.error('Name is required.');
-    if (isNaN(dollars) || dollars <= 0) return toast.error('Enter a valid price.');
+    if (!productForm.name.trim()) return toast.error(t('helperDashboard.products.nameRequired'));
+    if (isNaN(dollars) || dollars <= 0) return toast.error(t('helperDashboard.products.invalidPrice'));
     const payload = { ...productForm, price_cents: Math.round(dollars * 100) };
     try {
       if (editingProduct) {
         await api.patch(`/helper-products/${editingProduct.id}`, payload);
-        toast.success('Product updated!');
+        toast.success(t('helperDashboard.products.updated'));
       } else {
         await api.post('/helper-products', payload);
-        toast.success('Product listed!');
+        toast.success(t('helperDashboard.products.listed'));
       }
       setShowProductModal(false);
       setEditingProduct(null);
       setProductForm(emptyProduct);
       fetchMyProducts();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save product.'); }
+    } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.products.saveFailed')); }
   };
   const handleDeleteProduct = async (id) => {
     if (!confirm('Remove this product listing?')) return;
     try {
       await api.delete(`/helper-products/${id}`);
-      toast.success('Product removed.');
+      toast.success(t('helperDashboard.products.removed'));
       fetchMyProducts();
-    } catch { toast.error('Failed to remove product.'); }
+    } catch { toast.error(t('helperDashboard.products.removeFailed')); }
   };
   const handleToggleProductAvailability = async (product) => {
     try {
       await api.patch(`/helper-products/${product.id}`, { is_available: !product.is_available });
       fetchMyProducts();
-    } catch { toast.error('Failed to update.'); }
+    } catch { toast.error(t('helperDashboard.failedUpdate')); }
   };
 
   // ── Skills & Tools state ──────────────────────────────────────────────────
@@ -252,24 +255,24 @@ export default function HelperDashboard() {
     try {
       if (editingSkill) {
         await api.put(`/user-skills/${editingSkill.id}`, skillForm);
-        toast.success('Skill updated!');
+        toast.success(t('helperDashboard.skills.updated'));
       } else {
         await api.post('/user-skills', skillForm);
-        toast.success('Skill added!');
+        toast.success(t('helperDashboard.skills.added'));
       }
       setShowSkillModal(false);
       setEditingSkill(null);
       setSkillForm(emptySkill);
       fetchMySkills();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save skill.'); }
+    } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.skills.saveFailed')); }
   };
   const handleDeleteSkill = async (id) => {
     if (!confirm('Remove this skill listing?')) return;
     try {
       await api.delete(`/user-skills/${id}`);
-      toast.success('Skill removed.');
+      toast.success(t('helperDashboard.skills.removed'));
       fetchMySkills();
-    } catch { toast.error('Failed to remove skill.'); }
+    } catch { toast.error(t('helperDashboard.skills.removeFailed')); }
   };
 
   const openAddTool = () => {
@@ -278,9 +281,9 @@ export default function HelperDashboard() {
     setToolForm(emptyTool);
     setShowToolModal(true);
   };
-  const openEditTool = (t) => {
-    setEditingTool(t);
-    setToolForm({ name:t.name, category:t.category||'', description:t.description||'', daily_rate:t.daily_rate||'', hourly_rate:t.hourly_rate||'', deposit_amount:t.deposit_amount||'', condition:t.condition||'good', brand:t.brand||'', model:t.model||'', is_available:t.is_available, requires_deposit:t.requires_deposit, delivery_available:t.delivery_available, pickup_only:t.pickup_only, location_city:t.location_city||'', location_state:t.location_state||'' });
+  const openEditTool = (tool) => {
+    setEditingTool(tool);
+    setToolForm({ name:tool.name, category:tool.category||'', description:tool.description||'', daily_rate:tool.daily_rate||'', hourly_rate:tool.hourly_rate||'', deposit_amount:tool.deposit_amount||'', condition:tool.condition||'good', brand:tool.brand||'', model:tool.model||'', is_available:tool.is_available, requires_deposit:tool.requires_deposit, delivery_available:tool.delivery_available, pickup_only:tool.pickup_only, location_city:tool.location_city||'', location_state:tool.location_state||'' });
     setShowToolModal(true);
   };
   const handleSaveTool = async (e) => {
@@ -288,24 +291,24 @@ export default function HelperDashboard() {
     try {
       if (editingTool) {
         await api.put(`/tool-rentals/${editingTool.id}`, toolForm);
-        toast.success('Tool updated!');
+        toast.success(t('helperDashboard.tools.updated'));
       } else {
         await api.post('/tool-rentals', toolForm);
-        toast.success('Tool listed!');
+        toast.success(t('helperDashboard.tools.listed'));
       }
       setShowToolModal(false);
       setEditingTool(null);
       setToolForm(emptyTool);
       fetchMyTools();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to save tool.'); }
+    } catch (err) { toast.error(err.response?.data?.error || t('helperDashboard.tools.saveFailed')); }
   };
   const handleDeleteTool = async (id) => {
     if (!confirm('Remove this tool listing?')) return;
     try {
       await api.delete(`/tool-rentals/${id}`);
-      toast.success('Tool removed.');
+      toast.success(t('helperDashboard.tools.removed'));
       fetchMyTools();
-    } catch { toast.error('Failed to remove tool.'); }
+    } catch { toast.error(t('helperDashboard.tools.removeFailed')); }
   };
 
   // ── Personal Care state & handlers ──────────────────────────────────────
@@ -339,33 +342,33 @@ export default function HelperDashboard() {
         recurring_start_date: pcForm.is_recurring && pcForm.recurring_start_date ? pcForm.recurring_start_date : null,
         recurring_end_date: pcForm.is_recurring && pcForm.recurring_end_date ? pcForm.recurring_end_date : null,
       });
-      toast.success('Appointment added!');
+      toast.success(t('helperDashboard.personalCare.added'));
       setPcForm({ title:'', category:'Medical', due_date:'', urgency:'medium', recurrence_days:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'' });
       setShowPcModal(false);
       fetchPersonalCareTasks();
-    } catch { toast.error('Failed to save.'); }
+    } catch { toast.error(t('helperDashboard.failedSave')); }
   };
   const togglePcTask = async (task) => {
     try {
       await api.put(`/life/home-tasks/${task.id}`, { is_completed: !task.is_completed });
       fetchPersonalCareTasks();
-    } catch { toast.error('Failed to update.'); }
+    } catch { toast.error(t('helperDashboard.failedUpdate')); }
   };
   const deletePcTask = async (id) => {
     try {
       await api.delete(`/life/home-tasks/${id}`);
-      setPersonalCareTasks(prev => prev.filter(t => t.id !== id));
-      toast.success('Removed.');
-    } catch { toast.error('Failed to remove.'); }
+      setPersonalCareTasks(prev => prev.filter(item => item.id !== id));
+      toast.success(t('helperDashboard.removed'));
+    } catch { toast.error(t('helperDashboard.failedRemove')); }
   };
   const quickAddPcTask = async (template) => {
     try {
       const due = new Date();
       due.setDate(due.getDate() + (template.recurrence_days || 30));
       await api.post('/life/home-tasks', { title: template.title, description: template.category, urgency: template.urgency, recurrence_days: template.recurrence_days, due_date: localDateStr(due), section: 'personal_care' });
-      toast.success(`${template.title} added!`);
+      toast.success(t('helperDashboard.taskAdded', { title: template.title }));
       fetchPersonalCareTasks();
-    } catch { toast.error('Failed to add.'); }
+    } catch { toast.error(t('helperDashboard.failedAdd')); }
   };
 
   // ── Car Care state & handlers ────────────────────────────────────────────
@@ -438,9 +441,9 @@ export default function HelperDashboard() {
       setGarage(prev => [res.data, ...prev]);
       setGarageForm({ makeSearch:'', selectedMake:null, modelSearch:'', selectedModel:null, year:'', nickname:'' });
       setGarageModels([]);
-      toast.success('Vehicle added!');
+      toast.success(t('dashboard.carCare.vehicleAdded'));
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to add vehicle.');
+      toast.error(err.response?.data?.error || t('dashboard.carCare.failedAdd'));
     } finally { setGarageAdding(false); }
   };
 
@@ -449,8 +452,8 @@ export default function HelperDashboard() {
       await api.delete(`/vehicles/my/${id}`);
       setGarage(prev => prev.filter(v => v.id !== id));
       setGarageDeleteTarget(null);
-      toast.success('Removed.');
-    } catch { toast.error('Failed to remove.'); }
+      toast.success(t('helperDashboard.removed'));
+    } catch { toast.error(t('helperDashboard.failedRemove')); }
   };
 
   const decodeVin = async () => {
@@ -463,7 +466,7 @@ export default function HelperDashboard() {
       const res = await api.get(`/vehicles/vin/${vin}`);
       setVinResult(res.data);
     } catch (err) {
-      setVinError(err.response?.data?.error || 'Could not decode VIN.');
+      setVinError(err.response?.data?.error || t('dashboard.carCare.vinDecodeFailed'));
     } finally { setVinDecoding(false); }
   };
 
@@ -486,9 +489,9 @@ export default function HelperDashboard() {
       setVinInput('');
       setVinResult(null);
       setGarageForm(p => ({...p, nickname:''}));
-      toast.success('Vehicle added from VIN!');
+      toast.success(t('dashboard.carCare.vehicleAddedVin'));
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to add vehicle.');
+      toast.error(err.response?.data?.error || t('dashboard.carCare.failedAdd'));
     } finally { setGarageAdding(false); }
   };
 
@@ -522,33 +525,33 @@ export default function HelperDashboard() {
         recurring_end_date: ccForm.is_recurring && ccForm.recurring_end_date ? ccForm.recurring_end_date : null,
         vehicle_id: vehiclePayload.vehicle_id || null,
       });
-      toast.success('Service added!');
+      toast.success(t('helperDashboard.carCare.added'));
       setCcForm({ title:'', category:'Oil Change', due_date:'', urgency:'medium', recurrence_days:'', description:'', frequency:'', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', vehicle_id:'' });
       setShowCcModal(false);
       fetchCarCareTasks();
-    } catch { toast.error('Failed to save.'); }
+    } catch { toast.error(t('helperDashboard.failedSave')); }
   };
   const toggleCcTask = async (task) => {
     try {
       await api.put(`/life/home-tasks/${task.id}`, { is_completed: !task.is_completed });
       fetchCarCareTasks();
-    } catch { toast.error('Failed to update.'); }
+    } catch { toast.error(t('helperDashboard.failedUpdate')); }
   };
   const deleteCcTask = async (id) => {
     try {
       await api.delete(`/life/home-tasks/${id}`);
-      setCarCareTasks(prev => prev.filter(t => t.id !== id));
-      toast.success('Removed.');
-    } catch { toast.error('Failed to remove.'); }
+      setCarCareTasks(prev => prev.filter(item => item.id !== id));
+      toast.success(t('helperDashboard.removed'));
+    } catch { toast.error(t('helperDashboard.failedRemove')); }
   };
   const quickAddCcTask = async (template) => {
     try {
       const due = new Date();
       due.setDate(due.getDate() + (template.recurrence_days || 90));
       await api.post('/life/home-tasks', { title: template.title, description: template.category, urgency: template.urgency, recurrence_days: template.recurrence_days, due_date: localDateStr(due), section: 'car_care' });
-      toast.success(`${template.title} added!`);
+      toast.success(t('helperDashboard.taskAdded', { title: template.title }));
       fetchCarCareTasks();
-    } catch { toast.error('Failed to add.'); }
+    } catch { toast.error(t('helperDashboard.failedAdd')); }
   };
 
   // ── Modal state ────────────────────────────────────────────────────────
@@ -666,22 +669,22 @@ export default function HelperDashboard() {
         recurring_start_date: expenseForm.is_recurring && expenseForm.recurring_start_date ? expenseForm.recurring_start_date : null,
         recurring_end_date: expenseForm.is_recurring && expenseForm.recurring_end_date ? expenseForm.recurring_end_date : null,
       });
-      toast.success(expenseForm.type === 'income' ? 'Income logged!' : 'Expense logged!');
+      toast.success(expenseForm.type === 'income' ? t('helperDashboard.incomeLogged') : t('helperDashboard.expenseLogged'));
       setExpenseForm({ type:'expense', amount:'', category:'', description:'', frequency:'one_time', is_recurring:false, recurring_start_date:'', recurring_end_date:'' });
       setShowExpenseModal(false);
       life.fetchSummary();
       life.fetchExpenses();
-    } catch { toast.error('Failed to save.'); }
+    } catch { toast.error(t('helperDashboard.failedSave')); }
   };
   const handleAddGoal = async (e) => {
     e.preventDefault();
     try {
       await life.createGoal({ ...goalForm, target_value: goalForm.target_value ? parseFloat(goalForm.target_value) : null });
-      toast.success('Goal created!');
+      toast.success(t('helperDashboard.goalCreated'));
       setGoalForm({ title:'', goal_type:'financial', target_value:'', icon:'🎯' });
       setShowGoalModal(false);
       life.fetchSummary();
-    } catch { toast.error('Failed.'); }
+    } catch { toast.error(t('helperDashboard.failed')); }
   };
   const handleAddHomeTask = async (e) => {
     e.preventDefault();
@@ -694,19 +697,19 @@ export default function HelperDashboard() {
         recurring_end_date: homeTaskForm.is_recurring && homeTaskForm.recurring_end_date ? homeTaskForm.recurring_end_date : null,
         home_id: homeTaskForm.home_id ? parseInt(homeTaskForm.home_id) : null,
       });
-      toast.success('Task added!');
+      toast.success(t('helperDashboard.taskAdded2'));
       setHomeTaskForm({ title:'', due_date:'', urgency:'low', frequency:'one_time', is_recurring:false, estimated_cost:'', recurring_start_date:'', recurring_end_date:'', home_id:'' });
       setShowHomeTaskModal(false);
       life.fetchSummary();
       life.fetchHomeTasks({ completed:'false', section:'home' });
-    } catch { toast.error('Failed to save.'); }
+    } catch { toast.error(t('helperDashboard.failedSave')); }
   };
   const toggleHomeTask = async (task) => {
     try {
       await life.updateHomeTask(task.id, { is_completed: !task.is_completed });
       life.fetchSummary();
       life.fetchHomeTasks({ completed:'false', section:'home' });
-    } catch { toast.error('Failed to update.'); }
+    } catch { toast.error(t('helperDashboard.failedUpdate')); }
   };
   const lookupHomeAddress = async () => {
     const addr = homeAddrInput.trim();
@@ -718,7 +721,7 @@ export default function HelperDashboard() {
       const res = await api.get('/house/lookup', { params: { address: addr } });
       setHomeLookup(res.data);
     } catch (err) {
-      setHomeLookupError(err.response?.data?.error || 'Address not found.');
+      setHomeLookupError(err.response?.data?.error || t('helperDashboard.addressNotFound'));
     } finally { setHomeLookupLoading(false); }
   };
   const addHome = async () => {
@@ -742,9 +745,9 @@ export default function HelperDashboard() {
       setHomeLookup(null);
       setHomeAddrInput('');
       setHomeNickname('');
-      toast.success('Home added!');
+      toast.success(t('helperDashboard.homeAdded'));
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to add home.');
+      toast.error(err.response?.data?.error || t('helperDashboard.failedAddHome'));
     } finally { setHomeAdding(false); }
   };
   const deleteHome = async (id) => {
@@ -752,23 +755,23 @@ export default function HelperDashboard() {
       await api.delete(`/house/my/${id}`);
       setHomes(prev => prev.filter(h => h.id !== id));
       setHomeDeleteTarget(null);
-      toast.success('Removed.');
-    } catch { toast.error('Failed to remove.'); }
+      toast.success(t('helperDashboard.removed'));
+    } catch { toast.error(t('helperDashboard.failedRemove')); }
   };
 
   const handleAddChecklist = async (e) => {
     e.preventDefault();
     try {
       await life.createChecklistItem(checklistForm);
-      toast.success('Added!');
+      toast.success(t('helperDashboard.checklistAdded'));
       setChecklistForm({ title:'', due_date:'' });
       setShowChecklistModal(false);
       life.fetchSummary();
-    } catch { toast.error('Failed.'); }
+    } catch { toast.error(t('helperDashboard.failed')); }
   };
   const toggleChecklist = async (item) => {
     try { await life.updateChecklistItem(item.id,{is_completed:!item.is_completed}); life.fetchSummary(); }
-    catch { toast.error('Failed.'); }
+    catch { toast.error(t('helperDashboard.failed')); }
   };
   const updateGoalProgress = async (goal, newValue) => {
     try {
@@ -776,8 +779,8 @@ export default function HelperDashboard() {
       if (isNaN(val)) return;
       await life.updateGoal(goal.id,{ current_value:val, is_completed: goal.target_value && val >= goal.target_value });
       life.fetchSummary();
-      toast.success('Progress updated!');
-    } catch { toast.error('Failed.'); }
+      toast.success(t('helperDashboard.progressUpdated'));
+    } catch { toast.error(t('helperDashboard.failed')); }
   };
 
   // ── Online / Offline toggle ────────────────────────────────────────────
@@ -795,16 +798,16 @@ export default function HelperDashboard() {
     try {
       const { data } = await api.put('/helpers/me/listing', { is_listed: newStatus });
       setIsListed(!!data.is_listed);
-      toast.success(data.is_listed ? 'You are now online — visible in the helper directory.' : 'You are now offline — hidden from the directory.');
+      toast.success(data.is_listed ? t('dashboard.status.online') : t('dashboard.status.offline'));
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Failed to update status');
+      toast.error(err?.response?.data?.error || t('helperDashboard.failedUpdateStatus'));
     }
     setListingLoading(false);
   };
 
   // ── Derived ───────────────────────────────────────────────────────────
   const hr=new Date().getHours();
-  const greeting=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+  const greeting=hr<12?t('dashboard.morning'):hr<17?t('dashboard.afternoon'):t('dashboard.evening');
   const displayName = (() => {
     const pref = user?.display_name_preference || 'first_name';
     if (pref === 'full_name') return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
@@ -822,20 +825,20 @@ export default function HelperDashboard() {
   const tabs = showOnboarding
     ? [{id:'pulse',label:t('dashboard.tabs.getStarted')}]
     : [
-        {id:'editprofile',label:'Edit Profile'},
-        {id:'earnings',   label:'Earnings'},
-        {id:'jobs',       label:'Find Jobs'},
-        {id:'money',      label:'Money'},
-        {id:'home',       label:'Home'},
-        {id:'goals',      label:'Goals'},
-        {id:'personalcare',label:'Personal Care'},
-        {id:'carcare',label:'Car Care'},
-        {id:'skills',label:'Skills & Tools'},
-        {id:'products',label:'My Products'},
-        {id:'bids',label:'My Bids'},
+        {id:'editprofile',label:t('helperDashboard.tabs.editProfile')},
+        {id:'earnings',   label:t('helperDashboard.tabs.earnings')},
+        {id:'jobs',       label:t('helperDashboard.tabs.findJobs')},
+        {id:'money',      label:t('dashboard.tabs.money')},
+        {id:'home',       label:t('dashboard.tabs.home')},
+        {id:'goals',      label:t('dashboard.tabs.goals')},
+        {id:'personalcare',label:t('dashboard.tabs.personalCare')},
+        {id:'carcare',label:t('dashboard.tabs.carCare')},
+        {id:'skills',label:t('dashboard.tabs.skillsTools')},
+        {id:'products',label:t('dashboard.tabs.products')},
+        {id:'bids',label:t('helperDashboard.tabs.myBids')},
       ];
 
-  if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">Loading your dashboard…</span></div></div></PageShell>);
+  if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">{t('helperDashboard.loadingDashboard')}</span></div></div></PageShell>);
 
   return(
     <PageShell>
@@ -885,7 +888,7 @@ export default function HelperDashboard() {
         {/* Tabs */}
         {tabs.length>1&&(
           <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1">
-            {tabs.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>))}
+            {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center ${tab===tb.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
           </div>
         )}
 
@@ -894,7 +897,7 @@ export default function HelperDashboard() {
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
               <span>⚠</span>
-              <span>Some data failed to load. <button onClick={retryLoad} className="underline hover:text-red-300">Retry</button></span>
+              <span>{t('helperDashboard.someDataFailed')} <button onClick={retryLoad} className="underline hover:text-red-300">{t('common.retry')}</button></span>
             </div>
           )}
           {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/settings')}/></div>}
@@ -920,22 +923,22 @@ export default function HelperDashboard() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-0.5">Financial Pulse</p>
-                      <p className="text-[10px] text-gray-600 mb-1">Next 30 days</p>
+                      <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold mb-0.5">{t('dashboard.financialHealth')}</p>
+                      <p className="text-[10px] text-gray-600 mb-1">{t('helperDashboard.next30Days')}</p>
                       <p className="text-sm text-gray-400 max-w-xs">
-                        {score >= 80 ? 'Strong coverage, solid runway, reliable income.' :
-                         score >= 60 ? 'Good shape — watch sinking funds and upcoming expenses.' :
-                         score >= 40 ? 'Some gaps. Review coverage and buffer strength.' :
-                         'Needs attention. Income may not cover near-term obligations.'}
+                        {score >= 80 ? t('dashboard.pulse.strong') :
+                         score >= 60 ? t('dashboard.pulse.good') :
+                         score >= 40 ? t('dashboard.pulse.someGaps') :
+                         t('dashboard.pulse.needsAttention')}
                       </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-3 shrink-0">
                     {[
-                      { l:'Coverage',    v:breakdown.coverage,    c:'text-emerald-400' },
-                      { l:'Buffer',      v:breakdown.buffer,      c:'text-blue-400'    },
-                      { l:'Reliability', v:breakdown.reliability, c:'text-purple-400'  },
-                      { l:'Obligations', v:breakdown.obligations, c:'text-orange-400'  },
+                      { l:t('dashboard.pulse.coverage'),    v:breakdown.coverage,    c:'text-emerald-400' },
+                      { l:t('dashboard.pulse.buffer'),      v:breakdown.buffer,      c:'text-blue-400'    },
+                      { l:t('dashboard.pulse.reliability'), v:breakdown.reliability, c:'text-purple-400'  },
+                      { l:t('dashboard.pulse.obligations'), v:breakdown.obligations, c:'text-orange-400'  },
                     ].map((d,i) => (
                       <div key={i} className="text-center">
                         <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '—'}</p>
@@ -960,38 +963,38 @@ export default function HelperDashboard() {
 
           {/* Summary stat cards */}
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 ${showOnboarding?'opacity-50 pointer-events-none':''}`}>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Jobs Completed</p><p className="text-2xl font-bold text-orange-400">{user?.completed_jobs||0}</p><p className="text-xs text-gray-500 mt-1">{user?.avg_rating?`${user.avg_rating}★ avg`:'No reviews yet'}</p></Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Net This Month</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(s?.finances?.net||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p><p className="text-xs text-gray-500 mt-1">${(s?.finances?.total_income||0).toFixed(0)} in · ${(s?.finances?.total_expenses||0).toFixed(0)} out</p></Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Active Bids</p><p className="text-2xl font-bold text-blue-400">{activeBids.length}</p><p className="text-xs text-gray-500 mt-1">{wonBids.length} accepted</p></Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Goals</p><p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p><p className="text-xs text-gray-500 mt-1">{s?.goals?.active||0} in progress</p></Card>
+            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.jobsCompleted')}</p><p className="text-2xl font-bold text-orange-400">{user?.completed_jobs||0}</p><p className="text-xs text-gray-500 mt-1">{user?.avg_rating?`${user.avg_rating}★ avg`:t('helperDashboard.noReviewsYet')}</p></Card>
+            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('dashboard.summary.netThisMonth')}</p><p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(s?.finances?.net||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p><p className="text-xs text-gray-500 mt-1">${(s?.finances?.total_income||0).toFixed(0)} in · ${(s?.finances?.total_expenses||0).toFixed(0)} out</p></Card>
+            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.activeBids')}</p><p className="text-2xl font-bold text-blue-400">{activeBids.length}</p><p className="text-xs text-gray-500 mt-1">{wonBids.length} {t('helperDashboard.accepted')}</p></Card>
+            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">{t('helperDashboard.goalsLabel')}</p><p className="text-2xl font-bold text-purple-400">{s?.goals?.avg_progress||0}%</p><p className="text-xs text-gray-500 mt-1">{s?.goals?.active||0} {t('helperDashboard.inProgress')}</p></Card>
           </div>
 
           {!showOnboarding&&(<>
             {/* Verification cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
               <Card>
-                <div className="flex items-center gap-2 mb-3"><IcoDollar size={16} cls="text-orange-400"/><span className="text-sm font-semibold">Subscription</span></div>
-                {isProActive?(<><p className="text-lg font-bold text-orange-400 mb-1">Pro</p><Tag text="Active" color="green"/><button onClick={openPortal} className="mt-2 text-xs text-gray-400 hover:text-gray-200 transition font-medium block">Manage Billing →</button></>)
-                :selectedProNoPay?(<><p className="text-lg font-bold text-orange-400 mb-1">Pro</p><Tag text="Payment Pending" color="orange"/><p className="text-xs text-gray-500 my-2">You selected Pro during signup. Complete payment to activate.</p><button onClick={()=>createCheckout('pro')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Complete Pro Upgrade</button></>)
-                :(<><p className="text-lg font-bold text-gray-400 mb-1">Free</p><p className="text-xs text-gray-500 mb-3">Upgrade for verified badge & priority placement.</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Upgrade to Pro</button></>)}
+                <div className="flex items-center gap-2 mb-3"><IcoDollar size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.subscription')}</span></div>
+                {isProActive?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.active')} color="green"/><button onClick={openPortal} className="mt-2 text-xs text-gray-400 hover:text-gray-200 transition font-medium block">{t('helperDashboard.manageBilling')} →</button></>)
+                :selectedProNoPay?(<><p className="text-lg font-bold text-orange-400 mb-1">{t('common.pro')}</p><Tag text={t('helperDashboard.paymentPending')} color="orange"/><p className="text-xs text-gray-500 my-2">{t('helperDashboard.selectedProNoPay')}</p><button onClick={()=>createCheckout('pro')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.completeUpgrade')}</button></>)
+                :(<><p className="text-lg font-bold text-gray-400 mb-1">{t('helperDashboard.free')}</p><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.upgradeHint')}</p><button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.upgradeToPro')}</button></>)}
               </Card>
               <Card>
-                <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">Background Check</span></div>
+                <div className="flex items-center gap-2 mb-3"><IcoShield size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.backgroundCheck')}</span></div>
                 {verification.backgroundCheck?<Tag text={verification.backgroundCheck.status} color={verification.backgroundCheck.status==='passed'?'green':'orange'}/>
-                :isProActive?(<><p className="text-xs text-gray-500 mb-3">Adds a verified badge to your profile.</p><button onClick={startBackgroundCheck} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Start Check</button></>)
-                :<p className="text-xs text-gray-500">Requires Pro subscription.</p>}
+                :isProActive?(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.bgCheckHint')}</p><button onClick={startBackgroundCheck} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.startCheck')}</button></>)
+                :<p className="text-xs text-gray-500">{t('helperDashboard.requiresPro')}</p>}
               </Card>
               <Card>
-                <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">ID Verification</span></div>
+                <div className="flex items-center gap-2 mb-3"><IcoId size={16} cls="text-orange-400"/><span className="text-sm font-semibold">{t('helperDashboard.idVerification')}</span></div>
                 {verification.identity?<Tag text={verification.identity.status} color={verification.identity.status==='approved'?'green':'orange'}/>
-                :isProActive?(<><p className="text-xs text-gray-500 mb-3">Build trust with customers.</p><button onClick={startIdentityVerification} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Verify ID</button></>)
-                :<p className="text-xs text-gray-500">Requires Pro subscription.</p>}
+                :isProActive?(<><p className="text-xs text-gray-500 mb-3">{t('helperDashboard.idVerificationHint')}</p><button onClick={startIdentityVerification} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">{t('helperDashboard.verifyId')}</button></>)
+                :<p className="text-xs text-gray-500">{t('helperDashboard.requiresPro')}</p>}
               </Card>
             </div>
 
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:'Find Jobs',c:'text-orange-400'},{to:'/helper/messages',Ic:IcoChat,l:'Messages',c:'text-blue-400',badge:unreadMessages},{to:'/disputes',Ic:IcoShield,l:'Disputes',c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:'Settings',c:'text-gray-400'}].map((a,i)=>(
+              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'}].map((a,i)=>(
                 <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                   <div className="relative flex-shrink-0">
                     <a.Ic size={18} cls={a.c}/>
@@ -1004,9 +1007,9 @@ export default function HelperDashboard() {
 
             {/* Nearby jobs */}
             <Card className="mb-6">
-              <CardHeader icon={IcoZap} title="Jobs Near You" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">View All →</Link>}/>
+              <CardHeader icon={IcoZap} title={t('helperDashboard.jobsNearYou')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('common.viewAll')} →</Link>}/>
               {nearbyJobs.length===0
-                ? <p className="text-gray-500 text-sm text-center py-6">No nearby jobs right now. Check back soon or <Link to="/jobs" className="text-orange-400 hover:text-orange-300">browse all jobs</Link>.</p>
+                ? <p className="text-gray-500 text-sm text-center py-6">{t('helperDashboard.noNearbyJobs')} <Link to="/jobs" className="text-orange-400 hover:text-orange-300">{t('helperDashboard.browseAllJobs')}</Link>.</p>
                 : <div className="space-y-2">{nearbyJobs.slice(0,3).map(job=>(
                     <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl hover:bg-gray-800/60 transition group">
                       <div className="min-w-0 flex-1"><p className="text-white text-sm font-medium group-hover:text-orange-400 transition truncate">{job.title}</p><p className="text-xs text-gray-500 mt-0.5 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.distance_miles?` · ${job.distance_miles} mi`:''}</p></div>
@@ -1019,16 +1022,16 @@ export default function HelperDashboard() {
             {/* Community stats */}
             {life.community && (
               <Card className="mb-6">
-                <CardHeader icon={IcoUsers} title="Springfield Helpers" right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">Browse Jobs →</Link>}/>
+                <CardHeader icon={IcoUsers} title={t('dashboard.community.title')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('dashboard.community.browseJobs')}</Link>}/>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-orange-400">{life.community.jobs_this_week}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Jobs This Week</p></div>
-                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-emerald-400">{life.community.open_jobs}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Open Now</p></div>
-                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-blue-400">{life.community.active_helpers}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Active Helpers</p></div>
-                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-purple-400">{life.community.active_seekers}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Seekers This Week</p></div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-orange-400">{life.community.jobs_this_week}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.jobsThisWeek')}</p></div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-emerald-400">{life.community.open_jobs}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.openNow')}</p></div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-blue-400">{life.community.active_helpers}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.activeHelpers')}</p></div>
+                  <div className="text-center p-3 bg-gray-800/30 rounded-xl"><p className="text-xl font-bold text-purple-400">{life.community.active_seekers}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.seekersThisWeek')}</p></div>
                 </div>
                 {life.community.top_categories?.length > 0 && (
                   <div className="mt-4 flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-gray-500">Most requested:</span>
+                    <span className="text-xs text-gray-500">{t('dashboard.community.trending')}</span>
                     {life.community.top_categories.slice(0,3).map((c,i) => <Tag key={i} text={`${c.category_name} (${c.job_count})`} color={['orange','green','blue'][i]}/>)}
                   </div>
                 )}
@@ -1038,8 +1041,8 @@ export default function HelperDashboard() {
             {/* Pro upgrade CTA */}
             {!isProActive && (
               <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">Upgrade to Pro</h3></div><p className="text-sm text-gray-400">Get priority placement, verified badge, background check, ID verification, and bid alerts.</p></div>
-                <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">View Plans</button>
+                <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('helperDashboard.upgradeToPro')}</h3></div><p className="text-sm text-gray-400">{t('helperDashboard.upgradeProDesc')}</p></div>
+                <button onClick={()=>navigate('/upgrade')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('helperDashboard.viewPlans')}</button>
               </div>
             )}
           </>)}
@@ -1051,12 +1054,12 @@ export default function HelperDashboard() {
         {/* ═══════ EARNINGS ═══════ */}
         {tab==='earnings'&&(<>
           <Card className="mb-6">
-            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>+ Log Transaction</Btn>}/>
+            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Income</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Expenses</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Net</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Savings Rate</p>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
                 {(life.expenseSummary?.total_income||0) > 0
                   ? <p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
                   : <p className="text-xl font-bold text-gray-600">—</p>
@@ -1066,8 +1069,8 @@ export default function HelperDashboard() {
           </Card>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
-              <CardHeader icon={IcoDollar} title="Recent Transactions"/>
-              {life.expenses.length===0?<p className="text-gray-600 text-sm text-center py-8">No transactions yet.</p>
+              <CardHeader icon={IcoDollar} title={t('dashboard.money.recentTransactions')}/>
+              {life.expenses.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noTransactions')}</p>
               :(<div className="space-y-1 max-h-80 overflow-y-auto">{life.expenses.slice(0,15).map(e=>(
                 <div key={e.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/30 transition group">
                   <div className="min-w-0 flex-1">
@@ -1081,14 +1084,14 @@ export default function HelperDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{e.type==='income'?'+':'-'}${parseFloat(e.amount).toFixed(2)}</span>
-                    <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success('Deleted');}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                    <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('helperDashboard.deleted'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                   </div>
                 </div>
               ))}</div>)}
             </Card>
             <Card>
-              <CardHeader icon={IcoTarget} title="Budget Categories" right={<Btn variant="secondary" onClick={()=>setShowBudgetModal(true)}>+ Add Budget</Btn>}/>
-              {life.budgets.length===0?<p className="text-gray-600 text-sm text-center py-8">No budgets set yet.</p>
+              <CardHeader icon={IcoTarget} title={t('dashboard.money.budgets')} right={<Btn variant="secondary" onClick={()=>setShowBudgetModal(true)}>{t('dashboard.money.addBudget')}</Btn>}/>
+              {life.budgets.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noBudgets')}</p>
               :(<div className="space-y-4">{life.budgets.map(b=>{const spent=parseFloat(b.spent||0);const lim=parseFloat(b.monthly_limit);const pct=lim>0?(spent/lim)*100:0;const periodLabel=b.period&&b.period!=='monthly'?` /mo (${b.period.replace('_','-')})`:'/mo';return(<div key={b.id}><div className="flex justify-between text-sm mb-1"><span className="font-medium text-white">{b.category}</span><span className="text-gray-500">${spent.toFixed(0)} / ${lim.toFixed(0)}{periodLabel}</span></div><ProgressBar pct={pct} color={pct>90?'bg-red-500':pct>70?'bg-yellow-500':'bg-emerald-500'}/></div>);})}</div>)}
             </Card>
           </div>
@@ -1097,12 +1100,12 @@ export default function HelperDashboard() {
         {/* ═══════ FIND JOBS ═══════ */}
         {tab==='jobs'&&(
           <div>
-            <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">Available Jobs</h3><Link to="/jobs" className="text-sm text-orange-400 font-medium">Advanced Search →</Link></div>
-            {nearbyJobs.length===0?<Card className="p-16 text-center"><IcoMap size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">No jobs available right now. Check back soon.</p></Card>
+            <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">{t('helperDashboard.availableJobsTitle')}</h3><Link to="/jobs" className="text-sm text-orange-400 font-medium">{t('helperDashboard.advancedSearch')}</Link></div>
+            {nearbyJobs.length===0?<Card className="p-16 text-center"><IcoMap size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">{t('helperDashboard.noJobsAvailable')}</p></Card>
             :<div className="space-y-2">{nearbyJobs.map(job=>(
               <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
-                <div className="min-w-0 flex-1 mr-4"><div className="flex items-center gap-2 mb-1"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{job.title}</p>{job.is_urgent&&<Tag text="Urgent" color="red"/>}</div><p className="text-xs text-gray-500 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.bid_count>0?` · ${job.bid_count} bids`:''}</p></div>
-                <div className="flex items-center gap-3 flex-shrink-0">{(job.budget_min||job.budget_max)&&<span className="text-base font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}<span className="text-xs bg-orange-500/15 text-orange-400 px-3 py-1.5 rounded-lg font-semibold">View</span></div>
+                <div className="min-w-0 flex-1 mr-4"><div className="flex items-center gap-2 mb-1"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{job.title}</p>{job.is_urgent&&<Tag text={t('jobDetail.urgencyASAP')} color="red"/>}</div><p className="text-xs text-gray-500 truncate">{job.category_name||job.category}{job.location_city?` · ${job.location_city}`:''}{job.bid_count>0?` · ${job.bid_count} bids`:''}</p></div>
+                <div className="flex items-center gap-3 flex-shrink-0">{(job.budget_min||job.budget_max)&&<span className="text-base font-bold text-emerald-400">${job.budget_min||'?'}–${job.budget_max||'?'}</span>}<span className="text-xs bg-orange-500/15 text-orange-400 px-3 py-1.5 rounded-lg font-semibold">{t('helperDashboard.viewJobBtn')}</span></div>
               </Link>
             ))}</div>}
           </div>
@@ -1112,12 +1115,12 @@ export default function HelperDashboard() {
         {tab==='money'&&(<>
           {/* Monthly summary */}
           <Card className="mb-6">
-            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>+ Log Transaction</Btn>}/>
+            <CardHeader icon={IcoDollar} title={`${new Date().toLocaleString('en-US',{month:'long'})} ${new Date().getFullYear()}`} right={<Btn onClick={()=>setShowExpenseModal(true)}>{t('dashboard.money.logTransaction')}</Btn>}/>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Income</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Expenses</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Net</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">Savings Rate</p>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.income')}</p><p className="text-xl font-bold text-emerald-400">${(life.expenseSummary?.total_income||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
+              <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
                 {(life.expenseSummary?.total_income||0)>0
                   ?<p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
                   :<p className="text-xl font-bold text-gray-600">—</p>
@@ -1129,9 +1132,9 @@ export default function HelperDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             {/* Recent transactions */}
             <Card>
-              <CardHeader icon={IcoDollar} title="Recent Transactions"/>
+              <CardHeader icon={IcoDollar} title={t('dashboard.money.recentTransactions')}/>
               {life.expenses.length===0?(
-                <p className="text-gray-600 text-sm text-center py-8">No transactions yet. Log your first one above.</p>
+                <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noTransactions')}</p>
               ):(
                 <div className="space-y-1 max-h-80 overflow-y-auto">
                   {life.expenses.slice(0,15).map(e=>(
@@ -1147,7 +1150,7 @@ export default function HelperDashboard() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-bold ${e.type==='income'?'text-emerald-400':'text-red-400'}`}>{e.type==='income'?'+':'-'}${parseFloat(e.amount).toFixed(2)}</span>
-                        <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success('Deleted');}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                        <button onClick={async()=>{await life.deleteExpense(e.id);life.fetchSummary();life.fetchExpenses();toast.success(t('helperDashboard.deleted'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
                   ))}
@@ -1157,9 +1160,9 @@ export default function HelperDashboard() {
 
             {/* Budgets */}
             <Card>
-              <CardHeader icon={IcoTarget} title="Budget Categories" right={<Btn variant="secondary" onClick={()=>setShowBudgetModal(true)}>+ Add Budget</Btn>}/>
+              <CardHeader icon={IcoTarget} title={t('dashboard.money.budgets')} right={<Btn variant="secondary" onClick={()=>setShowBudgetModal(true)}>{t('dashboard.money.addBudget')}</Btn>}/>
               {life.budgets.length===0?(
-                <p className="text-gray-600 text-sm text-center py-8">No budgets set. Add categories to track spending.</p>
+                <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noBudgets')}</p>
               ):(
                 <div className="space-y-4">
                   {life.budgets.map(b=>{
@@ -1184,13 +1187,13 @@ export default function HelperDashboard() {
 
           {/* Sinking funds */}
           <Card className="mb-6">
-            <CardHeader icon={IcoClock} title="Sinking Funds" right={
-              <Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300 font-medium">Manage →</Link>
+            <CardHeader icon={IcoClock} title={t('dashboard.money.sinkingFunds')} right={
+              <Link to="/planned-needs" className="text-xs text-orange-400 hover:text-orange-300 font-medium">{t('dashboard.plannedNeeds.manage')}</Link>
             }/>
             {moneyPlannedNeeds.length===0?(
               <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-xl">
-                <p className="text-sm text-gray-500">No planned needs yet — schedule future expenses and save toward them gradually.</p>
-                <Link to="/planned-needs" className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">+ Add One</Link>
+                <p className="text-sm text-gray-500">{t('dashboard.plannedNeeds.noPlannedNeeds')}</p>
+                <Link to="/planned-needs" className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap ml-3">{t('dashboard.plannedNeeds.addOne')}</Link>
               </div>
             ):(
               <div className="space-y-4">
@@ -1221,13 +1224,13 @@ export default function HelperDashboard() {
         {tab==='home'&&(<>
           {/* My Properties */}
           <Card className="mb-5">
-            <CardHeader icon={IcoHome} title="My Properties"
+            <CardHeader icon={IcoHome} title={t('dashboard.home.myProperties')}
               right={<span className="text-[10px] text-gray-600">Census · OSM · FEMA</span>}/>
 
             <div className="flex gap-2 mb-3">
               <input
                 type="text"
-                placeholder="Enter your address (e.g. 123 Main St, Springfield OH)"
+                placeholder={t('dashboard.home.addrPlaceholder')}
                 value={homeAddrInput}
                 onChange={e=>{setHomeAddrInput(e.target.value);setHomeLookup(null);setHomeLookupError('');}}
                 onKeyDown={e=>e.key==='Enter'&&!homeLookupLoading&&homeAddrInput.length>5&&lookupHomeAddress()}
@@ -1236,7 +1239,7 @@ export default function HelperDashboard() {
               <button onClick={lookupHomeAddress}
                 disabled={homeLookupLoading||homeAddrInput.trim().length<5}
                 className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">
-                {homeLookupLoading?'Looking up…':'Look Up'}
+                {homeLookupLoading?t('dashboard.home.lookingUp'):t('dashboard.home.lookUp')}
               </button>
             </div>
 
@@ -1246,7 +1249,7 @@ export default function HelperDashboard() {
               <div className="bg-gray-800/80 border border-orange-500/30 rounded-xl p-3 mb-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold text-white leading-tight">{homeLookup.matchedAddress}</p>
-                  <span className="text-[10px] text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">Census verified</span>
+                  <span className="text-[10px] text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">{t('dashboard.home.censusVerified')}</span>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-400">
                   {homeLookup.building?.yearBuilt  &&<span>🏠 Built {homeLookup.building.yearBuilt}</span>}
@@ -1259,24 +1262,24 @@ export default function HelperDashboard() {
                     </span>
                   )}
                   {!homeLookup.building&&!homeLookup.flood&&(
-                    <span className="text-gray-600">No OSM/FEMA data yet for this address — you can still save it.</span>
+                    <span className="text-gray-600">{t('dashboard.home.noOsmData')}</span>
                   )}
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <input type="text" placeholder='Nickname (optional — e.g. "Primary Home")'
+                  <input type="text" placeholder={t('dashboard.home.nicknamePlaceholder')}
                     value={homeNickname} maxLength={80}
                     onChange={e=>setHomeNickname(e.target.value)}
                     className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
                   <button onClick={addHome} disabled={homeAdding}
                     className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">
-                    {homeAdding?'Saving…':'+ Save Property'}
+                    {homeAdding?t('dashboard.carCare.saving'):t('dashboard.home.saveProperty')}
                   </button>
                 </div>
               </div>
             )}
 
             {homes.length===0?(
-              <p className="text-xs text-gray-600 text-center py-2">No properties saved yet. Enter an address above.</p>
+              <p className="text-xs text-gray-600 text-center py-2">{t('dashboard.home.noProperties')}</p>
             ):(
               <div className="flex flex-wrap gap-2">
                 {homes.map(h=>(
@@ -1299,10 +1302,10 @@ export default function HelperDashboard() {
 
             {homeDeleteTarget&&(
               <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
-                <p className="text-sm text-red-300">Remove <strong>{homeDeleteTarget.nickname||homeDeleteTarget.address}</strong>?</p>
+                <p className="text-sm text-red-300">{t('dashboard.home.removeConfirm', { name: homeDeleteTarget.nickname||homeDeleteTarget.address })}</p>
                 <div className="flex gap-2">
-                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">Cancel</button>
-                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">Remove</button>
+                  <button onClick={()=>setHomeDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded-lg">{t('common.cancel')}</button>
+                  <button onClick={()=>deleteHome(homeDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">{t('common.remove')}</button>
                 </div>
               </div>
             )}
@@ -1312,24 +1315,24 @@ export default function HelperDashboard() {
           <div className="grid grid-cols-3 gap-3 mb-5">
             <Card className="!p-3 text-center">
               <p className={`text-2xl font-bold ${(s?.home?.overdue||0)>0?'text-red-400':'text-emerald-400'}`}>{s?.home?.overdue||0}</p>
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">Overdue</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">{t('common.overdue')}</p>
             </Card>
             <Card className="!p-3 text-center">
               <p className="text-2xl font-bold text-orange-400">{s?.home?.due_this_week||0}</p>
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">Due This Week</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">{t('dashboard.summary.dueThisWeek_one', { count: '' }).trim()}</p>
             </Card>
             <Card className="!p-3 text-center">
               <p className="text-2xl font-bold text-gray-300">{s?.home?.total_pending||0}</p>
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">Total Pending</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-0.5">{t('dashboard.summary.totalPending')}</p>
             </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             {/* Home maintenance tasks */}
             <Card>
-              <CardHeader icon={IcoHome} title="Home Maintenance" right={<Btn onClick={()=>setShowHomeTaskModal(true)}>+ Add Task</Btn>}/>
+              <CardHeader icon={IcoHome} title={t('dashboard.home.maintenance')} right={<Btn onClick={()=>setShowHomeTaskModal(true)}>{t('dashboard.home.addTask')}</Btn>}/>
               {life.homeTasks.length===0?(
-                <p className="text-gray-600 text-sm text-center py-8">No home tasks yet. Add maintenance reminders.</p>
+                <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.home.noTasks')}</p>
               ):(
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {life.homeTasks.map(t=>{
@@ -1359,9 +1362,9 @@ export default function HelperDashboard() {
 
             {/* Saved helpers */}
             <Card>
-              <CardHeader icon={IcoUsers} title="Saved Helpers" right={<Link to="/helpers" className="text-xs text-orange-400 font-medium">Browse →</Link>}/>
+              <CardHeader icon={IcoUsers} title={t('dashboard.home.savedHelpers')} right={<Link to="/helpers" className="text-xs text-orange-400 font-medium">{t('helperDashboard.browseCTA')}</Link>}/>
               {life.savedHelpers.length===0?(
-                <p className="text-gray-600 text-sm text-center py-8">No saved helpers yet. Save helpers you like from profile pages.</p>
+                <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.home.noSavedHelpers')}</p>
               ):(
                 <div className="space-y-2">
                   {life.savedHelpers.map(h=>(
@@ -1373,7 +1376,7 @@ export default function HelperDashboard() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">View</Link>
-                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success('Removed');}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
+                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('helperDashboard.removed'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
                   ))}
@@ -1387,27 +1390,27 @@ export default function HelperDashboard() {
         {tab==='goals'&&(<>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
-              <CardHeader icon={IcoTarget} title="My Goals" right={<Btn onClick={()=>setShowGoalModal(true)}>+ New Goal</Btn>}/>
-              {life.goals.length===0?<p className="text-gray-600 text-sm text-center py-8">No goals yet. Set your first one.</p>
+              <CardHeader icon={IcoTarget} title={t('dashboard.goals.title')} right={<Btn onClick={()=>setShowGoalModal(true)}>{t('dashboard.goals.newGoal')}</Btn>}/>
+              {life.goals.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noGoals')}</p>
               :(<div className="space-y-4 max-h-96 overflow-y-auto">{life.goals.map(g=>{const pct=g.target_value>0?Math.min((parseFloat(g.current_value)/parseFloat(g.target_value))*100,100):0;return(
                 <div key={g.id} className={`p-4 border rounded-xl ${g.is_completed?'border-emerald-500/30 bg-emerald-500/5 opacity-60':'border-gray-800'}`}>
                   <div className="flex items-center gap-2 mb-2"><span className="text-lg">{g.icon||'🎯'}</span><span className="font-semibold text-sm text-white flex-1">{g.title}</span>{g.is_completed?<Tag text="Done" color="green"/>:<span className="text-sm font-bold text-orange-400">{Math.round(pct)}%</span>}</div>
                   {g.target_value>0&&!g.is_completed&&(<><ProgressBar pct={pct} color="bg-orange-500"/><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-500">${parseFloat(g.current_value).toLocaleString()} of ${parseFloat(g.target_value).toLocaleString()}</span>
                     {/* Uses proper modal instead of window.prompt */}
-                    <button onClick={()=>{setUpdatingGoal(g);setGoalUpdateValue(g.current_value||'');setShowGoalUpdateModal(true);}} className="text-[10px] text-orange-400 font-semibold">Update →</button>
+                    <button onClick={()=>{setUpdatingGoal(g);setGoalUpdateValue(g.current_value||'');setShowGoalUpdateModal(true);}} className="text-[10px] text-orange-400 font-semibold">{t('dashboard.goals.updateProgress')}</button>
                   </div></>)}
                 </div>
               );})}</div>)}
             </Card>
             <Card>
-              <CardHeader icon={IcoCheck} title="Life Checklist" right={<Btn onClick={()=>setShowChecklistModal(true)}>+ Add</Btn>}/>
-              <p className="text-xs text-gray-600 mb-3">{life.checklist.filter(i=>i.is_completed).length} of {life.checklist.length} completed</p>
-              {life.checklist.length===0?<p className="text-gray-600 text-sm text-center py-8">Your checklist is empty.</p>
+              <CardHeader icon={IcoCheck} title={t('dashboard.goals.checklist')} right={<Btn onClick={()=>setShowChecklistModal(true)}>{t('common.add')}</Btn>}/>
+              <p className="text-xs text-gray-600 mb-3">{t('dashboard.goals.completedOf', { completed: life.checklist.filter(i=>i.is_completed).length, total: life.checklist.length })}</p>
+              {life.checklist.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noChecklist')}</p>
               :(<div className="space-y-1.5 max-h-96 overflow-y-auto">{life.checklist.map(item=>(
                 <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800/30 transition group">
                   <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{item.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
                   <div className="flex-1 min-w-0"><p className={`text-sm ${item.is_completed?'line-through text-gray-600':'text-white'}`}>{item.title}</p>{item.due_date&&<p className={`text-xs mt-0.5 ${new Date(item.due_date)<new Date()&&!item.is_completed?'text-red-400':'text-gray-600'}`}>{new Date(item.due_date).toLocaleDateString()}</p>}</div>
-                  <button onClick={async()=>{await life.deleteChecklistItem(item.id);life.fetchSummary();toast.success('Removed');}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
+                  <button onClick={async()=>{await life.deleteChecklistItem(item.id);life.fetchSummary();toast.success(t('helperDashboard.removed'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={14} cls="text-gray-600 hover:text-red-400"/></button>
                 </div>
               ))}</div>)}
             </Card>
@@ -1418,12 +1421,12 @@ export default function HelperDashboard() {
         {tab==='personalcare'&&(
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <div><h3 className="font-semibold text-white text-lg">Personal Care</h3><p className="text-xs text-gray-500 mt-0.5">Track health appointments, grooming, wellness, and recurring self-care.</p></div>
-              <Btn onClick={()=>setShowPcModal(true)}>+ Add</Btn>
+              <div><h3 className="font-semibold text-white text-lg">{t('dashboard.personalCare.title')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('helperDashboard.personalCareDesc')}</p></div>
+              <Btn onClick={()=>setShowPcModal(true)}>{t('dashboard.personalCare.addAppointment')}</Btn>
             </div>
             {/* Quick-add templates */}
             <div>
-              <p className="text-xs text-gray-600 mb-2">Quick add:</p> 
+              <p className="text-xs text-gray-600 mb-2">{t('dashboard.personalCare.quickAdd')}:</p>
               <div className="flex gap-2 flex-wrap">
                 {[
                   {title:'Annual Physical',     category:'Medical',       urgency:'medium', recurrence_days:365},
@@ -1437,7 +1440,7 @@ export default function HelperDashboard() {
               </div>
             </div>
             {pcLoading?<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
-            :personalCareTasks.length===0?<Card className="p-12 text-center"><IcoHeart size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">No personal care tasks yet.</p></Card>
+            :personalCareTasks.length===0?<Card className="p-12 text-center"><IcoHeart size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">{t('dashboard.personalCare.noAppointments')}</p></Card>
             :<div className="space-y-2">{personalCareTasks.map(task=>{const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;return(
               <div key={task.id} className={`flex items-center gap-3 p-4 border rounded-2xl transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
                 <button onClick={()=>togglePcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
@@ -1453,15 +1456,15 @@ export default function HelperDashboard() {
           <div className="space-y-6">
             {/* My Garage */}
             <Card>
-              <CardHeader icon={IcoCar} title="My Garage" right={<span className="text-[10px] text-gray-600">NHTSA Vehicle Data</span>}/>
+              <CardHeader icon={IcoCar} title={t('dashboard.carCare.myGarage')} right={<span className="text-[10px] text-gray-600">{t('dashboard.carCare.nhtsaData')}</span>}/>
               <div className="flex gap-2 mb-4">
-                {['search','vin'].map(m=><button key={m} onClick={()=>setGarageMode(m)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${garageMode===m?'bg-orange-500 text-white':'bg-gray-800 text-gray-400 hover:text-gray-200'}`}>{m==='search'?'Search by Make/Model':'Decode VIN'}</button>)}
+                {['search','vin'].map(m=><button key={m} onClick={()=>setGarageMode(m)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${garageMode===m?'bg-orange-500 text-white':'bg-gray-800 text-gray-400 hover:text-gray-200'}`}>{m==='search'?t('dashboard.carCare.garageModeSummary'):t('dashboard.carCare.garageModeVin')}</button>)}
               </div>
               {garageMode==='search'?(
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="relative">
-                      <input placeholder="Make (e.g. Toyota)" value={garageForm.makeSearch}
+                      <input placeholder={t('dashboard.carCare.makePlaceholder')} value={garageForm.makeSearch}
                         onFocus={()=>loadMakesForGarage()}
                         onChange={e=>{setGarageForm(p=>({...p,makeSearch:e.target.value,selectedMake:null}));setShowMakeDD(true);}}
                         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
@@ -1474,7 +1477,7 @@ export default function HelperDashboard() {
                       )}
                     </div>
                     <div className="relative">
-                      <input placeholder="Model" value={garageForm.modelSearch} disabled={!garageForm.selectedMake}
+                      <input placeholder={t('dashboard.carCare.modelPlaceholder')} value={garageForm.modelSearch} disabled={!garageForm.selectedMake}
                         onChange={e=>{setGarageForm(p=>({...p,modelSearch:e.target.value,selectedModel:null}));setShowModelDD(true);}}
                         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition disabled:opacity-40"/>
                       {showModelDD && garageForm.modelSearch && garageModels.filter(m=>m.modelName.toLowerCase().includes(garageForm.modelSearch.toLowerCase())).length>0&&(
@@ -1487,24 +1490,24 @@ export default function HelperDashboard() {
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    <input type="number" placeholder="Year (optional)" min="1900" max={new Date().getFullYear()+1} value={garageForm.year} onChange={e=>setGarageForm(p=>({...p,year:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                    <input placeholder='Nickname (optional)' value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                    <button onClick={addToGarage} disabled={!garageForm.selectedMake||!garageForm.selectedModel||garageAdding} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">{garageAdding?'Adding…':'+ Add'}</button>
+                    <input type="number" placeholder={t('dashboard.carCare.yearOptional')} min="1900" max={new Date().getFullYear()+1} value={garageForm.year} onChange={e=>setGarageForm(p=>({...p,year:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
+                    <input placeholder={t('dashboard.carCare.nickname')} value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
+                    <button onClick={addToGarage} disabled={!garageForm.selectedMake||!garageForm.selectedModel||garageAdding} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addToGarageShort')}</button>
                   </div>
                 </div>
               ):(
                 <div className="space-y-3">
                   <div className="flex gap-2">
-                    <input placeholder="Enter VIN (17 characters)" value={vinInput} onChange={e=>setVinInput(e.target.value)} maxLength={17} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                    <button onClick={decodeVin} disabled={vinDecoding||vinInput.trim().length!==17} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">{vinDecoding?'Decoding…':'Decode'}</button>
+                    <input placeholder={t('dashboard.carCare.vinPlaceholder')} value={vinInput} onChange={e=>setVinInput(e.target.value)} maxLength={17} className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
+                    <button onClick={decodeVin} disabled={vinDecoding||vinInput.trim().length!==17} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition whitespace-nowrap">{vinDecoding?t('dashboard.carCare.decoding'):t('dashboard.carCare.decode')}</button>
                   </div>
                   {vinError&&<p className="text-xs text-red-400">{vinError}</p>}
                   {vinResult&&(
                     <div className="bg-gray-800/80 border border-orange-500/30 rounded-xl p-3 space-y-2">
                       <p className="text-sm font-semibold text-white">{vinResult.year} {vinResult.make} {vinResult.model}</p>
                       <div className="flex gap-2">
-                        <input placeholder='Nickname (optional)' value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
-                        <button onClick={addVinVehicle} disabled={garageAdding} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">{garageAdding?'Adding…':'+ Save'}</button>
+                        <input placeholder={t('dashboard.carCare.nickname')} value={garageForm.nickname} onChange={e=>setGarageForm(p=>({...p,nickname:e.target.value}))} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"/>
+                        <button onClick={addVinVehicle} disabled={garageAdding} className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition whitespace-nowrap">{garageAdding?t('dashboard.carCare.adding'):t('dashboard.carCare.addVinSave')}</button>
                       </div>
                     </div>
                   )}
@@ -1526,10 +1529,10 @@ export default function HelperDashboard() {
               )}
               {garageDeleteTarget&&(
                 <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between gap-3">
-                  <p className="text-sm text-red-300">Remove <strong>{garageDeleteTarget.nickname||`${garageDeleteTarget.make_name} ${garageDeleteTarget.model_name}`}</strong>?</p>
+                  <p className="text-sm text-red-300">{t('dashboard.carCare.removeConfirm',{name:garageDeleteTarget.nickname||`${garageDeleteTarget.make_name} ${garageDeleteTarget.model_name}`})}</p>
                   <div className="flex gap-2">
-                    <button onClick={()=>setGarageDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition">Cancel</button>
-                    <button onClick={()=>deleteFromGarage(garageDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">Remove</button>
+                    <button onClick={()=>setGarageDeleteTarget(null)} className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition">{t('dashboard.carCare.keepIt')}</button>
+                    <button onClick={()=>deleteFromGarage(garageDeleteTarget.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg transition">{t('dashboard.carCare.removeBtn')}</button>
                   </div>
                 </div>
               )}
@@ -1537,11 +1540,11 @@ export default function HelperDashboard() {
 
             {/* Car Care Tasks */}
             <div className="flex items-center justify-between">
-              <div><h3 className="font-semibold text-white text-lg">Car Care Schedule</h3><p className="text-xs text-gray-500 mt-0.5">Track oil changes, tires, inspections, and recurring vehicle services.</p></div>
+              <div><h3 className="font-semibold text-white text-lg">{t('dashboard.carCare.scheduleTitle')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('dashboard.carCare.scheduleSub')}</p></div>
               <Btn onClick={()=>setShowCcModal(true)}>+ Add Service</Btn>
             </div>
             <div>
-              <p className="text-xs text-gray-600 mb-2">Quick add:</p>
+              <p className="text-xs text-gray-600 mb-2">{t('dashboard.carCare.quickAddLabel')}</p>
               <div className="flex gap-2 flex-wrap">
                 {[
                   {title:'Oil Change',       category:'Oil Change',  urgency:'medium', recurrence_days:90},
@@ -1554,7 +1557,7 @@ export default function HelperDashboard() {
               </div>
             </div>
             {ccLoading?<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
-            :carCareTasks.length===0?<Card className="p-12 text-center"><IcoCar size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">No car care tasks yet.</p></Card>
+            :carCareTasks.length===0?<Card className="p-12 text-center"><IcoCar size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500">{t('dashboard.carCare.noTasksYet')}</p></Card>
             :<div className="space-y-2">{carCareTasks.map(task=>{const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;return(
               <div key={task.id} className={`flex items-center gap-3 p-4 border rounded-2xl transition ${overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
                 <button onClick={()=>toggleCcTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
@@ -1569,16 +1572,16 @@ export default function HelperDashboard() {
         {tab==='skills' && (
           <div className="space-y-8">
             <div className="flex justify-end">
-              <button onClick={()=>navigate(`/helpers/${user?.id}`)} className="text-sm text-orange-400 hover:text-orange-300 underline underline-offset-2 transition">View Public Profile →</button>
+              <button onClick={()=>navigate(`/helpers/${user?.id}`)} className="text-sm text-orange-400 hover:text-orange-300 underline underline-offset-2 transition">{t('helperDashboard.viewPublicProfile')}</button>
             </div>
             {/* My Skills */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <div><h3 className="font-semibold text-white text-lg">My Skills for Hire</h3><p className="text-xs text-gray-500 mt-0.5">List the skills you offer so customers can find and hire you directly.</p></div>
-                <Btn onClick={openAddSkill}>+ Add Skill</Btn>
+                <div><h3 className="font-semibold text-white text-lg">{t('dashboard.skillsTools.skillsTitle')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('dashboard.skillsTools.skillsSub')}</p></div>
+                <Btn onClick={openAddSkill}>{t('dashboard.skillsTools.addSkill')}</Btn>
               </div>
               {skillsLoading?<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
-              :mySkills.length===0?<p className="text-gray-600 text-sm text-center py-8">No skills listed yet. Add your first skill to get discovered for relevant jobs.</p>
+              :mySkills.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.skillsTools.noSkills')}</p>
               :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{mySkills.map(sk=>(
                 <div key={sk.id} className="p-4 border border-gray-800 rounded-xl">
                   <div className="flex items-start justify-between gap-2">
@@ -1589,10 +1592,10 @@ export default function HelperDashboard() {
                       {sk.description&&<p className="text-xs text-gray-600 mt-1 line-clamp-2">{sk.description}</p>}
                     </div>
                     <div className="flex flex-col gap-1 flex-shrink-0">
-                      <Tag text={sk.is_available?'Available':'Unavailable'} color={sk.is_available?'green':'gray'}/>
+                      <Tag text={sk.is_available?t('dashboard.skillsTools.available'):t('dashboard.skillsTools.unavailable')} color={sk.is_available?'green':'gray'}/>
                       <div className="flex gap-1 justify-end mt-1">
-                        <button onClick={()=>openEditSkill(sk)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">Edit</button>
-                        <button onClick={()=>handleDeleteSkill(sk.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">Del</button>
+                        <button onClick={()=>openEditSkill(sk)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
+                        <button onClick={()=>handleDeleteSkill(sk.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
                       </div>
                     </div>
                   </div>
@@ -1603,34 +1606,34 @@ export default function HelperDashboard() {
             {/* Tools for Rent */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <div><h3 className="font-semibold text-white text-lg">Tools for Rent</h3><p className="text-xs text-gray-500 mt-0.5">List your equipment so others can rent them.</p></div>
-                <Btn onClick={openAddTool}>+ List a Tool</Btn>
+                <div><h3 className="font-semibold text-white text-lg">{t('dashboard.skillsTools.toolsForRentTitle')}</h3><p className="text-xs text-gray-500 mt-0.5">{t('dashboard.skillsTools.toolsForRentSub')}</p></div>
+                <Btn onClick={openAddTool}>{t('dashboard.skillsTools.listToolBtn')}</Btn>
               </div>
               {toolsLoading?<div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
-              :myTools.length===0?<p className="text-gray-600 text-sm text-center py-8">No tools listed yet.</p>
-              :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{myTools.map(t=>(
-                <div key={t.id} className="p-4 border border-gray-800 rounded-xl">
+              :myTools.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.skillsTools.noTools')}</p>
+              :<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{myTools.map(tool=>(
+                <div key={tool.id} className="p-4 border border-gray-800 rounded-xl">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm text-white truncate">{t.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{t.category}{t.brand?` · ${t.brand}`:''}{t.model?` ${t.model}`:''}</p>
+                      <p className="font-semibold text-sm text-white truncate">{tool.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{tool.category}{tool.brand?` · ${tool.brand}`:''}{tool.model?` ${tool.model}`:''}</p>
                       <div className="flex gap-2 mt-1 flex-wrap">
-                        {t.daily_rate&&<span className="text-xs text-orange-400 font-semibold">${parseFloat(t.daily_rate).toFixed(0)}/day</span>}
-                        {t.hourly_rate&&<span className="text-xs text-gray-400">${parseFloat(t.hourly_rate).toFixed(0)}/hr</span>}
-                        {t.deposit_amount&&<span className="text-xs text-gray-500">Deposit ${parseFloat(t.deposit_amount).toFixed(0)}</span>}
+                        {tool.daily_rate&&<span className="text-xs text-orange-400 font-semibold">${parseFloat(tool.daily_rate).toFixed(0)}/day</span>}
+                        {tool.hourly_rate&&<span className="text-xs text-gray-400">${parseFloat(tool.hourly_rate).toFixed(0)}/hr</span>}
+                        {tool.deposit_amount&&<span className="text-xs text-gray-500">Deposit ${parseFloat(tool.deposit_amount).toFixed(0)}</span>}
                       </div>
-                      {t.condition&&<p className="text-xs text-gray-600 mt-1 capitalize">Condition: {t.condition}</p>}
-                      {(t.location_city||t.location_state)&&<p className="text-xs text-gray-600 mt-0.5">{[t.location_city,t.location_state].filter(Boolean).join(', ')}</p>}
+                      {tool.condition&&<p className="text-xs text-gray-600 mt-1 capitalize">{t('dashboard.skillsTools.conditionPrefix')} {tool.condition}</p>}
+                      {(tool.location_city||tool.location_state)&&<p className="text-xs text-gray-600 mt-0.5">{[tool.location_city,tool.location_state].filter(Boolean).join(', ')}</p>}
                       <div className="flex gap-2 mt-1 flex-wrap">
-                        {t.delivery_available&&<span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full font-semibold">Delivery</span>}
-                        {t.requires_deposit&&<span className="text-[10px] bg-yellow-500/15 text-yellow-400 px-1.5 py-0.5 rounded-full font-semibold">Deposit Required</span>}
+                        {tool.delivery_available&&<span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-full font-semibold">{t('dashboard.skillsTools.delivery')}</span>}
+                        {tool.requires_deposit&&<span className="text-[10px] bg-yellow-500/15 text-yellow-400 px-1.5 py-0.5 rounded-full font-semibold">{t('dashboard.skillsTools.depositRequired')}</span>}
                       </div>
                     </div>
                     <div className="flex flex-col gap-1 flex-shrink-0">
-                      <Tag text={t.is_available?'Available':'Unavailable'} color={t.is_available?'green':'gray'}/>
+                      <Tag text={tool.is_available?t('dashboard.skillsTools.available'):t('dashboard.skillsTools.unavailable')} color={tool.is_available?'green':'gray'}/>
                       <div className="flex gap-1 justify-end mt-1">
-                        <button onClick={()=>openEditTool(t)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">Edit</button>
-                        <button onClick={()=>handleDeleteTool(t.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">Del</button>
+                        <button onClick={()=>openEditTool(tool)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
+                        <button onClick={()=>handleDeleteTool(tool.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
                       </div>
                     </div>
                   </div>
@@ -1645,15 +1648,15 @@ export default function HelperDashboard() {
           <div>
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="font-semibold text-white text-lg">My Products for Sale</h3>
-                <p className="text-xs text-gray-500 mt-0.5">List food, supplies, gear, or other items you sell. Shown on your public profile.</p>
+                <h3 className="font-semibold text-white text-lg">{t('dashboard.products.titleHelper')}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{t('dashboard.products.subHelper')}</p>
               </div>
-              <Btn onClick={openAddProduct}>+ List Product</Btn>
+              <Btn onClick={openAddProduct}>{t('dashboard.products.listProductBtn')}</Btn>
             </div>
             {productsLoading
               ? <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
               : myProducts.length === 0
-                ? <Card className="p-16 text-center"><p className="text-gray-500 mb-4">No products listed yet. Add your first product to showcase what you sell.</p><Btn onClick={openAddProduct}>List a Product</Btn></Card>
+                ? <Card className="p-16 text-center"><p className="text-gray-500 mb-4">{t('dashboard.products.noProducts')}</p><Btn onClick={openAddProduct}>{t('dashboard.products.listProductTitle')}</Btn></Card>
                 : <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {myProducts.map(p => (
                       <div key={p.id} className="p-4 border border-gray-800 rounded-xl">
@@ -1668,10 +1671,10 @@ export default function HelperDashboard() {
                             <button
                               onClick={() => handleToggleProductAvailability(p)}
                               className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition ${p.is_available ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30' : 'bg-gray-700/40 text-gray-500 hover:bg-gray-700'}`}
-                            >{p.is_available ? 'Available' : 'Unavailable'}</button>
+                            >{p.is_available ? t('dashboard.skillsTools.available') : t('dashboard.skillsTools.unavailable')}</button>
                             <div className="flex gap-1 justify-end mt-1">
-                              <button onClick={() => openEditProduct(p)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">Edit</button>
-                              <button onClick={() => handleDeleteProduct(p.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">Del</button>
+                              <button onClick={() => openEditProduct(p)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
+                              <button onClick={() => handleDeleteProduct(p.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
                             </div>
                           </div>
                         </div>
@@ -1685,8 +1688,8 @@ export default function HelperDashboard() {
         {/* ═══════ MY BIDS ═══════ */}
         {tab==='bids'&&(
           <div>
-            <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">My Bids</h3><div className="flex gap-2"><Tag text={`${activeBids.length} active`} color="orange"/><Tag text={`${wonBids.length} won`} color="green"/></div></div>
-            {myBids.length===0?<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">No bids yet. Browse available jobs to start bidding.</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">Browse Jobs</Link></Card>
+            <div className="flex items-center justify-between mb-5"><h3 className="font-semibold text-white text-lg">{t('helperDashboard.myBids')}</h3><div className="flex gap-2"><Tag text={t('helperDashboard.activeBidsCount',{count:activeBids.length})} color="orange"/><Tag text={t('helperDashboard.wonBidsCount',{count:wonBids.length})} color="green"/></div></div>
+            {myBids.length===0?<Card className="p-16 text-center"><IcoTarget size={36} cls="text-gray-700 mx-auto mb-4"/><p className="text-gray-500 mb-4">{t('helperDashboard.noBidsYet')}</p><Link to="/jobs" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm inline-block">{t('helperDashboard.browseJobs')}</Link></Card>
             :<div className="space-y-2">{myBids.map(bid=>(
               <Link key={bid.id} to={`/jobs/${bid.job_id}`} className="flex items-center justify-between p-5 bg-gray-900/60 border border-gray-700/40 rounded-2xl hover:border-gray-600 transition group">
                 <div className="min-w-0 flex-1 mr-4"><p className="text-white font-medium group-hover:text-orange-400 transition truncate">{bid.job_title||`Job #${bid.job_id}`}</p><p className="text-xs text-gray-500 mt-1">Bid <span className="text-white font-semibold">${bid.amount}</span>{bid.created_at?` · ${new Date(bid.created_at).toLocaleDateString()}`:''}</p></div>
@@ -1701,150 +1704,150 @@ export default function HelperDashboard() {
       {/* ════════════════════ MODALS ════════════════════ */}
 
       {/* Log Transaction — with recurring support */}
-      <Modal open={showExpenseModal} onClose={()=>setShowExpenseModal(false)} title="Log Transaction">
+      <Modal open={showExpenseModal} onClose={()=>setShowExpenseModal(false)} title={t('dashboard.money.modalLogTransaction')}>
         <form onSubmit={handleAddExpense} className="space-y-4">
-          <Select label="Type" value={expenseForm.type} onChange={e=>setExpenseForm(p=>({...p,type:e.target.value}))}>
-            <option value="expense">Expense</option><option value="income">Income</option>
+          <Select label={t('dashboard.money.typeLabel')} value={expenseForm.type} onChange={e=>setExpenseForm(p=>({...p,type:e.target.value}))}>
+            <option value="expense">{t('dashboard.money.expenseOption')}</option><option value="income">{t('dashboard.money.incomeOption')}</option>
           </Select>
-          <Input label="Amount ($)" type="number" step="0.01" min="0.01" required placeholder="0.00" value={expenseForm.amount} onChange={e=>setExpenseForm(p=>({...p,amount:e.target.value}))}/>
-          <Input label="Category" required placeholder="e.g. Gas, Supplies, Gig Payment" value={expenseForm.category} onChange={e=>setExpenseForm(p=>({...p,category:e.target.value}))}/>
-          <Input label="Description (optional)" placeholder="Quick note" value={expenseForm.description} onChange={e=>setExpenseForm(p=>({...p,description:e.target.value}))}/>
-          <Select label="Frequency" value={expenseForm.frequency} onChange={e=>setExpenseForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!=='one_time'}))}>
-            <option value="one_time">One-time</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="bi_weekly">Bi-weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="yearly">Yearly</option>
+          <Input label={t('dashboard.money.amountLabel')} type="number" step="0.01" min="0.01" required placeholder="0.00" value={expenseForm.amount} onChange={e=>setExpenseForm(p=>({...p,amount:e.target.value}))}/>
+          <Input label={t('dashboard.money.categoryLabel')} required placeholder={t('dashboard.money.categoryPlaceholder')} value={expenseForm.category} onChange={e=>setExpenseForm(p=>({...p,category:e.target.value}))}/>
+          <Input label={t('dashboard.money.descriptionOptLabel')} placeholder={t('dashboard.money.quickNotePlaceholder')} value={expenseForm.description} onChange={e=>setExpenseForm(p=>({...p,description:e.target.value}))}/>
+          <Select label={t('dashboard.money.frequencyLabel')} value={expenseForm.frequency} onChange={e=>setExpenseForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!=='one_time'}))}>
+            <option value="one_time">{t('dashboard.money.freqOneTime')}</option>
+            <option value="daily">{t('dashboard.money.freqDaily')}</option>
+            <option value="weekly">{t('dashboard.money.freqWeekly')}</option>
+            <option value="bi_weekly">{t('dashboard.money.freqBiweekly')}</option>
+            <option value="monthly">{t('dashboard.money.freqMonthly')}</option>
+            <option value="quarterly">{t('dashboard.money.freqQuarterly')}</option>
+            <option value="yearly">{t('dashboard.money.freqYearly')}</option>
           </Select>
           <div className="flex items-center gap-3">
-            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.money.recurringLabel')}</label>
             <button type="button" onClick={()=>setExpenseForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&p.frequency==='one_time'?'monthly':p.frequency}))}
               className={`w-10 h-5 rounded-full transition-colors relative ${expenseForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${expenseForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
-            <span className="text-xs text-gray-400">{expenseForm.is_recurring?'Yes':'No'}</span>
+            <span className="text-xs text-gray-400">{expenseForm.is_recurring?t('common.yes'):t('common.no')}</span>
           </div>
           {expenseForm.is_recurring && (
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Start Date (optional)" type="date" value={expenseForm.recurring_start_date} onChange={e=>setExpenseForm(p=>({...p,recurring_start_date:e.target.value}))}/>
-              <Input label="End Date (optional)" type="date" value={expenseForm.recurring_end_date} onChange={e=>setExpenseForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+              <Input label={t('dashboard.money.startDateLabel')} type="date" value={expenseForm.recurring_start_date} onChange={e=>setExpenseForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+              <Input label={t('dashboard.money.endDateLabel')} type="date" value={expenseForm.recurring_end_date} onChange={e=>setExpenseForm(p=>({...p,recurring_end_date:e.target.value}))}/>
             </div>
           )}
-          <Btn className="w-full py-3" type="submit">Save Transaction</Btn>
+          <Btn className="w-full py-3" type="submit">{t('dashboard.money.saveTransaction')}</Btn>
         </form>
       </Modal>
 
       {/* New Goal */}
-      <Modal open={showGoalModal} onClose={()=>setShowGoalModal(false)} title="New Goal">
+      <Modal open={showGoalModal} onClose={()=>setShowGoalModal(false)} title={t('dashboard.goals.modalNewGoal')}>
         <form onSubmit={handleAddGoal} className="space-y-4">
-          <Input label="Goal Title" required placeholder="e.g. Save $1,000 emergency fund" value={goalForm.title} onChange={e=>setGoalForm(p=>({...p,title:e.target.value}))}/>
-          <Select label="Type" value={goalForm.goal_type} onChange={e=>setGoalForm(p=>({...p,goal_type:e.target.value}))}>
-            <option value="financial">Financial</option><option value="task">Task</option><option value="career">Career</option>
+          <Input label={t('dashboard.goals.goalTitleLabel')} required placeholder={t('dashboard.goals.goalTitlePlaceholder')} value={goalForm.title} onChange={e=>setGoalForm(p=>({...p,title:e.target.value}))}/>
+          <Select label={t('dashboard.goals.goalTypeLabel')} value={goalForm.goal_type} onChange={e=>setGoalForm(p=>({...p,goal_type:e.target.value}))}>
+            <option value="financial">{t('dashboard.goals.goalTypeFinancial')}</option><option value="task">{t('dashboard.goals.goalTypeTask')}</option><option value="career">{t('dashboard.goals.goalTypeCareer')}</option>
           </Select>
-          {goalForm.goal_type==='financial'&&<Input label="Target Amount ($)" type="number" step="0.01" placeholder="1000" value={goalForm.target_value} onChange={e=>setGoalForm(p=>({...p,target_value:e.target.value}))}/>}
-          <Input label="Icon (emoji)" placeholder="🎯" value={goalForm.icon} onChange={e=>setGoalForm(p=>({...p,icon:e.target.value}))}/>
-          <Btn className="w-full py-3" type="submit">Create Goal</Btn>
+          {goalForm.goal_type==='financial'&&<Input label={t('dashboard.goals.targetAmountLabel')} type="number" step="0.01" placeholder="1000" value={goalForm.target_value} onChange={e=>setGoalForm(p=>({...p,target_value:e.target.value}))}/>}
+          <Input label={t('dashboard.goals.iconLabel')} placeholder="🎯" value={goalForm.icon} onChange={e=>setGoalForm(p=>({...p,icon:e.target.value}))}/>
+          <Btn className="w-full py-3" type="submit">{t('dashboard.goals.createGoal')}</Btn>
         </form>
       </Modal>
 
       {/* Goal Update Modal — replaces window.prompt */}
-      <Modal open={showGoalUpdateModal} onClose={()=>{setShowGoalUpdateModal(false);setUpdatingGoal(null);}} title="Update Goal Progress">
+      <Modal open={showGoalUpdateModal} onClose={()=>{setShowGoalUpdateModal(false);setUpdatingGoal(null);}} title={t('dashboard.goals.modalUpdateProgress')}>
         {updatingGoal&&(
           <form onSubmit={async(e)=>{e.preventDefault();await updateGoalProgress(updatingGoal,goalUpdateValue);setShowGoalUpdateModal(false);setUpdatingGoal(null);}} className="space-y-4">
             <p className="text-sm text-gray-400 bg-gray-800/50 px-3 py-2 rounded-lg">{updatingGoal.icon} {updatingGoal.title}</p>
-            <Input label="Current Amount ($)" type="number" step="0.01" min="0" required autoFocus value={goalUpdateValue} onChange={e=>setGoalUpdateValue(e.target.value)} placeholder={`Was: $${parseFloat(updatingGoal.current_value||0).toLocaleString()}`}/>
-            {updatingGoal.target_value&&<p className="text-xs text-gray-500">Target: ${parseFloat(updatingGoal.target_value).toLocaleString()} · {Math.round(Math.min((parseFloat(goalUpdateValue||0)/parseFloat(updatingGoal.target_value))*100,100))}% complete</p>}
+            <Input label={t('dashboard.goals.currentAmountLabel')} type="number" step="0.01" min="0" required autoFocus value={goalUpdateValue} onChange={e=>setGoalUpdateValue(e.target.value)} placeholder={`Was: $${parseFloat(updatingGoal.current_value||0).toLocaleString()}`}/>
+            {updatingGoal.target_value&&<p className="text-xs text-gray-500">{t('dashboard.goals.targetProgress',{target:parseFloat(updatingGoal.target_value).toLocaleString(),pct:Math.round(Math.min((parseFloat(goalUpdateValue||0)/parseFloat(updatingGoal.target_value))*100,100))})}</p>}
             <div className="flex gap-2">
-              <Btn className="flex-1 py-3" type="submit">Save Progress</Btn>
-              <Btn variant="secondary" className="py-3" type="button" onClick={async()=>{await life.updateGoal(updatingGoal.id,{is_completed:true});life.fetchSummary();toast.success('Goal complete! 🎉');setShowGoalUpdateModal(false);setUpdatingGoal(null);}}>Mark Done ✓</Btn>
+              <Btn className="flex-1 py-3" type="submit">{t('dashboard.goals.saveProgress')}</Btn>
+              <Btn variant="secondary" className="py-3" type="button" onClick={async()=>{await life.updateGoal(updatingGoal.id,{is_completed:true});life.fetchSummary();toast.success(t('dashboard.money.goalComplete'));setShowGoalUpdateModal(false);setUpdatingGoal(null);}}>{t('dashboard.goals.markDone')}</Btn>
             </div>
           </form>
         )}
       </Modal>
 
       {/* Product Modal */}
-      <Modal open={showProductModal} onClose={()=>{setShowProductModal(false);setEditingProduct(null);setProductForm(emptyProduct);}} title={editingProduct ? 'Edit Product' : 'List a Product'}>
+      <Modal open={showProductModal} onClose={()=>{setShowProductModal(false);setEditingProduct(null);setProductForm(emptyProduct);}} title={editingProduct ? t('dashboard.products.editProductTitle') : t('dashboard.products.listProductTitle')}>
         <form onSubmit={handleSaveProduct} className="space-y-4">
-          <Input label="Product Name" required placeholder="e.g. Home-cooked Meal Delivery" value={productForm.name} onChange={e=>setProductForm(p=>({...p,name:e.target.value}))}/>
+          <Input label={t('dashboard.products.productNameLabel')} required placeholder={t('dashboard.products.productNamePlaceholder')} value={productForm.name} onChange={e=>setProductForm(p=>({...p,name:e.target.value}))}/>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.money.categoryLabel')}</label>
             <select value={productForm.category} onChange={e=>setProductForm(p=>({...p,category:e.target.value}))}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
               {PRODUCT_CATEGORIES.map(c=><option key={c} value={c} className="capitalize">{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
             </select>
           </div>
-          <Input label="Price ($)" type="number" step="0.01" min="0.01" required placeholder="0.00" value={productForm.price_cents} onChange={e=>setProductForm(p=>({...p,price_cents:e.target.value}))}/>
-          <Input label="Description (optional)" placeholder="Short description of what you're selling" value={productForm.description} onChange={e=>setProductForm(p=>({...p,description:e.target.value}))}/>
-          <Input label="Image URL (optional)" placeholder="https://..." value={productForm.image_url} onChange={e=>setProductForm(p=>({...p,image_url:e.target.value}))}/>
+          <Input label={t('dashboard.products.priceLabel')} type="number" step="0.01" min="0.01" required placeholder="0.00" value={productForm.price_cents} onChange={e=>setProductForm(p=>({...p,price_cents:e.target.value}))}/>
+          <Input label={t('dashboard.products.descriptionOptLabel')} placeholder={t('dashboard.products.descriptionShortPlaceholder')} value={productForm.description} onChange={e=>setProductForm(p=>({...p,description:e.target.value}))}/>
+          <Input label={t('dashboard.products.imageUrlOptLabel')} placeholder="https://..." value={productForm.image_url} onChange={e=>setProductForm(p=>({...p,image_url:e.target.value}))}/>
           <div className="flex items-center gap-3">
-            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Available Now</label>
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.products.availableNowLabel')}</label>
             <button type="button" onClick={()=>setProductForm(p=>({...p,is_available:!p.is_available}))}
               className={`w-10 h-5 rounded-full transition-colors relative ${productForm.is_available?'bg-orange-500':'bg-gray-700'}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${productForm.is_available?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
-            <span className="text-xs text-gray-400">{productForm.is_available?'Yes':'No'}</span>
+            <span className="text-xs text-gray-400">{productForm.is_available?t('common.yes'):t('common.no')}</span>
           </div>
-          <Btn className="w-full py-3" type="submit">{editingProduct ? 'Save Changes' : 'List Product'}</Btn>
+          <Btn className="w-full py-3" type="submit">{editingProduct ? t('dashboard.skillsTools.saveChanges') : t('dashboard.products.listProductSubmitBtn')}</Btn>
         </form>
       </Modal>
       {/* Home Task */}
-      <Modal open={showHomeTaskModal} onClose={()=>setShowHomeTaskModal(false)} title="Add Home Task">
+      <Modal open={showHomeTaskModal} onClose={()=>setShowHomeTaskModal(false)} title={t('dashboard.goals.addHomeTaskModal')}>
         <form onSubmit={handleAddHomeTask} className="space-y-4">
-          <Input label="Task" required placeholder="e.g. Replace HVAC filter" value={homeTaskForm.title} onChange={e=>setHomeTaskForm(p=>({...p,title:e.target.value}))}/>
-          <Input label="Due Date" type="date" value={homeTaskForm.due_date} onChange={e=>setHomeTaskForm(p=>({...p,due_date:e.target.value}))}/>
-          <Select label="Urgency" value={homeTaskForm.urgency} onChange={e=>setHomeTaskForm(p=>({...p,urgency:e.target.value}))}>
-            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+          <Input label={t('dashboard.goals.taskLabel')} required placeholder={t('dashboard.goals.taskPlaceholder')} value={homeTaskForm.title} onChange={e=>setHomeTaskForm(p=>({...p,title:e.target.value}))}/>
+          <Input label={t('dashboard.goals.dueDateLabel')} type="date" value={homeTaskForm.due_date} onChange={e=>setHomeTaskForm(p=>({...p,due_date:e.target.value}))}/>
+          <Select label={t('dashboard.goals.urgencyLabel')} value={homeTaskForm.urgency} onChange={e=>setHomeTaskForm(p=>({...p,urgency:e.target.value}))}>
+            <option value="low">{t('dashboard.goals.urgencyLow')}</option><option value="medium">{t('dashboard.goals.urgencyMedium')}</option><option value="high">{t('dashboard.goals.urgencyHigh')}</option>
           </Select>
-          <Select label="Frequency" value={homeTaskForm.frequency} onChange={e=>setHomeTaskForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!=='one_time'}))}>
-            <option value="one_time">One-time</option>
-            <option value="weekly">Weekly</option>
-            <option value="bi_weekly">Bi-weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="yearly">Yearly</option>
+          <Select label={t('dashboard.goals.freqLabel')} value={homeTaskForm.frequency} onChange={e=>setHomeTaskForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!=='one_time'}))}>
+            <option value="one_time">{t('dashboard.goals.freqOneTime')}</option>
+            <option value="weekly">{t('dashboard.goals.freqWeekly')}</option>
+            <option value="bi_weekly">{t('dashboard.goals.freqBiweekly')}</option>
+            <option value="monthly">{t('dashboard.goals.freqMonthly')}</option>
+            <option value="quarterly">{t('dashboard.goals.freqQuarterly')}</option>
+            <option value="yearly">{t('dashboard.goals.freqYearly')}</option>
           </Select>
           {homeTaskForm.is_recurring && (<>
-            <Input label="Repeat Start (optional)" type="date" value={homeTaskForm.recurring_start_date} onChange={e=>setHomeTaskForm(p=>({...p,recurring_start_date:e.target.value}))}/>
-            <Input label="Repeat End (optional)" type="date" value={homeTaskForm.recurring_end_date} onChange={e=>setHomeTaskForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+            <Input label={t('dashboard.goals.repeatStartLabel')} type="date" value={homeTaskForm.recurring_start_date} onChange={e=>setHomeTaskForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+            <Input label={t('dashboard.goals.repeatEndLabel')} type="date" value={homeTaskForm.recurring_end_date} onChange={e=>setHomeTaskForm(p=>({...p,recurring_end_date:e.target.value}))}/>
           </>)}
-          <Input label="Estimated Cost ($, optional)" type="number" min="0" step="0.01" placeholder="e.g. 150" value={homeTaskForm.estimated_cost} onChange={e=>setHomeTaskForm(p=>({...p,estimated_cost:e.target.value}))}/>
+          <Input label={t('dashboard.goals.estimatedCostLabel')} type="number" min="0" step="0.01" placeholder={t('dashboard.goals.estimatedCostPlaceholder')} value={homeTaskForm.estimated_cost} onChange={e=>setHomeTaskForm(p=>({...p,estimated_cost:e.target.value}))}/>
           {homes.length > 0 && (
-            <Select label="Property (optional)" value={homeTaskForm.home_id} onChange={e=>setHomeTaskForm(p=>({...p,home_id:e.target.value}))}>
-              <option value="">No specific property</option>
+            <Select label={t('dashboard.goals.propertyOptLabel')} value={homeTaskForm.home_id} onChange={e=>setHomeTaskForm(p=>({...p,home_id:e.target.value}))}>
+              <option value="">{t('dashboard.goals.noSpecificProperty')}</option>
               {homes.map(h=><option key={h.id} value={h.id}>{h.nickname || h.address}</option>)}
             </Select>
           )}
-          <Btn className="w-full py-3" type="submit">Add Task</Btn>
+          <Btn className="w-full py-3" type="submit">{t('dashboard.goals.addTaskBtn')}</Btn>
         </form>
       </Modal>
 
       {/* Checklist Item */}
-      <Modal open={showChecklistModal} onClose={()=>setShowChecklistModal(false)} title="Add Checklist Item">
+      <Modal open={showChecklistModal} onClose={()=>setShowChecklistModal(false)} title={t('dashboard.goals.addChecklistModal')}>
         <form onSubmit={handleAddChecklist} className="space-y-4">
-          <Input label="What do you need to do?" required placeholder="e.g. File quarterly taxes" value={checklistForm.title} onChange={e=>setChecklistForm(p=>({...p,title:e.target.value}))}/>
-          <Input label="Due Date (optional)" type="date" value={checklistForm.due_date} onChange={e=>setChecklistForm(p=>({...p,due_date:e.target.value}))}/>
-          <Btn className="w-full py-3" type="submit">Add Item</Btn>
+          <Input label={t('dashboard.goals.checklistItemLabel')} required placeholder={t('dashboard.goals.checklistItemPlaceholder')} value={checklistForm.title} onChange={e=>setChecklistForm(p=>({...p,title:e.target.value}))}/>
+          <Input label={t('dashboard.goals.dueDateOptLabel')} type="date" value={checklistForm.due_date} onChange={e=>setChecklistForm(p=>({...p,due_date:e.target.value}))}/>
+          <Btn className="w-full py-3" type="submit">{t('dashboard.goals.addItemBtn')}</Btn>
         </form>
       </Modal>
 
       {/* Budget Modal — replaces window.prompt */}
-      <Modal open={showBudgetModal} onClose={()=>{setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'})}} title="Set Budget">
-        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success('Budget saved!');setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error('Failed to save budget.');}}} className="space-y-4">
-          <Select label="Category" required value={budgetForm.category} onChange={e=>setBudgetForm(p=>({...p,category:e.target.value}))}>
-            <option value="">Select a category...</option>
+      <Modal open={showBudgetModal} onClose={()=>{setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'})}} title={t('dashboard.money.modalSetBudget')}>
+        <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success(t('dashboard.money.budgetSaved'));setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error(t('dashboard.money.budgetSaveFailed'));}}} className="space-y-4">
+          <Select label={t('dashboard.money.categoryLabel')} required value={budgetForm.category} onChange={e=>setBudgetForm(p=>({...p,category:e.target.value}))}>
+            <option value="">{t('dashboard.money.selectCategoryPlaceholder')}</option>
             {['Housing / Rent','Food & Dining','Transportation','Utilities','Healthcare','Entertainment','Shopping','Personal Care','Auto','Education','Subscriptions','Savings','Other'].map(c=><option key={c} value={c}>{c}</option>)}
           </Select>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Budget Amount ($)" type="number" step="0.01" min="0.01" required placeholder="0.00" value={budgetForm.period_amount} onChange={e=>setBudgetForm(p=>({...p,period_amount:e.target.value}))}/>
-            <Select label="Period" value={budgetForm.period} onChange={e=>setBudgetForm(p=>({...p,period:e.target.value}))}>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="bi_weekly">Bi-weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="yearly">Yearly</option>
+            <Input label={t('dashboard.money.amountLabel')} type="number" step="0.01" min="0.01" required placeholder="0.00" value={budgetForm.period_amount} onChange={e=>setBudgetForm(p=>({...p,period_amount:e.target.value}))}/>
+            <Select label={t('dashboard.money.frequencyLabel')} value={budgetForm.period} onChange={e=>setBudgetForm(p=>({...p,period:e.target.value}))}>
+              <option value="daily">{t('dashboard.money.freqDaily')}</option>
+              <option value="weekly">{t('dashboard.money.freqWeekly')}</option>
+              <option value="bi_weekly">{t('dashboard.money.freqBiweekly')}</option>
+              <option value="monthly">{t('dashboard.money.freqMonthly')}</option>
+              <option value="quarterly">{t('dashboard.money.freqQuarterly')}</option>
+              <option value="yearly">{t('dashboard.money.freqYearly')}</option>
             </Select>
           </div>
           {budgetForm.period_amount && budgetForm.period !== 'monthly' && (
@@ -1852,103 +1855,103 @@ export default function HelperDashboard() {
               ≈ ${(parseFloat(budgetForm.period_amount||0) * ({daily:30,weekly:30/7,bi_weekly:30/14,monthly:1,quarterly:1/3,yearly:1/12}[budgetForm.period]||1)).toFixed(2)}/month
             </p>
           )}
-          <Btn className="w-full py-3" type="submit">Save Budget</Btn>
+          <Btn className="w-full py-3" type="submit">{t('dashboard.money.saveBudget')}</Btn>
         </form>
       </Modal>
 
       {/* Personal Care Task Modal */}
-      <Modal open={showPcModal} onClose={()=>setShowPcModal(false)} title="Add Health Appointment">
+      <Modal open={showPcModal} onClose={()=>setShowPcModal(false)} title={t('dashboard.personalCare.addModal')}>
         <form onSubmit={addPcTask} className="space-y-4">
-          <Input label="Appointment / Service" required placeholder="e.g. Annual Physical" value={pcForm.title} onChange={e=>setPcForm(p=>({...p,title:e.target.value}))}/>
-          <Select label="Category" value={pcForm.category} onChange={e=>setPcForm(p=>({...p,category:e.target.value}))}>
-            <option>Medical</option><option>Dental</option><option>Vision</option><option>Mental Health</option><option>Grooming</option><option>Fitness</option><option>Pharmacy</option><option>Other</option>
+          <Input label={t('dashboard.personalCare.apptServiceLabel')} required placeholder={t('dashboard.personalCare.apptServicePlaceholder')} value={pcForm.title} onChange={e=>setPcForm(p=>({...p,title:e.target.value}))}/>
+          <Select label={t('dashboard.personalCare.categoryLabel')} value={pcForm.category} onChange={e=>setPcForm(p=>({...p,category:e.target.value}))}>
+            <option value="Medical">{t('dashboard.personalCare.catMedical')}</option><option value="Dental">{t('dashboard.personalCare.catDental')}</option><option value="Vision">{t('dashboard.personalCare.catVision')}</option><option value="Mental Health">{t('dashboard.personalCare.catMentalHealth')}</option><option value="Grooming">{t('dashboard.personalCare.catGrooming')}</option><option value="Fitness">{t('dashboard.personalCare.catFitness')}</option><option value="Pharmacy">{t('dashboard.personalCare.catPharmacy')}</option><option value="Other">{t('dashboard.personalCare.catOther')}</option>
           </Select>
-          <Input label="Date / Due" type="date" value={pcForm.due_date} onChange={e=>setPcForm(p=>({...p,due_date:e.target.value}))}/>
-          <Select label="Priority" value={pcForm.urgency} onChange={e=>setPcForm(p=>({...p,urgency:e.target.value}))}>
-            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+          <Input label={t('dashboard.personalCare.dateDueLabel')} type="date" value={pcForm.due_date} onChange={e=>setPcForm(p=>({...p,due_date:e.target.value}))}/>
+          <Select label={t('dashboard.personalCare.priorityLabel')} value={pcForm.urgency} onChange={e=>setPcForm(p=>({...p,urgency:e.target.value}))}>
+            <option value="low">{t('dashboard.goals.urgencyLow')}</option><option value="medium">{t('dashboard.goals.urgencyMedium')}</option><option value="high">{t('dashboard.goals.urgencyHigh')}</option>
           </Select>
-          <Select label="Frequency" value={pcForm.frequency} onChange={e=>setPcForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!==''&&e.target.value!=='one_time'}))}>
-            <option value="">One-time / unspecified</option>
-            <option value="daily">Daily</option><option value="weekly">Weekly</option><option value="bi_weekly">Bi-weekly</option>
-            <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option>
+          <Select label={t('dashboard.personalCare.freqLabel')} value={pcForm.frequency} onChange={e=>setPcForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!==''&&e.target.value!=='one_time'}))}>
+            <option value="">{t('dashboard.personalCare.freqOneTimeUnspecified')}</option>
+            <option value="daily">{t('dashboard.personalCare.freqDaily')}</option><option value="weekly">{t('dashboard.personalCare.freqWeekly')}</option><option value="bi_weekly">{t('dashboard.personalCare.freqBiweekly')}</option>
+            <option value="monthly">{t('dashboard.personalCare.freqMonthly')}</option><option value="quarterly">{t('dashboard.personalCare.freqQuarterly')}</option><option value="yearly">{t('dashboard.personalCare.freqYearly')}</option>
           </Select>
           <div className="flex items-center gap-3">
-            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.personalCare.recurringLabel')}</label>
             <button type="button" onClick={()=>setPcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
               className={`w-10 h-5 rounded-full transition-colors relative ${pcForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${pcForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
-            <span className="text-xs text-gray-400">{pcForm.is_recurring?'Yes':'No'}</span>
+            <span className="text-xs text-gray-400">{pcForm.is_recurring?t('common.yes'):t('common.no')}</span>
           </div>
           {pcForm.is_recurring && (
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Start Date (optional)" type="date" value={pcForm.recurring_start_date} onChange={e=>setPcForm(p=>({...p,recurring_start_date:e.target.value}))}/>
-              <Input label="End Date (optional)" type="date" value={pcForm.recurring_end_date} onChange={e=>setPcForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+              <Input label={t('dashboard.personalCare.startDateLabel')} type="date" value={pcForm.recurring_start_date} onChange={e=>setPcForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+              <Input label={t('dashboard.personalCare.endDateLabel')} type="date" value={pcForm.recurring_end_date} onChange={e=>setPcForm(p=>({...p,recurring_end_date:e.target.value}))}/>
             </div>
           )}
-          <Input label="Estimated Cost ($, optional)" type="number" step="0.01" min="0" placeholder="e.g. 25.00 — feeds into Life Pulse score" value={pcForm.estimated_cost} onChange={e=>setPcForm(p=>({...p,estimated_cost:e.target.value}))}/>
-          <Btn className="w-full py-3" type="submit">Add Appointment</Btn>
+          <Input label={t('dashboard.personalCare.estimatedCostLabel')} type="number" step="0.01" min="0" placeholder={t('dashboard.personalCare.estimatedCostPlaceholder')} value={pcForm.estimated_cost} onChange={e=>setPcForm(p=>({...p,estimated_cost:e.target.value}))}/>
+          <Btn className="w-full py-3" type="submit">{t('dashboard.personalCare.addApptBtn')}</Btn>
         </form>
       </Modal>
 
       {/* Car Care Task Modal */}
-      <Modal open={showCcModal} onClose={()=>setShowCcModal(false)} title="Add Car Service">
+      <Modal open={showCcModal} onClose={()=>setShowCcModal(false)} title={t('dashboard.carCare.addModal')}>
         <form onSubmit={addCcTask} className="space-y-4">
           {garage.length > 0 && (
             <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Vehicle (optional)</label>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.carCare.vehicleOptLabel')}</label>
               <select value={ccForm.vehicle_id} onChange={e=>setCcForm(p=>({...p,vehicle_id:e.target.value}))}
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition">
-                <option value="">All vehicles / unspecified</option>
+                <option value="">{t('dashboard.carCare.allVehicles')}</option>
                 {garage.map(v=><option key={v.id} value={v.id}>{v.nickname||`${v.make_name} ${v.model_name}`}{v.year?` (${v.year})`:''}</option>)}
               </select>
             </div>
           )}
-          <Input label="Service Name" required placeholder="e.g. Oil Change" value={ccForm.title} onChange={e=>setCcForm(p=>({...p,title:e.target.value}))}/>
-          <Select label="Category" value={ccForm.category} onChange={e=>setCcForm(p=>({...p,category:e.target.value}))}>
-            <option>Oil Change</option><option>Tires</option><option>Brakes</option><option>Inspection</option><option>Registration</option><option>Detailing</option><option>Battery</option><option>Fluids</option><option>AC / Heating</option><option>Other</option>
+          <Input label={t('dashboard.carCare.serviceNameLabel')} required placeholder={t('dashboard.carCare.serviceNamePlaceholder')} value={ccForm.title} onChange={e=>setCcForm(p=>({...p,title:e.target.value}))}/>
+          <Select label={t('dashboard.carCare.categoryLabel')} value={ccForm.category} onChange={e=>setCcForm(p=>({...p,category:e.target.value}))}>
+            <option value="Oil Change">{t('dashboard.carCare.catOilChange')}</option><option value="Tires">{t('dashboard.carCare.catTires')}</option><option value="Brakes">{t('dashboard.carCare.catBrakes')}</option><option value="Inspection">{t('dashboard.carCare.catInspection')}</option><option value="Registration">{t('dashboard.carCare.catRegistration')}</option><option value="Detailing">{t('dashboard.carCare.catDetailing')}</option><option value="Battery">{t('dashboard.carCare.catBattery')}</option><option value="Fluids">{t('dashboard.carCare.catFluids')}</option><option value="AC / Heating">{t('dashboard.carCare.catAcHeating')}</option><option value="Other">{t('dashboard.carCare.catOther')}</option>
           </Select>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Due Date" type="date" value={ccForm.due_date} onChange={e=>setCcForm(p=>({...p,due_date:e.target.value}))}/>
-            <Select label="Priority" value={ccForm.urgency} onChange={e=>setCcForm(p=>({...p,urgency:e.target.value}))}>
-              <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+            <Input label={t('dashboard.carCare.dueDateLabel')} type="date" value={ccForm.due_date} onChange={e=>setCcForm(p=>({...p,due_date:e.target.value}))}/>
+            <Select label={t('dashboard.carCare.priorityLabel')} value={ccForm.urgency} onChange={e=>setCcForm(p=>({...p,urgency:e.target.value}))}>
+              <option value="low">{t('dashboard.goals.urgencyLow')}</option><option value="medium">{t('dashboard.goals.urgencyMedium')}</option><option value="high">{t('dashboard.goals.urgencyHigh')}</option>
             </Select>
           </div>
-          <Select label="Frequency" value={ccForm.frequency} onChange={e=>setCcForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!==''&&e.target.value!=='one_time'}))}>
-            <option value="">One-time / unspecified</option>
-            <option value="daily">Daily</option><option value="weekly">Weekly</option><option value="bi_weekly">Bi-weekly</option>
-            <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option>
+          <Select label={t('dashboard.carCare.freqLabel')} value={ccForm.frequency} onChange={e=>setCcForm(p=>({...p,frequency:e.target.value,is_recurring:e.target.value!==''&&e.target.value!=='one_time'}))}>
+            <option value="">{t('dashboard.carCare.freqOneTimeUnspecified')}</option>
+            <option value="daily">{t('dashboard.carCare.freqDaily')}</option><option value="weekly">{t('dashboard.carCare.freqWeekly')}</option><option value="bi_weekly">{t('dashboard.carCare.freqBiweekly')}</option>
+            <option value="monthly">{t('dashboard.carCare.freqMonthly')}</option><option value="quarterly">{t('dashboard.carCare.freqQuarterly')}</option><option value="yearly">{t('dashboard.carCare.freqYearly')}</option>
           </Select>
           <div className="flex items-center gap-3">
-            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Recurring</label>
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.carCare.recurringLabel')}</label>
             <button type="button" onClick={()=>setCcForm(p=>({...p,is_recurring:!p.is_recurring,frequency:!p.is_recurring&&!p.frequency?'monthly':p.frequency}))}
               className={`w-10 h-5 rounded-full transition-colors relative ${ccForm.is_recurring?'bg-orange-500':'bg-gray-700'}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${ccForm.is_recurring?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
-            <span className="text-xs text-gray-400">{ccForm.is_recurring?'Yes':'No'}</span>
+            <span className="text-xs text-gray-400">{ccForm.is_recurring?t('common.yes'):t('common.no')}</span>
           </div>
           {ccForm.is_recurring && (
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Start Date (optional)" type="date" value={ccForm.recurring_start_date} onChange={e=>setCcForm(p=>({...p,recurring_start_date:e.target.value}))}/>
-              <Input label="End Date (optional)" type="date" value={ccForm.recurring_end_date} onChange={e=>setCcForm(p=>({...p,recurring_end_date:e.target.value}))}/>
+              <Input label={t('dashboard.carCare.startDateLabel')} type="date" value={ccForm.recurring_start_date} onChange={e=>setCcForm(p=>({...p,recurring_start_date:e.target.value}))}/>
+              <Input label={t('dashboard.carCare.endDateLabel')} type="date" value={ccForm.recurring_end_date} onChange={e=>setCcForm(p=>({...p,recurring_end_date:e.target.value}))}/>
             </div>
           )}
-          <Input label="Estimated Cost ($, optional)" type="number" step="0.01" min="0" placeholder="e.g. 45.00 — feeds into Life Pulse score" value={ccForm.estimated_cost} onChange={e=>setCcForm(p=>({...p,estimated_cost:e.target.value}))}/>
+          <Input label={t('dashboard.carCare.estimatedCostLabel')} type="number" step="0.01" min="0" placeholder={t('dashboard.carCare.estimatedCostPlaceholder')} value={ccForm.estimated_cost} onChange={e=>setCcForm(p=>({...p,estimated_cost:e.target.value}))}/>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Notes (optional)</label>
-            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder="Shop name, current mileage, etc." value={ccForm.description} onChange={e=>setCcForm(p=>({...p,description:e.target.value}))}/>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.carCare.notesOptLabel')}</label>
+            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.carCare.notesPlaceholder')} value={ccForm.description} onChange={e=>setCcForm(p=>({...p,description:e.target.value}))}/>
           </div>
-          <Btn className="w-full py-3" type="submit">Add Service</Btn>
+          <Btn className="w-full py-3" type="submit">{t('dashboard.carCare.addServiceBtn')}</Btn>
         </form>
       </Modal>
 
       {/* Add / Edit Skill Modal */}
-      <Modal open={showSkillModal} onClose={()=>{setShowSkillModal(false);setEditingSkill(null);setSkillLookup([]);}} title={editingSkill ? 'Edit Skill' : 'Add a Skill'}>
+      <Modal open={showSkillModal} onClose={()=>{setShowSkillModal(false);setEditingSkill(null);setSkillLookup([]);}} title={editingSkill ? t('dashboard.skillsTools.modalEditSkill') : t('dashboard.skillsTools.modalAddSkill')}>
         <form onSubmit={handleSaveSkill} className="space-y-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Skill Name</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.skillNameLabel')}</label>
             <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
-              placeholder="e.g. Drywall Repair, Electrical Wiring" required value={skillForm.skill_name}
+              placeholder={t('dashboard.skillsTools.skillNamePlaceholderLong')} required value={skillForm.skill_name}
               onChange={e=>{setSkillForm(p=>({...p,skill_name:e.target.value}));setSkillSearch(e.target.value);if(e.target.value.length>=2)searchSkillLookup(e.target.value);else setSkillLookup([]);}}/>
             {skillLookup.length>0&&(
               <div className="mt-1 bg-gray-800 border border-gray-700 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
@@ -1963,9 +1966,9 @@ export default function HelperDashboard() {
             )}
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.categoryLabel')}</label>
             <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
-              placeholder="e.g. Plumbing, Electrical, Landscaping" value={skillForm.category}
+              placeholder={t('dashboard.skillsTools.catSearchPlaceholder')} value={skillForm.category}
               onChange={e=>{setSkillForm(p=>({...p,category:e.target.value}));searchCatLookup(e.target.value);}}
               onBlur={()=>setTimeout(()=>setCatLookup([]),150)}/>
             {catLookup.length>0&&(
@@ -1974,32 +1977,32 @@ export default function HelperDashboard() {
               </div>
             )}
           </div>
-          <Input label="Hourly Rate ($, optional)" type="number" step="0.01" min="0" placeholder="0.00" value={skillForm.hourly_rate} onChange={e=>setSkillForm(p=>({...p,hourly_rate:e.target.value}))}/>
-          <Input label="Years of Experience" type="number" min="0" max="50" placeholder="0" value={skillForm.years_exp} onChange={e=>setSkillForm(p=>({...p,years_exp:e.target.value}))}/>
+          <Input label={t('dashboard.skillsTools.hourlyRateOptLabel')} type="number" step="0.01" min="0" placeholder="0.00" value={skillForm.hourly_rate} onChange={e=>setSkillForm(p=>({...p,hourly_rate:e.target.value}))}/>
+          <Input label={t('dashboard.skillsTools.yearsExpLabel')} type="number" min="0" max="50" placeholder="0" value={skillForm.years_exp} onChange={e=>setSkillForm(p=>({...p,years_exp:e.target.value}))}/>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Short Description (optional)</label>
-            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder="Describe what you offer..." value={skillForm.description} onChange={e=>setSkillForm(p=>({...p,description:e.target.value}))}/>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.shortDescLabel')}</label>
+            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.descSearchPlaceholder')} value={skillForm.description} onChange={e=>setSkillForm(p=>({...p,description:e.target.value}))}/>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">Available for hire</label>
+            <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500">{t('dashboard.skillsTools.availableForHireToggle')}</label>
             <button type="button" onClick={()=>setSkillForm(p=>({...p,is_available:!p.is_available}))}
               className={`w-10 h-5 rounded-full transition-colors relative ${skillForm.is_available?'bg-orange-500':'bg-gray-700'}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${skillForm.is_available?'translate-x-5':'translate-x-0.5'}`}/>
             </button>
-            <span className="text-xs text-gray-400">{skillForm.is_available?'Yes':'No'}</span>
+            <span className="text-xs text-gray-400">{skillForm.is_available?t('common.yes'):t('common.no')}</span>
           </div>
-          <Btn className="w-full py-3" type="submit">{editingSkill?'Update Skill':'Add Skill'}</Btn>
+          <Btn className="w-full py-3" type="submit">{editingSkill?t('dashboard.skillsTools.updateSkillBtn'):t('dashboard.skillsTools.addSkillBtn')}</Btn>
         </form>
       </Modal>
 
       {/* Add / Edit Tool Modal — upgraded with richer fields */}
-      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);}} title={editingTool ? 'Edit Tool Listing' : 'List a Tool'}>
+      <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
         <form onSubmit={handleSaveTool} className="space-y-4">
-          <Input label="Tool Name" required placeholder="e.g. DeWalt Drill, Pressure Washer" value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
+          <Input label={t('dashboard.skillsTools.toolNameLabel')} required placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Category</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.categoryLabel')}</label>
             <input className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition"
-              placeholder="e.g. Power Tools, Landscaping, Cleaning" value={toolForm.category}
+              placeholder={t('dashboard.skillsTools.toolCatPlaceholder')} value={toolForm.category}
               onChange={e=>{setToolForm(p=>({...p,category:e.target.value}));searchToolCatLookup(e.target.value);}}
               onBlur={()=>setTimeout(()=>setToolCatLookup([]),150)}/>
             {toolCatLookup.length>0&&(
@@ -2009,30 +2012,30 @@ export default function HelperDashboard() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Daily Rate ($)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
-            <Input label="Hourly Rate ($, optional)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.hourly_rate} onChange={e=>setToolForm(p=>({...p,hourly_rate:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.dailyRateLabel')} type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.daily_rate} onChange={e=>setToolForm(p=>({...p,daily_rate:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.hourlyRateToolOptLabel')} type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.hourly_rate} onChange={e=>setToolForm(p=>({...p,hourly_rate:e.target.value}))}/>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Brand (optional)" placeholder="e.g. DeWalt, Honda" value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
-            <Input label="Model (optional)" placeholder="e.g. DCD777" value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.brandOptLabel')} placeholder={t('dashboard.skillsTools.brandPlaceholder')} value={toolForm.brand} onChange={e=>setToolForm(p=>({...p,brand:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.modelOptLabel')} placeholder={t('dashboard.skillsTools.modelPlaceholder')} value={toolForm.model} onChange={e=>setToolForm(p=>({...p,model:e.target.value}))}/>
           </div>
-          <Select label="Condition" value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
-            <option value="excellent">Excellent</option><option value="good">Good</option><option value="fair">Fair</option>
+          <Select label={t('dashboard.skillsTools.conditionLabel')} value={toolForm.condition} onChange={e=>setToolForm(p=>({...p,condition:e.target.value}))}>
+            <option value="excellent">{t('dashboard.skillsTools.conditionExcellent')}</option><option value="good">{t('dashboard.skillsTools.conditionGood')}</option><option value="fair">{t('dashboard.skillsTools.conditionFair')}</option>
           </Select>
-          <Input label="Deposit Amount ($, optional)" type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
+          <Input label={t('dashboard.skillsTools.depositAmtOptLabel')} type="number" step="0.01" min="0" placeholder="0.00" value={toolForm.deposit_amount} onChange={e=>setToolForm(p=>({...p,deposit_amount:e.target.value}))}/>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="City (optional)" placeholder="e.g. Springfield" value={toolForm.location_city} onChange={e=>setToolForm(p=>({...p,location_city:e.target.value}))}/>
-            <Input label="State (optional)" placeholder="e.g. OH" value={toolForm.location_state} onChange={e=>setToolForm(p=>({...p,location_state:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.cityOptLabel')} placeholder={t('dashboard.skillsTools.cityPlaceholder')} value={toolForm.location_city} onChange={e=>setToolForm(p=>({...p,location_city:e.target.value}))}/>
+            <Input label={t('dashboard.skillsTools.stateOptLabel')} placeholder={t('dashboard.skillsTools.statePlaceholder')} value={toolForm.location_state} onChange={e=>setToolForm(p=>({...p,location_state:e.target.value}))}/>
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">Description (optional)</label>
-            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder="Condition details, usage notes, etc." value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-1.5">{t('dashboard.skillsTools.descriptionOptLabel')}</label>
+            <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('dashboard.skillsTools.toolDescPlaceholderShort')} value={toolForm.description} onChange={e=>setToolForm(p=>({...p,description:e.target.value}))}/>
           </div>
           <div className="space-y-3">
             {[
-              {label:'Available for rent', key:'is_available'},
-              {label:'Requires deposit', key:'requires_deposit'},
-              {label:'Delivery available', key:'delivery_available'},
+              {label:t('dashboard.skillsTools.availableForRentToggle'), key:'is_available'},
+              {label:t('dashboard.skillsTools.requiresDepositToggle'), key:'requires_deposit'},
+              {label:t('dashboard.skillsTools.deliveryAvailableToggle'), key:'delivery_available'},
             ].map(({label,key})=>(
               <div key={key} className="flex items-center gap-3">
                 <label className="text-[10px] uppercase tracking-widest font-semibold text-gray-500 flex-1">{label}</label>
@@ -2040,11 +2043,11 @@ export default function HelperDashboard() {
                   className={`w-10 h-5 rounded-full transition-colors relative ${toolForm[key]?'bg-orange-500':'bg-gray-700'}`}>
                   <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${toolForm[key]?'translate-x-5':'translate-x-0.5'}`}/>
                 </button>
-                <span className="text-xs text-gray-400 w-6">{toolForm[key]?'Yes':'No'}</span>
+                <span className="text-xs text-gray-400 w-6">{toolForm[key]?t('common.yes'):t('common.no')}</span>
               </div>
             ))}
           </div>
-          <Btn className="w-full py-3" type="submit">{editingTool?'Update Tool':'List Tool'}</Btn>
+          <Btn className="w-full py-3" type="submit">{editingTool?t('dashboard.skillsTools.updateToolBtn'):t('dashboard.skillsTools.listTool')}</Btn>
         </form>
       </Modal>
 
