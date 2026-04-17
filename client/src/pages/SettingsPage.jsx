@@ -378,7 +378,7 @@ export default function SettingsPage() {
             <span className="sp-badge sp-badge-green">
               {subscription.status === 'active' ? t('settings.subscription.active') : subscription.status}
             </span>
-            <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{subscription.plan_name || 'Pro Plan'}</span>
+            <span className="text-sm" style={{ color: 'var(--muted-text,#94a3b8)' }}>{subscription.plan_name || t('settings.subscription.proPlan')}</span>
           </div>
           {subscription.current_period_end && (
             <p className="text-sm mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
