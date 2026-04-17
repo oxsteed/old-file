@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { twoFactorAPI } from '../../api/twoFactor';
 import toast from 'react-hot-toast';
 import { Shield, ShieldCheck, ShieldOff, ArrowLeft, Copy, RefreshCw } from 'lucide-react';
@@ -7,6 +8,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 
 export default function TwoFactorSetup() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [setupData, setSetupData] = useState(null);
@@ -23,7 +25,7 @@ export default function TwoFactorSetup() {
       setStatus(data);
       setStep(data.enabled ? 'enabled' : 'status');
     } catch (err) {
-      toast.error('Failed to load 2FA status');
+      toast.error(t('twoFactor.failedLoad'));
     } finally {
       setLoading(false);
     }
@@ -36,7 +38,7 @@ export default function TwoFactorSetup() {
       setBackupCodes(data.backupCodes);
       setStep('setup');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Setup failed');
+      toast.error(err.response?.data?.error || t('twoFactor.setupFailed'));
     }
   };
 
@@ -44,11 +46,11 @@ export default function TwoFactorSetup() {
     e.preventDefault();
     try {
       await twoFactorAPI.verifySetup(verifyCode);
-      toast.success('2FA enabled successfully!');
+      toast.success(t('twoFactor.enableSuccess'));
       setStep('enabled');
       fetchStatus();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Invalid code');
+      toast.error(err.response?.data?.error || t('twoFactor.invalidCode'));
     }
   };
 
@@ -56,12 +58,12 @@ export default function TwoFactorSetup() {
     e.preventDefault();
     try {
       await twoFactorAPI.disable(disableCode);
-      toast.success('2FA disabled');
+      toast.success(t('twoFactor.disableSuccess'));
       setStatus({ enabled: false });
       setStep('status');
       setDisableCode('');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Invalid code');
+      toast.error(err.response?.data?.error || t('twoFactor.invalidCode'));
     }
   };
 
@@ -71,16 +73,16 @@ export default function TwoFactorSetup() {
       const { data } = await twoFactorAPI.regenerateBackupCodes(disableCode);
       setBackupCodes(data.backupCodes);
       setStep('backupCodes');
-      toast.success('New backup codes generated');
+      toast.success(t('twoFactor.newBackupGenerated'));
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed');
+      toast.error(err.response?.data?.error || t('twoFactor.failedRegen'));
     }
   };
 
   const copyBackupCodes = () => {
     if (backupCodes) {
       navigator.clipboard.writeText(backupCodes.join('\n'));
-      toast.success('Backup codes copied!');
+      toast.success(t('twoFactor.backupCopied'));
     }
   };
 
@@ -100,15 +102,15 @@ export default function TwoFactorSetup() {
       <main className="flex-1 py-10 px-4">
       <div className="max-w-lg mx-auto">
         <Link to="/settings" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition text-sm">
-          <ArrowLeft size={16} /> Back to Settings
+          <ArrowLeft size={16} /> {t('twoFactor.backToSettings')}
         </Link>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
           <div className="flex items-center gap-3 mb-6">
             <Shield className="text-orange-500" size={28} />
             <div>
-              <h1 className="text-2xl font-bold text-white">Two-Factor Authentication</h1>
-              <p className="text-gray-400 text-sm">Add an extra layer of security to your account</p>
+              <h1 className="text-2xl font-bold text-white">{t('twoFactor.title')}</h1>
+              <p className="text-gray-400 text-sm">{t('twoFactor.subtitle')}</p>
             </div>
           </div>
 
@@ -117,12 +119,12 @@ export default function TwoFactorSetup() {
               <div className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-xl">
                 <ShieldOff className="text-gray-500" size={24} />
                 <div>
-                  <p className="text-white font-medium">2FA is not enabled</p>
-                  <p className="text-gray-400 text-sm">Secure your account with an authenticator app</p>
+                  <p className="text-white font-medium">{t('twoFactor.notEnabled')}</p>
+                  <p className="text-gray-400 text-sm">{t('twoFactor.notEnabledSub')}</p>
                 </div>
               </div>
               <button onClick={handleSetup} className="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition">
-                Enable Two-Factor Authentication
+                {t('twoFactor.enableBtn')}
               </button>
             </div>
           )}
@@ -130,32 +132,32 @@ export default function TwoFactorSetup() {
           {step === 'setup' && setupData && (
             <div className="space-y-6">
               <div className="text-center">
-                <p className="text-gray-300 mb-4">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+                <p className="text-gray-300 mb-4">{t('twoFactor.scanQr')}</p>
                 <div className="inline-block p-4 bg-white rounded-xl">
                   <img src={setupData.qrCode} alt="2FA QR Code" className="w-48 h-48" />
                 </div>
               </div>
               <div className="p-4 bg-gray-800/50 rounded-xl">
-                <p className="text-gray-400 text-xs mb-1">Manual entry key:</p>
+                <p className="text-gray-400 text-xs mb-1">{t('twoFactor.manualKey')}</p>
                 <p className="text-orange-400 font-mono text-sm break-all">{setupData.secret}</p>
               </div>
               {backupCodes && (
                 <div className="p-4 bg-yellow-900/20 border border-yellow-800/30 rounded-xl">
-                  <p className="text-yellow-400 text-sm font-semibold mb-2">Save your backup codes!</p>
-                  <p className="text-gray-400 text-xs mb-3">Store these in a safe place. Each code can only be used once.</p>
+                  <p className="text-yellow-400 text-sm font-semibold mb-2">{t('twoFactor.saveBackupCodes')}</p>
+                  <p className="text-gray-400 text-xs mb-3">{t('twoFactor.backupCodesSub')}</p>
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     {backupCodes.map((code, i) => (
                       <code key={i} className="text-gray-300 bg-gray-800 px-3 py-1.5 rounded text-sm font-mono text-center">{code}</code>
                     ))}
                   </div>
                   <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300">
-                    <Copy size={14} /> Copy all codes
+                    <Copy size={14} /> {t('twoFactor.copyAllCodes')}
                   </button>
                 </div>
               )}
               <form onSubmit={handleVerify} className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1.5">Enter 6-digit code from your app</label>
+                  <label className="block text-sm text-gray-300 mb-1.5">{t('twoFactor.codeLabel')}</label>
                   <input
                     type="text"
                     value={verifyCode}
@@ -167,7 +169,7 @@ export default function TwoFactorSetup() {
                   />
                 </div>
                 <button type="submit" disabled={verifyCode.length !== 6} className="w-full py-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-xl transition">
-                  Verify & Enable 2FA
+                  {t('twoFactor.verifyEnableBtn')}
                 </button>
               </form>
             </div>
@@ -178,27 +180,27 @@ export default function TwoFactorSetup() {
               <div className="flex items-center gap-3 p-4 bg-green-900/20 border border-green-800/30 rounded-xl">
                 <ShieldCheck className="text-green-400" size={24} />
                 <div>
-                  <p className="text-white font-medium">2FA is enabled</p>
-                  <p className="text-gray-400 text-sm">Your account is protected with TOTP</p>
+                  <p className="text-white font-medium">{t('twoFactor.isEnabled')}</p>
+                  <p className="text-gray-400 text-sm">{t('twoFactor.isEnabledSub')}</p>
                 </div>
               </div>
               <div className="space-y-3">
-                <h3 className="text-white font-medium">Manage 2FA</h3>
+                <h3 className="text-white font-medium">{t('twoFactor.manage')}</h3>
                 <form onSubmit={handleDisable} className="space-y-3">
                   <input
                     type="text"
                     value={disableCode}
                     onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white text-center font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    placeholder="Enter 6-digit code to manage"
+                    placeholder={t('twoFactor.manageCodePh')}
                     maxLength={6}
                   />
                   <div className="flex gap-3">
                     <button type="submit" disabled={disableCode.length !== 6} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium rounded-xl transition text-sm">
-                      Disable 2FA
+                      {t('twoFactor.disableBtn')}
                     </button>
                     <button type="button" onClick={handleRegenBackup} disabled={disableCode.length !== 6} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-medium rounded-xl transition text-sm flex items-center justify-center gap-2">
-                      <RefreshCw size={14} /> New Backup Codes
+                      <RefreshCw size={14} /> {t('twoFactor.newBackupCodesBtn')}
                     </button>
                   </div>
                 </form>
@@ -209,19 +211,19 @@ export default function TwoFactorSetup() {
           {step === 'backupCodes' && backupCodes && (
             <div className="space-y-6">
               <div className="p-4 bg-yellow-900/20 border border-yellow-800/30 rounded-xl">
-                <p className="text-yellow-400 text-sm font-semibold mb-2">New Backup Codes</p>
-                <p className="text-gray-400 text-xs mb-3">Previous codes are now invalid. Save these securely.</p>
+                <p className="text-yellow-400 text-sm font-semibold mb-2">{t('twoFactor.newBackupTitle')}</p>
+                <p className="text-gray-400 text-xs mb-3">{t('twoFactor.newBackupSub')}</p>
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {backupCodes.map((code, i) => (
                     <code key={i} className="text-gray-300 bg-gray-800 px-3 py-1.5 rounded text-sm font-mono text-center">{code}</code>
                   ))}
                 </div>
                 <button onClick={copyBackupCodes} className="flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300">
-                  <Copy size={14} /> Copy all codes
+                  <Copy size={14} /> {t('twoFactor.copyAllCodes')}
                 </button>
               </div>
               <button onClick={() => setStep('enabled')} className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl transition">
-                Done
+                {t('twoFactor.doneBtn')}
               </button>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams }                   from 'react-router-dom';
+import { useTranslation }              from 'react-i18next';
 import { Send, Upload, AlertTriangle } from 'lucide-react';
 import { useAuth }                     from '../../hooks/useAuth';
 import { useSocket }                   from '../../hooks/useSocket';
@@ -9,6 +10,7 @@ import Footer                          from '../../components/Footer';
 
 export default function DisputeDetail() {
   const { disputeId }            = useParams();
+  const { t }                    = useTranslation();
   const { user }                 = useAuth();
   const { socket }               = useSocket();
   const [dispute,   setDispute]  = useState(null);
@@ -30,7 +32,7 @@ export default function DisputeDetail() {
       setEvidence(data.evidence);
       setMessages(data.messages);
     } catch (err) {
-      setError('Dispute not found or access denied.');
+      setError(t('disputes.detail.notFound'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +66,7 @@ export default function DisputeDetail() {
       });
       setMessage('');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send.');
+      setError(err.response?.data?.error || t('disputes.detail.failedSend'));
     } finally {
       setSending(false);
     }
@@ -73,7 +75,7 @@ export default function DisputeDetail() {
   const handleSubmitEvidence = async (e) => {
     e.preventDefault();
     if (!evText.trim() && !evFiles.length) {
-      setError('Please provide text or files as evidence.');
+      setError(t('disputes.detail.evidenceRequired'));
       return;
     }
     setSubmitting(true);
@@ -90,7 +92,7 @@ export default function DisputeDetail() {
       setEvFiles([]);
       fetchDispute();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit evidence.');
+      setError(err.response?.data?.error || t('disputes.detail.failedEvidence'));
     } finally {
       setSubmitting(false);
     }
@@ -100,7 +102,7 @@ export default function DisputeDetail() {
     <div className="min-h-screen bg-gray-950 flex flex-col">
       <Navbar />
       <div className="flex-1 flex items-center justify-center text-gray-400">
-        Loading dispute...
+        {t('disputes.detail.loading')}
       </div>
       <Footer />
     </div>
@@ -132,23 +134,22 @@ export default function DisputeDetail() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle size={18} className="text-orange-500" />
-                <span className="text-xs font-semibold text-orange-600
-                                 uppercase tracking-wide">
-                  Dispute #{disputeId.split('-')[0]}
+                <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide">
+                  {t('disputes.detail.disputeNumber', { number: disputeId.split('-')[0] })}
                 </span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">
                 {dispute.job_title}
               </h1>
               <p className="text-sm text-gray-500 mt-1 capitalize">
-                Reason: {dispute.reason.replace(/_/g, ' ')}
+                {t('disputes.detail.reason', { reason: dispute.reason.replace(/_/g, ' ') })}
               </p>
             </div>
             <div className="text-right">
               <DisputeStatusBadge status={dispute.status} />
               {dispute.job_amount && (
                 <p className="text-lg font-bold text-gray-800 mt-2">
-                                ${parseFloat(dispute.job_amount).toFixed(2)}
+                  ${parseFloat(dispute.job_amount).toFixed(2)}
                 </p>
               )}
             </div>
@@ -156,9 +157,8 @@ export default function DisputeDetail() {
 
           {/* Description */}
           <div className="mt-4 bg-gray-50 rounded-xl p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase
-                          tracking-wider mb-1">
-              Original Description
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+              {t('disputes.detail.originalDescription')}
             </p>
             <p className="text-sm text-gray-700 leading-relaxed">
               {dispute.description}
@@ -168,27 +168,23 @@ export default function DisputeDetail() {
           {/* Parties */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             {[
-              { label: 'Filed by', name: dispute.opened_by_name,
+              { label: t('disputes.detail.filedBy'), name: dispute.opened_by_name,
                 avatar: dispute.opened_by_avatar,
                 role: dispute.opened_by_role },
-              { label: 'Against',  name: dispute.against_user_name,
+              { label: t('disputes.detail.against'),  name: dispute.against_user_name,
                 avatar: dispute.against_user_avatar,
                 role: dispute.opened_by_role === 'client' ? 'helper' : 'client' }
             ].map(({ label, name, avatar, role }) => (
               <div key={label}
-                   className="flex items-center gap-3 bg-gray-50
-                              rounded-xl p-3">
+                   className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
                 <img
                   src={avatar || '/default-avatar.png'}
                   alt=""
-                  className="w-9 h-9 rounded-full object-cover
-                             border border-gray-200"
+                  className="w-9 h-9 rounded-full object-cover border border-gray-200"
                 />
                 <div>
                   <p className="text-xs text-gray-400">{label}</p>
-                  <p className="text-sm font-semibold text-gray-800">
-                    {name}
-                  </p>
+                  <p className="text-sm font-semibold text-gray-800">{name}</p>
                   <p className="text-xs text-gray-500 capitalize">{role}</p>
                 </div>
               </div>
@@ -197,11 +193,9 @@ export default function DisputeDetail() {
 
           {/* Resolution (if resolved) */}
           {dispute.resolution && (
-            <div className="mt-4 bg-green-50 border border-green-200
-                            rounded-xl p-4">
-              <p className="text-xs font-semibold text-green-700 uppercase
-                            tracking-wider mb-1">
-                Resolution
+            <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1">
+                {t('disputes.detail.resolutionTitle')}
               </p>
               <p className="text-sm font-semibold text-green-800 capitalize">
                 {dispute.resolution.replace(/_/g, ' ')}
@@ -213,12 +207,11 @@ export default function DisputeDetail() {
               )}
               {dispute.refund_amount && (
                 <p className="text-sm font-bold text-green-800 mt-1">
-                  Refund: ${parseFloat(dispute.refund_amount).toFixed(2)}
+                  {t('disputes.detail.refund', { amount: parseFloat(dispute.refund_amount).toFixed(2) })}
                 </p>
               )}
               <p className="text-xs text-green-600 mt-2">
-                Resolved by {dispute.resolved_by_name} ·{' '}
-                {new Date(dispute.resolved_at).toLocaleString()}
+                {t('disputes.detail.resolvedBy', { name: dispute.resolved_by_name })} · {new Date(dispute.resolved_at).toLocaleString()}
               </p>
             </div>
           )}
@@ -229,14 +222,12 @@ export default function DisputeDetail() {
           {/* ── Evidence Panel ── */}
           <div className="space-y-4">
             <h2 className="font-semibold text-gray-800">
-              Evidence ({evidence.length})
+              {t('disputes.detail.evidenceTitle', { count: evidence.length })}
             </h2>
 
-            {/* Evidence items */}
             {evidence.length === 0 ? (
-              <div className="bg-gray-50 rounded-xl p-6 text-center
-                              text-gray-400 text-sm">
-                No evidence submitted yet.
+              <div className="bg-gray-50 rounded-xl p-6 text-center text-gray-400 text-sm">
+                {t('disputes.detail.noEvidence')}
               </div>
             ) : (
               <div className="space-y-3">
@@ -256,8 +247,7 @@ export default function DisputeDetail() {
                       <p className="text-xs font-semibold text-gray-700">
                         {item.submitted_by_name}
                       </p>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full
-                                        capitalize ml-auto ${
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full capitalize ml-auto ${
                         item.submitter_role === 'client'
                           ? 'bg-blue-100 text-blue-600'
                           : item.submitter_role === 'admin'
@@ -283,13 +273,10 @@ export default function DisputeDetail() {
                           <img
                             src={item.file_url}
                             alt={item.file_name}
-                            className="w-full max-h-48 object-cover rounded-lg
-                                       border border-gray-200"
+                            className="w-full max-h-48 object-cover rounded-lg border border-gray-200"
                           />
                         ) : (
-                          <div className="bg-gray-900 text-white text-xs
-                                          rounded-lg px-3 py-2 flex items-center
-                                          gap-2">
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 flex items-center gap-2">
                             🎥 {item.file_name}
                           </div>
                         )}
@@ -300,9 +287,7 @@ export default function DisputeDetail() {
                       <a href={item.file_url}
                          target="_blank"
                          rel="noopener noreferrer"
-                         className="flex items-center gap-2 mt-2 text-xs
-                                    text-orange-600 hover:text-orange-700
-                                    font-medium transition">
+                         className="flex items-center gap-2 mt-2 text-xs text-orange-600 hover:text-orange-700 font-medium transition">
                         📄 {item.file_name}
                       </a>
                     )}
@@ -320,7 +305,7 @@ export default function DisputeDetail() {
               <form onSubmit={handleSubmitEvidence}
                     className="bg-white border border-gray-200 rounded-xl p-4">
                 <p className="text-sm font-semibold text-gray-700 mb-3">
-                  Submit Evidence
+                  {t('disputes.detail.submitEvidence')}
                 </p>
 
                 <textarea
@@ -328,19 +313,14 @@ export default function DisputeDetail() {
                   onChange={e => setEvText(e.target.value)}
                   rows={3}
                   maxLength={2000}
-                  placeholder="Describe what happened, provide context, links, or any relevant information..."
-                  className="w-full px-3 py-2.5 border border-gray-200
-                             rounded-lg text-sm focus:ring-2
-                             focus:ring-orange-400 focus:outline-none
-                             resize-none mb-3"
+                  placeholder={t('disputes.detail.evidencePh')}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none resize-none mb-3"
                 />
 
                 {/* File upload */}
-                <label className="flex items-center gap-2 text-sm
-                                  text-gray-500 cursor-pointer mb-3
-                                  hover:text-orange-500 transition">
+                <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer mb-3 hover:text-orange-500 transition">
                   <Upload size={15} />
-                  Attach files (images, videos, documents — max 5)
+                  {t('disputes.detail.attachFiles')}
                   <input
                     type="file"
                     multiple
@@ -354,9 +334,7 @@ export default function DisputeDetail() {
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {evFiles.map((f, i) => (
                       <span key={i}
-                            className="text-xs bg-orange-50 text-orange-600
-                                       px-2 py-0.5 rounded-full border
-                                       border-orange-200">
+                            className="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-200">
                         {f.name}
                       </span>
                     ))}
@@ -370,19 +348,16 @@ export default function DisputeDetail() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-2.5 bg-orange-500 text-white text-sm
-                             font-semibold rounded-lg hover:bg-orange-600
-                             disabled:opacity-50 transition"
+                  className="w-full py-2.5 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 disabled:opacity-50 transition"
                 >
-                  {submitting ? 'Submitting...' : 'Submit Evidence'}
+                  {submitting ? t('disputes.detail.submitting') : t('disputes.detail.submitEvidence')}
                 </button>
               </form>
             )}
 
             {deadlinePassed && isOpen && (
-              <div className="bg-gray-50 border border-gray-200 rounded-xl
-                              p-4 text-center text-sm text-gray-500">
-                Evidence window closed. Awaiting admin review.
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center text-sm text-gray-500">
+                {t('disputes.detail.evidenceClosed')}
               </div>
             )}
           </div>
@@ -390,48 +365,36 @@ export default function DisputeDetail() {
           {/* ── Message Thread ── */}
           <div className="flex flex-col">
             <h2 className="font-semibold text-gray-800 mb-4">
-              Messages
+              {t('disputes.detail.messagesTitle')}
             </h2>
 
-            {/* Messages scroll area */}
-            <div className="flex-1 bg-white border border-gray-200
-                            rounded-xl overflow-hidden flex flex-col"
+            <div className="flex-1 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col"
                  style={{ minHeight: '400px' }}>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {messages.length === 0 ? (
                   <p className="text-center text-gray-400 text-sm py-8">
-                    No messages yet. Send a message to communicate with
-                    the other party.
+                    {t('disputes.detail.noMessages')}
                   </p>
                 ) : messages.map(msg => {
                   const isMe = msg.sender_id === user?.id;
                   return (
                     <div key={msg.id}
-                         className={`flex items-end gap-2 ${
-                      isMe ? 'flex-row-reverse' : ''
-                    }`}>
+                         className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
                       <img
                         src={msg.sender_avatar || '/default-avatar.png'}
                         alt=""
-                        className="w-7 h-7 rounded-full object-cover
-                                   border border-gray-200 shrink-0"
+                        className="w-7 h-7 rounded-full object-cover border border-gray-200 shrink-0"
                       />
-                      <div className={`max-w-xs ${isMe ? 'items-end' : ''
-                                      } flex flex-col`}>
+                      <div className={`max-w-xs ${isMe ? 'items-end' : ''} flex flex-col`}>
                         <div className="flex items-center gap-1.5 mb-1">
-                          <p className="text-xs text-gray-400">
-                            {msg.sender_name}
-                          </p>
+                          <p className="text-xs text-gray-400">{msg.sender_name}</p>
                           {msg.sender_role === 'admin' && (
-                            <span className="text-xs px-1.5 py-0.5
-                                             bg-purple-100 text-purple-600
-                                             rounded-full font-medium">
+                            <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded-full font-medium">
                               Support
                             </span>
                           )}
                         </div>
-                        <div className={`px-4 py-2.5 rounded-2xl text-sm
-                                         leading-relaxed ${
+                        <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                           isMe
                             ? 'bg-orange-500 text-white rounded-br-sm'
                             : msg.sender_role === 'admin'
@@ -463,18 +426,13 @@ export default function DisputeDetail() {
                     value={message}
                     onChange={e => setMessage(e.target.value)}
                     maxLength={1000}
-                    placeholder="Type a message..."
-                    className="flex-1 px-3 py-2 bg-gray-50 border
-                               border-gray-200 rounded-xl text-sm
-                               focus:outline-none focus:ring-2
-                               focus:ring-orange-400"
+                    placeholder={t('disputes.detail.typeMessage')}
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                   />
                   <button
                     type="submit"
                     disabled={sending || !message.trim()}
-                    className="p-2.5 bg-orange-500 text-white rounded-xl
-                               hover:bg-orange-600 disabled:opacity-50
-                               transition"
+                    className="p-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 disabled:opacity-50 transition"
                   >
                     <Send size={16} />
                   </button>
@@ -498,8 +456,7 @@ function DisputeStatusBadge({ status }) {
     closed:       'bg-gray-100   text-gray-500'
   };
   return (
-    <span className={`inline-flex px-3 py-1 rounded-full text-xs
-                      font-semibold capitalize ${
+    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold capitalize ${
       map[status] || 'bg-gray-100 text-gray-500'
     }`}>
       {status.replace('_', ' ')}

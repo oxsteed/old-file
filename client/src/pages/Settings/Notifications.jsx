@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Bell } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -9,41 +10,35 @@ import Footer from '../../components/Footer';
 const PREF_GROUPS = [
   {
     key: 'in_app',
-    label: 'In-App Notifications',
-    description: 'Shown inside the app in your notification center.',
     prefs: [
-      { key: 'in_app_new_bid',          label: 'New bid on my job'        },
-      { key: 'in_app_bid_accepted',     label: 'My bid was accepted'      },
-      { key: 'in_app_job_started',      label: 'Job started'              },
-      { key: 'in_app_job_completed',    label: 'Job completed'            },
-      { key: 'in_app_payment_released', label: 'Payment released'         },
-      { key: 'in_app_new_review',       label: 'New review received'      },
-      { key: 'in_app_dispute_update',   label: 'Dispute updates'          },
-      { key: 'in_app_subscription',     label: 'Subscription updates'     },
+      'in_app_new_bid',
+      'in_app_bid_accepted',
+      'in_app_job_started',
+      'in_app_job_completed',
+      'in_app_payment_released',
+      'in_app_new_review',
+      'in_app_dispute_update',
+      'in_app_subscription',
     ],
   },
   {
     key: 'push',
-    label: 'Push Notifications',
-    description: 'Alerts sent directly to your device.',
     prefs: [
-      { key: 'push_new_job_nearby',   label: 'New jobs near me'         },
-      { key: 'push_new_bid',          label: 'New bid on my job'        },
-      { key: 'push_bid_accepted',     label: 'My bid was accepted'      },
-      { key: 'push_payment_released', label: 'Payment released'         },
-      { key: 'push_dispute_update',   label: 'Dispute updates'          },
+      'push_new_job_nearby',
+      'push_new_bid',
+      'push_bid_accepted',
+      'push_payment_released',
+      'push_dispute_update',
     ],
   },
   {
     key: 'email',
-    label: 'Email Notifications',
-    description: 'Messages sent to your registered email address.',
     prefs: [
-      { key: 'email_bid_accepted',      label: 'Bid accepted'             },
-      { key: 'email_payment_released',  label: 'Payment released'         },
-      { key: 'email_subscription',      label: 'Subscription events'      },
-      { key: 'email_dispute_update',    label: 'Dispute updates'          },
-      { key: 'email_weekly_summary',    label: 'Weekly activity summary'  },
+      'email_bid_accepted',
+      'email_payment_released',
+      'email_subscription',
+      'email_dispute_update',
+      'email_weekly_summary',
     ],
   },
 ];
@@ -70,6 +65,7 @@ function Toggle({ checked, onChange, disabled }) {
 }
 
 export default function NotificationSettings() {
+  const { t } = useTranslation();
   const [prefs,   setPrefs]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -81,7 +77,7 @@ export default function NotificationSettings() {
         setLoading(false);
       })
       .catch(() => {
-        toast.error('Failed to load notification preferences');
+        toast.error(t('notifications.failedLoad'));
         setLoading(false);
       });
   }, []);
@@ -91,14 +87,14 @@ export default function NotificationSettings() {
     setSaving(true);
     try {
       await api.put('/notifications/preferences', { [key]: value });
-      toast.success('Preference saved');
+      toast.success(t('notifications.prefSaved'));
     } catch {
       setPrefs(prev => ({ ...prev, [key]: !value }));
-      toast.error('Failed to save preference');
+      toast.error(t('notifications.failedSave'));
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [t]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -113,7 +109,7 @@ export default function NotificationSettings() {
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition text-sm"
           >
             <ArrowLeft size={16} />
-            Back to Settings
+            {t('notifications.backToSettings')}
           </Link>
 
           {/* Page header */}
@@ -122,9 +118,9 @@ export default function NotificationSettings() {
               <Bell size={20} className="text-orange-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Notification Settings</h1>
+              <h1 className="text-2xl font-bold text-white">{t('notifications.title')}</h1>
               <p className="text-sm text-gray-400 mt-0.5">
-                Choose how and when you receive notifications.
+                {t('notifications.subtitle')}
               </p>
             </div>
             {saving && (
@@ -133,7 +129,7 @@ export default function NotificationSettings() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                Saving...
+                {t('notifications.saving')}
               </span>
             )}
           </div>
@@ -152,30 +148,30 @@ export default function NotificationSettings() {
                 >
                   {/* Group header */}
                   <div className="px-6 py-4 border-b border-gray-800">
-                    <h2 className="text-base font-semibold text-white">{group.label}</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">{group.description}</p>
+                    <h2 className="text-base font-semibold text-white">{t(`notifications.groups.${group.key}.label`)}</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">{t(`notifications.groups.${group.key}.description`)}</p>
                   </div>
 
                   {/* Pref rows */}
                   <div>
-                    {group.prefs.map((pref, idx) => {
-                      const enabled = prefs?.[pref.key] ?? true;
+                    {group.prefs.map((prefKey, idx) => {
+                      const enabled = prefs?.[prefKey] ?? true;
                       return (
                         <div
-                          key={pref.key}
+                          key={prefKey}
                           className={`flex items-center justify-between px-6 py-3.5 hover:bg-gray-800/40 transition-colors ${
                             idx !== group.prefs.length - 1 ? 'border-b border-gray-800/60' : ''
                           }`}
                         >
                           <label
-                            htmlFor={pref.key}
+                            htmlFor={prefKey}
                             className="text-sm text-gray-200 cursor-pointer select-none"
                           >
-                            {pref.label}
+                            {t(`notifications.prefs.${prefKey}`)}
                           </label>
                           <Toggle
                             checked={enabled}
-                            onChange={(val) => handleToggle(pref.key, val)}
+                            onChange={(val) => handleToggle(prefKey, val)}
                             disabled={saving}
                           />
                         </div>

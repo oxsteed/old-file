@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import '../styles/HomePage.css';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
@@ -7,26 +8,26 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
 
-const SKILL_TILES = [
-  { slug: 'electrical',   icon: '⚡', name: 'Electrical',      desc: 'Outlets, panels, EV chargers' },
-  { slug: 'plumbing',     icon: '🚿', name: 'Plumbing',        desc: 'Leaks, drains, water heaters' },
-  { slug: 'hvac',         icon: '❄️', name: 'HVAC',            desc: 'AC, heating, duct work' },
-  { slug: 'carpentry',    icon: '🪚', name: 'Carpentry',       desc: 'Decks, trim, custom builds' },
-  { slug: 'painting',     icon: '🖌️', name: 'Painting',        desc: 'Interior & exterior' },
-  { slug: 'roofing',      icon: '🏠', name: 'Roofing',         desc: 'Repair, replacement, gutters' },
-  { slug: 'flooring',     icon: '🪵', name: 'Flooring',        desc: 'Hardwood, tile, carpet' },
-  { slug: 'landscaping',  icon: '🌿', name: 'Landscaping',     desc: 'Lawn, garden, tree care' },
-  { slug: 'moving',       icon: '🚚', name: 'Moving',          desc: 'Packing, loading, hauling' },
-  { slug: 'cleaning',     icon: '✨', name: 'Cleaning',        desc: 'Deep clean, move-out, regular' },
-  { slug: 'pest-control', icon: '🐛', name: 'Pest Control',    desc: 'Rodents, termites, insects' },
-  { slug: 'auto',         icon: '🚗', name: 'Auto Repair',     desc: 'Mobile mechanic, detailing' },
-  { slug: 'appliance',    icon: '🔌', name: 'Appliance Repair',desc: 'Washer, dryer, refrigerator' },
-  { slug: 'concrete',     icon: '🏗️', name: 'Concrete',        desc: 'Driveways, patios, slabs' },
-  { slug: 'welding',      icon: '⚙️', name: 'Welding',         desc: 'Metal fab, gates, structural' },
-  { slug: 'home-repair',  icon: '🔨', name: 'Home Repair',     desc: 'Drywall, fixtures, handyman' },
-  { slug: 'security',     icon: '🔒', name: 'Security',        desc: 'Cameras, alarms, smart home' },
-  { slug: 'pet-care',     icon: '🐾', name: 'Pet Care',        desc: 'Sitting, walking, grooming' },
-  { slug: 'tutoring',     icon: '📚', name: 'Tutoring',        desc: 'Math, reading, test prep' },
+const SKILL_SLUGS = [
+  { slug: 'electrical',   icon: '⚡' },
+  { slug: 'plumbing',     icon: '🚿' },
+  { slug: 'hvac',         icon: '❄️' },
+  { slug: 'carpentry',    icon: '🪚' },
+  { slug: 'painting',     icon: '🖌️' },
+  { slug: 'roofing',      icon: '🏠' },
+  { slug: 'flooring',     icon: '🪵' },
+  { slug: 'landscaping',  icon: '🌿' },
+  { slug: 'moving',       icon: '🚚' },
+  { slug: 'cleaning',     icon: '✨' },
+  { slug: 'pest-control', icon: '🐛' },
+  { slug: 'auto',         icon: '🚗' },
+  { slug: 'appliance',    icon: '🔌' },
+  { slug: 'concrete',     icon: '🏗️' },
+  { slug: 'welding',      icon: '⚙️' },
+  { slug: 'home-repair',  icon: '🔨' },
+  { slug: 'security',     icon: '🔒' },
+  { slug: 'pet-care',     icon: '🐾' },
+  { slug: 'tutoring',     icon: '📚' },
 ];
 
 /** The real OxSteed brand icon (4-arrow clockwise ring with inner circle) */
@@ -174,6 +175,13 @@ const CLEAR_ICON = (
  */
 function HomeSearch() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+
+  const SKILL_TILES = SKILL_SLUGS.map(s => ({
+    ...s,
+    name: t(`homePage.skills.tiles.${s.slug}.name`),
+    desc: t(`homePage.skills.tiles.${s.slug}.desc`),
+  }));
 
   // ── Mode ──────────────────────────────────────────────────────────────────
   const [mode, setMode] = useState('helpers'); // 'helpers' | 'jobs'
@@ -361,20 +369,20 @@ function HomeSearch() {
     <div className="hp-search-wrap" ref={wrapRef} role="search">
 
       {/* ── Mode tabs ─────────────────────────────────────────────────────── */}
-      <div className="hp-search-tabs" role="tablist" aria-label="Search mode">
+      <div className="hp-search-tabs" role="tablist" aria-label={t('homePage.search.searchMode')}>
         <button
           type="button" role="tab" aria-selected={mode === 'helpers'}
           className={`hp-search-tab${mode === 'helpers' ? ' hp-search-tab--active' : ''}`}
           onClick={() => setMode('helpers')}
         >
-          Find a Helper
+          {t('homePage.search.findHelper')}
         </button>
         <button
           type="button" role="tab" aria-selected={mode === 'jobs'}
           className={`hp-search-tab${mode === 'jobs' ? ' hp-search-tab--active' : ''}`}
           onClick={() => setMode('jobs')}
         >
-          Browse Jobs
+          {t('homePage.search.browseJobs')}
         </button>
       </div>
 
@@ -385,14 +393,14 @@ function HomeSearch() {
         <div className="hp-search-field hp-search-field--query">
           <span className="hp-search-icon">{SEARCH_ICON}</span>
           <label htmlFor="hp-search-input" className="sr-only">
-            {mode === 'helpers' ? 'Search for a service or skill' : 'Search jobs'}
+            {mode === 'helpers' ? t('homePage.search.helperLabel') : t('homePage.search.jobsLabel')}
           </label>
           <input
             ref={queryRef}
             id="hp-search-input"
             className="hp-search-input"
             type="text"
-            placeholder={mode === 'helpers' ? 'e.g. plumbing, lawn care…' : 'Search jobs by keyword…'}
+            placeholder={mode === 'helpers' ? t('homePage.search.helperPh') : t('homePage.search.jobsPh')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => skillSugg.length > 0 && setSkillsOpen(true)}
@@ -403,7 +411,7 @@ function HomeSearch() {
             aria-expanded={skillsOpen}
           />
           {query && (
-            <button type="button" className="hp-search-clear" aria-label="Clear search"
+            <button type="button" className="hp-search-clear" aria-label={t('homePage.search.clearSearch')}
               onClick={() => { setQuery(''); setSkillsOpen(false); queryRef.current?.focus(); }}>
               {CLEAR_ICON}
             </button>
@@ -418,7 +426,7 @@ function HomeSearch() {
               ref={locInputRef}
               className="hp-search-input"
               type="text"
-              placeholder="City or ZIP"
+              placeholder={t('homePage.search.locationPh')}
               value={locInput}
               onChange={(e) => { userHasTypedLoc.current = true; setLocInput(e.target.value); setLocCoords({ lat: null, lng: null }); }}
               onFocus={() => locSugg.length > 0 && setLocOpen(true)}
@@ -428,13 +436,13 @@ function HomeSearch() {
               aria-expanded={locOpen}
             />
             {locInput && (
-              <button type="button" className="hp-search-clear" aria-label="Clear location"
+              <button type="button" className="hp-search-clear" aria-label={t('homePage.search.clearLocation')}
                 onClick={() => { setLocInput(''); setLocCoords({ lat: null, lng: null }); setLocSugg([]); setLocOpen(false); locInputRef.current?.focus(); }}>
                 {CLEAR_ICON}
               </button>
             )}
             {locOpen && locSugg.length > 0 && (
-              <ul className="hp-search-suggestions hp-loc-suggestions" role="listbox" aria-label="Location suggestions">
+              <ul className="hp-search-suggestions hp-loc-suggestions" role="listbox" aria-label={t('homePage.search.locationSuggestions')}>
                 {locSugg.map((loc, i) => (
                   <li key={i} role="option" className="hp-search-suggestion" onMouseDown={() => handleSelectLocation(loc)}>
                     <span className="hp-sugg-icon">📍</span>
@@ -455,21 +463,21 @@ function HomeSearch() {
             className={`hp-avail-toggle${availToday ? ' hp-avail-toggle--on' : ''}`}
             onClick={() => setAvailToday((t) => !t)}
             aria-pressed={availToday}
-            title="Show only helpers available today"
+            title={t('homePage.search.availTodayTitle')}
           >
             <span className={`hp-avail-dot${availToday ? ' hp-avail-dot--on' : ''}`} aria-hidden="true" />
-            Today
+            {t('homePage.search.availToday')}
           </button>
         )}
 
         <button type="submit" className="hp-btn hp-btn-primary hp-search-btn">
-          {mode === 'jobs' ? 'Find Jobs' : 'Search'}
+          {mode === 'jobs' ? t('homePage.search.findJobs') : t('homePage.search.search')}
         </button>
       </form>
 
       {/* ── Skill suggestions dropdown ────────────────────────────────────── */}
       {skillsOpen && skillSugg.length > 0 && (
-        <ul id="hp-skill-sugg" className="hp-search-suggestions" role="listbox" aria-label="Skill suggestions">
+        <ul id="hp-skill-sugg" className="hp-search-suggestions" role="listbox" aria-label={t('homePage.search.skillSuggestions')}>
           {skillSugg.map((tile, i) => (
             <li
               key={`${tile.slug}-${i}`}
@@ -498,8 +506,15 @@ function HomeSearch() {
 export default function HomePage() {
   const { preview, newCount } = useLiveBidsPreview();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const [skillsExpanded, setSkillsExpanded] = useState(false);
   const skillsOverflowRef = useRef(null);
+
+  const SKILL_TILES = SKILL_SLUGS.map(s => ({
+    ...s,
+    name: t(`homePage.skills.tiles.${s.slug}.name`),
+    desc: t(`homePage.skills.tiles.${s.slug}.desc`),
+  }));
 
   const jobTitle  = preview?.jobTitle  ?? '…';
   const location  = preview?.location  ?? '—';
@@ -573,8 +588,8 @@ export default function HomePage() {
       <section className="hp-section">
         <div className="hp-container">
           <div className="hp-section-head">
-            <h2 className="hp-section-title">Browse by Skill</h2>
-            <p className="hp-section-sub">Find a local helpers for the exact job you need done.</p>
+            <h2 className="hp-section-title">{t('homePage.skills.sectionTitle')}</h2>
+            <p className="hp-section-sub">{t('homePage.skills.sectionSubtitle')}</p>
           </div>
 
           {/* Preview: first 5 cards always visible */}
@@ -611,9 +626,9 @@ export default function HomePage() {
               ))}
             </div>
             <p className="hp-cat-note">
-              Don't see your skill?{' '}
-              <Link to="/register/customer" className="hp-text-link">Post a job</Link>
-              {' '}and let qualified helpers come to you.
+              {t('homePage.skills.dontSeeSkill')}{' '}
+              <Link to="/register/customer" className="hp-text-link">{t('homePage.skills.postJobLink')}</Link>
+              {' '}{t('homePage.skills.dontSeeEnd')}
             </p>
           </div>
 
@@ -625,7 +640,7 @@ export default function HomePage() {
               aria-expanded={skillsExpanded}
               aria-controls="hp-skills-overflow"
             >
-              {skillsExpanded ? 'Show fewer' : `Show ${SKILL_TILES.length - 4} more skills`}
+              {skillsExpanded ? t('homePage.skills.showFewer') : t('homePage.skills.showMore', { count: SKILL_TILES.length - 4 })}
               <svg
                 className={`hp-skills-chevron${skillsExpanded ? ' hp-skills-chevron--up' : ''}`}
                 width="16"
@@ -650,25 +665,25 @@ export default function HomePage() {
         <div className="hp-container">
           <div className="hp-cta-inner">
             <div className="hp-cta-text">
-              <h2 className="hp-cta-title">Post your skills.<br /><em>Run your own business.</em></h2>
+              <h2 className="hp-cta-title">{t('homePage.cta.title')}<br /><em>{t('homePage.cta.titleEm')}</em></h2>
               <p className="hp-cta-desc">
-                List your services for free on your local board, or subscribe to Pro for priority placement. You set your own rates, hours, and service area.
+                {t('homePage.cta.desc')}
               </p>
             </div>
             <div className="hp-cta-actions">
               {user?.role === 'helper' ? (
                 <Link to="/dashboard" className="hp-btn hp-btn-primary hp-btn-lg">
-                  Go to Dashboard
+                  {t('homePage.cta.goToDashboard')}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                 </Link>
               ) : (
                 <>
                   <Link to={user ? '/dashboard' : '/register/helper'} className="hp-btn hp-btn-primary hp-btn-lg">
-                    {user ? 'View Dashboard' : 'List Your Skills'}
+                    {user ? t('homePage.cta.viewDashboard') : t('homePage.cta.listSkills')}
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
                   </Link>
                   <Link to={user?.role === 'customer' ? '/post-job' : '/register/customer'} className="hp-btn hp-btn-outline hp-btn-lg">
-                    {user?.role === 'customer' ? 'Post a Job' : 'Post a Job Instead'}
+                    {user?.role === 'customer' ? t('homePage.cta.postJob') : t('homePage.cta.postJobInstead')}
                   </Link>
                 </>
               )}

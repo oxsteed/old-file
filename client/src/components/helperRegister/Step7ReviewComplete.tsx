@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import api from '../../api/axios';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function Step7ReviewComplete({ token: _token, formData, selectedTier, onEdit, onSuccess }: Props) {
+  const { t } = useTranslation();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [contractorAcknowledged, setContractorAcknowledged] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,22 +26,21 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
 
   const maskedTaxId = formData.taxId
     ? '•••-••-' + formData.taxId.replace(/\D/g, '').slice(-4)
-    : 'Not provided';
+    : t('helperRegister.step7.notProvided');
 
   const handleSubmit = async () => {
     if (!termsAccepted || !contractorAcknowledged) {
-      setError('You must accept both checkboxes to continue.');
+      setError(t('helperRegister.step7.mustAcceptBoth'));
       return;
     }
     setLoading(true);
     setError('');
     try {
-      // Accept terms then finalize
       await api.post('/helper-registration/accept-terms');
       await api.post('/helper-registration/finalize');
       setCompleted(true);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to complete registration');
+      setError(err.response?.data?.error || t('helperRegister.step7.errorComplete'));
     } finally {
       setLoading(false);
     }
@@ -53,27 +54,25 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-3xl font-bold text-white mb-2">Welcome to OxSteed!</h2>
-        <p className="text-gray-400 mb-8">
-          Your helper account is ready. Here's what happens next:
-        </p>
+        <h2 className="text-3xl font-bold text-white mb-2">{t('helperRegister.step7.successTitle')}</h2>
+        <p className="text-gray-400 mb-8">{t('helperRegister.step7.successSubtitle')}</p>
         <div className="text-left space-y-3 mb-8">
           <div className="flex gap-3 items-start">
             <span className="text-orange-500 font-bold">1.</span>
-            <p className="text-gray-300 text-sm">Your profile is now visible to customers in your area.</p>
+            <p className="text-gray-300 text-sm">{t('helperRegister.step7.successStep1')}</p>
           </div>
           <div className="flex gap-3 items-start">
             <span className="text-orange-500 font-bold">2.</span>
-            <p className="text-gray-300 text-sm">Browse available jobs and start bidding.</p>
+            <p className="text-gray-300 text-sm">{t('helperRegister.step7.successStep2')}</p>
           </div>
           <div className="flex gap-3 items-start">
             <span className="text-orange-500 font-bold">3.</span>
-            <p className="text-gray-300 text-sm">Check your email for a welcome message with tips to get your first job.</p>
+            <p className="text-gray-300 text-sm">{t('helperRegister.step7.successStep3')}</p>
           </div>
         </div>
         <button onClick={onSuccess}
           className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition text-lg">
-          Go to Dashboard
+          {t('helperRegister.step7.goToDashboard')}
         </button>
       </div>
     );
@@ -84,7 +83,7 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-white font-semibold text-sm">{title}</h3>
         <button type="button" onClick={() => onEdit(step)}
-          className="text-orange-400 text-xs hover:text-orange-300">[Edit]</button>
+          className="text-orange-400 text-xs hover:text-orange-300">{t('helperRegister.step7.editBtn')}</button>
       </div>
       <div className="text-gray-400 text-sm space-y-1">{children}</div>
     </div>
@@ -96,29 +95,29 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
         <div className="p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300 text-sm" role="alert">{error}</div>
       )}
 
-      <Section title="Account" step={1}>
+      <Section title={t('helperRegister.step7.sectionAccount')} step={1}>
         <p>{formData.firstName} {formData.lastName}</p>
         <p>{formData.email}</p>
       </Section>
 
-      <Section title="Profile & Location" step={4}>
-        <p>Phone: {formData.phone ? `(${formData.phone.slice(0,3)}) ${formData.phone.slice(3,6)}-${formData.phone.slice(6)}` : '—'}</p>
-        <p>Location: {formData.city && formData.state ? `${formData.city}, ${formData.state} ${formData.zip}` : formData.zip || '—'}</p>
-        <p>Skills: {formData.skills.length > 0 ? formData.skills.join(', ') : '—'}</p>
-        {formData.bio && <p>Bio: {formData.bio.slice(0, 80)}{formData.bio.length > 80 ? '...' : ''}</p>}
+      <Section title={t('helperRegister.step7.sectionProfile')} step={4}>
+        <p>{t('helperRegister.step7.phoneRow', { value: formData.phone ? `(${formData.phone.slice(0,3)}) ${formData.phone.slice(3,6)}-${formData.phone.slice(6)}` : '—' })}</p>
+        <p>{t('helperRegister.step7.locationRow', { value: formData.city && formData.state ? `${formData.city}, ${formData.state} ${formData.zip}` : formData.zip || '—' })}</p>
+        <p>{t('helperRegister.step7.skillsRow', { value: formData.skills.length > 0 ? formData.skills.join(', ') : '—' })}</p>
+        {formData.bio && <p>{t('helperRegister.step7.bioRow', { value: formData.bio.slice(0, 80) + (formData.bio.length > 80 ? '...' : '') })}</p>}
       </Section>
 
-      <Section title="Plan" step={5}>
+      <Section title={t('helperRegister.step7.sectionPlan')} step={5}>
         <p className="text-orange-400 font-medium">
-          {selectedTier === 'pro' ? 'Pro — $19.99/mo' : 'Free'}
+          {selectedTier === 'pro' ? t('helperRegister.step7.proLabel') : t('helperRegister.step7.freeLabel')}
         </p>
       </Section>
 
       {selectedTier !== 'free' && (
-        <Section title="Tax Information" step={6}>
-          <p>Legal Name: {formData.legalName || '—'}</p>
-          <p>Tax ID: {maskedTaxId}</p>
-          <p>Address: {formData.mailingAddress.street ? `${formData.mailingAddress.street}, ${formData.mailingAddress.city}, ${formData.mailingAddress.state} ${formData.mailingAddress.zip}` : '—'}</p>
+        <Section title={t('helperRegister.step7.sectionTax')} step={6}>
+          <p>{t('helperRegister.step7.legalNameRow', { value: formData.legalName || '—' })}</p>
+          <p>{t('helperRegister.step7.taxIdRow', { value: maskedTaxId })}</p>
+          <p>{t('helperRegister.step7.addressRow', { value: formData.mailingAddress.street ? `${formData.mailingAddress.street}, ${formData.mailingAddress.city}, ${formData.mailingAddress.state} ${formData.mailingAddress.zip}` : '—' })}</p>
         </Section>
       )}
 
@@ -128,9 +127,9 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
           <input type="checkbox" checked={termsAccepted}
             onChange={e => { setTermsAccepted(e.target.checked); setError(''); }}
             className="rounded border-gray-600 mt-0.5 accent-orange-500" />
-          <span>I agree to the{' '}
-            <a href="/terms" target="_blank" className="text-orange-400 underline">Terms of Service</a> and{' '}
-            <a href="/privacy" target="_blank" className="text-orange-400 underline">Privacy Policy</a>.
+          <span>{t('helperRegister.step7.termsText')}{' '}
+            <a href="/terms" target="_blank" className="text-orange-400 underline">{t('helperRegister.step7.termsLink')}</a> {t('helperRegister.step7.andText')}{' '}
+            <a href="/privacy" target="_blank" className="text-orange-400 underline">{t('helperRegister.step7.privacyLink')}</a>.
           </span>
         </label>
 
@@ -138,14 +137,18 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
           <input type="checkbox" checked={contractorAcknowledged}
             onChange={e => { setContractorAcknowledged(e.target.checked); setError(''); }}
             className="rounded border-gray-600 mt-0.5 accent-orange-500" />
-          <span>I acknowledge that I am registering as an <strong>independent contractor</strong>, not an employee of OxSteed. I am responsible for my own taxes, insurance, and business operations.</span>
+          <span>
+            <Trans i18nKey="helperRegister.step7.contractorText">
+              I acknowledge that I am registering as an <strong>independent contractor, not an employee</strong> of OxSteed. I am responsible for my own taxes, insurance, and business operations.
+            </Trans>
+          </span>
         </label>
       </div>
 
       <button onClick={handleSubmit}
         disabled={loading || !termsAccepted || !contractorAcknowledged}
         className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg disabled:opacity-50 transition text-lg">
-        {loading ? 'Completing...' : 'Complete Registration'}
+        {loading ? t('helperRegister.step7.completing') : t('helperRegister.step7.completeBtn')}
       </button>
     </div>
   );
