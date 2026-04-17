@@ -548,7 +548,101 @@
       "title": "Profile",
       "subtitle": "Update your personal information",
       "firstName": "First Name",
-      "lastName": "Last Name"
+      "lastName": "Last Name",
+      "verificationNotice": "Verification updates your public profile instantly",
+      "supportChat": "Questions? Open a support chat →",
+      "phone": "Phone",
+      "zipCode": "ZIP Code",
+      "bio": "Bio",
+      "displayName": "Display Name Preference",
+      "displayNameSub": "How your name appears to others",
+      "names": {
+        "firstName": "First Name",
+        "fullName": "Full Name",
+        "businessName": "Business Name"
+      },
+      "businessWarning": "Warning: Switching display preference may affect your profile visibility",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes"
+    },
+    "security": {
+      "changePassword": "Change Password",
+      "passwordDesc": "Update your password to keep your account secure",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "updatePassword": "Update Password",
+      "twoFactor": "Two-Factor Authentication",
+      "twoFactorDesc": "Add an extra layer of security to your account",
+      "manage2fa": "Manage 2FA"
+    },
+    "subscription": {
+      "title": "Subscription",
+      "subtitle": "Manage your plan",
+      "loading": "Loading subscription...",
+      "active": "Active",
+      "cancelNotice": "You can cancel anytime. No questions asked.",
+      "manageBilling": "Manage Billing",
+      "cancelConfirm": "Are you sure you want to cancel your subscription?",
+      "cancelPlan": "Cancel Plan",
+      "freePlanNotice": "You're on the free plan. Upgrade to unlock more features.",
+      "year": "year",
+      "mo": "mo"
+    },
+    "businesses": {
+      "title": "Businesses",
+      "add": "Add Business",
+      "subtitle": "Manage your businesses",
+      "loading": "Loading businesses...",
+      "empty": "No businesses yet",
+      "emptyDesc": "Create your first business to get started",
+      "primary": "Primary",
+      "setPrimary": "Set as Primary",
+      "edit": "Edit",
+      "addHeader": "Add a Business",
+      "form": {
+        "name": "Business Name",
+        "type": "Business Type",
+        "ein": "EIN / Tax ID",
+        "address": "Address",
+        "street": "Street Address",
+        "city": "City",
+        "state": "State",
+        "zip": "ZIP Code"
+      },
+      "update": "Update Business"
+    },
+    "referral": {
+      "title": "Referrals",
+      "subtitle": "Earn rewards by referring friends"
+    },
+    "privacy": {
+      "title": "Privacy & Data",
+      "subtitle": "Control your personal information",
+      "exportSuccess": "Your data export is ready for download",
+      "exportFailed": "Failed to export data",
+      "exportBtn": "Export My Data"
+    },
+    "account": {
+      "title": "Account Type",
+      "helperDesc": "Currently a Helper. Manage jobs and earn money.",
+      "customerDesc": "Currently a Customer. Post jobs and find helpers.",
+      "currentRole": "Current Role",
+      "switchToCustomer": "Switch to Customer",
+      "switchToHelper": "Switch to Helper",
+      "confirmSwitchCustomer": "Are you sure you want to switch to customer mode?",
+      "switchCustomerNotice": "You'll have access to customer features while maintaining your helper profile.",
+      "confirmSwitchHelper": "Are you sure you want to switch to helper mode?",
+      "switchHelperNotice": "Your profile will become visible to customers looking for help.",
+      "yesSwitch": "Yes, Switch"
+    },
+    "danger": {
+      "title": "Danger Zone",
+      "subtitle": "Irreversible actions",
+      "deleteAccount": "Delete Account",
+      "confirmTitle": "Delete Your Account",
+      "confirmDesc": "This action cannot be undone. All your data will be permanently deleted.",
+      "yesDelete": "Yes, Delete My Account"
     }
   },
   "messages": {
@@ -1185,7 +1279,11 @@
       "offline": "You are now offline — hidden from the directory.",
       "onlineSub": "Visible in helper directory",
       "offlineSub": "Hidden from directory"
-    }
+    },
+    "checklistAdded": "Checklist added",
+    "progressUpdated": "Progress updated",
+    "goalCreated": "Goal created",
+    "taskAdded": "Task added: {title}"
   },
   "helperDashboard": {
     "title": "Helper Dashboard",

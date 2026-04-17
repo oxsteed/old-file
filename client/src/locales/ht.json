@@ -626,7 +626,101 @@
       "title": "Pwofil",
       "subtitle": "Mete ajou enfòmasyon pèsonèl ou",
       "firstName": "Premye Non",
-      "lastName": "Dènye Non"
+      "lastName": "Dènye Non",
+      "verificationNotice": "Verifiye mete ajou pwofil piblik ou touswit",
+      "supportChat": "Kesyon? Louvri chat sipò →",
+      "phone": "Telefon",
+      "zipCode": "Kod Postal",
+      "bio": "Biografi",
+      "displayName": "Preferans Non Afiche",
+      "displayNameSub": "Kijan non ou fè parèt lòt moun",
+      "names": {
+        "firstName": "Premye Non",
+        "fullName": "Non Konplet",
+        "businessName": "Non Biznis"
+      },
+      "businessWarning": "Avètisman: Chanj preferans afiche a ka afekte vizibilite pwofil ou",
+      "saving": "Sove...",
+      "saveChanges": "Sove Chanjman"
+    },
+    "security": {
+      "changePassword": "Chanj Modpas",
+      "passwordDesc": "Mete ajou modpas ou pou sekirize kont ou",
+      "currentPassword": "Modpas Aktyèl",
+      "newPassword": "Nouvo Modpas",
+      "confirmPassword": "Konfime Modpas",
+      "updatePassword": "Mete Ajou Modpas",
+      "twoFactor": "Otantifikasyon Defo Faktè",
+      "twoFactorDesc": "Ajoute yon kouch adisyonel sekirite nan kont ou",
+      "manage2fa": "Jere 2FA"
+    },
+    "subscription": {
+      "title": "Abonman",
+      "subtitle": "Jere plan ou",
+      "loading": "Chaje abonman...",
+      "active": "Aktif",
+      "cancelNotice": "Ou ka anile nenpòt tan. Poko gen kesyon",
+      "manageBilling": "Jere Faktire",
+      "cancelConfirm": "Ou sèten ou vle anile abonman ou?",
+      "cancelPlan": "Anile Plan",
+      "freePlanNotice": "Ou sou plan gratis. Upgwed pou deblouke plis fonksyon",
+      "year": "an",
+      "mo": "mwa"
+    },
+    "businesses": {
+      "title": "Biznis",
+      "add": "Ajoute Biznis",
+      "subtitle": "Jere biznis ou yo",
+      "loading": "Chaje biznis...",
+      "empty": "Poko gen biznis",
+      "emptyDesc": "Kreye premye biznis ou pou dema",
+      "primary": "Prensipal",
+      "setPrimary": "Mete Prensipal",
+      "edit": "Edite",
+      "addHeader": "Ajoute yon Biznis",
+      "form": {
+        "name": "Non Biznis",
+        "type": "Tip Biznis",
+        "ein": "EIN / Nimewo Taks",
+        "address": "Adrès",
+        "street": "Adrès Ri",
+        "city": "Vil",
+        "state": "Eta",
+        "zip": "Kod Postal"
+      },
+      "update": "Mete Ajou Biznis"
+    },
+    "referral": {
+      "title": "Referans",
+      "subtitle": "Genyen rekonpans referan zanmi"
+    },
+    "privacy": {
+      "title": "Konfidansyalite ak Done",
+      "subtitle": "Kontwole enfòmasyon pèsonèl ou",
+      "exportSuccess": "Ekspò done ou a pré pou telechaje",
+      "exportFailed": "Erè ekspò done",
+      "exportBtn": "Ekspò Done Mwen"
+    },
+    "account": {
+      "title": "Tip Kont",
+      "helperDesc": "Aktyèlman yon Asistan. Jere travay ak genyen dola.",
+      "customerDesc": "Aktyèlman yon Kliyent. Poste travay ak jwenn asistan.",
+      "currentRole": "Wèl Aktyèl",
+      "switchToCustomer": "Chanj a Kliyent",
+      "switchToHelper": "Chanj a Asistan",
+      "confirmSwitchCustomer": "Ou sèten ou vle chanj a mod kliyent?",
+      "switchCustomerNotice": "Ou ap gen aksè a fonksyon kliyent pandan m ap kenbe pwofil asistan ou",
+      "confirmSwitchHelper": "Ou sèten ou vle chanj a mod asistan?",
+      "switchHelperNotice": "Pwofil ou a ap dwe vizib pou kliyent yo ap chèche èd",
+      "yesSwitch": "Wi, Chanj"
+    },
+    "danger": {
+      "title": "Zon Danje",
+      "subtitle": "Aksyon ireversib",
+      "deleteAccount": "Efase Kont",
+      "confirmTitle": "Efase Kont Ou",
+      "confirmDesc": "Aksyon sa a pa ka defè. Tout done ou yo ap efase definitif",
+      "yesDelete": "Wi, Efase Kont Mwen"
     }
   },
   "messages": {
@@ -1281,7 +1375,11 @@
       "offline": "Ou offline kounye a — ou kache nan anyè a.",
       "onlineSub": "Visible nan anyè",
       "offlineSub": "Kache nan anyè"
-    }
+    },
+    "checklistAdded": "Lis verifiye ajoute",
+    "progressUpdated": "Pwogwe mete ajou",
+    "goalCreated": "Objektif kreye",
+    "taskAdded": "Travay ajoute: {title}"
   },
   "helperDashboard": {
     "title": "Tablo de Bò Pwofesyonèl",

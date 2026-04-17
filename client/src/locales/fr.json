@@ -564,7 +564,101 @@
       "title": "Profil",
       "subtitle": "Mettez à jour vos informations personnelles",
       "firstName": "Prénom",
-      "lastName": "Nom de Famille"
+      "lastName": "Nom de Famille",
+      "verificationNotice": "La vérification met à jour votre profil public instantanément",
+      "supportChat": "Des questions? Ouvrez un chat d'assistance →",
+      "phone": "Téléphone",
+      "zipCode": "Code Postal",
+      "bio": "Biographie",
+      "displayName": "Préférence d'Affichage du Nom",
+      "displayNameSub": "Comment votre nom apparaît aux autres",
+      "names": {
+        "firstName": "Prénom",
+        "fullName": "Nom Complet",
+        "businessName": "Nom de l'Entreprise"
+      },
+      "businessWarning": "Avertissement: Le changement de préférence d'affichage peut affecter la visibilité de votre profil",
+      "saving": "Enregistrement...",
+      "saveChanges": "Enregistrer les Modifications"
+    },
+    "security": {
+      "changePassword": "Changer le Mot de Passe",
+      "passwordDesc": "Mettez à jour votre mot de passe pour sécuriser votre compte",
+      "currentPassword": "Mot de Passe Actuel",
+      "newPassword": "Nouveau Mot de Passe",
+      "confirmPassword": "Confirmer le Mot de Passe",
+      "updatePassword": "Mettre à Jour le Mot de Passe",
+      "twoFactor": "Authentification à Deux Facteurs",
+      "twoFactorDesc": "Ajoutez une couche supplémentaire de sécurité à votre compte",
+      "manage2fa": "Gérer 2FA"
+    },
+    "subscription": {
+      "title": "Abonnement",
+      "subtitle": "Gérez votre plan",
+      "loading": "Chargement de l'abonnement...",
+      "active": "Actif",
+      "cancelNotice": "Vous pouvez annuler à tout moment. Pas de questions posées.",
+      "manageBilling": "Gérer la Facturation",
+      "cancelConfirm": "Êtes-vous sûr de vouloir annuler votre abonnement?",
+      "cancelPlan": "Annuler le Plan",
+      "freePlanNotice": "Vous êtes sur le plan gratuit. Mettez à niveau pour déverrouiller plus de fonctionnalités.",
+      "year": "an",
+      "mo": "mois"
+    },
+    "businesses": {
+      "title": "Entreprises",
+      "add": "Ajouter une Entreprise",
+      "subtitle": "Gérez vos entreprises",
+      "loading": "Chargement des entreprises...",
+      "empty": "Pas d'entreprises encore",
+      "emptyDesc": "Créez votre première entreprise pour commencer",
+      "primary": "Principal",
+      "setPrimary": "Définir comme Principal",
+      "edit": "Modifier",
+      "addHeader": "Ajouter une Entreprise",
+      "form": {
+        "name": "Nom de l'Entreprise",
+        "type": "Type d'Entreprise",
+        "ein": "EIN / Numéro Fiscal",
+        "address": "Adresse",
+        "street": "Adresse de la Rue",
+        "city": "Ville",
+        "state": "État",
+        "zip": "Code Postal"
+      },
+      "update": "Mettre à Jour l'Entreprise"
+    },
+    "referral": {
+      "title": "Parrainages",
+      "subtitle": "Gagnez des récompenses en parrainant des amis"
+    },
+    "privacy": {
+      "title": "Confidentialité et Données",
+      "subtitle": "Contrôlez vos informations personnelles",
+      "exportSuccess": "Votre export de données est prêt à télécharger",
+      "exportFailed": "Erreur lors de l'export des données",
+      "exportBtn": "Exporter Mes Données"
+    },
+    "account": {
+      "title": "Type de Compte",
+      "helperDesc": "Actuellement un Assistant. Gérez les emplois et gagnez de l'argent.",
+      "customerDesc": "Actuellement un Client. Publiez des emplois et trouvez des assistants.",
+      "currentRole": "Rôle Actuel",
+      "switchToCustomer": "Basculer vers Client",
+      "switchToHelper": "Basculer vers Assistant",
+      "confirmSwitchCustomer": "Êtes-vous sûr de vouloir basculer vers le mode client?",
+      "switchCustomerNotice": "Vous aurez accès aux fonctionnalités client tout en maintenant votre profil d'assistant.",
+      "confirmSwitchHelper": "Êtes-vous sûr de vouloir basculer vers le mode assistant?",
+      "switchHelperNotice": "Votre profil sera visible pour les clients à la recherche d'aide.",
+      "yesSwitch": "Oui, Basculer"
+    },
+    "danger": {
+      "title": "Zone Dangereuse",
+      "subtitle": "Actions irréversibles",
+      "deleteAccount": "Supprimer le Compte",
+      "confirmTitle": "Supprimer Votre Compte",
+      "confirmDesc": "Cette action ne peut pas être annulée. Toutes vos données seront définitivement supprimées.",
+      "yesDelete": "Oui, Supprimer Mon Compte"
     }
   },
   "messages": {
@@ -1219,7 +1313,11 @@
       "offline": "Vous êtes hors ligne — masqué dans l'annuaire.",
       "onlineSub": "Visible dans l'annuaire",
       "offlineSub": "Masqué dans l'annuaire"
-    }
+    },
+    "checklistAdded": "Liste de contrôle ajoutée",
+    "progressUpdated": "Progression mise à jour",
+    "goalCreated": "Objectif créé",
+    "taskAdded": "Tâche ajoutée : {title}"
   },
   "helperDashboard": {
     "title": "Tableau de bord prestataire",

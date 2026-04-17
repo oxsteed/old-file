@@ -564,7 +564,101 @@
       "title": "Perfil",
       "subtitle": "Actualiza tu información personal",
       "firstName": "Nombre",
-      "lastName": "Apellido"
+      "lastName": "Apellido",
+      "verificationNotice": "La verificación actualiza tu perfil público al instante",
+      "supportChat": "¿Preguntas? Abre un chat de soporte →",
+      "phone": "Teléfono",
+      "zipCode": "Código Postal",
+      "bio": "Biografía",
+      "displayName": "Preferencia de Nombre Mostrado",
+      "displayNameSub": "Cómo aparece tu nombre para otros",
+      "names": {
+        "firstName": "Nombre",
+        "fullName": "Nombre Completo",
+        "businessName": "Nombre del Negocio"
+      },
+      "businessWarning": "Advertencia: Cambiar la preferencia de visualización puede afectar la visibilidad de tu perfil",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar Cambios"
+    },
+    "security": {
+      "changePassword": "Cambiar Contraseña",
+      "passwordDesc": "Actualiza tu contraseña para mantener tu cuenta segura",
+      "currentPassword": "Contraseña Actual",
+      "newPassword": "Nueva Contraseña",
+      "confirmPassword": "Confirmar Contraseña",
+      "updatePassword": "Actualizar Contraseña",
+      "twoFactor": "Autenticación de Dos Factores",
+      "twoFactorDesc": "Agrega una capa adicional de seguridad a tu cuenta",
+      "manage2fa": "Administrar 2FA"
+    },
+    "subscription": {
+      "title": "Suscripción",
+      "subtitle": "Administra tu plan",
+      "loading": "Cargando suscripción...",
+      "active": "Activo",
+      "cancelNotice": "Puedes cancelar en cualquier momento. Sin preguntas.",
+      "manageBilling": "Administrar Facturación",
+      "cancelConfirm": "¿Estás seguro de que quieres cancelar tu suscripción?",
+      "cancelPlan": "Cancelar Plan",
+      "freePlanNotice": "Estás en el plan gratuito. Actualiza para desbloquear más funciones.",
+      "year": "año",
+      "mo": "mes"
+    },
+    "businesses": {
+      "title": "Negocios",
+      "add": "Agregar Negocio",
+      "subtitle": "Administra tus negocios",
+      "loading": "Cargando negocios...",
+      "empty": "Sin negocios aún",
+      "emptyDesc": "Crea tu primer negocio para comenzar",
+      "primary": "Principal",
+      "setPrimary": "Establecer como Principal",
+      "edit": "Editar",
+      "addHeader": "Agregar un Negocio",
+      "form": {
+        "name": "Nombre del Negocio",
+        "type": "Tipo de Negocio",
+        "ein": "EIN / ID Fiscal",
+        "address": "Dirección",
+        "street": "Dirección de Calle",
+        "city": "Ciudad",
+        "state": "Estado",
+        "zip": "Código Postal"
+      },
+      "update": "Actualizar Negocio"
+    },
+    "referral": {
+      "title": "Referencias",
+      "subtitle": "Gana recompensas refiriendo amigos"
+    },
+    "privacy": {
+      "title": "Privacidad y Datos",
+      "subtitle": "Controla tu información personal",
+      "exportSuccess": "Tu exportación de datos está lista para descargar",
+      "exportFailed": "Error al exportar datos",
+      "exportBtn": "Exportar Mis Datos"
+    },
+    "account": {
+      "title": "Tipo de Cuenta",
+      "helperDesc": "Actualmente eres un Asistente. Administra trabajos y gana dinero.",
+      "customerDesc": "Actualmente eres un Cliente. Publica trabajos y encuentra asistentes.",
+      "currentRole": "Rol Actual",
+      "switchToCustomer": "Cambiar a Cliente",
+      "switchToHelper": "Cambiar a Asistente",
+      "confirmSwitchCustomer": "¿Estás seguro de que quieres cambiar a modo cliente?",
+      "switchCustomerNotice": "Tendrás acceso a funciones de cliente mientras mantienes tu perfil de asistente.",
+      "confirmSwitchHelper": "¿Estás seguro de que quieres cambiar a modo asistente?",
+      "switchHelperNotice": "Tu perfil será visible para los clientes que buscan ayuda.",
+      "yesSwitch": "Sí, Cambiar"
+    },
+    "danger": {
+      "title": "Zona de Peligro",
+      "subtitle": "Acciones irreversibles",
+      "deleteAccount": "Eliminar Cuenta",
+      "confirmTitle": "Eliminar Tu Cuenta",
+      "confirmDesc": "Esta acción no se puede deshacer. Todos tus datos serán eliminados permanentemente.",
+      "yesDelete": "Sí, Eliminar Mi Cuenta"
     }
   },
   "messages": {
@@ -1219,7 +1313,11 @@
       "offline": "Ahora estás fuera de línea — oculto en el directorio.",
       "onlineSub": "Visible en el directorio",
       "offlineSub": "Oculto del directorio"
-    }
+    },
+    "checklistAdded": "Lista de verificación agregada",
+    "progressUpdated": "Progreso actualizado",
+    "goalCreated": "Objetivo creado",
+    "taskAdded": "Tarea agregada: {title}"
   },
   "helperDashboard": {
     "title": "Panel de ayudante",
