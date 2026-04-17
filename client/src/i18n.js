@@ -25,6 +25,7 @@ i18n
     lng: localStorage.getItem('oxs:language') || 'en',
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
+    react: { useSuspense: false }, // Prevent Suspense errors during initialization
   });
 
 export default i18n;
