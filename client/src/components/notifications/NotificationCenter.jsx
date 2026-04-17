@@ -41,15 +41,18 @@ export default function NotificationCenter() {
     fetchCount();
   }, []);
 
-  // Close on outside click
+  // Close on outside click or Escape
   useEffect(() => {
-    const handler = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+    const onMouse = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onMouse);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onMouse);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const fetchNotifications = async () => {

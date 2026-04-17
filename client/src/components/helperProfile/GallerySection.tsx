@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import type { GalleryImage } from '../../types/helperProfile';
 import SectionCard from './ui/SectionCard';
@@ -12,6 +12,13 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
 
   const openLightbox = (i: number) => setLightboxIndex(i);
   const closeLightbox = () => setLightboxIndex(null);
+
+  // Lock body scroll while lightbox is open
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [lightboxIndex]);
 
   const prev = () =>
     setLightboxIndex((i) => (i === null ? null : (i - 1 + images.length) % images.length));
