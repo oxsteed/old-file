@@ -31,31 +31,31 @@ export default function NotificationPreferences() {
   const [saving, setSaving] = useState(false);
 
   const LABELS = useMemo(() => ({
-    in_app_new_bid:          t('notifications.labels.inAppNewBid'),
-    in_app_bid_accepted:     t('notifications.labels.inAppBidAccepted'),
-    in_app_job_started:      t('notifications.labels.inAppJobStarted'),
-    in_app_job_completed:    t('notifications.labels.inAppJobCompleted'),
-    in_app_payment_released: t('notifications.labels.inAppPaymentReleased'),
-    in_app_new_review:       t('notifications.labels.inAppNewReview'),
-    in_app_dispute_update:   t('notifications.labels.inAppDisputeUpdate'),
-    in_app_subscription:     t('notifications.labels.inAppSubscription'),
-    push_new_job_nearby:     t('notifications.labels.pushNewJobNearby'),
-    push_new_bid:            t('notifications.labels.pushNewBid'),
-    push_bid_accepted:       t('notifications.labels.pushBidAccepted'),
-    push_payment_released:   t('notifications.labels.pushPaymentReleased'),
-    push_dispute_update:     t('notifications.labels.pushDisputeUpdate'),
-    email_bid_accepted:      t('notifications.labels.emailBidAccepted'),
-    email_payment_released:  t('notifications.labels.emailPaymentReleased'),
-    email_subscription:      t('notifications.labels.emailSubscription'),
-    email_dispute_update:    t('notifications.labels.emailDisputeUpdate'),
-    email_weekly_summary:    t('notifications.labels.emailWeeklySummary'),
+    in_app_new_bid:          t('notifications.prefs.in_app_new_bid'),
+    in_app_bid_accepted:     t('notifications.prefs.in_app_bid_accepted'),
+    in_app_job_started:      t('notifications.prefs.in_app_job_started'),
+    in_app_job_completed:    t('notifications.prefs.in_app_job_completed'),
+    in_app_payment_released: t('notifications.prefs.in_app_payment_released'),
+    in_app_new_review:       t('notifications.prefs.in_app_new_review'),
+    in_app_dispute_update:   t('notifications.prefs.in_app_dispute_update'),
+    in_app_subscription:     t('notifications.prefs.in_app_subscription'),
+    push_new_job_nearby:     t('notifications.prefs.push_new_job_nearby'),
+    push_new_bid:            t('notifications.prefs.push_new_bid'),
+    push_bid_accepted:       t('notifications.prefs.push_bid_accepted'),
+    push_payment_released:   t('notifications.prefs.push_payment_released'),
+    push_dispute_update:     t('notifications.prefs.push_dispute_update'),
+    email_bid_accepted:      t('notifications.prefs.email_bid_accepted'),
+    email_payment_released:  t('notifications.prefs.email_payment_released'),
+    email_subscription:      t('notifications.prefs.email_subscription'),
+    email_dispute_update:    t('notifications.prefs.email_dispute_update'),
+    email_weekly_summary:    t('notifications.prefs.email_weekly_summary'),
   }), [t]);
 
   const SECTIONS = useMemo(() => [
     {
       key: 'in_app',
-      title: t('notifications.sections.inApp.title'),
-      description: t('notifications.sections.inApp.desc'),
+      title: t('notifications.groups.in_app.label'),
+      description: t('notifications.groups.in_app.description'),
       keys: [
         'in_app_new_bid',
         'in_app_bid_accepted',
@@ -69,8 +69,8 @@ export default function NotificationPreferences() {
     },
     {
       key: 'push',
-      title: t('notifications.sections.push.title'),
-      description: t('notifications.sections.push.desc'),
+      title: t('notifications.groups.push.label'),
+      description: t('notifications.groups.push.description'),
       keys: [
         'push_new_job_nearby',
         'push_new_bid',
@@ -81,8 +81,8 @@ export default function NotificationPreferences() {
     },
     {
       key: 'email',
-      title: t('notifications.sections.email.title'),
-      description: t('notifications.sections.email.desc'),
+      title: t('notifications.groups.email.label'),
+      description: t('notifications.groups.email.description'),
       keys: [
         'email_bid_accepted',
         'email_payment_released',
@@ -100,7 +100,7 @@ export default function NotificationPreferences() {
         setLoading(false);
       })
       .catch(() => {
-        toast.error(t('notifications.loadError'));
+        toast.error(t('notifications.failedLoad'));
         setLoading(false);
       });
   }, [t]);
@@ -110,11 +110,11 @@ export default function NotificationPreferences() {
     setSaving(true);
     try {
       await api.put('/notifications/preferences', { [key]: value });
-      toast.success(t('notifications.saveSuccess'));
+      toast.success(t('notifications.prefSaved'));
     } catch {
       // Revert on failure
       setPrefs(prev => ({ ...prev, [key]: !value }));
-      toast.error(t('notifications.saveError'));
+      toast.error(t('notifications.failedSave'));
     } finally {
       setSaving(false);
     }
