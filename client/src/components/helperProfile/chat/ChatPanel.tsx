@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { X, MessageCircle, Building2, LogIn } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   ChatSession,
   ChatDestination,
@@ -46,6 +47,7 @@ function getHandoffAgentName(destination: ChatDestination, helperName: string): 
 const UnavailableState: React.FC<{ destination: ChatDestination; helperName: string }> = ({
   destination, helperName,
 }) => {
+  const { t } = useTranslation();
   const name = destination === 'helper' ? helperName : 'OxSteed Support';
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center py-10">
@@ -53,9 +55,9 @@ const UnavailableState: React.FC<{ destination: ChatDestination; helperName: str
         <MessageCircle className="w-6 h-6 text-gray-500" aria-hidden="true" />
       </div>
       <div>
-        <p className="text-sm font-medium text-white">{name} is offline</p>
+        <p className="text-sm font-medium text-white">{t('messages.isOffline', { name })}</p>
         <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-          Leave a message and they'll get back to you as soon as possible.
+          {t('messages.leaveMessage')}
         </p>
       </div>
     </div>
@@ -67,6 +69,7 @@ const DestinationContextBanner: React.FC<{
   destination: ChatDestination;
   helperName: string;
 }> = ({ destination, helperName }) => {
+  const { t } = useTranslation();
   if (destination === 'helper') return null;
   return (
     <div
@@ -75,26 +78,28 @@ const DestinationContextBanner: React.FC<{
     >
       <Building2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" aria-hidden="true" />
       <p className="text-xs text-violet-300">
-        You are now talking to{' '}
-        <span className="font-semibold">OxSteed platform support</span>, not {helperName}.
+        {t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
       </p>
     </div>
   );
 };
 
 // ── Sign-in prompt (shown to unauthenticated users when helper is live) ───────
-const SignInPrompt: React.FC<{ helperName: string }> = ({ helperName }) => (
-  <div className="mx-4 my-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl flex items-start gap-2.5">
-    <LogIn className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
-    <div>
-      <p className="text-xs text-orange-200 leading-relaxed">
-        <span className="font-semibold">{helperName} is online.</span>{' '}
-        <Link to="/login" className="underline hover:text-orange-100">Sign in</Link>{' '}
-        to send a real message — AI is responding in the meantime.
-      </p>
+const SignInPrompt: React.FC<{ helperName: string }> = ({ helperName }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="mx-4 my-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl flex items-start gap-2.5">
+      <LogIn className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+      <div>
+        <p className="text-xs text-orange-200 leading-relaxed">
+          <span className="font-semibold">{t('messages.helperIsOnline', { name: helperName })}</span>{' '}
+          <Link to="/login" className="underline hover:text-orange-100">{t('auth.signIn') || 'Sign in'}</Link>{' '}
+          {t('messages.signInForReal')}
+        </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ── Main ChatPanel ────────────────────────────────────────────────────────────
 const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -106,6 +111,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   onClose,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { socket } = useSocket();
 
@@ -220,7 +226,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           id:        `evt-${Date.now()}`,
           itemType:  'system',
           eventType: 'message_sent',
-          content:   `Message sent — ${helperName} will reply shortly.`,
+          content:   t('messages.messageSentWaiting', { name: helperName }),
           timestamp: new Date().toISOString(),
         };
         setSession(prev => ({
@@ -235,7 +241,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           id:         `msg-${Date.now()}-reply`,
           itemType:   'message',
           authorType: data.authorType || (session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai'),
-          content:    data.reply || "I'm sorry, I couldn't generate a response. Please try again.",
+          content:    data.reply || t('messages.aiError'),
           timestamp:  new Date().toISOString(),
         };
         const events: TimelineItem[] = [];
@@ -244,7 +250,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             id:        `evt-${Date.now()}-note`,
             itemType:  'system',
             eventType: 'message_queued',
-            content:   `${helperName} is online — sign in to send them a direct message.`,
+            content:   t('messages.helperOnlineSignIn', { name: helperName }),
             timestamp: new Date().toISOString(),
           };
           events.push(note);
@@ -260,7 +266,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         id:         `msg-${Date.now()}-err`,
         itemType:   'message',
         authorType: 'oxsteed_ai',
-        content:    "Sorry, I'm having trouble right now. Please try again or contact support@oxsteed.com.",
+        content:    t('messages.aiError'),
         timestamp:  new Date().toISOString(),
       };
       setSession(prev => ({
@@ -271,7 +277,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     } finally {
       setSending(false);
     }
-  }, [helperId, session, user, helperName, sending]);
+  }, [helperId, session, user, helperName, sending, t]);
 
   const helperIsLive  = session.helperStatus === 'live';
   const isOffline     = currentStatus === 'offline';
@@ -287,12 +293,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       itemType: 'message',
       authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai',
       content: session.destination === 'helper'
-        ? `Hi! I'm ${helperName}'s AI assistant. Ask me about their services, availability, or pricing — I'm happy to help.`
-        : "Hi! I'm OxSteed's support assistant. Ask me anything about how the platform works.",
+        ? t('messages.helperAiWelcome', { name: helperName })
+        : t('messages.oxsteedAiWelcome'),
       timestamp: new Date().toISOString(),
     };
     return [welcome];
-  }, [session.timeline, session.destination, helperName]);
+  }, [session.timeline, session.destination, helperName, t]);
 
   // Whether to show the close button — always show it when variant is 'modal',
   // even if onClose is undefined (fall back to a no-op so the button is never invisible)
@@ -311,7 +317,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4 text-brand-400" aria-hidden="true" />
-            <h2 className="text-sm font-semibold text-white">Chat</h2>
+            <h2 className="text-sm font-semibold text-white">{t('messages.chat')}</h2>
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge status={currentStatus} />
@@ -319,7 +325,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               <button
                 onClick={handleClose}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-                aria-label="Close chat"
+                aria-label={t('messages.closeChat')}
               >
                 <X className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -377,9 +383,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         onSend={handleSend}
         placeholder={
           session.destination === 'oxsteed'
-            ? 'Ask OxSteed support…'
+            ? t('messages.typeMessage')
             : helperIsLive && user
-            ? `Message ${helperName} directly…`
+            ? t('messages.chatWith', { name: helperName })
             : undefined
         }
       />
@@ -388,8 +394,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       <div className="px-4 py-2 bg-gray-950/40 border-t border-gray-800/50 flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
           {helperIsLive && user
-            ? `${helperName} is online and will receive your message`
-            : 'AI assistant · Conversations monitored for safety'}
+            ? t('messages.helperWillReceive', { name: helperName })
+            : t('messages.aiMonitored')}
         </p>
       </div>
     </div>

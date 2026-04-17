@@ -1,8 +1,10 @@
-import { useState }   from 'react';
-import { Star }       from 'lucide-react';
-import api            from '../../api/axios';
+import { useState } from 'react';
+import { Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import api from '../../api/axios';
 
 export default function ReviewModal({ jobId, revieweeName, onComplete }) {
+  const { t } = useTranslation();
   const [open,    setOpen]    = useState(false);
   const [rating,  setRating]  = useState(0);
   const [hovered, setHovered] = useState(0);
@@ -12,10 +14,18 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
   const [error,   setError]   = useState(null);
   const [done,    setDone]    = useState(false);
 
+  const RATING_LABELS = {
+    1: t('jobDetail.ratingPoor'),
+    2: t('jobDetail.ratingFair'),
+    3: t('jobDetail.ratingGood'),
+    4: t('jobDetail.ratingGreat'),
+    5: t('jobDetail.ratingExcellent'),
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!rating) {
-      setError('Please select a star rating.');
+      setError(t('jobDetail.ratingRequired'));
       return;
     }
     setLoading(true);
@@ -28,18 +38,10 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
         onComplete?.();
       }, 1800);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit review.');
+      setError(err.response?.data?.error || t('jobDetail.reviewFailed'));
     } finally {
       setLoading(false);
     }
-  };
-
-  const RATING_LABELS = {
-    1: 'Poor',
-    2: 'Fair',
-    3: 'Good',
-    4: 'Great',
-    5: 'Excellent!'
   };
 
   return (
@@ -49,7 +51,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
         className="w-full py-3 bg-orange-500 text-white font-semibold
                    rounded-xl hover:bg-orange-600 transition"
       >
-        Leave a Review
+        {t('jobDetail.reviewBtn')}
       </button>
 
       {open && (
@@ -62,17 +64,17 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
               <div className="text-center py-8">
                 <p className="text-5xl mb-3">⭐</p>
                 <p className="text-lg font-bold text-gray-900">
-                  Review submitted!
+                  {t('jobDetail.reviewSubmitted')}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Thank you for your feedback.
+                  {t('jobDetail.reviewThanks')}
                 </p>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-5">
                   <h3 id="review-modal-title" className="font-bold text-gray-900 text-lg">
-                    Review {revieweeName}
+                    {t('jobDetail.reviewTitle', { name: revieweeName })}
                   </h3>
                   <button
                     onClick={() => setOpen(false)}
@@ -86,7 +88,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   {/* Star rating */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2" id="rating-label">
-                      Overall Rating
+                      {t('jobDetail.overallRating')}
                     </label>
                     <div className="flex items-center gap-1">
                       {[1,2,3,4,5].map(star => (
@@ -109,8 +111,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                         </button>
                       ))}
                       {(hovered || rating) > 0 && (
-                        <span className="ml-2 text-sm font-semibold
-                                         text-gray-700">
+                        <span className="ml-2 text-sm font-semibold text-gray-700">
                           {RATING_LABELS[hovered || rating]}
                         </span>
                       )}
@@ -120,9 +121,9 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   {/* Title */}
                   <div>
                     <label htmlFor="review-title" className="block text-sm font-medium text-gray-700 mb-1">
-                      Headline
+                      {t('jobDetail.headline')}
                       <span className="text-gray-400 font-normal ml-1">
-                        (optional)
+                        ({t('common.optional')})
                       </span>
                     </label>
                     <input
@@ -131,7 +132,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                       value={title}
                       onChange={e => setTitle(e.target.value)}
                       maxLength={100}
-                      placeholder="Summarize your experience..."
+                      placeholder={t('jobDetail.headlinePlaceholder')}
                       className="w-full px-3 py-2.5 border border-gray-300
                                  rounded-lg text-sm focus:ring-2
                                  focus:ring-orange-400 focus:outline-none"
@@ -141,9 +142,9 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   {/* Body */}
                   <div>
                     <label htmlFor="review-body" className="block text-sm font-medium text-gray-700 mb-1">
-                      Written Review
+                      {t('jobDetail.writtenReview')}
                       <span className="text-gray-400 font-normal ml-1">
-                        (optional)
+                        ({t('common.optional')})
                       </span>
                     </label>
                     <textarea
@@ -152,7 +153,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                       onChange={e => setBody(e.target.value)}
                       rows={4}
                       maxLength={1000}
-                      placeholder="Share details about your experience..."
+                      placeholder={t('jobDetail.writtenReviewPlaceholder')}
                       className="w-full px-3 py-2.5 border border-gray-300
                                  rounded-lg text-sm focus:ring-2
                                  focus:ring-orange-400 focus:outline-none
@@ -181,7 +182,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                                  text-gray-600 rounded-xl text-sm
                                  font-medium hover:bg-gray-50 transition"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="submit"
@@ -191,7 +192,7 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                                  hover:bg-orange-600 disabled:opacity-50
                                  disabled:cursor-not-allowed transition"
                     >
-                      {loading ? 'Submitting...' : 'Submit Review'}
+                      {loading ? t('jobDetail.submitting') : t('jobDetail.submitReview')}
                     </button>
                   </div>
                 </form>

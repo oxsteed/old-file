@@ -1,9 +1,11 @@
 import { useEffect, useState }  from 'react';
 import { Star, ChevronDown }    from 'lucide-react';
 import { formatDistanceToNow }  from 'date-fns';
+import { useTranslation }       from 'react-i18next';
 import api                      from '../../api/axios';
 
 export default function ReviewsList({ userId }) {
+  const { t } = useTranslation();
   const [reviews, setReviews]  = useState([]);
   const [stats,   setStats]    = useState(null);
   const [page,    setPage]     = useState(1);
@@ -63,7 +65,7 @@ export default function ReviewsList({ userId }) {
               ))}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {totalReviews} review{totalReviews !== 1 ? 's' : ''}
+              {t('jobDetail.reviewCount', { count: totalReviews })}
             </p>
           </div>
 
@@ -101,7 +103,7 @@ export default function ReviewsList({ userId }) {
       {reviews.length === 0 && !loading ? (
         <div className="text-center py-10 text-gray-400">
           <Star size={32} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No reviews yet.</p>
+          <p className="text-sm">{t('jobDetail.noReviews')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -120,13 +122,13 @@ export default function ReviewsList({ userId }) {
                      transition flex items-center justify-center gap-2"
         >
           <ChevronDown size={16} />
-          Load more reviews
+          {t('jobDetail.loadMoreReviews')}
         </button>
       )}
 
       {loading && (
         <div className="text-center py-6 text-gray-400 text-sm">
-          Loading...
+          {t('common.loading')}
         </div>
       )}
     </div>
@@ -134,6 +136,7 @@ export default function ReviewsList({ userId }) {
 }
 
 function ReviewCard({ review }) {
+  const { t } = useTranslation();
   const [showResponse, setShowResponse] = useState(false);
 
   return (
@@ -191,7 +194,7 @@ function ReviewCard({ review }) {
 
       {/* Job reference */}
       <p className="text-xs text-gray-400 mt-2">
-        Job: {review.job_title}
+        {t('jobDetail.jobLabel', { title: review.job_title })}
       </p>
 
       {/* Response from reviewee */}
@@ -199,7 +202,7 @@ function ReviewCard({ review }) {
         <div className="mt-3 bg-orange-50 border border-orange-100
                         rounded-lg p-3">
           <p className="text-xs font-semibold text-orange-700 mb-1">
-            Response from owner
+            {t('jobDetail.responseFromOwner')}
           </p>
           <p className="text-sm text-gray-700 leading-relaxed">
             {review.response}
