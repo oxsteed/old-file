@@ -4,6 +4,7 @@ const fetch = require('node-fetch');
 const db = require('../db');
 const { sendPush } = require('../utils/pushNotification');
 const { sendEmail } = require('../utils/email');
+const logger = require('../utils/logger');
 
 const CHECKR_API = 'https://api.checkr.com/v1';
 
@@ -83,7 +84,7 @@ exports.initiateBackgroundCheck = async (req, res) => {
 
     res.json({ status: 'invited', message: 'Background check initiated. Check your email.' });
   } catch (err) {
-    console.error('Background check error:', err.response?.data || err);
+    logger.error('Background check error:', { err: err.response?.data || err });
     res.status(500).json({ error: 'Failed to initiate background check.' });
   }
 };
@@ -93,7 +94,7 @@ exports.checkrWebhook = async (req, res) => {
   try {
     const secret = process.env.CHECKR_WEBHOOK_SECRET;
     if (!secret) {
-      console.error('CHECKR_WEBHOOK_SECRET is not configured');
+      logger.error('CHECKR_WEBHOOK_SECRET is not configured');
       return res.status(500).json({ error: 'Webhook secret not configured' });
     }
 
@@ -158,7 +159,7 @@ exports.checkrWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (err) {
-    console.error('Checkr webhook error:', err);
+    logger.error('Checkr webhook error:', { err: err });
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };
@@ -201,7 +202,7 @@ exports.createIdentitySession = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    console.error('Identity session error:', err);
+    logger.error('Identity session error:', { err: err });
     res.status(500).json({ error: 'Failed to create identity verification session.' });
   }
 };
@@ -211,7 +212,7 @@ exports.identityWebhook = async (req, res) => {
   try {
     const secret = process.env.STRIPE_IDENTITY_WEBHOOK_SECRET;
     if (!secret) {
-      console.error('STRIPE_IDENTITY_WEBHOOK_SECRET is not configured');
+      logger.error('STRIPE_IDENTITY_WEBHOOK_SECRET is not configured');
       return res.status(500).json({ error: 'Webhook secret not configured' });
     }
 
@@ -224,7 +225,7 @@ exports.identityWebhook = async (req, res) => {
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, secret);
     } catch (err) {
-      console.error('Stripe signature verification failed:', err.message);
+      logger.error('Stripe signature verification failed:', { err: err.message });
       return res.status(400).json({ error: 'Webhook signature verification failed' });
     }
 
@@ -262,7 +263,7 @@ exports.identityWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (err) {
-    console.error('Identity webhook error:', err);
+    logger.error('Identity webhook error:', { err: err });
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };

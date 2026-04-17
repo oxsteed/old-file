@@ -4,6 +4,7 @@
 
 const pool          = require('../db');
 const socketService = require('../services/socketService');
+const logger        = require('../utils/logger');
 
 function formatResponseTime(hours) {
   if (!hours) return 'Varies';
@@ -349,7 +350,7 @@ async function listHelpers(req, res) {
 
     return res.json({ helpers: mapped, businesses, total: parseInt(count), page: pageNum });
   } catch (err) {
-    console.error('[listHelpers] error:', err);
+    logger.error('[listHelpers] error', { err });
     return res.status(500).json({ error: 'Failed to load helpers' });
   }
 }
@@ -556,7 +557,7 @@ async function getHelperProfile(req, res) {
       },
     });
   } catch (err) {
-    console.error('[getHelperProfile] error:', err);
+    logger.error('[getHelperProfile] error', { err });
     return res.status(500).json({ error: 'Failed to load helper profile' });
   }
 }
@@ -585,7 +586,7 @@ async function searchSkills(req, res) {
     }
     return res.json({ skills: rows });
   } catch (err) {
-    console.error('[searchSkills] error:', err);
+    logger.error('[searchSkills] error', { err });
     return res.status(500).json({ error: 'Failed to search skills' });
   }
 }
@@ -614,7 +615,7 @@ async function searchLicenses(req, res) {
     }
     return res.json({ licenses: rows });
   } catch (err) {
-    console.error('[searchLicenses] error:', err);
+    logger.error('[searchLicenses] error:', { err: err });
     return res.status(500).json({ error: 'Failed to search licenses' });
   }
 }
@@ -683,7 +684,7 @@ async function getHelperAvailability(req, res) {
       responseTimeHours: hp.response_time_hours,
     });
   } catch (err) {
-    console.error('[getHelperAvailability] error:', err);
+    logger.error('[getHelperAvailability] error:', { err: err });
     return res.status(500).json({ error: 'Failed to load availability' });
   }
 }
@@ -733,7 +734,7 @@ async function getHelperPricing(req, res) {
       servicePricing,
     });
   } catch (err) {
-    console.error('[getHelperPricing] error:', err);
+    logger.error('[getHelperPricing] error:', { err: err });
     return res.status(500).json({ error: 'Failed to load pricing' });
   }
 }
@@ -808,7 +809,7 @@ async function getHelperSlots(req, res) {
       totalBookedSlots: bookedSlots.length,
     });
   } catch (err) {
-    console.error('[getHelperSlots] error:', err);
+    logger.error('[getHelperSlots] error:', { err: err });
     return res.status(500).json({ error: 'Failed to load slots' });
   }
 }
@@ -837,7 +838,7 @@ async function toggleListing(req, res) {
 
     return res.json({ success: true, is_listed: rows[0].is_listed });
   } catch (err) {
-    console.error('[toggleListing] error:', err);
+    logger.error('[toggleListing] error:', { err: err });
     return res.status(500).json({ error: 'Failed to update listing status' });
   }
 }
@@ -854,7 +855,7 @@ async function getMyListingStatus(req, res) {
     const is_listed = rows[0] ? rows[0].is_listed : false;
     return res.json({ is_listed });
   } catch (err) {
-    console.error('[getMyListingStatus] error:', err);
+    logger.error('[getMyListingStatus] error:', { err: err });
     return res.status(500).json({ error: 'Failed to fetch listing status' });
   }
 }

@@ -279,7 +279,7 @@ exports.getJobs = async (req, res) => {
     const { rows } = await db.query(`SELECT j.id, j.title, j.status, j.budget_min, j.budget_max, j.job_value, j.is_broker_mediated, j.created_at, j.bid_count, j.location_city, j.location_state, j.category_name, u_c.first_name || ' ' || u_c.last_name AS client_name, u_c.email AS client_email, u_h.first_name || ' ' || u_h.last_name AS helper_name FROM jobs j JOIN users u_c ON j.client_id = u_c.id LEFT JOIN users u_h ON j.assigned_helper_id = u_h.id ${wc} ORDER BY j.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     const { rows: countRows } = await db.query(`SELECT COUNT(*) FROM jobs j ${wc}`, params);
     res.json({ jobs: rows, total: parseInt(countRows[0].count), page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(countRows[0].count / limit) });
-  } catch (err) { console.error('getJobs error:', err); res.status(500).json({ error: 'Failed to fetch jobs.' }); }
+  } catch (err) { logger.error('getJobs error', { err }); res.status(500).json({ error: 'Failed to fetch jobs.' }); }
 };
 
 exports.forceJobAction = async (req, res) => {
@@ -297,7 +297,7 @@ exports.forceJobAction = async (req, res) => {
     if (action === 'unflag') await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1`, [jobId]);
     try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
     res.json({ message: `Job ${action} successful.` });
-  } catch (err) { console.error('forceJobAction error:', err); res.status(500).json({ error: 'Failed to perform job action.' }); }
+  } catch (err) { logger.error('forceJobAction error', { err }); res.status(500).json({ error: 'Failed to perform job action.' }); }
 };
 
 exports.deleteJob = async (req, res) => {
@@ -474,7 +474,7 @@ exports.getFinancials = async (req, res) => {
     const { rows } = await db.query(`SELECT pl.*, u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email FROM platform_ledger pl LEFT JOIN users u ON pl.user_id = u.id ${condition} ORDER BY pl.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     const { rows: totals } = await db.query(`SELECT SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END) AS gross_revenue_cents, SUM(amount_cents) AS net_revenue_cents FROM platform_ledger`);
     res.json({ ledger: rows, totals: totals[0], page: parseInt(page), limit: parseInt(limit) });
-  } catch (err) { console.error('getFinancials error:', err); res.status(500).json({ error: 'Failed to fetch financials.' }); }
+  } catch (err) { logger.error('getFinancials error', { err }); res.status(500).json({ error: 'Failed to fetch financials.' }); }
 };
 
 exports.issueManualRefund = async (req, res) => {
@@ -484,7 +484,7 @@ exports.issueManualRefund = async (req, res) => {
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
     const refund = await issueRefund(jobId, reason, amount_cents || null);
     res.json({ message: `Refund issued successfully.`, refundId: refund.id });
-  } catch (err) { console.error('issueManualRefund error:', err); res.status(500).json({ error: 'Refund failed.' }); }
+  } catch (err) { logger.error('issueManualRefund error', { err }); res.status(500).json({ error: 'Refund failed.' }); }
 };
 
 exports.getPayouts = async (req, res) => {
@@ -660,7 +660,7 @@ exports.getSettings = async (req, res) => {
     let flags = [];
     if (await tableExists('feature_flags')) { const r = await db.query('SELECT * FROM feature_flags ORDER BY key ASC'); flags = r.rows; }
     res.json({ settings, flags });
-  } catch (err) { console.error('getSettings error:', err); res.status(500).json({ error: 'Failed to fetch settings.' }); }
+  } catch (err) { logger.error('getSettings error', { err }); res.status(500).json({ error: 'Failed to fetch settings.' }); }
 };
 
 exports.updateSetting = async (req, res) => {
@@ -670,7 +670,7 @@ exports.updateSetting = async (req, res) => {
     const adminId = req.user.id;
     await db.query('UPDATE platform_settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = $3', [String(value), adminId, key]);
     res.json({ message: `Setting "${key}" updated.` });
-  } catch (err) { console.error('updateSetting error:', err); res.status(500).json({ error: 'Failed to update setting.' }); }
+  } catch (err) { logger.error('updateSetting error', { err }); res.status(500).json({ error: 'Failed to update setting.' }); }
 };
 
 exports.updateFeatureFlag = async (req, res) => {
@@ -680,7 +680,7 @@ exports.updateFeatureFlag = async (req, res) => {
     const adminId = req.user.id;
     await db.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3', [Boolean(enabled), adminId, key]);
     res.json({ message: `Feature flag "${key}" set to ${enabled}.` });
-  } catch (err) { console.error('updateFeatureFlag error:', err); res.status(500).json({ error: 'Failed to update feature flag.' }); }
+  } catch (err) { logger.error('updateFeatureFlag error', { err }); res.status(500).json({ error: 'Failed to update feature flag.' }); }
 };
 
 // AUDIT LOG
@@ -696,7 +696,7 @@ exports.getAuditLog = async (req, res) => {
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
     res.json({ log: rows, page: parseInt(page), limit: parseInt(limit) });
-  } catch (err) { console.error('getAuditLog error:', err); res.status(500).json({ error: 'Failed to fetch audit log.' }); }
+  } catch (err) { logger.error('getAuditLog error', { err }); res.status(500).json({ error: 'Failed to fetch audit log.' }); }
 };
 
 // DATA EXPORT
@@ -722,7 +722,7 @@ exports.exportData = async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="oxsteed_${type}_${new Date().toISOString().split('T')[0]}.csv"`);
     res.send(csv);
-  } catch (err) { console.error('exportData error:', err); res.status(500).json({ error: 'Export failed.' }); }
+  } catch (err) { logger.error('exportData error', { err }); res.status(500).json({ error: 'Export failed.' }); }
 };
 
 // DELETE USER ACCOUNT
@@ -787,7 +787,7 @@ exports.deleteUser = async (req, res) => {
 
     res.json({ message: `User ${user.email} deleted successfully.` });
   } catch (err) {
-    console.error('deleteUser error:', err);
+    logger.error('deleteUser error', { err });
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 };

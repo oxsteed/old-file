@@ -6,6 +6,7 @@ const bcrypt = require('bcrypt');
 const QRCode = require('qrcode');
 const pool = require('../db');
 const { encrypt, decrypt, hashIP } = require('../utils/encryption');
+const logger = require('../utils/logger');
 
 const APP_NAME = 'OxSteed';
 const BACKUP_CODE_COUNT = 8;
@@ -36,7 +37,7 @@ async function log2FAAction(userId, action, req, success) {
       [userId, action, ip, ua, success]
     );
   } catch (err) {
-    console.error('2FA audit log error:', err.message);
+    logger.error('2FA audit log error:', { err: err.message });
   }
 }
 
@@ -69,7 +70,7 @@ async function setup2FA(req, res) {
       message: 'Scan the QR code with your authenticator app, then verify with a code.'
     });
   } catch (err) {
-    console.error('2FA setup error:', err);
+    logger.error('2FA setup error:', { err: err });
     res.status(500).json({ error: 'Failed to setup 2FA' });
   }
 }
@@ -120,7 +121,7 @@ async function verifySetup(req, res) {
       warning: 'Save these backup codes in a safe place. They will not be shown again.'
     });
   } catch (err) {
-    console.error('2FA verify setup error:', err);
+    logger.error('2FA verify setup error:', { err: err });
     res.status(500).json({ error: 'Failed to verify 2FA setup' });
   }
 }
@@ -178,7 +179,7 @@ async function validate2FA(req, res) {
     await log2FAAction(userId, 'totp_verify_success', req, true);
     res.json({ valid: true });
   } catch (err) {
-    console.error('2FA validate error:', err);
+    logger.error('2FA validate error:', { err: err });
     res.status(500).json({ error: 'Failed to validate 2FA' });
   }
 }
@@ -217,7 +218,7 @@ async function disable2FA(req, res) {
     await log2FAAction(userId, 'disabled', req, true);
     res.json({ message: '2FA has been disabled.' });
   } catch (err) {
-    console.error('2FA disable error:', err);
+    logger.error('2FA disable error:', { err: err });
     res.status(500).json({ error: 'Failed to disable 2FA' });
   }
 }
@@ -237,7 +238,7 @@ async function get2FAStatus(req, res) {
       backupCodesRemaining: rows[0].backup_count
     });
   } catch (err) {
-    console.error('2FA status error:', err);
+    logger.error('2FA status error:', { err: err });
     res.status(500).json({ error: 'Failed to get 2FA status' });
   }
 }
@@ -279,7 +280,7 @@ async function regenerateBackupCodes(req, res) {
       warning: 'Previous backup codes are now invalid. Save these new codes securely.'
     });
   } catch (err) {
-    console.error('Regenerate backup codes error:', err);
+    logger.error('Regenerate backup codes error:', { err: err });
     res.status(500).json({ error: 'Failed to regenerate backup codes' });
   }
 }

@@ -3,6 +3,7 @@
 
 const crypto = require('crypto');
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
 const DIDIT_API_KEY = process.env.DIDIT_API_KEY;
@@ -40,7 +41,7 @@ async function createSession(req, res) {
 
     if (!diditResponse.ok) {
       const errBody = await diditResponse.text();
-      console.error('Didit API error:', diditResponse.status, errBody);
+      logger.error('Didit API error:', { err: diditResponse.status, errBody });
       return res.status(502).json({ error: 'Failed to create Didit session' });
     }
 
@@ -59,7 +60,7 @@ async function createSession(req, res) {
     });
 
   } catch (err) {
-    console.error('Didit createSession error:', err);
+    logger.error('Didit createSession error:', { err: err });
     return res.status(500).json({ error: 'Failed to create verification session' });
   }
 }
@@ -70,7 +71,7 @@ async function createSession(req, res) {
 async function handleWebhook(req, res) {
   try {
     if (!DIDIT_WEBHOOK_SECRET) {
-      console.error('DIDIT_WEBHOOK_SECRET is not configured');
+      logger.error('DIDIT_WEBHOOK_SECRET is not configured');
       return res.status(500).json({ error: 'Webhook secret not configured' });
     }
 
@@ -157,7 +158,7 @@ async function handleWebhook(req, res) {
     return res.json({ ok: true, status: 'verified' });
 
   } catch (err) {
-    console.error('Didit webhook error:', err);
+    logger.error('Didit webhook error:', { err: err });
     return res.status(500).json({ error: 'Webhook processing failed' });
   }
 }
@@ -182,7 +183,7 @@ async function getStatus(req, res) {
     });
 
   } catch (err) {
-    console.error('Didit getStatus error:', err);
+    logger.error('Didit getStatus error:', { err: err });
     return res.status(500).json({ error: 'Failed to get verification status' });
   }
 }
@@ -205,7 +206,7 @@ async function skipVerification(req, res) {
     );
     return res.json({ ok: true, status: 'skipped' });
   } catch (err) {
-    console.error('Didit skipVerification error:', err);
+    logger.error('Didit skipVerification error:', { err: err });
     return res.status(500).json({ error: 'Failed to skip verification' });
   }
 }

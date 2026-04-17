@@ -1,6 +1,7 @@
 'use strict';
 const db = require('../db');
 const { DEFAULTS: SETTINGS_DEFAULTS } = require('./pulseScoreSettingsController');
+const logger = require('../utils/logger');
 
 // ── constants ────────────────────────────────────────────────────────────────
 
@@ -669,7 +670,7 @@ exports.getLifePulse = async (req, res) => {
       alerts,
     });
   } catch (err) {
-    console.error('getLifePulse error:', err);
+    logger.error('getLifePulse error:', { err: err });
     res.status(500).json({ error: 'Failed to compute Life Pulse.' });
   }
 };
