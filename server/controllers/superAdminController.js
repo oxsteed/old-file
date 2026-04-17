@@ -3,6 +3,7 @@ const { logAdminAction } = require('../services/auditService');
 const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
+const socketService = require('../services/socketService');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -40,7 +41,7 @@ exports.getDashboardStats = async (req, res) => {
     `);
     res.json({ stats: rows[0], mrr: 0 });
   } catch (err) {
-    console.error('getDashboardStats error:', err);
+    logger.error('getDashboardStats error', { err });
     res.status(500).json({ error: 'Failed to load dashboard stats.' });
   }
 };
@@ -55,7 +56,7 @@ exports.getRevenueChart = async (req, res) => {
     const { rows } = await db.query(`SELECT date_trunc($1, created_at) AS period, SUM(GREATEST(amount_cents,0)) AS gross_cents FROM platform_ledger WHERE created_at >= now() - $2::interval GROUP BY 1 ORDER BY 1 ASC`, [trunc, interval]);
     res.json({ chart: rows, period });
   } catch (err) {
-    console.error('getRevenueChart error:', err);
+    logger.error('getRevenueChart error', { err });
     res.status(500).json({ error: 'Failed to load revenue chart.' });
   }
 };
@@ -122,7 +123,7 @@ exports.getUsers = async (req, res) => {
     `, params);
     res.json({ users, total: parseInt(countRows[0].count), page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(countRows[0].count / limit) });
   } catch (err) {
-    console.error('getUsers error:', err);
+    logger.error('getUsers error', { err });
     res.status(500).json({ error: 'Failed to fetch users.' });
   }
 };
@@ -212,8 +213,10 @@ exports.toggleUserBan = async (req, res) => {
     await db.query('UPDATE users SET is_active = $1 WHERE id = $2', [newStatus, userId]);
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
+    // Kick any live WebSocket session immediately so the user can't keep browsing
+    if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
-  } catch (err) { console.error('toggleUserBan error:', err); res.status(500).json({ error: 'Failed to update user status.' }); }
+  } catch (err) { logger.error('toggleUserBan error', { err }); res.status(500).json({ error: 'Failed to update user status.' }); }
 };
 
 exports.verifyUser = async (req, res) => {
@@ -227,7 +230,7 @@ exports.verifyUser = async (req, res) => {
     await db.query(`UPDATE helper_profiles SET ${field} = $1, updated_at = now() WHERE user_id = $2`, [true, userId]);
     try { await logAdminAction({ adminId, action: 'user_verified', targetType: 'user', targetId: userId, description: `Admin set ${field} = true`, req }); } catch(e) {}
     res.json({ message: `User ${field} updated successfully.` });
-  } catch (err) { console.error('verifyUser error:', err); res.status(500).json({ error: 'Failed to verify user.' }); }
+  } catch (err) { logger.error('verifyUser error', { err }); res.status(500).json({ error: 'Failed to verify user.' }); }
 };
 
 exports.updateUserRole = async (req, res) => {
@@ -242,7 +245,7 @@ exports.updateUserRole = async (req, res) => {
     await db.query('UPDATE users SET role = $1 WHERE id = $2', [role, userId]);
     try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0]?.role }, after: { role }, req }); } catch(e) {}
     res.json({ message: `User role updated to ${role}.` });
-  } catch (err) { console.error('updateUserRole error:', err); res.status(500).json({ error: 'Failed to update role.' }); }
+  } catch (err) { logger.error('updateUserRole error', { err }); res.status(500).json({ error: 'Failed to update role.' }); }
 };
 
 exports.updateUserName = async (req, res) => {
@@ -259,7 +262,7 @@ exports.updateUserName = async (req, res) => {
     await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3', [trimFirst, trimLast, userId]);
     try { await logAdminAction({ adminId, action: 'user_name_changed', targetType: 'user', targetId: userId, before: { first_name: before[0].first_name, last_name: before[0].last_name }, after: { first_name: trimFirst, last_name: trimLast }, req }); } catch(e) {}
     res.json({ message: 'User name updated successfully.' });
-  } catch (err) { console.error('updateUserName error:', err); res.status(500).json({ error: 'Failed to update name.' }); }
+  } catch (err) { logger.error('updateUserName error', { err }); res.status(500).json({ error: 'Failed to update name.' }); }
 };
 
 // JOB MANAGEMENT
@@ -870,8 +873,9 @@ exports.toggleAdminAccountStatus = async (req, res) => {
     }
     const newStatus = !rows[0].is_active;
     await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2', [newStatus, id]);
-    // Invalidate all sessions for this admin
+    // Invalidate all sessions for this admin and kick any live WebSocket connection
     await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [id]);
+    if (!newStatus) socketService.broadcastToUser(id, 'force_logout', { reason: 'account_disabled' });
     await logAdminAction({
       adminId: req.user.id,
       action: newStatus ? 'admin_account_enabled' : 'admin_account_disabled',
