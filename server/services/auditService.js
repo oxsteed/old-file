@@ -1,5 +1,4 @@
 const db = require('../db');
-const { hashIP } = require('../utils/encryption');
 
 /**
  * Log every admin action for compliance and audit.
@@ -27,7 +26,7 @@ exports.logAdminAction = async ({
       targetType,
       targetId,
       description,
-      req ? hashIP(req.ip || 'unknown') : null,
+      req ? req.ip : null,
       req ? req.headers['user-agent'] : null,
       before ? JSON.stringify(before) : null,
       after ? JSON.stringify(after) : null
