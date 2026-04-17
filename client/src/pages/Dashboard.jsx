@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import toast from 'react-hot-toast';
 import { useState, useEffect, useCallback } from 'react';
@@ -100,6 +101,7 @@ const localDateStr = (d = new Date()) =>
 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const life = useLifeDashboard();
@@ -716,49 +718,45 @@ export default function Dashboard() {
     } catch { toast.error('Failed to update.'); }
   };
 
-  const tabs = [
-    { id:'pulse', label:'My Pulse' },
-    { id:'money', label:'Money' },
-    { id:'home', label:'Home' },
-    { id:'goals', label:'Goals' },
-    { id:'personalcare', label:'Personal Care' },
-    { id:'carcare', label:'Car Care' },
-    { id:'skills', label:'Skills & Tools' },
-    { id:'jobs', label:'My Jobs' },
-  ];
-
   return (
     <PageShell>
     <div className="min-h-screen text-white">
-      <PageMeta title="My Dashboard" description="Manage your jobs, payments, and account." noIndex={true} />
+      <PageMeta title={t('dashboard.metaTitle')} description={t('dashboard.metaDesc')} noIndex={true} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        {/* Trial Banner */}
-        <div className="mb-5">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div>
+            <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+              {t('dashboard.welcome', { name: user?.first_name || 'there' })}
+            </h1>
+            <p className="text-gray-400 font-medium">
+              {t('dashboard.atAGlance')}
+            </p>
+          </div>
           <TrialBanner />
         </div>
 
-        {/* Greeting */}
-        <div className="mb-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold">{greeting}{displayName ? `, ${displayName}` : ''}!</h1>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" className="animate-pulse"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
-          </div>
-          <p className="text-gray-500 mt-1 text-sm">{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})} — Here's your life at a glance.</p>
-        </div>
-
-        {/* Email warning */}
-        {user && !user.email_verified && (
-          <div className="my-5 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3"><span className="text-2xl">⚠</span><div><p className="text-yellow-400 font-medium text-sm">Email not verified</p><p className="text-xs text-gray-400">Verify your email to unlock all features.</p></div></div>
-            <button onClick={async()=>{try{await api.post('/auth/resend-verification');toast.success('Sent!')}catch{toast.error('Failed.')}}} className="text-xs bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 px-4 py-2 rounded-lg transition">Resend</button>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1">
-          {tabs.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center ${tab===t.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{t.label}</button>
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-2 mb-8 border-b border-gray-800">
+          {[
+            { id: 'pulse',        label: t('dashboard.tabs.pulse'),        icon: IcoZap },
+            { id: 'money',        label: t('dashboard.tabs.money'),        icon: IcoDollar },
+            { id: 'home',         label: t('dashboard.tabs.home'),         icon: IcoHome },
+            { id: 'goals',        label: t('dashboard.tabs.goals'),        icon: IcoTarget },
+            { id: 'personalcare', label: t('dashboard.tabs.personalCare'), icon: IcoHeart },
+            { id: 'carcare',      label: t('dashboard.tabs.carCare'),      icon: IcoCar },
+            { id: 'skills',       label: t('dashboard.tabs.skillsTools'),  icon: IcoBriefcase },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
+                tab === t.id 
+                  ? 'bg-gray-800/80 text-orange-500 border-b-2 border-orange-500' 
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/40'
+              }`}
+            >
+              <t.icon size={14} cls={tab === t.id ? 'text-orange-500' : 'text-gray-500'} />
+              {t.label}
+            </button>
           ))}
         </div>
 
@@ -770,6 +768,63 @@ export default function Dashboard() {
               <span>Some data failed to load. <button onClick={retryLoad} className="underline hover:text-red-300">Retry</button></span>
             </div>
           )}
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <Card className="flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.netThisMonth')}</p>
+                <p className={`text-2xl font-black tracking-tight ${life.summary?.net_this_month >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  ${life.summary?.net_this_month?.toLocaleString() || '0'}
+                </p>
+              </div>
+              <p className="text-[10px] text-gray-600 font-medium mt-2">
+                {t('dashboard.summary.inOut', { in: life.summary?.total_in?.toLocaleString() || '0', out: life.summary?.total_out?.toLocaleString() || '0' })}
+              </p>
+            </Card>
+
+            <Link to="/messages" className="group">
+              <Card className="flex flex-col justify-between h-full group-hover:border-orange-500/50 transition-colors">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('messages.title')}</p>
+                  <p className="text-2xl font-black text-white tracking-tight">
+                    {life.summary?.unread_messages || 0}
+                  </p>
+                </div>
+                <p className="text-[10px] text-gray-600 font-medium mt-2 group-hover:text-orange-400 transition-colors">
+                  {life.summary?.unread_messages > 0 
+                    ? t('dashboard.summary.unreadMessages', { count: life.summary.unread_messages })
+                    : t('dashboard.summary.allCaughtUp')}
+                </p>
+              </Card>
+            </Link>
+
+            <Card className="flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.thisWeek')}</p>
+                <p className="text-2xl font-black text-white tracking-tight">
+                  {life.summary?.overdue_tasks || 0}
+                </p>
+              </div>
+              <p className="text-[10px] text-gray-600 font-medium mt-2">
+                {life.summary?.overdue_tasks > 0 
+                  ? t('dashboard.summary.overdueTasks', { count: life.summary.overdue_tasks })
+                  : t('dashboard.summary.allOnTrack')}
+              </p>
+            </Card>
+
+            <Card className="flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">{t('dashboard.summary.goalsProgress')}</p>
+                <p className="text-2xl font-black text-white tracking-tight">
+                  {life.summary?.active_goals || 0}
+                </p>
+              </div>
+              <p className="text-[10px] text-gray-600 font-medium mt-2">
+                {t('dashboard.summary.activeGoals', { count: life.summary?.active_goals || 0 })}
+              </p>
+            </Card>
+          </div>
+
           {/* Life Pulse Score — powered by the unified engine (30-day horizon) */}
           {(() => {
             const [showPulseSettings, setShowPulseSettings] = useState(false);
@@ -848,11 +903,11 @@ export default function Dashboard() {
                     <button
                       onClick={() => setShowPulseSettings(true)}
                       className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition"
-                      title="Configure pulse score sources"
+                      title={t('dashboard.pulse.configure')}
                     >
                       <IcoSettings size={13} cls="text-gray-500" />
                       {activeCount !== null && (
-                        <span>{activeCount}/{totalCount} sources</span>
+                        <span>{activeCount}/{totalCount} {t('dashboard.pulse.sourcesCount', { active: activeCount, total: totalCount })}</span>
                       )}
                     </button>
                   </div>
@@ -873,26 +928,26 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-400 max-w-xs">
-                          {score >= 80 ? 'Strong coverage, solid runway, reliable income.' :
-                           score >= 60 ? 'Good shape — watch sinking funds and upcoming expenses.' :
-                           score >= 40 ? 'Some gaps. Review coverage and buffer strength.' :
-                           'Needs attention. Income may not cover near-term obligations.'}
+                          {score >= 80 ? t('dashboard.pulse.strong') :
+                           score >= 60 ? t('dashboard.pulse.good') :
+                           score >= 40 ? t('dashboard.pulse.someGaps') :
+                           t('dashboard.pulse.needsAttention')}
                         </p>
                         <button
                           onClick={() => setShowSources(v => !v)}
                           className="text-[11px] text-gray-600 hover:text-orange-400 transition mt-1.5 underline underline-offset-2"
                         >
-                          {showSources ? 'Hide sources' : 'What\'s included?'}
+                          {showSources ? t('dashboard.pulse.hideSources') : t('dashboard.pulse.whatsIncluded')}
                         </button>
                       </div>
                     </div>
                     {/* Breakdown */}
                     <div className="grid grid-cols-4 gap-3 shrink-0">
                       {[
-                        { l: 'Coverage',    v: breakdown.coverage,    c: 'text-emerald-400' },
-                        { l: 'Buffer',      v: breakdown.buffer,      c: 'text-blue-400'    },
-                        { l: 'Reliability', v: breakdown.reliability, c: 'text-purple-400'  },
-                        { l: 'Obligations', v: breakdown.obligations, c: 'text-orange-400'  },
+                        { l: t('dashboard.pulse.coverage'),    v: breakdown.coverage,    c: 'text-emerald-400' },
+                        { l: t('dashboard.pulse.buffer'),      v: breakdown.buffer,      c: 'text-blue-400'    },
+                        { l: t('dashboard.pulse.reliability'), v: breakdown.reliability, c: 'text-purple-400'  },
+                        { l: t('dashboard.pulse.obligations'), v: breakdown.obligations, c: 'text-orange-400'  },
                       ].map((d, i) => (
                         <div key={i} className="text-center">
                           <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '—'}</p>
@@ -932,16 +987,6 @@ export default function Dashboard() {
             );
           })()}
 
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Net This Month</p>
-              {loading
-                ? <div className="h-8 w-20 bg-gray-800 rounded animate-pulse mt-1" />
-                : <p className={`text-2xl font-bold ${(s?.finances?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(s?.finances?.net||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
-              }
-              <p className="text-xs text-gray-500 mt-1">${(s?.finances?.total_income||0).toFixed(0)} in · ${(s?.finances?.total_expenses||0).toFixed(0)} out</p>
-            </Card>
-            <Card><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">Active Jobs</p>
               {loading
                 ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mt-1" />
                 : <p className="text-2xl font-bold text-orange-400">{activeJobs.length}</p>

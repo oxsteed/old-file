@@ -1,7 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useConversationChat } from '../hooks/useConversationChat';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import PageMeta from '../components/PageMeta';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -9,6 +11,7 @@ function formatTime(ts) {
 }
 
 export default function ConversationPage() {
+  const { t } = useTranslation();
   const { conversationId } = useParams();
   const navigate = useNavigate();
 
@@ -38,9 +41,9 @@ export default function ConversationPage() {
       <div className="min-h-screen flex flex-col bg-gray-50">
         <Navbar />
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-4">
-          <p className="text-gray-500 text-sm">This conversation doesn't exist or you don't have access.</p>
+          <p className="text-gray-500 text-sm">{t('messages.conversationNotFound')}</p>
           <button onClick={() => navigate('/messages')} className="text-blue-600 text-sm hover:underline">
-            ← Back to messages
+            {t('messages.backToMessages')}
           </button>
         </div>
         <Footer />
@@ -50,6 +53,7 @@ export default function ConversationPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <PageMeta title={t('messages.chatWith', { name: otherName || '...' })} noIndex={true} />
       <Navbar />
       <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-6">
         {/* Header */}
@@ -61,19 +65,19 @@ export default function ConversationPage() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back
+            {t('common.back')}
           </button>
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
               {(otherName || '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <h1 className="text-base font-semibold text-gray-900 truncate">{otherName || 'Helper'}</h1>
+              <h1 className="text-base font-semibold text-gray-900 truncate">{otherName || t('common.helper')}</h1>
               {helperBusiness && (
                 <p className="text-xs text-gray-500 truncate leading-tight">{helperBusiness}</p>
               )}
               {jobTitle && (
-                <p className="text-xs text-blue-600 truncate leading-tight">Re: {jobTitle}</p>
+                <p className="text-xs text-blue-600 truncate leading-tight">{t('messages.re')}: {jobTitle}</p>
               )}
             </div>
           </div>
@@ -82,7 +86,7 @@ export default function ConversationPage() {
         {/* Message thread */}
         <div className="flex-1 bg-white rounded-xl shadow overflow-y-auto p-4 mb-3 min-h-[400px] max-h-[60vh] flex flex-col gap-3">
           {messages.length === 0 && (
-            <p className="text-sm text-gray-400 text-center mt-8">No messages yet. Say hello!</p>
+            <p className="text-sm text-gray-400 text-center mt-8">{t('messages.noMessagesStart')}</p>
           )}
           {messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
@@ -102,7 +106,7 @@ export default function ConversationPage() {
                 <div className="flex items-center gap-1.5 mt-0.5 px-1">
                   <span className="text-[11px] text-gray-400">{formatTime(msg.created_at)}</span>
                   {isLastFromMe && (
-                    <span className="text-[11px] text-blue-500 font-medium">Seen</span>
+                    <span className="text-[11px] text-blue-500 font-medium">{t('messages.seen')}</span>
                   )}
                 </div>
               </div>
@@ -130,7 +134,7 @@ export default function ConversationPage() {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
-            placeholder="Type a message…"
+            placeholder={t('messages.typeAMessage')}
             maxLength={4000}
             className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           />
@@ -139,10 +143,10 @@ export default function ConversationPage() {
             disabled={sending || !newMessage.trim()}
             className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 transition"
           >
-            {sending ? 'Sending…' : 'Send'}
+            {sending ? t('common.sending') : t('common.send')}
           </button>
         </form>
-        <p className="text-xs text-gray-400 mt-1.5 text-right">Enter to send</p>
+        <p className="text-xs text-gray-400 mt-1.5 text-right">{t('messages.enterToSend')}</p>
       </main>
       <Footer />
     </div>

@@ -4,9 +4,11 @@
 
 import { Link } from 'react-router-dom';
 import { Zap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
 export default function TrialBanner() {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   // Nothing to show if no trial or already paid pro
@@ -36,10 +38,10 @@ export default function TrialBanner() {
         <span className={`text-xs font-bold uppercase tracking-wider ${
           urgent ? 'text-red-400' : warning ? 'text-amber-400' : 'text-violet-400'
         }`}>
-          Trial is active
+          {t('trial.active')}
         </span>
         <span className="text-sm font-semibold text-white">
-          {daysLeft} {daysLeft === 1 ? 'Day' : 'Days'} Left
+          {daysLeft} {daysLeft === 1 ? t('trial.dayLeft') : t('trial.daysLeft')}
         </span>
       </div>
 
@@ -53,7 +55,7 @@ export default function TrialBanner() {
         }`}
       >
         <Zap size={14} />
-        Upgrade Now
+        {t('trial.upgradeNow')}
       </Link>
     </div>
   );
