@@ -1347,7 +1347,8 @@
       "saveFailed": "Erè sove sèvis otomobil",
       "updateFailed": "Erè mete ajou sèvis otomobil",
       "removeFailed": "Erè efase sèvis otomobil",
-      "removed": "Sèvis otomobil efase"
+      "removed": "Sèvis otomobil efase",
+      "addFailed": "Erè ajoute sèvis otomobil"
     },
     "products": {
       "title": "Pwodwi ak Ekipman mwen",
@@ -1586,7 +1587,9 @@
     "deleted": "Efase",
     "browseCTA": "Verifiye",
     "personalCareDesc": "Deskripsyon swen pèsonèl",
-    "taskAdded": "Travay ajoute: {title}"
+    "taskAdded": "Travay ajoute: {title}",
+    "pro": "Pro",
+    "subscribed": "Souskebi"
   },
   "postJob": {
     "title": "Pibliye yon Travay",

@@ -1251,7 +1251,8 @@
       "saveFailed": "Failed to save car service",
       "updateFailed": "Failed to update car service",
       "removeFailed": "Failed to remove car service",
-      "removed": "Car service removed"
+      "removed": "Car service removed",
+      "addFailed": "Failed to add car service"
     },
     "products": {
       "title": "My Products & Gear",
@@ -1483,7 +1484,9 @@
     "deleted": "Eliminado",
     "browseCTA": "Examinar",
     "personalCareDesc": "Descripción del cuidado personal",
-    "taskAdded": "Tarea agregada: {title}"
+    "taskAdded": "Tarea agregada: {title}",
+    "pro": "Pro",
+    "subscribed": "Subscribed"
   },
   "postJob": {
     "title": "Post a Job",

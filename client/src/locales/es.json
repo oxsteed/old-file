@@ -1285,7 +1285,8 @@
       "saveFailed": "Error al guardar el servicio de automóvil",
       "updateFailed": "Error al actualizar el servicio de automóvil",
       "removeFailed": "Error al remover el servicio de automóvil",
-      "removed": "Servicio de automóvil removido"
+      "removed": "Servicio de automóvil removido",
+      "addFailed": "Error al agregar servicio de automóvil"
     },
     "products": {
       "title": "Mis Productos y Equipo",
@@ -1524,7 +1525,9 @@
     "deleted": "Eliminado",
     "browseCTA": "Examinar",
     "personalCareDesc": "Descripción del cuidado personal",
-    "taskAdded": "Tarea agregada: {title}"
+    "taskAdded": "Tarea agregada: {title}",
+    "pro": "Pro",
+    "subscribed": "Suscrito"
   },
   "postJob": {
     "title": "Publicar un trabajo",

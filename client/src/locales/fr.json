@@ -1285,7 +1285,8 @@
       "saveFailed": "Erreur lors de l'enregistrement du service automobile",
       "updateFailed": "Erreur lors de la mise à jour du service automobile",
       "removeFailed": "Erreur lors de la suppression du service automobile",
-      "removed": "Service automobile supprimé"
+      "removed": "Service automobile supprimé",
+      "addFailed": "Erreur lors de l'ajout du service automobile"
     },
     "products": {
       "title": "Mes Produits & Équipement",
@@ -1524,7 +1525,9 @@
     "deleted": "Supprimé",
     "browseCTA": "Parcourir",
     "personalCareDesc": "Description des soins personnels",
-    "taskAdded": "Tâche ajoutée : {title}"
+    "taskAdded": "Tâche ajoutée : {title}",
+    "pro": "Pro",
+    "subscribed": "Abonné"
   },
   "postJob": {
     "title": "Publier une mission",
