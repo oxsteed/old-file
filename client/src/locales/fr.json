@@ -67,7 +67,28 @@
     "premium": "Premium",
     "helper": "Assistant",
     "customer": "Client",
-    "switching": "Changement..."
+    "switching": "Changement...",
+    "cityPlaceholder": "Entrez votre ville...",
+    "experiencePlaceholder": "Décrivez votre expérience pertinente, votre disponibilité et votre approche...",
+    "cancellationReasonPlaceholder": "Raison de l'annulation (facultatif)",
+    "bidMessagePlaceholder": "Dites au client pourquoi vous êtes un bon candidat...",
+    "aria": {
+      "closeButton": "Fermer",
+      "openChat": "Ouvrir la discussion",
+      "closeFilters": "Fermer les filtres",
+      "clearFilter": "Effacer le filtre",
+      "filterHelpers": "Filtrer les assistants",
+      "loadingHelpers": "Chargement des assistants",
+      "searchJobs": "Rechercher des emplois",
+      "filterByCategory": "Filtrer par catégorie",
+      "filterByCity": "Filtrer par ville",
+      "filterByState": "Filtrer par état",
+      "sortJobs": "Trier les emplois",
+      "jobListings": "Offres d'emploi",
+      "mainNavigation": "Navigation principale",
+      "location": "Localisation"
+    },
+    "failed": "Erreur"
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -1286,7 +1307,8 @@
       "updateFailed": "Erreur lors de la mise à jour du service automobile",
       "removeFailed": "Erreur lors de la suppression du service automobile",
       "removed": "Service automobile supprimé",
-      "addFailed": "Erreur lors de l'ajout du service automobile"
+      "addFailed": "Erreur lors de l'ajout du service automobile",
+      "vinDecodeFailed": "Erreur de décodage VIN"
     },
     "products": {
       "title": "Mes Produits & Équipement",
@@ -1605,7 +1627,9 @@
     "noReviews": "Pas encore d'avis.",
     "loadMoreReviews": "Charger plus d'avis",
     "jobLabel": "Mission : {{title}}",
-    "responseFromOwner": "Réponse du propriétaire"
+    "responseFromOwner": "Réponse du propriétaire",
+    "noBidFound": "Aucune offre acceptée trouvée",
+    "paymentInitiated": "Paiement initié. Les fonds sont retenus en séquestre jusqu'à la fin du travail."
   },
   "helpersDir": {
     "title": "Trouvez un prestataire local",
@@ -2998,5 +3022,16 @@
     "success": "Succès",
     "warning": "Avertissement",
     "info": "Information"
+  },
+  "admin": {
+    "bidRemoved": "Offre supprimée et action enregistrée.",
+    "reviewHidden": "Avis masqué et action enregistrée.",
+    "reviewRestored": "Avis restauré.",
+    "jobCancelReason": "Raison de l'annulation de cet emploi (obligatoire):",
+    "auditNote": "Remarque facultative pour le journal d'audit:",
+    "cancelReasonRequired": "Une raison est requise pour annuler.",
+    "sessionsInvalidated": "Toutes les sessions invalidées.",
+    "forceLogoutFailed": "Échec de la déconnexion forcée.",
+    "optionalReason": "Raison (facultatif):"
   }
 }
