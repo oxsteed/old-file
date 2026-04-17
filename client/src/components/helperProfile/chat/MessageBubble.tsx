@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bot, Building2, User, UserCheck } from 'lucide-react';
 import type { ChatMessage, MessageAuthorType } from '../../../types/helperProfile';
 
@@ -8,7 +9,6 @@ interface MessageBubbleProps {
 }
 
 interface AuthorConfig {
-  label: string;
   icon: React.ElementType;
   /** Tailwind classes for the bubble */
   bubble: string;
@@ -23,7 +23,6 @@ interface AuthorConfig {
 
 const AUTHOR_CONFIG: Record<MessageAuthorType, AuthorConfig> = {
   user: {
-    label: 'You',
     icon: User,
     bubble: 'bg-brand-500 text-white',
     labelColor: 'text-brand-400',
@@ -32,7 +31,6 @@ const AUTHOR_CONFIG: Record<MessageAuthorType, AuthorConfig> = {
     iconColor: 'text-white',
   },
   oxsteed_ai: {
-    label: 'OxSteed AI',
     icon: Bot,
     bubble: 'bg-gray-800 text-gray-100 border border-gray-700',
     labelColor: 'text-sky-400',
@@ -41,7 +39,6 @@ const AUTHOR_CONFIG: Record<MessageAuthorType, AuthorConfig> = {
     iconColor: 'text-sky-400',
   },
   oxsteed_human: {
-    label: 'OxSteed Support',
     icon: Building2,
     bubble: 'bg-gray-800 text-gray-100 border border-gray-700',
     labelColor: 'text-violet-400',
@@ -50,7 +47,6 @@ const AUTHOR_CONFIG: Record<MessageAuthorType, AuthorConfig> = {
     iconColor: 'text-violet-400',
   },
   helper_ai: {
-    label: 'Helper AI',
     icon: Bot,
     bubble: 'bg-gray-800 text-gray-100 border border-gray-700',
     labelColor: 'text-emerald-400',
@@ -59,7 +55,6 @@ const AUTHOR_CONFIG: Record<MessageAuthorType, AuthorConfig> = {
     iconColor: 'text-emerald-400',
   },
   helper_human: {
-    label: '', // Overridden with helperName below
     icon: UserCheck,
     bubble: 'bg-gray-800 text-gray-100 border border-brand-800/50',
     labelColor: 'text-brand-400',
@@ -71,20 +66,28 @@ const AUTHOR_CONFIG: Record<MessageAuthorType, AuthorConfig> = {
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, helperName }) => {
+  const { t } = useTranslation();
   const config = AUTHOR_CONFIG[message.authorType];
-  const displayLabel =
-    message.authorType === 'helper_human' ? helperName : config.label;
   const isUser = message.authorType === 'user';
   const Icon = config.icon;
+
+  const labelMap: Record<MessageAuthorType, string> = {
+    user: t('helperProfile.chat.youLabel'),
+    oxsteed_ai: 'OxSteed AI',
+    oxsteed_human: 'OxSteed Support',
+    helper_ai: t('helperProfile.chat.aiAssistant'),
+    helper_human: helperName,
+  };
+  const displayLabel = labelMap[message.authorType];
 
   return (
     <div
       className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
-      aria-label={`Message from ${displayLabel}`}
+      aria-label={t('helperProfile.chat.messageFrom', { name: displayLabel })}
     >
       {/* Avatar icon */}
       <div

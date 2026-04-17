@@ -14,6 +14,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import { MessageCircle } from 'lucide-react';
 
@@ -52,6 +53,7 @@ import { fetchHelperProfile } from '../api/helpers';
 const HelperBusinessProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [data, setData] = useState<HelperProfileData | null>(null);
   const [loadState, setLoadState] = useState<LoadingState>('idle');
@@ -77,7 +79,7 @@ const HelperBusinessProfilePage: React.FC = () => {
       setData(profileData);
       setLoadState('success');
     } catch (err) {
-      setError('Something went wrong loading this profile. Please try again.');
+      setError(t('helperProfile.chrome.unableToLoad'));
       setLoadState('error');
     }
   }, [id]);
@@ -171,7 +173,7 @@ const HelperBusinessProfilePage: React.FC = () => {
                 className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5"
               >
                 <h2 id="bio-heading" className="text-base font-semibold text-white mb-2">
-                  About {helper.businessName}
+                  {t('businessProfile.about', { name: helper.businessName })}
                 </h2>
                 <p className="text-gray-300 text-sm leading-relaxed">{helper.bio}</p>
               </section>
@@ -216,7 +218,7 @@ const HelperBusinessProfilePage: React.FC = () => {
           {/* ── Right column: CTA + Chat (desktop) ─────────── */}
           <aside
             className="hidden lg:flex lg:col-span-5 flex-col gap-5"
-            aria-label="Book and chat"
+            aria-label={t('businessProfile.bookAndChatAria')}
           >
             {/* Sticky wrapper */}
             <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col">
@@ -250,24 +252,24 @@ const HelperBusinessProfilePage: React.FC = () => {
       <div
         className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 pt-3 bg-gray-900/95 backdrop-blur border-t border-gray-800 flex items-center gap-3"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-        aria-label="Quick actions"
+        aria-label={t('businessProfile.quickActionsAria')}
       >
         <button
           onClick={handleOpenChat}
           className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 font-medium text-sm flex-1 hover:bg-gray-800 transition-colors active:bg-gray-700"
-          aria-label="Open chat with this helper"
+          aria-label={t('businessProfile.openChatAria')}
         >
           <MessageCircle className="w-4 h-4" aria-hidden="true" />
-          Message
+          {t('businessProfile.message')}
         </button>
         <button
           onClick={services.length > 0 ? handleBookNow : undefined}
           disabled={services.length === 0}
-          title={services.length === 0 ? "This helper hasn't listed services yet — send them a message." : undefined}
+          title={services.length === 0 ? t('helperProfile.cta.noServicesTitle') : undefined}
           className="flex-[2] py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed active:bg-brand-700"
-          aria-label="Book this helper"
+          aria-label={t('businessProfile.bookBusinessAria')}
         >
-          Book Now
+          {t('businessProfile.bookNow')}
         </button>
       </div>
 

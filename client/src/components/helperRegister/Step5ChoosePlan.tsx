@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 
 interface Props {
@@ -7,28 +8,44 @@ interface Props {
   onBack: () => void;
 }
 
-const plans = [
-  {
-    id: 'free', name: 'Free', price: '$0', period: '/mo',
-    description: 'Get listed and start accepting jobs',
-    features: ['Create your profile', 'Accept job requests', 'Basic search listing', 'Standard payouts (weekly)'],
-    cta: 'Start Free',
-  },
-  {
-    id: 'pro', name: 'Pro', price: '$19.99', period: '/mo', badge: 'Most Popular',
-    description: 'Stand out, get verified, earn more',
-    features: [
-      'Everything in Free', 'Verified badge on profile', 'Priority search placement',
-      'Background check included', 'Monthly analytics',
-    ],
-    cta: 'Go Pro',
-  },
-];
-
 export default function Step5ChoosePlan({ token: _token, onSuccess, onBack }: Props) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState('free');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const plans = [
+    {
+      id: 'free',
+      name: t('helperRegister.step5.freeName'),
+      price: t('helperRegister.step5.freePrice'),
+      period: t('helperRegister.step5.freePeriod'),
+      description: t('helperRegister.step5.freeDesc'),
+      features: [
+        t('helperRegister.step5.freeFeat1'),
+        t('helperRegister.step5.freeFeat2'),
+        t('helperRegister.step5.freeFeat3'),
+        t('helperRegister.step5.freeFeat4'),
+      ],
+      cta: t('helperRegister.step5.freeCta'),
+    },
+    {
+      id: 'pro',
+      name: t('helperRegister.step5.proName'),
+      price: t('helperRegister.step5.proPrice'),
+      period: t('helperRegister.step5.proPeriod'),
+      badge: t('helperRegister.step5.mostPopular'),
+      description: t('helperRegister.step5.proDesc'),
+      features: [
+        t('helperRegister.step5.proFeat1'),
+        t('helperRegister.step5.proFeat2'),
+        t('helperRegister.step5.proFeat3'),
+        t('helperRegister.step5.proFeat4'),
+        t('helperRegister.step5.proFeat5'),
+      ],
+      cta: t('helperRegister.step5.proCta'),
+    },
+  ];
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -37,7 +54,7 @@ export default function Step5ChoosePlan({ token: _token, onSuccess, onBack }: Pr
       await api.post('/helper-registration/tier', { tier: selected });
       onSuccess(selected);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save plan');
+      setError(err.response?.data?.error || t('helperRegister.step5.failedSave'));
     } finally {
       setLoading(false);
     }
@@ -85,7 +102,7 @@ export default function Step5ChoosePlan({ token: _token, onSuccess, onBack }: Pr
       {selected === 'pro' && (
         <div className="p-4 bg-gray-900 border border-gray-700 rounded-lg">
           <p className="text-gray-300 text-sm">
-            Payment will be collected after you complete registration. You can cancel anytime from your dashboard.
+            {t('helperRegister.step5.proNotice')}
           </p>
         </div>
       )}
@@ -93,11 +110,11 @@ export default function Step5ChoosePlan({ token: _token, onSuccess, onBack }: Pr
       <div className="flex gap-3">
         <button type="button" onClick={onBack}
           className="px-6 py-3 bg-transparent border border-gray-600 text-gray-300 hover:border-gray-500 rounded-lg transition">
-          ← Back
+          {t('helperRegister.step5.back')}
         </button>
         <button onClick={handleSubmit} disabled={loading}
           className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg disabled:opacity-50 transition">
-          {loading ? 'Saving...' : 'Continue →'}
+          {loading ? t('helperRegister.step5.saving') : t('helperRegister.step5.continue')}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Star,
   ShieldCheck,
@@ -44,6 +45,7 @@ function getInitials(name: string): string {
 }
 
 const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOpenChat }) => {
+  const { t } = useTranslation();
   const memberYear = new Date(helper.memberSince).getFullYear();
   const [coverError, setCoverError] = React.useState(false);
   const [avatarError, setAvatarError] = React.useState(false);
@@ -93,9 +95,9 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
               </div>
               {helper.verified && (
                 <span
-                  title="Identity verified by OxSteed"
+                  title={t('helperProfile.header.verifiedTitle')}
                   className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-gray-900"
-                  aria-label="Verified"
+                  aria-label={t('helperProfile.header.verifiedAria')}
                 >
                   <CheckCircle2 className="w-4 h-4 text-white" />
                 </span>
@@ -116,11 +118,11 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
                 <span className="flex items-center justify-center sm:justify-start gap-1 col-span-2 sm:col-auto">
                   <StarRating rating={helper.rating} size="sm" />
                   <span className="font-semibold text-white ml-1">{helper.rating.toFixed(1)}</span>
-                  <span className="text-gray-500">({helper.reviewCount} reviews)</span>
+                  <span className="text-gray-500">{t('helperProfile.header.reviewsCount', { count: helper.reviewCount })}</span>
                 </span>
                 <span className="flex items-center justify-center sm:justify-start gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                  {helper.jobsCompleted} jobs done
+                  {t('helperProfile.header.jobsDone', { count: helper.jobsCompleted })}
                 </span>
                 <span className="flex items-center justify-center sm:justify-start gap-1">
                   <MapPin className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
@@ -129,11 +131,11 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
                 <span className="flex items-center justify-center sm:justify-start gap-1">
                   <Clock className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
                   {helper.responseTime && helper.responseTime.toLowerCase() !== 'varies'
-                    ? `Responds ${helper.responseTime}`
-                    : 'Response varies'}
+                    ? t('helperProfile.header.respondsIn', { time: helper.responseTime })
+                    : t('helperProfile.header.responseVaries')}
                 </span>
                 <span className="text-gray-500 flex justify-center sm:justify-start">
-                  Member since {memberYear}
+                  {t('helperProfile.header.memberSince', { year: memberYear })}
                 </span>
               </div>
             </div>
@@ -142,17 +144,17 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
             <div className="hidden lg:flex items-center gap-3 pb-1">
               <button
                 onClick={onOpenChat}
-                aria-label="Open chat"
+                aria-label={t('helperProfile.header.openChatAria')}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors"
               >
                 <MessageCircle className="w-4 h-4" />
-                Message
+                {t('helperProfile.header.message')}
               </button>
               <button
                 onClick={onBookNow}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold transition-colors shadow-lg shadow-brand-500/20"
               >
-                Book Now
+                {t('helperProfile.header.bookNow')}
               </button>
             </div>
           </div>
@@ -161,7 +163,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
           {helper.badges.length > 0 && (
             <ul
               className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4"
-              aria-label="Trust and verification badges"
+              aria-label={t('helperProfile.header.trustBadgesAria')}
             >
               {helper.badges.map((badge) => {
                 const Icon = iconMap[badge.icon] ?? ShieldCheck;
@@ -200,19 +202,19 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
               ) : (
                 <p className="text-xl font-bold text-gray-500">—</p>
               )}
-              <p className="text-xs text-gray-400 mt-0.5">Rating</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('helperProfile.header.rating')}</p>
             </div>
             <div className="bg-gray-800/60 rounded-xl p-3 text-center border border-gray-700/50">
               <p className="text-xl font-bold text-white">{helper.jobsCompleted}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Jobs Done</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('helperProfile.header.jobsDoneLabel')}</p>
             </div>
             <div className="bg-gray-800/60 rounded-xl p-3 text-center border border-gray-700/50">
               {helper.jobsCompleted > 0 ? (
                 <p className="text-xl font-bold text-white">{helper.responseRate}%</p>
               ) : (
-                <p className="text-xl font-bold text-gray-500">New</p>
+                <p className="text-xl font-bold text-gray-500">{t('helperProfile.header.newHelper')}</p>
               )}
-              <p className="text-xs text-gray-400 mt-0.5">Response</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('helperProfile.header.response')}</p>
             </div>
           </div>
 
@@ -220,17 +222,17 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
           <div className="flex gap-3 mt-4 lg:hidden">
             <button
               onClick={onOpenChat}
-              aria-label="Open chat"
+              aria-label={t('helperProfile.header.openChatAria')}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-700 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
-              Message
+              {t('helperProfile.header.message')}
             </button>
             <button
               onClick={onBookNow}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold transition-colors shadow-lg shadow-brand-500/20"
             >
-              Book Now
+              {t('helperProfile.header.bookNow')}
             </button>
           </div>
 

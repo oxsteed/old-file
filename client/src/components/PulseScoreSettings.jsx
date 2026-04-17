@@ -1,48 +1,45 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 
-// ── Source definitions ────────────────────────────────────────────────────────
-// Groups shown in the settings panel. `key` matches pulse_score_settings columns.
-
+// Source keys grouped by category — labels/descs come from i18n
 const GROUPS = [
   {
-    label: 'Income',
+    groupKey: 'income',
     color: 'text-emerald-400',
     sources: [
-      { key: 'include_manual_income',    label: 'Manual income entries',    desc: 'One-time income you log (wages, gigs, etc.)' },
-      { key: 'include_recurring_income', label: 'Recurring income',         desc: 'Salary, subscriptions received, regular inflows' },
-      { key: 'include_oxsteed_income',   label: 'OxSteed job income',       desc: 'Settled payouts from completed platform jobs' },
-      { key: 'include_predicted_jobs',   label: 'In-progress job income',   desc: 'Authorized escrow — payment held, released on completion' },
-      { key: 'include_tool_rentals',     label: 'Tool rental income',       desc: 'Income logged under tool / equipment / rental categories' },
+      'include_manual_income',
+      'include_recurring_income',
+      'include_oxsteed_income',
+      'include_predicted_jobs',
+      'include_tool_rentals',
     ],
   },
   {
-    label: 'Expenses',
+    groupKey: 'expenses',
     color: 'text-red-400',
     sources: [
-      { key: 'include_manual_expenses',    label: 'Manual expense entries',    desc: 'One-time expenses you log' },
-      { key: 'include_recurring_expenses', label: 'Recurring expenses',        desc: 'Subscriptions, bills, regular outflows' },
-      { key: 'include_debt_obligations',   label: 'Monthly debt obligations',  desc: 'Recurring loan, mortgage, and credit payments' },
-      { key: 'include_home_maintenance',   label: 'Home maintenance plan',     desc: 'Recurring home tasks with an estimated cost' },
-      { key: 'include_car_care',           label: 'Car care plan',             desc: 'Recurring vehicle tasks with an estimated cost' },
-      { key: 'include_personal_care',      label: 'Personal care plan',        desc: 'Recurring personal care tasks with an estimated cost' },
+      'include_manual_expenses',
+      'include_recurring_expenses',
+      'include_debt_obligations',
+      'include_home_maintenance',
+      'include_car_care',
+      'include_personal_care',
     ],
   },
   {
-    label: 'Business',
+    groupKey: 'business',
     color: 'text-blue-400',
     sources: [
-      { key: 'include_business_pl',      label: 'Business P&L',             desc: 'Paid invoice income across all your businesses' },
-      { key: 'include_pending_invoices', label: 'Pending invoice income',    desc: 'Outstanding invoices counted at 80% confidence' },
-      { key: 'include_tax_obligations',  label: 'Upcoming tax obligations',  desc: 'Estimated tax payments due within the selected window' },
+      'include_business_pl',
+      'include_pending_invoices',
+      'include_tax_obligations',
     ],
   },
   {
-    label: 'Plans & Obligations',
+    groupKey: 'plans',
     color: 'text-purple-400',
-    sources: [
-      { key: 'include_planned_needs', label: 'Planned needs sinking fund', desc: 'Future expenses you are saving toward (vacation, repairs, etc.)' },
-    ],
+    sources: ['include_planned_needs'],
   },
 ];
 
@@ -67,10 +64,8 @@ function Toggle({ on, onChange }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-// Props:
-//   onClose()         – close the panel
-//   onSaved(settings) – called after successful save so parent can refetch pulse
 export default function PulseScoreSettings({ onClose, onSaved }) {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState(null);
@@ -78,7 +73,7 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
   useEffect(() => {
     api.get('/life/pulse/settings')
       .then(({ data }) => setSettings(data))
-      .catch(() => setError('Failed to load settings.'));
+      .catch(() => setError(t('pulseSettings.loadError')));
   }, []);
 
   // Lock body scroll and handle Escape while open
@@ -103,7 +98,7 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
       onSaved?.(data);
       onClose();
     } catch {
-      setError('Failed to save settings.');
+      setError(t('pulseSettings.saveError'));
     } finally {
       setSaving(false);
     }
@@ -130,9 +125,11 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
           <div>
-            <p className="text-sm font-semibold text-white">Pulse Score Sources</p>
+            <p className="text-sm font-semibold text-white">{t('pulseSettings.title')}</p>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              {settings ? `${activeCount} of ${totalCount} sources active` : 'Loading…'}
+              {settings
+                ? t('pulseSettings.sourcesActive', { active: activeCount, total: totalCount })
+                : t('pulseSettings.loading')}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -141,10 +138,10 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
                 onClick={enableAll}
                 className="text-[11px] text-orange-400 hover:text-orange-300 font-medium"
               >
-                Enable all
+                {t('pulseSettings.enableAll')}
               </button>
             )}
-            <button onClick={onClose} aria-label="Close" className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800">
+            <button onClick={onClose} aria-label={t('common.close')} className="p-2 -mr-1 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -169,27 +166,29 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
           )}
 
           {settings && GROUPS.map(group => (
-            <div key={group.label}>
+            <div key={group.groupKey}>
               <p className={`text-[10px] uppercase tracking-widest font-semibold mb-3 ${group.color}`}>
-                {group.label}
+                {t(`pulseSettings.groups.${group.groupKey}`)}
               </p>
               <div className="space-y-2">
-                {group.sources.map(src => (
+                {group.sources.map(srcKey => (
                   <div
-                    key={src.key}
+                    key={srcKey}
                     className={`flex items-center justify-between gap-4 p-3 rounded-xl border transition
-                      ${settings[src.key]
+                      ${settings[srcKey]
                         ? 'bg-gray-900/60 border-gray-700/40'
                         : 'bg-gray-900/20 border-gray-800/30 opacity-60'
                       }`}
                   >
                     <div className="min-w-0">
-                      <p className={`text-sm font-medium ${settings[src.key] ? 'text-gray-200' : 'text-gray-500'}`}>
-                        {src.label}
+                      <p className={`text-sm font-medium ${settings[srcKey] ? 'text-gray-200' : 'text-gray-500'}`}>
+                        {t(`pulseSettings.sources.${srcKey}.label`)}
                       </p>
-                      <p className="text-[11px] text-gray-600 mt-0.5 leading-tight">{src.desc}</p>
+                      <p className="text-[11px] text-gray-600 mt-0.5 leading-tight">
+                        {t(`pulseSettings.sources.${srcKey}.desc`)}
+                      </p>
                     </div>
-                    <Toggle on={!!settings[src.key]} onChange={() => toggle(src.key)} />
+                    <Toggle on={!!settings[srcKey]} onChange={() => toggle(srcKey)} />
                   </div>
                 ))}
               </div>
@@ -205,7 +204,7 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
               className="flex-1 py-2.5 rounded-xl border border-gray-700 text-sm text-gray-400
                          hover:text-white hover:border-gray-600 transition"
             >
-              Cancel
+              {t('pulseSettings.cancel')}
             </button>
             <button
               onClick={save}
@@ -213,7 +212,7 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
               className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:opacity-50
                          text-sm font-semibold text-white transition"
             >
-              {saving ? 'Saving…' : 'Save & Recalculate'}
+              {saving ? t('pulseSettings.saving') : t('pulseSettings.saveRecalculate')}
             </button>
           </div>
         )}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import PageShell from './PageShell';
 
@@ -21,6 +22,7 @@ interface LegalPageLayoutProps {
  *  - Consistent heading hierarchy
  */
 export default function LegalPageLayout({ title, effectiveDate, children }: LegalPageLayoutProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
@@ -64,7 +66,7 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
                 href="/"
                 style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
               >
-                Home
+                {t('legalPage.home')}
               </a>
               <span aria-hidden="true" style={{ color: 'var(--color-text-faint)' }}>/</span>
             </li>
@@ -97,8 +99,10 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
               marginBottom: 'var(--space-8)',
             }}>
               <time dateTime={effectiveDate}>
-                Effective Date: {new Date(effectiveDate).toLocaleDateString('en-US', {
-                  year: 'numeric', month: 'long', day: 'numeric',
+                {t('legalPage.effectiveDate', {
+                  date: new Date(effectiveDate).toLocaleDateString(undefined, {
+                    year: 'numeric', month: 'long', day: 'numeric',
+                  }),
                 })}
               </time>
             </p>
@@ -107,7 +111,7 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
           {/* Policy Content */}
           <div
             role="region"
-            aria-label={`${title} sections`}
+            aria-label={t('legalPage.sectionsAria', { title })}
             style={{
               color: 'var(--color-text)',
               lineHeight: 1.75,
@@ -129,16 +133,16 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
             <button
               onClick={() => navigate(-1)}
               className="ox-btn ox-btn-outline ox-btn-sm"
-              aria-label="Go back to previous page"
+              aria-label={t('legalPage.goBackAria')}
             >
-              ← Go Back
+              {t('legalPage.goBack')}
             </button>
             <button
               onClick={scrollToTop}
               className="ox-btn ox-btn-secondary ox-btn-sm"
-              aria-label="Scroll to top of page"
+              aria-label={t('legalPage.backToTopAria')}
             >
-              ↑ Back to Top
+              {t('legalPage.backToTop')}
             </button>
           </div>
         </article>

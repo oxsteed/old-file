@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserCheck, Building2, X } from 'lucide-react';
 import type { ChatDestination } from '../../../types/helperProfile';
 
@@ -13,6 +14,7 @@ const HandoffBanner: React.FC<HandoffBannerProps> = ({
   agentName,
   onDismiss,
 }) => {
+  const { t } = useTranslation();
   const isHelper = destination === 'helper';
 
   return (
@@ -39,17 +41,17 @@ const HandoffBanner: React.FC<HandoffBannerProps> = ({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold">
-          {isHelper ? 'Helper joined the conversation' : 'Support agent joined'}
+          {isHelper ? t('helperProfile.chat.helperJoined') : t('helperProfile.chat.supportJoined')}
         </p>
         <p className="text-xs opacity-70 mt-0.5">
-          <span className="font-medium">{agentName}</span> has taken over from the AI assistant.
+          {t('helperProfile.chat.takenOver', { name: agentName })}
         </p>
       </div>
       {onDismiss && (
         <button
           onClick={onDismiss}
           className="flex-shrink-0 p-1 rounded-full opacity-60 hover:opacity-100 transition-opacity"
-          aria-label="Dismiss handoff notice"
+          aria-label={t('helperProfile.chat.dismissHandoff')}
         >
           <X className="w-3.5 h-3.5" />
         </button>

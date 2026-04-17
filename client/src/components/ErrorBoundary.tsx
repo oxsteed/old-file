@@ -1,4 +1,5 @@
 import React from 'react';
+import i18next from 'i18next';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -61,10 +62,9 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
         <div style={styles.container}>
           <div style={styles.card}>
             <div style={styles.icon}>⚠️</div>
-            <h1 style={styles.title}>Something went wrong</h1>
+            <h1 style={styles.title}>{i18next.t('errorBoundary.title')}</h1>
             <p style={styles.message}>
-              An unexpected error occurred. Please try again or contact support
-              if the problem persists.
+              {i18next.t('errorBoundary.message')}
             </p>
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <pre style={styles.errorDetail}>
@@ -73,17 +73,17 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
             )}
             <div style={styles.actions}>
               <button onClick={this.handleRetry} style={styles.retryBtn}>
-                Try Again
+                {i18next.t('errorBoundary.tryAgain')}
               </button>
               <button
                 onClick={this.handleGoHome}
                 style={styles.homeBtn}
               >
-                Go to Homepage
+                {i18next.t('errorBoundary.goHome')}
               </button>
             </div>
             <p style={styles.contact}>
-              Need help?{' '}
+              {i18next.t('errorBoundary.needHelp')}{' '}
               <a href="mailto:support@oxsteed.com" style={styles.link}>
                 support@oxsteed.com
               </a>

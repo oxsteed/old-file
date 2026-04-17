@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import type { FAQ } from '../../types/helperProfile';
 import SectionCard from './ui/SectionCard';
@@ -51,6 +52,7 @@ const FAQItem: React.FC<{ faq: FAQ; isOpen: boolean; onToggle: () => void }> = (
 );
 
 const FAQSection: React.FC<FAQSectionProps> = ({ faqs }) => {
+  const { t } = useTranslation();
   // All items collapsed by default — users reveal on demand.
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -60,7 +62,7 @@ const FAQSection: React.FC<FAQSectionProps> = ({ faqs }) => {
   const toggle = (id: string) => setOpenId((cur) => (cur === id ? null : id));
 
   return (
-    <SectionCard id="faqs" title="Frequently Asked Questions">
+    <SectionCard id="faqs" title={t('helperProfile.faq.title')}>
       <div className="space-y-2">
         {faqs.map((faq) => (
           <FAQItem

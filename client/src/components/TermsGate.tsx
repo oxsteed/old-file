@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,6 +16,7 @@ interface TermsGateProps {
 }
 
 export default function TermsGate({ children }: TermsGateProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [outstanding, setOutstanding] = useState<OutstandingConsent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,9 +79,9 @@ export default function TermsGate({ children }: TermsGateProps) {
         borderRadius: 12, padding: 32, maxWidth: 520, width: '90%',
         color: '#fff',
       }}>
-        <h2 style={{ color: '#f97316', marginBottom: 8 }}>Updated Terms</h2>
+        <h2 style={{ color: '#f97316', marginBottom: 8 }}>{t('termsGate.title')}</h2>
         <p style={{ color: '#aaa', marginBottom: 24, fontSize: 14 }}>
-          We've updated our policies. Please review and accept to continue using OxSteed.
+          {t('termsGate.desc')}
         </p>
 
         {outstanding.map((item) => (
@@ -96,7 +98,7 @@ export default function TermsGate({ children }: TermsGateProps) {
               style={{ width: 18, height: 18, accentColor: '#f97316' }}
             />
             <span style={{ fontSize: 14 }}>
-              I have read and agree to the{' '}
+              {t('termsGate.agreePrefix')}{' '}
               <a
                 href={item.url}
                 target="_blank"
@@ -105,7 +107,7 @@ export default function TermsGate({ children }: TermsGateProps) {
               >
                 {item.label}
               </a>
-              {' '}(v{item.required_version})
+              {' '}{t('termsGate.version', { version: item.required_version })}
             </span>
           </label>
         ))}
@@ -122,7 +124,7 @@ export default function TermsGate({ children }: TermsGateProps) {
             opacity: accepting ? 0.7 : 1,
           }}
         >
-          {accepting ? 'Accepting...' : 'Accept & Continue'}
+          {accepting ? t('termsGate.accepting') : t('termsGate.acceptContinue')}
         </button>
       </div>
     </div>

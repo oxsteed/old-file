@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 
 /**
@@ -13,6 +14,7 @@ const ICONS = {
 };
 
 export default function QuickAddTemplates({ onSelect }) {
+  const { t } = useTranslation();
   const [templates, setTemplates] = useState([]);
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function QuickAddTemplates({ onSelect }) {
 
   return (
     <div style={{ marginBottom: '16px' }}>
-      <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 8px' }}>Quick Add:</p>
+      <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 8px' }}>{t('quickAddTemplates.quickAdd')}</p>
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
         {templates.map(t => (
           <button

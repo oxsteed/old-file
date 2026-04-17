@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, Building2, User } from 'lucide-react';
 import type { ChatDestination, ChatStatus } from '../../../types/helperProfile';
 import StatusBadge from './StatusBadge';
@@ -11,19 +12,9 @@ interface ChatDestinationDropdownProps {
   onChange: (dest: ChatDestination) => void;
 }
 
-const DESTINATIONS: { key: ChatDestination; label: string; sub: string; icon: React.ElementType }[] = [
-  {
-    key: 'helper',
-    label: 'Talk to this helper',
-    sub: 'Message the business directly',
-    icon: User,
-  },
-  {
-    key: 'oxsteed',
-    label: 'Talk to OxSteed',
-    sub: 'Platform support & help',
-    icon: Building2,
-  },
+const DEST_KEYS: { key: ChatDestination; icon: React.ElementType }[] = [
+  { key: 'helper', icon: User },
+  { key: 'oxsteed', icon: Building2 },
 ];
 
 const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
@@ -33,18 +24,12 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
   oxsteedStatus,
   onChange,
 }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  // Ref mirrors open state so the keydown handler below can read it without
-  // being included in the dependency array. This keeps the listener registered
-  // once at a stable position in document's listener queue — re-registering on
-  // every open toggle would push it to the end, breaking stopImmediatePropagation
-  // ordering relative to other document-level Escape handlers (e.g. SupportWidget).
   const openRef = useRef(open);
   useEffect(() => { openRef.current = open; }, [open]);
 
-  // Close on outside click — guard on openRef so we skip the work (and a
-  // no-op setState) on every click when the dropdown is already closed.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (openRef.current && ref.current && !ref.current.contains(e.target as Node)) {
@@ -55,10 +40,6 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Close on Escape — stopImmediatePropagation so no other document-level
-  // Escape handler (e.g. SupportWidget) fires in the same dispatch.
-  // Registered once ([] deps) to maintain a stable queue position; openRef
-  // provides current open state without causing re-registration.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && openRef.current) {
@@ -71,8 +52,13 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentStatus = destination === 'helper' ? helperStatus : oxsteedStatus;
-  const currentLabel =
-    destination === 'helper' ? helperName : 'OxSteed Support';
+  const currentLabel = destination === 'helper' ? helperName : 'OxSteed Support';
+
+  const destLabel = (key: ChatDestination) => key === 'helper' ? helperName : 'OxSteed Support';
+  const destTitle = (key: ChatDestination) =>
+    key === 'helper' ? t('helperProfile.chat.talkToHelper') : t('helperProfile.chat.talkToOxsteed');
+  const destSub = (key: ChatDestination) =>
+    key === 'helper' ? t('helperProfile.chat.helperMsgSub') : t('helperProfile.chat.oxsteedSub');
 
   return (
     <div ref={ref} className="relative">
@@ -80,11 +66,11 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
         onClick={() => setOpen((p) => !p)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Select chat destination"
+        aria-label={t('helperProfile.chat.selectChatDest')}
         className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/80 border border-gray-700 transition-colors w-full text-left"
       >
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-gray-500 leading-none mb-0.5">Chatting with</p>
+          <p className="text-xs text-gray-500 leading-none mb-0.5">{t('helperProfile.chat.chattingWith')}</p>
           <p className="text-sm font-semibold text-white truncate">{currentLabel}</p>
         </div>
         <StatusBadge status={currentStatus} className="flex-shrink-0" />
@@ -97,20 +83,21 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
       {open && (
         <div
           role="listbox"
-          aria-label="Chat destination options"
+          aria-label={t('helperProfile.chat.chatDestOptions')}
           className="absolute top-full left-0 right-0 mt-1.5 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-20 overflow-hidden"
         >
-          {DESTINATIONS.map((d) => {
-            const status = d.key === 'helper' ? helperStatus : oxsteedStatus;
-            const label = d.key === 'helper' ? helperName : 'OxSteed Support';
-            const Icon = d.icon;
-            const selected = destination === d.key;
+          {DEST_KEYS.map(({ key, icon: Icon }) => {
+            const status = key === 'helper' ? helperStatus : oxsteedStatus;
+            const label = destLabel(key);
+            const title = destTitle(key);
+            const sub = destSub(key);
+            const selected = destination === key;
             return (
               <button
-                key={d.key}
+                key={key}
                 role="option"
                 aria-selected={selected}
-                onClick={() => { onChange(d.key); setOpen(false); }}
+                onClick={() => { onChange(key); setOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                   selected
                     ? 'bg-brand-500/10 border-l-2 border-brand-500'
@@ -133,9 +120,10 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
                       selected ? 'text-white' : 'text-gray-300'
                     }`}
                   >
-                    {label}
+                    {title}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{d.sub}</p>
+                  <p className="text-xs text-gray-500 truncate">{sub}</p>
+                  <p className="text-xs text-gray-600 truncate">{label}</p>
                 </div>
                 <StatusBadge status={status} className="flex-shrink-0" />
               </button>

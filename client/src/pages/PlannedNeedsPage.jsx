@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
@@ -10,26 +11,9 @@ import '../styles/PlannedNeedsPage.css';
 // ── constants ──────────────────────────────────────────────────────────────
 const WINDOWS = ['1w','2w','1m','3m','6m','1y','5y','10y'];
 const DEFAULT_WINDOW = '3m';
-const WINDOW_LABELS = {
-  '1w':'1 Week','2w':'2 Weeks','1m':'1 Month','3m':'3 Months',
-  '6m':'6 Months','1y':'1 Year','5y':'5 Years','10y':'10 Years',
-};
-
-const CATEGORY_LABELS = { car_care:'Car Care', personal_care:'Personal Care', other:'Other' };
-const STATUS_LABELS = {
-  planned:'Planned', funding:'Funding', activating_soon:'Activating Soon',
-  published:'Published', completed:'Completed', cancelled:'Cancelled', regenerated:'Regenerated',
-};
 
 const ACTIVE_STATUSES   = ['planned','funding','activating_soon'];
 const INACTIVE_STATUSES = ['published','completed','cancelled','regenerated'];
-
-const PREF_HELPER_LABELS = {
-  pending:  'Awaiting Confirmation',
-  accepted: 'Confirmed',
-  declined: 'Declined',
-  expired:  'No Response — Broadcast',
-};
 
 const DEFAULT_FORM = {
   title:'', description:'', category:'other', due_date:'',
@@ -47,16 +31,16 @@ function fmtDate(d) {
   if (!d) return '—';
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 }
-function daysLabel(days) {
+function daysLabel(days, t) {
   if (days === null || days === undefined) return '';
   const d = parseInt(days);
-  if (d < 0)  return 'Overdue';
-  if (d === 0) return 'Today';
-  if (d === 1) return 'Tomorrow';
-  if (d < 7)  return `${d} days`;
-  if (d < 30) return `${Math.round(d/7)} wk`;
-  if (d < 365) return `${Math.round(d/30)} mo`;
-  return `${(d/365).toFixed(1)} yr`;
+  if (d < 0)   return t('plannedNeeds.daysOverdue');
+  if (d === 0)  return t('plannedNeeds.daysToday');
+  if (d === 1)  return t('plannedNeeds.daysTomorrow');
+  if (d < 7)   return t('plannedNeeds.daysCount', { count: d });
+  if (d < 30)  return t('plannedNeeds.daysWeeks', { count: Math.round(d/7) });
+  if (d < 365) return t('plannedNeeds.daysMonths', { count: Math.round(d/30) });
+  return t('plannedNeeds.daysYears', { count: (d/365).toFixed(1) });
 }
 function helperDisplayName(need) {
   if (!need.preferred_helper_first_name) return null;
@@ -65,6 +49,7 @@ function helperDisplayName(need) {
 
 // ── main component ─────────────────────────────────────────────────────────
 export default function PlannedNeedsPage() {
+  const { t } = useTranslation();
   const [needs, setNeeds] = useState([]);
   const [projection, setProjection] = useState(null);
   const [savedHelpers, setSavedHelpers] = useState([]);
@@ -154,10 +139,10 @@ export default function PlannedNeedsPage() {
   // ── save / actions ────────────────────────────────────────────────────────
   async function handleSave() {
     setError('');
-    if (!form.title.trim()) { setError('Title is required.'); return; }
-    if (!form.due_date)      { setError('Due date is required.'); return; }
+    if (!form.title.trim()) { setError(t('plannedNeeds.errTitleRequired')); return; }
+    if (!form.due_date)      { setError(t('plannedNeeds.errDueDateRequired')); return; }
     if (form.recurrence_type !== 'none' && !form.recurrence_interval_days) {
-      setError('Repeat interval (days) is required when recurrence is enabled.'); return;
+      setError(t('plannedNeeds.errRepeatRequired')); return;
     }
     setSaving(true);
     try {
@@ -177,7 +162,7 @@ export default function PlannedNeedsPage() {
       await loadNeeds();
       await loadProjection(window_);
     } catch (e) {
-      setError(e?.response?.data?.error || 'Something went wrong.');
+      setError(e?.response?.data?.error || t('plannedNeeds.errGeneric'));
     } finally { setSaving(false); }
   }
 
@@ -186,7 +171,7 @@ export default function PlannedNeedsPage() {
     try {
       await api.post(`/planned-needs/${selected.id}/cancel`);
       closeModal(); await loadNeeds(); await loadProjection(window_);
-    } catch (e) { setError(e?.response?.data?.error || 'Failed to cancel.'); }
+    } catch (e) { setError(e?.response?.data?.error || t('plannedNeeds.failedCancel')); }
     finally { setSaving(false); }
   }
 
@@ -197,7 +182,7 @@ export default function PlannedNeedsPage() {
         actual_cost: form.actual_cost ? parseFloat(form.actual_cost) : undefined,
       });
       closeModal(); await loadNeeds(); await loadProjection(window_);
-    } catch (e) { setError(e?.response?.data?.error || 'Failed to mark complete.'); }
+    } catch (e) { setError(e?.response?.data?.error || t('plannedNeeds.failedComplete')); }
     finally { setSaving(false); }
   }
 
@@ -210,36 +195,36 @@ export default function PlannedNeedsPage() {
   return (
     <PageShell>
       <PageMeta
-        title="Planned Needs — OxSteed"
-        description="Schedule future services, fund them gradually, and auto-publish when the time comes."
+        title={`${t('plannedNeeds.title')} — OxSteed`}
+        description={t('plannedNeeds.subtitle')}
       />
       <div className="pn-page">
 
         {/* Header */}
         <div className="pn-header">
           <div>
-            <h1>Planned Needs</h1>
-            <p>Schedule future services, save gradually with sinking funds, and auto-post jobs when it's time.</p>
+            <h1>{t('plannedNeeds.title')}</h1>
+            <p>{t('plannedNeeds.subtitle')}</p>
           </div>
-          <button className="pn-add-btn" onClick={openAdd}>+ Add Planned Need</button>
+          <button className="pn-add-btn" onClick={openAdd}>{t('plannedNeeds.addBtn')}</button>
         </div>
 
         {/* Life Pulse Projection */}
         <div className="pn-projection">
           <div className="pn-projection-header">
-            <h2>Life Pulse Projection</h2>
+            <h2>{t('plannedNeeds.projectionTitle')}</h2>
             <div className="pn-window-tabs">
               {WINDOWS.map(w => (
                 <button key={w}
                   className={`pn-window-tab${window_ === w ? ' active' : ''}`}
-                  onClick={() => setWindow(w)}>{w}
+                  onClick={() => setWindow(w)}>{t(`plannedNeeds.window${w}`)}
                 </button>
               ))}
             </div>
           </div>
 
           {projLoading ? (
-            <p style={{ color:'var(--muted-text)', textAlign:'center', padding:'1rem 0' }}>Loading projection…</p>
+            <p style={{ color:'var(--muted-text)', textAlign:'center', padding:'1rem 0' }}>{t('plannedNeeds.projLoading')}</p>
           ) : projection ? (
             <>
               {/* Score badge + settings */}
@@ -259,12 +244,12 @@ export default function PlannedNeedsPage() {
                       <span className="pn-pulse-ring-score" style={{ color:'var(--muted-text)' }}>—</span>
                     </div>
                     <div style={{ flex:1 }}>
-                      <p style={{ fontWeight:600, color:'var(--app-text)', fontSize:'0.85rem' }}>No Data Yet</p>
+                      <p style={{ fontWeight:600, color:'var(--app-text)', fontSize:'0.85rem' }}>{t('plannedNeeds.noDataYet')}</p>
                       <p style={{ fontSize:'0.72rem', color:'var(--muted-text)', marginTop:'0.2rem' }}>
-                        Log income or expenses to see your pulse score.
+                        {t('plannedNeeds.noDataHint')}
                       </p>
                     </div>
-                    <button onClick={() => setShowSettings(true)} className="pn-pulse-settings-btn" title="Configure sources">
+                    <button onClick={() => setShowSettings(true)} className="pn-pulse-settings-btn" title={t('plannedNeeds.configSources')}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
@@ -281,21 +266,21 @@ export default function PlannedNeedsPage() {
                 const totalCount  = projection.settings ? Object.keys(projection.settings).length : null;
 
                 const SRC_LIST = [
-                  { key:'manual_income_90d',         label:'Manual income (90d)',           dir:'+' },
-                  { key:'recurring_income_monthly',   label:'Recurring income /mo',          dir:'+' },
-                  { key:'oxsteed_income_90d',         label:'OxSteed income (90d)',          dir:'+' },
-                  { key:'tool_rental_income_90d',     label:'Tool rental income (90d)',      dir:'+' },
-                  { key:'invoice_income_90d',         label:'Business invoices paid (90d)',  dir:'+' },
-                  { key:'predicted_jobs',             label:'In-progress jobs',              dir:'+' },
-                  { key:'predicted_invoices',         label:'Pending invoices',              dir:'+' },
-                  { key:'manual_expense_90d',         label:'Manual expenses (90d)',         dir:'−' },
-                  { key:'recurring_expense_monthly',  label:'Recurring expenses /mo',        dir:'−' },
-                  { key:'debt_monthly',               label:'Debt obligations /mo',          dir:'−' },
-                  { key:'home_maintenance_monthly',   label:'Home maintenance /mo',          dir:'−' },
-                  { key:'car_care_monthly',           label:'Car care /mo',                  dir:'−' },
-                  { key:'personal_care_monthly',      label:'Personal care /mo',             dir:'−' },
-                  { key:'tax_obligations_window',     label:'Tax obligations (window)',      dir:'−' },
-                  { key:'sinking_fund_window',        label:'Planned needs (window)',        dir:'−' },
+                  { key:'manual_income_90d',         label: t('plannedNeeds.srcManualIncome'),       dir:'+' },
+                  { key:'recurring_income_monthly',   label: t('plannedNeeds.srcRecurringIncome'),   dir:'+' },
+                  { key:'oxsteed_income_90d',         label: t('plannedNeeds.srcOxsteedIncome'),     dir:'+' },
+                  { key:'tool_rental_income_90d',     label: t('plannedNeeds.srcToolRentalIncome'),  dir:'+' },
+                  { key:'invoice_income_90d',         label: t('plannedNeeds.srcInvoiceIncome'),     dir:'+' },
+                  { key:'predicted_jobs',             label: t('plannedNeeds.srcPredictedJobs'),     dir:'+' },
+                  { key:'predicted_invoices',         label: t('plannedNeeds.srcPredictedInvoices'), dir:'+' },
+                  { key:'manual_expense_90d',         label: t('plannedNeeds.srcManualExpense'),     dir:'−' },
+                  { key:'recurring_expense_monthly',  label: t('plannedNeeds.srcRecurringExpense'),  dir:'−' },
+                  { key:'debt_monthly',               label: t('plannedNeeds.srcDebt'),              dir:'−' },
+                  { key:'home_maintenance_monthly',   label: t('plannedNeeds.srcHomeMaint'),         dir:'−' },
+                  { key:'car_care_monthly',           label: t('plannedNeeds.srcCarCare'),           dir:'−' },
+                  { key:'personal_care_monthly',      label: t('plannedNeeds.srcPersonalCare'),      dir:'−' },
+                  { key:'tax_obligations_window',     label: t('plannedNeeds.srcTax'),               dir:'−' },
+                  { key:'sinking_fund_window',        label: t('plannedNeeds.srcSinkingFund'),       dir:'−' },
                 ].filter(s => (sources[s.key] ?? 0) !== 0);
 
                 return (
@@ -318,10 +303,10 @@ export default function PlannedNeedsPage() {
                       </div>
                       <div className="pn-pulse-bd">
                         {[
-                          { l:'Coverage',    v: bd.coverage },
-                          { l:'Buffer',      v: bd.buffer },
-                          { l:'Reliability', v: bd.reliability },
-                          { l:'Obligations', v: bd.obligations },
+                          { l: t('plannedNeeds.scoreCoverage'),    v: bd.coverage },
+                          { l: t('plannedNeeds.scoreBuffer'),      v: bd.buffer },
+                          { l: t('plannedNeeds.scoreReliability'), v: bd.reliability },
+                          { l: t('plannedNeeds.scoreObligations'), v: bd.obligations },
                         ].map((d, i) => (
                           <div key={i} className="pn-pulse-bd-item">
                             <span className="pn-pulse-bd-val">{d.v ?? '—'}</span>
@@ -331,7 +316,7 @@ export default function PlannedNeedsPage() {
                         {projection.runway_months !== null && projection.runway_months !== undefined && (
                           <div className="pn-pulse-bd-item">
                             <span className="pn-pulse-bd-val">{projection.runway_months}mo</span>
-                            <span className="pn-pulse-bd-label">Runway</span>
+                            <span className="pn-pulse-bd-label">{t('plannedNeeds.scoreRunway')}</span>
                           </div>
                         )}
                       </div>
@@ -339,7 +324,7 @@ export default function PlannedNeedsPage() {
                       <button
                         onClick={() => setShowSettings(true)}
                         className="pn-pulse-settings-btn"
-                        title="Configure score sources"
+                        title={t('plannedNeeds.configScoreSourcesTitle')}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                              strokeLinecap="round" strokeLinejoin="round">
@@ -351,7 +336,7 @@ export default function PlannedNeedsPage() {
                     </div>
                     {/* Source breakdown toggle */}
                     <button className="pn-sources-toggle" onClick={() => setShowSrcs(v => !v)}>
-                      {showSrcs ? 'Hide sources' : "What's included?"}
+                      {showSrcs ? t('plannedNeeds.hideSources') : t('plannedNeeds.showSources')}
                     </button>
                     {showSrcs && SRC_LIST.length > 0 && (
                       <div className="pn-sources-grid">
@@ -372,25 +357,25 @@ export default function PlannedNeedsPage() {
               {/* Financial metrics grid */}
               <div className="pn-projection-grid">
                 <div className="pn-proj-stat">
-                  <div className="label">Projected Income</div>
+                  <div className="label">{t('plannedNeeds.projectedIncome')}</div>
                   <div className="value positive">{fmt$(projection.projected_income)}</div>
                 </div>
                 <div className="pn-proj-stat">
-                  <div className="label">Fixed Expenses</div>
+                  <div className="label">{t('plannedNeeds.fixedExpenses')}</div>
                   <div className="value negative">{fmt$(projection.projected_fixed_expenses)}</div>
                 </div>
                 <div className="pn-proj-stat">
-                  <div className="label">Sinking Funds</div>
+                  <div className="label">{t('plannedNeeds.sinkingFunds')}</div>
                   <div className="value warn">{fmt$(projection.sinking_fund_for_window)}</div>
                 </div>
                 <div className="pn-proj-stat">
-                  <div className="label">Net Available</div>
+                  <div className="label">{t('plannedNeeds.netAvailable')}</div>
                   <div className={`value ${projection.net_available >= 0 ? 'positive' : 'negative'}`}>
                     {fmt$(projection.net_available)}
                   </div>
                 </div>
                 <div className="pn-proj-stat">
-                  <div className="label">Coverage Ratio</div>
+                  <div className="label">{t('plannedNeeds.coverageRatio')}</div>
                   <div className={`value ${
                     projection.coverage_ratio === null ? 'neutral'
                     : projection.coverage_ratio >= 1.2  ? 'positive'
@@ -400,9 +385,9 @@ export default function PlannedNeedsPage() {
                   </div>
                 </div>
                 <div className="pn-proj-stat">
-                  <div className="label">Auto-Publishing</div>
+                  <div className="label">{t('plannedNeeds.autoPublishing')}</div>
                   <div className={`value ${projection.auto_publishing_in_window > 0 ? 'warn' : 'neutral'}`}>
-                    {projection.auto_publishing_in_window} job{projection.auto_publishing_in_window !== 1 ? 's' : ''}
+                    {t('plannedNeeds.autoPublishCount', { count: projection.auto_publishing_in_window })}
                   </div>
                 </div>
               </div>
@@ -420,12 +405,11 @@ export default function PlannedNeedsPage() {
               )}
 
               <p className="pn-proj-note">
-                Income &amp; expenses based on your last 90 days, including settled OxSteed job earnings.
-                Sinking funds: <em>(cost − reserved) ÷ days remaining × {WINDOW_LABELS[window_]}</em>.
+                {t('plannedNeeds.projectionNote', { window: t(`plannedNeeds.window${window_}`) })}
               </p>
             </>
           ) : (
-            <p style={{ color:'var(--muted-text)', textAlign:'center' }}>No projection data yet.</p>
+            <p style={{ color:'var(--muted-text)', textAlign:'center' }}>{t('plannedNeeds.noProjection')}</p>
           )}
         </div>
 
@@ -433,24 +417,21 @@ export default function PlannedNeedsPage() {
         {activatingSoon.length > 0 && (
           <div className="pn-queue-banner">
             <span>⚡</span>
-            <span>
-              <strong>{activatingSoon.length} need{activatingSoon.length !== 1 ? 's' : ''}</strong>{' '}
-              will auto-publish as a job post within the next day. Review below and cancel if needed.
-            </span>
+            <span>{t('plannedNeeds.queueBanner', { count: activatingSoon.length })}</span>
           </div>
         )}
 
         {/* Active needs */}
         {loading ? (
-          <p style={{ color:'var(--muted-text)' }}>Loading…</p>
+          <p style={{ color:'var(--muted-text)' }}>{t('plannedNeeds.loading')}</p>
         ) : (
           <>
-            <p className="pn-section-title">Active ({activeNeeds.length})</p>
+            <p className="pn-section-title">{t('plannedNeeds.activeSection', { count: activeNeeds.length })}</p>
             {activeNeeds.length === 0 ? (
               <div className="pn-empty">
                 <div className="pn-empty-icon">📋</div>
-                <p style={{ fontWeight:700 }}>No planned needs yet</p>
-                <p>Add your first — oil change, dental visit, anything coming up.</p>
+                <p style={{ fontWeight:700 }}>{t('plannedNeeds.emptyTitle')}</p>
+                <p>{t('plannedNeeds.emptySubtitle')}</p>
               </div>
             ) : (
               <div className="pn-cards">
@@ -467,7 +448,7 @@ export default function PlannedNeedsPage() {
             {inactiveNeeds.length > 0 && (
               <>
                 <p className="pn-section-title" style={{ marginTop:'1rem' }}>
-                  History ({inactiveNeeds.length})
+                  {t('plannedNeeds.historySection', { count: inactiveNeeds.length })}
                 </p>
                 <div className="pn-cards">
                   {inactiveNeeds.map(need => (
@@ -485,50 +466,50 @@ export default function PlannedNeedsPage() {
         {(modal === 'add' || modal === 'edit') && (
           <div className="pn-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="pn-modal">
-              <h2>{modal === 'add' ? 'Add Planned Need' : 'Edit Planned Need'}</h2>
-                {modal === 'add' && <QuickAddTemplates onSelect={(t) => setForm(f => ({ ...f, ...t }))} />}
+              <h2>{modal === 'add' ? t('plannedNeeds.addTitle') : t('plannedNeeds.editTitle')}</h2>
+                {modal === 'add' && <QuickAddTemplates onSelect={(tpl) => setForm(f => ({ ...f, ...tpl }))} />}
 
               <div className="pn-form-group">
-                <label>Title *</label>
+                <label>{t('plannedNeeds.titleRequired')}</label>
                 <input name="title" value={form.title} onChange={handleFormChange}
-                  placeholder="e.g. Oil change, Dental checkup" maxLength={200} />
+                  placeholder={t('plannedNeeds.titlePlaceholder')} maxLength={200} />
               </div>
 
               <div className="pn-form-row">
                 <div className="pn-form-group">
-                  <label>Category</label>
+                  <label>{t('plannedNeeds.categoryLabel')}</label>
                   <select name="category" value={form.category} onChange={handleFormChange}>
-                    <option value="car_care">Car Care</option>
-                    <option value="personal_care">Personal Care</option>
-                    <option value="other">Other</option>
+                    <option value="car_care">{t('plannedNeeds.catCarCare')}</option>
+                    <option value="personal_care">{t('plannedNeeds.catPersonalCare')}</option>
+                    <option value="other">{t('plannedNeeds.catOther')}</option>
                   </select>
                 </div>
                 <div className="pn-form-group">
-                  <label>Due Date *</label>
+                  <label>{t('plannedNeeds.dueDateRequired')}</label>
                   <input type="date" name="due_date" value={form.due_date} onChange={handleFormChange} />
                 </div>
               </div>
 
               <div className="pn-form-row">
                 <div className="pn-form-group">
-                  <label>Estimated Cost ($)</label>
+                  <label>{t('plannedNeeds.estimatedCost')}</label>
                   <input type="number" name="estimated_cost" value={form.estimated_cost}
                     onChange={handleFormChange} placeholder="0.00" min="0" step="0.01" />
                 </div>
                 <div className="pn-form-group">
-                  <label>Lead Time (days)</label>
+                  <label>{t('plannedNeeds.leadTime')}</label>
                   <input type="number" name="lead_time_days" value={form.lead_time_days}
                     onChange={handleFormChange} min="1" max="90" />
-                  <div className="pn-form-hint">Job auto-posts this many days before due date.</div>
+                  <div className="pn-form-hint">{t('plannedNeeds.leadTimeHint')}</div>
                 </div>
               </div>
 
               {/* Vehicle picker — shown when category is car_care */}
               {form.category === 'car_care' && vehicles.length > 0 && (
                 <div className="pn-form-group">
-                  <label>Vehicle <span style={{ fontWeight:400, color:'var(--muted-text)' }}>(optional)</span></label>
+                  <label>{t('plannedNeeds.vehicleOpt')} <span style={{ fontWeight:400, color:'var(--muted-text)' }}>({t('common.optional')})</span></label>
                   <select name="vehicle_id" value={form.vehicle_id} onChange={handleFormChange}>
-                    <option value="">— No specific vehicle —</option>
+                    <option value="">{t('plannedNeeds.noVehicle')}</option>
                     {vehicles.map(v => (
                       <option key={v.id} value={v.id}>
                         {v.nickname || `${v.year || ''} ${v.make_name || ''} ${v.model_name || ''}`.trim()}
@@ -541,9 +522,9 @@ export default function PlannedNeedsPage() {
               {/* Property picker — shown for all categories */}
               {homes.length > 0 && (
                 <div className="pn-form-group">
-                  <label>Property <span style={{ fontWeight:400, color:'var(--muted-text)' }}>(optional)</span></label>
+                  <label>{t('plannedNeeds.propertyOpt')} <span style={{ fontWeight:400, color:'var(--muted-text)' }}>({t('common.optional')})</span></label>
                   <select name="home_id" value={form.home_id} onChange={handleFormChange}>
-                    <option value="">— No specific property —</option>
+                    <option value="">{t('plannedNeeds.noProperty')}</option>
                     {homes.map(h => (
                       <option key={h.id} value={h.id}>
                         {h.nickname || h.address}
@@ -555,34 +536,34 @@ export default function PlannedNeedsPage() {
 
               <div className="pn-form-row">
                 <div className="pn-form-group">
-                  <label>Recurrence</label>
+                  <label>{t('plannedNeeds.recurrenceLabel')}</label>
                   <select name="recurrence_type" value={form.recurrence_type} onChange={handleFormChange}>
-                    <option value="none">No recurrence</option>
-                    <option value="fixed">Fixed (calendar rhythm)</option>
-                    <option value="floating">Floating (from completion)</option>
+                    <option value="none">{t('plannedNeeds.recurrenceNone')}</option>
+                    <option value="fixed">{t('plannedNeeds.recurrenceFixed')}</option>
+                    <option value="floating">{t('plannedNeeds.recurrenceFloating')}</option>
                   </select>
                 </div>
                 {form.recurrence_type !== 'none' && (
                   <div className="pn-form-group">
-                    <label>Repeat every (days) *</label>
+                    <label>{t('plannedNeeds.repeatEvery')}</label>
                     <input type="number" name="recurrence_interval_days"
                       value={form.recurrence_interval_days} onChange={handleFormChange}
-                      placeholder="e.g. 90" min="1" />
+                      placeholder={t('plannedNeeds.repeatPlaceholder')} min="1" />
                   </div>
                 )}
               </div>
 
               {/* Preferred Helper */}
               <div className="pn-form-group">
-                <label>Preferred Helper <span style={{ fontWeight:400, color:'var(--muted-text)' }}>(optional)</span></label>
+                <label>{t('plannedNeeds.prefHelperOpt')} <span style={{ fontWeight:400, color:'var(--muted-text)' }}>({t('common.optional')})</span></label>
                 {savedHelpers.length === 0 ? (
                   <div className="pn-form-hint" style={{ padding:'0.5rem 0' }}>
-                    No saved helpers yet. <a href="/helpers" style={{ color:'#F4A261' }}>Browse helpers</a> and save favorites to use this feature.
+                    {t('plannedNeeds.noSavedHelpers')} <a href="/helpers" style={{ color:'#F4A261' }}>{t('plannedNeeds.browseHelpers')}</a> {t('plannedNeeds.noSavedHelpersSuffix')}
                   </div>
                 ) : (
                   <>
                     <select name="preferred_helper_id" value={form.preferred_helper_id} onChange={handleFormChange}>
-                      <option value="">No preference — post to all</option>
+                      <option value="">{t('plannedNeeds.noPreference')}</option>
                       {savedHelpers.map(h => (
                         <option key={h.helper_id} value={h.helper_id}>
                           {h.first_name} {h.last_name}
@@ -593,8 +574,7 @@ export default function PlannedNeedsPage() {
                     </select>
                     {form.preferred_helper_id && (
                       <div className="pn-form-hint">
-                        This helper will get first notice. If they don't confirm within 72 hours,
-                        the job automatically broadcasts to all helpers nearby.
+                        {t('plannedNeeds.prefHelperHint')}
                       </div>
                     )}
                   </>
@@ -602,22 +582,22 @@ export default function PlannedNeedsPage() {
               </div>
 
               <div className="pn-form-group">
-                <label>Description</label>
+                <label>{t('plannedNeeds.descriptionLabel')}</label>
                 <textarea name="description" value={form.description} onChange={handleFormChange}
-                  rows={2} placeholder="Optional — appears in the auto-posted job." />
+                  rows={2} placeholder={t('plannedNeeds.descriptionPlaceholder')} />
               </div>
 
               <div className="pn-form-group">
-                <label>Notes (private)</label>
+                <label>{t('plannedNeeds.notesLabel')}</label>
                 <textarea name="notes" value={form.notes} onChange={handleFormChange}
-                  rows={2} placeholder="Reminders just for you." />
+                  rows={2} placeholder={t('plannedNeeds.notesPlaceholder')} />
               </div>
 
               {error && <p style={{ color:'#f87171', fontSize:'0.85rem', margin:'0 0 0.5rem' }}>{error}</p>}
               <div className="pn-modal-actions">
-                <button className="btn-ghost" onClick={closeModal}>Cancel</button>
+                <button className="btn-ghost" onClick={closeModal}>{t('plannedNeeds.cancelBtn')}</button>
                 <button className="btn-primary" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Saving…' : modal === 'add' ? 'Add Need' : 'Save Changes'}
+                  {saving ? t('plannedNeeds.saving') : modal === 'add' ? t('plannedNeeds.addNeedBtn') : t('plannedNeeds.saveChangesBtn')}
                 </button>
               </div>
             </div>
@@ -628,14 +608,13 @@ export default function PlannedNeedsPage() {
         {modal === 'cancel' && selected && (
           <div className="pn-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="pn-modal">
-              <h2>Cancel Planned Need</h2>
-              <p>Are you sure you want to cancel <strong>{selected.title}</strong>?
-                Its sinking fund contribution will be removed from Life Pulse projections.</p>
+              <h2>{t('plannedNeeds.cancelNeedTitle')}</h2>
+              <p dangerouslySetInnerHTML={{ __html: t('plannedNeeds.cancelNeedConfirm', { name: `<strong>${selected.title}</strong>` }) }} />
               {error && <p style={{ color:'#f87171', fontSize:'0.85rem' }}>{error}</p>}
               <div className="pn-modal-actions">
-                <button className="btn-ghost" onClick={closeModal}>Keep It</button>
+                <button className="btn-ghost" onClick={closeModal}>{t('plannedNeeds.keepIt')}</button>
                 <button className="btn-danger" onClick={handleCancel} disabled={saving}>
-                  {saving ? 'Cancelling…' : 'Yes, Cancel'}
+                  {saving ? t('plannedNeeds.cancelling') : t('plannedNeeds.yesCancel')}
                 </button>
               </div>
             </div>
@@ -646,24 +625,24 @@ export default function PlannedNeedsPage() {
         {modal === 'complete' && selected && (
           <div className="pn-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="pn-modal">
-              <h2>Mark as Completed</h2>
-              <p>Recording the actual cost helps improve future projections.</p>
+              <h2>{t('plannedNeeds.completeTitle')}</h2>
+              <p>{t('plannedNeeds.completeSub')}</p>
               <div className="pn-form-group">
-                <label>Actual Cost ($)</label>
+                <label>{t('plannedNeeds.actualCost')}</label>
                 <input type="number" name="actual_cost" value={form.actual_cost}
-                  onChange={handleFormChange} placeholder="Leave blank to keep estimate"
+                  onChange={handleFormChange} placeholder={t('plannedNeeds.actualCostPlaceholder')}
                   min="0" step="0.01" />
               </div>
               {selected.recurrence_type !== 'none' && (
                 <p style={{ fontSize:'0.85rem', color:'var(--muted-text)' }}>
-                  Recurring — the next occurrence will be created automatically.
+                  {t('plannedNeeds.recurringNote')}
                 </p>
               )}
               {error && <p style={{ color:'#f87171', fontSize:'0.85rem' }}>{error}</p>}
               <div className="pn-modal-actions">
-                <button className="btn-ghost" onClick={closeModal}>Go Back</button>
+                <button className="btn-ghost" onClick={closeModal}>{t('plannedNeeds.goBack')}</button>
                 <button className="btn-primary" onClick={handleComplete} disabled={saving}>
-                  {saving ? 'Saving…' : 'Mark Complete'}
+                  {saving ? t('plannedNeeds.saving') : t('plannedNeeds.markComplete')}
                 </button>
               </div>
             </div>
@@ -677,6 +656,7 @@ export default function PlannedNeedsPage() {
 
 // ── NeedCard ───────────────────────────────────────────────────────────────
 function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
+  const { t } = useTranslation();
   const cost     = parseFloat(need.estimated_cost || 0);
   const reserved = parseFloat(need.reserved_amount || 0);
   const fundPct  = cost > 0 ? Math.min(100, Math.round((reserved / cost) * 100)) : 0;
@@ -684,6 +664,27 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
   const daysLeft = parseInt(need.days_until_due || 0);
   const isActive = ['planned','funding','activating_soon'].includes(need.status);
   const helperName = helperDisplayName(need);
+
+  const CATEGORY_LABELS = {
+    car_care: t('plannedNeeds.catCarCare'),
+    personal_care: t('plannedNeeds.catPersonalCare'),
+    other: t('plannedNeeds.catOther'),
+  };
+  const STATUS_LABELS = {
+    planned: t('plannedNeeds.statusPlanned'),
+    funding: t('plannedNeeds.statusFunding'),
+    activating_soon: t('plannedNeeds.statusActivatingSoon'),
+    published: t('plannedNeeds.statusPublished'),
+    completed: t('plannedNeeds.statusCompleted'),
+    cancelled: t('plannedNeeds.statusCancelled'),
+    regenerated: t('plannedNeeds.statusRegenerated'),
+  };
+  const PREF_HELPER_LABELS = {
+    pending:  t('plannedNeeds.prefStatusPending'),
+    accepted: t('plannedNeeds.prefStatusAccepted'),
+    declined: t('plannedNeeds.prefStatusDeclined'),
+    expired:  t('plannedNeeds.prefStatusExpired'),
+  };
 
   return (
     <div className={`pn-card status-${need.status}`}>
@@ -699,24 +700,24 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
         </div>
 
         <div className="pn-card-meta">
-          <span>Due {fmtDate(need.due_date)}</span>
-          {isActive && <span>{daysLabel(daysLeft)} away</span>}
-          {cost > 0 && <span>Est. {fmt$(cost)}</span>}
-          {need.actual_cost && <span>Actual {fmt$(need.actual_cost)}</span>}
+          <span>{t('plannedNeeds.due', { date: fmtDate(need.due_date) })}</span>
+          {isActive && <span>{daysLabel(daysLeft, t)} {t('plannedNeeds.away')}</span>}
+          {cost > 0 && <span>{t('plannedNeeds.est', { amount: fmt$(cost) })}</span>}
+          {need.actual_cost && <span>{t('plannedNeeds.actual', { amount: fmt$(need.actual_cost) })}</span>}
           {need.recurrence_type !== 'none' && (
-            <span>Every {need.recurrence_interval_days}d ({need.recurrence_type})</span>
+            <span>{t('plannedNeeds.recurrenceEvery', { days: need.recurrence_interval_days, type: need.recurrence_type })}</span>
           )}
           {need.lead_time_days && isActive && (
-            <span>Auto-posts in {daysLabel(daysLeft - need.lead_time_days)}</span>
+            <span>{t('plannedNeeds.autoPostsIn', { label: daysLabel(daysLeft - need.lead_time_days, t) })}</span>
           )}
-          {need.vehicle_name && <span>Vehicle: {need.vehicle_name}</span>}
-          {need.home_name && <span>Property: {need.home_name}</span>}
+          {need.vehicle_name && <span>{t('plannedNeeds.vehicleMeta', { name: need.vehicle_name })}</span>}
+          {need.home_name && <span>{t('plannedNeeds.propertyMeta', { name: need.home_name })}</span>}
         </div>
 
         {/* Preferred helper row */}
         {helperName && (
           <div className="pn-preferred-helper">
-            <span className="pn-ph-label">Preferred helper:</span>
+            <span className="pn-ph-label">{t('plannedNeeds.preferredHelper')}</span>
             <span className="pn-ph-name">{helperName}</span>
             {need.preferred_helper_status && (
               <span className={`pn-badge pn-ph-status st-${
@@ -736,8 +737,8 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
         {cost > 0 && isActive && (
           <div className="pn-meter-wrap">
             <div className="pn-meter-labels">
-              <span>Reserved {fmt$(reserved)}</span>
-              <span>{fundPct}% funded</span>
+              <span>{t('plannedNeeds.reserved', { amount: fmt$(reserved) })}</span>
+              <span>{t('plannedNeeds.funded', { pct: fundPct })}</span>
             </div>
             <div className="pn-meter-track">
               <div className="pn-meter-fill" style={{ width:`${fundPct}%` }} />
@@ -747,7 +748,7 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
 
         {monthly > 0 && isActive && (
           <div className="pn-sinking-fund">
-            Save <strong>{fmt$(monthly)}/month</strong> to cover by due date
+            {t('plannedNeeds.sinkingFundHint', { amount: fmt$(monthly) })}
           </div>
         )}
 
@@ -760,9 +761,9 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
 
       {isActive && (
         <div className="pn-card-actions">
-          {onEdit     && <button className="pn-card-action-btn" onClick={onEdit}>Edit</button>}
-          {onComplete && <button className="pn-card-action-btn primary" onClick={onComplete}>Complete</button>}
-          {onCancel   && <button className="pn-card-action-btn danger" onClick={onCancel}>Cancel</button>}
+          {onEdit     && <button className="pn-card-action-btn" onClick={onEdit}>{t('plannedNeeds.editBtn')}</button>}
+          {onComplete && <button className="pn-card-action-btn primary" onClick={onComplete}>{t('plannedNeeds.completeBtn')}</button>}
+          {onCancel   && <button className="pn-card-action-btn danger" onClick={onCancel}>{t('plannedNeeds.cancelBtn')}</button>}
         </div>
       )}
     </div>

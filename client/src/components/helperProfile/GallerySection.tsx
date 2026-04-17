@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import type { GalleryImage } from '../../types/helperProfile';
 import SectionCard from './ui/SectionCard';
@@ -8,6 +9,7 @@ interface GallerySectionProps {
 }
 
 const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
+  const { t } = useTranslation();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const openLightbox = (i: number) => setLightboxIndex(i);
@@ -37,13 +39,13 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
     <>
       <SectionCard
         id="gallery"
-        title="Photos & Work Samples"
-        subtitle={`${images.length} photos from recent jobs`}
+        title={t('helperProfile.gallery.title')}
+        subtitle={t('helperProfile.gallery.photoCount', { count: images.length })}
       >
         <div
           className="grid grid-cols-2 sm:grid-cols-3 gap-2"
           role="list"
-          aria-label="Work photo gallery"
+          aria-label={t('helperProfile.gallery.galleryAria')}
         >
           {images.map((img, i) => (
             <div
@@ -76,7 +78,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
               <button
                 onClick={() => openLightbox(i)}
                 className="absolute inset-0"
-                aria-label={`View photo: ${img.alt}`}
+                aria-label={t('helperProfile.gallery.viewPhoto', { alt: img.alt })}
               />
             </div>
           ))}
@@ -88,7 +90,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Photo lightbox"
+          aria-label={t('helperProfile.gallery.lightboxAria')}
           className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
           onClick={closeLightbox}
           onKeyDown={handleKeyDown}
@@ -98,7 +100,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
           <button
             onClick={closeLightbox}
             className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-            aria-label="Close lightbox"
+            aria-label={t('helperProfile.gallery.closeLightbox')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -108,7 +110,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
             <button
               onClick={(e) => { e.stopPropagation(); prev(); }}
               className="absolute left-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              aria-label="Previous photo"
+              aria-label={t('helperProfile.gallery.prevPhoto')}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -140,7 +142,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
             <button
               onClick={(e) => { e.stopPropagation(); next(); }}
               className="absolute right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              aria-label="Next photo"
+              aria-label={t('helperProfile.gallery.nextPhoto')}
             >
               <ChevronRight className="w-6 h-6" />
             </button>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Navigation, Wifi } from 'lucide-react';
 import type { LocationInfo } from '../../types/helperProfile';
 import SectionCard from './ui/SectionCard';
@@ -7,14 +8,17 @@ interface LocationSectionProps {
   location: LocationInfo;
 }
 
-const LocationSection: React.FC<LocationSectionProps> = ({ location }) => (
-  <SectionCard id="location" title="Service Area">
+const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
+  const { t } = useTranslation();
+
+  return (
+  <SectionCard id="location" title={t('helperProfile.location.title')}>
     <div className="space-y-4">
       {/* Map placeholder */}
       <div
         className="relative h-36 rounded-xl overflow-hidden bg-gray-800 border border-gray-700 flex items-center justify-center"
         role="img"
-        aria-label={`Service area map centered on ${location.city}, ${location.state}`}
+        aria-label={t('helperProfile.location.serviceAreaMapAria', { city: location.city, state: location.state })}
       >
         {/* Decorative map grid */}
         <svg
@@ -49,7 +53,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => (
             <p className="text-sm text-white font-medium">
               {location.city}, {location.state} {location.zip}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">Based in</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t('helperProfile.location.basedIn')}</p>
           </div>
         </div>
 
@@ -57,7 +61,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => (
           <Navigation className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
           <div>
             <p className="text-sm text-white font-medium">
-              Serves up to {location.serviceRadius} {location.radiusUnit}
+              {t('helperProfile.location.servesUpTo', { radius: location.serviceRadius, unit: location.radiusUnit })}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
               Austin metro area — Cedar Park, Round Rock, Pflugerville, Buda & Kyle
@@ -69,7 +73,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => (
           <div className="flex items-start gap-3">
             <Wifi className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
             <div>
-              <p className="text-sm text-white font-medium">Remote services available</p>
+              <p className="text-sm text-white font-medium">{t('helperProfile.location.remoteAvailable')}</p>
               {location.remoteNote && (
                 <p className="text-xs text-gray-500 mt-0.5">{location.remoteNote}</p>
               )}
@@ -79,10 +83,11 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => (
       </div>
 
       <p className="text-xs text-gray-600 border-t border-gray-800 pt-3">
-        Outside the service area? Message the helper to ask about exceptions.
+        {t('helperProfile.location.outsideArea')}
       </p>
     </div>
   </SectionCard>
-);
+  );
+};
 
 export default LocationSection;

@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell }                        from 'lucide-react';
 import { Link }                        from 'react-router-dom';
 import { formatDistanceToNow }         from 'date-fns';
+import { useTranslation }              from 'react-i18next';
 import { useSocket }                   from '../../hooks/useSocket';
 import api                             from '../../api/axios';
 
 export default function NotificationCenter() {
+  const { t } = useTranslation();
   const [open,         setOpen]    = useState(false);
   const [notifs,       setNotifs]  = useState([]);
   const [unreadCount,  setUnread]  = useState(0);
@@ -135,14 +137,14 @@ export default function NotificationCenter() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3
                           border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900">Notifications</h3>
+            <h3 className="font-semibold text-gray-900">{t('notificationCenter.title')}</h3>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
                 className="text-xs text-orange-500 hover:text-orange-600
                            font-medium transition"
               >
-                Mark all read
+                {t('notificationCenter.markAllRead')}
               </button>
             )}
           </div>
@@ -151,13 +153,13 @@ export default function NotificationCenter() {
           <div className="max-h-[420px] overflow-y-auto">
             {loading ? (
               <div className="py-12 text-center text-gray-400 text-sm">
-                Loading...
+                {t('notificationCenter.loading')}
               </div>
             ) : notifs.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-3xl mb-2">🔔</p>
                 <p className="text-gray-400 text-sm">
-                  You're all caught up!
+                  {t('notificationCenter.caughtUp')}
                 </p>
               </div>
             ) : notifs.map(notif => (
@@ -207,7 +209,7 @@ export default function NotificationCenter() {
                 className="text-sm text-orange-500 hover:text-orange-600
                            font-medium transition"
               >
-                View all notifications
+                {t('notificationCenter.viewAll')}
               </Link>
             </div>
           )}

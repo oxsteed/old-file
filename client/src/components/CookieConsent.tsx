@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import type { CookiePreferences } from '../hooks/useCookieConsent';
 
 export default function CookieConsent() {
+  const { t } = useTranslation();
   const {
     showBanner,
     showSettings,
@@ -41,52 +43,52 @@ export default function CookieConsent() {
       <div style={overlay}>
         <div style={settingsCard}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ color: '#f97316', margin: 0 }}>Cookie Preferences</h3>
+            <h3 style={{ color: '#f97316', margin: 0 }}>{t('cookieConsent.title')}</h3>
             <button onClick={closeSettings} style={closeBtn}>&times;</button>
           </div>
-          <p style={desc}>Manage how OxSteed uses cookies. Essential cookies cannot be disabled.</p>
+          <p style={desc}>{t('cookieConsent.desc')}</p>
 
           <div style={categoryBlock}>
             <div style={catHeader}>
-              <span style={catTitle}>Essential Cookies</span>
-              <span style={alwaysOn}>Always On</span>
+              <span style={catTitle}>{t('cookieConsent.essential')}</span>
+              <span style={alwaysOn}>{t('cookieConsent.essentialAlwaysOn')}</span>
             </div>
-            <p style={catDesc}>Required for the platform to function. Includes authentication, security, and session management.</p>
+            <p style={catDesc}>{t('cookieConsent.essentialDesc')}</p>
           </div>
 
           <div style={categoryBlock}>
             <label style={catHeader}>
-              <span style={catTitle}>Analytics Cookies</span>
+              <span style={catTitle}>{t('cookieConsent.analytics')}</span>
               <input type="checkbox" checked={local.analytics}
                 onChange={(e) => setLocal((p) => ({ ...p, analytics: e.target.checked }))}
                 style={checkbox} />
             </label>
-            <p style={catDesc}>Help us understand how visitors use OxSteed so we can improve the experience. Includes Google Analytics.</p>
+            <p style={catDesc}>{t('cookieConsent.analyticsDesc')}</p>
           </div>
 
           <div style={categoryBlock}>
             <label style={catHeader}>
-              <span style={catTitle}>Marketing Cookies</span>
+              <span style={catTitle}>{t('cookieConsent.marketing')}</span>
               <input type="checkbox" checked={local.marketing}
                 onChange={(e) => setLocal((p) => ({ ...p, marketing: e.target.checked }))}
                 style={checkbox} />
             </label>
-            <p style={catDesc}>Used to deliver relevant advertisements and track campaign effectiveness across platforms.</p>
+            <p style={catDesc}>{t('cookieConsent.marketingDesc')}</p>
           </div>
 
           <div style={categoryBlock}>
             <label style={catHeader}>
-              <span style={catTitle}>Functional Cookies</span>
+              <span style={catTitle}>{t('cookieConsent.functional')}</span>
               <input type="checkbox" checked={local.functional}
                 onChange={(e) => setLocal((p) => ({ ...p, functional: e.target.checked }))}
                 style={checkbox} />
             </label>
-            <p style={catDesc}>Enable enhanced functionality like chat support, saved preferences, and personalized features.</p>
+            <p style={catDesc}>{t('cookieConsent.functionalDesc')}</p>
           </div>
 
           <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-            <button onClick={() => savePreferences(local)} style={primaryBtn}>Save Preferences</button>
-            <button onClick={acceptAll} style={secondaryBtn}>Accept All</button>
+            <button onClick={() => savePreferences(local)} style={primaryBtn}>{t('cookieConsent.savePreferences')}</button>
+            <button onClick={acceptAll} style={secondaryBtn}>{t('cookieConsent.acceptAll')}</button>
           </div>
         </div>
       </div>
@@ -99,15 +101,14 @@ export default function CookieConsent() {
       <div style={bannerInner}>
         <div style={{ flex: 1 }}>
           <p style={{ margin: 0, fontSize: 14, color: '#ccc' }}>
-            We use cookies to improve your experience on OxSteed. Essential cookies are required for
-            the platform to work. You can customize your preferences or accept all cookies.{' '}
-            <a href="/cookie-policy" style={link}>Cookie Policy</a>
+            {t('cookieConsent.bannerText')}{' '}
+            <a href="/cookie-policy" style={link}>{t('cookieConsent.cookiePolicy')}</a>
           </p>
         </div>
         <div style={btnGroup}>
-          <button onClick={rejectAll} style={rejectBtn}>Reject All</button>
-          <button onClick={openSettings} style={settingsBtn}>Customize</button>
-          <button onClick={acceptAll} style={acceptBtn}>Accept All</button>
+          <button onClick={rejectAll} style={rejectBtn}>{t('cookieConsent.rejectAll')}</button>
+          <button onClick={openSettings} style={settingsBtn}>{t('cookieConsent.customize')}</button>
+          <button onClick={acceptAll} style={acceptBtn}>{t('cookieConsent.acceptAll')}</button>
         </div>
       </div>
     </div>

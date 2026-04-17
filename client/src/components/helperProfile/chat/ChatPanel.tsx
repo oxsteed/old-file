@@ -193,7 +193,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     };
     setSession(prev => ({
       ...prev,
-      typing:   { authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai', authorLabel: 'AI Assistant' },
+      typing:   { authorType: session.destination === 'helper' ? 'helper_ai' : 'oxsteed_ai', authorLabel: t('helperProfile.chat.aiAssistant') },
       timeline: [...prev.timeline, userMsg],
     }));
     setSending(true);

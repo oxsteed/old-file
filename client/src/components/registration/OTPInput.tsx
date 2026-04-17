@@ -3,6 +3,7 @@
 // Replaces the 6-box layout that was eating too much vertical space.
 
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   value: string[];            // ['', '', '', '', '', '']
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function OTPInput({ value, onChange, onComplete, disabled }: Props) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const displayValue = value.join('');
 
@@ -50,7 +52,7 @@ export default function OTPInput({ value, onChange, onComplete, disabled }: Prop
       placeholder="000000"
       autoFocus
       className="w-full h-11 text-center text-xl font-semibold tracking-[0.4em] border border-gray-700 rounded-lg bg-gray-800/50 text-white placeholder-gray-600 caret-orange-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50"
-      aria-label="6-digit verification code"
+      aria-label={t('register.otpInputAria')}
     />
   );
 }
