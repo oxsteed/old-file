@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-17 (i18n phases 1–8 complete; phase 9 partially complete; phase 10 partially complete)
+**Last updated:** 2026-04-17 (i18n phases 1–11 complete)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -587,8 +587,9 @@ Full audit of the customer↔helper real-time chat system. Four bugs found and f
 | 6 | Dashboards + Settings + Messages (Dashboard, HelperDashboard, SettingsPage, MessagesPage, ConversationPage) | ✅ Done |
 | 7 | BusinessHubPage | ✅ Done |
 | 8 | HelperInboxPage, HelperConversationPage | ✅ Done |
-| 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ⏳ 3/5 done — HelpersDirectoryPage + PlannedNeedsPage remain |
-| 10 | helperDirectory components, chat components, review components, EditProfileTab | ⏳ 3/4 done — helperDirectory sub-components remain (same file as Phase 9 HelpersDirectoryPage) |
+| 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ✅ Done |
+| 10 | helperDirectory components, chat components, review components, EditProfileTab | ✅ Done |
+| 11 | Remaining hardcoded strings in Dashboard.jsx and HelperDashboard.jsx | ✅ Done |
 
 ### Migration pattern
 
@@ -613,133 +614,30 @@ toast.success(t('namespace.key'))
 
 ---
 
-### ✅ Phase 9 — Partially Complete
+### ✅ Phase 9 — Complete
 
-Done: `HowItWorks.jsx`, `UpgradePage.jsx`, `CarCarePage.jsx` — all committed.
+All 5 files committed: `HowItWorks.jsx`, `UpgradePage.jsx`, `CarCarePage.jsx`, `HelpersDirectoryPage.tsx`, `PlannedNeedsPage.jsx`.
 
-### ✅ Phase 10 — Partially Complete
+Note: `HelpersDirectoryPage.tsx` was already fully migrated before this session.
 
-Done (committed on `claude/update-claude-i18n-status-QBUJ3`):
+### ✅ Phase 10 — Complete
+
+All files committed on `claude/update-claude-i18n-status-QBUJ3`:
 - `ReviewModal.jsx`, `ReviewsList.jsx` — `jobDetail.*` keys
 - `MessageComposer.tsx`, `ChatPanel.tsx` — `messages.*` keys
 - `EditProfileTab.jsx` — `helperDashboard.*` keys
+- `HelpersDirectoryPage.tsx` sub-components — `helpersDir.*` keys (already done)
+- `PlannedNeedsPage.jsx` — `plannedNeeds.*` keys (completed this session)
 
-`plannedNeeds` namespace keys are already present in all 4 locale files (`en.json`, `es.json`, `fr.json`, `ht.json`).
+### ✅ Phase 11 — Complete
 
-**Branch for remaining work:** `claude/update-claude-i18n-status-QBUJ3`
+Remaining hardcoded strings in the two largest dashboard files:
+- `Dashboard.jsx` — money category placeholder, all modal labels/options/toasts for money, goals, personalCare, carCare sections
+- `HelperDashboard.jsx` — jobs tab, bids tab, car care modal (recurring, dates, cost, notes, submit), skill modal (all fields, toggles, submit), tool modal (all fields, condition options, toggles, submit), `Update →` goal button, `View Public Profile →` button, money category placeholder
+- Added `dashboard.money.categoryPlaceholder`, `helperDashboard.viewPublicProfile` to all 4 locale files
+- Fixed critical `t` variable shadow bug: `myTools.map(t=>` renamed to `myTools.map(tool=>`
 
-```bash
-cd /home/user/old-file
-git config user.email "claude@oxsteed.dev"
-git config user.name "Claude"
-git checkout claude/update-claude-i18n-status-QBUJ3
-```
-
-### ⏳ NEXT TASK FOR AI: Finish Phases 9 & 10 (2 files remain)
-
-All locale keys already exist — do NOT add new keys, just migrate.
-
----
-
-#### 1. `client/src/pages/HelpersDirectoryPage.tsx` → `helpersDir.*`
-
-All 4 sub-components + main page need `const { t } = useTranslation();` from `'react-i18next'`.
-
-**FilterDrawer** (line ~152):
-- `"Filters"` → `t('helpersDir.filters')`
-- `"Show results"` → `t('helpersDir.showResults')`
-
-**SkillTileGrid** (line ~208):
-- `"Browse by skill"` → `t('helpersDir.browseBySkill')`
-
-**SubSkillStrip** (line ~245):
-- `"Filter by specific job:"` → `t('helpersDir.filterByJob')`
-- `"Clear"` (button text, not aria-label) → `t('helpersDir.clearFilter')`
-
-**DirectoryHero** (line ~293):
-- h1 `"Find a trusted local helper"` → `t('helpersDir.heroTitle')`
-- `<p>` description → `t('helpersDir.heroSubtitle')`
-- SearchBar placeholder → `t('helpersDir.heroSearchPlaceholder')`
-
-**HelpersDirectoryPage** (line ~418):
-- PageMeta title → `t('helpersDir.heroTitle')`
-- ZIP hint `"Add your ZIP code..."` → `t('helpersDir.addZipHint')`
-- Mobile bar `"Filters"` button text → `t('helpersDir.filters')`
-- Error state heading `"Something went wrong"` → `t('errors.generic')`
-- Error state sub `"We couldn't load..."` → `t('helpersDir.loadError')`
-- Error state button `"Retry"` → `t('common.retry')`
-- Loading `'Loading…'` → `t('common.loading')`
-- Show more button `'Show more helpers'` → `t('helpersDir.showMore')`
-- Count in show more `'({total - displayed.length} more)'` → `t('helpersDir.moreCount', { count: total - displayed.length })`
-- All shown `'All {displayed.length} helpers shown'` → `t('helpersDir.allShown', { count: displayed.length })`
-
-Commit: `feat(i18n): phase 9 — HelpersDirectoryPage`
-
----
-
-#### 2. `client/src/pages/PlannedNeedsPage.jsx` → `plannedNeeds.*`
-
-All keys exist in `en.json` under the `plannedNeeds` namespace. This file is 770 lines.
-
-**Key structural changes required:**
-
-1. Remove the module-level constant objects `WINDOW_LABELS`, `CATEGORY_LABELS`, `STATUS_LABELS`, `PREF_HELPER_LABELS` — replace all references with `t()` calls using matching keys:
-   - `WINDOW_LABELS[w]` → `t(\`plannedNeeds.window${w.replace('y','y').replace('w','w').replace('m','m')}\`)` — keys are `window1w`, `window2w`, `window1m`, `window3m`, `window6m`, `window1y`, `window5y`, `window10y`
-   - `CATEGORY_LABELS[need.category]` → `t(\`plannedNeeds.cat${need.category.split('_').map((s,i) => i===0 ? s.charAt(0).toUpperCase()+s.slice(1) : s.charAt(0).toUpperCase()+s.slice(1)).join('')}\`)` — keys: `catCarCare`, `catPersonalCare`, `catOther`
-   - `STATUS_LABELS[need.status]` → use a simple map: `{ planned: t('plannedNeeds.statusPlanned'), funding: t('plannedNeeds.statusFunding'), ... }` or inline with object lookup
-   - `PREF_HELPER_LABELS[need.preferred_helper_status]` → `{ pending: t('plannedNeeds.prefStatusPending'), accepted: t('plannedNeeds.prefStatusAccepted'), declined: t('plannedNeeds.prefStatusDeclined'), expired: t('plannedNeeds.prefStatusExpired') }`
-
-2. Move `daysLabel()` **inside** `NeedCard` (it needs `t` in scope). Replace:
-   - `'Overdue'` → `t('plannedNeeds.daysOverdue')`
-   - `'Today'` → `t('plannedNeeds.daysToday')`
-   - `'Tomorrow'` → `t('plannedNeeds.daysTomorrow')`
-   - `` `${d} days` `` → `t('plannedNeeds.daysCount', { count: d })`
-   - `` `${Math.round(d/7)} wk` `` → `t('plannedNeeds.daysWeeks', { count: Math.round(d/7) })`
-   - `` `${Math.round(d/30)} mo` `` → `t('plannedNeeds.daysMonths', { count: Math.round(d/30) })`
-   - `` `${(d/365).toFixed(1)} yr` `` → `t('plannedNeeds.daysYears', { count: (d/365).toFixed(1) })`
-
-3. Both `PlannedNeedsPage` and `NeedCard` need `const { t } = useTranslation();`.
-
-4. The `SRC_LIST` IIFE inside the render — replace all `label:` string values with `t('plannedNeeds.srcManualIncome')` etc. Keys: `srcManualIncome`, `srcRecurringIncome`, `srcOxsteedIncome`, `srcToolRentalIncome`, `srcInvoiceIncome`, `srcPredictedJobs`, `srcPredictedInvoices`, `srcManualExpense`, `srcRecurringExpense`, `srcDebt`, `srcHomeMaint`, `srcCarCare`, `srcPersonalCare`, `srcTax`, `srcSinkingFund`.
-
-5. Score breakdown labels: `'Coverage'` → `t('plannedNeeds.scoreCoverage')`, `'Buffer'` → `t('plannedNeeds.scoreBuffer')`, `'Reliability'` → `t('plannedNeeds.scoreReliability')`, `'Obligations'` → `t('plannedNeeds.scoreObligations')`, `'Runway'` → `t('plannedNeeds.scoreRunway')`.
-
-6. Sources toggle: `'Hide sources'` → `t('plannedNeeds.hideSources')`, `"What's included?"` → `t('plannedNeeds.showSources')`.
-
-7. Queue banner:
-   ```jsx
-   t('plannedNeeds.queueBanner', { count: activatingSoon.length })
-   ```
-
-8. Section titles:
-   - `Active (${activeNeeds.length})` → `t('plannedNeeds.activeSection', { count: activeNeeds.length })`
-   - `History (${inactiveNeeds.length})` → `t('plannedNeeds.historySection', { count: inactiveNeeds.length })`
-
-9. Projection note (line ~424):
-   ```jsx
-   t('plannedNeeds.projectionNote', { window: t(`plannedNeeds.window${window_}`) })
-   ```
-
-10. All modal content: titles, labels, placeholders, buttons, hints, error strings — all have matching `plannedNeeds.*` keys.
-
-11. Auto-publish metric: `` {projection.auto_publishing_in_window} job{...} `` → `t('plannedNeeds.autoPublishCount', { count: projection.auto_publishing_in_window })`
-
-12. NeedCard meta spans:
-    - `Due {fmtDate(need.due_date)}` → `t('plannedNeeds.due', { date: fmtDate(need.due_date) })`
-    - `{daysLabel(daysLeft)} away` → `\`${daysLabel(daysLeft)} ${t('plannedNeeds.away')}\``
-    - `Est. {fmt$(cost)}` → `t('plannedNeeds.est', { amount: fmt$(cost) })`
-    - `Actual {fmt$(need.actual_cost)}` → `t('plannedNeeds.actual', { amount: fmt$(need.actual_cost) })`
-    - `Every {days}d ({type})` → `t('plannedNeeds.recurrenceEvery', { days: need.recurrence_interval_days, type: need.recurrence_type })`
-    - `Auto-posts in {daysLabel(...)}` → `t('plannedNeeds.autoPostsIn', { label: daysLabel(daysLeft - need.lead_time_days) })`
-    - `Vehicle: {name}` → `t('plannedNeeds.vehicleMeta', { name: need.vehicle_name })`
-    - `Property: {name}` → `t('plannedNeeds.propertyMeta', { name: need.home_name })`
-    - `Reserved {amount}` → `t('plannedNeeds.reserved', { amount: fmt$(reserved) })`
-    - `{pct}% funded` → `t('plannedNeeds.funded', { pct: fundPct })`
-    - `Save {amount}/month...` → `t('plannedNeeds.sinkingFundHint', { amount: fmt$(monthly) })`
-
-Commit: `feat(i18n): phases 9+10 complete — HelpersDirectoryPage + PlannedNeedsPage`
-
-Then push: `git push -u origin claude/update-claude-i18n-status-QBUJ3`
+**All 11 i18n phases are complete. No remaining migration work.**
 
 ---
 
