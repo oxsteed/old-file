@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-16 (session review — 6 bug fixes)
+**Last updated:** 2026-04-17 (i18n phases 1–8 complete)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -564,6 +564,108 @@ Full audit of the customer↔helper real-time chat system. Four bugs found and f
 - `profile_chat:new_message` path in `ChatPanel` / helper inbox ✓
 - `getHelperStatus` endpoint using socket presence for live/AI routing ✓
 - `useConversationChat` shared hook (customer + helper pages) ✓
+
+---
+
+## i18n Migration Status
+
+**Stack:** `react-i18next`, config at `client/src/i18n.js`, language persisted in `localStorage` under key `oxs:language`.
+
+**Locale files:** `client/src/locales/en.json` (source of truth), `es.json`, `fr.json`, `ht.json` — all 4 must be kept in sync.
+
+**Namespaces (25 total):** `nav`, `hero`, `common`, `jobs`, `auth`, `errors`, `login`, `forgotPassword`, `resetPassword`, `register`, `didit`, `footer`, `howItWorks`, `upgrade`, `jobList`, `settings`, `messages`, `dashboard`, `helperDashboard`, `postJob`, `jobDetail`, `helpersDir`, `support`, `businessHub`, `plans`
+
+⚠️ `plannedNeeds` namespace does **NOT** exist yet — must be created in all 4 locale files during Phase 9.
+
+### Phase progress
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Locale files — all 25 namespaces (es, fr, ht) | ✅ Done |
+| 2 | Auth pages (Login, ForgotPassword, ResetPassword) | ✅ Done |
+| 3 | Registration (AccountForm, DiditPanel, CustomerRegister, HelperRegister) | ✅ Done |
+| 4 | Core UI (Footer, SupportWidget) | ✅ Done |
+| 5 | Job flow (JobListPage, JobDetailPage, PostJobPage) | ✅ Done |
+| 6 | Dashboards + Settings + Messages (Dashboard, HelperDashboard, SettingsPage, MessagesPage, ConversationPage) | ✅ Done |
+| 7 | BusinessHubPage | ✅ Done |
+| 8 | HelperInboxPage, HelperConversationPage | ✅ Done |
+| 9 | HowItWorks, UpgradePage, HelpersDirectoryPage, PlannedNeedsPage, CarCarePage | ⏳ Pending |
+| 10 | helperDirectory components, chat components, review components, EditProfileTab | ⏳ Pending |
+
+### Migration pattern
+
+```jsx
+import { useTranslation } from 'react-i18next';
+// inside component:
+const { t } = useTranslation();
+// usage:
+t('namespace.key')
+placeholder={t('namespace.key')}
+toast.success(t('namespace.key'))
+```
+
+**Rules:**
+1. Read the file before editing.
+2. If a key is missing from `en.json`, add it there first, then add the translation to all 3 other locale files, then use `t()`.
+3. Never translate: OxSteed, Stripe, Vortex, Didit, URLs, CSS class names, variable names.
+4. Toast messages must also use `t()`.
+5. Plurals use `_one` / `_other` suffix (e.g. `bidCount_one`, `bidCount_other`).
+6. Each sub-component needs its own `const { t } = useTranslation();`.
+7. Commit after each phase: `feat(i18n): phase N — description`, push to current branch.
+
+---
+
+### ⏳ NEXT TASK FOR AI: Phase 9 — Remaining Pages
+
+**Branch:** `claude/pull-latest-main-9TlpK`
+
+```bash
+cd /home/user/old-file
+git config user.email "claude@oxsteed.dev"
+git config user.name "Claude"
+git fetch origin main && git merge origin/main --no-edit
+```
+
+#### Files to migrate
+
+**`client/src/pages/HowItWorks.jsx`** → namespace `howItWorks.*`
+All keys already exist in `en.json`. Add `useTranslation`, replace strings.
+
+**`client/src/pages/UpgradePage.jsx`** → namespace `upgrade.*` (also `plans.*`)
+All keys already exist in `en.json`. Add `useTranslation`, replace strings.
+
+**`client/src/pages/HelpersDirectoryPage.tsx`** → namespace `helpersDir.*`
+All keys already exist in `en.json`. Add `useTranslation`, replace strings.
+
+**`client/src/pages/CarCarePage.jsx`** → read first, use `dashboard.carCare.*` or add new keys to a `carCare` section if it has standalone page content that doesn't fit the dashboard namespace.
+
+**`client/src/pages/PlannedNeedsPage.jsx`** → ⚠️ **`plannedNeeds` namespace does NOT exist yet.**
+Steps:
+1. Read `PlannedNeedsPage.jsx` fully — it is large.
+2. Catalog all user-facing strings.
+3. Create `plannedNeeds: { ... }` section in `en.json`.
+4. Add translations to `es.json`, `fr.json`, `ht.json`.
+5. Migrate the component.
+
+Commit after all 5 files: `feat(i18n): phase 9 — remaining pages`
+
+---
+
+### ⏳ NEXT TASK FOR AI: Phase 10 — Components
+
+**Files:**
+- `client/src/components/helperDirectory/FilterPanel.tsx` → `helpersDir.*`
+- `client/src/components/helperDirectory/HelperCard.tsx` → `helpersDir.*`
+- `client/src/components/helperDirectory/EmptyState.tsx` → `helpersDir.*`
+- `client/src/components/helperProfile/chat/ChatPanel.tsx` → `messages.*` or `support.*`
+- `client/src/components/helperProfile/chat/MessageComposer.tsx` → `messages.*`
+- `client/src/components/reviews/ReviewModal.jsx` → `jobDetail.*` or add `reviews.*` keys
+- `client/src/components/reviews/ReviewsList.jsx` → same
+- `client/src/components/EditProfileTab.jsx` → `settings.*` or `helperDashboard.*`
+
+For each: read the file, add any missing keys to `en.json` + 3 locale files, migrate.
+
+Commit: `feat(i18n): phase 10 — components`
 
 ---
 
