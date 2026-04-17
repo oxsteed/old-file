@@ -74,7 +74,7 @@ export default function PulseScoreSettings({ onClose, onSaved }) {
     api.get('/life/pulse/settings')
       .then(({ data }) => setSettings(data))
       .catch(() => setError(t('pulseSettings.loadError')));
-  }, []);
+  }, [t]);
 
   // Lock body scroll and handle Escape while open
   useEffect(() => {
