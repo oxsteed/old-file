@@ -458,7 +458,22 @@
     "yesterday": "Yesterday",
     "loadingMessages": "Loading messages…",
     "noMessages": "No messages yet",
-    "noMessagesSub": "Start the conversation!"
+    "noMessagesSub": "Start the conversation!",
+    "allConversations": "All Conversations",
+    "helperNoConvSub": "When a customer contacts you from your profile, their message will appear here.",
+    "re": "Re: {{title}}",
+    "newBadge": "New",
+    "notFound": "Conversation not found.",
+    "notFoundSub": "This conversation doesn't exist or you don't have access.",
+    "backToMessages": "Back to Messages",
+    "back": "Back",
+    "noMessagesReply": "No messages yet. Be the first to reply.",
+    "typeReply": "Type your reply...",
+    "enterToSend": "Press Enter to send",
+    "customer": "Customer",
+    "via": "via {{name}}",
+    "sending": "Sending...",
+    "lastMessageFallback": "No messages yet"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",

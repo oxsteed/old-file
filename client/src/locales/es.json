@@ -459,7 +459,22 @@
     "yesterday": "Ayer",
     "loadingMessages": "Cargando mensajes…",
     "noMessages": "Sin mensajes aún",
-    "noMessagesSub": "¡Inicia la conversación!"
+    "noMessagesSub": "¡Inicia la conversación!",
+    "allConversations": "Todas las Conversaciones",
+    "helperNoConvSub": "Cuando un cliente te contacte desde tu perfil, su mensaje aparecerá aquí.",
+    "re": "Re: {{title}}",
+    "newBadge": "Nuevo",
+    "notFound": "Conversación no encontrada.",
+    "notFoundSub": "Esta conversación no existe o no tienes acceso.",
+    "backToMessages": "Volver a Mensajes",
+    "back": "Volver",
+    "noMessagesReply": "Sin mensajes aún. Sé el primero en responder.",
+    "typeReply": "Escribe tu respuesta...",
+    "enterToSend": "Presiona Enter para enviar",
+    "customer": "Cliente",
+    "via": "vía {{name}}",
+    "sending": "Enviando...",
+    "lastMessageFallback": "Sin mensajes aún"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
