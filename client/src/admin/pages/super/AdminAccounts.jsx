@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../hooks/useAuth';
 import { UserPlus, Power, PowerOff, Activity, X } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
@@ -181,6 +182,7 @@ function ActivityDrawer({ admin, onClose }) {
 
 // ─── Main Page ────────────────────────────────────────────────
 export default function AdminAccounts() {
+  const { t } = useTranslation();
   const { user: me }          = useAuth();
   const [admins, setAdmins]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -223,9 +225,9 @@ export default function AdminAccounts() {
     if (!window.confirm(`Force logout all sessions for ${admin.email}?`)) return;
     try {
       await adminApi.post(`/admin/super/force-logout/${admin.id}`, { reason: 'Force logout by super admin' });
-      showToast('All sessions invalidated.');
+      showToast(t('admin.sessionsInvalidated'));
     } catch {
-      showToast('Failed to force logout.');
+      showToast(t('admin.forceLogoutFailed'));
     }
   }
 

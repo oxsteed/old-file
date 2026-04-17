@@ -171,7 +171,7 @@ export default function Navbar() {
             <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={mobileOpen ? t('Close menu') : t('Open menu')}
+              aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
               aria-expanded={mobileOpen}
               className="ox-btn-icon"
               style={{ color: 'var(--color-nav-link)' }}
@@ -216,8 +216,8 @@ export default function Navbar() {
                     }}>{unreadMsgs}</span>
                   )}
                 </MobileNavLink>
-                {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('Business')}</MobileNavLink>}
-                <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>{t('Settings')}</MobileNavLink>
+                {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
+                <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>{t('nav.settings')}</MobileNavLink>
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
                   style={{
@@ -241,14 +241,14 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('Sign in')}</MobileNavLink>
-                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('Browse Jobs')}</MobileNavLink>
-                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('How It Works')}</MobileNavLink>
+                <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('nav.signIn')}</MobileNavLink>
+                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
+                <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
                 <MobileNavLink to="/register/helper" onClick={() => setMobileOpen(false)} highlight>
-                  {t('List Your Skills')}
+                  {t('nav.listSkills')}
                 </MobileNavLink>
                 <MobileNavLink to="/register/customer" onClick={() => setMobileOpen(false)} primary>
-                  {t('Post a Job')}
+                  {t('nav.postJob')}
                 </MobileNavLink>
               </>
             )}

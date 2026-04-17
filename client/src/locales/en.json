@@ -9,7 +9,9 @@
     "signOut": "Sign Out",
     "signIn": "Sign In",
     "howItWorks": "How It Works",
-    "listSkills": "List Your Skills"
+    "listSkills": "List Your Skills",
+    "closeMenu": "Close menu",
+    "openMenu": "Open menu"
   },
   "hero": {
     "title": "Local Help,\nWhen You Need It",
@@ -617,11 +619,14 @@
       "subtitle": "Manage your plan",
       "loading": "Loading subscription...",
       "active": "Active",
+      "proPlan": "Pro Plan",
+      "nextBilling": "Next billing date: {{date}}",
       "cancelNotice": "You can cancel anytime. No questions asked.",
       "manageBilling": "Manage Billing",
       "cancelConfirm": "Are you sure you want to cancel your subscription?",
       "cancelPlan": "Cancel Plan",
       "freePlanNotice": "You're on the free plan. Upgrade to unlock more features.",
+      "upgradeTo": "Upgrade to {{name}}",
       "year": "year",
       "mo": "mo"
     },
@@ -966,7 +971,11 @@
       "taskAdded": "Home task added",
       "saveFailed": "Failed to save home task",
       "updateFailed": "Failed to update home task",
-      "removeFailed": "Failed to remove home task"
+      "removeFailed": "Failed to remove home task",
+      "floodZone": "Flood Zone {{zone}}",
+      "savedHelperFallback": "Helper",
+      "newHelper": "New",
+      "jobsLabel": "jobs"
     },
     "goals": {
       "title": "My Goals",
@@ -1197,6 +1206,7 @@
       "makePlaceholder": "Make (e.g. Toyota)",
       "modelPlaceholder": "Model",
       "selectMakeFirst": "Select make first",
+      "unknownModel": "Unknown Model",
       "year": "Year",
       "nickname": "Nickname (optional)",
       "decoding": "Decoding…",
@@ -1453,6 +1463,7 @@
     "activeBidsCount": "{{count}} active",
     "wonBidsCount": "{{count}} won",
     "noBidsYet": "No bids yet. Browse available jobs to start bidding.",
+    "jobNumber": "Job #{{id}}",
     "viewPublicProfile": "View Public Profile →",
     "tabs": {
       "editProfile": "Edit Profile",

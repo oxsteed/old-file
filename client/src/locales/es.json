@@ -9,7 +9,9 @@
     "signOut": "Cerrar Sesión",
     "signIn": "Iniciar Sesión",
     "howItWorks": "Cómo Funciona",
-    "listSkills": "Ofrecer Servicios"
+    "listSkills": "Ofrecer Servicios",
+    "closeMenu": "Cerrar menú",
+    "openMenu": "Abrir menú"
   },
   "hero": {
     "title": "Ayuda Local,\nCuando la Necesitas",
@@ -618,11 +620,14 @@
       "subtitle": "Administra tu plan",
       "loading": "Cargando suscripción...",
       "active": "Activo",
+      "proPlan": "Plan Pro",
+      "nextBilling": "Próxima fecha de facturación: {{date}}",
       "cancelNotice": "Puedes cancelar en cualquier momento. Sin preguntas.",
       "manageBilling": "Administrar Facturación",
       "cancelConfirm": "¿Estás seguro de que quieres cancelar tu suscripción?",
       "cancelPlan": "Cancelar Plan",
       "freePlanNotice": "Estás en el plan gratuito. Actualiza para desbloquear más funciones.",
+      "upgradeTo": "Actualizar a {{name}}",
       "year": "año",
       "mo": "mes"
     },
@@ -966,7 +971,11 @@
       "taskAdded": "Tarea del hogar agregada",
       "saveFailed": "Error al guardar la tarea del hogar",
       "updateFailed": "Error al actualizar la tarea del hogar",
-      "removeFailed": "Error al remover la tarea del hogar"
+      "removeFailed": "Error al remover la tarea del hogar",
+      "floodZone": "Zona de inundación {{zone}}",
+      "savedHelperFallback": "Ayudante",
+      "newHelper": "Nuevo",
+      "jobsLabel": "trabajos"
     },
     "goals": {
       "title": "Mis Metas",
@@ -1197,6 +1206,7 @@
       "makePlaceholder": "Marca (ej. Toyota)",
       "modelPlaceholder": "Modelo",
       "selectMakeFirst": "Selecciona la marca primero",
+      "unknownModel": "Modelo desconocido",
       "year": "Año",
       "nickname": "Apodo (opcional)",
       "decoding": "Decodificando…",
@@ -1453,6 +1463,7 @@
     "activeBidsCount": "{{count}} activas",
     "wonBidsCount": "{{count}} ganadas",
     "noBidsYet": "Sin ofertas aún. Explora trabajos disponibles para empezar.",
+    "jobNumber": "Trabajo #{{id}}",
     "viewPublicProfile": "Ver perfil público",
     "tabs": {
       "editProfile": "Editar perfil",

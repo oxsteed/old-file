@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Flag } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 
 export default function Moderation() {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(null);
@@ -26,10 +28,10 @@ export default function Moderation() {
   const handleAction = async (jobId, action) => {
     const reason =
       action === 'cancel'
-        ? window.prompt('Reason for cancelling this job (required):') || ''
-        : window.prompt('Optional note for audit log:') || '';
+        ? window.prompt(t('admin.jobCancelReason')) || ''
+        : window.prompt(t('admin.auditNote')) || '';
     if (action === 'cancel' && !reason.trim()) {
-      window.alert('A reason is required to cancel.');
+      window.alert(t('admin.cancelReasonRequired'));
       return;
     }
     setActing(`${jobId}-${action}`);

@@ -9,7 +9,9 @@
     "signOut": "Se déconnecter",
     "signIn": "Se connecter",
     "howItWorks": "Comment ça marche",
-    "listSkills": "Proposer mes services"
+    "listSkills": "Proposer mes services",
+    "closeMenu": "Fermer le menu",
+    "openMenu": "Ouvrir le menu"
   },
   "hero": {
     "title": "Aide locale,\nQuand vous en avez besoin",
@@ -618,11 +620,14 @@
       "subtitle": "Gérez votre plan",
       "loading": "Chargement de l'abonnement...",
       "active": "Actif",
+      "proPlan": "Plan Pro",
+      "nextBilling": "Prochaine date de facturation: {{date}}",
       "cancelNotice": "Vous pouvez annuler à tout moment. Pas de questions posées.",
       "manageBilling": "Gérer la Facturation",
       "cancelConfirm": "Êtes-vous sûr de vouloir annuler votre abonnement?",
       "cancelPlan": "Annuler le Plan",
       "freePlanNotice": "Vous êtes sur le plan gratuit. Mettez à niveau pour déverrouiller plus de fonctionnalités.",
+      "upgradeTo": "Passer à {{name}}",
       "year": "an",
       "mo": "mois"
     },
@@ -966,7 +971,11 @@
       "taskAdded": "Tâche ménagère ajoutée",
       "saveFailed": "Erreur lors de l'enregistrement de la tâche ménagère",
       "updateFailed": "Erreur lors de la mise à jour de la tâche ménagère",
-      "removeFailed": "Erreur lors de la suppression de la tâche ménagère"
+      "removeFailed": "Erreur lors de la suppression de la tâche ménagère",
+      "floodZone": "Zone d'inondation {{zone}}",
+      "savedHelperFallback": "Aide",
+      "newHelper": "Nouveau",
+      "jobsLabel": "travaux"
     },
     "goals": {
       "title": "Mes Objectifs",
@@ -1197,6 +1206,7 @@
       "makePlaceholder": "Marque (ex. Toyota)",
       "modelPlaceholder": "Modèle",
       "selectMakeFirst": "Sélectionnez d'abord la marque",
+      "unknownModel": "Modèle inconnu",
       "year": "Année",
       "nickname": "Surnom (optionnel)",
       "decoding": "Décodage…",
@@ -1453,6 +1463,7 @@
     "activeBidsCount": "{{count}} actives",
     "wonBidsCount": "{{count}} gagnées",
     "noBidsYet": "Aucune offre pour l'instant. Parcourez les missions disponibles.",
+    "jobNumber": "Mission #{{id}}",
     "viewPublicProfile": "Voir le profil public",
     "tabs": {
       "editProfile": "Modifier le profil",
