@@ -64,7 +64,10 @@
     "unavailable": "Pa disponib",
     "pro": "Pro",
     "basic": "Barik",
-    "premium": "Premium"
+    "premium": "Premium",
+    "helper": "Asistan",
+    "customer": "Kliyent",
+    "switching": "Chanj..."
   },
   "trial": {
     "active": "Trial is active",
@@ -614,7 +617,111 @@
     "businessRemoveFailed": "Erè efase biznis",
     "primaryBusinessUpdated": "Biznis prensipal mete ajou",
     "primaryBusinessFailed": "Erè mete ajou biznis prensipal",
-    "roleSwitchFailed": "Erè chanj wèl"
+    "roleSwitchFailed": "Erè chanj wèl",
+    "switch": {
+      "successHelper": "Chanje nan mod asistan",
+      "successCustomer": "Chanje nan mod kliyent"
+    },
+    "profile": {
+      "title": "Pwofil",
+      "subtitle": "Mete ajou enfòmasyon pèsonèl ou",
+      "firstName": "Premye Non",
+      "lastName": "Dènye Non",
+      "verificationNotice": "Verifiye mete ajou pwofil piblik ou touswit",
+      "supportChat": "Kesyon? Louvri chat sipò →",
+      "phone": "Telefon",
+      "zipCode": "Kod Postal",
+      "bio": "Biografi",
+      "displayName": "Preferans Non Afiche",
+      "displayNameSub": "Kijan non ou fè parèt lòt moun",
+      "names": {
+        "firstName": "Premye Non",
+        "fullName": "Non Konplet",
+        "businessName": "Non Biznis"
+      },
+      "businessWarning": "Avètisman: Chanj preferans afiche a ka afekte vizibilite pwofil ou",
+      "saving": "Sove...",
+      "saveChanges": "Sove Chanjman"
+    },
+    "security": {
+      "changePassword": "Chanj Modpas",
+      "passwordDesc": "Mete ajou modpas ou pou sekirize kont ou",
+      "currentPassword": "Modpas Aktyèl",
+      "newPassword": "Nouvo Modpas",
+      "confirmPassword": "Konfime Modpas",
+      "updatePassword": "Mete Ajou Modpas",
+      "twoFactor": "Otantifikasyon Defo Faktè",
+      "twoFactorDesc": "Ajoute yon kouch adisyonel sekirite nan kont ou",
+      "manage2fa": "Jere 2FA"
+    },
+    "subscription": {
+      "title": "Abonman",
+      "subtitle": "Jere plan ou",
+      "loading": "Chaje abonman...",
+      "active": "Aktif",
+      "cancelNotice": "Ou ka anile nenpòt tan. Poko gen kesyon",
+      "manageBilling": "Jere Faktire",
+      "cancelConfirm": "Ou sèten ou vle anile abonman ou?",
+      "cancelPlan": "Anile Plan",
+      "freePlanNotice": "Ou sou plan gratis. Upgwed pou deblouke plis fonksyon",
+      "year": "an",
+      "mo": "mwa"
+    },
+    "businesses": {
+      "title": "Biznis",
+      "add": "Ajoute Biznis",
+      "subtitle": "Jere biznis ou yo",
+      "loading": "Chaje biznis...",
+      "empty": "Poko gen biznis",
+      "emptyDesc": "Kreye premye biznis ou pou dema",
+      "primary": "Prensipal",
+      "setPrimary": "Mete Prensipal",
+      "edit": "Edite",
+      "addHeader": "Ajoute yon Biznis",
+      "form": {
+        "name": "Non Biznis",
+        "type": "Tip Biznis",
+        "ein": "EIN / Nimewo Taks",
+        "address": "Adrès",
+        "street": "Adrès Ri",
+        "city": "Vil",
+        "state": "Eta",
+        "zip": "Kod Postal"
+      },
+      "update": "Mete Ajou Biznis"
+    },
+    "referral": {
+      "title": "Referans",
+      "subtitle": "Genyen rekonpans referan zanmi"
+    },
+    "privacy": {
+      "title": "Konfidansyalite ak Done",
+      "subtitle": "Kontwole enfòmasyon pèsonèl ou",
+      "exportSuccess": "Ekspò done ou a pré pou telechaje",
+      "exportFailed": "Erè ekspò done",
+      "exportBtn": "Ekspò Done Mwen"
+    },
+    "account": {
+      "title": "Tip Kont",
+      "helperDesc": "Aktyèlman yon Asistan. Jere travay ak genyen dola.",
+      "customerDesc": "Aktyèlman yon Kliyent. Poste travay ak jwenn asistan.",
+      "currentRole": "Wèl Aktyèl",
+      "switchToCustomer": "Chanj a Kliyent",
+      "switchToHelper": "Chanj a Asistan",
+      "confirmSwitchCustomer": "Ou sèten ou vle chanj a mod kliyent?",
+      "switchCustomerNotice": "Ou ap gen aksè a fonksyon kliyent pandan m ap kenbe pwofil asistan ou",
+      "confirmSwitchHelper": "Ou sèten ou vle chanj a mod asistan?",
+      "switchHelperNotice": "Pwofil ou a ap dwe vizib pou kliyent yo ap chèche èd",
+      "yesSwitch": "Wi, Chanj"
+    },
+    "danger": {
+      "title": "Zon Danje",
+      "subtitle": "Aksyon ireversib",
+      "deleteAccount": "Efase Kont",
+      "confirmTitle": "Efase Kont Ou",
+      "confirmDesc": "Aksyon sa a pa ka defè. Tout done ou yo ap efase definitif",
+      "yesDelete": "Wi, Efase Kont Mwen"
+    }
   },
   "messages": {
     "title": "Mesaj",
@@ -669,7 +776,12 @@
     "attachImage": "Attach image (coming soon)",
     "addEmoji": "Add emoji (coming soon)",
     "sendMessage": "Send message",
-    "messageInput": "Message input"
+    "messageInput": "Message input",
+    "conversationNotFound": "Konvèsasyon pa jwenn",
+    "noMessagesStart": "Poko gen mesaj. Dema konvèsasyon!",
+    "typeAMessage": "Ekri yon mesaj...",
+    "empty": "Poko gen mesaj",
+    "emptyDesc": "Istwa mesaj ou a vid"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -748,9 +860,21 @@
       "subtitle": "Pwofil ou kache jiskaske konfigirasyon an fini.",
       "resume": "Kontinye Konfigirasyon →",
       "addProfile": "Ajoute Pwofil ak Kote →",
-      "choosePlan": "Chwazi yon Plan →",
+      "choosePlan": "Chwazi Plan",
       "addTax": "Ajoute Enfòmasyon Tak →",
-      "reviewGoLive": "Revize ak Pibliye →"
+      "reviewGoLive": "Revize ak Pibliye →",
+      "createAccount": "Kreye Kont",
+      "createAccountDesc": "Mete sispèl",
+      "verifyEmail": "Verifiye Imel",
+      "verifyEmailDesc": "Konfime adrès imel ou",
+      "taxInfo": "Enfòmasyon Taks",
+      "taxInfoDesc": "Ajoute enfòmasyon taks ou",
+      "profileLocation": "Lokasyon Pwofil",
+      "profileLocationDesc": "Mete zòn sèvis ou",
+      "reviewComplete": "Revizyon Konplet",
+      "reviewCompleteDesc": "Ou pré!",
+      "choosePlanDesc": "Chwazi nivo manm ou",
+      "choosePlan_btn": "Chwazi Plan"
     },
     "plannedNeeds": {
       "title": "Bezwon Planifye",
@@ -848,7 +972,10 @@
       "endDate": "Dat final",
       "estimatedCost": "Kosyan estime",
       "budgetAmount": "Montan bidjè",
-      "budgetPeriod": "Peryòd bidjè"
+      "budgetPeriod": "Peryòd bidjè",
+      "incomeLogged": "Revni anrejistre",
+      "expenseLogged": "Depans anrejistre",
+      "saveFailed": "Erè sove"
     },
     "home": {
       "myProperties": "Kay mwen yo",
@@ -876,7 +1003,11 @@
       "removed": "Retire",
       "homeAddFailed": "Echwe ajoute pwopriyete.",
       "homeAdded": "Pwopriyete sove!",
-      "addressNotFound": "Adrès pa jwenn."
+      "addressNotFound": "Adrès pa jwenn.",
+      "taskAdded": "Travay kay ajoute",
+      "saveFailed": "Erè sove travay kay",
+      "updateFailed": "Erè mete ajou travay kay",
+      "removeFailed": "Erè efase travay kay"
     },
     "goals": {
       "title": "Objektif mwen yo",
@@ -938,7 +1069,8 @@
       "addItemBtn": "Ajoute Eleman",
       "currentAmountLabel": "Montan Aktyèl ($)",
       "targetProgress": "Objektif: ${{target}} · {{pct}}% konplè",
-      "estimatedCostPlaceholder": "egz. 150"
+      "estimatedCostPlaceholder": "egz. 150",
+      "itemRemoved": "Objektif efase"
     },
     "jobs": {
       "total": "Total",
@@ -1032,7 +1164,19 @@
       "availableForRentToggle": "Disponib pou lwe",
       "requiresDepositToggle": "Depòz obligatwa",
       "deliveryAvailableToggle": "Livrezon disponib",
-      "updateToolBtn": "Mete Zouti Ajou"
+      "updateToolBtn": "Mete Zouti Ajou",
+      "skillUpdated": "Kapasite mete ajou",
+      "skillAdded": "Kapasite ajoute",
+      "skillSaveFailed": "Erè sove kapasite",
+      "skillRemoved": "Kapasite efase",
+      "skillRemoveFailed": "Erè efase kapasite",
+      "removeSkillConfirm": "Ou sèten ou vle efase kapasite sa a?",
+      "toolUpdated": "Zouti mete ajou",
+      "toolListed": "Zouti enliste",
+      "toolSaveFailed": "Erè sove zouti",
+      "toolRemoved": "Zouti efase",
+      "toolRemoveFailed": "Erè efase zouti",
+      "removeToolConfirm": "Ou sèten ou vle efase zouti sa a?"
     },
     "personalCare": {
       "title": "Sante ak Byennèt mwen",
@@ -1197,7 +1341,14 @@
       "removing": "Removing…",
       "editBtn": "Edit",
       "failedSave": "Failed to save.",
-      "deleteConfirmMsg": "Remove <strong>{{name}}</strong>?"
+      "deleteConfirmMsg": "Remove <strong>{{name}}</strong>?",
+      "serviceAdded": "Sèvis otomobil ajoute",
+      "vehicleAdded": "Veyikil ajoute",
+      "saveFailed": "Erè sove sèvis otomobil",
+      "updateFailed": "Erè mete ajou sèvis otomobil",
+      "removeFailed": "Erè efase sèvis otomobil",
+      "removed": "Sèvis otomobil efase",
+      "addFailed": "Erè ajoute sèvis otomobil"
     },
     "products": {
       "title": "Pwodwi ak Ekipman mwen",
@@ -1225,7 +1376,11 @@
       "offline": "Ou offline kounye a — ou kache nan anyè a.",
       "onlineSub": "Visible nan anyè",
       "offlineSub": "Kache nan anyè"
-    }
+    },
+    "checklistAdded": "Lis verifiye ajoute",
+    "progressUpdated": "Pwogwe mete ajou",
+    "goalCreated": "Objektif kreye",
+    "taskAdded": "Travay ajoute: {title}"
   },
   "helperDashboard": {
     "title": "Tablo de Bò Pwofesyonèl",
@@ -1343,7 +1498,7 @@
     "photoAdded": "Photo added",
     "failedAddPhoto": "Failed to add photo",
     "profileSaved": "Profile saved!",
-    "failedSave": "Failed to save",
+    "failedSave": "Erè sove",
     "saving": "Saving…",
     "delete": "Delete",
     "jobsCompleted": "Travay konplete",
@@ -1353,7 +1508,88 @@
     "addSkill": "Ajoute kapasite",
     "manageSkills": "Jere kapasites",
     "addTool": "Ajoute zouti",
-    "manageTools": "Jere zoutis"
+    "manageTools": "Jere zoutis",
+    "proActivated": "Plan Pro aktive",
+    "products": {
+      "nameRequired": "Non pwodui obligatwa",
+      "invalidPrice": "Pri dwe pi gran pase 0",
+      "updated": "Pwodui mete ajou",
+      "listed": "Pwodui enliste",
+      "saveFailed": "Erè sove pwodui",
+      "removed": "Pwodui efase",
+      "removeFailed": "Erè efase pwodui"
+    },
+    "failedUpdate": "Erè mete ajou",
+    "skills": {
+      "updated": "Kapasite mete ajou",
+      "added": "Kapasite ajoute",
+      "saveFailed": "Erè sove kapasite",
+      "removed": "Kapasite efase",
+      "removeFailed": "Erè efase kapasite"
+    },
+    "tools": {
+      "updated": "Zouti mete ajou",
+      "listed": "Zouti enliste",
+      "saveFailed": "Erè sove zouti",
+      "removed": "Zouti efase",
+      "removeFailed": "Erè efase zouti"
+    },
+    "personalCare": {
+      "added": "Swen pèsonèl ajoute"
+    },
+    "removed": "Efase",
+    "failedRemove": "Erè efase",
+    "failedAdd": "Erè ajoute",
+    "carCare": {
+      "added": "Sèvis otomobil ajoute"
+    },
+    "incomeLogged": "Revni anrejistre",
+    "expenseLogged": "Depans anrejistre",
+    "goalCreated": "Objektif kreye",
+    "failed": "Erè",
+    "taskAdded2": "Travay ajoute",
+    "addressNotFound": "Adrès pa jwenn",
+    "homeAdded": "Kay ajoute",
+    "failedAddHome": "Erè ajoute kay",
+    "checklistAdded": "Lis verifiye ajoute",
+    "progressUpdated": "Pwogwe mete ajou",
+    "failedUpdateStatus": "Erè mete ajou eta",
+    "loadingDashboard": "Chaje tablo",
+    "someDataFailed": "Erè chaje kèk done",
+    "next30Days": "30 jou apre yo",
+    "noReviewsYet": "Poko gen revizyon",
+    "accepted": "Aksepte",
+    "goalsLabel": "Objektif",
+    "inProgress": "Nan pwogre",
+    "subscription": "Abonman",
+    "active": "Aktif",
+    "manageBilling": "Jere faktire",
+    "paymentPending": "Peyman antan",
+    "selectedProNoPay": "Pro chwazi san peyman",
+    "completeUpgrade": "Konplete upgwed",
+    "free": "Gratis",
+    "upgradeHint": "Upgwed a Pro pou deblouke plis fonksyon",
+    "upgradeToPro": "Upgwed a Pro",
+    "backgroundCheck": "Verifiye antesdan",
+    "bgCheckHint": "Konplete verifiye antesdan",
+    "startCheck": "Dema verifiye",
+    "requiresPro": "Mande Pro",
+    "idVerification": "Verifiye idantite",
+    "idVerificationHint": "Konplete verifiye idantite",
+    "verifyId": "Verifiye idantite",
+    "findJobs": "Jwenn travay",
+    "disputes": "Difikite",
+    "jobsNearYou": "Travay pre ou",
+    "noNearbyJobs": "Poko gen travay pre ou",
+    "browseAllJobs": "Verifiye tout travay",
+    "upgradeProDesc": "Upgwed a plan Pro nou pou aksè plis fonksyon ak pi bon oportunite",
+    "viewPlans": "Gade plan",
+    "deleted": "Efase",
+    "browseCTA": "Verifiye",
+    "personalCareDesc": "Deskripsyon swen pèsonèl",
+    "taskAdded": "Travay ajoute: {title}",
+    "pro": "Pro",
+    "subscribed": "Souskebi"
   },
   "postJob": {
     "title": "Pibliye yon Travay",
