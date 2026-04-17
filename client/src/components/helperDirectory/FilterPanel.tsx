@@ -11,6 +11,7 @@ import {
   BadgeCheck,
   Layers,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { DirectoryFilters } from '../../types/helperDirectory';
 import {
   CATEGORIES,
@@ -136,6 +137,7 @@ const SkillGroup: React.FC<{
 
 // ── Main FilterPanel ──────────────────────────────────────────────────────────
 const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset }) => {
+  const { t } = useTranslation();
   const activeCount = countActiveFilters(filters);
 
   const toggleArrayItem = <T extends string>(
@@ -159,7 +161,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-800">
         <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-          Filters
+          {t('helpersDir.filters')}
           {activeCount > 0 && (
             <span className="px-1.5 py-0.5 bg-brand-500 text-white text-xs rounded-full font-bold">
               {activeCount}
@@ -170,10 +172,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           <button
             onClick={onReset}
             className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 transition-colors"
-            aria-label="Reset all filters"
+            aria-label={t('helpersDir.resetAll')}
           >
             <RotateCcw className="w-3 h-3" aria-hidden="true" />
-            Reset all
+            {t('helpersDir.resetAll')}
           </button>
         )}
       </div>
@@ -182,11 +184,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
 
         {/* ── Quick toggles ─────────────────────────────────── */}
         <div className="py-3 border-b border-gray-800 space-y-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Quick filters</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t('helpersDir.quickFilters')}</p>
           <label className="flex items-center justify-between cursor-pointer">
             <span className="text-sm text-gray-300 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
-              Available today
+              {t('helpersDir.availableToday')}
             </span>
             <button
               role="switch"
@@ -206,7 +208,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           <label className="flex items-center justify-between cursor-pointer">
             <span className="text-sm text-gray-300 flex items-center gap-2">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
-              Background checked
+              {t('helpersDir.backgroundChecked')}
             </span>
             <button
               role="switch"
@@ -226,7 +228,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
           <label className="flex items-center justify-between cursor-pointer">
             <span className="text-sm text-gray-300 flex items-center gap-2">
               <BadgeCheck className="w-3.5 h-3.5 text-sky-400" aria-hidden="true" />
-              OxSteed verified
+              {t('helpersDir.oxsteedVerified')}
             </span>
             <button
               role="switch"
@@ -246,11 +248,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
         </div>
 
         {/* ── Location & distance ───────────────────────────── */}
-        <FilterSection title="Location & Distance" icon={MapPin}>
+        <FilterSection title={t('helpersDir.locationDistance')} icon={MapPin}>
           <div className="space-y-3">
             <div>
               <label htmlFor="zip-filter" className="text-xs text-gray-500 mb-1.5 block">
-                Your zip code
+                {t('helpersDir.yourZip')}
               </label>
               <input
                 id="zip-filter"
@@ -264,7 +266,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               />
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-2">Max distance</p>
+              <p className="text-xs text-gray-500 mb-2">{t('helpersDir.maxDistance')}</p>
               <div className="flex flex-wrap gap-2">
                 {DISTANCE_OPTIONS.map((d) => (
                   <button
@@ -278,7 +280,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
                     }`}
                   >
-                    {d} mi
+                    {t('helpersDir.milesAway', { miles: d })}
                   </button>
                 ))}
               </div>
@@ -288,7 +290,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
 
         {/* ── Category ──────────────────────────────────────── */}
         <FilterSection
-          title="Category"
+          title={t('helpersDir.category')}
           icon={Layers}
           badge={filters.categories.length}
         >
@@ -306,7 +308,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
 
         {/* ── Skills ────────────────────────────────────────── */}
         <FilterSection
-          title="Skills"
+          title={t('helpersDir.skills')}
           icon={Award}
           defaultOpen={false}
           badge={filters.skills.length}
@@ -326,7 +328,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
 
         {/* ── Licenses ──────────────────────────────────────── */}
         <FilterSection
-          title="Licenses & Certifications"
+          title={t('helpersDir.licenses')}
           icon={Award}
           defaultOpen={false}
           badge={filters.licenses.length}
@@ -345,7 +347,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
 
         {/* ── Insurance ─────────────────────────────────────── */}
         <FilterSection
-          title="Insurance & Bonding"
+          title={t('helpersDir.insurance')}
           icon={ShieldCheck}
           defaultOpen={false}
           badge={filters.insurance.length}
@@ -363,7 +365,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
         </FilterSection>
 
         {/* ── Rating ────────────────────────────────────────── */}
-        <FilterSection title="Minimum Rating" icon={Star}>
+        <FilterSection title={t('helpersDir.minRating')} icon={Star}>
           <div className="flex flex-wrap gap-2">
             {RATING_OPTIONS.map((opt) => (
               <button
@@ -386,11 +388,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
         </FilterSection>
 
         {/* ── Price range ───────────────────────────────────── */}
-        <FilterSection title="Price Range (per hour)" icon={DollarSign}>
+        <FilterSection title={t('helpersDir.pricePerHour')} icon={DollarSign}>
           <div className="space-y-3">
             <div className="flex gap-2 items-center">
               <div className="flex-1">
-                <label className="text-xs text-gray-500 block mb-1">Min ($)</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('helpersDir.priceMin')}</label>
                 <input
                   type="number"
                   min={0}
@@ -407,7 +409,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               </div>
               <span className="text-gray-600 mt-5">–</span>
               <div className="flex-1">
-                <label className="text-xs text-gray-500 block mb-1">Max ($)</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('helpersDir.priceMax')}</label>
                 <input
                   type="number"
                   min={0}
@@ -425,18 +427,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
             </div>
             {/* Quick presets */}
             <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: 'Under $50', range: [0, 50] as [number, number] },
-                { label: '$50–$100', range: [50, 100] as [number, number] },
-                { label: '$100–$200', range: [100, 200] as [number, number] },
-                { label: '$200+', range: [200, 9999] as [number, number] },
-              ].map(({ label, range }) => (
+              {([
+                { key: 'priceUnder50', range: [0, 50] as [number, number] },
+                { key: 'price50to100', range: [50, 100] as [number, number] },
+                { key: 'price100to200', range: [100, 200] as [number, number] },
+                { key: 'price200plus', range: [200, 9999] as [number, number] },
+              ] as const).map(({ key, range }) => (
                 <button
-                  key={label}
+                  key={key}
                   onClick={() => onChange({ priceRange: range })}
                   className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700 transition-colors"
                 >
-                  {label}
+                  {t(`helpersDir.${key}`)}
                 </button>
               ))}
             </div>

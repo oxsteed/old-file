@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageShell from '../components/PageShell';
 import PageMeta  from '../components/PageMeta';
 import api       from '../api/axios';
@@ -20,6 +21,8 @@ function normalise(str) {
 }
 
 export default function CarCarePage() {
+  const { t } = useTranslation();
+
   // ── NHTSA data ────────────────────────────────────────────────────────
   const [makes,       setMakes]       = useState([]);
   const [models,      setModels]      = useState([]);
@@ -29,9 +32,9 @@ export default function CarCarePage() {
 
   // ── Search state ──────────────────────────────────────────────────────
   const [makeSearch,  setMakeSearch]  = useState('');
-  const [selectedMake, setSelectedMake] = useState(null);   // { id, name }
+  const [selectedMake, setSelectedMake] = useState(null);
   const [modelSearch, setModelSearch] = useState('');
-  const [selectedModel, setSelectedModel] = useState(null); // { makeId, makeName, modelId, modelName }
+  const [selectedModel, setSelectedModel] = useState(null);
   const [year,        setYear]        = useState('');
   const [nickname,    setNickname]    = useState('');
 
@@ -69,7 +72,7 @@ export default function CarCarePage() {
         const { data } = await api.get('/vehicles/my');
         setGarage(data);
       } catch {
-        // silent — user may be loading slowly
+        // silent
       } finally {
         setGarageLoading(false);
       }
@@ -85,7 +88,7 @@ export default function CarCarePage() {
       setMakes(data);
       setMakesLoaded(true);
     } catch {
-      // fail silently — user can retry
+      // fail silently
     } finally {
       setLoadingMakes(false);
     }
@@ -151,8 +154,8 @@ export default function CarCarePage() {
   }
 
   async function handleAdd() {
-    if (!selectedMake)  return setAddError('Select a make first.');
-    if (!selectedModel) return setAddError('Select a model first.');
+    if (!selectedMake)  return setAddError(t('dashboard.carCare.selectMakeFirst'));
+    if (!selectedModel) return setAddError(t('dashboard.carCare.modelPlaceholder'));
     setAdding(true);
     setAddError('');
     try {
@@ -166,7 +169,6 @@ export default function CarCarePage() {
       };
       const { data } = await api.post('/vehicles/my', payload);
       setGarage(prev => [data, ...prev]);
-      // reset form
       setSelectedMake(null);
       setMakeSearch('');
       setSelectedModel(null);
@@ -175,7 +177,7 @@ export default function CarCarePage() {
       setYear('');
       setNickname('');
     } catch (err) {
-      setAddError(err.response?.data?.error || 'Failed to add vehicle.');
+      setAddError(err.response?.data?.error || t('dashboard.carCare.failedAdd'));
     } finally {
       setAdding(false);
     }
@@ -201,7 +203,7 @@ export default function CarCarePage() {
       setGarage(prev => prev.map(v => v.id === data.id ? { ...v, ...data } : v));
       setEditItem(null);
     } catch (err) {
-      setEditError(err.response?.data?.error || 'Failed to save.');
+      setEditError(err.response?.data?.error || t('dashboard.carCare.failedSave'));
     } finally {
       setEditSaving(false);
     }
@@ -215,7 +217,7 @@ export default function CarCarePage() {
       setGarage(prev => prev.filter(v => v.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch {
-      // fail silently — edge case
+      // fail silently
     } finally {
       setDeleting(false);
     }
@@ -225,8 +227,8 @@ export default function CarCarePage() {
   return (
     <PageShell>
       <PageMeta
-        title="Car Care — OxSteed"
-        description="Search and save your vehicles using official U.S. NHTSA data."
+        title={`${t('dashboard.carCare.pageTitle')} — OxSteed`}
+        description={t('dashboard.carCare.pageDesc')}
       />
 
       <div className="cc-page">
@@ -234,27 +236,24 @@ export default function CarCarePage() {
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="cc-header">
           <div>
-            <h1>Car Care</h1>
-            <p>Search and save your vehicles. Data from the <a
-              href="https://vpic.nhtsa.dot.gov/api/"
-              target="_blank" rel="noopener noreferrer"
-            >U.S. NHTSA vPIC API</a> — free government data, always up to date.</p>
+            <h1>{t('dashboard.carCare.pageTitle')}</h1>
+            <p>{t('dashboard.carCare.pageDesc')}</p>
           </div>
         </div>
 
         {/* ── Add vehicle form ─────────────────────────────────────────── */}
         <div className="cc-card cc-add-form">
-          <h2>Add a Vehicle</h2>
+          <h2>{t('dashboard.carCare.addVehicle')}</h2>
 
           <div className="cc-form-row">
             {/* Make picker */}
             <div className="cc-field" style={{ position: 'relative' }}>
-              <label>Make</label>
+              <label>{t('dashboard.carCare.makeLbl')}</label>
               <div className="cc-input-wrap">
                 <input
                   ref={makeInputRef}
                   type="text"
-                  placeholder={loadingMakes ? 'Loading makes…' : 'e.g. Toyota'}
+                  placeholder={loadingMakes ? t('dashboard.carCare.loadingMakes') : t('dashboard.carCare.makePlaceholder')}
                   value={makeSearch}
                   onChange={e => {
                     setMakeSearch(e.target.value);
@@ -268,7 +267,7 @@ export default function CarCarePage() {
                 />
                 {selectedMake && (
                   <button className="cc-clear-btn" onClick={handleMakeClear} type="button"
-                    aria-label="Clear make">×</button>
+                    aria-label={t('dashboard.carCare.clearMake')}>×</button>
                 )}
               </div>
               {showMakeDD && filteredMakes.length > 0 && (
@@ -284,14 +283,14 @@ export default function CarCarePage() {
 
             {/* Model picker */}
             <div className="cc-field" style={{ position: 'relative' }}>
-              <label>Model</label>
+              <label>{t('dashboard.carCare.modelLbl')}</label>
               <div className="cc-input-wrap">
                 <input
                   ref={modelInputRef}
                   type="text"
                   placeholder={
-                    !selectedMake     ? 'Select make first' :
-                    loadingModels     ? 'Loading models…'   : 'e.g. Camry'
+                    !selectedMake     ? t('dashboard.carCare.selectMakeFirst') :
+                    loadingModels     ? t('dashboard.carCare.loadingModels')   : t('dashboard.carCare.modelPlaceholder')
                   }
                   value={modelSearch}
                   onChange={e => {
@@ -306,7 +305,7 @@ export default function CarCarePage() {
                 />
                 {selectedModel && (
                   <button className="cc-clear-btn" onClick={handleModelClear} type="button"
-                    aria-label="Clear model">×</button>
+                    aria-label={t('dashboard.carCare.clearModel')}>×</button>
                 )}
               </div>
               {showModelDD && filteredModels.length > 0 && (
@@ -322,16 +321,16 @@ export default function CarCarePage() {
 
             {/* Year */}
             <div className="cc-field cc-field-sm">
-              <label>Year <span className="cc-optional">(optional)</span></label>
+              <label>{t('dashboard.carCare.year')} <span className="cc-optional">({t('common.optional')})</span></label>
               <select value={year} onChange={e => setYear(e.target.value)}>
-                <option value="">Any</option>
+                <option value="">{t('common.na')}</option>
                 {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
 
             {/* Nickname */}
             <div className="cc-field">
-              <label>Nickname <span className="cc-optional">(optional)</span></label>
+              <label>{t('dashboard.carCare.nickname')} <span className="cc-optional">({t('common.optional')})</span></label>
               <input
                 type="text"
                 placeholder='e.g. "My Commuter"'
@@ -349,13 +348,13 @@ export default function CarCarePage() {
             onClick={handleAdd}
             disabled={adding || !selectedMake || !selectedModel}
           >
-            {adding ? 'Adding…' : '+ Add to My Garage'}
+            {adding ? t('dashboard.carCare.adding') : t('dashboard.carCare.addToGarageBtn')}
           </button>
         </div>
 
         {/* ── Garage list ──────────────────────────────────────────────── */}
         <div className="cc-garage-header">
-          <h2>My Garage <span className="cc-count">{garage.length}</span></h2>
+          <h2>{t('dashboard.carCare.myGarage')} <span className="cc-count">{garage.length}</span></h2>
         </div>
 
         {garageLoading ? (
@@ -364,7 +363,7 @@ export default function CarCarePage() {
           </div>
         ) : garage.length === 0 ? (
           <div className="cc-empty">
-            <p>No vehicles saved yet. Search above to add your first one.</p>
+            <p>{t('dashboard.carCare.noVehiclesYet')}</p>
           </div>
         ) : (
           <div className="cc-garage-grid">
@@ -374,6 +373,7 @@ export default function CarCarePage() {
                 vehicle={v}
                 onEdit={() => openEdit(v)}
                 onDelete={() => setDeleteTarget(v)}
+                t={t}
               />
             ))}
           </div>
@@ -383,39 +383,39 @@ export default function CarCarePage() {
         {editItem && (
           <div className="cc-modal-overlay" onClick={e => e.target === e.currentTarget && setEditItem(null)}>
             <div className="cc-modal">
-              <h2>Edit Vehicle</h2>
+              <h2>{t('dashboard.carCare.editVehicle')}</h2>
               <p className="cc-modal-vehicle-label">
                 {editItem.make_name} {editItem.model_name}
               </p>
 
               <div className="cc-form-group">
-                <label>Nickname</label>
+                <label>{t('dashboard.carCare.nickname')}</label>
                 <input type="text" value={editNickname}
                   onChange={e => setEditNickname(e.target.value)} maxLength={80}
                   placeholder='e.g. "Daily Driver"' />
               </div>
 
               <div className="cc-form-group">
-                <label>Year</label>
+                <label>{t('dashboard.carCare.year')}</label>
                 <select value={editYear} onChange={e => setEditYear(e.target.value)}>
-                  <option value="">Not specified</option>
+                  <option value="">{t('dashboard.carCare.notSpecified')}</option>
                   {YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
 
               <div className="cc-form-group">
-                <label>Notes <span className="cc-optional">(private)</span></label>
+                <label>{t('dashboard.carCare.notesLbl')} <span className="cc-optional">({t('dashboard.carCare.notesPrivate')})</span></label>
                 <textarea rows={2} value={editNotes}
                   onChange={e => setEditNotes(e.target.value)}
-                  placeholder="Reminders, quirks, service history…" maxLength={500} />
+                  placeholder={t('dashboard.carCare.notesPlaceholder')} maxLength={500} />
               </div>
 
               {editError && <p className="cc-error">{editError}</p>}
 
               <div className="cc-modal-actions">
-                <button className="btn-ghost" onClick={() => setEditItem(null)}>Cancel</button>
+                <button className="btn-ghost" onClick={() => setEditItem(null)}>{t('common.cancel')}</button>
                 <button className="btn-primary" onClick={handleEditSave} disabled={editSaving}>
-                  {editSaving ? 'Saving…' : 'Save Changes'}
+                  {editSaving ? t('dashboard.carCare.saving') : t('dashboard.carCare.saveChanges')}
                 </button>
               </div>
             </div>
@@ -426,12 +426,12 @@ export default function CarCarePage() {
         {deleteTarget && (
           <div className="cc-modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteTarget(null)}>
             <div className="cc-modal">
-              <h2>Remove Vehicle</h2>
-              <p>Remove <strong>{deleteTarget.nickname || `${deleteTarget.make_name} ${deleteTarget.model_name}`}</strong> from your garage?</p>
+              <h2>{t('dashboard.carCare.removeVehicle')}</h2>
+              <p>{t('dashboard.carCare.removeConfirm', { name: deleteTarget.nickname || `${deleteTarget.make_name} ${deleteTarget.model_name}` })}</p>
               <div className="cc-modal-actions">
-                <button className="btn-ghost" onClick={() => setDeleteTarget(null)}>Keep It</button>
+                <button className="btn-ghost" onClick={() => setDeleteTarget(null)}>{t('dashboard.carCare.keepIt')}</button>
                 <button className="btn-danger" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? 'Removing…' : 'Remove'}
+                  {deleting ? t('dashboard.carCare.removing') : t('dashboard.carCare.removeBtn')}
                 </button>
               </div>
             </div>
@@ -444,7 +444,7 @@ export default function CarCarePage() {
 }
 
 // ── VehicleCard ────────────────────────────────────────────────────────────
-function VehicleCard({ vehicle: v, onEdit, onDelete }) {
+function VehicleCard({ vehicle: v, onEdit, onDelete, t }) {
   return (
     <div className="cc-vehicle-card">
       <div className="cc-vehicle-main">
@@ -456,13 +456,13 @@ function VehicleCard({ vehicle: v, onEdit, onDelete }) {
         </div>
         {v.year && <span className="cc-year-badge">{v.year}</span>}
         <div className="cc-vehicle-meta">
-          <span className="cc-nhtsa-tag">NHTSA verified</span>
+          <span className="cc-nhtsa-tag">{t('dashboard.carCare.nhtsaVerified')}</span>
           {v.notes && <p className="cc-vehicle-notes">{v.notes}</p>}
         </div>
       </div>
       <div className="cc-vehicle-actions">
-        <button className="cc-action-btn" onClick={onEdit}>Edit</button>
-        <button className="cc-action-btn danger" onClick={onDelete}>Remove</button>
+        <button className="cc-action-btn" onClick={onEdit}>{t('dashboard.carCare.editBtn')}</button>
+        <button className="cc-action-btn danger" onClick={onDelete}>{t('dashboard.carCare.removeBtn')}</button>
       </div>
     </div>
   );
