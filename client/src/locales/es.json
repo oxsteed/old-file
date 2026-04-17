@@ -67,7 +67,27 @@
     "premium": "Premium",
     "helper": "Asistente",
     "customer": "Cliente",
-    "switching": "Cambiando..."
+    "switching": "Cambiando...",
+    "cityPlaceholder": "Ingresa tu ciudad...",
+    "experiencePlaceholder": "Describe tu experiencia relevante, disponibilidad y enfoque…",
+    "cancellationReasonPlaceholder": "Razón para la cancelación (opcional)",
+    "bidMessagePlaceholder": "Dile al cliente por qué eres un buen candidato...",
+    "aria": {
+      "closeButton": "Cerrar",
+      "openChat": "Abrir chat",
+      "closeFilters": "Cerrar filtros",
+      "clearFilter": "Borrar filtro",
+      "filterHelpers": "Filtrar asistentes",
+      "loadingHelpers": "Cargando asistentes",
+      "searchJobs": "Buscar trabajos",
+      "filterByCategory": "Filtrar por categoría",
+      "filterByCity": "Filtrar por ciudad",
+      "filterByState": "Filtrar por estado",
+      "sortJobs": "Ordenar trabajos",
+      "jobListings": "Listado de trabajos",
+      "mainNavigation": "Navegación principal",
+      "location": "Ubicación"
+    }
   },
   "jobs": {
     "title": "Detalles del Trabajo",
@@ -1286,7 +1306,8 @@
       "updateFailed": "Error al actualizar el servicio de automóvil",
       "removeFailed": "Error al remover el servicio de automóvil",
       "removed": "Servicio de automóvil removido",
-      "addFailed": "Error al agregar servicio de automóvil"
+      "addFailed": "Error al agregar servicio de automóvil",
+      "vinDecodeFailed": "Error al decodificar VIN"
     },
     "products": {
       "title": "Mis Productos y Equipo",
@@ -1605,7 +1626,9 @@
     "noReviews": "Sin reseñas aún.",
     "loadMoreReviews": "Cargar más reseñas",
     "jobLabel": "Trabajo: {{title}}",
-    "responseFromOwner": "Respuesta del propietario"
+    "responseFromOwner": "Respuesta del propietario",
+    "noBidFound": "No hay oferta aceptada",
+    "paymentInitiated": "Pago iniciado. Los fondos se retienen en depósito en garantía hasta que se complete el trabajo."
   },
   "helpersDir": {
     "title": "Encuentra un ayudante local",
@@ -2998,5 +3021,16 @@
     "success": "Éxito",
     "warning": "Advertencia",
     "info": "Información"
+  },
+  "admin": {
+    "bidRemoved": "Oferta removida y acción registrada.",
+    "reviewHidden": "Reseña oculta y acción registrada.",
+    "reviewRestored": "Reseña restaurada.",
+    "jobCancelReason": "Razón para cancelar este trabajo (requerido):",
+    "auditNote": "Nota opcional para registro de auditoría:",
+    "cancelReasonRequired": "Se requiere una razón para cancelar.",
+    "sessionsInvalidated": "Todas las sesiones invalidadas.",
+    "forceLogoutFailed": "Error al forzar el cierre de sesión.",
+    "optionalReason": "Razón (opcional):"
   }
 }

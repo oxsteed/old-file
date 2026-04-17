@@ -4,6 +4,7 @@ import useJobs from '../hooks/useJobs';
 import usePayments from '../hooks/usePayments';
 import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 import '../styles/JobDetailPage.css';
 import PageMeta from '../components/PageMeta';
 import Navbar from '../components/Navbar';
@@ -177,15 +178,15 @@ export default function JobDetailPage() {
 
   async function handlePayment() {
     const acceptedBid = bids.find(b => b.status === 'accepted');
-    if (!acceptedBid) return alert('No accepted bid found');
+    if (!acceptedBid) return toast.error(t('jobDetail.noBidFound'));
     setActionLoading(true);
     try {
       const result = await createPaymentIntent(id, acceptedBid.amount);
       if (result?.client_secret) {
-        alert('Payment initiated. Funds held in escrow until job completion.');
+        toast.success(t('jobDetail.paymentInitiated'));
         fetchJob(id);
       }
-    } catch (err) { alert(err.response?.data?.error || 'Payment failed'); }
+    } catch (err) { toast.error(err.response?.data?.error || t('common.failed')); }
     finally { setActionLoading(false); }
   }
 

@@ -65,7 +65,29 @@
     "tryAgain": "Try again",
     "helper": "Helper",
     "customer": "Customer",
-    "switching": "Switching..."
+    "switching": "Switching...",
+    "basic": "Basic",
+    "premium": "Premium",
+    "cityPlaceholder": "Enter your city...",
+    "experiencePlaceholder": "Describe your relevant experience, availability, and approach…",
+    "cancellationReasonPlaceholder": "Reason for cancellation (optional)",
+    "bidMessagePlaceholder": "Tell the customer why you're a good fit...",
+    "aria": {
+      "closeButton": "Close",
+      "openChat": "Open chat",
+      "closeFilters": "Close filters",
+      "clearFilter": "Clear filter",
+      "filterHelpers": "Filter helpers",
+      "loadingHelpers": "Loading helpers",
+      "searchJobs": "Search jobs",
+      "filterByCategory": "Filter by category",
+      "filterByCity": "Filter by city",
+      "filterByState": "Filter by state",
+      "sortJobs": "Sort jobs",
+      "jobListings": "Job listings",
+      "mainNavigation": "Main navigation",
+      "location": "Location"
+    }
   },
   "jobs": {
     "title": "Job Details",
@@ -91,7 +113,14 @@
     "category": "Category",
     "location": "Location",
     "requirements": "Requirements",
-    "media": "Photos & Media"
+    "media": "Photos & Media",
+    "timeframe": "Timeframe",
+    "noResultsTitle": "No jobs available",
+    "noResultsDesc": "Try adjusting your filters",
+    "apply": "Apply",
+    "timeline": "Timeline",
+    "about": "About",
+    "description": "Description"
   },
   "auth": {
     "email": "Email address",
@@ -132,7 +161,10 @@
     "postJob": "Post a Job",
     "listSkills": "List Your Skills",
     "welcomeBackToast": "Welcome back!",
-    "verifyIdentityToast": "Welcome back! Please complete your identity verification."
+    "verifyIdentityToast": "Welcome back! Please complete your identity verification.",
+    "emailRequired": "Email is required",
+    "passwordRequired": "Password is required",
+    "invalidCredentials": "Invalid credentials"
   },
   "forgotPassword": {
     "title": "Reset your password",
@@ -223,7 +255,9 @@
     "firstNamePlaceholder": "Toussaint",
     "lastNamePlaceholder": "Louverture",
     "businessNamePlaceholder": "My Business Name LLC",
-    "addressPlaceholder": "123 Main St, Springfield, OH 45501"
+    "addressPlaceholder": "123 Main St, Springfield, OH 45501",
+    "agreeToTerms": "I agree to the terms",
+    "haveAccount": "Already have an account?"
   },
   "didit": {
     "title": "Verify your identity",
@@ -428,7 +462,8 @@
     "compareF14": "Community insights",
     "compareF15": "OxSteed Protection eligible",
     "protectionDesc": "When you use OxSteed Protection, payments are processed securely through Stripe. The customer pays the agreed job price, and OxSteed takes a simple 7.1% platform fee (minimum $5). That's it — one transparent fee that covers payment processing, dispute mediation, and platform support.",
-    "protectionNote": "* OxSteed Protection requires ID verification for customers and ID verification + background check + Stripe account for helpers."
+    "protectionNote": "* OxSteed Protection requires ID verification for customers and ID verification + background check + Stripe account for helpers.",
+    "proFeatures": "Pro Features"
   },
   "jobList": {
     "title": "Find Local Services Near You",
@@ -643,7 +678,8 @@
       "confirmTitle": "Delete Your Account",
       "confirmDesc": "This action cannot be undone. All your data will be permanently deleted.",
       "yesDelete": "Yes, Delete My Account"
-    }
+    },
+    "preferencesTab": "Preferences"
   },
   "messages": {
     "title": "Messages",
@@ -879,7 +915,25 @@
       "categoryPlaceholder": "e.g. Gas, Supplies, Gig Payment",
       "incomeLogged": "Income logged",
       "expenseLogged": "Expense logged",
-      "saveFailed": "Failed to save"
+      "saveFailed": "Failed to save",
+      "addTransaction": "Add Transaction",
+      "description": "Description",
+      "amount": "Amount",
+      "date": "Date",
+      "category": "Category",
+      "frequency": "Frequency",
+      "oneTime": "One Time",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "yearly": "Yearly",
+      "recurring": "Recurrente",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de finalización",
+      "estimatedCost": "Costo estimado",
+      "budgetAmount": "Monto del presupuesto",
+      "budgetPeriod": "Período del presupuesto"
     },
     "home": {
       "myProperties": "My Properties",
@@ -1252,7 +1306,8 @@
       "updateFailed": "Failed to update car service",
       "removeFailed": "Failed to remove car service",
       "removed": "Car service removed",
-      "addFailed": "Failed to add car service"
+      "addFailed": "Failed to add car service",
+      "vinDecodeFailed": "Failed to decode VIN"
     },
     "products": {
       "title": "My Products & Gear",
@@ -1486,7 +1541,14 @@
     "personalCareDesc": "Descripción del cuidado personal",
     "taskAdded": "Tarea agregada: {title}",
     "pro": "Pro",
-    "subscribed": "Subscribed"
+    "subscribed": "Subscribed",
+    "earnedThisMonth": "Ganancia este mes",
+    "averageRating": "Calificación promedio",
+    "editProfile": "Editar perfil",
+    "addSkill": "Agregar habilidad",
+    "manageSkills": "Administrar habilidades",
+    "addTool": "Agregar herramienta",
+    "manageTools": "Administrar herramientas"
   },
   "postJob": {
     "title": "Post a Job",
@@ -1564,7 +1626,9 @@
     "noReviews": "No reviews yet.",
     "loadMoreReviews": "Load more reviews",
     "jobLabel": "Job: {{title}}",
-    "responseFromOwner": "Response from owner"
+    "responseFromOwner": "Response from owner",
+    "noBidFound": "No accepted bid found",
+    "paymentInitiated": "Payment initiated. Funds held in escrow until job completion."
   },
   "helpersDir": {
     "title": "Find a Local Helper",
@@ -2229,7 +2293,17 @@
     "daysCount": "{{count}} days",
     "daysWeeks": "{{count}} wk",
     "daysMonths": "{{count}} mo",
-    "daysYears": "{{count}} yr"
+    "daysYears": "{{count}} yr",
+    "category": "Categoría",
+    "carCare": "Cuidado del automóvil",
+    "personalCare": "Cuidado personal",
+    "homeRepair": "Reparación del hogar",
+    "other": "Otro",
+    "dueDate": "Fecha de vencimiento",
+    "leadDays": "Días de anticipación",
+    "recurring": "Recurrente",
+    "fixedRecurrence": "Recurrencia fija",
+    "floatingRecurrence": "Recurrencia flotante"
   },
   "helperRegister": {
     "step4": {
@@ -2887,5 +2961,76 @@
     "goBackAria": "Go back to previous page",
     "backToTopAria": "Scroll to top of page",
     "sectionsAria": "{{title}} sections"
+  },
+  "payments": {
+    "pending": "Pendiente",
+    "completed": "Completado",
+    "failed": "Falló",
+    "refunded": "Reembolsado",
+    "chargeAmount": "Monto del cargo",
+    "paymentMethod": "Método de pago",
+    "date": "Fecha"
+  },
+  "profile": {
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "address": "Dirección",
+    "city": "Ciudad",
+    "state": "Estado",
+    "zipCode": "Código postal",
+    "bio": "Biografía",
+    "save": "Guardar cambios"
+  },
+  "verification": {
+    "pending": "Pendiente",
+    "verified": "Verificado",
+    "failed": "Falló",
+    "start": "Iniciar verificación",
+    "retry": "Reintentar"
+  },
+  "bids": {
+    "myBids": "Mis ofertas",
+    "placeBid": "Presentar oferta",
+    "bidAmount": "Monto de la oferta",
+    "bidMessage": "Mensaje de oferta",
+    "withdraw": "Retirar oferta",
+    "withdrawn": "Oferta retirada",
+    "accepted": "Aceptado",
+    "rejected": "Rechazado"
+  },
+  "reviews": {
+    "submitReview": "Enviar reseña",
+    "rating": "Calificación",
+    "comment": "Comentario",
+    "yourReview": "Tu reseña",
+    "helperReview": "Reseña del ayudante"
+  },
+  "subscription": {
+    "tier1": "Nivel 1",
+    "tier2": "Nivel 2",
+    "tier3": "Nivel 3",
+    "features": "Características",
+    "price": "Precio",
+    "perMonth": "por mes"
+  },
+  "modal": {
+    "title": "Título",
+    "body": "Cuerpo",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información"
+  },
+  "admin": {
+    "bidRemoved": "Bid removed and action logged.",
+    "reviewHidden": "Review hidden and action logged.",
+    "reviewRestored": "Review restored.",
+    "jobCancelReason": "Reason for cancelling this job (required):",
+    "auditNote": "Optional note for audit log:",
+    "cancelReasonRequired": "A reason is required to cancel.",
+    "sessionsInvalidated": "All sessions invalidated.",
+    "forceLogoutFailed": "Failed to force logout.",
+    "optionalReason": "Reason (optional):"
   }
 }

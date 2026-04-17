@@ -67,7 +67,27 @@
     "premium": "Premium",
     "helper": "Asistan",
     "customer": "Kliyent",
-    "switching": "Chanj..."
+    "switching": "Chanj...",
+    "cityPlaceholder": "Mete vil ou...",
+    "experiencePlaceholder": "Dekri eksperyans ou relevan, disponibilite, ak apwòch...",
+    "cancellationReasonPlaceholder": "Rezon anilasyon (opsyonèl)",
+    "bidMessagePlaceholder": "Di kliyent lan poukisa ou bon kandida...",
+    "aria": {
+      "closeButton": "Fèmen",
+      "openChat": "Louvri chat",
+      "closeFilters": "Fèmen filtfil",
+      "clearFilter": "Efase filtfil",
+      "filterHelpers": "Filtfil asistan",
+      "loadingHelpers": "Chaje asistan",
+      "searchJobs": "Chèche travay",
+      "filterByCategory": "Filtfil pa kategori",
+      "filterByCity": "Filtfil pa vil",
+      "filterByState": "Filtfil pa eta",
+      "sortJobs": "Triye travay",
+      "jobListings": "Lis travay",
+      "mainNavigation": "Navigasyon prensipal",
+      "location": "Lokasyon"
+    }
   },
   "trial": {
     "active": "Trial is active",
@@ -1348,7 +1368,8 @@
       "updateFailed": "Erè mete ajou sèvis otomobil",
       "removeFailed": "Erè efase sèvis otomobil",
       "removed": "Sèvis otomobil efase",
-      "addFailed": "Erè ajoute sèvis otomobil"
+      "addFailed": "Erè ajoute sèvis otomobil",
+      "vinDecodeFailed": "Erè dekode VIN"
     },
     "products": {
       "title": "Pwodwi ak Ekipman mwen",
@@ -1667,7 +1688,9 @@
     "noReviews": "No reviews yet.",
     "loadMoreReviews": "Load more reviews",
     "jobLabel": "Job: {{title}}",
-    "responseFromOwner": "Response from owner"
+    "responseFromOwner": "Response from owner",
+    "noBidFound": "Poko gen ofè aksepte",
+    "paymentInitiated": "Peyman inisye. Fon yo kenbe an deposit jiskaske travay konplete."
   },
   "helpersDir": {
     "title": "Jwenn yon Pwofesyonèl Lokal",
@@ -2998,5 +3021,16 @@
     "success": "Siksè",
     "warning": "Avètisman",
     "info": "Enfòmasyon"
+  },
+  "admin": {
+    "bidRemoved": "Ofè efase ak aksyon anrejistre.",
+    "reviewHidden": "Revizyon kache ak aksyon anrejistre.",
+    "reviewRestored": "Revizyon restore.",
+    "jobCancelReason": "Rezon anile travay sa a (obligatwa):",
+    "auditNote": "Nòt opsyonèl pou jounal od:",
+    "cancelReasonRequired": "Yon rezon obligatwa pou anile.",
+    "sessionsInvalidated": "Tout sesyon envalidasyon.",
+    "forceLogoutFailed": "Erè forse logout.",
+    "optionalReason": "Rezon (opsyonèl):"
   }
 }
