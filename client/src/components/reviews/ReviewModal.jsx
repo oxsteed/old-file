@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
@@ -13,6 +13,18 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
   const [done,    setDone]    = useState(false);
+
+  // Lock body scroll and handle Escape while modal is open
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
   const RATING_LABELS = {
     1: t('jobDetail.ratingPoor'),
@@ -78,7 +90,8 @@ export default function ReviewModal({ jobId, revieweeName, onComplete }) {
                   </h3>
                   <button
                     onClick={() => setOpen(false)}
-                    className="text-gray-400 hover:text-gray-600 transition"
+                    aria-label="Close"
+                    className="p-2 -mr-1 text-gray-400 hover:text-gray-600 transition rounded-lg"
                   >
                     ✕
                   </button>
