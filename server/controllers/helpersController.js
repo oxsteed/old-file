@@ -126,6 +126,40 @@ async function listHelpers(req, res) {
       pIdx += 3;
     }
 
+    // ── Category & Skills filter: prepare server-side filtering ────────────────────────────────
+    const categoryList = categories ? categories.split(',').map((c) => c.trim()).filter(Boolean) : [];
+    const skillList    = skills     ? skills.split(',').map((s)     => s.trim()).filter(Boolean) : [];
+    let categoryJoinClause = '';
+    let skillJoinClause = '';
+
+    // Category filter: ANY-of logic (helper has at least one selected category)
+    if (categoryList.length > 0) {
+      params.push(categoryList);
+      categoryJoinClause = `
+        JOIN (
+          SELECT DISTINCT user_id FROM helper_skills
+          WHERE skill_name IN (
+            SELECT skill_name FROM skills_lookup WHERE category = ANY($${pIdx})
+          )
+        ) hs_cat ON hs_cat.user_id = u.id
+      `;
+      pIdx++;
+    }
+
+    // Skills filter: ALL-of logic (helper must have EVERY selected skill)
+    if (skillList.length > 0) {
+      params.push(skillList);
+      skillJoinClause = `
+        JOIN (
+          SELECT user_id FROM helper_skills
+          WHERE skill_name = ANY($${pIdx})
+          GROUP BY user_id
+          HAVING COUNT(DISTINCT skill_name) = ${skillList.length}
+        ) hs_filter ON hs_filter.user_id = u.id
+      `;
+      pIdx++;
+    }
+
     const whereClause = conditions.join(' AND ');
 
     const sortMap = {
@@ -138,11 +172,13 @@ async function listHelpers(req, res) {
     };
     const orderBy = sortMap[sort] || sortMap.best_match;
 
-    // Count for pagination (uses same WHERE but no LIMIT/OFFSET)
+    // Count for pagination (uses same WHERE and JOINs but no LIMIT/OFFSET)
     const countParams = [...params];
     const { rows: [{ count }] } = await pool.query(
-      `SELECT COUNT(*) FROM users u
+      `SELECT COUNT(DISTINCT u.id) FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       ${categoryJoinClause}
+       ${skillJoinClause}
        WHERE ${whereClause}`,
       countParams,
     );
@@ -164,6 +200,8 @@ async function listHelpers(req, res) {
          hp.search_rank_boost
        FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       ${categoryJoinClause}
+       ${skillJoinClause}
        WHERE ${whereClause}
        ORDER BY ${orderBy}
        LIMIT $${pIdx} OFFSET $${pIdx + 1}`,
@@ -192,27 +230,10 @@ async function listHelpers(req, res) {
       (categoriesByUser[row.user_id] ||= new Set()).add(row.category_name);
     }
 
-    // Client-side category/skill post-filter (server WHERE can't do array-ANY cheaply)
-    const categoryList = categories ? categories.split(',').map((c) => c.trim()).filter(Boolean) : [];
-    const skillList    = skills     ? skills.split(',').map((s)     => s.trim()).filter(Boolean) : [];
+    // Note: Category & Skills filtering now done server-side in the main query (above)
+    // No client-side post-filtering needed anymore
 
-    let result = helpers;
-
-    if (categoryList.length > 0) {
-      result = result.filter((h) => {
-        const cats = categoriesByUser[h.id];
-        return cats && categoryList.some((c) => cats.has(c));
-      });
-    }
-
-    if (skillList.length > 0) {
-      result = result.filter((h) => {
-        const sk = skillsByUser[h.id];
-        return sk && skillList.every((s) => sk.has(s));
-      });
-    }
-
-    const mapped = result.map((h) => {
+    const mapped = helpers.map((h) => {
       const responseHours   = h.response_time_hours;
       const responseMinutes = responseHours ? Math.round(responseHours * 60) : 480;
       return {
