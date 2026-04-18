@@ -162,9 +162,11 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-            <LanguageSelector />
-            <ThemeToggle />
           </div>
+
+          {/* Language & Theme toggles - OUTSIDE nav-desktop to avoid overflow clipping */}
+          <LanguageSelector />
+          <ThemeToggle />
 
           {/* Mobile: theme toggle + hamburger */}
           <div className="ox-nav-mobile-controls" style={{
