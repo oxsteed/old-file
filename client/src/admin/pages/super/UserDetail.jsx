@@ -302,7 +302,7 @@ export default function UserDetail() {
                 <option key={r} value={r} className="capitalize">{r}</option>
               ))}
             </select>
-          </div>
+            </>
         )}
       </div>
 
