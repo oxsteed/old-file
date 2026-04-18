@@ -3447,5 +3447,30 @@
     "sessionsInvalidated": "Toutes les sessions invalidées.",
     "forceLogoutFailed": "Échec de la déconnexion forcée.",
     "optionalReason": "Raison (facultatif):"
+  },
+  "reviews": {
+    "submitReview": "Laisser un Avis",
+    "rating": "Évaluation",
+    "testimonial": "Votre Avis",
+    "placeholderTestimonial": "Partagez votre expérience avec cette entreprise...",
+    "characters": "caractères",
+    "submit": "Soumettre l'Avis",
+    "submitting": "Envoi en cours...",
+    "errorRatingRequired": "Veuillez sélectionner une évaluation",
+    "errorTestimonialRequired": "Veuillez écrire un avis",
+    "errorTestimonialTooLong": "L'avis dépasse la limite de 500 caractères",
+    "errorSubmit": "Échec de la soumission de l'avis",
+    "successSubmitted": "Merci pour votre avis!",
+    "averageRating": "Évaluation Moyenne",
+    "totalReviews": "Total des Avis",
+    "noReviews": "Aucun avis pour le moment. Soyez le premier à évaluer cette entreprise!",
+    "errorLoadReviews": "Échec du chargement des avis",
+    "sortRecent": "Plus Récents",
+    "sortHighestRated": "Mieux Évalués",
+    "sortLowestRated": "Moins Bien Évalués",
+    "businessResponse": "Réponse de l'Entreprise",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet avis?",
+    "successDeleted": "Avis supprimé avec succès",
+    "errorDelete": "Échec de la suppression de l'avis"
   }
 }
