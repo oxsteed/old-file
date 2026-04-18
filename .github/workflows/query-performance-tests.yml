@@ -1,0 +1,106 @@
+name: Query Performance Tests
+
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - '.github/workflows/query-performance-tests.yml'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'server/**'
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oxsteed_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: |
+          cd server
+          npm ci
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo 'Waiting for PostgreSQL...'
+            sleep 1
+          done
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/oxsteed_test
+        run: |
+          cd server
+          node migrate.js
+
+      - name: Run query performance tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/oxsteed_test
+          NODE_ENV: test
+        run: |
+          cd server
+          npm test -- __tests__/queryPerformance.test.js
+
+      - name: Report performance results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: server/test-results/
+
+      - name: Comment on PR with performance summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const resultsPath = './server/test-results/performance.json';
+
+            if (!fs.existsSync(resultsPath)) {
+              console.log('No performance results file found');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+            const passed = results.passed || 0;
+            const failed = results.failed || 0;
+
+            const comment = `
+## Query Performance Tests
+
+- ✓ Passed: ${passed}
+- ⚠ Failed: ${failed}
+
+${failed > 0 ? '**Warning:** Some queries exceeded their baseline thresholds. Review the test results.' : 'All queries performed within baseline thresholds.'}
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
