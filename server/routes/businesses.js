@@ -37,6 +37,11 @@ const {
   getBusinessHours, updateBusinessHours,
 } = require('../controllers/businessContentController');
 
+const {
+  listBusinessSkills, addBusinessSkill, updateBusinessSkill, removeBusinessSkill,
+  searchSkillsForBusiness,
+} = require('../controllers/businessSkillsController');
+
 // ── Public invoice by token (no auth required) ────────────────────────────────
 router.get('/invoices/public/:token', getPublicInvoice);
 
@@ -126,5 +131,12 @@ router.delete('/:businessId/faqs/:faqId',        authenticate, deleteBusinessFAQ
 // HOURS
 router.get('/:businessId/hours',                 getBusinessHours);
 router.put('/:businessId/hours',                 authenticate, updateBusinessHours);
+
+// SKILLS
+router.get('/:businessId/skills/search',         searchSkillsForBusiness);
+router.get('/:businessId/skills',                listBusinessSkills);
+router.post('/:businessId/skills',               authenticate, addBusinessSkill);
+router.put('/:businessId/skills/:skillId',       authenticate, updateBusinessSkill);
+router.delete('/:businessId/skills/:skillId',    authenticate, removeBusinessSkill);
 
 module.exports = router;
