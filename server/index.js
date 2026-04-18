@@ -67,6 +67,7 @@ const vehicleRoutes         = require('./routes/vehicles');
 const houseRoutes           = require('./routes/house');
 const helperProfileRoutes  = require('./routes/helperProfile');
 const helperProductsRoutes = require('./routes/helperProducts');
+const leadRoutes = require('./routes/leads');
 const translateRoutes      = require('./routes/translate');
 // roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
@@ -332,6 +333,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/life', lifeDashboardRoutes);
 app.use('/api/didit', diditRoutes);
 app.use('/api/businesses', businessRoutes);
+app.use('/api/leads', leadRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/geo',          geoRoutes);
 app.use('/api/helpers',      helperRoutes);
