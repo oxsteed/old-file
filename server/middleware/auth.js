@@ -65,9 +65,10 @@ async function authenticate(req, res, next) {
       return res.status(401).json({ error: 'MFA token cannot be used for API access' });
     }
 
-    // Check if token has been revoked
+    // Check if token has been revoked. Pass `iat` so user-level revocation
+    // (set on logout) only invalidates tokens issued BEFORE the logout moment.
     const tokenId = crypto.createHash('sha256').update(token).digest('hex');
-    const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id);
+    const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
     if (isRevoked) {
       return res.status(401).json({ error: 'Token has been revoked' });
     }
