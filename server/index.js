@@ -18,6 +18,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const pool = require('./db');
+const { poolMonitor } = require('./db');
 const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const socketService = require('./services/socketService');
@@ -293,6 +294,11 @@ app.get('/api/health', async (req, res) => {
     logger.error('Health DB check failed', { message: err.message });
     res.status(503).json({ status: 'degraded', error: 'database unreachable' });
   }
+});
+
+// Pool health metrics endpoint (used by monitoring systems)
+app.get('/api/health/pool', (req, res) => {
+  res.json(poolMonitor.getMetrics());
 });
 
 
