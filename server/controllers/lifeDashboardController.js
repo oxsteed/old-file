@@ -460,7 +460,7 @@ exports.getHomeTasks = async (req, res) => {
     const userId = req.user.id;
     const { completed, section } = req.query;
 
-    const conditions = ['user_id = $1'];
+    const conditions = ['ht.user_id = $1'];
     const params = [userId];
 
     if (completed === 'true') conditions.push('is_completed = true');
