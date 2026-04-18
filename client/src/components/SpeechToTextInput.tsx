@@ -1,16 +1,20 @@
 /**
  * SpeechToTextInput.tsx
- * Full speech-to-text input component with:
- * - Web Speech API for primary transcription (fast, free)
- * - OpenRouter fallback for low-confidence cases (accurate)
+ * Speech-to-text input using browser Web Speech API.
+ *
+ * Features:
+ * - Live microphone input with visual feedback
+ * - Confidence scoring (0-100%)
  * - Editable transcript before submission
- * - Confidence indicator and improvement option
+ * - Language context from user preferences
+ *
+ * Note: Uses Web Speech API (free, fast, browser-native).
+ * OpenRouter transcription fallback is planned for future enhancement.
  */
 
 import React, { useRef, useState, useCallback } from 'react';
-import SpeechRecorderButton from './SpeechRecorderButton';
 import TranscriptConfidenceIndicator from './TranscriptConfidenceIndicator';
-import { api } from '../api/axios';
+import { Mic, Square } from 'lucide-react';
 
 interface SpeechToTextInputProps {
   language?: string; // User's language preference (en, es, fr, ht, etc)
@@ -20,112 +24,115 @@ interface SpeechToTextInputProps {
   className?: string;
 }
 
+type SpeechRecognitionEventType = Event & {
+  resultIndex: number;
+  results: {
+    [index: number]: {
+      [index: number]: { transcript: string; confidence: number };
+      isFinal: boolean;
+      length: number;
+    };
+    length: number;
+  };
+};
+
 export default function SpeechToTextInput({
   language = 'en',
-  placeholder = 'Speak or type your message...',
+  placeholder = 'Click the microphone to speak...',
   onTranscriptReady,
   onError,
   className = '',
 }: SpeechToTextInputProps) {
   const [transcript, setTranscript] = useState('');
   const [confidence, setConfidence] = useState(0);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [isImproving, setIsImproving] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const speechRecognitionRef = useRef<any>(null);
 
   // Initialize Web Speech API on mount
   React.useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      speechRecognitionRef.current = new SpeechRecognition();
-      const recognition = speechRecognitionRef.current;
-
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.language = language;
-
-      recognition.onstart = () => {
-        setIsTranscribing(true);
-        setError(null);
-      };
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        let maxConfidence = 0;
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          const conf = event.results[i][0].confidence;
-
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
-            maxConfidence = Math.max(maxConfidence, conf);
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        const displayText = (finalTranscript || interimTranscript).trim();
-        if (displayText) {
-          setTranscript(displayText);
-          setConfidence(maxConfidence > 0 ? maxConfidence : interimTranscript ? 0.5 : 0);
-          setHasRecorded(true);
-        }
-      };
-
-      recognition.onerror = (event: SpeechRecognitionEvent) => {
-        const errorMsg = event.error === 'no-speech'
-          ? 'No speech detected. Try again.'
-          : `Speech recognition error: ${event.error}`;
-        setError(errorMsg);
-        onError?.(errorMsg);
-        setIsTranscribing(false);
-      };
-
-      recognition.onend = () => {
-        setIsTranscribing(false);
-      };
+    if (!SpeechRecognition) {
+      setError('Web Speech API not supported in this browser');
+      onError?.('Web Speech API not supported');
+      return;
     }
-  }, [language, onError]);
 
-  const handleRecordingStop = async (audioBlob: Blob, duration: number) => {
-    // For now, we'll just show that recording stopped
-    // The Web Speech API already handled the transcription
-    // If we want to use the audio blob for OpenRouter, we can do so in the improvement flow
-    // Keep the audio blob for potential improvement requests
-  };
+    speechRecognitionRef.current = new SpeechRecognition();
+    const recognition = speechRecognitionRef.current;
 
-  const handleImproveTranscript = async () => {
-    if (!transcript || confidence >= 0.85) return;
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.language = language;
 
-    setIsImproving(true);
-    setError(null);
+    recognition.onstart = () => {
+      setIsRecording(true);
+      setError(null);
+    };
 
-    try {
-      // Re-record and send to OpenRouter
-      // For now, we'll show a placeholder that would call the transcribe endpoint
-      // In a real implementation, this would capture the audio and send it to /api/chat/transcribe
+    recognition.onresult = (event: SpeechRecognitionEventType) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+      let maxConfidence = 0;
 
-      // Placeholder: just keep the Web Speech result for now
-      // A full implementation would capture audio here and send to OpenRouter
-      console.log('Improvement requested for low-confidence transcript:', {
-        transcript,
-        confidence,
-        language,
-      });
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        const conf = event.results[i][0].confidence;
 
-      setIsImproving(false);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to improve transcript';
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+          maxConfidence = Math.max(maxConfidence, conf);
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      const displayText = (finalTranscript || interimTranscript).trim();
+      if (displayText) {
+        setTranscript(displayText);
+        // Use final confidence, or 0.5 for interim results
+        setConfidence(maxConfidence > 0 ? maxConfidence : finalTranscript ? 0.8 : 0.5);
+        setHasRecorded(true);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      const errorMsg = event.error === 'no-speech'
+        ? 'No speech detected. Please try again.'
+        : event.error === 'network'
+          ? 'Network error. Please check your connection.'
+          : `Speech recognition error: ${event.error}`;
       setError(errorMsg);
       onError?.(errorMsg);
-      setIsImproving(false);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    return () => {
+      if (recognition) {
+        recognition.abort();
+      }
+    };
+  }, [language, onError]);
+
+  const handleToggleRecording = useCallback(() => {
+    if (!speechRecognitionRef.current) return;
+
+    if (isRecording) {
+      speechRecognitionRef.current.stop();
+      setIsRecording(false);
+    } else {
+      setError(null);
+      setTranscript('');
+      setConfidence(0);
+      speechRecognitionRef.current.start();
     }
-  };
+  }, [isRecording]);
 
   const handleClear = () => {
     setTranscript('');
@@ -145,21 +152,51 @@ export default function SpeechToTextInput({
 
   return (
     <div className={`flex flex-col gap-3 ${className}`}>
-      {/* Recorder button */}
-      <SpeechRecorderButton
-        onRecordingStop={handleRecordingStop}
-        isDisabled={isTranscribing || isImproving}
-      />
+      {/* Microphone button */}
+      <button
+        type="button"
+        onClick={handleToggleRecording}
+        disabled={false}
+        className={`
+          w-full p-3 rounded-lg transition-all flex items-center justify-center gap-2
+          ${isRecording
+            ? 'bg-red-500 hover:bg-red-600 text-white'
+            : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white'
+          }
+        `}
+        title={isRecording ? 'Stop recording' : 'Start recording'}
+        aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+      >
+        {isRecording ? (
+          <>
+            <Square className="w-4 h-4" />
+            <span>Stop Recording</span>
+          </>
+        ) : (
+          <>
+            <Mic className="w-4 h-4" />
+            <span>Click to Speak</span>
+          </>
+        )}
+      </button>
+
+      {/* Recording indicator */}
+      {isRecording && (
+        <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+          <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
+          Listening... speak now
+        </div>
+      )}
 
       {/* Transcript display and editor */}
       {hasRecorded && (
         <div className="flex flex-col gap-2">
-          {/* Confidence indicator with improvement button */}
+          {/* Confidence indicator */}
           <TranscriptConfidenceIndicator
             confidence={confidence}
             transcript={transcript}
-            isImproving={isImproving}
-            onRequestImprovement={handleImproveTranscript}
+            isImproving={false}
+            onRequestImprovement={undefined} // OpenRouter not yet integrated
           />
 
           {/* Editable transcript */}
@@ -183,7 +220,7 @@ export default function SpeechToTextInput({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!transcript.trim() || isTranscribing || isImproving}
+              disabled={!transcript.trim() || isRecording}
               className="flex-1 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Submit
@@ -191,19 +228,12 @@ export default function SpeechToTextInput({
             <button
               type="button"
               onClick={handleClear}
-              disabled={isTranscribing || isImproving}
+              disabled={isRecording}
               className="px-3 py-2 text-sm font-medium rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Clear
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Transcribing indicator */}
-      {isTranscribing && (
-        <div className="text-sm text-slate-600 dark:text-slate-400 animate-pulse">
-          Listening... speak now
         </div>
       )}
     </div>

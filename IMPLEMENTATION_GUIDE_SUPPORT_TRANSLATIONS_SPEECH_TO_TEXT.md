@@ -57,12 +57,13 @@ All components are TypeScript, Tailwind-styled, dark-mode-ready:
   - Language auto-detection from BCP-47 codes
 
 - **SpeechToTextInput.tsx** (15 KB)
-  - Full speech input component combining the above
-  - Web Speech API as primary (fast, free, browser-native)
-  - OpenRouter fallback for low-confidence cases
-  - Editable transcript textarea
-  - Submit/Clear buttons
+  - Full speech input component using Web Speech API
+  - Web Speech API (fast, free, browser-native, works in all modern browsers)
+  - Confidence scoring (0-100%) with visual indicator
+  - Editable transcript textarea before submission
+  - Submit/Clear action buttons
   - Language context from user preferences
+  - **Note:** OpenRouter audio transcription fallback is planned for Phase 3.2 enhancement
 
 ---
 
@@ -334,10 +335,10 @@ import MessageWithTranslation from '../components/MessageWithTranslation';
    - Speak clearly: "Hello, I need help with my account"
    - Should see transcript appear with confidence indicator
 
-2. **Low Confidence Fallback:**
+2. **Low Confidence Detection:**
    - Speak unclearly (mumble/whisper)
-   - Should show amber indicator + "Improve with AI" button
-   - Click button (if OpenRouter is configured)
+   - Should show amber indicator showing lower confidence %
+   - **Note:** "Improve with AI" button is planned for Phase 3.2 (not yet implemented)
 
 3. **Language Detection:**
    - Set user.language to 'es'
@@ -355,13 +356,26 @@ import MessageWithTranslation from '../components/MessageWithTranslation';
 
 1. Customer (Spanish speaker) opens support widget
 2. Clicks mic, speaks: "Necesito ayuda con la verificación"
-3. Web Speech transcribes (or OpenRouter if low confidence)
-4. Message POSTs with `sender_language: "es"`
-5. Admin (English) views ticket
-6. System auto-translates: "I need help with verification"
-7. Toggle button shows original Spanish
-8. Admin replies in English
-9. Customer sees admin's English message with translation toggle
+3. Web Speech API transcribes in real-time (browser handles it)
+4. Confidence shown as ~92% (depending on speech clarity)
+5. Customer clicks "Submit"
+6. Message POSTs with `sender_language: "es"`
+7. Admin (English) views ticket
+8. System auto-translates: "I need help with verification"
+9. Translation toggle button shows original Spanish
+10. Admin replies in English with `sender_language: "en"`
+11. Customer sees admin's English message with translation toggle
+
+**What's Working:**
+- ✅ Web Speech API transcription (browser-native)
+- ✅ Confidence scoring
+- ✅ Message language tracking
+- ✅ Auto-translation between languages
+- ✅ Toggle between original/translated
+
+**What's Planned (Phase 3.2):**
+- 🔄 OpenRouter audio transcription fallback (for browser compatibility)
+- 🔄 Enhanced accuracy via "Improve with AI" button
 
 ---
 
@@ -370,16 +384,23 @@ import MessageWithTranslation from '../components/MessageWithTranslation';
 Add to `.env` (server):
 
 ```
-# Translation (already existing)
+# Translation Service (REQUIRED)
 LIBRETRANSLATE_URL=https://your-libretranslate-instance.com
 LIBRETRANSLATE_API_KEY=your-key
 
-# Speech-to-text fallback
-OPENROUTER_API_KEY=your-openrouter-key
-
-# Redis (already existing, needed for translation cache)
+# Redis (REQUIRED for translation caching)
 REDIS_URL=redis://localhost:6379
+
+# Speech-to-Text Fallback (OPTIONAL - future enhancement)
+# When implemented in Phase 3.2, will require one of:
+# OPENROUTER_API_KEY=your-key  # For OpenRouter audio transcription
+# OR another audio transcription service (Whisper, AssemblyAI, etc.)
 ```
+
+**Current Status:**
+- Web Speech API handles transcription in the browser (no backend API key needed)
+- Translation caching uses LibreTranslate + Redis
+- OpenRouter integration is planned but not yet implemented
 
 ---
 
@@ -387,44 +408,56 @@ REDIS_URL=redis://localhost:6379
 
 | Issue | Solution |
 |-------|----------|
-| "No speech detected" | Check microphone permissions in browser |
-| Confidence always 0 | Some browsers don't report confidence; use fallback |
-| Low-confidence always shows | Set threshold to 0.7 instead of 0.85 in component |
-| Translation not working | Verify LibreTranslate URL and API key |
-| Redis cache not being used | Check REDIS_URL env var; falls back to in-memory |
-| Audio blob empty on stop | Some browsers require specific MIME type support |
+| "No speech detected" | Check microphone permissions in browser. Grant permission when prompted. |
+| Confidence not showing | Web Speech API confidence varies by browser. Use interim results as fallback. |
+| Microphone not working | Browser doesn't have Web Speech API support (older Safari, etc.). Consider fallback UI. |
+| Translation not working | Verify LibreTranslate URL and API key in `.env`. Test: `curl http://libretranslate/languages` |
+| Redis cache not being used | Check REDIS_URL env var. Falls back to in-memory LibreTranslate cache if Redis unavailable. |
+| "Improve with AI" button doesn't work | Expected - OpenRouter integration is planned for Phase 3.2. Currently shows confidence only. |
+| Page doesn't recognize language | Ensure `user.language` is set correctly. Defaults to 'en' if not provided. |
 
 ---
 
-## Future Enhancements
+## Planned Enhancements (Phase 3.2)
 
-- Add translation quality scoring
-- Implement message edit/delete with translation invalidation
-- Support voice language pre-selection (not just detect)
-- Add audio file upload (not just browser recording)
-- Implement conversation memory for multi-turn translation
-- Add translation confidence percentage display
+**Speech-to-Text Improvements:**
+- Implement OpenRouter audio transcription fallback (for browser compatibility)
+- Add "Improve with AI" button to re-transcribe low-confidence results
+- Support audio file upload (in addition to browser recording)
+- Implement voice language pre-selection (not just auto-detect)
+
+**Translation Enhancements:**
+- Add translation quality confidence scoring
+- Implement message edit/delete with translation cache invalidation
+- Support multi-turn conversation memory for context-aware translation
+- Add translation confidence percentage display next to messages
+
+**Core Features:**
+- Live caption display during recording (interim results)
+- Audio playback of original message (accessibility)
+- Conversation memory for better context in translations
 
 ---
 
 ## Files Summary
 
-**Backend (6 files):**
-- ✅ `server/migrations/071_support_messages_language.sql`
-- ✅ `server/utils/translationCache.js`
-- ✅ `server/utils/speechToText.js`
-- ✅ `server/controllers/chatController.js` (modified)
-- ✅ `server/routes/chat.js` (modified)
-- ✅ `server/controllers/supportController.js` (modified)
+**Backend (5 files, all working):**
+- ✅ `server/migrations/071_support_messages_language.sql` — Language column, ready for deployment
+- ✅ `server/utils/translationCache.js` — Redis-backed translation caching, fully functional
+- ⏸ `server/utils/speechToText.js` — Template for Phase 3.2 (not yet integrated)
+- ✅ `server/controllers/chatController.js` — Added POST /api/chat/transcribe route (will be used in Phase 3.2)
+- ✅ `server/controllers/supportController.js` — Captures sender_language on all message creation paths
 
-**Frontend (4 new components + integration):**
-- ✅ `client/src/components/SpeechRecorderButton.tsx`
-- ✅ `client/src/components/TranscriptConfidenceIndicator.tsx`
-- ✅ `client/src/components/MessageWithTranslation.tsx`
-- ✅ `client/src/components/SpeechToTextInput.tsx`
-- 🔄 `client/src/components/SupportWidget.jsx` (needs integration)
-- 🔄 `client/src/pages/CustomerSupportTicketPage.jsx` (template provided)
-- 🔄 `client/src/admin/pages/SupportTickets.jsx` (needs integration)
+**Frontend Components (fully functional):**
+- ✅ `client/src/components/MessageWithTranslation.tsx` — Toggle between original/translated messages
+- ✅ `client/src/components/TranscriptConfidenceIndicator.tsx` — Shows confidence % (no "Improve" button yet)
+- ✅ `client/src/components/SpeechToTextInput.tsx` — Web Speech API input, fully working
+- ⏸ `client/src/components/SpeechRecorderButton.tsx` — MediaRecorder component (for future use, not integrated yet)
+
+**Integration Points (ready for Phase 3):**
+- 🔄 `client/src/components/SupportWidget.jsx` — Integration template provided in this guide
+- 🔄 `client/src/pages/CustomerSupportTicketPage.jsx` — Full template provided in Step 3b
+- 🔄 `client/src/admin/pages/SupportTickets.jsx` — Integration notes provided in Step 3c
 
 ---
 
