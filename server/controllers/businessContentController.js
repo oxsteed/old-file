@@ -8,17 +8,24 @@ const { canAccessBusiness } = require('../utils/businessOwnership');
 exports.getBusinessServices = async (req, res) => {
   try {
     const { businessId } = req.params;
+    const showAll = req.query.all === 'true'; // For Business Hub editing: show all services including inactive
+
     const client = await db.connect();
 
     try {
-      const result = await client.query(
-        `SELECT id, name, description, price, price_unit, duration, popular, category, sort_order, is_active, created_at
-         FROM business_services
-         WHERE business_id = $1 AND is_active = true
-         ORDER BY sort_order ASC, created_at DESC`,
-        [businessId]
-      );
+      // If requesting all services (for Business Hub editing), require auth and ownership check
+      if (showAll) {
+        const hasAccess = await canAccessBusiness(req.user?.id, businessId, ['owner', 'manager']);
+        if (!hasAccess) return sendError(res, 403, 'Access denied');
+      }
 
+      const query = `SELECT id, name, description, price, price_unit, duration, popular, category, sort_order, is_active, created_at, updated_at
+         FROM business_services
+         WHERE business_id = $1
+         ${!showAll ? 'AND is_active = true' : ''}
+         ORDER BY sort_order ASC, created_at DESC`;
+
+      const result = await client.query(query, [businessId]);
       sendSuccess(res, result.rows);
     } finally {
       client.release();
