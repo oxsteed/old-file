@@ -517,6 +517,7 @@ export default function UserDetail() {
                 <X size={15} />
               </button>
             </div>
+            </div>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
