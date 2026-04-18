@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, MessageCircle, Building2, LogIn } from 'lucide-react';
+import { X, MessageCircle, Building2, LogIn, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -305,6 +305,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const showCloseButton = variant === 'modal';
   const handleClose = onClose ?? (() => {});
 
+  const handleMessageDelete = useCallback((messageId: string) => {
+    setSession(prev => ({
+      ...prev,
+      timeline: prev.timeline.filter((item) => !(item.itemType === 'message' && item.id === messageId)),
+    }));
+  }, []);
+
+  const handleMessageEdit = useCallback((messageId: string) => {
+    // Edit mode would require inline editing state — not yet implemented for ChatPanel
+    // For now, we log that edit was clicked. A full implementation would show edit UI.
+    console.log('Edit message:', messageId);
+  }, []);
+
+  const handleQuickReply = useCallback((text: string) => {
+    // Populate the composer with quick reply and focus
+    // This would be handled by passing text to MessageComposer state
+    // For now, we'll just send it directly
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      itemType: 'message',
+      authorType: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+    setSession(prev => ({
+      ...prev,
+      timeline: [...prev.timeline, userMsg],
+    }));
+    // Trigger AI response
+    handleSend([userMsg]);
+  }, [handleSend]);
+
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
@@ -321,6 +353,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge status={currentStatus} />
+            <button
+              onClick={() => {
+                if (window.confirm(t('messages.clearChatConfirm') || 'Clear this conversation?')) {
+                  setSession(prev => ({
+                    ...prev,
+                    timeline: [],
+                  }));
+                  setThreadId(null);
+                }
+              }}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              aria-label={t('messages.clearChat') || 'Clear chat'}
+              title="Clear all messages"
+            >
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
+            </button>
             {showCloseButton && (
               <button
                 onClick={handleClose}
@@ -374,6 +422,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           items={displayTimeline}
           helperName={helperName}
           typing={sending ? session.typing : null}
+          currentUserId={user?.id}
+          onMessageDelete={handleMessageDelete}
+          onMessageEdit={handleMessageEdit}
+          onQuickReply={handleQuickReply}
         />
       )}
 

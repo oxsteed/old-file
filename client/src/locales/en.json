@@ -745,7 +745,9 @@
     "noMessagesStart": "No messages yet. Start the conversation!",
     "typeAMessage": "Type a message...",
     "empty": "No messages",
-    "emptyDesc": "Your message history is empty"
+    "emptyDesc": "Your message history is empty",
+    "clearChat": "Clear chat",
+    "clearChatConfirm": "Are you sure you want to clear this conversation?"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",

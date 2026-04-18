@@ -355,4 +355,91 @@ const sendMessage = async (req, res) => {
   }
 };
 
-module.exports = { getConversations, getOrCreateConversation, getConversationMeta, getMessages, sendMessage };
+// Delete a message (only the sender can delete)
+const deleteMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+
+    // Verify message exists and user is the sender
+    const msgResult = await pool.query(
+      `SELECT m.id, m.sender_id, m.conversation_id
+       FROM messages m
+       WHERE m.id = $1 AND m.conversation_id = $2`,
+      [messageId, conversationId]
+    );
+
+    if (msgResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const message = msgResult.rows[0];
+    if (message.sender_id !== userId) {
+      return res.status(403).json({ error: 'You can only delete your own messages' });
+    }
+
+    // Delete the message
+    await pool.query('DELETE FROM messages WHERE id = $1', [messageId]);
+
+    // Broadcast delete event to the conversation room
+    socketService.broadcastToConversation(conversationId, 'message:deleted', {
+      conversationId,
+      messageId,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error deleting message', { err: error.message });
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+};
+
+// Edit a message (only the sender can edit)
+const editMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+    const content = (req.body.content || '').trim();
+
+    if (!content) return res.status(400).json({ error: 'Message content is required' });
+    if (content.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+
+    // Verify message exists and user is the sender
+    const msgResult = await pool.query(
+      `SELECT m.id, m.sender_id, m.conversation_id
+       FROM messages m
+       WHERE m.id = $1 AND m.conversation_id = $2`,
+      [messageId, conversationId]
+    );
+
+    if (msgResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const message = msgResult.rows[0];
+    if (message.sender_id !== userId) {
+      return res.status(403).json({ error: 'You can only edit your own messages' });
+    }
+
+    // Update the message
+    const result = await pool.query(
+      `UPDATE messages SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [content, messageId]
+    );
+
+    const updatedMessage = result.rows[0];
+
+    // Broadcast edit event to the conversation room
+    socketService.broadcastToConversation(conversationId, 'message:updated', {
+      conversationId,
+      message: updatedMessage,
+    });
+
+    res.json(updatedMessage);
+  } catch (error) {
+    logger.error('Error editing message', { err: error.message });
+    res.status(500).json({ error: 'Failed to edit message' });
+  }
+};
+
+module.exports = { getConversations, getOrCreateConversation, getConversationMeta, getMessages, sendMessage, deleteMessage, editMessage };

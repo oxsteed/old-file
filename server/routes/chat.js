@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { chatMessage, profileChatMessage, financialAdvisor } = require('../controllers/chatController');
+const { chatMessage, profileChatMessage, financialAdvisor, transcribeAudio } = require('../controllers/chatController');
 const { chatLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const logger = require('../utils/logger');
@@ -39,6 +39,11 @@ router.post('/financial-advisor', chatLimiter, authenticate, financialAdvisor);
 // Auth optional — authenticated users get live routing when helper is online;
 // unauthenticated users get AI-only mode.
 router.post('/profile-message', chatLimiter, optionalAuth, profileChatMessage);
+
+// POST /api/chat/transcribe
+// Transcribe audio using OpenRouter (fallback when Web Speech confidence is low)
+// Requires authentication.
+router.post('/transcribe', chatLimiter, authenticate, transcribeAudio);
 
 // POST /api/chat/feedback — thumbs up/down on AI replies (best-effort logging)
 router.post('/feedback', chatLimiter, (req, res) => {

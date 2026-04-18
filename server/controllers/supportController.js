@@ -58,7 +58,7 @@ function notifyUser(userId, event, data) {
  * Works for guests (no auth) and logged-in users.
  */
 exports.submitSupportRequest = async (req, res) => {
-  const { name, email, subject, message, category = 'general', priority = 'normal' } = req.body;
+  const { name, email, subject, message, category = 'general', priority = 'normal', sender_language = 'en' } = req.body;
 
   if (!name?.trim())    return res.status(400).json({ error: 'Name is required.' });
   if (!email?.trim())   return res.status(400).json({ error: 'Email is required.' });
@@ -73,6 +73,10 @@ exports.submitSupportRequest = async (req, res) => {
 
   const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation'];
   const safeCategory = allowedCategory.includes(category?.toLowerCase?.()) ? category.toLowerCase() : 'general';
+
+  // Validate and sanitize language code (en, es, fr, ht, etc)
+  const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+  const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
 
   const client = await db.connect();
   try {
@@ -109,9 +113,9 @@ exports.submitSupportRequest = async (req, res) => {
     await client.query(
       `INSERT INTO support_messages
          (ticket_id, sender_id, sender_name, sender_email, content,
-          is_internal, is_from_admin)
-       VALUES ($1, $2, $3, $4, $5, false, false)`,
-      [ticket.id, userId, name.trim(), email.trim().toLowerCase(), message.trim()]
+          sender_language, is_internal, is_from_admin)
+       VALUES ($1, $2, $3, $4, $5, $6, false, false)`,
+      [ticket.id, userId, name.trim(), email.trim().toLowerCase(), message.trim(), safeLanguage]
     );
 
     await client.query('COMMIT');
@@ -218,8 +222,12 @@ exports.getMyTicket = async (req, res) => {
 
 /** POST /api/support/my-tickets/:ticketId/reply */
 exports.replyToMyTicket = async (req, res) => {
-  const { content } = req.body;
+  const { content, sender_language = 'en' } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: 'Message content is required.' });
+
+  // Validate language code
+  const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+  const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
 
   try {
     const { rows: tRows } = await db.query(
@@ -237,10 +245,10 @@ exports.replyToMyTicket = async (req, res) => {
 
     const { rows: [msg] } = await db.query(
       `INSERT INTO support_messages
-         (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin)
-       VALUES ($1, $2, $3, $4, $5, false, false)
+         (ticket_id, sender_id, sender_name, sender_email, content, sender_language, is_internal, is_from_admin)
+       VALUES ($1, $2, $3, $4, $5, $6, false, false)
        RETURNING *`,
-      [ticket.id, req.user.id, ticket.name, ticket.email, content.trim()]
+      [ticket.id, req.user.id, ticket.name, ticket.email, content.trim(), safeLanguage]
     );
 
     // Move back to in_progress if waiting on user response
@@ -563,8 +571,12 @@ exports.updatePriority = async (req, res) => {
  */
 exports.adminReply = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
-  const { content, is_internal = false } = req.body;
+  const { content, is_internal = false, sender_language = 'en' } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: 'Content is required.' });
+
+  // Validate language code (admin reply is assumed to be in English unless specified)
+  const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+  const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
 
   try {
     const { rows: tRows } = await db.query(
@@ -592,10 +604,10 @@ exports.adminReply = async (req, res) => {
 
     const { rows: [msg] } = await db.query(
       `INSERT INTO support_messages
-         (ticket_id, sender_id, sender_name, sender_email, content, is_internal, is_from_admin)
-       VALUES ($1, $2, $3, $4, $5, $6, true)
+         (ticket_id, sender_id, sender_name, sender_email, content, sender_language, is_internal, is_from_admin)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
        RETURNING *`,
-      [ticket.id, req.user.id, adminName, req.user.email, content.trim(), Boolean(is_internal)]
+      [ticket.id, req.user.id, adminName, req.user.email, content.trim(), safeLanguage, Boolean(is_internal)]
     );
 
     // Build UPDATE SET clause
