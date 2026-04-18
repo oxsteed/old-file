@@ -746,8 +746,8 @@
     "typeAMessage": "Escribe un mensaje...",
     "empty": "Sin mensajes",
     "emptyDesc": "Tu historial de mensajes está vacío",
-    "clearChat": "Clear chat",
-    "clearChatConfirm": "Are you sure you want to clear this conversation?"
+   "clearChat": "Borrar chat",
+"clearChatConfirm": "¿Estás seguro de que deseas borrar esta conversación?"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
