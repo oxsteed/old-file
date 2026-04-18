@@ -1,5 +1,6 @@
 const db = require('../db');
 const { TERMS_CONFIG, REQUIRED_CONSENTS } = require('../constants/termsConfig');
+const logger = require('../utils/logger');
 
 /**
  * Middleware: requireTermsAcceptance
@@ -56,7 +57,7 @@ const requireTermsAcceptance = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error('requireTermsAcceptance error:', err);
+    logger.error('requireTermsAcceptance error', { err: err.message });
     return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
   }
 };

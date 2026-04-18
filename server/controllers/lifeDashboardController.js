@@ -10,11 +10,16 @@ exports.getExpenses = async (req, res) => {
     const userId = req.user.id;
     const { month, year, type, limit = 50, offset = 0 } = req.query;
 
+    const parsedMonth = month ? parseInt(month) : null;
+    const parsedYear  = year  ? parseInt(year)  : null;
+    const validMonth  = parsedMonth && parsedMonth >= 1 && parsedMonth <= 12 ? parsedMonth : null;
+    const validYear   = parsedYear  && parsedYear >= 1900 && parsedYear <= 2100 ? parsedYear : null;
+
     const conditions = ['user_id = $1'];
     const params = [userId];
 
-    if (month && year) {
-      params.push(parseInt(year), parseInt(month));
+    if (validMonth && validYear) {
+      params.push(validYear, validMonth);
       conditions.push(`EXTRACT(YEAR FROM occurred_at) = $${params.length - 1}`);
       conditions.push(`EXTRACT(MONTH FROM occurred_at) = $${params.length}`);
     }
@@ -35,8 +40,8 @@ exports.getExpenses = async (req, res) => {
 
     // Monthly summary
     const now = new Date();
-    const summaryMonth = month ? parseInt(month) : now.getMonth() + 1;
-    const summaryYear = year ? parseInt(year) : now.getFullYear();
+    const summaryMonth = validMonth ?? now.getMonth() + 1;
+    const summaryYear  = validYear  ?? now.getFullYear();
 
     const { rows: summary } = await db.query(`
       SELECT
