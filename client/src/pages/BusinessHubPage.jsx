@@ -1101,7 +1101,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
             </div>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-4">📸 {t('businessHub.photosSizeHint')}</p>
+        <p className="text-xs text-gray-500 mt-4">💡 Logo: square preferred. Cover: 3:1 ratio for best results.</p>
       </div>
 
       {/* ── Business Identity Card ──────────────────────────────────── */}
@@ -1163,6 +1163,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
       <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
         <button
           onClick={() => setExpandContact(!expandContact)}
+          aria-expanded={expandContact}
           className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition"
         >
           <h3 className="text-base font-semibold text-white">{t('businessHub.sectionContact')}</h3>
@@ -1208,6 +1209,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
       <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
         <button
           onClick={() => setExpandLocation(!expandLocation)}
+          aria-expanded={expandLocation}
           className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition"
         >
           <h3 className="text-base font-semibold text-white">{t('businessHub.sectionLocation')}</h3>
