@@ -7,8 +7,33 @@ import PageMeta from '../components/PageMeta';
 
 function formatTime(ts) {
   if (!ts) return '';
-  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
+
+const MessageActions = ({ message, user, onCopy }) => {
+  const { t } = useTranslation();
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="flex items-center gap-1 mt-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        onClick={handleCopy}
+        className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition"
+        title={copied ? 'Copied!' : 'Copy message'}
+        aria-label="Copy"
+      >
+        📋
+      </button>
+    </div>
+  );
+};
 
 export default function ConversationPage() {
   const { t } = useTranslation();
@@ -92,7 +117,7 @@ export default function ConversationPage() {
             const isMe = msg.sender_id === user?.id;
             const isLastFromMe = showSeen && msg.id === lastSentByMe?.id;
             return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+              <div key={msg.id} className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'}`}>
                 {!isMe && msg.sender_name && (
                   <span className="text-xs text-gray-400 mb-1 ml-1">{msg.sender_name}</span>
                 )}
@@ -108,6 +133,16 @@ export default function ConversationPage() {
                   {isLastFromMe && (
                     <span className="text-[11px] text-blue-500 font-medium">{t('messages.seen')}</span>
                   )}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(msg.content);
+                    }}
+                    className="p-0.5 rounded text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition"
+                    title="Copy message"
+                    aria-label="Copy message"
+                  >
+                    📋
+                  </button>
                 </div>
               </div>
             );

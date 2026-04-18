@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, MessageCircle, Building2, LogIn } from 'lucide-react';
+import { X, MessageCircle, Building2, LogIn, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -321,6 +321,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge status={currentStatus} />
+            <button
+              onClick={() => {
+                if (window.confirm(t('messages.clearChatConfirm') || 'Clear this conversation?')) {
+                  setSession(prev => ({
+                    ...prev,
+                    timeline: [],
+                  }));
+                  setThreadId(null);
+                }
+              }}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              aria-label={t('messages.clearChat') || 'Clear chat'}
+              title="Clear all messages"
+            >
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
+            </button>
             {showCloseButton && (
               <button
                 onClick={handleClose}
