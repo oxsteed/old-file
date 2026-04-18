@@ -1,6 +1,7 @@
 // Phase 2 - SMS utility (Twilio)
 // OxSteed v2
 const twilio = require('twilio');
+const logger = require('./logger');
 
 let client = null;
 try {

@@ -1,4 +1,4 @@
-const redis = require('../db/redis');
+const redis = require('../utils/redis');
 const logger = require('../utils/logger');
 
 // Token revocation service for managing JWT blacklist

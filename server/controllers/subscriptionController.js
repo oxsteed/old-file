@@ -1,9 +1,9 @@
+const logger = require('../utils/logger');
 if (!process.env.STRIPE_SECRET_KEY) {
   logger.error('[FATAL] STRIPE_SECRET_KEY is not set — subscription features will fail.');
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
-const logger = require('../utils/logger');
 
 async function getPlansActiveColumn() {
   const { rows } = await db.query(
