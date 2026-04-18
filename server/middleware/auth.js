@@ -60,6 +60,11 @@ async function authenticate(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
+    // Reject MFA tokens - they can only be used on the 2FA endpoint
+    if (decoded.isMfaToken) {
+      return res.status(401).json({ error: 'MFA token cannot be used for API access' });
+    }
+
     // Check if token has been revoked
     const tokenId = crypto.createHash('sha256').update(token).digest('hex');
     const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id);
