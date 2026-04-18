@@ -32,11 +32,11 @@ export default function LanguageSelector() {
         style={{
           display: 'flex', alignItems: 'center', gap: '0.3rem',
           background: 'none',
-          border: '1px solid var(--border-color)',
+          border: '1px solid var(--color-border)',
           borderRadius: '6px',
           padding: '0.25rem 0.5rem',
           cursor: 'pointer',
-          color: 'var(--app-text)',
+          color: 'var(--color-text)',
           fontSize: '0.8rem',
           fontWeight: 600,
         }}
@@ -55,8 +55,8 @@ export default function LanguageSelector() {
           role="listbox"
           style={{
             position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-            background: 'var(--card-bg)',
-            border: '1px solid var(--border-color)',
+            background: 'var(--color-card-bg)',
+            border: '1px solid var(--color-border)',
             borderRadius: '8px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
             minWidth: '150px',
@@ -73,9 +73,9 @@ export default function LanguageSelector() {
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.6rem',
                 width: '100%', padding: '0.6rem 0.85rem',
-                background: lang.code === language ? 'rgba(249,115,22,0.12)' : 'none',
+                background: lang.code === language ? 'rgba(249,115,22,0.12)' : 'transparent',
                 border: 'none', cursor: 'pointer',
-                color: lang.code === language ? 'var(--color-primary, #f97316)' : 'var(--app-text)',
+                color: lang.code === language ? 'var(--color-primary)' : 'var(--color-text)',
                 fontWeight: lang.code === language ? 700 : 400,
                 fontSize: '0.875rem', textAlign: 'left',
               }}
