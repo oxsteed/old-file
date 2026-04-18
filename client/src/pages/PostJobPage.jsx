@@ -626,6 +626,12 @@ function CheckIcon({ size = 12 }) {
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function PostJobPage() {
   const { t } = useTranslation();
+  const STEP_LABELS = [
+    t('postJob.stepJobDetails', 'Job Details'),
+    t('postJob.stepRequirements', 'Requirements'),
+    t('postJob.stepBudgetTimeline', 'Budget & Timeline'),
+    t('postJob.stepReviewPost', 'Review & Post'),
+  ];
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user }  = useAuth();
