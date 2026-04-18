@@ -303,8 +303,8 @@ export default function UserDetail() {
               ))}
             </select>
             </>
-          )}
-        </div>
+        )}
+      </div>
 
       {message && (
         <div className={`rounded-xl px-4 py-3 text-sm mb-6 ${
