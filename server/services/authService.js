@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
+const logger = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET is not set. Exiting.');
+  logger.error('FATAL: JWT_SECRET is not set. Exiting.');
   process.exit(1);
 }
 

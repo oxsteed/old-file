@@ -355,7 +355,7 @@ function shutdown(signal) {
   });
   // Force exit after 15s if graceful shutdown stalls
   setTimeout(() => {
-    console.error('[Shutdown] Forced exit after timeout');
+    logger.error('Forced exit after shutdown timeout');
     process.exit(1);
   }, 15000);
 }

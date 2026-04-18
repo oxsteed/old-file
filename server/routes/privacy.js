@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 /**
@@ -62,7 +63,7 @@ router.get('/export', authenticate, async (req, res) => {
     );
     res.json(exportData);
   } catch (err) {
-    console.error('[Privacy Export Error]', err);
+    logger.error('Privacy export failed', { userId: req.user.id, error: err.message });
     res.status(500).json({ error: 'Failed to export data. Please try again.' });
   }
 });
@@ -117,7 +118,7 @@ router.delete('/delete-account', authenticate, async (req, res) => {
       message: 'Your account has been scheduled for deletion. Personal data has been anonymized. Some records may be retained for legal and financial compliance purposes as described in our Privacy Policy.',
     });
   } catch (err) {
-    console.error('[Account Deletion Error]', err);
+    logger.error('Account deletion failed', { userId: req.user.id, error: err.message });
     res.status(500).json({ error: 'Failed to process deletion request.' });
   }
 });

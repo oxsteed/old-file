@@ -2,6 +2,7 @@
 // Safe to run multiple times — all statements use IF NOT EXISTS / IF NOT EXISTS checks
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 
 async function runMigration001() {
   const client = await pool.connect();
@@ -12,11 +13,11 @@ async function runMigration001() {
       WHERE table_name = 'users' AND column_name = 'membership_tier'
     `);
     if (check.length > 0) {
-      console.log('[Migration 001] Already applied — skipping');
+      logger.info('Migration 001 already applied, skipping');
       return;
     }
 
-    console.log('[Migration 001] Running onboarding_tiers_tier3...');
+    logger.info('Migration 001 running: onboarding_tiers_tier3');
     await client.query('BEGIN');
 
     await client.query(`ALTER TABLE pending_registrations ADD COLUMN IF NOT EXISTS user_id INTEGER, ADD COLUMN IF NOT EXISTS account_created BOOLEAN NOT NULL DEFAULT FALSE`);
@@ -36,10 +37,10 @@ async function runMigration001() {
     await client.query(`UPDATE users SET contact_completed = COALESCE(contact_completed, FALSE), profile_completed = COALESCE(profile_completed, FALSE), tier_selected = COALESCE(tier_selected, FALSE), w9_completed = COALESCE(w9_completed, FALSE), terms_accepted = COALESCE(terms_accepted, FALSE), onboarding_completed = (COALESCE(profile_completed, FALSE) AND COALESCE(tier_selected, FALSE) AND COALESCE(w9_completed, FALSE) AND COALESCE(terms_accepted, FALSE)), onboarding_status = CASE WHEN (COALESCE(profile_completed, FALSE) AND COALESCE(tier_selected, FALSE) AND COALESCE(w9_completed, FALSE) AND COALESCE(terms_accepted, FALSE)) THEN 'onboarding_complete' ELSE 'verified_pending_onboarding' END WHERE role = 'helper'`);
 
     await client.query('COMMIT');
-    console.log('[Migration 001] Completed successfully');
+    logger.info('Migration 001 completed successfully');
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (e) {}
-    console.error('[Migration 001] FAILED:', err.message);
+    logger.error('Migration 001 failed', { error: err.message });
   } finally {
     client.release();
   }
@@ -54,20 +55,20 @@ async function runMigration002() {
       WHERE table_name = 'users' AND column_name = 'bio'
     `);
     if (check.length > 0) {
-      console.log('[Migration 002] Already applied — skipping');
+      logger.info('Migration 002 already applied, skipping');
       return;
     }
 
-    console.log('[Migration 002] Adding bio, skills, profile_photo_url columns to users...');
+    logger.info('Migration 002 running: adding bio, skills, profile_photo_url columns');
     await client.query('BEGIN');
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT, ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]', ADD COLUMN IF NOT EXISTS profile_photo_url TEXT, ADD COLUMN IF NOT EXISTS availability TEXT, ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(8,2), ADD COLUMN IF NOT EXISTS subscription_tier TEXT, ADD COLUMN IF NOT EXISTS name VARCHAR(200)`);
     // Backfill name from first_name + last_name
     await client.query(`UPDATE users SET name = TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) WHERE name IS NULL`);
     await client.query('COMMIT');
-    console.log('[Migration 002] Completed successfully');
+    logger.info('Migration 002 completed successfully');
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (e) {}
-    console.error('[Migration 002] FAILED:', err.message);
+    logger.error('Migration 002 failed', { error: err.message });
   } finally {
     client.release();
   }
@@ -76,9 +77,9 @@ async function runMigration002() {
 async function runAllMigrations() {
   try {
     await runMigration001();
-        await runMigration002();
+    await runMigration002();
   } catch (err) {
-    console.error('[Migrations] Error:', err.message);
+    logger.error('Migrations failed', { error: err.message });
   }
 }
 
