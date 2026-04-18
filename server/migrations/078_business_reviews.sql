@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS business_reviews (
   id                BIGSERIAL       PRIMARY KEY,
   business_id       INTEGER         NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-  customer_id       BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  customer_id       UUID            NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   lead_id           BIGINT          REFERENCES business_leads(id) ON DELETE SET NULL,  -- Which lead/job this review is for
   rating            SMALLINT        NOT NULL CHECK (rating >= 1 AND rating <= 5),      -- Star rating 1-5
   testimonial       TEXT            NOT NULL,                                         -- Written review (up to 500 chars, validated on client)
