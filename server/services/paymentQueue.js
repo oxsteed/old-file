@@ -1,119 +1,164 @@
 // Payment processing queue
 // Decouples payment processing from API requests to prevent blocking
-// Uses Bull with Redis backend (or in-memory fallback)
+// Uses Redis (existing ioredis connection) for job storage and processing
 
-const Queue = require('bull');
+const Redis = require('ioredis');
 const logger = require('../utils/logger');
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const queueConfig = {
-  redis: REDIS_URL,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-    removeOnComplete: true,
-    removeOnFail: false,
-  },
+// Connect to Redis (uses existing REDIS_URL env var)
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  retryStrategy: (times) => Math.min(times * 50, 2000),
+  enableReadyCheck: false,
+  enableOfflineQueue: true,
+});
+
+redis.on('error', (err) => {
+  logger.error('Queue Redis connection error', { error: err.message });
+});
+
+redis.on('connect', () => {
+  logger.info('Queue Redis connection established');
+});
+
+const QUEUES = {
+  PAYMENT_CAPTURE: 'queue:payment-capture',
+  STRIPE_WEBHOOK: 'queue:stripe-webhook',
+  NOTIFICATIONS: 'queue:notifications',
 };
 
-// Create queues
-const paymentCaptureQueue = new Queue('payment-capture', queueConfig);
-const stripeWebhookQueue = new Queue('stripe-webhook', queueConfig);
-const notificationQueue = new Queue('notifications', queueConfig);
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
 
-// Event handlers for all queues
-const setupQueueHandlers = (queue, queueName) => {
-  queue.on('error', (err) => {
-    logger.error(`Queue error (${queueName})`, { queue: queueName, error: err.message });
-  });
+/**
+ * Add a job to a queue (FIFO with retry support)
+ * @param {string} queueKey - Queue name (QUEUES.*)
+ * @param {object} jobData - Job payload
+ * @param {string} jobId - Unique job identifier (for deduplication)
+ * @returns {Promise<string>} Job ID
+ */
+const addJob = async (queueKey, jobData, jobId) => {
+  try {
+    const job = {
+      id: jobId,
+      data: jobData,
+      attempts: 0,
+      createdAt: Date.now(),
+      status: 'pending',
+    };
 
-  queue.on('failed', (job, err) => {
-    logger.warn(`Job failed (${queueName})`, {
-      queue: queueName,
-      jobId: job.id,
-      attemptsMade: job.attemptsMade,
-      error: err.message,
-    });
-  });
-
-  queue.on('completed', (job) => {
-    logger.info(`Job completed (${queueName})`, {
-      queue: queueName,
-      jobId: job.id,
-      processedOn: job.processedOn,
-    });
-  });
+    await redis.lpush(queueKey, JSON.stringify(job));
+    logger.info('Job queued', { queueKey, jobId });
+    return jobId;
+  } catch (err) {
+    logger.error('Failed to queue job', { queueKey, jobId, error: err.message });
+    throw err;
+  }
 };
 
-setupQueueHandlers(paymentCaptureQueue, 'payment-capture');
-setupQueueHandlers(stripeWebhookQueue, 'stripe-webhook');
-setupQueueHandlers(notificationQueue, 'notifications');
+/**
+ * Retrieve next job from queue (for worker to process)
+ * @param {string} queueKey - Queue name
+ * @returns {Promise<object|null>} Job object or null if queue empty
+ */
+const getNextJob = async (queueKey) => {
+  try {
+    const jobStr = await redis.rpop(queueKey);
+    if (!jobStr) return null;
 
-// Export queue instances
+    const job = JSON.parse(jobStr);
+    logger.debug('Retrieved job from queue', { queueKey, jobId: job.id });
+    return job;
+  } catch (err) {
+    logger.error('Failed to retrieve job from queue', { queueKey, error: err.message });
+    return null;
+  }
+};
+
+/**
+ * Re-queue job if it failed (with exponential backoff)
+ * @param {string} queueKey - Queue name
+ * @param {object} job - Job object
+ * @returns {Promise<boolean>} true if re-queued, false if max retries exceeded
+ */
+const retryJob = async (queueKey, job) => {
+  try {
+    if (job.attempts >= MAX_RETRIES) {
+      logger.warn('Job max retries exceeded', { queueKey, jobId: job.id, attempts: job.attempts });
+      return false;
+    }
+
+    job.attempts += 1;
+    job.nextRetryAt = Date.now() + (RETRY_DELAY_MS * job.attempts);
+
+    // Use ZSET for delayed retry (sorted by retry timestamp)
+    const delayedQueueKey = `${queueKey}:delayed`;
+    await redis.zadd(delayedQueueKey, job.nextRetryAt, JSON.stringify(job));
+    logger.info('Job re-queued with delay', { queueKey, jobId: job.id, nextRetryMs: job.nextRetryAt - Date.now() });
+    return true;
+  } catch (err) {
+    logger.error('Failed to re-queue job', { queueKey, jobId: job.id, error: err.message });
+    return false;
+  }
+};
+
+/**
+ * Mark job as completed
+ * @param {string} queueKey - Queue name
+ * @param {string} jobId - Job ID
+ */
+const completeJob = async (queueKey, jobId) => {
+  try {
+    await redis.setex(`job:${jobId}:complete`, 86400, '1'); // Keep for 24h
+    logger.info('Job completed', { queueKey, jobId });
+  } catch (err) {
+    logger.error('Failed to mark job complete', { jobId, error: err.message });
+  }
+};
+
+// Export queue interface
 module.exports = {
-  paymentCaptureQueue,
-  stripeWebhookQueue,
-  notificationQueue,
+  // Queue names for workers
+  QUEUES,
 
-  // Helper to add a payment capture job
+  // Job management
+  addJob,
+  getNextJob,
+  retryJob,
+  completeJob,
+
+  // Convenience methods for specific job types
   queuePaymentCapture: async (paymentId, jobId, amount) => {
-    try {
-      const job = await paymentCaptureQueue.add(
-        { paymentId, jobId, amount },
-        { jobId: `capture-${paymentId}` }
-      );
-      logger.info('Payment capture queued', { paymentId, jobId: job.id });
-      return job;
-    } catch (err) {
-      logger.error('Failed to queue payment capture', { paymentId, error: err.message });
-      throw err;
-    }
+    return addJob(QUEUES.PAYMENT_CAPTURE, { paymentId, jobId, amount }, `capture-${paymentId}`);
   },
 
-  // Helper to add a webhook job
   queueStripeWebhook: async (eventType, eventData) => {
-    try {
-      const job = await stripeWebhookQueue.add(
-        { eventType, eventData },
-        { jobId: `webhook-${eventData.id}` }
-      );
-      logger.info('Stripe webhook queued', { eventType, jobId: job.id });
-      return job;
-    } catch (err) {
-      logger.error('Failed to queue webhook', { eventType, error: err.message });
-      throw err;
-    }
+    return addJob(QUEUES.STRIPE_WEBHOOK, { eventType, eventData }, `webhook-${eventData.id}`);
   },
 
-  // Helper to add a notification job
   queueNotification: async (userId, type, data) => {
-    try {
-      const job = await notificationQueue.add(
-        { userId, type, data },
-        { jobId: `notif-${userId}-${Date.now()}` }
-      );
-      logger.info('Notification queued', { userId, type, jobId: job.id });
-      return job;
-    } catch (err) {
-      logger.error('Failed to queue notification', { userId, type, error: err.message });
-      throw err;
-    }
+    return addJob(QUEUES.NOTIFICATIONS, { userId, type, data }, `notif-${userId}-${Date.now()}`);
   },
 
   // Graceful shutdown
-  closeQueues: async () => {
+  closeQueue: async () => {
     try {
-      await Promise.all([
-        paymentCaptureQueue.close(),
-        stripeWebhookQueue.close(),
-        notificationQueue.close(),
-      ]);
-      logger.info('All queues closed gracefully');
+      await redis.quit();
+      logger.info('Queue Redis connection closed gracefully');
     } catch (err) {
-      logger.error('Error closing queues', err);
+      logger.error('Error closing queue Redis', err);
     }
   },
+
+  // Health check
+  ping: async () => {
+    try {
+      await redis.ping();
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  // Redis client access (for worker processes)
+  redis,
 };

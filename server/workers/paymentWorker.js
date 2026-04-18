@@ -1,30 +1,18 @@
 // Payment processing worker
-// Runs independently to process queued payment capture jobs
+// Runs independently to process queued jobs from Redis
 // Decoupled from API request-response cycle
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
 const Stripe = require('stripe');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Database transaction utility
-const withTransaction = async (callback) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await callback(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-};
-
-// Process payment capture job
+/**
+ * Process payment capture job
+ * @param {object} job - Job object with { paymentId, jobId, amount }
+ */
 const processPaymentCapture = async (job) => {
   const { paymentId, jobId, amount } = job.data;
   logger.info('Processing payment capture', { paymentId, jobId, amount });
@@ -32,7 +20,7 @@ const processPaymentCapture = async (job) => {
   try {
     // Fetch payment record to get intent ID
     const paymentResult = await pool.query(
-      'SELECT id, stripe_payment_intent_id, status FROM payments WHERE id = $1',
+      'SELECT id, stripe_payment_intent_id, stripe_account_id, status FROM payments WHERE id = $1',
       [paymentId]
     );
 
@@ -44,15 +32,19 @@ const processPaymentCapture = async (job) => {
     if (!payment.stripe_payment_intent_id) {
       throw new Error(`No PaymentIntent for payment ${paymentId}`);
     }
+    if (!payment.stripe_account_id) {
+      throw new Error(`No Stripe account for payment ${paymentId}`);
+    }
 
-    // Capture via Stripe
+    // Capture via Stripe (outside transaction to avoid lock contention)
     const captured = await stripe.paymentIntents.capture(
       payment.stripe_payment_intent_id,
-      { amount_to_capture: Math.round(amount * 100) }
+      { amount_to_capture: Math.round(amount * 100) },
+      { stripeAccount: payment.stripe_account_id }
     );
 
     // Update payment status in transaction
-    await withTransaction(async (client) => {
+    await withTransaction(pool, async (client) => {
       await client.query(
         `UPDATE payments
          SET status = $1, stripe_charge_id = $2, updated_at = now()
@@ -73,19 +65,20 @@ const processPaymentCapture = async (job) => {
       paymentId,
       jobId,
       error: error.message,
-      stack: error.stack,
     });
     throw error;
   }
 };
 
-// Process Stripe webhook job
+/**
+ * Process Stripe webhook job
+ * @param {object} job - Job object with { eventType, eventData }
+ */
 const processStripeWebhook = async (job) => {
   const { eventType, eventData } = job.data;
   logger.info('Processing Stripe webhook', { eventType, eventId: eventData.id });
 
   try {
-    // Route to appropriate handler
     switch (eventType) {
       case 'payment_intent.succeeded':
         return await handlePaymentIntentSucceeded(eventData);
@@ -107,83 +100,54 @@ const processStripeWebhook = async (job) => {
   }
 };
 
-// Webhook handlers
 const handlePaymentIntentSucceeded = async (intent) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
+  await withTransaction(pool, async (client) => {
     await client.query(
       `UPDATE payments
        SET status = $1, stripe_charge_id = $2, updated_at = now()
        WHERE stripe_payment_intent_id = $3`,
       ['succeeded', intent.charges.data[0]?.id, intent.id]
     );
-
-    await client.query('COMMIT');
-    logger.info('Webhook: payment_intent.succeeded processed', { intentId: intent.id });
-    return { handled: true };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
+  logger.info('Webhook: payment_intent.succeeded processed', { intentId: intent.id });
+  return { handled: true };
 };
 
 const handlePaymentIntentFailed = async (intent) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
+  await withTransaction(pool, async (client) => {
     await client.query(
       `UPDATE payments
        SET status = $1, error_message = $2, updated_at = now()
        WHERE stripe_payment_intent_id = $3`,
       ['failed', intent.last_payment_error?.message || 'Payment failed', intent.id]
     );
-
-    await client.query('COMMIT');
-    logger.warn('Webhook: payment_intent.payment_failed processed', { intentId: intent.id });
-    return { handled: true };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
+  logger.warn('Webhook: payment_intent.payment_failed processed', { intentId: intent.id });
+  return { handled: true };
 };
 
 const handleChargeRefunded = async (charge) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
+  await withTransaction(pool, async (client) => {
     await client.query(
       `UPDATE payments
        SET status = $1, refunded_amount = $2, updated_at = now()
        WHERE stripe_charge_id = $3`,
       ['refunded', charge.amount_refunded / 100, charge.id]
     );
-
-    await client.query('COMMIT');
-    logger.info('Webhook: charge.refunded processed', { chargeId: charge.id });
-    return { handled: true };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
+  logger.info('Webhook: charge.refunded processed', { chargeId: charge.id });
+  return { handled: true };
 };
 
-// Process notification job
+/**
+ * Process notification job
+ * @param {object} job - Job object with { userId, type, data }
+ */
 const processNotification = async (job) => {
-  const { userId, type, data } = job.data;
+  const { userId, type } = job.data;
   logger.info('Processing notification', { userId, type });
 
   try {
-    // Update notification status in DB
     await pool.query(
       `UPDATE notifications
        SET is_sent = true, sent_at = now()
