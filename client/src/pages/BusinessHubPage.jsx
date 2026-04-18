@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
-  listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice,
+  listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
   getTax, refreshTax, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
   listMembers, inviteMember, revokeMember,
@@ -386,6 +386,24 @@ function BusinessHubInner() {
     } catch { toast.error(t('businessHub.toastInvoiceDeleteFail')); }
   }
 
+  async function handleSendInvoice(inv) {
+    try {
+      const result = await sendInvoice(bizId, inv.id);
+      const { isInternalUser, publicToken } = result;
+
+      if (isInternalUser) {
+        toast.success(t('businessHub.toastInvoiceSentInternal'));
+      } else if (publicToken) {
+        const publicUrl = `${window.location.origin}/invoice/p/${publicToken}`;
+        navigator.clipboard.writeText(publicUrl);
+        toast.success(t('businessHub.toastInvoiceSentExternal'));
+      }
+      await loadInvoices();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('businessHub.toastInvoiceSendFail'));
+    }
+  }
+
   // ── tax ───────────────────────────────────────────────────────────────────
   async function handleRefreshTax() {
     try {
@@ -686,6 +704,7 @@ function BusinessHubInner() {
                   setFormErr('');
                   setModal('edit-inv');
                 }}
+                onSend={handleSendInvoice}
                 onPay={inv => { setSelected(inv); setForm({ amount: inv.total || '' }); setFormErr(''); setModal('pay-inv'); }}
                 onDelete={handleDeleteInvoice}
               />
@@ -1269,7 +1288,7 @@ function KPI({ label, value, cls, sub }) {
 }
 
 // ── Invoices tab ──────────────────────────────────────────────────────────────
-function InvoicesTab({ data, onNew, onEdit, onPay, onDelete }) {
+function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend }) {
   const { t } = useTranslation();
   const invoices = data?.invoices || [];
   const summary  = data?.summary  || {};
@@ -1326,6 +1345,9 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete }) {
                     <td className="num">{fmt$(inv.total)}</td>
                     <td className="num">{fmt$(inv.amount_paid)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
+                      {inv.status === 'draft' && (
+                        <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onSend(inv)}>{t('businessHub.btnSendInvoice')}</button>
+                      )}
                       {inv.status !== 'paid' && inv.status !== 'cancelled' && (
                         <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onPay(inv)}>{t('businessHub.btnMarkPaid')}</button>
                       )}

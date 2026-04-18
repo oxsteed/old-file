@@ -29,6 +29,7 @@ export const listInvoices    = (id, params={}) => api.get(`/businesses/${id}/inv
 export const getInvoice      = (id, invId)     => api.get(`/businesses/${id}/invoices/${invId}`).then(r => r.data?.invoice);
 export const createInvoice   = (id, payload)   => api.post(`/businesses/${id}/invoices`, payload).then(r => r.data?.invoice);
 export const updateInvoice   = (id, invId, p)  => api.put(`/businesses/${id}/invoices/${invId}`, p).then(r => r.data?.invoice);
+export const sendInvoice     = (id, invId)     => api.post(`/businesses/${id}/invoices/${invId}/send`).then(r => r.data);
 export const markInvoicePaid = (id, invId, amount) => api.post(`/businesses/${id}/invoices/${invId}/pay`, { amount }).then(r => r.data?.invoice);
 export const deleteInvoice   = (id, invId)     => api.delete(`/businesses/${id}/invoices/${invId}`).then(r => r.data);
 

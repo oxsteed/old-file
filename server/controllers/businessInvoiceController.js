@@ -3,6 +3,7 @@
 // Invoices track off-platform (and on-platform) billing so that all revenue
 // flows into the Life Pulse regardless of how money was earned.
 
+const { randomUUID } = require('crypto');
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const { canManageBusinessFinance } = require('../utils/businessOwnership');
@@ -118,12 +119,13 @@ async function createInvoice(req, res) {
 
     const invoice_number = await nextInvoiceNumber(client, access.id);
     const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
+    const public_token = randomUUID();
 
     const { rows: [inv] } = await client.query(`
       INSERT INTO business_invoices
         (user_id, business_id, invoice_number, client_name, client_email, client_company,
-         status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes, job_id)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes, job_id, public_token)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *
     `, [
       access.owner_id, access.id, invoice_number,
@@ -131,6 +133,7 @@ async function createInvoice(req, res) {
       status, due_date || null,
       subtotal, parseFloat(invoice_tax_rate), tax_amount, total,
       JSON.stringify(line_items), notes || null, job_id || null,
+      public_token,
     ]);
 
     await client.query('COMMIT');
@@ -257,7 +260,107 @@ async function deleteInvoice(req, res) {
   }
 }
 
+// ── Get invoice by public token (no auth required) ────────────────────────────
+// GET /api/invoices/public/:token
+async function getPublicInvoice(req, res) {
+  try {
+    const { token } = req.params;
+    const { rows: [inv] } = await pool.query(
+      'SELECT * FROM business_invoices WHERE public_token = $1',
+      [token]
+    );
+
+    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+
+    // Fetch business details
+    const { rows: [business] } = await pool.query(
+      'SELECT id, business_name, logo_url, website, phone FROM businesses WHERE id = $1',
+      [inv.business_id]
+    );
+
+    return res.json({ invoice: inv, business });
+  } catch (err) {
+    logger.error('getPublicInvoice error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to load invoice' });
+  }
+}
+
+// ── Send invoice (dual-track: internal notifications + external public link) ──
+// POST /api/businesses/:id/invoices/:invoiceId/send
+async function sendInvoice(req, res) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const access = await canManageBusinessFinance(req.user.id, req.params.id);
+    if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    // Fetch the invoice
+    const { rows: [inv] } = await client.query(
+      'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2',
+      [req.params.invoiceId, access.id]
+    );
+    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+
+    // Update invoice status to 'sent' and set sent_at
+    const { rows: [updatedInv] } = await client.query(`
+      UPDATE business_invoices SET
+        status = 'sent',
+        sent_at = NOW(),
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [inv.id]);
+
+    // Check if a user exists with the client_email
+    let isInternalUser = false;
+    if (inv.client_email) {
+      const { rows: [user] } = await client.query(
+        'SELECT id FROM users WHERE email = $1 AND is_active = TRUE',
+        [inv.client_email.toLowerCase()]
+      );
+
+      if (user) {
+        isInternalUser = true;
+        // Create a notification for the user
+        const notificationText = `${access.business_name} has sent you an invoice for ${updatedInv.total}`;
+        await client.query(`
+          INSERT INTO notifications
+            (user_id, title, message, type, related_business_id, created_at)
+          VALUES ($1, $2, $3, $4, $5, NOW())
+        `, [
+          user.id,
+          `Invoice from ${access.business_name}`,
+          notificationText,
+          'invoice',
+          access.id,
+        ]);
+
+        logger.info('Invoice sent to internal user', {
+          invoiceId: inv.id,
+          recipientUserId: user.id,
+          businessId: access.id,
+        });
+      }
+    }
+
+    await client.query('COMMIT');
+
+    return res.json({
+      invoice: updatedInv,
+      isInternalUser,
+      publicToken: updatedInv.public_token,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    logger.error('sendInvoice error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to send invoice' });
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
-  listInvoices, getInvoice, createInvoice,
-  updateInvoice, markInvoicePaid, deleteInvoice,
+  listInvoices, getInvoice, getPublicInvoice, createInvoice,
+  updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
 };
