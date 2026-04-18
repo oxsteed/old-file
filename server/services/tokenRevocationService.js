@@ -54,24 +54,37 @@ class TokenRevocationService {
   }
 
   /**
-   * Check if a token is revoked
+   * Check if a token is revoked.
+   *
+   * @param {string} tokenId   SHA-256 of the raw token.
+   * @param {number|string} userId
+   * @param {number} [tokenIat] JWT `iat` claim (seconds). If provided, the
+   *   user-level revocation marker only applies to tokens issued BEFORE the
+   *   revocation timestamp. Without this, a single logout would lock the user
+   *   out for the full user-revocation TTL (7 days) even after a fresh login.
    */
-  async isRevoked(tokenId, userId) {
+  async isRevoked(tokenId, userId, tokenIat) {
     try {
       if (redis) {
         const [revokedToken, revokedUser] = await Promise.all([
           redis.get(`revoked:${tokenId}`),
           redis.get(`revoked:user:${userId}`),
         ]);
-        return !!(revokedToken || revokedUser);
+        if (revokedToken) return true;
+        if (revokedUser) {
+          const revokedAtMs = Number(revokedUser);
+          if (!Number.isFinite(revokedAtMs)) return true;
+          if (typeof tokenIat !== 'number') return true;
+          // iat is seconds; revokedAt is ms. Reject only tokens issued at or
+          // before the revocation moment.
+          return tokenIat * 1000 <= revokedAtMs;
+        }
+        return false;
       } else {
-        // In-memory check
         return tokenBlacklist.has(tokenId);
       }
     } catch (err) {
       logger.error('Failed to check token revocation', { tokenId, error: err.message });
-      // On error, allow the token through (be permissive, not restrictive)
-      // Database session checks will provide the safety net
       return false;
     }
   }
