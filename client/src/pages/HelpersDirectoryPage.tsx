@@ -412,6 +412,13 @@ function getInitialState(): { filters: DirectoryFilters; tileId: string | null }
 
   if (params.get('availableToday') === 'true') filters.availableToday = true;
 
+  // ── requiredSkillIds from job ──
+  const skillIdsParam = params.get('requiredSkillIds');
+  if (skillIdsParam) {
+    const ids = skillIdsParam.split(',').map(id => parseInt(id, 10)).filter(Number.isInteger);
+    (filters as any).requiredSkillIds = ids;
+  }
+
   return { filters, tileId };
 }
 
@@ -453,7 +460,7 @@ const HelpersDirectoryPage: React.FC = () => {
   const load = useCallback(async (f: DirectoryFilters, s: SortOption, p: number, append = false) => {
     setLoadState('loading');
     try {
-      const res = await fetchHelpers(f, s, p, PAGE_SIZE);
+      const res = await fetchHelpers(f, s, p, PAGE_SIZE, f.requiredSkillIds);
       setHelpers((prev) => append ? [...prev, ...res.helpers] : res.helpers);
       // Businesses are only included on page 1 (first load / filter change)
       if (!append) setBusinesses(res.businesses ?? []);

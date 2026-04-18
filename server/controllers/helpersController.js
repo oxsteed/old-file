@@ -26,7 +26,8 @@ function parseJsonList(raw) {
 
 // ── GET /api/helpers ──────────────────────────────────────────────────────────
 // Query params (all optional):
-//   query, categories (comma-separated), skills (comma-separated),
+//   query, categories (comma-separated), skills (comma-separated, skill names),
+//   requiredSkillIds (comma-separated, skill IDs — from job requirements),
 //   verified, backgroundChecked, availableToday,
 //   minRating, minPrice, maxPrice,
 //   lat, lng, radius (miles, default 60) — haversine distance filter,
@@ -38,6 +39,7 @@ async function listHelpers(req, res) {
       query = '',
       categories = '',
       skills = '',
+      requiredSkillIds = '',
       verified = '',
       backgroundChecked = '',
       availableToday = '',
@@ -129,6 +131,7 @@ async function listHelpers(req, res) {
     // ── Category & Skills filter: prepare server-side filtering ────────────────────────────────
     const categoryList = categories ? categories.split(',').map((c) => c.trim()).filter(Boolean) : [];
     const skillList    = skills     ? skills.split(',').map((s)     => s.trim()).filter(Boolean) : [];
+    const skillIdList  = requiredSkillIds ? requiredSkillIds.split(',').map((id) => parseInt(id, 10)).filter(Number.isInteger) : [];
     let categoryJoinClause = '';
     let skillJoinClause = '';
 
@@ -146,7 +149,7 @@ async function listHelpers(req, res) {
       pIdx++;
     }
 
-    // Skills filter: ALL-of logic (helper must have EVERY selected skill)
+    // Skills filter by name: ALL-of logic (helper must have EVERY selected skill)
     if (skillList.length > 0) {
       params.push(skillList);
       skillJoinClause = `
@@ -156,6 +159,20 @@ async function listHelpers(req, res) {
           GROUP BY user_id
           HAVING COUNT(DISTINCT skill_name) = ${skillList.length}
         ) hs_filter ON hs_filter.user_id = u.id
+      `;
+      pIdx++;
+    }
+
+    // Skills filter by ID (from job requirements): ALL-of logic (helper must have EVERY required skill)
+    if (skillIdList.length > 0) {
+      params.push(skillIdList);
+      skillJoinClause = `
+        JOIN (
+          SELECT user_id FROM helper_skills hs
+          WHERE hs.skill_id = ANY($${pIdx}::int[])
+          GROUP BY user_id
+          HAVING COUNT(DISTINCT hs.skill_id) = ${skillIdList.length}
+        ) hs_req ON hs_req.user_id = u.id
       `;
       pIdx++;
     }
