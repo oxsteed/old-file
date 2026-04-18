@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
+import SpeechToTextInput from './SpeechToTextInput';
 
 const STORAGE_KEY = 'oxsteed_chat_history';
 const MAX_HISTORY = 40;
