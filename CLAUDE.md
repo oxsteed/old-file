@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-17 (✅ **i18n COMPLETE** — all 2722 keys perfectly aligned across EN/ES/FR/HT; Dashboard & HelperDashboard fully migrated with 6 new keys: floodZone, savedHelperFallback, unknownModel, jobNumber, newHelper, jobsLabel; zero hardcoded user-facing strings remaining; PRs #183, #184 & commit 11ff5cf completed)
+**Last updated:** 2026-04-18 (✅ **Speech-to-Text + Translations Complete** — Backend (migration 071 + translationCache + speechToText + /api/chat/transcribe) + Frontend (4 TS components) + Comprehensive Integration Guide; Phases 1–2 committed; Phase 3 ready for implementation)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -726,6 +726,126 @@ Remaining hardcoded strings in the two largest dashboard files:
 - Settings, subscriptions, payments, and all critical business flows properly localized
 
 **Production Ready:** ✅ All four language variants are ready for production deployment with complete feature parity.
+
+### Session — 2026-04-18 (Support messages translation + speech-to-text)
+
+**Objective:** Add multilingual support to the support ticket system with Web Speech API for voice input and automatic message translation.
+
+**Phase 1 — Backend Infrastructure (Completed & Committed)**
+
+- **Migration 071** `server/migrations/071_support_messages_language.sql`: Adds `sender_language` VARCHAR(5) column to `support_messages` table with partial index for translation queries.
+
+- **Translation Cache** `server/utils/translationCache.js` (new):
+  - Redis-backed persistent caching (30-day TTL) on top of existing LibreTranslate
+  - `getTranslation(text, source, target)` — single message translation with Redis check-first
+  - `getTranslations(texts[], source, target)` — batch translation with Redis pipeline
+  - Gracefully falls back to in-memory LibreTranslate cache if Redis unavailable
+  - Invalidation support via `invalidateTranslation()`
+
+- **Speech-to-Text Fallback** `server/utils/speechToText.js` (new):
+  - `transcribeAudio(audioBuffer, languageHint)` — OpenRouter audio transcription
+  - Used when Web Speech API confidence < 85%
+  - Returns `{ transcript, confidence, language }`
+  - 30-second timeout; non-fatal failures (returns Web Speech result)
+
+- **Chat Transcribe Endpoint** `chatController.js` + `routes/chat.js`:
+  - `POST /api/chat/transcribe` — authenticated, rate-limited
+  - Input: `{ audio_data: base64, language: 'en' }`
+  - Output: `{ transcript, confidence, language }`
+
+- **Support Message Language Capture** `supportController.js` (all 3 message creation paths):
+  - `submitSupportRequest()` — captures `sender_language` from request body
+  - `replyToMyTicket()` — captures from customer's language preference
+  - `adminReply()` — captures from admin's language preference
+  - All validate against allowlist: en/es/fr/ht/de/it/pt/nl/pl/ja/zh
+
+**Phase 2 — Frontend Components (Completed & Committed)**
+
+All 4 components are TypeScript, Tailwind-styled, dark-mode-ready:
+
+- **SpeechRecorderButton.tsx** (client/src/components/):
+  - Low-level mic button with MediaRecorder integration
+  - Automatic MIME type detection (WebM/MP4/WAV fallback chain)
+  - Recording indicator with pulsing red dot animation
+  - `onRecordingStart()` / `onRecordingStop(audioBlob, duration)` callbacks
+  - Error handling for permissions, mic access
+
+- **TranscriptConfidenceIndicator.tsx** (client/src/components/):
+  - Displays confidence percentage (0-100%)
+  - Visual indicators: green (≥95%), amber (<85%), neutral
+  - "Improve with AI" button only shows for low confidence
+  - Disabled state during improvement request
+
+- **MessageWithTranslation.tsx** (client/src/components/):
+  - Displays original or translated message with toggle
+  - Shows language name (English/Spanish/French/etc)
+  - Toggle button: "Show original (ES)" ↔ "Show translation (EN)"
+  - Non-fatal loading state for in-flight translations
+
+- **SpeechToTextInput.tsx** (client/src/components/):
+  - Full speech-to-text input component combining the above
+  - Web Speech API as primary (fast, free, browser-native)
+  - Language auto-set from `user.language` preference
+  - OpenRouter fallback for low-confidence transcripts (integrated)
+  - Editable transcript in textarea
+  - Submit/Clear action buttons
+  - 4000-char limit message validation
+
+**Phase 3 — Integration Guidance (Documentation)**
+
+- Created comprehensive **IMPLEMENTATION_GUIDE_SUPPORT_TRANSLATIONS_SPEECH_TO_TEXT.md**:
+  - Step-by-step integration into SupportWidget (escalation form)
+  - Full CustomerSupportTicketPage template with translation UI
+  - Admin SupportTickets integration notes
+  - Testing checklist with Spanish → English scenario
+  - Troubleshooting guide
+  - Environment variable requirements (OPENROUTER_API_KEY, REDIS_URL)
+  - Future enhancement ideas
+
+**Key Design Decisions:**
+
+- **Web Speech API first, OpenRouter fallback:** Fast + free primary path; only pay for edge cases (low confidence)
+- **Language stored, not detected:** `sender_language` is explicit and validated, not inferred
+- **30-day translation TTL:** Matches typical support ticket lifecycle; translations don't change
+- **No breaking changes:** All existing support endpoints backward-compatible (sender_language defaults to 'en')
+- **Graceful degradation:** Redis unavailable → in-memory cache; OpenRouter down → Web Speech result used
+- **Per-message language:** Each message independently tagged, supports multi-person conversations
+
+**Testing Scenarios:**
+
+1. Spanish customer speaks ticket escalation → English admin replies in dashboard
+2. Admin reads Spanish message → auto-translated; toggle shows original
+3. Low-confidence Web Speech (65%) → "Improve with AI" button → OpenRouter transcription (98%)
+4. Message in database has `sender_language='es'` → next viewer's language 'en' → auto-translate
+
+**Files Created/Modified:**
+
+Created:
+- `server/migrations/071_support_messages_language.sql`
+- `server/utils/translationCache.js`
+- `server/utils/speechToText.js`
+- `client/src/components/SpeechRecorderButton.tsx`
+- `client/src/components/TranscriptConfidenceIndicator.tsx`
+- `client/src/components/MessageWithTranslation.tsx`
+- `client/src/components/SpeechToTextInput.tsx`
+- `IMPLEMENTATION_GUIDE_SUPPORT_TRANSLATIONS_SPEECH_TO_TEXT.md` (18 KB, ready for Phase 3)
+
+Modified:
+- `server/controllers/chatController.js` (added `transcribeAudio` export)
+- `server/routes/chat.js` (added `/transcribe` route)
+- `server/controllers/supportController.js` (added language capture to all 3 message creation paths)
+- `client/src/components/SupportWidget.jsx` (imported `SpeechToTextInput`)
+
+**Commits:**
+
+1. `feat: Phase 1 - Support translations + speech-to-text backend infrastructure` (9d84fa9)
+2. `feat: Phase 2 - Frontend components for speech-to-text and translations` (29d8ac1)
+3. `docs: Comprehensive implementation guide for speech-to-text + translations` (30a9a87)
+
+**Ready for:**
+- ✅ Phase 3 Integration (follow IMPLEMENTATION_GUIDE_*.md)
+- ✅ End-to-end testing with real Spanish/English users
+- ✅ Production deployment once integrated and tested
 
 ---
 
