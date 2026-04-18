@@ -234,8 +234,8 @@ export default function HelperDashboard() {
   const addLineItem = () => {
     const qty = parseFloat(lineItemInput.quantity) || 1;
     const price = parseFloat(lineItemInput.unit_price) || 0;
-    if (!lineItemInput.description.trim()) return toast.error('Description required');
-    if (qty <= 0 || price < 0) return toast.error('Invalid quantity or price');
+    if (!lineItemInput.description.trim()) return toast.error(t('helperDashboard.invoices.descriptionRequired'));
+    if (qty <= 0 || price < 0) return toast.error(t('helperDashboard.invoices.invalidQtyPrice'));
     const newItem = {
       description: lineItemInput.description,
       quantity: qty,
@@ -320,7 +320,7 @@ export default function HelperDashboard() {
   };
 
   const handleDeleteInvoice = async (id) => {
-    if (!confirm('Delete this invoice?')) return;
+    if (!confirm(t('helperDashboard.invoices.deleteConfirm'))) return;
     try {
       await api.delete(`/helpers/invoices/${id}`);
       toast.success(t('helperDashboard.invoices.deleted'));
@@ -333,14 +333,15 @@ export default function HelperDashboard() {
     try {
       const res = await api.post(`/helpers/invoices/${id}/send`);
       if (res.data?.notification_sent) {
-        toast.success('Invoice sent to client');
+        toast.success(t('helperDashboard.invoices.sentToClient'));
       } else {
         const token = res.data?.public_token;
-        toast.success(`Invoice sent! Share link: ${window.location.origin}/invoices/${token}`);
+        const url = `${window.location.origin}/invoices/${token}`;
+        toast.success(t('helperDashboard.invoices.sentWithLink', { url }));
       }
       fetchMyInvoices();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to send invoice');
+      toast.error(err.response?.data?.error || t('helperDashboard.invoices.saveFailed'));
     }
     setSendingInvoiceId(null);
   };
@@ -2291,13 +2292,13 @@ export default function HelperDashboard() {
       </Modal>
 
       {/* Invoice Modal */}
-      <Modal open={showInvoiceModal} onClose={() => setShowInvoiceModal(false)} title={editingInvoice ? 'Edit Invoice' : 'Create Invoice'}>
+      <Modal open={showInvoiceModal} onClose={() => setShowInvoiceModal(false)} title={editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}>
         <form onSubmit={handleSaveInvoice} className="space-y-4">
-          <Input label="Client Name" placeholder="John Doe" value={invoiceForm.client_name} onChange={e => setInvoiceForm(p => ({...p, client_name: e.target.value}))} required />
-          <Input label="Client Email" type="email" placeholder="john@example.com" value={invoiceForm.client_email} onChange={e => setInvoiceForm(p => ({...p, client_email: e.target.value}))} required />
+          <Input label={t('helperDashboard.invoices.clientName')} placeholder="John Doe" value={invoiceForm.client_name} onChange={e => setInvoiceForm(p => ({...p, client_name: e.target.value}))} required />
+          <Input label={t('helperDashboard.invoices.clientEmail')} type="email" placeholder="john@example.com" value={invoiceForm.client_email} onChange={e => setInvoiceForm(p => ({...p, client_email: e.target.value}))} required />
 
           <div className="border-t border-gray-700 pt-4">
-            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-2">Line Items</label>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-2">{t('helperDashboard.invoices.lineItems')}</label>
             {invoiceForm.line_items.length > 0 && (
               <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
                 {invoiceForm.line_items.map((item, idx) => (
@@ -2312,41 +2313,41 @@ export default function HelperDashboard() {
               </div>
             )}
             <div className="space-y-2">
-              <Input label="Description" placeholder="e.g., Electrical repair" value={lineItemInput.description} onChange={e => setLineItemInput(p => ({...p, description: e.target.value}))} />
+              <Input label={t('helperDashboard.invoices.description')} placeholder={t('helperDashboard.invoices.descriptionPlaceholder')} value={lineItemInput.description} onChange={e => setLineItemInput(p => ({...p, description: e.target.value}))} />
               <div className="grid grid-cols-3 gap-2">
-                <Input label="Qty" type="number" step="0.01" min="0.01" placeholder="1" value={lineItemInput.quantity} onChange={e => setLineItemInput(p => ({...p, quantity: e.target.value}))} />
-                <Input label="Unit Price" type="number" step="0.01" min="0" placeholder="0.00" value={lineItemInput.unit_price} onChange={e => setLineItemInput(p => ({...p, unit_price: e.target.value}))} />
-                <button type="button" onClick={addLineItem} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition align-bottom self-end">Add Item</button>
+                <Input label={t('helperDashboard.invoices.qty')} type="number" step="0.01" min="0.01" placeholder="1" value={lineItemInput.quantity} onChange={e => setLineItemInput(p => ({...p, quantity: e.target.value}))} />
+                <Input label={t('helperDashboard.invoices.unitPrice')} type="number" step="0.01" min="0" placeholder="0.00" value={lineItemInput.unit_price} onChange={e => setLineItemInput(p => ({...p, unit_price: e.target.value}))} />
+                <button type="button" onClick={addLineItem} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition align-bottom self-end">{t('helperDashboard.invoices.addItem')}</button>
               </div>
             </div>
           </div>
 
           <div className="border-t border-gray-700 pt-4 space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Subtotal:</span>
+              <span className="text-gray-400">{t('helperDashboard.invoices.subtotal')}</span>
               <span className="text-white font-semibold">${(invoiceForm.subtotal_cents / 100).toFixed(2)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-400 flex-1">Tax Rate (%):</label>
+              <label className="text-sm text-gray-400 flex-1">{t('helperDashboard.invoices.taxRate')}</label>
               <input type="number" step="0.01" min="0" max="100" value={invoiceForm.tax_rate} onChange={e => updateTaxRate(parseFloat(e.target.value) || 0)} className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white" />
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Tax:</span>
+              <span className="text-gray-400">{t('helperDashboard.invoices.tax')}</span>
               <span className="text-white font-semibold">${(invoiceForm.tax_cents / 100).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-lg border-t border-gray-700 pt-3">
-              <span className="text-white font-bold">Total:</span>
+              <span className="text-white font-bold">{t('helperDashboard.invoices.total')}</span>
               <span className="text-orange-400 font-bold">${(invoiceForm.total_cents / 100).toFixed(2)}</span>
             </div>
           </div>
 
-          <Input label="Due Date (Optional)" type="date" value={invoiceForm.due_date} onChange={e => setInvoiceForm(p => ({...p, due_date: e.target.value}))} />
+          <Input label={t('helperDashboard.invoices.dueDate')} type="date" value={invoiceForm.due_date} onChange={e => setInvoiceForm(p => ({...p, due_date: e.target.value}))} />
 
-          <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder="Notes/Memo (optional)" value={invoiceForm.memo} onChange={e => setInvoiceForm(p => ({...p, memo: e.target.value}))} />
+          <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('helperDashboard.invoices.memo')} value={invoiceForm.memo} onChange={e => setInvoiceForm(p => ({...p, memo: e.target.value}))} />
 
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowInvoiceModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg transition">{t('common.cancel')}</button>
-            <button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition">{editingInvoice ? 'Update' : 'Create'} Invoice</button>
+            <button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition">{editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}</button>
           </div>
         </form>
       </Modal>
