@@ -161,10 +161,25 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       setLastReadAt(readAt);
     };
 
+    const onMessageDeleted = ({ conversationId: cid, messageId }) => {
+      if (String(cid) !== String(conversationId)) return;
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      messageIdsRef.current.delete(messageId);
+    };
+
+    const onMessageUpdated = ({ conversationId: cid, message }) => {
+      if (String(cid) !== String(conversationId)) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? message : m))
+      );
+    };
+
     socket.on('message:new', onMessageNew);
     socket.on('user:typing', onTyping);
     socket.on('user:stopped_typing', onStoppedTyping);
     socket.on('messages:read', onMessagesRead);
+    socket.on('message:deleted', onMessageDeleted);
+    socket.on('message:updated', onMessageUpdated);
     if (listenProfileChat) {
       socket.on('profile_chat:new_message', onProfileChatNew);
     }
@@ -178,6 +193,8 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       socket.off('user:typing', onTyping);
       socket.off('user:stopped_typing', onStoppedTyping);
       socket.off('messages:read', onMessagesRead);
+      socket.off('message:deleted', onMessageDeleted);
+      socket.off('message:updated', onMessageUpdated);
       if (listenProfileChat) {
         socket.off('profile_chat:new_message', onProfileChatNew);
       }

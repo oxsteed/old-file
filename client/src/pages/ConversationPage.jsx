@@ -4,6 +4,7 @@ import { useConversationChat } from '../hooks/useConversationChat';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
+import api from '../api/axios';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -11,14 +12,21 @@ function formatTime(ts) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-const MessageActions = ({ message, user, onCopy }) => {
+const MessageActions = ({ message, user, onDelete, onEdit }) => {
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);
+  const isOwn = message.sender_id === user?.id;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('Delete this message?')) {
+      onDelete?.(message.id);
+    }
   };
 
   return (
@@ -31,6 +39,26 @@ const MessageActions = ({ message, user, onCopy }) => {
       >
         📋
       </button>
+      {isOwn && (
+        <>
+          <button
+            onClick={() => onEdit?.(message.id)}
+            className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition"
+            title="Edit message"
+            aria-label="Edit"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={handleDelete}
+            className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition"
+            title="Delete message"
+            aria-label="Delete"
+          >
+            🗑️
+          </button>
+        </>
+      )}
     </div>
   );
 };
@@ -39,6 +67,8 @@ export default function ConversationPage() {
   const { t } = useTranslation();
   const { conversationId } = useParams();
   const navigate = useNavigate();
+  const [editingId, setEditingId] = React.useState(null);
+  const [editText, setEditText] = React.useState('');
 
   const {
     messages, otherName, helperBusiness, jobTitle,
@@ -48,6 +78,39 @@ export default function ConversationPage() {
     handleInputChange, handleBlur, handleSend, handleKeyDown,
     user,
   } = useConversationChat(conversationId);
+
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await api.delete(`/messages/conversations/${conversationId}/${messageId}`);
+      // Message will be removed by socket event, or we can refetch
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+    }
+  };
+
+  const handleEditMessage = (messageId) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (msg) {
+      setEditingId(messageId);
+      setEditText(msg.content);
+    }
+  };
+
+  const handleSaveEdit = async (messageId) => {
+    if (!editText.trim()) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      await api.put(`/messages/conversations/${conversationId}/${messageId}`, {
+        content: editText,
+      });
+      setEditingId(null);
+      setEditText('');
+    } catch (error) {
+      console.error('Failed to edit message:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -116,34 +179,87 @@ export default function ConversationPage() {
           {messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
             const isLastFromMe = showSeen && msg.id === lastSentByMe?.id;
+            const isEditing = editingId === msg.id;
             return (
               <div key={msg.id} className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'}`}>
                 {!isMe && msg.sender_name && (
                   <span className="text-xs text-gray-400 mb-1 ml-1">{msg.sender_name}</span>
                 )}
-                <div className={`px-4 py-2 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
-                  isMe
-                    ? 'bg-blue-600 text-white rounded-br-sm'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                }`}>
-                  {msg.content}
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5 px-1">
-                  <span className="text-[11px] text-gray-400">{formatTime(msg.created_at)}</span>
-                  {isLastFromMe && (
-                    <span className="text-[11px] text-blue-500 font-medium">{t('messages.seen')}</span>
-                  )}
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(msg.content);
-                    }}
-                    className="p-0.5 rounded text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition"
-                    title="Copy message"
-                    aria-label="Copy message"
-                  >
-                    📋
-                  </button>
-                </div>
+                {isEditing ? (
+                  <div className="max-w-xs sm:max-w-sm w-full flex flex-col gap-2">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      className="px-4 py-2 rounded-2xl border border-blue-500 bg-white text-gray-800 text-sm resize-none"
+                      rows={2}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => handleSaveEdit(msg.id)}
+                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className={`px-4 py-2 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
+                      isMe
+                        ? 'bg-blue-600 text-white rounded-br-sm'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                    }`}>
+                      {msg.content}
+                      {msg.updated_at && msg.updated_at > msg.created_at && (
+                        <span className="text-xs opacity-75 ml-2">(edited)</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5 px-1">
+                      <span className="text-[11px] text-gray-400">{formatTime(msg.created_at)}</span>
+                      {isLastFromMe && (
+                        <span className="text-[11px] text-blue-500 font-medium">{t('messages.seen')}</span>
+                      )}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.content);
+                          }}
+                          className="p-0.5 rounded text-gray-400 hover:text-gray-600 transition"
+                          title="Copy message"
+                          aria-label="Copy message"
+                        >
+                          📋
+                        </button>
+                        {isMe && (
+                          <>
+                            <button
+                              onClick={() => handleEditMessage(msg.id)}
+                              className="p-0.5 rounded text-gray-400 hover:text-gray-600 transition"
+                              title="Edit message"
+                              aria-label="Edit message"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-0.5 rounded text-gray-400 hover:text-red-600 transition"
+                              title="Delete message"
+                              aria-label="Delete message"
+                            >
+                              🗑️
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
