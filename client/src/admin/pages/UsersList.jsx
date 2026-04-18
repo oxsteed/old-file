@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link }          from 'react-router-dom';
-import { Search, Download, UserPlus, X } from 'lucide-react';
+import { Search, Download, UserPlus, X, MessageSquare } from 'lucide-react';
 import { useAuth }       from '../../hooks/useAuth';
 import adminApi          from '../../lib/adminApi';
 
@@ -131,6 +131,11 @@ export default function UsersList() {
     search: '', role: '', status: '', plan: '', page: 1
   });
   const [showCreate, setShowCreate] = useState(false);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [msgText, setMsgText] = useState('');
+  const [msgSending, setMsgSending] = useState(false);
+  const [message, setMessage] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -167,6 +172,38 @@ export default function UsersList() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const openMessageModal = (user) => {
+    setSelectedUser(user);
+    setShowMsgModal(true);
+    setMsgText('');
+  };
+
+  const closeMessageModal = () => {
+    setShowMsgModal(false);
+    setSelectedUser(null);
+    setMsgText('');
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!msgText.trim() || !selectedUser) return;
+    setMsgSending(true);
+    try {
+      await adminApi.post(`/admin/super/users/${selectedUser.id}/message`, {
+        content: msgText.trim(),
+      });
+      setMessage({ type: 'success', text: `Message sent to ${selectedUser.first_name}.` });
+      closeMessageModal();
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to send message.',
+      });
+    } finally {
+      setMsgSending(false);
     }
   };
 
@@ -346,7 +383,16 @@ export default function UsersList() {
                       'en-US', { month: 'short', day: 'numeric', year: '2-digit' }
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 flex items-center gap-2">
+                    <button
+                      onClick={() => openMessageModal(user)}
+                      className="text-xs text-blue-400 hover:text-blue-300
+                                 font-medium transition flex items-center gap-1"
+                      title="Send message"
+                    >
+                      <MessageSquare size={14} />
+                      Message
+                    </button>
                     <Link
                       to={`/admin/users/${user.id}`}
                       className="text-xs text-orange-400 hover:text-orange-300
@@ -391,6 +437,85 @@ export default function UsersList() {
           </div>
         )}
       </div>
+
+      {/* Message modal */}
+      {showMsgModal && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center
+                        p-4 bg-black/60">
+          <div className="w-full max-w-md bg-gray-900 border border-gray-700
+                          rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4
+                            border-b border-gray-800">
+              <h2 className="font-semibold text-white flex items-center gap-2 text-sm">
+                <MessageSquare size={15} className="text-blue-400" />
+                Message {selectedUser.first_name}
+              </h2>
+              <button
+                onClick={closeMessageModal}
+                className="text-gray-500 hover:text-white transition p-1"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            {message && (
+              <div className={`mx-5 mt-4 p-3 rounded-lg text-sm ${
+                message.type === 'success'
+                  ? 'bg-green-900/30 text-green-300'
+                  : 'bg-red-900/30 text-red-300'
+              }`}>
+                {message.message}
+              </div>
+            )}
+            <form
+              onSubmit={handleSendMessage}
+              className="p-5"
+            >
+              <p className="text-xs text-gray-400 mb-3">
+                This message will appear in {selectedUser.first_name}'s inbox as a system message.
+                It is logged in the audit trail.
+              </p>
+              <textarea
+                autoFocus
+                required
+                rows={5}
+                maxLength={4000}
+                value={msgText}
+                onChange={e => setMsgText(e.target.value)}
+                placeholder={`Write a message to ${selectedUser.first_name}…`}
+                className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700
+                           rounded-lg text-sm text-white placeholder-gray-500
+                           focus:outline-none focus:border-blue-500 resize-none"
+              />
+              <div className="flex justify-between items-center mt-4">
+                <span className="text-xs text-gray-500">
+                  {msgText.length} / 4000
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={closeMessageModal}
+                    disabled={msgSending}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-700 text-gray-300
+                              hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed
+                              transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={msgSending || !msgText.trim()}
+                    className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white
+                              hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                              transition font-medium"
+                  >
+                    {msgSending ? 'Sending…' : 'Send Message'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showCreate && (
         <CreateUserModal
