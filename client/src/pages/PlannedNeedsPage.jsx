@@ -609,7 +609,7 @@ export default function PlannedNeedsPage() {
           <div className="pn-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
             <div className="pn-modal">
               <h2>{t('plannedNeeds.cancelNeedTitle')}</h2>
-              <p dangerouslySetInnerHTML={{ __html: t('plannedNeeds.cancelNeedConfirm', { name: `<strong>${selected.title}</strong>` }) }} />
+              <p>{t('plannedNeeds.cancelNeedConfirm', { name: selected.title })}</p>
               {error && <p style={{ color:'#f87171', fontSize:'0.85rem' }}>{error}</p>}
               <div className="pn-modal-actions">
                 <button className="btn-ghost" onClick={closeModal}>{t('plannedNeeds.keepIt')}</button>

@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
+const logger = require('../utils/logger');
+const { hashIP } = require('../utils/encryption');
 /**
  * CCPA/CPRA Privacy Rights Routes
  * Provides data export, account deletion, and data portability
@@ -62,12 +64,12 @@ router.get('/export', authenticate, async (req, res) => {
     );
     res.json(exportData);
   } catch (err) {
-    console.error('[Privacy Export Error]', err);
+    logger.error('Privacy export error', { err: err.message, userId: req.user?.id });
     res.status(500).json({ error: 'Failed to export data. Please try again.' });
   }
 });
 // DELETE /api/privacy/delete-account - Request account deletion (CCPA right to delete)
-router.delete('/delete-account', authenticate, async (req, res) => {
+router.delete('/delete-account', authenticate, strictLimiter, async (req, res) => {
   try {
     const userId = req.user.id;
     const { confirmation } = req.body;
@@ -111,13 +113,13 @@ router.delete('/delete-account', authenticate, async (req, res) => {
     await pool.query(
       `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
        VALUES ($1, 'account_deletion', '1.0', $2, $3)`,
-      [userId, req.ip, req.headers['user-agent'] || 'unknown']
+      [userId, hashIP(req.ip), req.headers['user-agent'] || 'unknown']
     );
     res.json({
       message: 'Your account has been scheduled for deletion. Personal data has been anonymized. Some records may be retained for legal and financial compliance purposes as described in our Privacy Policy.',
     });
   } catch (err) {
-    console.error('[Account Deletion Error]', err);
+    logger.error('Account deletion error', { err: err.message, userId: req.user?.id });
     res.status(500).json({ error: 'Failed to process deletion request.' });
   }
 });
