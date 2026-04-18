@@ -1,7 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const { calculatePlatformFee } = require('./feeService');
-const logger = require('../utils/logger');
 
 /**
  * Issue a refund for a payment intent.
@@ -12,10 +11,10 @@ exports.issueRefund = async (paymentIntentId, amount = null) => {
     const refundData = { payment_intent: paymentIntentId };
     if (amount) refundData.amount = amount;
     const refund = await stripe.refunds.create(refundData);
-    logger.info('Stripe refund issued', { refundId: refund.id, paymentIntentId });
+    console.log(`[Stripe] Refund issued: ${refund.id} for intent ${paymentIntentId}`);
     return refund;
   } catch (err) {
-    logger.error('Stripe issueRefund failed', { paymentIntentId, err: err.message });
+    console.error(`[Stripe] issueRefund failed for intent ${paymentIntentId}:`, err.message);
     throw err;
   }
 };
@@ -55,10 +54,10 @@ exports.releaseEscrow = async (jobId) => {
       source_transaction: payment_intent_id,
     });
 
-    logger.info('Stripe escrow released', { jobId, transferId: transfer.id, amount: transferAmount });
+    console.log(`[Stripe] Escrow released for job ${jobId}: transfer ${transfer.id}, amount ${transferAmount} cents`);
     return transfer;
   } catch (err) {
-    logger.error('Stripe releaseEscrow failed', { jobId, err: err.message });
+    console.error(`[Stripe] releaseEscrow failed for job ${jobId}:`, err.message);
     throw err;
   }
 };
