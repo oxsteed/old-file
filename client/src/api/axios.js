@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { setupAPIVersionInterceptor } from './apiVersionInterceptor';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -16,6 +17,9 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Setup API versioning with v2 → v1 fallback
+setupAPIVersionInterceptor(api);
 
 // NOTE: Token refresh on 401 is handled by the response interceptor in
 // api/auth.js (which imports this same `api` instance and adds its own
