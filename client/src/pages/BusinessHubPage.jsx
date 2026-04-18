@@ -16,6 +16,12 @@ import {
   listManagedBusinesses,
   listVortexTokens, generateVortexToken, revokeVortexToken,
   getBusinessProfileForEditor,
+  // Business content (services, gallery, policies, faqs, hours)
+  listBusinessServices, createBusinessService, updateBusinessService, deleteBusinessService,
+  listBusinessGallery, addBusinessPhoto, updateBusinessPhoto, deleteBusinessPhoto,
+  listBusinessPolicies, createBusinessPolicy, updateBusinessPolicy, deleteBusinessPolicy,
+  listBusinessFAQs, createBusinessFAQ, updateBusinessFAQ, deleteBusinessFAQ,
+  listBusinessHours, updateBusinessHours,
 } from '../api/businesses';
 import '../styles/BusinessHubPage.css';
 
@@ -111,6 +117,18 @@ function BusinessHubInner() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving]   = useState(false);
   const [profileErr, setProfileErr]         = useState('');
+
+  // content tabs (services, gallery, policies, faqs, hours)
+  const [services, setServices]             = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [gallery, setGallery]               = useState([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [policies, setPolicies]             = useState([]);
+  const [policiesLoading, setPoliciesLoading] = useState(false);
+  const [faqs, setFAQs]                     = useState([]);
+  const [faqsLoading, setFAQsLoading]       = useState(false);
+  const [hours, setHours]                   = useState([]);
+  const [hoursLoading, setHoursLoading]     = useState(false);
   const [logoPreview, setLogoPreview]     = useState(null);
   const [coverPreview, setCoverPreview]   = useState(null);
   const [logoFile, setLogoFile]           = useState(null);
@@ -293,9 +311,56 @@ function BusinessHubInner() {
     }
   }, [bizId, profileForm, logoFile, coverFile, loadProfile, t]);
 
+  // Content tab loading functions
+  const loadServices = useCallback(async () => {
+    if (!bizId) return;
+    setServicesLoading(true);
+    try { setServices(await listBusinessServices(bizId)); }
+    catch { toast.error(t('businessHub.errorLoadServices')); }
+    finally { setServicesLoading(false); }
+  }, [bizId, t]);
+
+  const loadGallery = useCallback(async () => {
+    if (!bizId) return;
+    setGalleryLoading(true);
+    try { setGallery(await listBusinessGallery(bizId)); }
+    catch { toast.error(t('businessHub.errorLoadGallery')); }
+    finally { setGalleryLoading(false); }
+  }, [bizId, t]);
+
+  const loadPolicies = useCallback(async () => {
+    if (!bizId) return;
+    setPoliciesLoading(true);
+    try { setPolicies(await listBusinessPolicies(bizId)); }
+    catch { toast.error(t('businessHub.errorLoadPolicies')); }
+    finally { setPoliciesLoading(false); }
+  }, [bizId, t]);
+
+  const loadFAQs = useCallback(async () => {
+    if (!bizId) return;
+    setFAQsLoading(true);
+    try { setFAQs(await listBusinessFAQs(bizId)); }
+    catch { toast.error(t('businessHub.errorLoadFAQs')); }
+    finally { setFAQsLoading(false); }
+  }, [bizId, t]);
+
+  const loadHours = useCallback(async () => {
+    if (!bizId) return;
+    setHoursLoading(true);
+    try { setHours(await listBusinessHours(bizId)); }
+    catch { toast.error(t('businessHub.errorLoadHours')); }
+    finally { setHoursLoading(false); }
+  }, [bizId, t]);
+
   useEffect(() => {
     if (!bizId) return;
-    if (tab === 'overview') loadOverview();
+    if (tab === 'profile') loadProfile();
+    else if (tab === 'services') loadServices();
+    else if (tab === 'gallery') loadGallery();
+    else if (tab === 'policies') loadPolicies();
+    else if (tab === 'faqs') loadFAQs();
+    else if (tab === 'hours') loadHours();
+    else if (tab === 'overview') loadOverview();
     else if (tab === 'invoices') loadInvoices();
     else if (tab === 'tax') loadTax();
     else if (tab === 'goals') {
@@ -303,8 +368,7 @@ function BusinessHubInner() {
       loadOverview();
     }
     else if (tab === 'team') loadTeam();
-    else if (tab === 'profile') loadProfile();
-  }, [bizId, tab, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam, loadProfile]);
+  }, [bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -548,14 +612,16 @@ function BusinessHubInner() {
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
-  const visibleTabs = ['profile', ...financeTabIds, 'team'].filter((tb) => {
+  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours'];
+  const visibleTabs = ['profile', ...contentTabIds, ...financeTabIds, 'team'].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
+    if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
     if (financeTabIds.includes(tb) && !canViewFinanceHub) return false;
     return true;
   });
 
   useEffect(() => {
-    if (tab === 'profile' && !canEditBizProfile) {
+    if ((tb === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (financeTabIds.includes(tab) && !canViewFinanceHub) {
@@ -566,6 +632,11 @@ function BusinessHubInner() {
   // tab label resolver
   const tabLabel = (tb) => {
     if (tb === 'profile') return t('businessHub.tabEditProfile');
+    if (tb === 'services') return t('businessHub.tabServicesLabel');
+    if (tb === 'gallery') return t('businessHub.tabGalleryLabel');
+    if (tb === 'policies') return t('businessHub.tabPoliciesLabel');
+    if (tb === 'faqs') return t('businessHub.tabFAQsLabel');
+    if (tb === 'hours') return t('businessHub.tabHoursLabel');
     if (tb === 'team') return t('businessHub.tabTeamLabel');
     if (tb === 'overview') return t('businessHub.tabOverviewLabel');
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
@@ -674,6 +745,36 @@ function BusinessHubInner() {
                 onSave={handleSaveProfile}
                 bizId={bizId}
               />
+            )}
+
+            {/* ── Services tab ─────────────────────────────────────── */}
+            {tab === 'services' && (
+              servicesLoading ? <p className="bh-loading">{t('businessHub.loadingServices')}</p> :
+              <ServicesTab services={services} businessId={bizId} onRefresh={loadServices} />
+            )}
+
+            {/* ── Gallery tab ──────────────────────────────────────── */}
+            {tab === 'gallery' && (
+              galleryLoading ? <p className="bh-loading">{t('businessHub.loadingGallery')}</p> :
+              <GalleryTab gallery={gallery} businessId={bizId} onRefresh={loadGallery} />
+            )}
+
+            {/* ── Policies tab ─────────────────────────────────────── */}
+            {tab === 'policies' && (
+              policiesLoading ? <p className="bh-loading">{t('businessHub.loadingPolicies')}</p> :
+              <PoliciesTab policies={policies} businessId={bizId} onRefresh={loadPolicies} />
+            )}
+
+            {/* ── FAQs tab ─────────────────────────────────────────── */}
+            {tab === 'faqs' && (
+              faqsLoading ? <p className="bh-loading">{t('businessHub.loadingFAQs')}</p> :
+              <FAQsTab faqs={faqs} businessId={bizId} onRefresh={loadFAQs} />
+            )}
+
+            {/* ── Hours tab ────────────────────────────────────────── */}
+            {tab === 'hours' && (
+              hoursLoading ? <p className="bh-loading">{t('businessHub.loadingHours')}</p> :
+              <HoursTab hours={hours} businessId={bizId} onRefresh={loadHours} />
             )}
 
             {/* ── Overview tab ────────────────────────────────────── */}
@@ -1825,6 +1926,192 @@ function TeamTab({
             </tbody>
           </table>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Content Tab Components (Services, Gallery, Policies, FAQs, Hours) ────────
+
+function ServicesTab({ services, businessId, onRefresh }) {
+  const { t } = useTranslation();
+
+  if (!services || services.length === 0) {
+    return (
+      <div className="bh-empty" style={{ padding: '2rem 0' }}>
+        <p>{t('businessHub.noServicesYet')}</p>
+        <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
+          {t('businessHub.addServicesToYourBusiness')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {services.map(svc => (
+        <div key={svc.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1">
+              <h4 className="font-semibold text-white">{svc.name}</h4>
+              {svc.description && <p className="text-sm text-gray-400 mt-1">{svc.description}</p>}
+              <p className="text-sm text-orange-400 mt-2">${svc.price || 0}</p>
+            </div>
+            <div className="flex gap-2">
+              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition">{t('businessHub.edit')}</button>
+              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition">{t('businessHub.delete')}</button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+        {t('businessHub.addService')}
+      </button>
+    </div>
+  );
+}
+
+function GalleryTab({ gallery, businessId, onRefresh }) {
+  const { t } = useTranslation();
+
+  if (!gallery || gallery.length === 0) {
+    return (
+      <div className="bh-empty" style={{ padding: '2rem 0' }}>
+        <p>{t('businessHub.noGalleryYet')}</p>
+        <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
+          {t('businessHub.uploadPhotosToShowcase')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {gallery.map(photo => (
+          <div key={photo.id} className="relative bg-gray-900 rounded-lg overflow-hidden border border-gray-800 group">
+            <img src={photo.url} alt={photo.caption || t('businessHub.galleryPhoto')} className="w-full h-48 object-cover" />
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+              <button className="px-3 py-1 text-sm bg-orange-600 hover:bg-orange-700 rounded text-white">{t('businessHub.edit')}</button>
+              <button className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white">{t('businessHub.delete')}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+        {t('businessHub.uploadPhotos')}
+      </button>
+    </div>
+  );
+}
+
+function PoliciesTab({ policies, businessId, onRefresh }) {
+  const { t } = useTranslation();
+
+  if (!policies || policies.length === 0) {
+    return (
+      <div className="bh-empty" style={{ padding: '2rem 0' }}>
+        <p>{t('businessHub.noPoliciesYet')}</p>
+        <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
+          {t('businessHub.addPoliciesForClients')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {policies.map(policy => (
+        <div key={policy.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div className="flex justify-between items-start gap-4">
+            <div className="flex-1">
+              <h4 className="font-semibold text-white">{policy.title}</h4>
+              <p className="text-sm text-gray-400 mt-2">{policy.content}</p>
+            </div>
+            <div className="flex gap-2">
+              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition">{t('businessHub.edit')}</button>
+              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition">{t('businessHub.delete')}</button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+        {t('businessHub.addPolicy')}
+      </button>
+    </div>
+  );
+}
+
+function FAQsTab({ faqs, businessId, onRefresh }) {
+  const { t } = useTranslation();
+  const [expandedId, setExpandedId] = useState(null);
+
+  if (!faqs || faqs.length === 0) {
+    return (
+      <div className="bh-empty" style={{ padding: '2rem 0' }}>
+        <p>{t('businessHub.noFAQsYet')}</p>
+        <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
+          {t('businessHub.addFAQsForClients')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {faqs.map(faq => (
+        <div key={faq.id} className="bg-gray-900 border border-gray-800 rounded-lg">
+          <button
+            onClick={() => setExpandedId(expandedId === faq.id ? null : faq.id)}
+            className="w-full px-4 py-3 flex justify-between items-center hover:bg-gray-800/50 transition"
+          >
+            <h4 className="font-semibold text-white text-left">{faq.question}</h4>
+            <span className="text-gray-400">{expandedId === faq.id ? '−' : '+'}</span>
+          </button>
+          {expandedId === faq.id && (
+            <div className="px-4 py-3 border-t border-gray-800 bg-gray-900/50">
+              <p className="text-gray-300 text-sm">{faq.answer}</p>
+              <div className="flex gap-2 mt-3">
+                <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition">{t('businessHub.edit')}</button>
+                <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition">{t('businessHub.delete')}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+        {t('businessHub.addFAQ')}
+      </button>
+    </div>
+  );
+}
+
+function HoursTab({ hours, businessId, onRefresh }) {
+  const { t } = useTranslation();
+  const days = [t('businessHub.daysSunday'), t('businessHub.daysMonday'), t('businessHub.daysTuesday'), t('businessHub.daysWednesday'), t('businessHub.daysThursday'), t('businessHub.daysFriday'), t('businessHub.daysSaturday')];
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+      <h3 className="text-lg font-semibold text-white mb-6">{t('businessHub.businessHours')}</h3>
+      <div className="space-y-4">
+        {[0, 1, 2, 3, 4, 5, 6].map(dayNum => {
+          const dayHours = hours?.find(h => h.day_of_week === dayNum);
+          return (
+            <div key={dayNum} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
+              <span className="font-medium text-gray-300 min-w-[100px]">{days[dayNum]}</span>
+              {dayHours?.is_closed ? (
+                <span className="text-gray-500 italic">{t('businessHub.closed')}</span>
+              ) : (
+                <span className="text-gray-300">
+                  {dayHours?.start_time || '—'} – {dayHours?.end_time || '—'}
+                </span>
+              )}
+              <button className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded transition text-gray-300">
+                {t('businessHub.edit')}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
