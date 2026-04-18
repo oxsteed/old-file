@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
@@ -6,17 +6,33 @@ import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import {
-  listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
-  getAnalytics,
-  listInvoices, createInvoice, updateInvoice, markInvoicePaid, deleteInvoice,
-  getTax, refreshTax, markTaxPaid,
-  listGoals, createGoal, updateGoal, deleteGoal,
-  listMembers, inviteMember, revokeMember,
   listMyInvitations, acceptInvitation, declineInvitation,
-  listManagedBusinesses,
-  listVortexTokens, generateVortexToken, revokeVortexToken,
-  getBusinessProfileForEditor,
 } from '../api/businesses';
+import {
+  useBusinesses,
+  useBusinessAnalytics,
+  useBusinessInvoices,
+  useBusinessTax,
+  useBusinessGoals,
+  useBusinessTeam,
+  useBusinessProfileEditor,
+  useCreateBusiness,
+  useUpdateBusiness,
+  useUploadBusinessPhotos,
+  useCreateInvoice,
+  useUpdateInvoice,
+  useMarkInvoicePaid,
+  useDeleteInvoice,
+  useRefreshTax,
+  useMarkTaxPaid,
+  useCreateGoal,
+  useUpdateGoal,
+  useDeleteGoal,
+  useInviteMember,
+  useRevokeMember,
+  useGenerateVortexToken,
+  useRevokeVortexToken,
+} from '../hooks/useBusinessHub';
 import '../styles/BusinessHubPage.css';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
@@ -73,51 +89,50 @@ export default function BusinessHubPage() {
 
 function BusinessHubInner() {
   const { t } = useTranslation();
-  const [businesses, setBusinesses]   = useState([]);
-  const [bizId, setBizId]             = useState(() => localStorage.getItem(LS_KEY) || '');
-  const [tab, setTab]                 = useState('overview');
-  const [loadingBiz, setLoadingBiz]   = useState(true);
+  const LS_KEY = 'oxs:bh:lastBusinessId';
 
-  // modal state
-  const [modal, setModal]     = useState(null); // 'add-biz' | 'add-inv' | 'edit-inv' | 'pay-inv' | 'add-goal' | 'edit-goal' | 'pay-tax'
-  const [selected, setSelected] = useState(null);
-  const [form, setForm]       = useState({});
-  const [saving, setSaving]   = useState(false);
-  const [formErr, setFormErr] = useState('');
+  // ── React Query Hooks for Data ────────────────────────────────────────
+  const businessesQuery = useBusinesses();
+  const analyticsQuery = useBusinessAnalytics(bizId);
+  const invoicesQuery = useBusinessInvoices(bizId);
+  const taxQuery = useBusinessTax(bizId);
+  const goalsQuery = useBusinessGoals(bizId);
+  const teamQuery = useBusinessTeam(bizId);
+  const profileQuery = useBusinessProfileEditor(bizId);
 
-  // tab data
-  const [analytics, setAnalytics]   = useState(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [invoiceData, setInvoiceData] = useState(null);
-  const [invoicesLoading, setInvoicesLoading] = useState(false);
-  const [taxData, setTaxData]       = useState(null);
-  const [taxLoading, setTaxLoading] = useState(false);
-  const [goals, setGoals]           = useState([]);
-  const [goalsLoading, setGoalsLoading] = useState(false);
+  // ── React Query Hooks for Mutations ───────────────────────────────────
+  const createBizMutation = useCreateBusiness();
+  const updateBizMutation = useUpdateBusiness(bizId);
+  const uploadPhotosMutation = useUploadBusinessPhotos(bizId);
+  const createInvoiceMutation = useCreateInvoice(bizId);
+  const updateInvoiceMutation = useUpdateInvoice(bizId, selected?.id);
+  const markInvoicePaidMutation = useMarkInvoicePaid(bizId, selected?.id);
+  const deleteInvoiceMutation = useDeleteInvoice(bizId, selected?.id);
+  const refreshTaxMutation = useRefreshTax(bizId);
+  const markTaxPaidMutation = useMarkTaxPaid(bizId);
+  const createGoalMutation = useCreateGoal(bizId);
+  const updateGoalMutation = useUpdateGoal(bizId, selected?.id);
+  const deleteGoalMutation = useDeleteGoal(bizId, selected?.id);
+  const inviteMemberMutation = useInviteMember(bizId);
+  const revokeMemberMutation = useRevokeMember(bizId, selected?.id);
+  const generateTokenMutation = useGenerateVortexToken(bizId);
+  const revokeTokenMutation = useRevokeVortexToken(bizId, selected?.id);
 
-  // team tab
-  const [members, setMembers]             = useState([]);
-  const [membersLoading, setMembersLoading] = useState(false);
-  const [invitations, setInvitations]     = useState([]);
-  const [managedBiz, setManagedBiz]       = useState([]);
+  // ── UI State (Modal/Form) – Keep with useState ────────────────────────
+  const [bizId, setBizId]               = useState(() => localStorage.getItem(LS_KEY) || '');
+  const [tab, setTab]                   = useState('overview');
+  const [modal, setModal]               = useState(null);
+  const [selected, setSelected]         = useState(null);
+  const [form, setForm]                 = useState({});
+  const [formErr, setFormErr]           = useState('');
+  const [tokenForm, setTokenForm]       = useState({ role: 'representative', expires_in: '7d' });
 
-  // vortex tokens
-  const [vortexTokens, setVortexTokens]   = useState([]);
-  const [tokenForm, setTokenForm]         = useState({ role: 'representative', expires_in: '7d' });
-  const [generatingToken, setGeneratingToken] = useState(false);
-
-  // profile tab
-  const [profileForm, setProfileForm] = useState(null);   // null = not loaded
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileSaving, setProfileSaving]   = useState(false);
-  const [profileErr, setProfileErr]         = useState('');
-  const [logoPreview, setLogoPreview]     = useState(null);
-  const [coverPreview, setCoverPreview]   = useState(null);
-  const [logoFile, setLogoFile]           = useState(null);
-  const [coverFile, setCoverFile]         = useState(null);
-  // Snapshot of helper-linked fields from last loadProfile — omit from PUT when unchanged
-  // so the server skips helper_profiles UPSERT (see businessController updateBusiness).
-  const profileFieldsBaselineRef = useRef(null);
+  // ── Profile Tab UI State ──────────────────────────────────────────────
+  const [logoPreview, setLogoPreview]   = useState(null);
+  const [coverPreview, setCoverPreview] = useState(null);
+  const [logoFile, setLogoFile]         = useState(null);
+  const [coverFile, setCoverFile]       = useState(null);
+  const profileFieldsBaselineRef        = useRef(null);
 
   // ── load businesses (owned + managed) ───────────────────────────────────
   const loadBusinesses = useCallback(async () => {
