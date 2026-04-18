@@ -606,6 +606,142 @@ function BusinessHubInner() {
     return { subtotal, taxAmt, total: subtotal + taxAmt };
   }
 
+  // ── services CRUD ─────────────────────────────────────────────────────────
+  async function handleSaveService() {
+    if (!form.name?.trim()) { setFormErr(t('businessHub.errServiceNameRequired')); return; }
+    if (!form.price && form.price !== 0) { setFormErr(t('businessHub.errPriceRequired')); return; }
+    const price = parseFloat(form.price);
+    if (isNaN(price)) { setFormErr(t('businessHub.errPriceNumeric')); return; }
+    if (price < 0 || price > 999999.99) { setFormErr(t('businessHub.errPriceRange')); return; }
+    setSaving(true);
+    try {
+      const payload = { ...form, price };
+      if (modal === 'add-service') {
+        await createBusinessService(bizId, payload);
+        toast.success(t('businessHub.toastServiceCreated'));
+      } else {
+        await updateBusinessService(bizId, selected.id, payload);
+        toast.success(t('businessHub.toastServiceUpdated'));
+      }
+      closeModal();
+      await loadServices();
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastServiceCreateFail')); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDeleteService(svc) {
+    if (!window.confirm(t('businessHub.confirmDeleteService', { name: svc.name }))) return;
+    try {
+      await deleteBusinessService(bizId, svc.id);
+      toast.success(t('businessHub.toastServiceDeleted'));
+      await loadServices();
+    } catch { toast.error(t('businessHub.toastServiceDeleteFail')); }
+  }
+
+  // ── gallery CRUD ──────────────────────────────────────────────────────────
+  async function handleSavePhoto() {
+    if (!form.url?.trim()) { setFormErr(t('businessHub.errPhotoURLRequired')); return; }
+    setSaving(true);
+    try {
+      if (modal === 'add-photo') {
+        await addBusinessPhoto(bizId, form);
+        toast.success(t('businessHub.toastPhotoUploaded'));
+      } else {
+        await updateBusinessPhoto(bizId, selected.id, form);
+        toast.success(t('businessHub.toastPhotoUpdated'));
+      }
+      closeModal();
+      await loadGallery();
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastPhotoCreateFail')); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDeletePhoto(photo) {
+    if (!window.confirm(t('businessHub.confirmDeletePhoto'))) return;
+    try {
+      await deleteBusinessPhoto(bizId, photo.id);
+      toast.success(t('businessHub.toastPhotoDeleted'));
+      await loadGallery();
+    } catch { toast.error(t('businessHub.toastPhotoDeleteFail')); }
+  }
+
+  // ── policies CRUD ─────────────────────────────────────────────────────────
+  async function handleSavePolicy() {
+    if (!form.title?.trim()) { setFormErr(t('businessHub.errPolicyTitleRequired')); return; }
+    if (!form.content?.trim()) { setFormErr(t('businessHub.errPolicyContentRequired')); return; }
+    setSaving(true);
+    try {
+      if (modal === 'add-policy') {
+        await createBusinessPolicy(bizId, form);
+        toast.success(t('businessHub.toastPolicyCreated'));
+      } else {
+        await updateBusinessPolicy(bizId, selected.id, form);
+        toast.success(t('businessHub.toastPolicyUpdated'));
+      }
+      closeModal();
+      await loadPolicies();
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastPolicyCreateFail')); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDeletePolicy(policy) {
+    if (!window.confirm(t('businessHub.confirmDeletePolicy', { title: policy.title }))) return;
+    try {
+      await deleteBusinessPolicy(bizId, policy.id);
+      toast.success(t('businessHub.toastPolicyDeleted'));
+      await loadPolicies();
+    } catch { toast.error(t('businessHub.toastPolicyDeleteFail')); }
+  }
+
+  // ── faqs CRUD ─────────────────────────────────────────────────────────────
+  async function handleSaveFAQ() {
+    if (!form.question?.trim()) { setFormErr(t('businessHub.errQuestionRequired')); return; }
+    if (!form.answer?.trim()) { setFormErr(t('businessHub.errAnswerRequired')); return; }
+    setSaving(true);
+    try {
+      if (modal === 'add-faq') {
+        await createBusinessFAQ(bizId, form);
+        toast.success(t('businessHub.toastFAQCreated'));
+      } else {
+        await updateBusinessFAQ(bizId, selected.id, form);
+        toast.success(t('businessHub.toastFAQUpdated'));
+      }
+      closeModal();
+      await loadFAQs();
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastFAQCreateFail')); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDeleteFAQ(faq) {
+    if (!window.confirm(t('businessHub.confirmDeleteFAQ'))) return;
+    try {
+      await deleteBusinessFAQ(bizId, faq.id);
+      toast.success(t('businessHub.toastFAQDeleted'));
+      await loadFAQs();
+    } catch { toast.error(t('businessHub.toastFAQDeleteFail')); }
+  }
+
+  // ── hours CRUD ────────────────────────────────────────────────────────────
+  async function handleSaveHours() {
+    setSaving(true);
+    try {
+      const hoursData = Object.keys(form).filter(k => k.startsWith('day_')).map(k => {
+        const dayNum = parseInt(k.replace('day_', ''));
+        return {
+          day_of_week: dayNum,
+          is_closed: form[`closed_${dayNum}`],
+          start_time: form[`closed_${dayNum}`] ? null : form[`start_${dayNum}`],
+          end_time: form[`closed_${dayNum}`] ? null : form[`end_${dayNum}`],
+        };
+      });
+      await updateBusinessHours(bizId, { hours: hoursData });
+      toast.success(t('businessHub.toastHoursUpdated'));
+      closeModal();
+      await loadHours();
+    } catch (e) { setFormErr(e?.response?.data?.error || t('businessHub.toastHoursUpdateFail')); }
+    finally { setSaving(false); }
+  }
+
   // ── current biz object + caller's role ───────────────────────────────────
   const currentBiz  = businesses.find(b => String(b.id) === String(bizId));
   const currentRole = currentBiz?._role || 'owner';
@@ -750,31 +886,68 @@ function BusinessHubInner() {
             {/* ── Services tab ─────────────────────────────────────── */}
             {tab === 'services' && (
               servicesLoading ? <p className="bh-loading">{t('businessHub.loadingServices')}</p> :
-              <ServicesTab services={services} businessId={bizId} onRefresh={loadServices} />
+              <ServicesTab services={services} businessId={bizId}
+                onNew={() => { setForm({}); setFormErr(''); setModal('add-service'); }}
+                onEdit={svc => { setSelected(svc); setForm(svc); setFormErr(''); setModal('edit-service'); }}
+                onDelete={handleDeleteService}
+              />
             )}
 
             {/* ── Gallery tab ──────────────────────────────────────── */}
             {tab === 'gallery' && (
               galleryLoading ? <p className="bh-loading">{t('businessHub.loadingGallery')}</p> :
-              <GalleryTab gallery={gallery} businessId={bizId} onRefresh={loadGallery} />
+              <GalleryTab gallery={gallery} businessId={bizId}
+                onNew={() => { setForm({}); setFormErr(''); setModal('add-photo'); }}
+                onEdit={photo => { setSelected(photo); setForm(photo); setFormErr(''); setModal('edit-photo'); }}
+                onDelete={handleDeletePhoto}
+              />
             )}
 
             {/* ── Policies tab ─────────────────────────────────────── */}
             {tab === 'policies' && (
               policiesLoading ? <p className="bh-loading">{t('businessHub.loadingPolicies')}</p> :
-              <PoliciesTab policies={policies} businessId={bizId} onRefresh={loadPolicies} />
+              <PoliciesTab policies={policies} businessId={bizId}
+                onNew={() => { setForm({}); setFormErr(''); setModal('add-policy'); }}
+                onEdit={policy => { setSelected(policy); setForm(policy); setFormErr(''); setModal('edit-policy'); }}
+                onDelete={handleDeletePolicy}
+              />
             )}
 
             {/* ── FAQs tab ─────────────────────────────────────────── */}
             {tab === 'faqs' && (
               faqsLoading ? <p className="bh-loading">{t('businessHub.loadingFAQs')}</p> :
-              <FAQsTab faqs={faqs} businessId={bizId} onRefresh={loadFAQs} />
+              <FAQsTab faqs={faqs} businessId={bizId}
+                onNew={() => { setForm({}); setFormErr(''); setModal('add-faq'); }}
+                onEdit={faq => { setSelected(faq); setForm(faq); setFormErr(''); setModal('edit-faq'); }}
+                onDelete={handleDeleteFAQ}
+              />
             )}
 
             {/* ── Hours tab ────────────────────────────────────────── */}
             {tab === 'hours' && (
               hoursLoading ? <p className="bh-loading">{t('businessHub.loadingHours')}</p> :
-              <HoursTab hours={hours} businessId={bizId} onRefresh={loadHours} />
+              <HoursTab hours={hours} businessId={bizId}
+                onEdit={() => {
+                  setFormErr('');
+                  const formData = {};
+                  hours.forEach(h => {
+                    formData[`day_${h.day_of_week}`] = true;
+                    formData[`closed_${h.day_of_week}`] = h.is_closed;
+                    formData[`start_${h.day_of_week}`] = h.start_time || '';
+                    formData[`end_${h.day_of_week}`] = h.end_time || '';
+                  });
+                  [0, 1, 2, 3, 4, 5, 6].forEach(d => {
+                    if (!formData[`day_${d}`]) {
+                      formData[`day_${d}`] = false;
+                      formData[`closed_${d}`] = false;
+                      formData[`start_${d}`] = '';
+                      formData[`end_${d}`] = '';
+                    }
+                  });
+                  setForm(formData);
+                  setModal('edit-hours');
+                }}
+              />
             )}
 
             {/* ── Overview tab ────────────────────────────────────── */}
@@ -1054,6 +1227,174 @@ function BusinessHubInner() {
               <div className="bh-modal-actions">
                 <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
                 <button className="bh-btn primary" onClick={handleInviteMember} disabled={saving}>{saving ? t('businessHub.btnSending') : t('businessHub.btnSendInvite')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Service Modal ────────────────────────────────────────────── */}
+        {(modal === 'add-service' || modal === 'edit-service') && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="bh-modal">
+              <h2>{modal === 'add-service' ? t('businessHub.modalAddService') : t('businessHub.modalEditService')}</h2>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldServiceNameRequired')}</label>
+                <input type="text" name="name" value={form.name || ''} onChange={fc} placeholder={t('businessHub.placeholderServiceName')} />
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldServiceDescription')}</label>
+                <textarea name="description" rows="3" value={form.description || ''} onChange={fc} placeholder={t('businessHub.placeholderServiceDesc')} />
+              </div>
+              <div className="bh-field" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label>{t('businessHub.fieldPriceRequired')}</label>
+                  <input type="number" name="price" value={form.price || ''} onChange={fc} placeholder={t('businessHub.placeholderPrice')} step="0.01" min="0" />
+                </div>
+                <div>
+                  <label>{t('businessHub.fieldPriceUnit')}</label>
+                  <select name="price_unit" value={form.price_unit || 'flat'} onChange={fc}>
+                    <option value="flat">{t('businessHub.priceUnitFlat')}</option>
+                    <option value="hour">{t('businessHub.priceUnitHour')}</option>
+                    <option value="starting_at">{t('businessHub.priceUnitStarting')}</option>
+                    <option value="quote">{t('businessHub.priceUnitQuote')}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="bh-field" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label>{t('businessHub.fieldDuration')}</label>
+                  <input type="text" name="duration" value={form.duration || ''} onChange={fc} placeholder={t('businessHub.placeholderDuration')} />
+                </div>
+                <div>
+                  <label>{t('businessHub.fieldCategory')}</label>
+                  <input type="text" name="category" value={form.category || ''} onChange={fc} placeholder={t('businessHub.placeholderCategory')} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                  <input type="checkbox" name="popular" checked={form.popular || false} onChange={e => setForm(f => ({ ...f, popular: e.target.checked }))} />
+                  {t('businessHub.fieldPopular')}
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                  <input type="checkbox" name="is_active" checked={form.is_active !== false} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
+                  {t('businessHub.fieldActive')}
+                </label>
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveService} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveService')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Photo Modal ──────────────────────────────────────────────── */}
+        {(modal === 'add-photo' || modal === 'edit-photo') && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="bh-modal">
+              <h2>{modal === 'add-photo' ? t('businessHub.modalAddPhoto') : t('businessHub.modalEditPhoto')}</h2>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldPhotoURLRequired')}</label>
+                <input type="url" name="url" value={form.url || ''} onChange={fc} placeholder={t('businessHub.placeholderPhotoURL')} />
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldCaption')}</label>
+                <input type="text" name="caption" value={form.caption || ''} onChange={fc} placeholder={t('businessHub.placeholderCaption')} />
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldAltText')}</label>
+                <input type="text" name="alt" value={form.alt || ''} onChange={fc} placeholder={t('businessHub.placeholderAltText')} />
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSavePhoto} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSavePhoto')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Policy Modal ──────────────────────────────────────────────── */}
+        {(modal === 'add-policy' || modal === 'edit-policy') && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="bh-modal">
+              <h2>{modal === 'add-policy' ? t('businessHub.modalAddPolicy') : t('businessHub.modalEditPolicy')}</h2>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldPolicyTitleRequired')}</label>
+                <input type="text" name="title" value={form.title || ''} onChange={fc} placeholder={t('businessHub.placeholderPolicyTitle')} />
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldPolicyContentRequired')}</label>
+                <textarea name="content" rows="5" value={form.content || ''} onChange={fc} placeholder={t('businessHub.placeholderPolicyContent')} />
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldPolicyIcon')}</label>
+                <input type="text" name="icon" value={form.icon || ''} onChange={fc} placeholder={t('businessHub.placeholderPolicyIcon')} />
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSavePolicy} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSavePolicy')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── FAQ Modal ────────────────────────────────────────────────── */}
+        {(modal === 'add-faq' || modal === 'edit-faq') && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="bh-modal">
+              <h2>{modal === 'add-faq' ? t('businessHub.modalAddFAQ') : t('businessHub.modalEditFAQ')}</h2>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldQuestionRequired')}</label>
+                <input type="text" name="question" value={form.question || ''} onChange={fc} placeholder={t('businessHub.placeholderQuestion')} />
+              </div>
+              <div className="bh-field">
+                <label>{t('businessHub.fieldAnswerRequired')}</label>
+                <textarea name="answer" rows="5" value={form.answer || ''} onChange={fc} placeholder={t('businessHub.placeholderAnswer')} />
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveFAQ} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveFAQ')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Hours Modal ──────────────────────────────────────────────── */}
+        {modal === 'edit-hours' && (
+          <div className="bh-modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+            <div className="bh-modal">
+              <h2>{t('businessHub.modalEditHours')}</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)', marginBottom: '1.5rem' }}>{t('businessHub.helpHours')}</p>
+              <div style={{ display: 'grid', gap: '1rem', maxHeight: '60vh', overflowY: 'auto' }}>
+                {[0, 1, 2, 3, 4, 5, 6].map(dayNum => {
+                  const days = [t('businessHub.daysSunday'), t('businessHub.daysMonday'), t('businessHub.daysTuesday'), t('businessHub.daysWednesday'), t('businessHub.daysThursday'), t('businessHub.daysFriday'), t('businessHub.daysSaturday')];
+                  const isClosed = form[`closed_${dayNum}`];
+                  return (
+                    <div key={dayNum} style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={isClosed} onChange={e => setForm(f => ({ ...f, [`closed_${dayNum}`]: e.target.checked }))} />
+                          <strong>{days[dayNum]}</strong>
+                        </label>
+                      </div>
+                      {!isClosed && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                          <input type="time" value={form[`start_${dayNum}`] || ''} onChange={e => setForm(f => ({ ...f, [`start_${dayNum}`]: e.target.value }))} />
+                          <input type="time" value={form[`end_${dayNum}`] || ''} onChange={e => setForm(f => ({ ...f, [`end_${dayNum}`]: e.target.value }))} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem', marginTop: '1rem' }}>{formErr}</p>}
+              <div className="bh-modal-actions">
+                <button className="bh-btn" onClick={closeModal}>{t('businessHub.btnCancel')}</button>
+                <button className="bh-btn primary" onClick={handleSaveHours} disabled={saving}>{saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveHours')}</button>
               </div>
             </div>
           </div>
@@ -1933,7 +2274,7 @@ function TeamTab({
 
 // ── Content Tab Components (Services, Gallery, Policies, FAQs, Hours) ────────
 
-function ServicesTab({ services, businessId, onRefresh }) {
+function ServicesTab({ services, businessId, onNew, onEdit, onDelete }) {
   const { t } = useTranslation();
 
   if (!services || services.length === 0) {
@@ -1943,6 +2284,7 @@ function ServicesTab({ services, businessId, onRefresh }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.addServicesToYourBusiness')}
         </p>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.addService')}</button>
       </div>
     );
   }
@@ -1955,23 +2297,24 @@ function ServicesTab({ services, businessId, onRefresh }) {
             <div className="flex-1">
               <h4 className="font-semibold text-white">{svc.name}</h4>
               {svc.description && <p className="text-sm text-gray-400 mt-1">{svc.description}</p>}
-              <p className="text-sm text-orange-400 mt-2">${svc.price || 0}</p>
+              <p className="text-sm text-orange-400 mt-2">${svc.price || 0}{svc.price_unit === 'hour' ? '/hr' : ''}</p>
+              {!svc.is_active && <span style={{ fontSize: '0.75rem', color: '#f87171', marginLeft: '0.5rem' }}>(Inactive)</span>}
             </div>
             <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition">{t('businessHub.edit')}</button>
-              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition">{t('businessHub.delete')}</button>
+              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition" onClick={() => onEdit(svc)}>{t('businessHub.btnEdit')}</button>
+              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition" onClick={() => onDelete(svc)}>{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         </div>
       ))}
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
         {t('businessHub.addService')}
       </button>
     </div>
   );
 }
 
-function GalleryTab({ gallery, businessId, onRefresh }) {
+function GalleryTab({ gallery, businessId, onNew, onEdit, onDelete }) {
   const { t } = useTranslation();
 
   if (!gallery || gallery.length === 0) {
@@ -1981,6 +2324,7 @@ function GalleryTab({ gallery, businessId, onRefresh }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.uploadPhotosToShowcase')}
         </p>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.uploadPhotos')}</button>
       </div>
     );
   }
@@ -1990,22 +2334,22 @@ function GalleryTab({ gallery, businessId, onRefresh }) {
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
         {gallery.map(photo => (
           <div key={photo.id} className="relative bg-gray-900 rounded-lg overflow-hidden border border-gray-800 group">
-            <img src={photo.url} alt={photo.caption || t('businessHub.galleryPhoto')} className="w-full h-48 object-cover" />
+            <img src={photo.url} alt={photo.alt || photo.caption || t('businessHub.galleryPhoto')} className="w-full h-48 object-cover" loading="lazy" />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-              <button className="px-3 py-1 text-sm bg-orange-600 hover:bg-orange-700 rounded text-white">{t('businessHub.edit')}</button>
-              <button className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white">{t('businessHub.delete')}</button>
+              <button className="px-3 py-1 text-sm bg-orange-600 hover:bg-orange-700 rounded text-white" onClick={() => onEdit(photo)}>{t('businessHub.btnEdit')}</button>
+              <button className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 rounded text-white" onClick={() => onDelete(photo)}>{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         ))}
       </div>
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
         {t('businessHub.uploadPhotos')}
       </button>
     </div>
   );
 }
 
-function PoliciesTab({ policies, businessId, onRefresh }) {
+function PoliciesTab({ policies, businessId, onNew, onEdit, onDelete }) {
   const { t } = useTranslation();
 
   if (!policies || policies.length === 0) {
@@ -2015,6 +2359,7 @@ function PoliciesTab({ policies, businessId, onRefresh }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.addPoliciesForClients')}
         </p>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.addPolicy')}</button>
       </div>
     );
   }
@@ -2026,23 +2371,23 @@ function PoliciesTab({ policies, businessId, onRefresh }) {
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1">
               <h4 className="font-semibold text-white">{policy.title}</h4>
-              <p className="text-sm text-gray-400 mt-2">{policy.content}</p>
+              <p className="text-sm text-gray-400 mt-2" style={{ whiteSpace: 'pre-wrap' }}>{policy.content}</p>
             </div>
             <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition">{t('businessHub.edit')}</button>
-              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition">{t('businessHub.delete')}</button>
+              <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition" onClick={() => onEdit(policy)}>{t('businessHub.btnEdit')}</button>
+              <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition" onClick={() => onDelete(policy)}>{t('businessHub.btnDelete')}</button>
             </div>
           </div>
         </div>
       ))}
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
         {t('businessHub.addPolicy')}
       </button>
     </div>
   );
 }
 
-function FAQsTab({ faqs, businessId, onRefresh }) {
+function FAQsTab({ faqs, businessId, onNew, onEdit, onDelete }) {
   const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState(null);
 
@@ -2053,6 +2398,7 @@ function FAQsTab({ faqs, businessId, onRefresh }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--muted-text)' }}>
           {t('businessHub.addFAQsForClients')}
         </p>
+        <button className="bh-btn primary" style={{ marginTop: '1rem' }} onClick={onNew}>{t('businessHub.addFAQ')}</button>
       </div>
     );
   }
@@ -2070,29 +2416,32 @@ function FAQsTab({ faqs, businessId, onRefresh }) {
           </button>
           {expandedId === faq.id && (
             <div className="px-4 py-3 border-t border-gray-800 bg-gray-900/50">
-              <p className="text-gray-300 text-sm">{faq.answer}</p>
+              <p className="text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{faq.answer}</p>
               <div className="flex gap-2 mt-3">
-                <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition">{t('businessHub.edit')}</button>
-                <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition">{t('businessHub.delete')}</button>
+                <button className="px-3 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded transition" onClick={() => onEdit(faq)}>{t('businessHub.btnEdit')}</button>
+                <button className="px-3 py-1 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition" onClick={() => onDelete(faq)}>{t('businessHub.btnDelete')}</button>
               </div>
             </div>
           )}
         </div>
       ))}
-      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30">
+      <button className="w-full py-2 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg transition border border-orange-600/30" onClick={onNew}>
         {t('businessHub.addFAQ')}
       </button>
     </div>
   );
 }
 
-function HoursTab({ hours, businessId, onRefresh }) {
+function HoursTab({ hours, businessId, onEdit }) {
   const { t } = useTranslation();
   const days = [t('businessHub.daysSunday'), t('businessHub.daysMonday'), t('businessHub.daysTuesday'), t('businessHub.daysWednesday'), t('businessHub.daysThursday'), t('businessHub.daysFriday'), t('businessHub.daysSaturday')];
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-      <h3 className="text-lg font-semibold text-white mb-6">{t('businessHub.businessHours')}</h3>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-lg font-semibold text-white">{t('businessHub.businessHours')}</h3>
+        <button className="bh-btn sm" onClick={onEdit}>{t('businessHub.btnEdit')}</button>
+      </div>
       <div className="space-y-4">
         {[0, 1, 2, 3, 4, 5, 6].map(dayNum => {
           const dayHours = hours?.find(h => h.day_of_week === dayNum);
@@ -2106,9 +2455,6 @@ function HoursTab({ hours, businessId, onRefresh }) {
                   {dayHours?.start_time || '—'} – {dayHours?.end_time || '—'}
                 </span>
               )}
-              <button className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded transition text-gray-300">
-                {t('businessHub.edit')}
-              </button>
             </div>
           );
         })}
