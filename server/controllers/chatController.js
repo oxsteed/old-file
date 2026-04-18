@@ -625,7 +625,8 @@ exports.transcribeAudio = async (req, res) => {
     return res.status(400).json({ error: 'audio_data is required' });
   }
 
-  if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(language)) {
+  const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+  if (!SUPPORTED_LANGUAGES.includes(language)) {
     return res.status(400).json({ error: 'Invalid language code' });
   }
 

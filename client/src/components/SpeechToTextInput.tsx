@@ -118,7 +118,7 @@ export default function SpeechToTextInput({
         recognition.abort();
       }
     };
-  }, [language, onError]);
+  }, [language]);
 
   const handleToggleRecording = useCallback(() => {
     if (!speechRecognitionRef.current) return;
