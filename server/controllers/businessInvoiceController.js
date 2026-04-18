@@ -294,10 +294,19 @@ async function getPublicInvoice(req, res) {
           website: null,
           phone: null,
         };
+      } else {
+        // Helper deleted but invoice still exists
+        business = {
+          id: null,
+          business_name: 'Invoice from deleted account',
+          logo_url: null,
+          website: null,
+          phone: null,
+        };
       }
     }
 
-    return res.json({ invoice: inv, business });
+    return res.json({ invoice: inv, business: business || {} });
   } catch (err) {
     logger.error('getPublicInvoice error', { err: err.message });
     return res.status(500).json({ error: 'Failed to load invoice' });
@@ -309,17 +318,20 @@ async function getPublicInvoice(req, res) {
 async function sendInvoice(req, res) {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
+
+    await client.query('BEGIN');
 
     // Fetch the invoice
     const { rows: [inv] } = await client.query(
       'SELECT * FROM business_invoices WHERE id = $1 AND business_id = $2',
       [req.params.invoiceId, access.id]
     );
-    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    if (!inv) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
 
     // Update invoice status to 'sent' and set sent_at
     const { rows: [updatedInv] } = await client.query(`
@@ -345,14 +357,14 @@ async function sendInvoice(req, res) {
         const notificationText = `${access.business_name} has sent you an invoice for ${updatedInv.total}`;
         await client.query(`
           INSERT INTO notifications
-            (user_id, title, message, type, related_business_id, created_at)
+            (user_id, title, body, type, data, created_at)
           VALUES ($1, $2, $3, $4, $5, NOW())
         `, [
           user.id,
           `Invoice from ${access.business_name}`,
           notificationText,
           'invoice',
-          access.id,
+          JSON.stringify({ invoiceId: inv.id, businessId: access.id }),
         ]);
 
         logger.info('Invoice sent to internal user', {
@@ -439,7 +451,7 @@ async function createHelperInvoice(req, res) {
       return res.status(400).json({ error: 'At least one line item is required' });
     }
 
-    const invoice_number = await nextInvoiceNumber(client, null); // null for helper invoices
+    const invoice_number = await nextHelperInvoiceNumber(client);
     const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
     const public_token = randomUUID();
 
@@ -583,8 +595,6 @@ async function deleteHelperInvoice(req, res) {
 async function sendHelperInvoice(req, res) {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
     const userId = req.user.id;
     const invoiceId = req.params.invoiceId;
 
@@ -594,6 +604,8 @@ async function sendHelperInvoice(req, res) {
       [invoiceId, userId]
     );
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+
+    await client.query('BEGIN');
 
     // Update invoice status to 'sent' and set sent_at
     const { rows: [updatedInv] } = await client.query(`
@@ -620,20 +632,27 @@ async function sendHelperInvoice(req, res) {
           'SELECT first_name, last_name FROM users WHERE id = $1',
           [userId]
         );
-        const helperName = `${helper.first_name} ${helper.last_name}`;
 
-        // Create a notification for the user
-        const notificationText = `${helperName} has sent you an invoice for ${updatedInv.total}`;
-        await client.query(`
-          INSERT INTO notifications
-            (user_id, title, message, type, created_at)
-          VALUES ($1, $2, $3, $4, NOW())
-        `, [
-          user.id,
-          `Invoice from ${helperName}`,
-          notificationText,
-          'invoice',
-        ]);
+        if (!helper) {
+          logger.warn('Helper user not found when sending invoice', { userId, invoiceId });
+          isInternalUser = false;
+        } else {
+          const helperName = `${helper.first_name} ${helper.last_name}`;
+
+          // Create a notification for the user
+          const notificationText = `${helperName} has sent you an invoice for ${updatedInv.total}`;
+          await client.query(`
+            INSERT INTO notifications
+              (user_id, title, body, type, data, created_at)
+            VALUES ($1, $2, $3, $4, $5, NOW())
+          `, [
+            user.id,
+            `Invoice from ${helperName}`,
+            notificationText,
+            'invoice',
+            JSON.stringify({ invoiceId: inv.id }),
+          ]);
+        }
 
         logger.info('Helper invoice sent to internal user', {
           invoiceId: inv.id,
