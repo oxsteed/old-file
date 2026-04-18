@@ -1569,6 +1569,18 @@
       "removed": "Zouti efase",
       "removeFailed": "Erè efase zouti"
     },
+    "invoices": {
+      "title": "Fakti",
+      "subtitle": "Kreye ak voye fakti bay klyan",
+      "createNew": "Kreye Fakti",
+      "none": "Okenn fakti jouk koulye",
+      "send": "Voye",
+      "created": "Fakti kreye",
+      "updated": "Fakti mete ajou",
+      "saveFailed": "Erè sove fakti",
+      "deleted": "Fakti efase",
+      "deleteFailed": "Erè efase fakti"
+    },
     "personalCare": {
       "added": "Swen pèsonèl ajoute"
     },

@@ -1500,6 +1500,18 @@
       "removed": "Tool Removed",
       "removeFailed": "Failed to remove tool"
     },
+    "invoices": {
+      "title": "Invoices",
+      "subtitle": "Create and send invoices to clients",
+      "createNew": "Create Invoice",
+      "none": "No invoices yet",
+      "send": "Send",
+      "created": "Invoice created",
+      "updated": "Invoice updated",
+      "saveFailed": "Failed to save invoice",
+      "deleted": "Invoice deleted",
+      "deleteFailed": "Failed to delete invoice"
+    },
     "personalCare": {
       "added": "Personal care added"
     },

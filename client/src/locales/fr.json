@@ -1508,6 +1508,18 @@
       "removed": "Outil supprimé",
       "removeFailed": "Erreur lors de la suppression de l'outil"
     },
+    "invoices": {
+      "title": "Factures",
+      "subtitle": "Créer et envoyer des factures aux clients",
+      "createNew": "Créer une facture",
+      "none": "Pas de factures pour l'instant",
+      "send": "Envoyer",
+      "created": "Facture créée",
+      "updated": "Facture mise à jour",
+      "saveFailed": "Erreur lors de l'enregistrement de la facture",
+      "deleted": "Facture supprimée",
+      "deleteFailed": "Erreur lors de la suppression de la facture"
+    },
     "personalCare": {
       "added": "Soins personnels ajoutés"
     },
