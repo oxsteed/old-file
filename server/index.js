@@ -18,6 +18,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const pool = require('./db');
+const { poolMonitor } = require('./db');
 const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const socketService = require('./services/socketService');
@@ -25,6 +26,8 @@ const { reloadFeeConfig } = require('./services/feeService');
 
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
+const correlationId = require('./middleware/correlationId');
+const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
@@ -121,14 +124,39 @@ io.on('connection', (socket) => {
   }
 
   // SECURITY (H-28): Explicitly drop 'join' events from clients.
-  // Room membership is determined strictly server-side through authentication
-  // hooks above. We do not allow arbitrary clients to join rooms like 'admins'.
+  // This is a critical security design choice:
+  //
+  // THREAT PREVENTED: A malicious client could try to forge Socket.IO 'join'
+  // events to subscribe to arbitrary rooms (e.g., 'admins', 'conv_12345'),
+  // allowing them to intercept broadcasts intended for other users.
+  //
+  // MITIGATION: Room membership is determined ONLY by server-side logic:
+  // - Authenticated users auto-join 'user_{userId}' room
+  // - Admins auto-join 'admins' room
+  // - Users can join 'conv_{conversationId}' ONLY via verified
+  //   'conversation:join' handler (which checks DB membership)
+  //
+  // NEVER allow arbitrary room names from client. Instead, use:
+  // 1. Automatic admin/user rooms based on authentication
+  // 2. Verified payload handlers that check membership before join
+  // 3. Use socket.to() for server→client broadcasts (sender doesn't need to
+  //    be in room)
   socket.on('join', () => {});
 
   // ── CONVERSATION ROOMS ────────────────────────────────────────
   // Clients join a per-conversation room to receive typing indicators and
-  // real-time message delivery scoped to that thread.  Membership is
-  // verified server-side; clients cannot join arbitrary rooms.
+  // real-time message delivery scoped to that thread.
+  //
+  // SECURITY MODEL:
+  // - Clients emit 'conversation:join' with conversationId
+  // - Server verifies user has permission to access the conversation:
+  //   * Is customer or helper in the conversation
+  //   * OR is an active member of the business associated with the conversation
+  // - Only on successful verification does server call socket.join('conv_...')
+  // - Typing indicators can only be sent to verified rooms (checked below)
+  //
+  // This prevents IDOR (Insecure Direct Object Reference) where a client
+  // could spy on conversations they don't own by guessing conversation IDs.
   socket.on('conversation:join', async (conversationId) => {
     if (!conversationId) return;
     try {
@@ -158,10 +186,20 @@ io.on('connection', (socket) => {
   });
 
   // ── TYPING INDICATORS ─────────────────────────────────────────
-  // Gate on room membership: the socket must have already joined conv_{id}
-  // via conversation:join (which verified DB membership).  This prevents any
-  // authenticated user from broadcasting typing events to arbitrary rooms they
-  // don't belong to — socket.to() does NOT require the sender to be in the room.
+  // SECURITY DESIGN RATIONALE:
+  //
+  // THREAT: A malicious authenticated user could forge typing events to
+  // arbitrary conversations they're not members of (e.g., admin conversations,
+  // private customer conversations they don't own).
+  //
+  // MITIGATION: Gate on room membership check via socket.rooms.has()
+  // - socket.rooms is the ONLY authoritative list of rooms a socket has joined
+  // - socket.to() does NOT enforce membership (it just broadcasts), so we
+  //   must verify socket.rooms before calling it
+  // - If socket hasn't successfully called conversation:join, they won't be
+  //   in conv_* room, and typing events will silently fail (not broadcast)
+  //
+  // This ensures typing indicators leak no information to unauthorized users.
   socket.on('typing:start', (conversationId) => {
     if (conversationId && socket.rooms.has(`conv_${conversationId}`)) {
       socket.to(`conv_${conversationId}`).emit('user:typing', {
@@ -194,6 +232,10 @@ socketService.init(io);
 
 // ── REQUEST LOGGING ──────────────────────────────────────────
 app.use(logger.requestMiddleware());
+
+// ── CORRELATION ID ───────────────────────────────────────────
+// Assign a unique ID to each request for tracing and audit logging
+app.use(correlationId);
 
 // ── SECURITY ─────────────────────────────────────────────────
 app.use(securityHeaders);
@@ -237,6 +279,12 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // ── INPUT SANITIZATION ───────────────────────────────────────
 app.use(sanitizeInputs);
 
+// ── CSRF PROTECTION ──────────────────────────────────────────
+// Attach CSRF token to all responses (for authenticated users)
+// Validate CSRF token on all state-changing requests (POST/PUT/DELETE)
+app.use(attachCsrfToken);
+app.use(validateCsrfToken);
+
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
   try {
@@ -246,6 +294,11 @@ app.get('/api/health', async (req, res) => {
     logger.error('Health DB check failed', { message: err.message });
     res.status(503).json({ status: 'degraded', error: 'database unreachable' });
   }
+});
+
+// Pool health metrics endpoint (used by monitoring systems)
+app.get('/api/health/pool', (req, res) => {
+  res.json(poolMonitor.getMetrics());
 });
 
 

@@ -2,8 +2,10 @@
 // OxSteed v2
 
 const jwt    = require('jsonwebtoken');
+const crypto = require('crypto');
 const pool   = require('../db');
 const logger = require('../utils/logger');
+const tokenRevocationService = require('../services/tokenRevocationService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -57,6 +59,13 @@ async function authenticate(req, res, next) {
   const token = header.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+
+    // Check if token has been revoked
+    const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+    const isRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id);
+    if (isRevoked) {
+      return res.status(401).json({ error: 'Token has been revoked' });
+    }
 
     const { rows } = await pool.query(
       `SELECT
