@@ -237,6 +237,12 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // ── INPUT SANITIZATION ───────────────────────────────────────
 app.use(sanitizeInputs);
 
+// ── API VERSIONING ───────────────────────────────────────────
+// Detects version from ?v=v2 or API-Version header, defaults to v1
+// Enables soft versioning for gradual migration to explicit /api/v1/, /api/v2/ URLs
+const { apiVersionMiddleware } = require('./middleware/apiVersioning');
+app.use('/api/', apiVersionMiddleware);
+
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
   try {
