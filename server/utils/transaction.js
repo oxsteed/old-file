@@ -119,6 +119,25 @@ async function withTransactionRetry(pool, operation, name = 'operation', maxRetr
 }
 
 /**
+ * Execute multiple queries atomically
+ * Wraps all queries in a single transaction
+ *
+ * @param {Pool} pool - PostgreSQL connection pool
+ * @param {Array} queries - Array of { text, values } objects
+ * @returns {Promise<Array>} - Array of results in same order as queries
+ */
+const executeTransaction = async (pool, queries) => {
+  return withTransaction(pool, async (client) => {
+    const results = [];
+    for (const query of queries) {
+      const result = await client.query(query.text, query.values);
+      results.push(result);
+    }
+    return results;
+  });
+};
+
+/**
  * Helper for payment capture operations
  * Ensures payment is captured, job status is updated, and notifications are sent atomically
  */
@@ -145,6 +164,7 @@ async function withJobTransaction(pool, operation, operationName) {
 module.exports = {
   withTransaction,
   withTransactionRetry,
+  executeTransaction,
   withPaymentTransaction,
   withSubscriptionTransaction,
   withJobTransaction,

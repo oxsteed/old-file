@@ -285,6 +285,12 @@ app.use(sanitizeInputs);
 app.use(attachCsrfToken);
 app.use(validateCsrfToken);
 
+// ── API VERSIONING ───────────────────────────────────────────
+// Detects version from ?v=v2 or API-Version header, defaults to v1
+// Enables soft versioning for gradual migration to explicit /api/v1/, /api/v2/ URLs
+const { apiVersionMiddleware } = require('./middleware/apiVersioning');
+app.use('/api/', apiVersionMiddleware);
+
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
   try {
@@ -402,7 +408,7 @@ function shutdown(signal) {
   });
   // Force exit after 15s if graceful shutdown stalls
   setTimeout(() => {
-    console.error('[Shutdown] Forced exit after timeout');
+    logger.error('Forced exit after shutdown timeout');
     process.exit(1);
   }, 15000);
 }

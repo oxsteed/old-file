@@ -2,6 +2,8 @@
 // Called once at startup. Exits the process if any REQUIRED var is missing
 // so the container fails fast and loudly instead of silently misbehaving.
 
+const logger = require('./logger');
+
 const REQUIRED = [
   'JWT_SECRET',
   'DATABASE_URL',
@@ -27,6 +29,7 @@ module.exports = function validateEnv() {
   const missing = REQUIRED.filter(k => !process.env[k]);
 
   if (missing.length > 0) {
+    logger.error('Missing required environment variables', { missing });
     console.error('');
     console.error('╔══════════════════════════════════════════════════════╗');
     console.error('║  [FATAL] Missing required environment variables       ║');
@@ -39,6 +42,7 @@ module.exports = function validateEnv() {
   }
 
   if (process.env.JWT_SECRET.length < 32) {
+    logger.error('JWT_SECRET must be at least 32 characters');
     console.error('');
     console.error('╔══════════════════════════════════════════════════════╗');
     console.error('║  [FATAL] JWT_SECRET must be at least 32 characters   ║');
@@ -49,9 +53,9 @@ module.exports = function validateEnv() {
 
   OPTIONAL.forEach(([key, note]) => {
     if (!process.env[key]) {
-      console.warn(`[env] ${key} not set — ${note}`);
+      logger.warn('Optional environment variable not set', { key, impact: note });
     }
   });
 
-  console.log('[env] All required environment variables present ✓');
+  logger.info('All required environment variables present');
 };

@@ -1,8 +1,8 @@
 // Phase 2 — Web Push Notification utility
 // OxSteed v2
 const webpush = require('web-push');
-const pool    = require('../db');
-const logger  = require('./logger');
+const pool = require('../db');
+const logger = require('./logger');
 
 let pushConfigured = false;
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -13,12 +13,12 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   );
   pushConfigured = true;
 } else {
-  logger.warn('VAPID keys not set. Push notification features disabled.');
+  logger.warn('VAPID keys not set — push notification features disabled');
 }
 
 async function sendPushToUser(userId, payload) {
   if (!pushConfigured) {
-    logger.warn('Push not sent - VAPID not configured');
+    logger.debug('Push not sent — VAPID not configured', { userId });
     return [];
   }
   const { rows: subs } = await pool.query(
@@ -54,7 +54,7 @@ async function sendPushToUser(userId, payload) {
 
 async function sendPushToAll(payload) {
   if (!pushConfigured) {
-    logger.warn('Push not sent - VAPID not configured');
+    logger.debug('Push not sent — VAPID not configured');
     return [];
   }
   const { rows: subs } = await pool.query(

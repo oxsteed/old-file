@@ -13,7 +13,7 @@ const needsSsl = !dbUrl.includes('sslmode=disable') && process.env.NODE_ENV === 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: needsSsl ? { rejectUnauthorized: true } : false,
-  max: 10,
+  max: Math.min(parseInt(process.env.DB_POOL_MAX, 10) || 30, 100),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });

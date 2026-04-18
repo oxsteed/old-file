@@ -1,4 +1,4 @@
-const db     = require('../db');
+const db = require('../db');
 const logger = require('../utils/logger');
 
 /**
@@ -33,6 +33,6 @@ exports.logAdminAction = async ({
       after ? JSON.stringify(after) : null
     ]);
   } catch (err) {
-    logger.error('Audit log error', { err: err.message });
+    logger.error('Failed to log admin action', { adminId, action, error: err.message });
   }
 };

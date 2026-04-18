@@ -1,6 +1,7 @@
 // Phase 2 — Encryption utility for W-9 TIN storage
 // OxSteed v2
 const crypto = require('crypto');
+const logger = require('./logger');
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
@@ -12,7 +13,7 @@ const ITERATIONS = 100000;
 // Validate ENCRYPTION_KEY at startup so a missing key fails fast
 // before any user request can reach encrypt() or decrypt().
 if (!process.env.ENCRYPTION_KEY) {
-  console.error('FATAL: ENCRYPTION_KEY env variable is not set. Encryption features will not work.');
+  logger.error('FATAL: ENCRYPTION_KEY env variable is not set. Encryption features will not work.');
 }
 
 function getKey() {
