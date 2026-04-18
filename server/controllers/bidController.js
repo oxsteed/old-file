@@ -1,5 +1,6 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
 
 // Create a bid on a job
 exports.createBid = async (req, res) => {
@@ -15,15 +16,20 @@ exports.createBid = async (req, res) => {
     const existing = await pool.query('SELECT * FROM bids WHERE job_id = $1 AND helper_id = $2', [job_id, req.user.id]);
     if (existing.rows[0]) return res.status(400).json({ error: 'You already placed a bid on this job' });
 
-    const result = await pool.query(
-     'INSERT INTO bids (job_id, helper_id, amount, message, eta_hours) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [job_id, req.user.id, amount, message, estimated_hours]
-    );
+    // Create bid and update job status atomically
+    const result = await withTransaction(pool, async (client) => {
+      const bidResult = await client.query(
+        'INSERT INTO bids (job_id, helper_id, amount, message, eta_hours) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [job_id, req.user.id, amount, message, estimated_hours]
+      );
 
-    // Update job status to matched if first bid
-    await pool.query(`UPDATE jobs SET status = 'matched', updated_at = NOW() WHERE id = $1 AND status = 'published'`, [job_id]);
+      // Update job status to matched if first bid
+      await client.query(`UPDATE jobs SET status = 'matched', updated_at = NOW() WHERE id = $1 AND status = 'published'`, [job_id]);
 
-    res.status(201).json(result.rows[0]);
+      return bidResult.rows[0];
+    });
+
+    res.status(201).json(result);
   } catch (err) {
     logger.error('Create bid error', { err });
     res.status(500).json({ error: 'Failed to create bid' });

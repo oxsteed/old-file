@@ -12,7 +12,7 @@ const logger               = require('../utils/logger');
  */
 const startWeeklySummaryJob = () => {
   cron.schedule('0 8 * * 1', async () => {
-    logger.info('[Cron] Running weekly summary emails...');
+    logger.info('Weekly summary emails running');
     try {
       const { rows: helpers } = await db.query(
         `SELECT
@@ -59,16 +59,16 @@ const startWeeklySummaryJob = () => {
           sent++;
         } catch (helperErr) {
           failed++;
-          logger.error('[Cron] Weekly summary failed for helper', {
+          logger.error('Weekly summary failed for helper', {
             helperId: helper.id,
-            message: helperErr.message
+            error: helperErr.message
           });
         }
       }
 
-      logger.info(`[Cron] Weekly summaries complete`, { sent, failed, total: helpers.length });
+      logger.info('Weekly summaries complete', { sent, failed, total: helpers.length });
     } catch (err) {
-      logger.error('[Cron] Weekly summary job error:', { message: err.message, stack: err.stack });
+      logger.error('Weekly summary job failed', { error: err.message });
     }
   }, { timezone: 'America/New_York' });
 };

@@ -3,6 +3,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { calculateTier3Fees } = require('../utils/feeCalculator');
 const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
+const { withPaymentTransaction } = require('../utils/transaction');
 
 /**
  * Payment Controller — Stripe Connect Direct Charges
@@ -149,6 +150,7 @@ exports.capturePayment = async (req, res) => {
   try {
     const { job_id } = req.body;
 
+    // ── Validation (outside transaction) ──────────────────────────────────
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
     if (!job.rows[0] || job.rows[0].status !== 'completed') {
       return res.status(400).json({ error: 'Job must be completed first' });
@@ -160,35 +162,68 @@ exports.capturePayment = async (req, res) => {
     const payment = await pool.query('SELECT * FROM payments WHERE job_id = $1 AND status = $2', [job_id, 'authorized']);
     if (!payment.rows[0]) return res.status(404).json({ error: 'No authorized payment found' });
 
-    await stripe.paymentIntents.capture(
-      payment.rows[0].stripe_payment_intent_id,
-      {},
-      { stripeAccount: payment.rows[0].stripe_account_id }
-    );
+    // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
+    const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'in_progress']);
+    if (dispute.rows[0]) {
+      return res.status(409).json({ error: 'Cannot capture payment while dispute is open. Dispute must be resolved first.' });
+    }
 
-    await pool.query(
-      `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
-       captured_at = NOW(), released_at = NOW(), updated_at = NOW() WHERE id = $1`,
-      [payment.rows[0].id]
-    );
-
-    // Auto-log to Life Dashboard
+    // ── Stripe capture (outside transaction for idempotency) ──────────────
+    const paymentData = payment.rows[0];
     try {
-      const helperPayout = payment.rows[0].amount;
-      const jobTitle = job.rows[0].title || 'Job payment';
-      await pool.query(
+      await stripe.paymentIntents.capture(
+        paymentData.stripe_payment_intent_id,
+        {},
+        { stripeAccount: paymentData.stripe_account_id }
+      );
+    } catch (stripeErr) {
+      logger.error('Stripe capture failed', { paymentId: paymentData.id, error: stripeErr.message });
+      // If Stripe capture fails, we don't proceed to DB update
+      return res.status(402).json({ error: 'Payment capture failed with payment processor' });
+    }
+
+    // ── Database updates (ATOMIC TRANSACTION) ───────────────────────────────
+    // All database changes happen as a single atomic operation
+    await withPaymentTransaction(pool, async (client) => {
+      // 1. Update payment status
+      await client.query(
+        `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
+         captured_at = NOW(), released_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [paymentData.id]
+      );
+
+      // 2. Log to Life Dashboard (helper income)
+      await client.query(
         `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
          VALUES ($1, 'income', $2, 'Gig Payment', $3, CURRENT_DATE)`,
-        [job.rows[0].assigned_helper_id, helperPayout, 'Payment: ' + jobTitle]
+        [job.rows[0].assigned_helper_id, paymentData.amount, 'Payment: ' + job.rows[0].title]
       );
-      await pool.query(
+
+      // 3. Log to Life Dashboard (customer expense)
+      await client.query(
         `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
          VALUES ($1, 'expense', $2, 'Home Services', $3, CURRENT_DATE)`,
-        [job.rows[0].client_id, payment.rows[0].amount, 'Paid: ' + jobTitle]
+        [job.rows[0].client_id, paymentData.amount, 'Paid: ' + job.rows[0].title]
       );
-    } catch (autoLogErr) {
-      logger.error('Auto-log earnings (non-critical)', { err: autoLogErr });
-    }
+
+      // 4. Log to platform ledger (financial audit trail)
+      await client.query(
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+         VALUES (NULL, 'payment_captured', $1, $2, $3)`,
+        [
+          Math.round(paymentData.amount * 100),
+          `Payment #${paymentData.id} captured for job ${job.rows[0].id}`,
+          JSON.stringify({
+            payment_id: paymentData.id,
+            job_id: job.rows[0].id,
+            customer_id: job.rows[0].client_id,
+            helper_id: job.rows[0].assigned_helper_id,
+            stripe_intent: paymentData.stripe_payment_intent_id,
+            amount: paymentData.amount
+          })
+        ]
+      );
+    }, 'capture_payment');
 
     res.json({ message: 'Payment captured — funds released to helper' });
   } catch (err) {
@@ -198,6 +233,7 @@ exports.capturePayment = async (req, res) => {
 };
 
 // Refund payment (on helper's connected account — admin only)
+// ATOMIC: Stripe refund + DB update happen together
 exports.refundPayment = async (req, res) => {
   try {
     if (!['admin', 'super_admin'].includes(req.user.role)) {
@@ -206,29 +242,78 @@ exports.refundPayment = async (req, res) => {
 
     const { payment_id, reason, amount, reverse_application_fee } = req.body;
 
+    // ── Validation (outside transaction) ──────────────────────────────────
     const payment = await pool.query('SELECT * FROM payments WHERE id = $1', [payment_id]);
     if (!payment.rows[0]) return res.status(404).json({ error: 'Payment not found' });
 
+    const paymentData = payment.rows[0];
+    const refundAmount = amount || paymentData.amount;
+
+    // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
+    // Refunds can only happen after disputes are resolved
+    const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [paymentData.job_id, 'open', 'in_progress']);
+    if (dispute.rows[0]) {
+      return res.status(409).json({ error: 'Cannot refund payment while dispute is open. Dispute must be resolved first.' });
+    }
+
+    // ── Stripe refund (outside transaction for idempotency) ──────────────
     const refundParams = {
-      payment_intent: payment.rows[0].stripe_payment_intent_id,
+      payment_intent: paymentData.stripe_payment_intent_id,
     };
     if (amount) refundParams.amount = Math.round(amount * 100);
     if (reverse_application_fee) {
       refundParams.refund_application_fee = true;
     }
 
-    const refund = await stripe.refunds.create(
-      refundParams,
-      { stripeAccount: payment.rows[0].stripe_account_id }
-    );
+    let refundId;
+    try {
+      const refund = await stripe.refunds.create(
+        refundParams,
+        { stripeAccount: paymentData.stripe_account_id }
+      );
+      refundId = refund.id;
+    } catch (stripeErr) {
+      logger.error('Stripe refund failed', { paymentId: paymentData.id, error: stripeErr.message });
+      return res.status(402).json({ error: 'Refund failed with payment processor' });
+    }
 
-    await pool.query(
-      `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
-       refunded_at = NOW(), refund_amount = $1, refund_reason = $2, updated_at = NOW() WHERE id = $3`,
-      [amount || payment.rows[0].amount, reason, payment_id]
-    );
+    // ── Database update (ATOMIC TRANSACTION) ─────────────────────────────
+    await withPaymentTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
+         refunded_at = NOW(), refund_amount = $1, refund_reason = $2, stripe_refund_id = $3,
+         updated_at = NOW() WHERE id = $4`,
+        [refundAmount, reason, refundId, payment_id]
+      );
 
-    res.json({ message: 'Refund processed', refund_id: refund.id });
+      // Audit log for refund (admin action)
+      await client.query(
+        `INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, changes, timestamp)
+         VALUES ($1, 'refund_payment', 'payment', $2, $3, NOW())`,
+        [req.user.id, payment_id, JSON.stringify({ amount: refundAmount, reason, stripe_refund_id: refundId })]
+      );
+
+      // Log to platform ledger (financial audit trail)
+      await client.query(
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+         VALUES (NULL, 'payment_refunded', $1, $2, $3)`,
+        [
+          Math.round(refundAmount * -100),  // negative for refund
+          `Payment #${paymentData.id} refunded by admin ${req.user.id}: ${reason || 'No reason'}`,
+          JSON.stringify({
+            payment_id: paymentData.id,
+            job_id: paymentData.job_id,
+            refund_id: refundId,
+            refund_amount: refundAmount,
+            reason: reason || null,
+            admin_id: req.user.id,
+            reverse_fee: reverse_application_fee || false
+          })
+        ]
+      );
+    }, 'refund_payment');
+
+    res.json({ message: 'Refund processed', refund_id: refundId });
   } catch (err) {
     logger.error('Refund payment error', { err });
     res.status(500).json({ error: 'Failed to process refund' });

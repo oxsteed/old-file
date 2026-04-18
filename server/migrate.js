@@ -4,6 +4,7 @@ require('dotenv').config();
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
+const logger = require('./utils/logger');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -37,15 +38,15 @@ async function migrate() {
     .filter(f => f.endsWith('.sql'))
     .sort();
 
-  console.log(`Found ${files.length} migration files, ${appliedSet.size} already applied.`);
+  logger.info('Migration runner started', { totalFiles: files.length, alreadyApplied: appliedSet.size });
 
   for (const file of files) {
     if (appliedSet.has(file)) {
-      console.log(`  SKIP: ${file} (already applied)`);
+      logger.info('Migration already applied, skipping', { filename: file });
       continue;
     }
 
-    console.log(`  APPLYING: ${file}...`);
+    logger.info('Applying migration', { filename: file });
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
 
     // Use a FRESH client for each migration to avoid transaction state issues
@@ -57,23 +58,23 @@ async function migrate() {
         [file]
       );
       migClient.release();
-      console.log(`  DONE: ${file}`);
+      logger.info('Migration applied successfully', { filename: file });
     } catch (err) {
-      console.error(`  FAILED: ${file} - ${err.message}`);
+      logger.error(`Migration failed: ${file}`, { error: err.message });
       // Rollback any open transaction on this client
       try { await migClient.query('ROLLBACK'); } catch (e) { /* ignore */ }
       migClient.release();
       await pool.end();
-      console.error('Migration halted — fix the failing migration before restarting.');
+      logger.error('Migration halted — fix the failing migration before restarting.', { filename: file });
       process.exit(1);
     }
   }
 
-  console.log('Migration complete.');
+  logger.info('All migrations complete');
   await pool.end();
 }
 
 migrate().catch(err => {
-  console.error('Migration failed:', err);
+  logger.error('Migration process failed', { error: err.message });
   process.exit(1);
 });

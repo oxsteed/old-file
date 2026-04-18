@@ -106,6 +106,48 @@ exports.resolveDispute = async (req, res) => {
       WHERE id = $4
     `, [resolution, notes, adminId, disputeId]);
 
+    // RELEASE ESCROW HOLD if dispute resolved in favor of helper
+    try {
+      const { rows: paymentRows } = await db.query(`
+        SELECT id FROM payments
+        WHERE job_id = $1 AND escrow_status = 'disputed'
+        LIMIT 1
+      `, [dispute.job_id]);
+
+      if (paymentRows.length > 0) {
+        const payment = paymentRows[0];
+
+        // Determine escrow status based on resolution
+        // 'helper_at_fault' → refund customer (no_escrow)
+        // 'customer_at_fault' → release to helper (released)
+        // 'split' → handle split refund (released with note)
+        let newEscrowStatus = 'released'; // default: release to helper
+
+        if (resolution === 'refund_customer' || resolution === 'customer_wins') {
+          newEscrowStatus = 'refunded';
+        } else if (resolution === 'split_resolution') {
+          newEscrowStatus = 'split_refund';
+        }
+
+        await db.query(
+          `UPDATE payments SET escrow_status = $1, updated_at = NOW() WHERE id = $2`,
+          [newEscrowStatus, payment.id]
+        );
+
+        // Log to audit trail
+        await db.query(`
+          INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+          VALUES (NULL, 'dispute_escrow_release', 0, $1, $2)
+        `, [
+          `Dispute #${dispute.id} resolved - escrow released as ${newEscrowStatus}`,
+          JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, resolution, job_id: dispute.job_id })
+        ]).catch(err => logger.error('Failed to log escrow release', { err }));
+      }
+    } catch (releaseErr) {
+      logger.error('Failed to release escrow on dispute resolution', { disputeId, err: releaseErr });
+      // Don't fail the dispute resolution if release fails
+    }
+
     // Log admin action
     try {
       await logAdminAction({

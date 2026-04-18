@@ -1,5 +1,6 @@
 const router  = require('express').Router();
 const { authenticate } = require('../middleware/auth');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
 const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter } = require('../middleware/rateLimiter');
@@ -18,7 +19,7 @@ router.delete('/draft', authenticate, deleteDraft);
 
 // ── Protected specific routes ─────────────────────────────────────────────────
 router.get('/me/list', authenticate, getMyJobs);
-router.post('/',       authenticate, upload.array('media', 10), validateFileUpload, createJob);
+router.post('/',       authenticate, requireEmailVerified, upload.array('media', 10), validateFileUpload, createJob);
 router.post('/assign', authenticate, assignHelper);
 
 // ── Public ────────────────────────────────────────────────────────────────────

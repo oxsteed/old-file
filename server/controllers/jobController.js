@@ -3,6 +3,7 @@ const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
+const { withJobTransaction } = require('../utils/transaction');
 
 // Create a new job (wizard publish)
 exports.createJob = async (req, res) => {
@@ -396,21 +397,36 @@ exports.completeJob = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows } = await pool.query(`
-      UPDATE jobs SET
-        status = 'completed',
-        completed_at = now(),
-        updated_at = now()
+    // First, verify the job exists and user has permission (outside transaction for early validation)
+    const { rows: jobRows } = await pool.query(`
+      SELECT id, client_id, assigned_helper_id, status
+      FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
       AND status = 'in_progress'
-      RETURNING *
     `, [id, req.user.id]);
 
-    if (rows.length === 0) {
+    if (jobRows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be completed' });
     }
 
-    res.json({ message: 'Job completed', job: rows[0] });
+    const job = jobRows[0];
+
+    // Wrap all state changes in a transaction for atomicity
+    const result = await withJobTransaction(pool, async (client) => {
+      // Update job status
+      const { rows } = await client.query(`
+        UPDATE jobs SET
+          status = 'completed',
+          completed_at = now(),
+          updated_at = now()
+        WHERE id = $1
+        RETURNING *
+      `, [id]);
+
+      return rows[0];
+    }, 'complete_job');
+
+    res.json({ message: 'Job completed', job: result });
   } catch (err) {
     logger.error('Complete job error', { err });
     res.status(500).json({ error: 'Failed to complete job' });
@@ -421,16 +437,29 @@ exports.completeJob = async (req, res) => {
 exports.closeJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await pool.query(`
-      UPDATE jobs SET status = 'closed', updated_at = now()
+
+    // First, verify the job exists and user has permission (outside transaction for early validation)
+    const { rows: jobRows } = await pool.query(`
+      SELECT id, status FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
       AND status = 'completed'
-      RETURNING *
     `, [id, req.user.id]);
-    if (rows.length === 0) {
+
+    if (jobRows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be closed' });
     }
-    res.json({ message: 'Job closed', job: rows[0] });
+
+    // Wrap state change in a transaction for atomicity
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(`
+        UPDATE jobs SET status = 'closed', updated_at = now()
+        WHERE id = $1
+        RETURNING *
+      `, [id]);
+      return rows[0];
+    }, 'close_job');
+
+    res.json({ message: 'Job closed', job: result });
   } catch (err) {
     logger.error('Close job error', { err });
     res.status(500).json({ error: 'Failed to close job' });

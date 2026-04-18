@@ -1,4 +1,5 @@
 const db                = require('../db');
+const logger            = require('../utils/logger');
 const { broadcastToUser } = require('./socketService');
 const { sendEmail }     = require('../utils/email');  // Resend — single email system
 const { Expo }          = require('expo-server-sdk');
@@ -95,7 +96,7 @@ exports.sendNotification = async ({
       }
     }
   } catch (err) {
-    console.error('[Notification] sendNotification error:', err.message);
+    logger.error('Send notification failed', { userId, type, error: err.message });
     // Never throw — notification failure should never block business logic
   }
 };
@@ -119,7 +120,7 @@ async function sendPushNotification(token, title, body, data, notifId) {
     }
     for (const ticket of tickets) {
       if (ticket.status === 'error') {
-        console.error('[Push] Error:', ticket.message);
+        logger.error('Push notification error', { token, error: ticket.message });
         if (ticket.details?.error === 'DeviceNotRegistered') {
           await db.query(
             `UPDATE helper_profiles SET push_token = NULL WHERE push_token = $1`,
@@ -129,7 +130,7 @@ async function sendPushNotification(token, title, body, data, notifId) {
       }
     }
   } catch (err) {
-    console.error('[Push] sendPushNotification error:', err.message);
+    logger.error('Send push notification failed', { token, error: err.message });
   }
 }
 
@@ -163,7 +164,7 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
       text: body,
     });
   } catch (err) {
-    console.error('[Email] sendEmailNotification error:', err.message);
+    logger.error('Send email notification failed', { to, type, error: err.message });
   }
 }
 
