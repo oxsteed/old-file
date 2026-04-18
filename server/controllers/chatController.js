@@ -2,6 +2,7 @@ const logger        = require('../utils/logger');
 const { ROLES }     = require('../constants/roles');
 const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
+const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
 
 // BCP-47 code → English name, covering all languages LibreTranslate exposes
 const LANGUAGE_NAMES = {
@@ -271,6 +272,96 @@ exports.chatMessage = async (req, res) => {
     res.json({ reply: ai.reply });
   } catch (err) {
     logger.error('[Chat] Error', { message: err.message });
+    res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
+  }
+};
+
+/**
+ * POST /api/chat/financial-advisor
+ * Personalized financial advice based on user's real data.
+ * Requires authentication. Includes pulse score, expenses, income, goals, planned needs.
+ */
+exports.financialAdvisor = async (req, res) => {
+  try {
+    const { messages, language, window = '1m' } = req.body;
+    const userId = req.user?.id;
+
+    // Require authentication
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required for financial advice' });
+    }
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages array is required' });
+    }
+
+    // Fetch user's financial context
+    const financialContext = await getUserFinancialContext(userId, window);
+    const contextFormatted = formatFinancialContextForAI(financialContext);
+
+    // Build system prompt with financial guidance
+    let systemPrompt = `You are OxSteed's AI Financial Advisor — a knowledgeable, empathetic guide to help users understand their financial health and make informed decisions.
+
+## Your Role
+Based on the user's real financial data (expenses, income, goals, planned needs), provide:
+- **Personalized advice** on affordability, budgeting, and financial planning
+- **Specific recommendations** based on their actual numbers
+- **Action steps** to improve their financial health score
+- **Realistic projections** for future financial scenarios
+
+## Available User Data
+${contextFormatted}
+
+## Financial Health Guidelines
+- **Score 80-100:** Excellent health. User can comfortably afford most goals.
+- **Score 60-79:** Good health. User has buffer but should monitor large expenses.
+- **Score 40-59:** Fair health. User should prioritize sinking funds and avoid large unplanned expenses.
+- **Score 0-39:** Concerning. User should focus on increasing income or reducing expenses urgently.
+
+## Response Guidelines
+- **Be specific with numbers.** Reference their actual income, expenses, and goals.
+- **Be honest about gaps.** If they can't afford something, explain why based on data.
+- **Suggest concrete actions.** "Reduce dining out by $X/month" instead of generic "save more."
+- **Consider context.** For helpers, mention OxSteed earnings. For customers, consider job posting investments.
+- **Always link to Dashboard/features** for implementing recommendations.
+- **Keep it under 5 sentences** unless the question needs deeper analysis.
+- **Use simple language.** No jargon.
+- **Never make up numbers.** Always use their real data or say "I don't have that data."
+
+${getLanguageInstruction(language)}`;
+
+    // Sanitize and limit conversation history
+    const history = messages
+      .slice(-12)
+      .map(m => ({
+        role: ['user', 'assistant'].includes(m.role) ? m.role : 'user',
+        content: String(m.content || '').slice(0, 1500),
+      }))
+      .filter(m => m.content.trim());
+
+    const ollamaMessages = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+    ];
+
+    const ai = await callWithFallback(
+      ollamaMessages,
+      {
+        temperature: 0.65,
+        num_predict: 500,
+        top_p: 0.9,
+        repeat_penalty: 1.1,
+      },
+      '[FinancialAdvisor]'
+    );
+
+    if (!ai.ok) {
+      return res.status(502).json({ error: 'AI service temporarily unavailable' });
+    }
+
+    res.json({ reply: ai.reply, window, context: financialContext });
+  } catch (err) {
+    logger.error('[FinancialAdvisor] Error', { message: err.message });
     res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
   }
 };

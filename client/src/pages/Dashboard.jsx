@@ -745,29 +745,39 @@ export default function Dashboard() {
           <TrialBanner />
         </div>
 
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-2 mb-8 border-b border-gray-800">
-          {[
-            { id: 'pulse',        label: t('dashboard.tabs.pulse'),        icon: IcoZap },
-            { id: 'money',        label: t('dashboard.tabs.money'),        icon: IcoDollar },
-            { id: 'home',         label: t('dashboard.tabs.home'),         icon: IcoHome },
-            { id: 'goals',        label: t('dashboard.tabs.goals'),        icon: IcoTarget },
-            { id: 'personalcare', label: t('dashboard.tabs.personalCare'), icon: IcoHeart },
-            { id: 'carcare',      label: t('dashboard.tabs.carCare'),      icon: IcoCar },
-            { id: 'skills',       label: t('dashboard.tabs.skillsTools'),  icon: IcoBriefcase },
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
-                tab === t.id 
-                  ? 'bg-gray-800/80 text-orange-500 border-b-2 border-orange-500' 
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/40'
-              }`}
-            >
-              <t.icon size={14} cls={tab === t.id ? 'text-orange-500' : 'text-gray-500'} />
-              {t.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-8 border-b border-gray-800" style={{
+          WebkitOverflowScrolling: 'touch',
+          scrollBehavior: 'smooth',
+        }}>
+          <style>{`
+            .dashboard-tabs::-webkit-scrollbar { display: none; }
+            .dashboard-tabs { -ms-overflow-style: none; scrollbar-width: none; }
+          `}</style>
+          <div className="dashboard-tabs flex items-center gap-1" style={{ minWidth: 'min-content' }}>
+            {[
+              { id: 'pulse',        label: t('dashboard.tabs.pulse'),        icon: IcoZap },
+              { id: 'money',        label: t('dashboard.tabs.money'),        icon: IcoDollar },
+              { id: 'home',         label: t('dashboard.tabs.home'),         icon: IcoHome },
+              { id: 'goals',        label: t('dashboard.tabs.goals'),        icon: IcoTarget },
+              { id: 'personalcare', label: t('dashboard.tabs.personalCare'), icon: IcoHeart },
+              { id: 'carcare',      label: t('dashboard.tabs.carCare'),      icon: IcoCar },
+              { id: 'skills',       label: t('dashboard.tabs.skillsTools'),  icon: IcoBriefcase },
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0 ${
+                  tab === t.id
+                    ? 'bg-gray-800/80 text-orange-500 border-b-2 border-orange-500'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/40'
+                }`}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                <t.icon size={14} cls={tab === t.id ? 'text-orange-500' : 'text-gray-500'} />
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ═══════ PULSE ═══════ */}

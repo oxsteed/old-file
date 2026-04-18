@@ -81,9 +81,10 @@ export default function Navbar() {
       <div className="ox-container">
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
           height: '3.75rem',
+          gap: 'var(--space-2)',
+          minWidth: 0,
         }}>
           {/* Logo */}
           <Link
@@ -96,6 +97,7 @@ export default function Navbar() {
               color: 'var(--color-text)',
               fontWeight: 700,
               fontSize: 'var(--text-xl)',
+              flexShrink: 0,
             }}
           >
             <OxSteedIcon size={28} />
@@ -109,7 +111,7 @@ export default function Navbar() {
             gap: 'var(--space-2)',
             flex: 1,
             minWidth: 0,
-            overflowX: 'auto',
+            overflow: 'hidden',
           }}>
             {user ? (
               <>
@@ -160,15 +162,19 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-            <LanguageSelector />
-            <ThemeToggle />
           </div>
+
+          {/* Language & Theme toggles - OUTSIDE nav-desktop to avoid overflow clipping */}
+          <LanguageSelector />
+          <ThemeToggle />
 
           {/* Mobile: theme toggle + hamburger */}
           <div className="ox-nav-mobile-controls" style={{
             display: 'none',
             alignItems: 'center',
             gap: 'var(--space-2)',
+            flexShrink: 0,
+            marginLeft: 'auto',
           }}>
             <LanguageSelector />
             <ThemeToggle />
@@ -291,8 +297,9 @@ function NavLink({ to, children, active }) {
         transition: 'color var(--transition-fast), background var(--transition-fast)',
         display: 'inline-flex',
         alignItems: 'center',
-        flexShrink: 0,
-        whiteSpace: 'nowrap',
+        flexShrink: 1,
+        whiteSpace: 'normal',
+        minWidth: 0,
       }}
       onMouseEnter={e => {
         if (!active) {
