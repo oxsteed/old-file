@@ -325,10 +325,8 @@ export default function UserDetail() {
           { label: 'Jobs Completed',  value: user.completed_jobs ?? 0          },
           { label: 'Total Earnings',  value: user.earnings_total
               ? `$${parseFloat(user.earnings_total).toFixed(2)}`
-              : '$0.00' },
-          { label: 'Completion Rate', value: user.completion_rate
-              ? `${(parseFloat(user.completion_rate) * 100).toFixed(0)}%`
-              : 'N/A' },
+              : '—' },
+          { label: 'Status',          value: user.background_check_status || 'pending' },
         ].map(({ label, value }) => (
           <div key={label}
                className="bg-gray-800 border border-gray-700
@@ -480,7 +478,7 @@ export default function UserDetail() {
                 { label: 'Payouts Enabled',  value: user.payouts_enabled
                     ? '✓ Yes' : '✗ No' },
                 { label: 'Subscription ID',  value: user.stripe_subscription_id || '—' },
-                { label: 'Sub Status',       value: user.subscription_status || '—' },
+                { label: 'Sub Status',       value: user.sub_status || user.subscription_status || '—' },
               ].map(({ label, value }) => (
                 <div key={label}
                      className="flex items-center justify-between
