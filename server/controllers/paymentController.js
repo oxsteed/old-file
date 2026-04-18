@@ -205,6 +205,24 @@ exports.capturePayment = async (req, res) => {
          VALUES ($1, 'expense', $2, 'Home Services', $3, CURRENT_DATE)`,
         [job.rows[0].client_id, paymentData.amount, 'Paid: ' + job.rows[0].title]
       );
+
+      // 4. Log to platform ledger (financial audit trail)
+      await client.query(
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+         VALUES (NULL, 'payment_captured', $1, $2, $3)`,
+        [
+          Math.round(paymentData.amount * 100),
+          `Payment #${paymentData.id} captured for job ${job.rows[0].id}`,
+          JSON.stringify({
+            payment_id: paymentData.id,
+            job_id: job.rows[0].id,
+            customer_id: job.rows[0].client_id,
+            helper_id: job.rows[0].assigned_helper_id,
+            stripe_intent: paymentData.stripe_payment_intent_id,
+            amount: paymentData.amount
+          })
+        ]
+      );
     }, 'capture_payment');
 
     res.json({ message: 'Payment captured — funds released to helper' });
@@ -268,11 +286,30 @@ exports.refundPayment = async (req, res) => {
         [refundAmount, reason, refundId, payment_id]
       );
 
-      // Audit log for refund
+      // Audit log for refund (admin action)
       await client.query(
         `INSERT INTO admin_audit_log (admin_id, action, entity_type, entity_id, changes, timestamp)
          VALUES ($1, 'refund_payment', 'payment', $2, $3, NOW())`,
         [req.user.id, payment_id, JSON.stringify({ amount: refundAmount, reason, stripe_refund_id: refundId })]
+      );
+
+      // Log to platform ledger (financial audit trail)
+      await client.query(
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+         VALUES (NULL, 'payment_refunded', $1, $2, $3)`,
+        [
+          Math.round(refundAmount * -100),  // negative for refund
+          `Payment #${paymentData.id} refunded by admin ${req.user.id}: ${reason || 'No reason'}`,
+          JSON.stringify({
+            payment_id: paymentData.id,
+            job_id: paymentData.job_id,
+            refund_id: refundId,
+            refund_amount: refundAmount,
+            reason: reason || null,
+            admin_id: req.user.id,
+            reverse_fee: reverse_application_fee || false
+          })
+        ]
       );
     }, 'refund_payment');
 
