@@ -760,7 +760,7 @@ function BusinessHubInner() {
   });
 
   useEffect(() => {
-    if ((tb === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
+    if ((tab === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (financeTabIds.includes(tab) && !canViewFinanceHub) {
