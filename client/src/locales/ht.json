@@ -2425,6 +2425,7 @@
     "fieldAltText": "Tèks Altènatif",
     "placeholderAltText": "Dekri imaj la pou asesibilite",
     "errPhotoURLRequired": "URL fwoto a obligatwa.",
+    "errPhotoURLInvalid": "URL fwoto a dwe yon URL ki valab (egz. https://egzanp.com/imaj.jpg).",
     "toastPhotoUploaded": "Fwoto ajoute",
     "toastPhotoUpdated": "Fwoto mete ajou",
     "toastPhotoDeleted": "Fwoto efase",

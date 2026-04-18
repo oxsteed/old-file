@@ -2363,6 +2363,7 @@
     "fieldAltText": "Texto Alternativo",
     "placeholderAltText": "Describe la imagen para accesibilidad",
     "errPhotoURLRequired": "La URL de la foto es obligatoria.",
+    "errPhotoURLInvalid": "La URL de la foto debe ser una URL válida (por ejemplo, https://ejemplo.com/imagen.jpg).",
     "toastPhotoUploaded": "Foto añadida",
     "toastPhotoUpdated": "Foto actualizada",
     "toastPhotoDeleted": "Foto eliminada",

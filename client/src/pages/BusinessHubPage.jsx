@@ -610,7 +610,7 @@ function BusinessHubInner() {
   async function handleSaveService() {
     if (!form.name?.trim()) { setFormErr(t('businessHub.errServiceNameRequired')); return; }
     if (!form.price && form.price !== 0) { setFormErr(t('businessHub.errPriceRequired')); return; }
-    const price = parseFloat(form.price);
+    const price = Math.round(parseFloat(form.price) * 100) / 100;
     if (isNaN(price)) { setFormErr(t('businessHub.errPriceNumeric')); return; }
     if (price < 0 || price > 999999.99) { setFormErr(t('businessHub.errPriceRange')); return; }
     setSaving(true);
@@ -641,6 +641,12 @@ function BusinessHubInner() {
   // ── gallery CRUD ──────────────────────────────────────────────────────────
   async function handleSavePhoto() {
     if (!form.url?.trim()) { setFormErr(t('businessHub.errPhotoURLRequired')); return; }
+    try {
+      new URL(form.url);
+    } catch {
+      setFormErr(t('businessHub.errPhotoURLInvalid'));
+      return;
+    }
     setSaving(true);
     try {
       if (modal === 'add-photo') {
@@ -725,15 +731,12 @@ function BusinessHubInner() {
   async function handleSaveHours() {
     setSaving(true);
     try {
-      const hoursData = Object.keys(form).filter(k => k.startsWith('day_')).map(k => {
-        const dayNum = parseInt(k.replace('day_', ''));
-        return {
-          day_of_week: dayNum,
-          is_closed: form[`closed_${dayNum}`],
-          start_time: form[`closed_${dayNum}`] ? null : form[`start_${dayNum}`],
-          end_time: form[`closed_${dayNum}`] ? null : form[`end_${dayNum}`],
-        };
-      });
+      const hoursData = [0, 1, 2, 3, 4, 5, 6].map(dayNum => ({
+        day_of_week: dayNum,
+        is_closed: form[`closed_${dayNum}`],
+        start_time: form[`closed_${dayNum}`] ? null : (form[`start_${dayNum}`] || null),
+        end_time: form[`closed_${dayNum}`] ? null : (form[`end_${dayNum}`] || null),
+      }));
       await updateBusinessHours(bizId, { hours: hoursData });
       toast.success(t('businessHub.toastHoursUpdated'));
       closeModal();
@@ -931,14 +934,12 @@ function BusinessHubInner() {
                   setFormErr('');
                   const formData = {};
                   hours.forEach(h => {
-                    formData[`day_${h.day_of_week}`] = true;
                     formData[`closed_${h.day_of_week}`] = h.is_closed;
                     formData[`start_${h.day_of_week}`] = h.start_time || '';
                     formData[`end_${h.day_of_week}`] = h.end_time || '';
                   });
                   [0, 1, 2, 3, 4, 5, 6].forEach(d => {
-                    if (!formData[`day_${d}`]) {
-                      formData[`day_${d}`] = false;
+                    if (!formData[`closed_${d}`] && !formData[`start_${d}`]) {
                       formData[`closed_${d}`] = false;
                       formData[`start_${d}`] = '';
                       formData[`end_${d}`] = '';
