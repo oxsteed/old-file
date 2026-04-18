@@ -107,6 +107,9 @@ export default function Navbar() {
             display: 'flex',
             alignItems: 'center',
             gap: 'var(--space-2)',
+            flex: 1,
+            minWidth: 0,
+            overflowX: 'auto',
           }}>
             {user ? (
               <>
@@ -258,6 +261,13 @@ export default function Navbar() {
 
       {/* Responsive hide/show via CSS */}
       <style>{`
+        .ox-nav-desktop {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .ox-nav-desktop::-webkit-scrollbar {
+          display: none;
+        }
         @media (max-width: 768px) {
           .ox-nav-desktop { display: none !important; }
           .ox-nav-mobile-controls { display: flex !important; }
@@ -281,6 +291,8 @@ function NavLink({ to, children, active }) {
         transition: 'color var(--transition-fast), background var(--transition-fast)',
         display: 'inline-flex',
         alignItems: 'center',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
       onMouseEnter={e => {
         if (!active) {
