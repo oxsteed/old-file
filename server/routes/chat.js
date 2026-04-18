@@ -1,6 +1,7 @@
 const router = require('express').Router();
-const { chatMessage, profileChatMessage } = require('../controllers/chatController');
+const { chatMessage, profileChatMessage, financialAdvisor } = require('../controllers/chatController');
 const { chatLimiter } = require('../middleware/rateLimiter');
+const { authenticate } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 // Middleware: attach user if token present and valid; continue as unauthenticated otherwise.
@@ -29,6 +30,10 @@ const optionalAuth = async (req, res, next) => {
 
 // Public — no auth required for support chat
 router.post('/message', chatLimiter, chatMessage);
+
+// POST /api/chat/financial-advisor
+// Personalized financial advice — requires authentication
+router.post('/financial-advisor', chatLimiter, authenticate, financialAdvisor);
 
 // POST /api/chat/profile-message
 // Auth optional — authenticated users get live routing when helper is online;
