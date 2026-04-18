@@ -16,6 +16,7 @@ interface ChatTimelineProps {
   currentUserId?: string;
   onMessageDelete?: (messageId: string) => void;
   onMessageEdit?: (messageId: string) => void;
+  onQuickReply?: (text: string) => void;
 }
 
 function isMessage(item: TimelineItem): item is ChatMessageType {
@@ -44,6 +45,7 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
   currentUserId,
   onMessageDelete,
   onMessageEdit,
+  onQuickReply,
 }) => {
   const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -69,6 +71,8 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
               currentUserId={currentUserId}
               onDelete={onMessageDelete}
               onEdit={onMessageEdit}
+              onQuickReply={onQuickReply}
+              showQuickReplies={true}
             />
           );
         }

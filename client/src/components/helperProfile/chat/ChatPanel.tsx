@@ -318,6 +318,25 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     console.log('Edit message:', messageId);
   }, []);
 
+  const handleQuickReply = useCallback((text: string) => {
+    // Populate the composer with quick reply and focus
+    // This would be handled by passing text to MessageComposer state
+    // For now, we'll just send it directly
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      itemType: 'message',
+      authorType: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+    setSession(prev => ({
+      ...prev,
+      timeline: [...prev.timeline, userMsg],
+    }));
+    // Trigger AI response
+    handleSend([userMsg]);
+  }, [handleSend]);
+
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
@@ -406,6 +425,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           currentUserId={user?.id}
           onMessageDelete={handleMessageDelete}
           onMessageEdit={handleMessageEdit}
+          onQuickReply={handleQuickReply}
         />
       )}
 

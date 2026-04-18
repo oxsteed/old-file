@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Building2, User, UserCheck, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Bot, Building2, User, UserCheck, Copy, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import type { ChatMessage, MessageAuthorType } from '../../../types/helperProfile';
 import api from '../../../api/axios';
 
@@ -10,6 +10,8 @@ interface MessageBubbleProps {
   currentUserId?: string;
   onDelete?: (messageId: string) => void;
   onEdit?: (messageId: string) => void;
+  onQuickReply?: (text: string) => void;
+  showQuickReplies?: boolean;
 }
 
 interface AuthorConfig {
@@ -24,6 +26,15 @@ interface AuthorConfig {
   iconBg: string;
   iconColor: string;
 }
+
+const QUICK_REPLIES = [
+  'Thanks for the help!',
+  'Got it, thanks',
+  'Can you explain that more?',
+  'That makes sense',
+  'Need more details',
+  'Sounds good',
+];
 
 const AUTHOR_CONFIG: Record<MessageAuthorType, AuthorConfig> = {
   user: {
@@ -79,6 +90,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   currentUserId,
   onDelete,
   onEdit,
+  onQuickReply,
+  showQuickReplies,
 }) => {
   const { t } = useTranslation();
   const config = AUTHOR_CONFIG[message.authorType];
@@ -88,6 +101,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [showQuickRepliesMenu, setShowQuickRepliesMenu] = useState(false);
   const canEdit = currentUserId && message.authorType === 'user' && currentUserId === message.sender_id;
 
   const labelMap: Record<MessageAuthorType, string> = {
@@ -205,6 +219,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   >
                     <ThumbsDown className="w-3.5 h-3.5" />
                   </button>
+                  <button
+                    onClick={() => setShowQuickRepliesMenu(!showQuickRepliesMenu)}
+                    className={`p-1 rounded-md transition-colors ${
+                      showQuickRepliesMenu
+                        ? 'text-blue-500 bg-blue-100 dark:bg-blue-900/30'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
+                    }`}
+                    title="Quick replies"
+                    aria-label="Quick replies"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </button>
                 </>
               )}
 
@@ -243,6 +269,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         >
           {formatTimestamp(message.timestamp)}
         </time>
+
+        {/* Quick replies (for AI messages) */}
+        {isAI && showQuickReplies && showQuickRepliesMenu && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {QUICK_REPLIES.map((reply) => (
+              <button
+                key={reply}
+                onClick={() => {
+                  onQuickReply?.(reply);
+                  setShowQuickRepliesMenu(false);
+                }}
+                className="inline-block px-2.5 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
