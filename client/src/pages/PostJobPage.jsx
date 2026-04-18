@@ -131,7 +131,7 @@ function OxSteedIcon({ size = 26 }) {
 }
 
 // ─── Searchable category dropdown ────────────────────────────────────────────
-function CategorySelect({ value, onChange, error }) {
+function CategorySelect({ value, onChange, error, t }) {
   const [open, setOpen]         = React.useState(false);
   const [search, setSearch]     = React.useState('');
   const [activeIdx, setActiveIdx] = React.useState(-1);
@@ -141,6 +141,36 @@ function CategorySelect({ value, onChange, error }) {
 
   const allFlat = CATEGORIES.flatMap(g => g.options);
 
+  // Map category ID to i18n key (e.g., 'electrical-full' -> 'electricalFull')
+  const getCategoryKey = (id) => {
+    const parts = id.split('-');
+    if (parts.length === 1) return parts[0];
+    return parts[0] + parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+  };
+
+  const getCategoryName = (id) => t(`postJob.categories.${getCategoryKey(id)}`);
+
+  // Map group names to i18n keys
+  const GROUP_KEY_MAP = {
+    'Electrical': 'electrical',
+    'Plumbing': 'plumbing',
+    'HVAC': 'hvac',
+    'Construction': 'construction',
+    'Interior Finishes': 'interiorFinishes',
+    'Home Services': 'homeServices',
+    'Lawn & Outdoor': 'lawnOutdoor',
+    'Moving & Hauling': 'movingHauling',
+    'Vehicles & Auto': 'vehiclesAuto',
+    'Care & Personal': 'carePersonal',
+    'Professional Services': 'professionalServices',
+    'General': 'general',
+  };
+
+  const getGroupName = (group) => {
+    const key = GROUP_KEY_MAP[group];
+    return key ? t(`postJob.categories.${key}`) : group;
+  };
+
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return CATEGORIES;
@@ -148,11 +178,11 @@ function CategorySelect({ value, onChange, error }) {
       .map(g => ({
         ...g,
         options: g.options.filter(
-          o => o.name.toLowerCase().includes(q) || g.group.toLowerCase().includes(q)
+          o => getCategoryName(o.id).toLowerCase().includes(q) || getGroupName(g.group).toLowerCase().includes(q)
         ),
       }))
       .filter(g => g.options.length > 0);
-  }, [search]);
+  }, [search, t]);
 
   const filteredFlat = filtered.flatMap(g => g.options);
 
@@ -183,7 +213,7 @@ function CategorySelect({ value, onChange, error }) {
   }
 
   function select(opt) {
-    onChange(opt.id, opt.name);
+    onChange(opt.id, getCategoryName(opt.id));
     setOpen(false);
     setSearch('');
     setActiveIdx(-1);
@@ -217,11 +247,11 @@ function CategorySelect({ value, onChange, error }) {
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={selectedOpt ? selectedOpt.name : 'Select a category'}
+        aria-label={selectedOpt ? getCategoryName(selectedOpt.id) : t('postJob.selectCategory')}
       >
         {selectedOpt
-          ? <span className="pjw-cat-value">{selectedOpt.name}</span>
-          : <span className="pjw-cat-placeholder">Select a category…</span>
+          ? <span className="pjw-cat-value">{getCategoryName(selectedOpt.id)}</span>
+          : <span className="pjw-cat-placeholder">{t('postJob.selectCategory')}…</span>
         }
         <svg className="pjw-cat-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <polyline points="6 9 12 15 18 9"/>
@@ -270,7 +300,7 @@ function CategorySelect({ value, onChange, error }) {
             ) : (
               filtered.map(g => (
                 <React.Fragment key={g.group}>
-                  <li className="pjw-cat-group-label" role="presentation">{g.group}</li>
+                  <li className="pjw-cat-group-label" role="presentation">{getGroupName(g.group)}</li>
                   {g.options.map(opt => {
                     const idx  = filteredFlat.indexOf(opt);
                     const isActive = idx === activeIdx;
@@ -284,7 +314,7 @@ function CategorySelect({ value, onChange, error }) {
                         onMouseDown={() => select(opt)}
                         onMouseEnter={() => setActiveIdx(idx)}
                       >
-                        {opt.name}
+                        {getCategoryName(opt.id)}
                         {opt.id === value && <CheckIcon size={12} />}
                       </li>
                     );
@@ -893,6 +923,7 @@ export default function PostJobPage() {
                     value={form.categoryId}
                     onChange={handleCategoryChange}
                     error={!!errors.categoryId}
+                    t={t}
                   />
                   {errors.categoryId && <div className="pjw-field-error">{errors.categoryId}</div>}
                 </div>
@@ -1425,7 +1456,7 @@ export default function PostJobPage() {
               <button type="button" className="pjw-btn pjw-btn-ghost"
                 onClick={form.step === 1 ? () => navigate('/dashboard') : prevStep}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-                {form.step === 1 ? 'Cancel' : 'Back'}
+                {form.step === 1 ? t('postJob.cancel') : t('postJob.back')}
               </button>
               <div className="pjw-form-actions-right">
                 <button type="button" className="pjw-btn pjw-btn-ghost"
@@ -1453,7 +1484,7 @@ export default function PostJobPage() {
               <div className="pjw-summary-header">
                 <h3>Job Summary</h3>
                 <span className={`pjw-summary-status ${isReady ? 'pjw-status-ready' : 'pjw-status-draft'}`}>
-                  {isReady ? 'Ready' : 'Draft'}
+                  {isReady ? t('postJob.ready') : t('postJob.draft')}
                 </span>
               </div>
               <div className="pjw-summary-body">
