@@ -1297,7 +1297,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
       {err && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</p>}
 
       <button
-        className="w-full py-2.5 px-4 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+        className="bh-btn primary w-full"
         onClick={onSave}
         disabled={saving}
       >
