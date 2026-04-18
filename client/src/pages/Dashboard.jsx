@@ -749,11 +749,7 @@ export default function Dashboard() {
           WebkitOverflowScrolling: 'touch',
           scrollBehavior: 'smooth',
         }}>
-          <style>{`
-            .dashboard-tabs::-webkit-scrollbar { display: none; }
-            .dashboard-tabs { -ms-overflow-style: none; scrollbar-width: none; }
-          `}</style>
-          <div className="dashboard-tabs flex items-center gap-1" style={{ minWidth: 'min-content' }}>
+          <div className="dashboard-tabs flex items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900" style={{ minWidth: 'min-content' }}>
             {[
               { id: 'pulse',        label: t('dashboard.tabs.pulse'),        icon: IcoZap },
               { id: 'money',        label: t('dashboard.tabs.money'),        icon: IcoDollar },
