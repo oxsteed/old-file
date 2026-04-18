@@ -1,6 +1,5 @@
 // server/middleware/tierMiddleware.js
 const pool = require('../db');
-const logger = require('../utils/logger');
 
 function requireTier2Helper(req, res, next) {
   if (!req.user) {
@@ -62,7 +61,7 @@ async function requireTier3EligibleHelper(req, res, next) {
       });
     }
   } catch (err) {
-    logger.error('Tier3 Stripe check error', { err: err.message });
+    console.error('Tier3 Stripe check error:', err);
     return res.status(500).json({ success: false, message: 'Failed to verify payment account status' });
   }
 

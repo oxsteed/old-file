@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('../db');
 const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
-const logger = require('../utils/logger');
 const { TERMS_CONFIG, REQUIRED_CONSENTS } = require('../constants/termsConfig');
 const User = require('../models/userModel');
 
@@ -54,7 +53,7 @@ router.get('/status', authenticate, async (req, res) => {
       ),
     });
   } catch (err) {
-    logger.error('GET /consent/status error', { err: err.message });
+    console.error('GET /consent/status error:', err);
     res.status(500).json({ error: 'Failed to check consent status' });
   }
 });
@@ -92,7 +91,7 @@ router.post('/accept', authenticate, async (req, res) => {
       })),
     });
   } catch (err) {
-    logger.error('POST /consent/accept error', { err: err.message });
+    console.error('POST /consent/accept error:', err);
     res.status(500).json({ error: 'Failed to record consent' });
   }
 });

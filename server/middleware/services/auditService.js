@@ -1,5 +1,4 @@
-const db     = require('../db');
-const logger = require('../../utils/logger');
+const db = require('../db');
 
 /**
  * Log every admin action for compliance and exit-readiness.
@@ -35,6 +34,6 @@ exports.logAdminAction = async ({
     ]);
   } catch (err) {
     // Non-fatal — never let audit failure block the operation
-    logger.error('Failed to log admin action', { err: err.message });
+    console.error('[Audit] Failed to log admin action:', err.message);
   }
 };

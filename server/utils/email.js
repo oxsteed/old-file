@@ -2,7 +2,6 @@
 // OxSteed v2
 
 const escapeHtml = require('./escapeHtml');
-const logger     = require('./logger');
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.SMTP_FROM || 'noreply@oxsteed.com';
@@ -21,12 +20,12 @@ let emailConfigured = false;
 if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
   emailConfigured = true;
 } else {
-  logger.warn('Resend API key not set or invalid. Email features disabled.');
+  console.warn('Resend API key not set or invalid. Email features disabled.');
 }
 
 async function sendEmail({ to, subject, text, html, from, fromName }) {
   if (!emailConfigured) {
-    logger.warn('Email not sent - Resend not configured');
+    console.warn('Email not sent - Resend not configured');
     return { success: false, error: 'Email not configured' };
   }
 
@@ -51,13 +50,13 @@ async function sendEmail({ to, subject, text, html, from, fromName }) {
 
     const data = await response.json();
     if (!response.ok) {
-      logger.error('Resend API error', { status: response.status, error: data.message });
+      console.error('Resend API error:', data);
       return { success: false, error: data.message || 'Email send failed' };
     }
-    logger.debug('Email sent', { to });
+    console.log('Email sent successfully to:', to);
     return { success: true, id: data.id };
   } catch (err) {
-    logger.error('Email send error', { err: err.message });
+    console.error('Email send error:', err);
     return { success: false, error: err.message };
   }
 }

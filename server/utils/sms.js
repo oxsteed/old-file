@@ -1,7 +1,6 @@
 // Phase 2 - SMS utility (Twilio)
 // OxSteed v2
 const twilio = require('twilio');
-const logger = require('./logger');
 
 let client = null;
 try {
@@ -11,17 +10,17 @@ try {
       process.env.TWILIO_AUTH_TOKEN
     );
   } else {
-    logger.warn('Twilio credentials not set. SMS features disabled.');
+    console.warn('Twilio credentials not set. SMS features disabled.');
   }
 } catch (err) {
-  logger.warn('Twilio init failed', { err: err.message });
+  console.warn('Twilio init failed:', err.message);
 }
 
 const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
 async function sendSMS(to, body) {
   if (!client) {
-    logger.warn('SMS not sent - Twilio not configured');
+    console.warn('SMS not sent - Twilio not configured');
     return { success: false, error: 'Twilio not configured' };
   }
   try {
@@ -32,14 +31,14 @@ async function sendSMS(to, body) {
     });
     return { success: true, sid: message.sid };
   } catch (err) {
-    logger.error('SMS send error', { err: err.message });
+    console.error('SMS send error:', err.message);
     return { success: false, error: err.message };
   }
 }
 
 async function sendOTPSMS(phone, otp) {
   if (!client) {
-    logger.warn('OTP SMS not sent - Twilio not configured');
+    console.warn('OTP SMS not sent - Twilio not configured');
     return { success: false, error: 'Twilio not configured' };
   }
   // 15 minutes to match email OTP expiry (sendOTPEmail in email.js)
@@ -49,7 +48,7 @@ async function sendOTPSMS(phone, otp) {
 
 async function sendJobAlertSMS(phone, jobTitle, jobId) {
   if (!client) {
-    logger.warn('Job alert SMS not sent - Twilio not configured');
+    console.warn('Job alert SMS not sent - Twilio not configured');
     return { success: false, error: 'Twilio not configured' };
   }
   // Strip control characters and cap length to prevent SMS injection
