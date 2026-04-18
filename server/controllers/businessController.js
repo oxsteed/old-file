@@ -685,14 +685,15 @@ async function getBusinessPublicProfile(req, res) {
 
     const ownerId = biz.owner_id;
 
-    // Parallel: services, reviews, gallery, FAQs, policies, active team members
-    const [svcRes, reviewRes, galRes, faqRes, polRes, teamRes] = await Promise.all([
+    // Parallel: services, reviews, gallery, FAQs, policies, hours, active team members
+    // Query from business_* tables (Phase 3 content) instead of helper_* tables
+    const [svcRes, reviewRes, galRes, faqRes, polRes, hoursRes, teamRes] = await Promise.all([
       pool.query(
         `SELECT id, name, description, price, price_unit, duration, popular, category, sort_order
-         FROM helper_services
-         WHERE user_id = $1 AND is_active = TRUE
+         FROM business_services
+         WHERE business_id = $1 AND is_active = TRUE
          ORDER BY sort_order, id`,
-        [ownerId]
+        [bizId]
       ),
       pool.query(
         `SELECT r.id, r.rating, r.comment, r.created_at, r.response, r.response_at,
@@ -705,16 +706,21 @@ async function getBusinessPublicProfile(req, res) {
         [ownerId]
       ),
       pool.query(
-        `SELECT id, url, caption FROM helper_gallery WHERE user_id = $1 ORDER BY sort_order, id`,
-        [ownerId]
+        `SELECT id, url, caption FROM business_gallery WHERE business_id = $1 ORDER BY sort_order, id`,
+        [bizId]
       ),
       pool.query(
-        `SELECT id, question, answer FROM helper_faqs WHERE user_id = $1 ORDER BY sort_order, id`,
-        [ownerId]
+        `SELECT id, question, answer FROM business_faqs WHERE business_id = $1 ORDER BY sort_order, id`,
+        [bizId]
       ),
       pool.query(
-        `SELECT id, title, content, icon FROM helper_policies WHERE user_id = $1 ORDER BY sort_order, id`,
-        [ownerId]
+        `SELECT id, title, content, icon FROM business_policies WHERE business_id = $1 ORDER BY sort_order, id`,
+        [bizId]
+      ),
+      pool.query(
+        `SELECT day_of_week, start_time, end_time, is_closed FROM business_hours
+         WHERE business_id = $1 ORDER BY day_of_week`,
+        [bizId]
       ),
       // Active team members (name + role only — no email exposed publicly)
       pool.query(
@@ -762,6 +768,7 @@ async function getBusinessPublicProfile(req, res) {
       gallery:   galRes.rows,
       faqs:      faqRes.rows,
       policies:  polRes.rows,
+      hours:     hoursRes.rows,
       team:      teamRes.rows,
     });
   } catch (err) {

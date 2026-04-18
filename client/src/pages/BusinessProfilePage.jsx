@@ -134,8 +134,13 @@ function mapToHelperProfileData(profile, t) {
     servesRemotely:false,
   };
 
-  // Hours: not returned by the business public API — rendered only if present.
-  const hours = [];
+  // Hours: mapped from business_hours table (Phase 3 business content)
+  const mappedHours = (profile.hours || []).map(h => ({
+    day_of_week: h.day_of_week,
+    is_closed:   h.is_closed,
+    start_time:  h.start_time,
+    end_time:    h.end_time,
+  }));
 
   const chatSession = {
     id:            `session_${business.owner_id}`,
@@ -155,7 +160,7 @@ function mapToHelperProfileData(profile, t) {
     faqs:        mappedFaqs,
     policies:    mappedPolicies,
     location,
-    hours,
+    hours:       mappedHours,
     chatSession,
     // Extras not in HelperProfileData — kept for supplementary sections
     team:    profile.team || [],
