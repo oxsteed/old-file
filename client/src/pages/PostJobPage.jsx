@@ -309,7 +309,7 @@ const REQ_META = {
   backgroundCheck: { label: 'Background Check',  desc: 'Verified ID on OxSteed' },
 };
 
-const STEP_LABELS = ['Job Details', 'Requirements', 'Budget & Timeline', 'Review & Post'];
+// STEP_LABELS is now in PostJobPage component and uses i18n
 
 // ─── Live Capture Modal ──────────────────────────────────────────────────────
 // Uses MediaDevices API for real camera/mic capture (desktop + mobile).
@@ -930,21 +930,21 @@ export default function PostJobPage() {
                     {errors.location && <div className="pjw-field-error">{errors.location}</div>}
                   </div>
                   <div className="pjw-field" style={{ marginBottom: 0 }}>
-                    <label htmlFor="pjw-access">Site Access</label>
+                    <label htmlFor="pjw-access">{t('postJob.siteAccess')}</label>
                     <select id="pjw-access" className="pjw-select" value={form.siteAccess} onChange={e => set({ siteAccess: e.target.value })}>
-                      <option value="easy">Easy — I'll be home</option>
-                      <option value="lockbox">Lockbox available</option>
-                      <option value="schedule">Must schedule access</option>
+                      <option value="easy">{t('postJob.siteAccessEasy')}</option>
+                      <option value="lockbox">{t('postJob.siteAccessLockbox')}</option>
+                      <option value="schedule">{t('postJob.siteAccessSchedule')}</option>
                     </select>
                   </div>
                 </div>
 
                 {/* Job Type */}
                 <div className="pjw-field" style={{ marginTop: '1.25rem' }}>
-                  <label htmlFor="pjw-jobtype">Job Type</label>
+                  <label htmlFor="pjw-jobtype">{t('postJob.jobType')}</label>
                   <select id="pjw-jobtype" className="pjw-select" value={form.jobType} onChange={e => set({ jobType: e.target.value })}>
-                    <option value="one_time">One-Time</option>
-                    <option value="recurring">Recurring</option>
+                    <option value="one_time">{t('postJob.jobTypeOneTime')}</option>
+                    <option value="recurring">{t('postJob.jobTypeRecurring')}</option>
                   </select>
                 </div>
 
@@ -1026,9 +1026,9 @@ export default function PostJobPage() {
               <div className="pjw-card">
                 <div className="pjw-section-label">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  Step 2 of 4 — Your Requirements
+                  {t('postJob.step2')}
                 </div>
-                <p className="pjw-section-desc">Select what you require from any helper who bids. Requirements are self-confirmed by helpers — flagged warnings appear if credentials can't be verified.</p>
+                <p className="pjw-section-desc">{t('postJob.requirementsDesc')}</p>
 
                 {/* Info callout */}
                 <div className="pjw-callout" role="note">
@@ -1322,33 +1322,33 @@ export default function PostJobPage() {
 
                 {/* Job Details review */}
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Title</span>
-                  <span className={`pjw-review-value${!form.title?' is-empty':''}`}>{form.title || 'Not set'}</span>
+                  <span className="pjw-review-label">{t('postJob.jobDetailsTitle')}</span>
+                  <span className={`pjw-review-value${!form.title?' is-empty':''}`}>{form.title || t('postJob.notSet')}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.category')}</span>
-                  <span className={`pjw-review-value${!form.categoryName?' is-empty':''}`}>{form.categoryName || 'Not selected'}</span>
+                  <span className={`pjw-review-value${!form.categoryName?' is-empty':''}`}>{form.categoryName || t('postJob.notSelected')}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.location')}</span>
-                  <span className={`pjw-review-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || 'Not set'}</span>
+                  <span className={`pjw-review-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || t('postJob.notSet')}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Site Access</span>
-                  <span className="pjw-review-value">{{ easy:"I'll be home", lockbox:'Lockbox available', schedule:'Must schedule access' }[form.siteAccess]}</span>
+                  <span className="pjw-review-label">{t('postJob.siteAccess')}</span>
+                  <span className="pjw-review-value">{{ easy: t('postJob.siteAccessEasy'), lockbox: t('postJob.siteAccessLockbox'), schedule: t('postJob.siteAccessSchedule') }[form.siteAccess]}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Job Type</span>
-                  <span className="pjw-review-value">{{ one_time:'One-Time', recurring:'Recurring' }[form.jobType]}</span>
+                  <span className="pjw-review-label">{t('postJob.jobType')}</span>
+                  <span className="pjw-review-value">{{ one_time: t('postJob.jobTypeOneTime'), recurring: t('postJob.jobTypeRecurring') }[form.jobType]}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.description')}</span>
-                  <span className="pjw-review-value" style={{ maxWidth:'360px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{form.description || <em style={{color:'var(--pjw-text-faint)'}}>Not set</em>}</span>
+                  <span className="pjw-review-value" style={{ maxWidth:'360px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{form.description || <em style={{color:'var(--pjw-text-faint)'}}>{t('postJob.notSet')}</em>}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
                 </div>
 
@@ -1356,7 +1356,7 @@ export default function PostJobPage() {
 
                 {/* Requirements review */}
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Requirements</span>
+                  <span className="pjw-review-label">{t('postJob.requirements')}</span>
                   <div className="pjw-review-value">
                     {activeReqs.length === 0
                       ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>None selected</span>
@@ -1456,26 +1456,26 @@ export default function PostJobPage() {
               </div>
               <div className="pjw-summary-body">
                 <div className="pjw-sum-row">
-                  <span className="pjw-sum-label">Title</span>
-                  <span className={`pjw-sum-value${!form.title?' is-empty':''}`}>{form.title || 'Not set yet'}</span>
+                  <span className="pjw-sum-label">{t('postJob.jobDetailsTitle')}</span>
+                  <span className={`pjw-sum-value${!form.title?' is-empty':''}`}>{form.title || t('postJob.notSet')}</span>
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.category')}</span>
-                  <span className={`pjw-sum-value${!form.categoryName?' is-empty':''}`}>{form.categoryName || 'Not selected'}</span>
+                  <span className={`pjw-sum-value${!form.categoryName?' is-empty':''}`}>{form.categoryName || t('postJob.notSelected')}</span>
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.location')}</span>
-                  <span className={`pjw-sum-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || 'Not set'}</span>
+                  <span className={`pjw-sum-value${!form.locationInput?' is-empty':''}`}>{form.locationInput || t('postJob.notSet')}</span>
                 </div>
                 <div className="pjw-sum-row">
-                  <span className="pjw-sum-label">Budget</span>
+                  <span className="pjw-sum-label">{t('postJob.budgetType')}</span>
                   <span className="pjw-sum-value">{formatBudgetDisplay(form)}</span>
                 </div>
                 <div className="pjw-sum-row">
-                  <span className="pjw-sum-label">Requirements</span>
+                  <span className="pjw-sum-label">{t('postJob.requirements')}</span>
                   <div className="pjw-sum-reqs">
                     {activeReqs.length === 0
-                      ? <span className="pjw-sum-badge is-empty">None selected</span>
+                      ? <span className="pjw-sum-badge is-empty">{t('postJob.notSelected')}</span>
                       : activeReqs.map(k => <span key={k} className="pjw-sum-badge">{REQ_META[k].label}</span>)
                     }
                   </div>
@@ -1494,9 +1494,9 @@ export default function PostJobPage() {
                 <button type="button" className="pjw-btn pjw-btn-secondary pjw-btn-full"
                   style={{ fontSize:'.8rem' }}
                   onClick={() => api.put('/jobs/draft', { wizard_step: form.step, payload: form })}>
-                  Save as Draft
+                  {t('postJob.saveDraft')}
                 </button>
-                {form.draftSaving && <p className="pjw-draft-saving">Saving draft…</p>}
+                {form.draftSaving && <p className="pjw-draft-saving">{t('postJob.savingDraft')}</p>}
               </div>
             </div>
           </aside>
