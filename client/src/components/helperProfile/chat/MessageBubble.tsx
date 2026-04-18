@@ -7,6 +7,9 @@ import api from '../../../api/axios';
 interface MessageBubbleProps {
   message: ChatMessage;
   helperName: string;
+  currentUserId?: string;
+  onDelete?: (messageId: string) => void;
+  onEdit?: (messageId: string) => void;
 }
 
 interface AuthorConfig {
@@ -70,7 +73,13 @@ function formatTimestamp(iso: string): string {
   return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, helperName }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({
+  message,
+  helperName,
+  currentUserId,
+  onDelete,
+  onEdit,
+}) => {
   const { t } = useTranslation();
   const config = AUTHOR_CONFIG[message.authorType];
   const isUser = message.authorType === 'user';
@@ -79,6 +88,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, helperName }) =>
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const canEdit = currentUserId && message.authorType === 'user' && currentUserId === message.sender_id;
 
   const labelMap: Record<MessageAuthorType, string> = {
     user: t('helperProfile.chat.youLabel'),
@@ -157,7 +167,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, helperName }) =>
             )}
           </div>
 
-          {/* Action buttons (copy, like/dislike) */}
+          {/* Action buttons (copy, like/dislike, edit, delete) */}
           {showActions && (
             <div className={`flex items-center gap-1 mt-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
               <button
@@ -194,6 +204,31 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, helperName }) =>
                     aria-label="Not helpful"
                   >
                     <ThumbsDown className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+
+              {canEdit && (
+                <>
+                  <button
+                    onClick={() => onEdit?.(message.id)}
+                    className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
+                    title="Edit message"
+                    aria-label="Edit message"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Delete this message?')) {
+                        onDelete?.(message.id);
+                      }
+                    }}
+                    className="p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
+                    title="Delete message"
+                    aria-label="Delete message"
+                  >
+                    🗑️
                   </button>
                 </>
               )}

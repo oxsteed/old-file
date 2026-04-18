@@ -305,6 +305,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const showCloseButton = variant === 'modal';
   const handleClose = onClose ?? (() => {});
 
+  const handleMessageDelete = useCallback((messageId: string) => {
+    setSession(prev => ({
+      ...prev,
+      timeline: prev.timeline.filter((item) => !(item.itemType === 'message' && item.id === messageId)),
+    }));
+  }, []);
+
+  const handleMessageEdit = useCallback((messageId: string) => {
+    // Edit mode would require inline editing state — not yet implemented for ChatPanel
+    // For now, we log that edit was clicked. A full implementation would show edit UI.
+    console.log('Edit message:', messageId);
+  }, []);
+
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
@@ -390,6 +403,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           items={displayTimeline}
           helperName={helperName}
           typing={sending ? session.typing : null}
+          currentUserId={user?.id}
+          onMessageDelete={handleMessageDelete}
+          onMessageEdit={handleMessageEdit}
         />
       )}
 

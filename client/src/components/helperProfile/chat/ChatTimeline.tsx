@@ -13,6 +13,9 @@ interface ChatTimelineProps {
   items: TimelineItem[];
   helperName: string;
   typing?: TypingIndicator | null;
+  currentUserId?: string;
+  onMessageDelete?: (messageId: string) => void;
+  onMessageEdit?: (messageId: string) => void;
 }
 
 function isMessage(item: TimelineItem): item is ChatMessageType {
@@ -34,7 +37,14 @@ const TypingBubble: React.FC<{ author: string }> = ({ author }) => {
   );
 };
 
-const ChatTimeline: React.FC<ChatTimelineProps> = ({ items, helperName, typing }) => {
+const ChatTimeline: React.FC<ChatTimelineProps> = ({
+  items,
+  helperName,
+  typing,
+  currentUserId,
+  onMessageDelete,
+  onMessageEdit,
+}) => {
   const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +66,9 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({ items, helperName, typing }
               key={item.id}
               message={item}
               helperName={helperName}
+              currentUserId={currentUserId}
+              onDelete={onMessageDelete}
+              onEdit={onMessageEdit}
             />
           );
         }
