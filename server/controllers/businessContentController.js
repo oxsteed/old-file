@@ -39,7 +39,19 @@ exports.createBusinessService = async (req, res) => {
     if (!hasAccess) return sendError(res, 403, 'Access denied');
 
     // Validate required fields
-    if (!name || !price) return sendError(res, 400, 'Name and price are required');
+    if (!name) return sendError(res, 400, 'Name is required');
+    if (price === undefined || price === null) return sendError(res, 400, 'Price is required');
+
+    // Validate price is numeric and non-negative
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum < 0 || priceNum > 999999.99) {
+      return sendError(res, 400, 'Price must be a number between 0 and 999999.99');
+    }
+
+    // Validate business ID is numeric
+    if (isNaN(parseInt(businessId, 10))) {
+      return sendError(res, 400, 'Invalid business ID');
+    }
 
     const client = await db.connect();
     try {
@@ -47,7 +59,7 @@ exports.createBusinessService = async (req, res) => {
         `INSERT INTO business_services (business_id, name, description, price, price_unit, duration, popular, category)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [businessId, name, description || null, price, price_unit, duration || null, popular, category]
+        [parseInt(businessId, 10), name, description || null, priceNum, price_unit, duration || null, popular, category]
       );
 
       sendSuccess(res, result.rows[0], 201);

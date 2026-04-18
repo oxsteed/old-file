@@ -67,7 +67,8 @@ CREATE TABLE IF NOT EXISTS business_gallery (
   caption     VARCHAR(200),
   alt         VARCHAR(200),
   sort_order  INTEGER      NOT NULL DEFAULT 0,
-  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_business_gallery_business ON business_gallery(business_id);
 
@@ -106,7 +107,6 @@ CREATE OR REPLACE FUNCTION migrate_helper_to_business_content() RETURNS void AS 
 DECLARE
   v_helper_user_id UUID;
   v_business_id INTEGER;
-  v_coverage INTEGER;
 BEGIN
   -- For each helper user, if they have a primary business, copy their profile content
   FOR v_helper_user_id, v_business_id IN
@@ -133,29 +133,25 @@ BEGIN
     INSERT INTO business_services (business_id, name, description, price, price_unit, duration, popular, category, sort_order, is_active)
     SELECT v_business_id, name, description, price, price_unit, duration, popular, category, sort_order, is_active
     FROM helper_services
-    WHERE user_id = v_helper_user_id
-    ON CONFLICT DO NOTHING;
+    WHERE user_id = v_helper_user_id;
 
     -- Copy FAQs
     INSERT INTO business_faqs (business_id, question, answer, sort_order)
     SELECT v_business_id, question, answer, sort_order
     FROM helper_faqs
-    WHERE user_id = v_helper_user_id
-    ON CONFLICT DO NOTHING;
+    WHERE user_id = v_helper_user_id;
 
     -- Copy policies
     INSERT INTO business_policies (business_id, title, content, icon, sort_order)
     SELECT v_business_id, title, content, icon, sort_order
     FROM helper_policies
-    WHERE user_id = v_helper_user_id
-    ON CONFLICT DO NOTHING;
+    WHERE user_id = v_helper_user_id;
 
     -- Copy gallery
     INSERT INTO business_gallery (business_id, url, caption, alt, sort_order)
     SELECT v_business_id, url, caption, '', sort_order
     FROM helper_gallery
-    WHERE user_id = v_helper_user_id
-    ON CONFLICT DO NOTHING;
+    WHERE user_id = v_helper_user_id;
 
   END LOOP;
 END;
