@@ -200,6 +200,8 @@ export interface DirectoryFilters {
   availableToday: boolean;
   backgroundChecked: boolean;
   verified: boolean;
+  /** Skill IDs from job requirements — separate ALL-of filter from skills (name-based) */
+  requiredSkillIds?: number[];
 }
 
 export const DEFAULT_FILTERS: DirectoryFilters = {
@@ -217,6 +219,7 @@ export const DEFAULT_FILTERS: DirectoryFilters = {
   availableToday: false,
   backgroundChecked: false,
   verified: false,
+  requiredSkillIds: undefined,
 };
 
 /** Count how many filter groups are active (for badge display) */

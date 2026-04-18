@@ -64,6 +64,7 @@ export async function fetchHelpers(
   sort: SortOption,
   page = 1,
   limit = 9,
+  requiredSkillIds?: number[],
 ): Promise<HelperDirectoryResponse> {
   const params: Record<string, string | number> = { sort, page, limit };
   if (filters.query) params.query = filters.query;
@@ -83,6 +84,9 @@ export async function fetchHelpers(
     params.lat = filters.lat;
     params.lng = filters.lng;
     params.radius = filters.maxDistance || 60;
+  }
+  if (requiredSkillIds && requiredSkillIds.length > 0) {
+    params.requiredSkillIds = requiredSkillIds.join(',');
   }
 
   const { data } = await api.get<HelperDirectoryResponse>('/helpers', { params });

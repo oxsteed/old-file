@@ -22,6 +22,8 @@ exports.createJob = async (req, res) => {
       scheduled_time, recurrence,
       preferred_helper_id, preferred_helper_name,
       private_notes,
+      // Phase 7: Business Skills
+      required_skills,
     } = req.body;
 
     // ── Validate required fields ────────────────────────────────────────────────────────────────────
@@ -70,6 +72,19 @@ exports.createJob = async (req, res) => {
       reqJson = typeof requirements === 'string' ? requirements : JSON.stringify(requirements);
     }
 
+    // ── Process required skills ────────────────────────────────────────────────────────────────────────
+    let skillsJson = '[]';
+    let skillIds = '{}';
+    if (required_skills && Array.isArray(required_skills) && required_skills.length > 0) {
+      // Validate skill count
+      if (required_skills.length > 20) {
+        return res.status(400).json({ error: 'validation_failed', fields: { required_skills: 'Maximum 20 skills allowed' } });
+      }
+      // Extract IDs for efficient filtering and store full objects
+      skillIds = `{${required_skills.map(s => s.id || s.skill_id).join(',')}}`;
+      skillsJson = JSON.stringify(required_skills);
+    }
+
     // ── Build location_point expression ─────────────────────────────────────────────────────────────
     const hasGeo = location_lat && location_lng;
 
@@ -85,6 +100,7 @@ exports.createJob = async (req, res) => {
           location_point,
           location_approx_lat, location_approx_lng,
           requirements, media_urls,
+          required_skills, skill_ids,
           scheduled_date, scheduled_time, recurrence,
           preferred_helper_id, preferred_helper_name,
           private_notes,
@@ -94,8 +110,8 @@ exports.createJob = async (req, res) => {
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,$19,
           ${hasGeo ? `ST_SetSRID(ST_MakePoint($19::float,$18::float),4326)::geography` : 'NULL'},
-          $20,$21,$22,$23,
-          $24,$25,$26,$27,$28,$29,
+          $20,$21,$22,$23,$24,
+          $25,$26,$27,$28,$29,$30,
           'published', now() + interval '30 days'
        )
        RETURNING *`,
@@ -109,6 +125,7 @@ exports.createJob = async (req, res) => {
         location_lat  || null, location_lng || null,
         approx.lat, approx.lng,
         reqJson, mediaArr,
+        skillsJson, skillIds,
         scheduled_date || null, scheduled_time || null, recurrence || 'none',
         preferred_helper_id || null, preferred_helper_name || null,
         private_notes || null,

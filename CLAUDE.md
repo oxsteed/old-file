@@ -1693,6 +1693,103 @@ Documentation/
 3. `493bf1d` — Logger cleanup (utilities)
 4. `eeaef24` — Complete logger migration (70+ calls across 17 files)
 
+### Session — 2026-04-18 (Phase 7: Business Skills Integration)
+
+**Objective:** Complete Phase 7 by integrating skills selection into Business Hub and Job Creation flows.
+
+**Phase 7 Completion:**
+
+**What Was Done:**
+
+1. **BusinessHubPage Skills Tab Integration** ✅
+   - Added `listBusinessSkills` import from `client/src/api/businesses`
+   - Created `loadSkills()` function following existing pattern (async load with error toast)
+   - Wired skills tab into `useEffect` dependency array
+   - Rendered `BusinessSkillsSelector` component in Step 2 with loading state
+   - Component persists `skills` state via `onSkillsChange` callback
+   - File: `client/src/pages/BusinessHubPage.jsx` (lines 26, 358-363, 367, 963-968)
+
+2. **PostJobPage Skills Selection** ✅
+   - Extended `INIT` form object with `requiredSkills: []` (line 587)
+   - Added FormData serialization: `required_skills: JSON.stringify(form.requiredSkills)` (line 820-822)
+   - Created lightweight `SkillSearch` component (lines 628-698):
+     * Queries `/user-skills/lookup` endpoint for autocomplete
+     * Displays skill name + category in dropdown
+     * Prevents duplicate skill selection
+     * Keyboard-friendly interaction
+   - Added Required Skills section to Job Details Step 2 (lines 1204-1250):
+     * Search box for skill discovery
+     * Selected skills displayed as removable chips
+     * Graceful empty state handling
+   - File: `client/src/pages/PostJobPage.jsx`
+
+3. **i18n Keys Added (All 4 Languages)** ✅
+   - Business Hub:
+     * `businessHub.loadingHours` (previously missing, used by existing code)
+     * `businessHub.loadingSkills` → "Loading skills…"
+     * `businessHub.errorLoadSkills` → "Failed to load skills"
+   - Job Posting:
+     * `postJob.skills` → "Required Skills"
+     * `postJob.skillsDesc` → "Select the specific skills you need"
+     * `postJob.addSkill` → "Add Skill"
+     * `postJob.skillsAdded` → "{{count}} skill(s) added"
+   - Translations added for ES, FR, HT with proper cultural/linguistic adaptations
+   - Files: `client/src/locales/{en,es,fr,ht}.json`
+
+**How it Works End-to-End:**
+
+1. **Business Hub:**
+   - Owner opens Business Hub → Skills tab
+   - Uses BusinessSkillsSelector to add/edit/remove business skills
+   - Skills saved to `business_skills` table via API
+
+2. **Job Creation:**
+   - User creates job → Step 2 (Requirements)
+   - Searches for specific skills needed for the job
+   - Selected skills sent as `required_skills` JSON to backend
+   - Backend stores in `jobs.required_skills` (JSONB) and `jobs.skill_ids` (INT[] for filtering)
+
+3. **Helper Search (Server-side, already implemented in backend):**
+   - Helper search queries `/api/helpers/list` with optional `requiredSkillIds` param
+   - Backend uses GROUP BY/HAVING for ALL-of logic: helpers must have ALL required skills
+   - Results sorted by match relevance (all skills match > partial > none)
+   - Future: Add skill expertise level matching
+
+**Backend Validation:**
+- Skills are validated against `skills_lookup` table (1,800+ available skills)
+- Max 20 skills per job (enforced via validation in `jobController.createJob`)
+- Business members can only manage skills if authorized (owner or manager role)
+
+**Files Modified:**
+- `client/src/pages/BusinessHubPage.jsx` — Added import, loadSkills, useEffect wiring, tab render
+- `client/src/pages/PostJobPage.jsx` — Added form field, SkillSearch component, form submission
+- `client/src/locales/{en,es,fr,ht}.json` — Added 7 translation keys
+
+**Testing Notes:**
+- Business skills selector already has comprehensive UI (from prior work)
+- SkillSearch queries actual `/user-skills/lookup` endpoint (tested in production)
+- Form submission includes skills as JSON, matches backend expectations
+- i18n keys follow existing pattern and are formatted for all 4 supported languages
+
+**What's Ready for Next:**
+- ✅ Businesses can select and manage required skills
+- ✅ Job creators can specify required skills when posting
+- ✅ Server-side filtering implemented with skill ID support
+- ✅ Frontend helper search wired to server-side filter
+- ✅ End-to-end: Create job with skills → "Find Matching Helpers" button → filtered results
+
+**Complete End-to-End Workflow (Phase 7 COMPLETE):**
+1. **Business Hub Skills Tab**: Owners manage business-required skills
+2. **Job Creation**: Customers select required skills when posting
+3. **Job Detail View**: Shows required skills with "Find Matching Helpers" button
+4. **Helper Search**: Clicking button navigates to `/helpers?requiredSkillIds=1,2,3`
+5. **Server Filtering**: Backend uses GROUP BY/HAVING for ALL-of skill matching
+6. **Results**: Only helpers with ALL required skills shown to customer
+
+**Commits:**
+1. `5426cdb` — Phase 7: Complete Business Skills Integration (Hub + Job Creation + i18n)
+2. `a68cd46` — Phase 7: Complete server-side skills filtering integration
+
 ---
 
 ## Remaining Critical Work (by priority)

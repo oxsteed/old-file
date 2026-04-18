@@ -217,6 +217,9 @@ export default function JobDetailPage() {
   const acceptedBid   = bids.find(b => b.status === 'accepted');
 
   const requirements = parseRequirements(job.requirements);
+  const requiredSkills = Array.isArray(job.required_skills)
+    ? job.required_skills
+    : (typeof job.required_skills === 'string' ? JSON.parse(job.required_skills || '[]') : []);
   const mediaUrls    = Array.isArray(job.media_urls)
     ? job.media_urls
     : (typeof job.media_urls === 'string' ? JSON.parse(job.media_urls || '[]') : []);
@@ -326,6 +329,49 @@ export default function JobDetailPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Required Skills */}
+          {requiredSkills.length > 0 && (
+            <div className="jdp-card">
+              <h2 className="jdp-section-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                Required Skills
+              </h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                {requiredSkills.map((skill) => (
+                  <span key={skill.id} style={{
+                    display: 'inline-block',
+                    padding: '0.5rem 0.75rem',
+                    backgroundColor: 'var(--app-bg)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '0.375rem',
+                    fontSize: '0.875rem'
+                  }}>
+                    {skill.name}
+                  </span>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const skillIds = requiredSkills.map(s => s.id).join(',');
+                  navigate(`/helpers?requiredSkillIds=${skillIds}`);
+                }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: 'var(--brand-500, #3b82f6)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer',
+                  fontSize: '0.9375rem',
+                  fontWeight: 500
+                }}
+              >
+                Find Matching Helpers →
+              </button>
             </div>
           )}
 

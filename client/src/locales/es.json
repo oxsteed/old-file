@@ -1467,7 +1467,7 @@
     "noBidsYet": "Sin ofertas aún. Explora trabajos disponibles para empezar.",
     "jobNumber": "Trabajo #{{id}}",
     "viewPublicProfile": "Ver perfil público",
-    "editProfile": "Edita tu Perfil",
+    "editProfile": "Editar perfil",
     "editProfileDesc": "Actualiza la información que ven los clientes cuando visitan tu perfil.",
     "sectionVisibility": "Visibilidad de Secciones",
     "visibilityHint": "Activa o desactiva secciones para controlar qué aparece en tu perfil público. Desactiva secciones que aún no has completado.",
@@ -1483,7 +1483,6 @@
     "jobsCompleted": "Trabajos completados",
     "earnedThisMonth": "Ganancia este mes",
     "averageRating": "Calificación promedio",
-    "editProfile": "Editar perfil",
     "addSkill": "Agregar habilidad",
     "manageSkills": "Administrar habilidades",
     "addTool": "Agregar herramienta",
@@ -1795,7 +1794,11 @@
       "general": "General",
       "generalLabor": "Trabajo General",
       "other": "Otro / Especificar en Descripción"
-    }
+    },
+    "skills": "Habilidades requeridas",
+    "skillsDesc": "Selecciona las habilidades específicas que necesitas",
+    "addSkill": "Agregar habilidad",
+    "skillsAdded": "{{count}} habilidad(es) agregada(s)"
   },
   "jobDetail": {
     "bidNow": "Hacer oferta",
@@ -2116,7 +2119,7 @@
     "modalMarkInvoicePaid": "Marcar Factura como Pagada",
     "invoiceTotalLabel": "Factura {{num}} · Total {{total}}",
     "fieldAmountReceived": "Monto Recibido ($)",
-    "btnMarkPaid": "Marcar Pagada",
+    "btnMarkPaid": "Marcar como Pagado",
     "modalAddGoal": "Agregar Objetivo",
     "modalEditGoal": "Editar Objetivo",
     "fieldTitle": "Título",
@@ -2231,10 +2234,6 @@
     "btnEdit": "Editar",
     "btnDelete": "Eliminar",
     "btnSendInvoice": "Enviar",
-    "btnMarkPaid": "Marcar como Pagado",
-    "confirmDeleteInvoice": "¿Eliminar factura {{num}}?",
-    "toastInvoiceDeleted": "Factura eliminada",
-    "toastInvoiceDeleteFail": "Error al eliminar la factura",
     "toastInvoiceSentInternal": "¡Factura enviada! Notificación entregada al destinatario.",
     "toastInvoiceSentExternal": "Enlace de factura copiado al portapapeles. Compártelo con tu cliente.",
     "toastInvoiceSendFail": "Error al enviar la factura",
@@ -2442,7 +2441,10 @@
     "btnSavePolicy": "Guardar Política",
     "btnSaveFAQ": "Guardar Pregunta",
     "btnSavePhoto": "Guardar Foto",
-    "btnSaveHours": "Guardar Horario"
+    "btnSaveHours": "Guardar Horario",
+    "loadingHours": "Cargando horarios…",
+    "loadingSkills": "Cargando habilidades…",
+    "errorLoadSkills": "No se pudieron cargar las habilidades"
   },
   "plans": {
     "free": "Gratis",
@@ -3415,11 +3417,29 @@
     "rejected": "Rechazado"
   },
   "reviews": {
-    "submitReview": "Enviar reseña",
+    "submitReview": "Dejar una Reseña",
     "rating": "Calificación",
-    "comment": "Comentario",
-    "yourReview": "Tu reseña",
-    "helperReview": "Reseña del ayudante"
+    "testimonial": "Tu Reseña",
+    "placeholderTestimonial": "Comparte tu experiencia con este negocio...",
+    "characters": "caracteres",
+    "submit": "Enviar Reseña",
+    "submitting": "Enviando...",
+    "errorRatingRequired": "Por favor selecciona una calificación",
+    "errorTestimonialRequired": "Por favor escribe una reseña",
+    "errorTestimonialTooLong": "La reseña excede el límite de 500 caracteres",
+    "errorSubmit": "Error al enviar la reseña",
+    "successSubmitted": "¡Gracias por tu reseña!",
+    "averageRating": "Calificación Promedio",
+    "totalReviews": "Total de Reseñas",
+    "noReviews": "Sin reseñas aún. ¡Sé el primero en reseñar este negocio!",
+    "errorLoadReviews": "Error al cargar las reseñas",
+    "sortRecent": "Más Recientes",
+    "sortHighestRated": "Mejor Calificadas",
+    "sortLowestRated": "Peor Calificadas",
+    "businessResponse": "Respuesta del Negocio",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar esta reseña?",
+    "successDeleted": "Reseña eliminada exitosamente",
+    "errorDelete": "Error al eliminar la reseña"
   },
   "subscription": {
     "tier1": "Nivel 1",
@@ -3447,30 +3467,5 @@
     "sessionsInvalidated": "Todas las sesiones invalidadas.",
     "forceLogoutFailed": "Error al forzar el cierre de sesión.",
     "optionalReason": "Razón (opcional):"
-  },
-  "reviews": {
-    "submitReview": "Dejar una Reseña",
-    "rating": "Calificación",
-    "testimonial": "Tu Reseña",
-    "placeholderTestimonial": "Comparte tu experiencia con este negocio...",
-    "characters": "caracteres",
-    "submit": "Enviar Reseña",
-    "submitting": "Enviando...",
-    "errorRatingRequired": "Por favor selecciona una calificación",
-    "errorTestimonialRequired": "Por favor escribe una reseña",
-    "errorTestimonialTooLong": "La reseña excede el límite de 500 caracteres",
-    "errorSubmit": "Error al enviar la reseña",
-    "successSubmitted": "¡Gracias por tu reseña!",
-    "averageRating": "Calificación Promedio",
-    "totalReviews": "Total de Reseñas",
-    "noReviews": "Sin reseñas aún. ¡Sé el primero en reseñar este negocio!",
-    "errorLoadReviews": "Error al cargar las reseñas",
-    "sortRecent": "Más Recientes",
-    "sortHighestRated": "Mejor Calificadas",
-    "sortLowestRated": "Peor Calificadas",
-    "businessResponse": "Respuesta del Negocio",
-    "confirmDelete": "¿Estás seguro de que deseas eliminar esta reseña?",
-    "successDeleted": "Reseña eliminada exitosamente",
-    "errorDelete": "Error al eliminar la reseña"
   }
 }
