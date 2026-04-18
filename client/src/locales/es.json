@@ -3447,5 +3447,30 @@
     "sessionsInvalidated": "Todas las sesiones invalidadas.",
     "forceLogoutFailed": "Error al forzar el cierre de sesión.",
     "optionalReason": "Razón (opcional):"
+  },
+  "reviews": {
+    "submitReview": "Dejar una Reseña",
+    "rating": "Calificación",
+    "testimonial": "Tu Reseña",
+    "placeholderTestimonial": "Comparte tu experiencia con este negocio...",
+    "characters": "caracteres",
+    "submit": "Enviar Reseña",
+    "submitting": "Enviando...",
+    "errorRatingRequired": "Por favor selecciona una calificación",
+    "errorTestimonialRequired": "Por favor escribe una reseña",
+    "errorTestimonialTooLong": "La reseña excede el límite de 500 caracteres",
+    "errorSubmit": "Error al enviar la reseña",
+    "successSubmitted": "¡Gracias por tu reseña!",
+    "averageRating": "Calificación Promedio",
+    "totalReviews": "Total de Reseñas",
+    "noReviews": "Sin reseñas aún. ¡Sé el primero en reseñar este negocio!",
+    "errorLoadReviews": "Error al cargar las reseñas",
+    "sortRecent": "Más Recientes",
+    "sortHighestRated": "Mejor Calificadas",
+    "sortLowestRated": "Peor Calificadas",
+    "businessResponse": "Respuesta del Negocio",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar esta reseña?",
+    "successDeleted": "Reseña eliminada exitosamente",
+    "errorDelete": "Error al eliminar la reseña"
   }
 }

@@ -3446,5 +3446,30 @@
     "sessionsInvalidated": "Tout sesyon envalidasyon.",
     "forceLogoutFailed": "Erè forse logout.",
     "optionalReason": "Rezon (opsyonèl):"
+  },
+  "reviews": {
+    "submitReview": "Kite yon Evàliyasyon",
+    "rating": "Evalyasyon",
+    "testimonial": "Evàliyasyon Ou",
+    "placeholderTestimonial": "Pataje eksperyans ou avèk biznis sa a...",
+    "characters": "karaktè",
+    "submit": "Soumèt Evàliyasyon",
+    "submitting": "Ap soumèt...",
+    "errorRatingRequired": "Tanpri chwazi yon evalyasyon",
+    "errorTestimonialRequired": "Tanpri ekri yon evàliyasyon",
+    "errorTestimonialTooLong": "Evàliyasyon an depase limit 500 karaktè",
+    "errorSubmit": "Fèy soumèt evàliyasyon an",
+    "successSubmitted": "Mèsi pou evàliyasyon ou!",
+    "averageRating": "Evalyasyon Mwayèn",
+    "totalReviews": "Total Evàliyasyon",
+    "noReviews": "Anko gen evàliyasyon. Swa premye moun ki evalye biznis sa a!",
+    "errorLoadReviews": "Fèy chaje evàliyasyon yo",
+    "sortRecent": "Pi Dènyè",
+    "sortHighestRated": "Evalye Pi Wo",
+    "sortLowestRated": "Evalye Pi Ba",
+    "businessResponse": "Reponn Biznis",
+    "confirmDelete": "Èske ou sèten ke ou vle efase evàliyasyon sa a?",
+    "successDeleted": "Evàliyasyon te efase avèk siksè",
+    "errorDelete": "Fèy efase evàliyasyon an"
   }
 }

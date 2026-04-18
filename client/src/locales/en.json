@@ -3447,5 +3447,30 @@
     "sessionsInvalidated": "All sessions invalidated.",
     "forceLogoutFailed": "Failed to force logout.",
     "optionalReason": "Reason (optional):"
+  },
+  "reviews": {
+    "submitReview": "Leave a Review",
+    "rating": "Rating",
+    "testimonial": "Your Review",
+    "placeholderTestimonial": "Share your experience with this business...",
+    "characters": "characters",
+    "submit": "Submit Review",
+    "submitting": "Submitting...",
+    "errorRatingRequired": "Please select a rating",
+    "errorTestimonialRequired": "Please write a review",
+    "errorTestimonialTooLong": "Review exceeds 500 character limit",
+    "errorSubmit": "Failed to submit review",
+    "successSubmitted": "Thank you for your review!",
+    "averageRating": "Average Rating",
+    "totalReviews": "Total Reviews",
+    "noReviews": "No reviews yet. Be the first to review this business!",
+    "errorLoadReviews": "Failed to load reviews",
+    "sortRecent": "Most Recent",
+    "sortHighestRated": "Highest Rated",
+    "sortLowestRated": "Lowest Rated",
+    "businessResponse": "Business Response",
+    "confirmDelete": "Are you sure you want to delete this review?",
+    "successDeleted": "Review deleted successfully",
+    "errorDelete": "Failed to delete review"
   }
 }
