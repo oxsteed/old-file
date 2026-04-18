@@ -992,6 +992,9 @@ const BIZ_TYPES = [
 
 function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole, onChange, onLogoChange, onCoverChange, onSave, bizId }) {
   const { t } = useTranslation();
+  const [expandContact, setExpandContact] = useState(false);
+  const [expandLocation, setExpandLocation] = useState(false);
+
   if (!form) return null;
 
   function pf(e) {
@@ -1000,15 +1003,14 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
   }
 
   return (
-    <div className="bh-profile-tab">
-      <div className="bh-profile-header">
+    <div className="space-y-6">
+      {/* ── Header with preview link ──────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="bh-profile-title">{t('businessHub.publicProfile')}</h2>
-          <p className="bh-profile-subtitle">
-            {t('businessHub.publicProfileSubtitle')}
-          </p>
+          <h2 className="text-lg font-bold text-white">{t('businessHub.publicProfile')}</h2>
+          <p className="text-xs text-gray-500 mt-1">{t('businessHub.publicProfileSubtitle')}</p>
           {currentRole === 'manager' && (
-            <p className="bh-profile-note" style={{ marginTop: '0.4rem', color: '#818cf8', fontSize: '0.82rem' }}>
+            <p className="text-xs text-indigo-400 mt-2">
               <Trans i18nKey="businessHub.managerNote">
                 You are editing as a <strong>Manager</strong>. Changes apply to the business owner's public profile.
               </Trans>
@@ -1020,183 +1022,293 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
             href={`/business/${bizId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="bh-btn sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 text-sm font-semibold whitespace-nowrap"
           >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
             {t('businessHub.preview')} ↗
           </a>
         )}
       </div>
 
-      {/* ── Photos ──────────────────────────────────────────────────── */}
-      <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">{t('businessHub.sectionPhotos')}</h3>
-        <div className="bh-photo-row">
-
+      {/* ── Photos Card ──────────────────────────────────────────────────── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+        <h3 className="text-base font-semibold text-white mb-4">{t('businessHub.sectionPhotos')}</h3>
+        <div className="grid sm:grid-cols-2 gap-6">
           {/* Logo */}
-          <div className="bh-photo-field">
-            <label className="bh-photo-label">{t('businessHub.businessLogo')}</label>
-            <div className="bh-photo-preview bh-photo-preview--logo">
-              {logoPreview
-                ? <img src={logoPreview} alt={t('businessHub.logoPreviewAlt')} className="bh-photo-img" />
-                : <span className="bh-photo-placeholder">{t('businessHub.noLogo')}</span>}
+          <div>
+            <label className="text-sm font-medium text-gray-300 block mb-2">{t('businessHub.businessLogo')}</label>
+            <div className="w-full aspect-square bg-gray-800 border border-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3">
+              {logoPreview ? (
+                <img src={logoPreview} alt={t('businessHub.logoPreviewAlt')} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-gray-500 text-sm">{t('businessHub.noLogo')}</span>
+              )}
             </div>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              className="bh-photo-input"
+              className="hidden"
               onChange={e => onLogoChange(e.target.files?.[0] || null)}
               id="bh-logo-input"
             />
-            <label htmlFor="bh-logo-input" className="bh-btn sm" style={{ cursor: 'pointer', display: 'inline-block' }}>
-              {logoPreview ? t('businessHub.changeLogo') : t('businessHub.uploadLogo')}
-            </label>
-            {logoPreview && (
-              <button
-                className="bh-btn sm danger"
-                onClick={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
-                style={{ marginLeft: '0.5rem' }}
-              >
-                {t('businessHub.remove')}
-              </button>
-            )}
+            <div className="flex gap-2">
+              <label htmlFor="bh-logo-input" className="flex-1 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-lg transition cursor-pointer text-center">
+                {logoPreview ? t('businessHub.changeLogo') : t('businessHub.uploadLogo')}
+              </label>
+              {logoPreview && (
+                <button
+                  className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-lg transition"
+                  onClick={() => { onLogoChange(null); onChange({ logo_url: '' }); }}
+                >
+                  {t('businessHub.remove')}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Cover photo */}
-          <div className="bh-photo-field">
-            <label className="bh-photo-label">{t('businessHub.coverPhoto')}</label>
-            <div className="bh-photo-preview bh-photo-preview--cover">
-              {coverPreview
-                ? <img src={coverPreview} alt={t('businessHub.coverPreviewAlt')} className="bh-photo-img" />
-                : <span className="bh-photo-placeholder">{t('businessHub.noCoverPhoto')}</span>}
+          <div>
+            <label className="text-sm font-medium text-gray-300 block mb-2">{t('businessHub.coverPhoto')}</label>
+            <div className="w-full aspect-video bg-gray-800 border border-gray-700 rounded-lg flex items-center justify-center overflow-hidden mb-3">
+              {coverPreview ? (
+                <img src={coverPreview} alt={t('businessHub.coverPreviewAlt')} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-gray-500 text-sm">{t('businessHub.noCoverPhoto')}</span>
+              )}
             </div>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
-              className="bh-photo-input"
+              className="hidden"
               onChange={e => onCoverChange(e.target.files?.[0] || null)}
               id="bh-cover-input"
             />
-            <label htmlFor="bh-cover-input" className="bh-btn sm" style={{ cursor: 'pointer', display: 'inline-block' }}>
-              {coverPreview ? t('businessHub.changeCover') : t('businessHub.uploadCover')}
-            </label>
-            {coverPreview && (
-              <button
-                className="bh-btn sm danger"
-                onClick={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
-                style={{ marginLeft: '0.5rem' }}
-              >
-                {t('businessHub.remove')}
-              </button>
-            )}
+            <div className="flex gap-2">
+              <label htmlFor="bh-cover-input" className="flex-1 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-lg transition cursor-pointer text-center">
+                {coverPreview ? t('businessHub.changeCover') : t('businessHub.uploadCover')}
+              </label>
+              {coverPreview && (
+                <button
+                  className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-lg transition"
+                  onClick={() => { onCoverChange(null); onChange({ cover_photo_url: '' }); }}
+                >
+                  {t('businessHub.remove')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* ── Business identity ────────────────────────────────────────── */}
-      <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">{t('businessHub.sectionBusinessIdentity')}</h3>
-        <div className="bh-field-row">
-          <div className="bh-field">
-            <label>{t('businessHub.fieldBusinessNameRequired')}</label>
-            <input name="business_name" value={form.business_name} onChange={pf} placeholder={t('businessHub.placeholderBizName')} />
-          </div>
-          <div className="bh-field">
-            <label>{t('businessHub.fieldBusinessType')}</label>
-            <select name="business_type" value={form.business_type} onChange={pf}>
-              <option value="">{t('businessHub.selectTypePlaceholder')}</option>
-              {BIZ_TYPES.map(bt => <option key={bt.value} value={bt.value}>{t(`businessHub.${bt.labelKey}`)}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="bh-field">
-          <label>{t('businessHub.fieldTagline')}</label>
-          <input
-            name="profile_headline"
-            value={form.profile_headline}
-            onChange={pf}
-            placeholder={t('businessHub.placeholderTagline')}
-            maxLength={120}
-          />
-          <span className="bh-field-hint">{t('businessHub.taglineHint')}</span>
-        </div>
-        <div className="bh-field">
-          <label>{t('businessHub.fieldAbout')}</label>
-          <textarea
-            name="description"
-            value={form.description}
-            onChange={pf}
-            rows={4}
-            placeholder={t('businessHub.placeholderAbout')}
-          />
-        </div>
-      </section>
-
-      {/* ── Contact info ────────────────────────────────────────────── */}
-      <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">{t('businessHub.sectionContact')}</h3>
-        <div className="bh-field-row">
-          <div className="bh-field">
-            <label>{t('businessHub.fieldPhone')}</label>
-            <input name="phone" value={form.phone} onChange={pf} placeholder={t('businessHub.placeholderPhone')} type="tel" />
-          </div>
-          <div className="bh-field">
-            <label>{t('businessHub.fieldWebsite')}</label>
-            <input name="website" value={form.website} onChange={pf} placeholder={t('businessHub.placeholderWebsiteFull')} type="url" />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Location & service area ──────────────────────────────────── */}
-      <section className="bh-profile-section">
-        <h3 className="bh-profile-section-title">{t('businessHub.sectionLocation')}</h3>
-        <div className="bh-field">
-          <label>{t('businessHub.fieldStreetAddress')}</label>
-          <input name="address_street" value={form.address_street} onChange={pf} placeholder={t('businessHub.placeholderStreet')} />
-          <span className="bh-field-hint">{t('businessHub.streetHint')}</span>
-        </div>
-        <div className="bh-field-row">
-          <div className="bh-field">
-            <label>{t('businessHub.fieldCity')}</label>
-            <input name="address_city" value={form.address_city} onChange={pf} placeholder={t('businessHub.placeholderCity')} />
-          </div>
-          <div className="bh-field">
-            <label>{t('businessHub.fieldState')}</label>
-            <select name="address_state" value={form.address_state} onChange={pf}>
-              <option value="">{t('businessHub.selectStatePlaceholder')}</option>
-              {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="bh-field" style={{ maxWidth: '120px' }}>
-            <label>{t('businessHub.fieldZip')}</label>
-            <input name="address_zip" value={form.address_zip} onChange={pf} placeholder={t('businessHub.placeholderZip')} maxLength={10} />
-          </div>
-        </div>
-        <div className="bh-field" style={{ maxWidth: '200px' }}>
-          <label>{t('businessHub.fieldServiceRadius')}</label>
-          <input
-            type="number"
-            name="service_radius_miles"
-            value={form.service_radius_miles}
-            onChange={pf}
-            placeholder={t('businessHub.placeholderRadius')}
-            min="1"
-            max="200"
-          />
-        </div>
-      </section>
-
-      {err && <p className="bh-profile-err">{err}</p>}
-
-      <div className="bh-profile-actions">
-        <button className="bh-btn primary" onClick={onSave} disabled={saving}>
-          {saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
-        </button>
-        <p className="bh-profile-note">
-          <Trans i18nKey="businessHub.profileFooterNote">
-            Services, gallery, availability, and policies are managed from your <a href="/dashboard" className="bh-profile-link">helper profile settings</a>.
-          </Trans>
-        </p>
+        <p className="text-xs text-gray-500 mt-4">💡 Logo: square preferred. Cover: 3:1 ratio for best results.</p>
       </div>
+
+      {/* ── Business Identity Card ──────────────────────────────────── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+        <h3 className="text-base font-semibold text-white mb-4">{t('businessHub.sectionBusinessIdentity')}</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldBusinessNameRequired')}</label>
+            <input
+              name="business_name"
+              value={form.business_name}
+              onChange={pf}
+              placeholder={t('businessHub.placeholderBizName')}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+            />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldBusinessType')}</label>
+              <select
+                name="business_type"
+                value={form.business_type}
+                onChange={pf}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+              >
+                <option value="">{t('businessHub.selectTypePlaceholder')}</option>
+                {BIZ_TYPES.map(bt => <option key={bt.value} value={bt.value}>{t(`businessHub.${bt.labelKey}`)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldTagline')}</label>
+              <input
+                name="profile_headline"
+                value={form.profile_headline}
+                onChange={pf}
+                placeholder={t('businessHub.placeholderTagline')}
+                maxLength={120}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldAbout')}</label>
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={pf}
+              rows={4}
+              placeholder={t('businessHub.placeholderAbout')}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition resize-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Contact Info (Collapsible) ──────────────────────────────── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+        <button
+          onClick={() => setExpandContact(!expandContact)}
+          aria-expanded={expandContact}
+          className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition"
+        >
+          <h3 className="text-base font-semibold text-white">{t('businessHub.sectionContact')}</h3>
+          <svg
+            className={`w-5 h-5 text-gray-400 transition-transform ${expandContact ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+
+        {expandContact && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldPhone')}</label>
+              <input
+                name="phone"
+                value={form.phone}
+                onChange={pf}
+                placeholder={t('businessHub.placeholderPhone')}
+                type="tel"
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldWebsite')}</label>
+              <input
+                name="website"
+                value={form.website}
+                onChange={pf}
+                placeholder={t('businessHub.placeholderWebsiteFull')}
+                type="url"
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Location & Service Area (Collapsible) ──────────────────────── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-6 py-5">
+        <button
+          onClick={() => setExpandLocation(!expandLocation)}
+          aria-expanded={expandLocation}
+          className="w-full flex items-center justify-between mb-4 hover:opacity-80 transition"
+        >
+          <h3 className="text-base font-semibold text-white">{t('businessHub.sectionLocation')}</h3>
+          <svg
+            className={`w-5 h-5 text-gray-400 transition-transform ${expandLocation ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+
+        {expandLocation && (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldStreetAddress')}</label>
+              <input
+                name="address_street"
+                value={form.address_street}
+                onChange={pf}
+                placeholder={t('businessHub.placeholderStreet')}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+              />
+              <p className="text-xs text-gray-500 mt-1">{t('businessHub.streetHint')}</p>
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldCity')}</label>
+                <input
+                  name="address_city"
+                  value={form.address_city}
+                  onChange={pf}
+                  placeholder={t('businessHub.placeholderCity')}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldState')}</label>
+                <select
+                  name="address_state"
+                  value={form.address_state}
+                  onChange={pf}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                >
+                  <option value="">{t('businessHub.selectStatePlaceholder')}</option>
+                  {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldZip')}</label>
+                <input
+                  name="address_zip"
+                  value={form.address_zip}
+                  onChange={pf}
+                  placeholder={t('businessHub.placeholderZip')}
+                  maxLength={10}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                />
+              </div>
+            </div>
+
+            <div className="sm:w-1/3">
+              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldServiceRadius')}</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  name="service_radius_miles"
+                  value={form.service_radius_miles}
+                  onChange={pf}
+                  placeholder={t('businessHub.placeholderRadius')}
+                  min="1"
+                  max="200"
+                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+                />
+                <span className="text-gray-500 text-sm">mi</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Error & Actions ──────────────────────────────────────────────── */}
+      {err && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</p>}
+
+      <button
+        className="bh-btn primary w-full"
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? t('businessHub.btnSaving') : t('businessHub.btnSaveProfile')}
+      </button>
+
+      <p className="text-xs text-gray-500">
+        <Trans i18nKey="businessHub.profileFooterNote">
+          Services, gallery, availability, and policies are managed from your <a href="/dashboard" className="text-orange-400 hover:text-orange-300">helper profile settings</a>.
+        </Trans>
+      </p>
     </div>
   );
 }

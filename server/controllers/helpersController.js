@@ -374,7 +374,12 @@ async function getHelperProfile(req, res) {
            hp.is_identity_verified, hp.is_background_checked,
            hp.is_insured, hp.is_licensed,
            hp.insurance_details, hp.license_details,
-           hp.availability_json, hp.is_available_now
+           hp.availability_json, hp.is_available_now,
+           COALESCE(hp.show_services, TRUE) AS show_services,
+           COALESCE(hp.show_faqs, TRUE) AS show_faqs,
+           COALESCE(hp.show_policies, TRUE) AS show_policies,
+           COALESCE(hp.show_gallery, TRUE) AS show_gallery,
+           COALESCE(hp.show_hours, TRUE) AS show_hours
          FROM users u
          JOIN helper_profiles hp ON hp.user_id = u.id
          WHERE u.id = $1 AND u.deleted_at IS NULL AND u.email_verified = TRUE AND u.onboarding_completed = TRUE`,
@@ -546,6 +551,13 @@ async function getHelperProfile(req, res) {
       policies,
       reviews,
       faqs,
+      visibility: {
+        services: !!h.show_services,
+        gallery:  !!h.show_gallery,
+        hours:    !!h.show_hours,
+        policies: !!h.show_policies,
+        faqs:     !!h.show_faqs,
+      },
       chatSession: {
         id:            `session_${id}`,
         destination:   'helper',

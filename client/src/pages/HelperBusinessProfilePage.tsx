@@ -131,7 +131,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     );
   }
 
-  const { helper, services, gallery, hours, location, policies, reviews, faqs, chatSession } =
+  const { helper, services, gallery, hours, location, policies, reviews, faqs, visibility, chatSession } =
     data;
 
   return (
@@ -179,20 +179,28 @@ const HelperBusinessProfilePage: React.FC = () => {
               </section>
             )}
 
-            <ServicesSection
-              services={services}
-              onSelectService={handleSelectService}
-            />
+            {visibility?.services && (
+              <ServicesSection
+                services={services}
+                onSelectService={handleSelectService}
+              />
+            )}
 
-            <GallerySection images={gallery} />
+            {visibility?.gallery && (
+              <GallerySection images={gallery} />
+            )}
 
             {/* Hours + Location side by side on md+ */}
             <div className="grid sm:grid-cols-2 gap-6">
-              <HoursSection hours={hours} />
+              {visibility?.hours && (
+                <HoursSection hours={hours} />
+              )}
               <LocationSection location={location} />
             </div>
 
-            <PoliciesSection policies={policies} />
+            {visibility?.policies && (
+              <PoliciesSection policies={policies} />
+            )}
 
             {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
             <AvailabilityBlock helperId={id!} />
@@ -205,7 +213,9 @@ const HelperBusinessProfilePage: React.FC = () => {
               totalCount={helper.reviewCount}
             />
 
-            <FAQSection faqs={faqs} />
+            {visibility?.faqs && (
+              <FAQSection faqs={faqs} />
+            )}
 
             {/*
               Bottom padding so mobile CTA bar + FAB + iOS home indicator

@@ -1467,6 +1467,11 @@
     "noBidsYet": "No bids yet. Browse available jobs to start bidding.",
     "jobNumber": "Job #{{id}}",
     "viewPublicProfile": "View Public Profile →",
+    "editProfile": "Edit Your Profile",
+    "editProfileDesc": "Update the information customers see when they visit your profile.",
+    "sectionVisibility": "Section Visibility",
+    "visibilityHint": "Toggle sections on or off to control what appears on your public profile. Turn off sections you haven't completed yet.",
+    "visibilitySaved": "Visibility settings saved",
     "tabs": {
       "editProfile": "Edit Profile",
       "earnings": "Earnings",

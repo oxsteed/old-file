@@ -1467,6 +1467,11 @@
     "noBidsYet": "Sin ofertas aún. Explora trabajos disponibles para empezar.",
     "jobNumber": "Trabajo #{{id}}",
     "viewPublicProfile": "Ver perfil público",
+    "editProfile": "Edita tu Perfil",
+    "editProfileDesc": "Actualiza la información que ven los clientes cuando visitan tu perfil.",
+    "sectionVisibility": "Visibilidad de Secciones",
+    "visibilityHint": "Activa o desactiva secciones para controlar qué aparece en tu perfil público. Desactiva secciones que aún no has completado.",
+    "visibilitySaved": "Configuración de visibilidad guardada",
     "tabs": {
       "editProfile": "Editar perfil",
       "earnings": "Ganancias",

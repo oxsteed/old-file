@@ -22,7 +22,8 @@ router.get('/me', helperOnly, async (req, res) => {
               service_city, service_state, service_zip, service_radius_miles,
               hourly_rate_min, hourly_rate_max, rate_preference,
               flat_rate_available, contact_for_pricing,
-              availability_json, is_available_now, response_rate
+              availability_json, is_available_now, response_rate,
+              show_services, show_faqs, show_policies, show_gallery, show_hours
        FROM helper_profiles WHERE user_id = $1`,
       [uid],
     );
@@ -126,6 +127,40 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
   } catch (err) {
     logger.error('[helperProfile] PUT /core error', { err: err.message });
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// ── PUT /api/helper-profile/visibility ────────────────────────────────────────
+// Update section visibility toggles: show_services, show_faqs, show_policies, show_gallery, show_hours.
+router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const { show_services, show_faqs, show_policies, show_gallery, show_hours } = req.body;
+
+    await pool.query(
+      `INSERT INTO helper_profiles (user_id, show_services, show_faqs, show_policies, show_gallery, show_hours)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id) DO UPDATE SET
+         show_services = COALESCE($2, helper_profiles.show_services),
+         show_faqs     = COALESCE($3, helper_profiles.show_faqs),
+         show_policies = COALESCE($4, helper_profiles.show_policies),
+         show_gallery  = COALESCE($5, helper_profiles.show_gallery),
+         show_hours    = COALESCE($6, helper_profiles.show_hours),
+         updated_at    = NOW()`,
+      [
+        uid,
+        show_services != null ? !!show_services : true,
+        show_faqs != null ? !!show_faqs : true,
+        show_policies != null ? !!show_policies : true,
+        show_gallery != null ? !!show_gallery : true,
+        show_hours != null ? !!show_hours : true,
+      ],
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('[helperProfile] PUT /visibility error', { err: err.message });
+    res.status(500).json({ error: 'Failed to update visibility settings' });
   }
 });
 
