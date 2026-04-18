@@ -25,6 +25,7 @@ const { reloadFeeConfig } = require('./services/feeService');
 
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
+const correlationId = require('./middleware/correlationId');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
@@ -194,6 +195,10 @@ socketService.init(io);
 
 // ── REQUEST LOGGING ──────────────────────────────────────────
 app.use(logger.requestMiddleware());
+
+// ── CORRELATION ID ───────────────────────────────────────────
+// Assign a unique ID to each request for tracing and audit logging
+app.use(correlationId);
 
 // ── SECURITY ─────────────────────────────────────────────────
 app.use(securityHeaders);

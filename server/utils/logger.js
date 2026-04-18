@@ -104,7 +104,7 @@ const logger = {
 
   /**
    * Returns an Express request-logging middleware.
-   * Logs method, path, status, and response time.
+   * Logs method, path, status, response time, and correlation ID for tracing.
    */
   requestMiddleware() {
     return (req, res, next) => {
@@ -118,6 +118,7 @@ const logger = {
           status: res.statusCode,
           ms,
           ip: req.ip,
+          correlationId: req.correlationId,
         });
       });
       next();
