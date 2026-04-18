@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
@@ -59,6 +60,21 @@ function Guarded({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
 
+// Initialize React Query client with sensible defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000,   // 10 minutes (formerly cacheTime)
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
+
 export default function App() {
   return (
     <HelmetProvider>
@@ -71,11 +87,12 @@ export default function App() {
           and would prevent the Router from mounting anyway.
         */}
         <Router>
-          {/* Single shared cookie-consent state — Footer and CookieConsent
-              both consume this via useCookieConsentContext(). */}
-          <CookieConsentProvider>
-            <RouterAwareErrorBoundary>
-              <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            {/* Single shared cookie-consent state — Footer and CookieConsent
+                both consume this via useCookieConsentContext(). */}
+            <CookieConsentProvider>
+              <RouterAwareErrorBoundary>
+                <AuthProvider>
                 <ScrollToTop />
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 <TermsGate>
@@ -143,6 +160,7 @@ export default function App() {
               </AuthProvider>
             </RouterAwareErrorBoundary>
           </CookieConsentProvider>
+          </QueryClientProvider>
         </Router>
       </ThemeProvider>
       </LanguageProvider>
