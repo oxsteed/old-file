@@ -623,7 +623,20 @@ async function saveTier(req, res) {
       return res.status(400).json({ error: 'Invalid tier selection' });
     }
 
+    // ── SECURITY: Prevent tier upgrade bypass ────────────────────────────
+    // Users must complete identity verification before upgrading to paid tier.
+    // This prevents unverified accounts from accessing paid features.
     const normalized = (tier === 'pro' || tier === 'basic' || tier === 'tier2') ? 'tier2' : 'tier1';
+    if (normalized === 'tier2') {
+      // For paid tier, require identity verification
+      if (!req.user.id_verified || req.user.onboarding_status !== 'id_verified') {
+        return res.status(403).json({
+          error: 'Onboarding incomplete',
+          message: 'Complete identity verification before upgrading to paid tier',
+          required_step: 'id_verified'
+        });
+      }
+    }
 
     await pool.query(
       `UPDATE users
