@@ -1,7 +1,6 @@
 const cron              = require('node-cron');
 const db                = require('../db');
 const { sendNotification } = require('../services/notificationService');
-const logger            = require('../utils/logger');
 
 /**
  * Planned Needs Scheduler — runs daily at 6 AM Eastern.
@@ -21,7 +20,7 @@ const logger            = require('../utils/logger');
  */
 const startPlannedNeedsScheduler = () => {
   cron.schedule('0 6 * * *', async () => {
-    logger.info('[Cron] Running planned needs scheduler...');
+    console.log('[Cron] Running planned needs scheduler...');
 
     try {
       // ── Pass 1: activating_soon ───────────────────────────────────────
@@ -32,7 +31,7 @@ const startPlannedNeedsScheduler = () => {
           AND (due_date - lead_time_days - 1) = CURRENT_DATE
       `);
       if (soonCount > 0) {
-        logger.info(`Cron: marked ${soonCount} need(s) as activating_soon`);
+        console.log(`[Cron] Marked ${soonCount} need(s) as activating_soon`);
       }
 
       // ── Pass 2: auto-publish ────────────────────────────────────────
@@ -52,7 +51,7 @@ const startPlannedNeedsScheduler = () => {
           AND (pn.due_date - pn.lead_time_days) <= CURRENT_DATE
           AND pn.published_job_id IS NULL
       `);
-      logger.info(`Cron: ${toPublish.length} need(s) ready to auto-publish`);
+      console.log(`[Cron] ${toPublish.length} need(s) ready to auto-publish`);
 
       for (const need of toPublish) {
         try {
@@ -115,7 +114,7 @@ const startPlannedNeedsScheduler = () => {
               data:   { job_id: jobId, planned_need_id: need.id },
               action_url: `/jobs/${jobId}`,
             });
-            logger.info('Cron: published need (held)', { needId: need.id, jobId, helperId: need.preferred_helper_id });
+            console.log(`[Cron] Published need ${need.id} -> job ${jobId} (held for helper ${need.preferred_helper_id})`);
           } else {
             // Broadcast immediately (no hold)
             await db.query(`
@@ -126,10 +125,10 @@ const startPlannedNeedsScheduler = () => {
                   updated_at       = NOW()
               WHERE id = $1
             `, [need.id, jobId]);
-            logger.info('Cron: published need (broadcast)', { needId: need.id, jobId, title: need.title });
+            console.log(`[Cron] Published need ${need.id} -> job ${jobId} (${need.title})`);
           }
         } catch (innerErr) {
-          logger.error('Cron: failed to publish need', { needId: need.id, err: innerErr.message });
+          console.error(`[Cron] Failed to publish need ${need.id}:`, innerErr);
         }
       }
 
@@ -148,7 +147,7 @@ const startPlannedNeedsScheduler = () => {
       `);
 
       if (expiredJobs.length > 0) {
-        logger.info(`Cron: ${expiredJobs.length} preferred-helper hold(s) expired`);
+        console.log(`[Cron] ${expiredJobs.length} preferred-helper hold(s) expired`);
       }
 
       for (const row of expiredJobs) {
@@ -182,9 +181,9 @@ const startPlannedNeedsScheduler = () => {
               action_url: `/jobs/${row.job_id}`,
             });
           }
-          logger.info('Cron: expired hold, job now open', { jobId: row.job_id });
+          console.log(`[Cron] Expired hold on job ${row.job_id}, now open to all`);
         } catch (innerErr) {
-          logger.error('Cron: failed to expire hold', { jobId: row.job_id, err: innerErr.message });
+          console.error(`[Cron] Failed to expire hold on job ${row.job_id}:`, innerErr);
         }
       }
 
@@ -196,9 +195,9 @@ const startPlannedNeedsScheduler = () => {
           AND helper_notified_at <= NOW() - INTERVAL '72 hours'
       `);
 
-      logger.info('Cron: planned needs scheduler complete.');
+      console.log('[Cron] Planned needs scheduler complete.');
     } catch (err) {
-      logger.error('Cron: planned needs scheduler error', { err: err.message });
+      console.error('[Cron] Planned needs scheduler error:', err);
     }
   }, { timezone: 'America/New_York' });
 };
