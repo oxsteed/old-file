@@ -162,6 +162,12 @@ exports.capturePayment = async (req, res) => {
     const payment = await pool.query('SELECT * FROM payments WHERE job_id = $1 AND status = $2', [job_id, 'authorized']);
     if (!payment.rows[0]) return res.status(404).json({ error: 'No authorized payment found' });
 
+    // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
+    const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'in_progress']);
+    if (dispute.rows[0]) {
+      return res.status(409).json({ error: 'Cannot capture payment while dispute is open. Dispute must be resolved first.' });
+    }
+
     // ── Stripe capture (outside transaction for idempotency) ──────────────
     const paymentData = payment.rows[0];
     try {
@@ -224,6 +230,13 @@ exports.refundPayment = async (req, res) => {
 
     const paymentData = payment.rows[0];
     const refundAmount = amount || paymentData.amount;
+
+    // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
+    // Refunds can only happen after disputes are resolved
+    const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [paymentData.job_id, 'open', 'in_progress']);
+    if (dispute.rows[0]) {
+      return res.status(409).json({ error: 'Cannot refund payment while dispute is open. Dispute must be resolved first.' });
+    }
 
     // ── Stripe refund (outside transaction for idempotency) ──────────────
     const refundParams = {

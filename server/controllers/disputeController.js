@@ -82,6 +82,39 @@ exports.openDispute = async (req, res) => {
 
     const dispute = disputeRows[0];
 
+    // HOLD ESCROW FUNDS if job has pending escrow payment
+    try {
+      const { rows: paymentRows } = await db.query(`
+        SELECT id, status, escrow_status FROM payments
+        WHERE job_id = $1 AND status IN ('authorized', 'captured')
+        LIMIT 1
+      `, [jobId]);
+
+      if (paymentRows.length > 0) {
+        const payment = paymentRows[0];
+
+        // Only hold if not already held/disputed
+        if (payment.escrow_status !== 'disputed' && payment.escrow_status !== 'held') {
+          await db.query(
+            `UPDATE payments SET escrow_status = $1, updated_at = NOW() WHERE id = $2`,
+            ['disputed', payment.id]
+          );
+
+          // Log to audit trail
+          await db.query(`
+            INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+            VALUES (NULL, 'dispute_escrow_hold', 0, $1, $2)
+          `, [
+            `Dispute #${dispute.id} opened - escrow hold on payment ${payment.id}`,
+            JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, job_id: jobId })
+          ]).catch(err => logger.error('Failed to log escrow hold', { err }));
+        }
+      }
+    } catch (holdErr) {
+      logger.error('Failed to hold escrow on dispute', { jobId, disputeId: dispute.id, err: holdErr });
+      // Don't fail the dispute creation if hold fails
+    }
+
     // Notify admins — fetch all admin user IDs and notify each
     try {
       const { rows: adminRows } = await db.query(
