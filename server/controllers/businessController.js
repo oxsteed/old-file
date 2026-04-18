@@ -706,7 +706,7 @@ async function getBusinessPublicProfile(req, res) {
         [ownerId]
       ),
       pool.query(
-        `SELECT id, url, caption FROM business_gallery WHERE business_id = $1 ORDER BY sort_order, id`,
+        `SELECT id, url, caption, alt FROM business_gallery WHERE business_id = $1 ORDER BY sort_order, id`,
         [bizId]
       ),
       pool.query(
