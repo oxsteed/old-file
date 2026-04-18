@@ -302,9 +302,9 @@ export default function UserDetail() {
                 <option key={r} value={r} className="capitalize">{r}</option>
               ))}
             </select>
-          </div>
-        )}
-      </div>
+            </>
+          )}
+        </div>
 
       {message && (
         <div className={`rounded-xl px-4 py-3 text-sm mb-6 ${
