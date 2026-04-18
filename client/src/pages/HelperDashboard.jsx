@@ -846,6 +846,7 @@ export default function HelperDashboard() {
         {id:'carcare',label:t('dashboard.tabs.carCare')},
         {id:'skills',label:t('dashboard.tabs.skillsTools')},
         {id:'products',label:t('dashboard.tabs.products')},
+        {id:'invoices',label:t('helperDashboard.tabs.invoices')},
         {id:'bids',    label:t('helperDashboard.tabs.myBids')},
         {id:'reviews', label:t('helperDashboard.tabs.reviews')},
       ];

@@ -1446,7 +1446,8 @@
       "earnings": "Revni",
       "findJobs": "Jwenn travay",
       "myBids": "Òf mwen yo",
-      "reviews": "Kritik"
+      "reviews": "Kritik",
+      "invoices": "Fakti"
     },
     "profileCompleteness": "Pwofil konplè",
     "missingLabel": "Mank: {{label}}",

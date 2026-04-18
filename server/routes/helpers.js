@@ -5,12 +5,24 @@
 const express = require('express');
 const router  = express.Router();
 const { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus } = require('../controllers/helpersController');
+const {
+  listHelperInvoices, createHelperInvoice, updateHelperInvoice,
+  markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
+} = require('../controllers/businessInvoiceController');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 
 // ── Authenticated helper-owner endpoints (must come before /:id wildcards) ──
 router.get('/me/listing',  authenticate, getMyListingStatus);
 router.put('/me/listing',  authenticate, toggleListing);
+
+// ── Helper invoices (authenticated, helper-scoped) ─────────────────────────────
+router.get('/invoices',                        authenticate, listHelperInvoices);
+router.post('/invoices',                       authenticate, createHelperInvoice);
+router.put('/invoices/:invoiceId',             authenticate, updateHelperInvoice);
+router.post('/invoices/:invoiceId/pay',        authenticate, markHelperInvoicePaid);
+router.post('/invoices/:invoiceId/send',       authenticate, sendHelperInvoice);
+router.delete('/invoices/:invoiceId',          authenticate, deleteHelperInvoice);
 
 // ── Public directory endpoints ───────────────────────────────────────────────
 router.get('/',              generalLimiter, listHelpers);
