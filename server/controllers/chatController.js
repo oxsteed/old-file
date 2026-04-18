@@ -610,3 +610,43 @@ exports.profileChatMessage = async (req, res) => {
     res.status(500).json({ error: 'Chat service temporarily unavailable.' });
   }
 };
+
+/**
+ * POST /api/chat/transcribe
+ * Transcribe audio using OpenRouter when Web Speech API confidence is low.
+ * Requires authentication.
+ * Request body: { audio_data: base64, language: 'en' }
+ * Response: { transcript, confidence, language }
+ */
+exports.transcribeAudio = async (req, res) => {
+  const { audio_data, language = 'en' } = req.body;
+
+  if (!audio_data?.trim()) {
+    return res.status(400).json({ error: 'audio_data is required' });
+  }
+
+  if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(language)) {
+    return res.status(400).json({ error: 'Invalid language code' });
+  }
+
+  try {
+    const { transcribeAudio } = require('../utils/speechToText');
+    const audioBuffer = Buffer.from(audio_data, 'base64');
+    const result = await transcribeAudio(audioBuffer, language);
+
+    logger.info('Audio transcribed', {
+      language,
+      transcript_length: result.transcript.length,
+      confidence: result.confidence,
+    });
+
+    return res.json({
+      transcript: result.transcript,
+      confidence: result.confidence,
+      language: result.language,
+    });
+  } catch (err) {
+    logger.error('Audio transcription failed', { err: err.message, language });
+    return res.status(502).json({ error: 'Transcription service unavailable' });
+  }
+};
