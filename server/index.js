@@ -26,6 +26,7 @@ const { reloadFeeConfig } = require('./services/feeService');
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
 const correlationId = require('./middleware/correlationId');
+const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
@@ -241,6 +242,12 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── INPUT SANITIZATION ───────────────────────────────────────
 app.use(sanitizeInputs);
+
+// ── CSRF PROTECTION ──────────────────────────────────────────
+// Attach CSRF token to all responses (for authenticated users)
+// Validate CSRF token on all state-changing requests (POST/PUT/DELETE)
+app.use(attachCsrfToken);
+app.use(validateCsrfToken);
 
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
