@@ -3,6 +3,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { calculateTier3Fees } = require('../utils/feeCalculator');
 const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
 
 /**
  * Payment Controller — Stripe Connect Direct Charges
@@ -160,35 +161,35 @@ exports.capturePayment = async (req, res) => {
     const payment = await pool.query('SELECT * FROM payments WHERE job_id = $1 AND status = $2', [job_id, 'authorized']);
     if (!payment.rows[0]) return res.status(404).json({ error: 'No authorized payment found' });
 
+    // Capture via Stripe (outside transaction to avoid holding locks during API call)
     await stripe.paymentIntents.capture(
       payment.rows[0].stripe_payment_intent_id,
       {},
       { stripeAccount: payment.rows[0].stripe_account_id }
     );
 
-    await pool.query(
-      `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
-       captured_at = NOW(), released_at = NOW(), updated_at = NOW() WHERE id = $1`,
-      [payment.rows[0].id]
-    );
+    // Update payment and auto-log in atomic transaction
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
+         captured_at = NOW(), released_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [payment.rows[0].id]
+      );
 
-    // Auto-log to Life Dashboard
-    try {
+      // Auto-log to Life Dashboard
       const helperPayout = payment.rows[0].amount;
       const jobTitle = job.rows[0].title || 'Job payment';
-      await pool.query(
+      await client.query(
         `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
          VALUES ($1, 'income', $2, 'Gig Payment', $3, CURRENT_DATE)`,
         [job.rows[0].assigned_helper_id, helperPayout, 'Payment: ' + jobTitle]
       );
-      await pool.query(
+      await client.query(
         `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
          VALUES ($1, 'expense', $2, 'Home Services', $3, CURRENT_DATE)`,
         [job.rows[0].client_id, payment.rows[0].amount, 'Paid: ' + jobTitle]
       );
-    } catch (autoLogErr) {
-      logger.error('Auto-log earnings (non-critical)', { err: autoLogErr });
-    }
+    });
 
     res.json({ message: 'Payment captured — funds released to helper' });
   } catch (err) {
@@ -217,16 +218,20 @@ exports.refundPayment = async (req, res) => {
       refundParams.refund_application_fee = true;
     }
 
+    // Process Stripe refund (outside transaction to avoid holding locks)
     const refund = await stripe.refunds.create(
       refundParams,
       { stripeAccount: payment.rows[0].stripe_account_id }
     );
 
-    await pool.query(
-      `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
-       refunded_at = NOW(), refund_amount = $1, refund_reason = $2, updated_at = NOW() WHERE id = $3`,
-      [amount || payment.rows[0].amount, reason, payment_id]
-    );
+    // Update payment status in transaction
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
+         refunded_at = NOW(), refund_amount = $1, refund_reason = $2, updated_at = NOW() WHERE id = $3`,
+        [amount || payment.rows[0].amount, reason, payment_id]
+      );
+    });
 
     res.json({ message: 'Refund processed', refund_id: refund.id });
   } catch (err) {

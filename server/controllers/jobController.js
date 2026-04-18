@@ -3,6 +3,7 @@ const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
+const { withTransaction } = require('../utils/transaction');
 
 // Create a new job (wizard publish)
 exports.createJob = async (req, res) => {
