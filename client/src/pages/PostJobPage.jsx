@@ -300,13 +300,15 @@ function CategorySelect({ value, onChange, error }) {
 }
 
 // ─── Requirement metadata ─────────────────────────────────────────────────────
+// Keys used: t('postJob.license'), t('postJob.licenseDesc'), etc.
+// Labels are now i18n'd — see PostJobPage component render logic
 const REQ_META = {
-  license:         { label: 'License',          desc: 'State-issued trade license required' },
-  insurance:       { label: 'Insurance',         desc: 'Active liability coverage (COI)' },
-  skillLevel:      { label: 'Skill Level',       desc: 'Minimum experience required' },
-  ownTools:        { label: 'Own Tools',          desc: 'Must bring their own equipment' },
-  crewSize:        { label: 'Crew Size',          desc: 'Minimum helpers needed on-site' },
-  backgroundCheck: { label: 'Background Check',  desc: 'Verified ID on OxSteed' },
+  license:         { key: 'license' },
+  insurance:       { key: 'insurance' },
+  skillLevel:      { key: 'skillLevel' },
+  ownTools:        { key: 'ownTools' },
+  crewSize:        { key: 'crewSize' },
+  backgroundCheck: { key: 'backgroundCheck' },
 };
 
 // STEP_LABELS is now in PostJobPage component and uses i18n
@@ -729,10 +731,10 @@ export default function PostJobPage() {
   function validateStep(n) {
     const errs = {};
     if (n === 1) {
-      if (!form.title.trim() || form.title.trim().length < 10)    errs.title       = 'Title must be at least 10 characters';
-      if (!form.categoryId)                                        errs.categoryId  = 'Please select a category';
-      if (!form.description.trim() || form.description.trim().length < 50) errs.description = 'Description must be at least 50 characters';
-      if (!form.locationInput.trim())                              errs.location    = 'Please enter a location';
+      if (!form.title.trim() || form.title.trim().length < 10)    errs.title       = t('postJob.titleValidation');
+      if (!form.categoryId)                                        errs.categoryId  = t('postJob.categoryValidation');
+      if (!form.description.trim() || form.description.trim().length < 50) errs.description = t('postJob.descriptionValidation');
+      if (!form.locationInput.trim())                              errs.location    = t('postJob.locationValidation');
     }
     return errs;
   }
@@ -1053,7 +1055,7 @@ export default function PostJobPage() {
                     <div className="pjw-req-header">
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                         <svg className="pjw-req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-                        <div><div className="pjw-req-name">License</div><div className="pjw-req-desc">State-issued trade license required</div></div>
+                        <div><div className="pjw-req-name">{t('postJob.license')}</div><div className="pjw-req-desc">{t('postJob.licenseDesc')}</div></div>
                       </div>
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.license.enabled && <CheckIcon/>}</div>
                     </div>
@@ -1075,7 +1077,7 @@ export default function PostJobPage() {
                     <div className="pjw-req-header">
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                         <svg className="pjw-req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        <div><div className="pjw-req-name">Insurance</div><div className="pjw-req-desc">Active liability coverage (COI)</div></div>
+                        <div><div className="pjw-req-name">{t('postJob.insurance')}</div><div className="pjw-req-desc">{t('postJob.insuranceDesc')}</div></div>
                       </div>
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.insurance.enabled && <CheckIcon/>}</div>
                     </div>
@@ -1095,7 +1097,7 @@ export default function PostJobPage() {
                     <div className="pjw-req-header">
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                         <svg className="pjw-req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                        <div><div className="pjw-req-name">Skill Level</div><div className="pjw-req-desc">Minimum experience required</div></div>
+                        <div><div className="pjw-req-name">{t('postJob.skillLevel')}</div><div className="pjw-req-desc">{t('postJob.skillLevelDesc')}</div></div>
                       </div>
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.skillLevel.enabled && <CheckIcon/>}</div>
                     </div>
@@ -1115,7 +1117,7 @@ export default function PostJobPage() {
                     <div className="pjw-req-header">
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                         <svg className="pjw-req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                        <div><div className="pjw-req-name">Own Tools</div><div className="pjw-req-desc">Must bring their own equipment</div></div>
+                        <div><div className="pjw-req-name">{t('postJob.ownTools')}</div><div className="pjw-req-desc">{t('postJob.ownToolsDesc')}</div></div>
                       </div>
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.ownTools.enabled && <CheckIcon/>}</div>
                     </div>
@@ -1130,7 +1132,7 @@ export default function PostJobPage() {
                     <div className="pjw-req-header">
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                         <svg className="pjw-req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        <div><div className="pjw-req-name">Crew Size</div><div className="pjw-req-desc">Minimum helpers needed on-site</div></div>
+                        <div><div className="pjw-req-name">{t('postJob.crewSize')}</div><div className="pjw-req-desc">{t('postJob.crewSizeDesc')}</div></div>
                       </div>
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.crewSize.enabled && <CheckIcon/>}</div>
                     </div>
@@ -1150,7 +1152,7 @@ export default function PostJobPage() {
                     <div className="pjw-req-header">
                       <div style={{display:'flex',alignItems:'flex-start',gap:'.5rem'}}>
                         <svg className="pjw-req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <div><div className="pjw-req-name">{t('postJob.backgroundCheck')}</div><div className="pjw-req-desc">Verified ID on OxSteed</div></div>
+                        <div><div className="pjw-req-name">{t('postJob.backgroundCheck')}</div><div className="pjw-req-desc">{t('postJob.backgroundCheckDesc')}</div></div>
                       </div>
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.backgroundCheck.enabled && <CheckIcon/>}</div>
                     </div>
@@ -1224,14 +1226,14 @@ export default function PostJobPage() {
 
                 {/* Urgency */}
                 <div className="pjw-field">
-                  <label>Urgency</label>
+                  <label>{t('postJob.urgency')}</label>
                   <div className="pjw-pill-group" role="group" aria-label="Job urgency">
-                    {[['asap','ASAP'],['this_week','This week'],['next_week','Next week'],['flexible','Flexible']].map(([val,label]) => (
+                    {[['asap','urgencyASAP'],['this_week','urgencyThisWeek'],['next_week','urgencyNextWeek'],['flexible','urgencyFlexible']].map(([val,key]) => (
                       <button key={val} type="button"
                         className={`pjw-pill${form.urgency===val?' is-active':''}`}
                         onClick={() => set({ urgency: val })}
                         aria-pressed={form.urgency===val}>
-                        {label}
+                        {t(`postJob.${key}`)}
                       </button>
                     ))}
                   </div>
@@ -1239,9 +1241,9 @@ export default function PostJobPage() {
 
                 {/* Additional notes */}
                 <div className="pjw-field" style={{ marginBottom: 0 }}>
-                  <label htmlFor="pjw-notes">Additional Notes <span className="hint">Optional</span></label>
+                  <label htmlFor="pjw-notes">{t('postJob.additionalNotes')} <span className="hint">Optional</span></label>
                   <textarea id="pjw-notes" className="pjw-textarea" rows={3}
-                    placeholder="Parking, access instructions, existing quotes, anything a helper should know…"
+                    placeholder={t('postJob.notesPlaceholder')}
                     value={form.notes} onChange={e => set({ notes: e.target.value })} />
                 </div>
 
@@ -1258,14 +1260,14 @@ export default function PostJobPage() {
 
             {/* Recurrence */}
             <div className="pjw-field">
-              <label>Recurrence</label>
+              <label>{t('postJob.recurrence')}</label>
               <div className="pjw-pill-group" role="group" aria-label="Recurrence">
-                {[['none','One-time'],['weekly','Weekly'],['biweekly','Bi-weekly'],['monthly','Monthly']].map(([val,label]) =>
+                {[['none','recurrenceOneTime'],['weekly','recurrenceWeekly'],['biweekly','recurrenceBiWeekly'],['monthly','recurrenceMonthly']].map(([val,key]) =>
                   <button key={val} type="button"
                     className={`pjw-pill${form.recurrence===val?' is-active':''}`}
                     onClick={() => set({ recurrence: val })}
                     aria-pressed={form.recurrence===val}>
-                    {label}
+                    {t(`postJob.${key}`)}
                   </button>
                 )}
               </div>
@@ -1273,9 +1275,9 @@ export default function PostJobPage() {
 
             {/* Preferred helper */}
             <div className="pjw-field" style={{ position: 'relative' }}>
-              <label htmlFor="pjw-preferred-helper">Preferred Helper <span className="hint">Optional</span></label>
+              <label htmlFor="pjw-preferred-helper">{t('postJob.preferredHelper')} <span className="hint">Optional</span></label>
               <input id="pjw-preferred-helper" className="pjw-input"
-                placeholder="Search by name or leave blank"
+                placeholder={t('postJob.preferredHelperPlaceholder')}
                 value={form.preferredHelperName}
                 onChange={e => {
                   const v = e.target.value;
@@ -1375,13 +1377,13 @@ export default function PostJobPage() {
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:3 })}>Edit</button>
                 </div>
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Urgency</span>
-                  <span className="pjw-review-value">{{ asap:'ASAP', this_week:'This week', next_week:'Next week', flexible:'Flexible' }[form.urgency]}</span>
+                  <span className="pjw-review-label">{t('postJob.urgency')}</span>
+                  <span className="pjw-review-value">{{ asap: t('postJob.urgencyASAP'), this_week: t('postJob.urgencyThisWeek'), next_week: t('postJob.urgencyNextWeek'), flexible: t('postJob.urgencyFlexible') }[form.urgency]}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:3 })}>Edit</button>
                 </div>
                 {form.notes && (
                   <div className="pjw-review-row">
-                    <span className="pjw-review-label">Notes</span>
+                    <span className="pjw-review-label">{t('postJob.notes')}</span>
                     <span className="pjw-review-value" style={{ maxWidth:'360px' }}>{form.notes}</span>
                     <button className="pjw-edit-btn" type="button" onClick={() => set({ step:3 })}>Edit</button>
                   </div>
@@ -1390,7 +1392,7 @@ export default function PostJobPage() {
                 {/* Media review */}
                 {form.mediaPreviews.length > 0 && (
                   <div className="pjw-review-row">
-                    <span className="pjw-review-label">Media</span>
+                    <span className="pjw-review-label">{t('postJob.media')}</span>
                     <div className="pjw-review-value">
                       <div className={`pjw-preview-grid${form.mediaTab !== 'photos' ? ' pjw-preview-grid--media' : ''}`} style={{ maxWidth:'300px' }}>
                         {form.mediaPreviews.map((src,i) => (
@@ -1476,7 +1478,7 @@ export default function PostJobPage() {
                   <div className="pjw-sum-reqs">
                     {activeReqs.length === 0
                       ? <span className="pjw-sum-badge is-empty">{t('postJob.notSelected')}</span>
-                      : activeReqs.map(k => <span key={k} className="pjw-sum-badge">{REQ_META[k].label}</span>)
+                      : activeReqs.map(k => <span key={k} className="pjw-sum-badge">{t(`postJob.${REQ_META[k].key}`)}</span>)
                     }
                   </div>
                 </div>
