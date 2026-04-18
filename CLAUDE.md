@@ -1264,3 +1264,189 @@ Completed all remaining i18n work. Every user-visible string in the application 
 **Commit:** `11ff5cf` — `feat(i18n): Complete Dashboard/HelperDashboard i18n migration`
 
 **Result:** 100% i18n coverage across all 2722 keys. Dashboard and HelperDashboard pages now display properly in all 4 supported languages (EN/ES/FR/HT) with zero hardcoded user-facing English strings.
+
+---
+
+## Comprehensive Codebase Review — Session 2026-04-18
+
+**Objective**: Deep architectural, security, efficiency, and product review of the entire codebase.
+
+**Codebase Metrics:**
+- **Size**: 68,918 LOC (server: 24.8K, client: 44.1K)
+- **Database**: 72 migrations, 67 tables, PostgreSQL
+- **Controllers**: 41 files with business logic
+- **Routes**: 35 route files organized by domain
+- **Security Status**: 155/185 findings fixed/deferred; all CRITICAL and HIGH fixed
+- **Test Coverage**: 82 jest tests (all passing)
+
+### Session Accomplishments
+
+**4 Critical Security Improvements:**
+
+1. **Request Correlation ID Middleware** (`server/middleware/correlationId.js`)
+   - Assigns unique UUID to each request for end-to-end tracing
+   - Includes correlation ID in response headers (x-correlation-id)
+   - Integrated into logger middleware for audit trail
+   - Enables full request tracing through logs and database operations
+
+2. **CSRF Protection Middleware** (`server/middleware/csrf.js`)
+   - Generates unique CSRF tokens per user session (32-byte random)
+   - Attaches token to response headers (X-CSRF-Token)
+   - Validates tokens on all state-changing requests (POST/PUT/DELETE)
+   - Supports constant-time comparison to prevent timing attacks
+   - 24-hour token expiry, 10K-entry in-memory blacklist auto-cleanup
+
+3. **JWT Token Revocation System** (`server/services/tokenRevocationService.js`)
+   - Redis-backed token blacklist (with in-memory fallback)
+   - Immediate logout instead of waiting for 15min/7d expiry
+   - Supports both access token (15min TTL) and refresh token (7day TTL) revocation
+   - Revoke all user tokens on logout
+   - Integrated with auth middleware to check blacklist on every request
+
+4. **Socket.IO Room Security Documentation**
+   - Extensively documented security model in `server/index.js`
+   - Explains why arbitrary 'join' events are blocked
+   - Documents conversation room membership verification (IDOR prevention)
+   - Explains typing indicator room membership gating
+   - Prevents information leakage via typing indicators
+
+**Schema & Data Quality Improvements:**
+
+5. **Schema Divergence Audit & Reconciliation** (`server/migrations/072_schema_divergence_reconciliation.sql`)
+   - Created comprehensive audit of 4 tables with conflicting schemas across multiple migrations:
+     * `sessions` (migrations 025 vs 026)
+     * `feature_flags` (migrations 001, 005, 023)
+     * `dispute_messages` (migrations 015, 025, 050)
+     * `dispute_evidence` (migrations 025 vs 050)
+   - Consolidates to authoritative latest schema
+   - Adds missing useful columns from earlier migrations
+   - Ensures consistent NOT NULL constraints and indexing
+   - Created `SCHEMA_DIVERGENCE_AUDIT.md` with:
+     * Side-by-side schema comparisons
+     * Data loss risk analysis
+     * Pre-deployment verification checklist
+     * Production verification instructions
+
+6. **Webhook Signature Verification Utility** (`server/utils/webhookVerification.js`)
+   - Consolidated verification logic for Stripe, Didit, Checkr
+   - Prevents copy-paste security bugs across webhook handlers
+   - Implements constant-time comparison for all providers
+   - Includes replay attack prevention (Stripe timestamp validation)
+   - Generic verification function for easy addition of new providers
+   - Comprehensive error logging for debugging
+
+### Identified Issues (For Future Sessions)
+
+**CRITICAL - Requires Attention:**
+
+- **Database Connection Pool Exhaustion** (pool max = 10 for small VMs)
+  - Under 50 concurrent users possible pool exhaustion
+  - No connection timeout/retry logic documented
+  - Recommend: Monitor pool utilization; add APM instrumentation
+
+- **Monolithic Architecture Scaling** 
+  - Single Express instance handles payments + API + real-time
+  - Payment gateway timeouts cascade to user-facing API
+  - Recommend: Extract payment worker to separate process
+
+- **Missing Transaction Boundaries**
+  - Multi-step operations (payment capture → job complete → notification) lack explicit transactions
+  - Recommend: Wrap multi-query operations in BEGIN...COMMIT blocks
+
+**HIGH - Should Address Soon:**
+
+- **State Management Fragmentation** (Context + localStorage + React Query missing)
+  - Dashboard makes 4+ parallel requests per load
+  - No request deduplication or caching
+  - Recommend: Add React Query with 30s staleTime
+
+- **Missing API Versioning**
+  - No `/api/v1` prefix strategy
+  - Breaking changes will cascade to all clients
+  - Recommend: Implement versioning strategy
+
+- **Incomplete Features:**
+  - Email verification gate not enforced
+  - Helper onboarding enforcement inconsistent
+  - Dispute escalation not tied to payment escrow
+  - Notification preferences not wired to sending
+
+**MEDIUM - Nice to Have:**
+
+- **N+1 Query Optimization** (getConversations, getHomeTasks)
+  - Currently use efficient LATERAL joins + proper JOINs
+  - Further optimization would be minimal
+  - Recommend: Add query performance testing to CI
+
+- **Error Boundaries** per-route (not just app-level)
+  - One page crash unmounts entire app
+  - Recommend: Add per-route error boundaries with recovery
+
+- **Logger Cleanup** (~150 console.* calls remain)
+  - Already have logger utility available
+  - Replace console.error/log/warn calls incrementally
+  - Recommend: Do during next refactoring pass
+
+### Code Quality Findings
+
+**Well-Implemented Areas:**
+- ✅ Security middleware (auth, rate limiting, headers, sanitization)
+- ✅ RESTful API design with clear routing structure
+- ✅ Socket.IO room architecture with proper verification
+- ✅ Database schema constraints and indexing
+- ✅ Dark mode CSS variable system
+- ✅ i18n implementation (complete 4-language coverage)
+- ✅ Error handling middleware (`apiError.js`)
+- ✅ Structured logging system
+
+**Areas Needing Attention:**
+- ⚠️ Test coverage (82 tests good; more integration tests needed)
+- ⚠️ Performance monitoring (no APM, no bundle analysis)
+- ⚠️ Production readiness (some features partially implemented)
+- ⚠️ Documentation (Sentry/APM config not documented)
+
+### Files Created This Session
+
+```
+server/middleware/
+├── correlationId.js — Request tracing middleware
+└── csrf.js — CSRF protection (token generation + validation)
+
+server/services/
+└── tokenRevocationService.js — JWT revocation with Redis fallback
+
+server/utils/
+└── webhookVerification.js — Consolidated webhook verification
+
+server/migrations/
+└── 072_schema_divergence_reconciliation.sql — Schema audit + fix
+
+Documentation/
+├── SCHEMA_DIVERGENCE_AUDIT.md — Detailed audit report
+└── CLAUDE.md (this file) — Updated session notes
+```
+
+### Recommendations for Next Session
+
+**Priority 1 (Security):**
+1. Address database connection pool exhaustion (monitoring + alerts)
+2. Extract payment processing to separate worker
+3. Implement email verification enforcement
+
+**Priority 2 (Reliability):**
+1. Add per-route error boundaries
+2. Implement multi-query transaction boundaries
+3. Add integration tests for payment flow
+
+**Priority 3 (Performance):**
+1. Add React Query for client-side caching
+2. Implement query performance testing to CI
+3. Add bundle size analysis to build process
+
+### Files Modified This Session
+
+- `server/index.js` — Added correlation ID + CSRF middleware + Socket.IO docs
+- `server/middleware/auth.js` — Added token revocation check
+- `server/utils/logger.js` — Include correlation ID in logs
+- `server/controllers/authController.js` — Revoke tokens on logout
+- `CLAUDE.md` — This comprehensive review summary
