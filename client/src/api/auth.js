@@ -99,14 +99,32 @@ api.interceptors.response.use(
 
       const response = await refreshPromise;
       const newAccessToken = response.data?.accessToken;
+      const newRefreshToken = response.data?.refreshToken;
 
-      persistSessionPayload(response.data);
-
-      if (newAccessToken) {
-        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      if (!newAccessToken) {
+        clearStoredSession();
+        return Promise.reject(error);
       }
+
+      // Persist synchronously BEFORE any retry so the request interceptor
+      // (which reads accessToken from localStorage on every call) picks up
+      // the new token.
+      localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
+      if (newRefreshToken) {
+        localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+      }
+      if (response.data?.user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
+      }
+      api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+
+      // Rebuild the retry config with a clean Authorization header rather than
+      // mutating the stale one. Some axios internals hold onto the original
+      // headers object across retries.
+      originalRequest.headers = {
+        ...(originalRequest.headers || {}),
+        Authorization: `Bearer ${newAccessToken}`,
+      };
 
       return api(originalRequest);
     } catch (refreshError) {
