@@ -239,7 +239,7 @@ function CategorySelect({ value, onChange, error }) {
               ref={inputRef}
               type="text"
               className="pjw-cat-search-input"
-              placeholder="Search categories…"
+              placeholder={t('postJob.searchCategories')}
               value={search}
               onChange={e => { setSearch(e.target.value); setActiveIdx(-1); }}
               onKeyDown={handleKeyDown}
@@ -875,10 +875,10 @@ export default function PostJobPage() {
 
                 {/* Title */}
                 <div className="pjw-field">
-                  <label htmlFor="pjw-title">Job Title <span className="req">*</span></label>
+                  <label htmlFor="pjw-title">{t('postJob.jobTitleLabel')} <span className="req">*</span></label>
                   <input
                     id="pjw-title" type="text" className={`pjw-input${errors.title?' has-error':''}`}
-                    placeholder="e.g. Full kitchen rewire — breakers keep tripping"
+                    placeholder={t('postJob.jobTitleExample')}
                     maxLength={80} value={form.title}
                     onChange={e => set({ title: e.target.value })}
                   />
@@ -900,13 +900,13 @@ export default function PostJobPage() {
                 {/* Description */}
                 <div className="pjw-field">
                   <label htmlFor="pjw-desc">
-                    Describe the Work <span className="req">*</span>
-                    <span className="hint">Be specific — what's broken, what outcome you want</span>
+                    {t('postJob.describeWork')} <span className="req">*</span>
+                    <span className="hint">{t('postJob.describeWorkHint')}</span>
                   </label>
                   <textarea
                     id="pjw-desc" className={`pjw-textarea${errors.description?' has-error':''}`}
                     rows={5} maxLength={1000}
-                    placeholder="e.g. Kitchen keeps tripping the 20A breaker. Need a licensed electrician to inspect the panel, replace outdated wiring in the kitchen circuit, and install 2 new dedicated circuits for appliances."
+                    placeholder={t('postJob.jobDescExample')}
                     value={form.description}
                     onChange={e => set({ description: e.target.value })}
                   />
@@ -922,7 +922,7 @@ export default function PostJobPage() {
                       <input
                         id="pjw-location" type="text"
                         className={`pjw-input${errors.location?' has-error':''}`}
-                        placeholder="Springfield, OH"
+                        placeholder={t('postJob.locationExample')}
                         value={form.locationInput}
                         onChange={e => set({ locationInput: e.target.value })}
                         onBlur={handleLocationBlur}
@@ -952,7 +952,7 @@ export default function PostJobPage() {
 
                 {/* Media Upload */}
                 <div className="pjw-field">
-                  <label>Add Photos, Video, or Audio <span className="hint">Optional</span></label>
+                  <label>{t('postJob.addPhotosVideoAudio')} <span className="hint">Optional</span></label>
                   <div className="pjw-media-tabs" role="group" aria-label="Media type">
                     {['photos','video','audio'].map(tab => (
                       <button
@@ -1060,7 +1060,7 @@ export default function PostJobPage() {
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.license.enabled && <CheckIcon/>}</div>
                     </div>
                     <div className={`pjw-req-detail${form.requirements.license.enabled?' is-open':''}`} aria-hidden={!form.requirements.license.enabled}>
-                      <label>License type required</label>
+                      <label>{t('postJob.licenseTypeRequired')}</label>
                       <select className="pjw-select" value={form.requirements.license.licenseType} onClick={e=>e.stopPropagation()} onChange={e=>setReq('license',{licenseType:e.target.value})}>
                         <option value="">Specify license type…</option>
                         <option value="oh-electrician">OH Electrician (OCILB)</option>
@@ -1082,7 +1082,7 @@ export default function PostJobPage() {
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.insurance.enabled && <CheckIcon/>}</div>
                     </div>
                     <div className={`pjw-req-detail${form.requirements.insurance.enabled?' is-open':''}`} aria-hidden={!form.requirements.insurance.enabled}>
-                      <label>Minimum coverage amount</label>
+                      <label>{t('postJob.minimumCoverageAmount')}</label>
                       <select className="pjw-select" value={form.requirements.insurance.minCoverage} onClick={e=>e.stopPropagation()} onChange={e=>setReq('insurance',{minCoverage:e.target.value})}>
                         <option value="300k">$300,000</option>
                         <option value="500k">$500,000</option>
@@ -1102,7 +1102,7 @@ export default function PostJobPage() {
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.skillLevel.enabled && <CheckIcon/>}</div>
                     </div>
                     <div className={`pjw-req-detail${form.requirements.skillLevel.enabled?' is-open':''}`} aria-hidden={!form.requirements.skillLevel.enabled}>
-                      <label>Minimum skill level</label>
+                      <label>{t('postJob.minimumSkillLevel')}</label>
                       <select className="pjw-select" value={form.requirements.skillLevel.minLevel} onClick={e=>e.stopPropagation()} onChange={e=>setReq('skillLevel',{minLevel:e.target.value})}>
                         <option value="beginner">Beginner — basic tasks</option>
                         <option value="intermediate">Intermediate — 2+ years</option>
@@ -1122,8 +1122,8 @@ export default function PostJobPage() {
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.ownTools.enabled && <CheckIcon/>}</div>
                     </div>
                     <div className={`pjw-req-detail${form.requirements.ownTools.enabled?' is-open':''}`} aria-hidden={!form.requirements.ownTools.enabled}>
-                      <label>Specific tools needed <span style={{fontWeight:400}}>(optional)</span></label>
-                      <input className="pjw-input" type="text" placeholder="e.g. Wire tester, fish tape, panel tools" value={form.requirements.ownTools.toolList} onClick={e=>e.stopPropagation()} onChange={e=>setReq('ownTools',{toolList:e.target.value})} />
+                      <label>{t('postJob.specificToolsNeeded')} <span style={{fontWeight:400}}>({t('postJob.specificToolsNeededHint')})</span></label>
+                      <input className="pjw-input" type="text" placeholder={t('postJob.toolsExample')} value={form.requirements.ownTools.toolList} onClick={e=>e.stopPropagation()} onChange={e=>setReq('ownTools',{toolList:e.target.value})} />
                     </div>
                   </div>
 
@@ -1137,7 +1137,7 @@ export default function PostJobPage() {
                       <div className="pjw-req-check" aria-hidden="true">{form.requirements.crewSize.enabled && <CheckIcon/>}</div>
                     </div>
                     <div className={`pjw-req-detail${form.requirements.crewSize.enabled?' is-open':''}`} aria-hidden={!form.requirements.crewSize.enabled}>
-                      <label>Minimum crew size</label>
+                      <label>{t('postJob.minimumCrewSize')}</label>
                       <select className="pjw-select" value={form.requirements.crewSize.minCrew} onClick={e=>e.stopPropagation()} onChange={e=>setReq('crewSize',{minCrew:Number(e.target.value)})}>
                         <option value={1}>Solo (1 person)</option>
                         <option value={2}>2 people</option>
@@ -1195,7 +1195,7 @@ export default function PostJobPage() {
                   const pct = sliderPct(val, cfg.min, cfg.max);
                   return (
                     <div className="pjw-field">
-                      <label>Your Budget <span className="req">*</span></label>
+                      <label>{t('postJob.yourBudget')} <span className="req">*</span></label>
                       <div className="pjw-budget-row">
                         <div className="pjw-budget-display">{cfg.fmt(val)}</div>
                         <input type="range" className="pjw-slider"
@@ -1249,7 +1249,7 @@ export default function PostJobPage() {
 
                 {/* Scheduling (future date) */}
             <div className="pjw-field">
-              <label>Schedule for Later <span className="hint">Optional</span></label>
+              <label>{t('postJob.scheduleForLater')} <span className="hint">Optional</span></label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input type="date" className="pjw-input" value={form.scheduledDate}
                   onChange={e => set({ scheduledDate: e.target.value })} />
@@ -1305,9 +1305,9 @@ export default function PostJobPage() {
             </div>
             {/* Private notes */}
             <div className="pjw-field">
-              <label htmlFor="pjw-private-notes">Private Notes <span className="hint">Only you can see this</span></label>
+              <label htmlFor="pjw-private-notes">{t('postJob.privateNotes')} <span className="hint">{t('postJob.privateNotesHint')}</span></label>
               <textarea id="pjw-private-notes" className="pjw-textarea" rows={2}
-                placeholder="Personal reminders, budget notes, etc."
+                placeholder={t('postJob.privateNotesExample')}
                 value={form.privateNotes} onChange={e => set({ privateNotes: e.target.value })} />
             </div>
               </div>
