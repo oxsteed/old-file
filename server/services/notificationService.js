@@ -234,7 +234,6 @@ function buildEmailTemplate({ firstName, title, body, action_url, buttonText, is
 }
 
 // ─── BULK NOTIFICATION (e.g. platform announcements) ──────────
-const logger = require('../utils/logger');
 exports.sendBulkNotification = async ({ userIds, type, title, body, data = {} }) => {
   const results = await Promise.allSettled(
     userIds.map(userId =>
