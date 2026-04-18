@@ -141,9 +141,6 @@ function BusinessHubInner() {
         const chosen = valid ? saved : String(merged[0].id);
         setBizId(chosen);
         localStorage.setItem(LS_KEY, chosen);
-      } else {
-        setBizId('');
-        localStorage.removeItem(LS_KEY);
       }
     } catch { toast.error(t('businessHub.toastLoadBizFail')); }
     finally { setLoadingBiz(false); }
