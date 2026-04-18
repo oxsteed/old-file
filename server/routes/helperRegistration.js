@@ -3,6 +3,7 @@ const express = require('express');
 const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const { authLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
@@ -42,23 +43,27 @@ router.post('/finalize',    authenticate, finalizeRegistration);
 router.post('/payment',     authenticate, savePaymentStep);
 
 // Authenticated - profile + contact + photo (frontend Step4)
-router.post('/profile', authenticate, submitProfile);
-router.post('/update-contact', authenticate, updateContact);
-router.post('/profile-photo', authenticate, upload.single('photo'), validateFileUpload, uploadProfilePhoto);
+// Email verification required to submit helper profile
+router.post('/profile', authenticate, requireEmailVerified, submitProfile);
+router.post('/update-contact', authenticate, requireEmailVerified, updateContact);
+router.post('/profile-photo', authenticate, requireEmailVerified, upload.single('photo'), validateFileUpload, uploadProfilePhoto);
 
-// Authenticated + onboarding gated
+// Authenticated + onboarding gated + email verified
 router.put('/onboarding/profile',
   authenticate,
+  requireEmailVerified,
   requireOnboardingStep('registered'),
   submitOnboardingProfile
 );
 router.put('/onboarding/id-verification',
   authenticate,
+  requireEmailVerified,
   requireOnboardingStep('profile_complete'),
   submitIdVerification
 );
 router.put('/onboarding/background-check',
   authenticate,
+  requireEmailVerified,
   requireOnboardingStep('id_submitted'),
   submitBackgroundCheck
 );
