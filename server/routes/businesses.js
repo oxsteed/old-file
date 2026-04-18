@@ -15,8 +15,8 @@ const {
 } = require('../controllers/businessController');
 
 const {
-  listInvoices, getInvoice, createInvoice,
-  updateInvoice, markInvoicePaid, deleteInvoice,
+  listInvoices, getInvoice, getPublicInvoice, createInvoice,
+  updateInvoice, markInvoicePaid, deleteInvoice, sendInvoice,
 } = require('../controllers/businessInvoiceController');
 
 const {
@@ -28,6 +28,9 @@ const {
 const {
   generateToken, listTokens, revokeToken, redeemToken,
 } = require('../controllers/vortexController');
+
+// ── Public invoice by token (no auth required) ────────────────────────────────
+router.get('/invoices/public/:token', getPublicInvoice);
 
 // ── Vortex redeem (no business id — must be before /:id routes) ───────────────
 router.post('/vortex/redeem',                authenticate, redeemToken);
@@ -63,6 +66,7 @@ router.get('/:id/invoices/:invoiceId',           authenticate, getInvoice);
 router.post('/:id/invoices',                    authenticate, createInvoice);
 router.put('/:id/invoices/:invoiceId',           authenticate, updateInvoice);
 router.post('/:id/invoices/:invoiceId/pay',     authenticate, markInvoicePaid);
+router.post('/:id/invoices/:invoiceId/send',    authenticate, sendInvoice);
 router.delete('/:id/invoices/:invoiceId',       authenticate, deleteInvoice);
 
 // ── Tax estimates ─────────────────────────────────────────────────────────────

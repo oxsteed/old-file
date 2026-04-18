@@ -186,6 +186,166 @@ export default function HelperDashboard() {
     } catch { toast.error(t('helperDashboard.failedUpdate')); }
   };
 
+  // ── Invoices state ────────────────────────────────────────────────────────
+  const [myInvoices, setMyInvoices] = useState([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [sendingInvoiceId, setSendingInvoiceId] = useState(null);
+  const emptyInvoice = { invoice_number:'', client_email:'', client_name:'', line_items:[], subtotal_cents:0, tax_rate:0, tax_cents:0, total_cents:0, memo:'', due_date:'', status:'draft' };
+  const [invoiceForm, setInvoiceForm] = useState(emptyInvoice);
+  const [lineItemInput, setLineItemInput] = useState({ description:'', quantity:1, unit_price:'' });
+
+  const fetchMyInvoices = useCallback(async () => {
+    setInvoicesLoading(true);
+    try {
+      const res = await api.get('/helpers/invoices');
+      setMyInvoices(res.data?.invoices || []);
+    } catch { /* silent */ }
+    finally { setInvoicesLoading(false); }
+  }, []);
+
+  const openAddInvoice = () => {
+    setEditingInvoice(null);
+    setInvoiceForm(emptyInvoice);
+    setLineItemInput({ description:'', quantity:1, unit_price:'' });
+    setShowInvoiceModal(true);
+  };
+
+  const openEditInvoice = (inv) => {
+    setEditingInvoice(inv);
+    setInvoiceForm({
+      invoice_number: inv.invoice_number,
+      client_email: inv.client_email || '',
+      client_name: inv.client_name || '',
+      line_items: inv.line_items || [],
+      subtotal_cents: inv.subtotal_cents || 0,
+      tax_rate: inv.tax_rate || 0,
+      tax_cents: inv.tax_cents || 0,
+      total_cents: inv.total_cents || 0,
+      memo: inv.memo || '',
+      due_date: inv.due_date ? inv.due_date.split('T')[0] : '',
+      status: inv.status || 'draft'
+    });
+    setLineItemInput({ description:'', quantity:1, unit_price:'' });
+    setShowInvoiceModal(true);
+  };
+
+  const addLineItem = () => {
+    const qty = parseFloat(lineItemInput.quantity) || 1;
+    const price = parseFloat(lineItemInput.unit_price) || 0;
+    if (!lineItemInput.description.trim()) return toast.error(t('helperDashboard.invoices.descriptionRequired'));
+    if (qty <= 0 || price < 0) return toast.error(t('helperDashboard.invoices.invalidQtyPrice'));
+    const newItem = {
+      description: lineItemInput.description,
+      quantity: qty,
+      unit_price: price,
+      total: qty * price
+    };
+    setInvoiceForm(prev => {
+      const items = [...prev.line_items, newItem];
+      const subtotal = items.reduce((s, i) => s + i.total, 0);
+      const taxRate = prev.tax_rate || 0;
+      const tax = subtotal * (taxRate / 100);
+      return {
+        ...prev,
+        line_items: items,
+        subtotal_cents: Math.round(subtotal * 100),
+        tax_rate: taxRate,
+        tax_cents: Math.round(tax * 100),
+        total_cents: Math.round((subtotal + tax) * 100)
+      };
+    });
+    setLineItemInput({ description:'', quantity:1, unit_price:'' });
+  };
+
+  const removeLineItem = (idx) => {
+    setInvoiceForm(prev => {
+      const items = prev.line_items.filter((_, i) => i !== idx);
+      const subtotal = items.reduce((s, i) => s + i.total, 0);
+      const taxRate = prev.tax_rate || 0;
+      const tax = subtotal * (taxRate / 100);
+      return {
+        ...prev,
+        line_items: items,
+        subtotal_cents: Math.round(subtotal * 100),
+        tax_cents: Math.round(tax * 100),
+        total_cents: Math.round((subtotal + tax) * 100)
+      };
+    });
+  };
+
+  const updateTaxRate = (newRate) => {
+    const subtotal = (invoiceForm.subtotal_cents || 0) / 100;
+    const tax = subtotal * (newRate / 100);
+    setInvoiceForm(prev => ({
+      ...prev,
+      tax_rate: newRate,
+      tax_cents: Math.round(tax * 100),
+      total_cents: prev.subtotal_cents + Math.round(tax * 100)
+    }));
+  };
+
+  const handleSaveInvoice = async (e) => {
+    e.preventDefault();
+    if (!invoiceForm.client_name.trim()) return toast.error('Client name required');
+    if (!invoiceForm.client_email.trim()) return toast.error('Client email required');
+    if (invoiceForm.line_items.length === 0) return toast.error('Add at least one line item');
+
+    const payload = {
+      client_email: invoiceForm.client_email,
+      client_name: invoiceForm.client_name,
+      line_items: invoiceForm.line_items,
+      tax_rate: invoiceForm.tax_rate || 0,
+      memo: invoiceForm.memo || '',
+      due_date: invoiceForm.due_date || null,
+      status: invoiceForm.status || 'draft'
+    };
+
+    try {
+      if (editingInvoice) {
+        await api.put(`/helpers/invoices/${editingInvoice.id}`, payload);
+        toast.success(t('helperDashboard.invoices.updated'));
+      } else {
+        await api.post('/helpers/invoices', payload);
+        toast.success(t('helperDashboard.invoices.created'));
+      }
+      setShowInvoiceModal(false);
+      setEditingInvoice(null);
+      setInvoiceForm(emptyInvoice);
+      fetchMyInvoices();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('helperDashboard.invoices.saveFailed'));
+    }
+  };
+
+  const handleDeleteInvoice = async (id) => {
+    if (!confirm(t('helperDashboard.invoices.deleteConfirm'))) return;
+    try {
+      await api.delete(`/helpers/invoices/${id}`);
+      toast.success(t('helperDashboard.invoices.deleted'));
+      fetchMyInvoices();
+    } catch { toast.error(t('helperDashboard.invoices.deleteFailed')); }
+  };
+
+  const handleSendInvoice = async (id) => {
+    setSendingInvoiceId(id);
+    try {
+      const res = await api.post(`/helpers/invoices/${id}/send`);
+      if (res.data?.notification_sent) {
+        toast.success(t('helperDashboard.invoices.sentToClient'));
+      } else {
+        const token = res.data?.public_token;
+        const url = `${window.location.origin}/invoices/${token}`;
+        toast.success(t('helperDashboard.invoices.sentWithLink', { url }));
+      }
+      fetchMyInvoices();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('helperDashboard.invoices.saveFailed'));
+    }
+    setSendingInvoiceId(null);
+  };
+
   // ── Skills & Tools state ──────────────────────────────────────────────────
   const [mySkills, setMySkills] = useState([]);
   const [myTools, setMyTools] = useState([]);
@@ -657,6 +817,7 @@ export default function HelperDashboard() {
   useEffect(() => {
     if (tab === 'skills') { fetchMySkills(); fetchMyTools(); }
     if (tab === 'products') fetchMyProducts();
+    if (tab === 'invoices') fetchMyInvoices();
     if (tab === 'personalcare') fetchPersonalCareTasks();
     if (tab === 'carcare') { fetchCarCareTasks(); if (!garageFetched) fetchGarage(); }
     if (tab === 'money') {
@@ -846,6 +1007,7 @@ export default function HelperDashboard() {
         {id:'carcare',label:t('dashboard.tabs.carCare')},
         {id:'skills',label:t('dashboard.tabs.skillsTools')},
         {id:'products',label:t('dashboard.tabs.products')},
+        {id:'invoices',label:t('helperDashboard.tabs.invoices')},
         {id:'bids',    label:t('helperDashboard.tabs.myBids')},
         {id:'reviews', label:t('helperDashboard.tabs.reviews')},
       ];
@@ -1697,6 +1859,64 @@ export default function HelperDashboard() {
           </div>
         )}
 
+        {/* ═══════ INVOICES ═══════ */}
+        {tab==='invoices'&&(
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-semibold text-white text-lg">{t('helperDashboard.invoices.title')}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{t('helperDashboard.invoices.subtitle')}</p>
+              </div>
+              <Btn onClick={openAddInvoice}>{t('helperDashboard.invoices.createNew')}</Btn>
+            </div>
+            {invoicesLoading
+              ? <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"/></div>
+              : myInvoices.length === 0
+                ? <Card className="p-16 text-center"><p className="text-gray-500 mb-4">{t('helperDashboard.invoices.none')}</p><Btn onClick={openAddInvoice}>{t('helperDashboard.invoices.createNew')}</Btn></Card>
+                : <div className="space-y-3">
+                    {myInvoices.map(inv => (
+                      <div key={inv.id} className="p-4 border border-gray-800 rounded-xl">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-semibold text-white">#{inv.invoice_number}</p>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                inv.status === 'draft' ? 'bg-gray-700/40 text-gray-400' :
+                                inv.status === 'sent' ? 'bg-blue-500/15 text-blue-400' :
+                                inv.status === 'paid' ? 'bg-emerald-500/15 text-emerald-400' :
+                                'bg-orange-500/15 text-orange-400'
+                              }`}>{inv.status}</span>
+                            </div>
+                            <p className="text-sm text-gray-400 mb-2">{inv.client_name} • {inv.client_email}</p>
+                            <p className="text-xs text-gray-500">{inv.line_items?.length || 0} items • Total: <span className="text-orange-400 font-semibold">${(inv.total_cents / 100).toFixed(2)}</span></p>
+                            {inv.due_date && <p className="text-xs text-gray-600 mt-1">Due: {new Date(inv.due_date).toLocaleDateString()}</p>}
+                          </div>
+                          <div className="flex flex-col gap-1 flex-shrink-0">
+                            {inv.status === 'draft' && (
+                              <button
+                                onClick={() => handleSendInvoice(inv.id)}
+                                disabled={sendingInvoiceId === inv.id}
+                                className="text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold px-3 py-1 rounded-lg transition whitespace-nowrap"
+                              >
+                                {sendingInvoiceId === inv.id ? 'Sending...' : t('helperDashboard.invoices.send')}
+                              </button>
+                            )}
+                            <div className="flex gap-1 justify-end">
+                              {inv.status === 'draft' && (
+                                <button onClick={() => openEditInvoice(inv)} className="text-xs text-gray-500 hover:text-white transition px-2 py-1 rounded hover:bg-gray-800">{t('common.edit')}</button>
+                              )}
+                              <button onClick={() => window.open(`/invoices/${inv.public_token}`, '_blank')} className="text-xs text-blue-500 hover:text-blue-400 transition px-2 py-1 rounded hover:bg-blue-500/10">{t('common.view')}</button>
+                              <button onClick={() => handleDeleteInvoice(inv.id)} className="text-xs text-red-500 hover:text-red-400 transition px-2 py-1 rounded hover:bg-red-500/10">{t('helperDashboard.delete')}</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+            }
+          </div>
+        )}
+
         {/* ═══════ MY REVIEWS ═══════ */}
         {tab==='reviews'&&(
           <div>
@@ -2068,6 +2288,67 @@ export default function HelperDashboard() {
             ))}
           </div>
           <Btn className="w-full py-3" type="submit">{editingTool?t('dashboard.skillsTools.updateToolBtn'):t('dashboard.skillsTools.listTool')}</Btn>
+        </form>
+      </Modal>
+
+      {/* Invoice Modal */}
+      <Modal open={showInvoiceModal} onClose={() => setShowInvoiceModal(false)} title={editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}>
+        <form onSubmit={handleSaveInvoice} className="space-y-4">
+          <Input label={t('helperDashboard.invoices.clientName')} placeholder="John Doe" value={invoiceForm.client_name} onChange={e => setInvoiceForm(p => ({...p, client_name: e.target.value}))} required />
+          <Input label={t('helperDashboard.invoices.clientEmail')} type="email" placeholder="john@example.com" value={invoiceForm.client_email} onChange={e => setInvoiceForm(p => ({...p, client_email: e.target.value}))} required />
+
+          <div className="border-t border-gray-700 pt-4">
+            <label className="block text-[10px] uppercase tracking-widest font-semibold text-gray-500 mb-2">{t('helperDashboard.invoices.lineItems')}</label>
+            {invoiceForm.line_items.length > 0 && (
+              <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+                {invoiceForm.line_items.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-gray-800/50 p-2 rounded text-xs">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white truncate">{item.description}</p>
+                      <p className="text-gray-400">{item.quantity} × ${item.unit_price.toFixed(2)} = ${item.total.toFixed(2)}</p>
+                    </div>
+                    <button type="button" onClick={() => removeLineItem(idx)} className="text-red-500 hover:text-red-400 ml-2 flex-shrink-0">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Input label={t('helperDashboard.invoices.description')} placeholder={t('helperDashboard.invoices.descriptionPlaceholder')} value={lineItemInput.description} onChange={e => setLineItemInput(p => ({...p, description: e.target.value}))} />
+              <div className="grid grid-cols-3 gap-2">
+                <Input label={t('helperDashboard.invoices.qty')} type="number" step="0.01" min="0.01" placeholder="1" value={lineItemInput.quantity} onChange={e => setLineItemInput(p => ({...p, quantity: e.target.value}))} />
+                <Input label={t('helperDashboard.invoices.unitPrice')} type="number" step="0.01" min="0" placeholder="0.00" value={lineItemInput.unit_price} onChange={e => setLineItemInput(p => ({...p, unit_price: e.target.value}))} />
+                <button type="button" onClick={addLineItem} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition align-bottom self-end">{t('helperDashboard.invoices.addItem')}</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-700 pt-4 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">{t('helperDashboard.invoices.subtotal')}</span>
+              <span className="text-white font-semibold">${(invoiceForm.subtotal_cents / 100).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-400 flex-1">{t('helperDashboard.invoices.taxRate')}</label>
+              <input type="number" step="0.01" min="0" max="100" value={invoiceForm.tax_rate} onChange={e => updateTaxRate(parseFloat(e.target.value) || 0)} className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-sm text-white" />
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">{t('helperDashboard.invoices.tax')}</span>
+              <span className="text-white font-semibold">${(invoiceForm.tax_cents / 100).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-lg border-t border-gray-700 pt-3">
+              <span className="text-white font-bold">{t('helperDashboard.invoices.total')}</span>
+              <span className="text-orange-400 font-bold">${(invoiceForm.total_cents / 100).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <Input label={t('helperDashboard.invoices.dueDate')} type="date" value={invoiceForm.due_date} onChange={e => setInvoiceForm(p => ({...p, due_date: e.target.value}))} />
+
+          <textarea rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-orange-500 focus:outline-none transition resize-none" placeholder={t('helperDashboard.invoices.memo')} value={invoiceForm.memo} onChange={e => setInvoiceForm(p => ({...p, memo: e.target.value}))} />
+
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setShowInvoiceModal(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 rounded-lg transition">{t('common.cancel')}</button>
+            <button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg transition">{editingInvoice ? t('helperDashboard.invoices.editTitle') : t('helperDashboard.invoices.createTitle')}</button>
+          </div>
         </form>
       </Modal>
 

@@ -45,6 +45,7 @@ import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
 import BusinessHubPage from './pages/BusinessHubPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
+import PublicInvoiceView from './pages/PublicInvoiceView';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -95,6 +96,7 @@ export default function App() {
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
+                    <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
                     <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
