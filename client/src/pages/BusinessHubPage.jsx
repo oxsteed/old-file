@@ -5,6 +5,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import BusinessSkillsSelector from '../components/BusinessSkillsSelector';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -22,6 +23,7 @@ import {
   listBusinessPolicies, createBusinessPolicy, updateBusinessPolicy, deleteBusinessPolicy,
   listBusinessFAQs, createBusinessFAQ, updateBusinessFAQ, deleteBusinessFAQ,
   listBusinessHours, updateBusinessHours,
+  listBusinessSkills,
 } from '../api/businesses';
 import '../styles/BusinessHubPage.css';
 
@@ -118,7 +120,7 @@ function BusinessHubInner() {
   const [profileSaving, setProfileSaving]   = useState(false);
   const [profileErr, setProfileErr]         = useState('');
 
-  // content tabs (services, gallery, policies, faqs, hours)
+  // content tabs (services, gallery, policies, faqs, hours, skills)
   const [services, setServices]             = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [gallery, setGallery]               = useState([]);
@@ -129,6 +131,8 @@ function BusinessHubInner() {
   const [faqsLoading, setFAQsLoading]       = useState(false);
   const [hours, setHours]                   = useState([]);
   const [hoursLoading, setHoursLoading]     = useState(false);
+  const [skills, setSkills]                 = useState([]);
+  const [skillsLoading, setSkillsLoading]   = useState(false);
   const [logoPreview, setLogoPreview]     = useState(null);
   const [coverPreview, setCoverPreview]   = useState(null);
   const [logoFile, setLogoFile]           = useState(null);
@@ -352,6 +356,14 @@ function BusinessHubInner() {
     finally { setHoursLoading(false); }
   }, [bizId, t]);
 
+  const loadSkills = useCallback(async () => {
+    if (!bizId) return;
+    setSkillsLoading(true);
+    try { setSkills(await listBusinessSkills(bizId)); }
+    catch { toast.error(t('businessHub.errorLoadSkills')); }
+    finally { setSkillsLoading(false); }
+  }, [bizId, t]);
+
   useEffect(() => {
     if (!bizId) return;
     if (tab === 'profile') loadProfile();
@@ -360,6 +372,7 @@ function BusinessHubInner() {
     else if (tab === 'policies') loadPolicies();
     else if (tab === 'faqs') loadFAQs();
     else if (tab === 'hours') loadHours();
+    else if (tab === 'skills') loadSkills();
     else if (tab === 'overview') loadOverview();
     else if (tab === 'invoices') loadInvoices();
     else if (tab === 'tax') loadTax();
@@ -368,7 +381,7 @@ function BusinessHubInner() {
       loadOverview();
     }
     else if (tab === 'team') loadTeam();
-  }, [bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
+  }, [bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
@@ -751,7 +764,7 @@ function BusinessHubInner() {
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
-  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours'];
+  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours', 'skills'];
   const visibleTabs = ['profile', ...contentTabIds, ...financeTabIds, 'team'].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
@@ -776,6 +789,7 @@ function BusinessHubInner() {
     if (tb === 'policies') return t('businessHub.tabPoliciesLabel');
     if (tb === 'faqs') return t('businessHub.tabFAQsLabel');
     if (tb === 'hours') return t('businessHub.tabHoursLabel');
+    if (tb === 'skills') return t('businessHub.tabSkillsLabel');
     if (tb === 'team') return t('businessHub.tabTeamLabel');
     if (tb === 'overview') return t('businessHub.tabOverviewLabel');
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
@@ -948,6 +962,15 @@ function BusinessHubInner() {
                   setForm(formData);
                   setModal('edit-hours');
                 }}
+              />
+            )}
+
+            {/* ── Skills tab ───────────────────────────────────────── */}
+            {tab === 'skills' && (
+              skillsLoading ? <p className="bh-loading">{t('businessHub.loadingSkills')}</p> :
+              <BusinessSkillsSelector
+                businessId={bizId}
+                onSkillsChange={(updatedSkills) => setSkills(updatedSkills)}
               />
             )}
 

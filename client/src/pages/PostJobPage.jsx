@@ -583,6 +583,7 @@ const INIT = {
     crewSize:        { enabled: false, minCrew: 2 },
     backgroundCheck: { enabled: false },
   },
+  requiredSkills: [],
   categorySuggestion: null,
   budgetType: 'open', budgetAmount: 800, budgetAmountHourly: 45,
       // ── Scheduling & recurrence (merged from Planned Needs) ──
@@ -620,6 +621,96 @@ function CheckIcon({ size = 12 }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
       <polyline points="20 6 9 17 4 12" />
     </svg>
+  );
+}
+
+// ─── SkillSearch component ───────────────────────────────────────────────────
+function SkillSearch({ onAddSkill }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
+
+  const handleSearch = useCallback(async (q) => {
+    setQuery(q);
+    if (!q.trim()) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.get('/user-skills/lookup', {
+        params: { q, limit: 20 }
+      });
+      setResults(res.data.skills || []);
+    } catch (err) {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type="text"
+        placeholder={t('postJob.addSkill')}
+        value={query}
+        onChange={(e) => handleSearch(e.target.value)}
+        className="pjw-input"
+        style={{ width: '100%' }}
+        autoComplete="off"
+      />
+      {loading && <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)', marginTop: '0.5rem' }}>{t('common.loading')}</div>}
+      {query && results.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          backgroundColor: 'var(--card-bg)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '0.375rem',
+          marginTop: '0.25rem',
+          maxHeight: '200px',
+          overflowY: 'auto',
+          zIndex: 10
+        }}>
+          {results.map((skill) => (
+            <button
+              key={skill.id}
+              type="button"
+              onClick={() => {
+                onAddSkill(skill);
+                setQuery('');
+                setResults([]);
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '0.75rem 1rem',
+                border: 'none',
+                background: 'none',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                color: 'inherit'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--app-bg)'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+            >
+              <div>{skill.name}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)' }}>{skill.category}</div>
+            </button>
+          ))}
+        </div>
+      )}
+      {query && !loading && results.length === 0 && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--muted-text)', marginTop: '0.5rem' }}>
+          {t('businessSkills.noResults')}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -817,6 +908,9 @@ export default function PostJobPage() {
           .filter(([,v]) => v.enabled)
           .map(([type, v]) => ({ type, required: true, detail: v }))
       ));
+      if (form.requiredSkills.length > 0) {
+        fd.append('required_skills', JSON.stringify(form.requiredSkills));
+      }
       form.mediaFiles.forEach(f => fd.append('media', f));
       if (directHelperId) fd.append('preferred_helper_id', directHelperId);
 
@@ -1196,6 +1290,54 @@ export default function PostJobPage() {
                   </div>
 
                 </div>{/* /req-grid */}
+
+                {/* Required Skills Section */}
+                <div className="pjw-skills-section" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.9375rem' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    {t('postJob.skills')}
+                  </label>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>{t('postJob.skillsDesc')}</p>
+
+                  {/* Skill search and add */}
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <SkillSearch
+                      onAddSkill={(skill) => {
+                        if (!form.requiredSkills.find(s => s.id === skill.id)) {
+                          set({ requiredSkills: [...form.requiredSkills, skill] });
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Selected skills display */}
+                  {form.requiredSkills.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {form.requiredSkills.map((skill) => (
+                        <div key={skill.id} style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.5rem 1rem',
+                          backgroundColor: 'var(--card-bg)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '0.375rem',
+                          fontSize: '0.875rem'
+                        }}>
+                          <span>{skill.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => set({ requiredSkills: form.requiredSkills.filter(s => s.id !== skill.id) })}
+                            style={{ background: 'none', border: 'none', color: 'var(--muted-text)', cursor: 'pointer', padding: 0, fontSize: '1rem', lineHeight: 1 }}
+                            aria-label={`Remove ${skill.name}`}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Warning if requirements narrow the field */}
                 {activeReqs.length >= 3 && (
