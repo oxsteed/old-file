@@ -11,7 +11,7 @@ router.use(generalLimiter);
 // ── Customer endpoints ────────────────────────────────────────────────────────
 
 // POST submit a review for a completed lead (authenticated customer only)
-router.post('/business/:businessId/submit', authenticate, reviewsController.submitReview);
+router.post('/:businessId/submit', authenticate, reviewsController.submitReview);
 
 // DELETE a review (customer or business owner)
 router.delete('/:reviewId', authenticate, reviewsController.deleteReview);
@@ -19,10 +19,10 @@ router.delete('/:reviewId', authenticate, reviewsController.deleteReview);
 // ── Public endpoints (no authentication required) ────────────────────────────
 
 // GET reviews for a business (public, paginated, with stats)
-router.get('/business/:businessId', reviewsController.getBusinessReviews);
+router.get('/:businessId', reviewsController.getBusinessReviews);
 
 // GET review stats for a business (avg rating, distribution, total count)
-router.get('/business/:businessId/stats', reviewsController.getReviewStats);
+router.get('/:businessId/stats', reviewsController.getReviewStats);
 
 // ── Business owner endpoints ──────────────────────────────────────────────────
 

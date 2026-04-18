@@ -16,7 +16,11 @@ exports.submitReview = async (req, res) => {
     if (!testimonial || !testimonial.trim()) {
       return sendError(res, 400, 'Testimonial is required');
     }
-    if (testimonial.trim().length > 500) {
+    const trimmedTestimonial = testimonial.trim();
+    if (trimmedTestimonial.length < 10) {
+      return sendError(res, 400, 'Testimonial must be at least 10 characters long');
+    }
+    if (trimmedTestimonial.length > 500) {
       return sendError(res, 400, 'Testimonial exceeds 500 character limit');
     }
     if (!leadId || !Number.isInteger(parseInt(leadId, 10))) {
@@ -58,7 +62,7 @@ exports.submitReview = async (req, res) => {
        (business_id, customer_id, lead_id, rating, testimonial)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, business_id, customer_id, lead_id, rating, testimonial, response, created_at, updated_at`,
-      [businessId, customerId, leadId, rating, testimonial.trim()]
+      [businessId, customerId, leadId, rating, trimmedTestimonial]
     );
 
     const review = result.rows[0];
@@ -210,7 +214,11 @@ exports.respondToReview = async (req, res) => {
     if (!response || !response.trim()) {
       return sendError(res, 400, 'Response is required');
     }
-    if (response.trim().length > 500) {
+    const trimmedResponse = response.trim();
+    if (trimmedResponse.length < 10) {
+      return sendError(res, 400, 'Response must be at least 10 characters long');
+    }
+    if (trimmedResponse.length > 500) {
       return sendError(res, 400, 'Response exceeds 500 character limit');
     }
 
@@ -228,13 +236,19 @@ exports.respondToReview = async (req, res) => {
 
     const review = reviewRes.rows[0];
 
-    // Verify the user owns the business
-    const bizRes = await pool.query(
-      `SELECT id FROM businesses WHERE id = $1 AND user_id = $2`,
+    // Verify the user owns the business or is an active member
+    const isOwner = await pool.query(
+      `SELECT 1 FROM businesses WHERE id = $1 AND user_id = $2`,
       [review.business_id, req.user.id]
-    );
+    ).then(r => r.rows.length > 0);
 
-    if (!bizRes.rows[0]) {
+    const isMember = await pool.query(
+      `SELECT 1 FROM business_members
+       WHERE business_id = $1 AND user_id = $2 AND status = 'active'`,
+      [review.business_id, req.user.id]
+    ).then(r => r.rows.length > 0);
+
+    if (!isOwner && !isMember) {
       return sendError(res, 403, 'You do not have permission to respond to this review');
     }
 
@@ -244,7 +258,7 @@ exports.respondToReview = async (req, res) => {
        SET response = $1, updated_at = NOW()
        WHERE id = $2
        RETURNING id, business_id, customer_id, lead_id, rating, testimonial, response, created_at, updated_at`,
-      [response.trim(), reviewId]
+      [trimmedResponse, reviewId]
     );
 
     sendSuccess(res, result.rows[0], 'Response added successfully');
