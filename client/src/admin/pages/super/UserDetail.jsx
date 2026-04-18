@@ -237,9 +237,25 @@ export default function UserDetail() {
           </div>
         </div>
 
-        {/* Super admin actions */}
-        {isSuper && (
-          <div className="flex flex-wrap gap-2 sm:shrink-0">
+        {/* Admin actions - messaging available to all admins, other actions super-admin only */}
+        <div className="flex flex-wrap gap-2 sm:shrink-0">
+          {/* Admin messaging (available to all admins with message_users permission) */}
+          <button
+            onClick={() => setShowMsgModal(true)}
+            disabled={['admin', 'super_admin'].includes(user.role)}
+            title={['admin', 'super_admin'].includes(user.role) ? 'Cannot message admin accounts' : undefined}
+            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-900
+                       text-indigo-300 hover:bg-indigo-800 rounded-lg text-xs
+                       font-semibold transition disabled:opacity-40
+                       disabled:cursor-not-allowed"
+          >
+            <MessageSquare size={13} />
+            Message
+          </button>
+
+          {/* Super admin actions */}
+          {isSuper && (
+            <>
             <button
               onClick={() => doAction(
                 'ban',
@@ -271,19 +287,6 @@ export default function UserDetail() {
             >
               <Shield size={13} />
               Verify ID
-            </button>
-
-            <button
-              onClick={() => setShowMsgModal(true)}
-              disabled={['admin', 'super_admin'].includes(user.role)}
-              title={['admin', 'super_admin'].includes(user.role) ? 'Cannot message admin accounts' : undefined}
-              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-900
-                         text-indigo-300 hover:bg-indigo-800 rounded-lg text-xs
-                         font-semibold transition disabled:opacity-40
-                         disabled:cursor-not-allowed"
-            >
-              <MessageSquare size={13} />
-              Message
             </button>
 
             <select
