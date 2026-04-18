@@ -151,6 +151,23 @@ exports.cancelSubscription = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'No active subscription found.' });
 
+    // ── CHECK FOR OPEN ESCROW FUNDS ──────────────────────────────────────
+    // Helpers cannot cancel Tier 3 subscription while they have escrow funds held
+    const { rows: escrowRows } = await db.query(`
+      SELECT COUNT(*) as count FROM payments
+      WHERE payee_id = $1
+        AND escrow_status IN ('authorized', 'disputed', 'held')
+        AND status IN ('authorized', 'captured')
+    `, [req.user.id]);
+
+    if (escrowRows[0] && parseInt(escrowRows[0].count) > 0) {
+      return res.status(409).json({
+        error: 'Cannot cancel subscription while escrow funds are held',
+        message: 'You have ' + escrowRows[0].count + ' job(s) with pending escrow. Complete or cancel these jobs before downgrading your subscription.',
+        escrow_count: parseInt(escrowRows[0].count)
+      });
+    }
+
     const stripeSub = await stripe.subscriptions.update(rows[0].stripe_subscription_id, {
       cancel_at_period_end: true,
     });
