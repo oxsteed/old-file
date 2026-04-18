@@ -1467,6 +1467,11 @@
     "noBidsYet": "Aucune offre pour l'instant. Parcourez les missions disponibles.",
     "jobNumber": "Mission #{{id}}",
     "viewPublicProfile": "Voir le profil public",
+    "editProfile": "Modifiez Votre Profil",
+    "editProfileDesc": "Mettez à jour les informations que les clients voient lorsqu'ils visitent votre profil.",
+    "sectionVisibility": "Visibilité des Sections",
+    "visibilityHint": "Activez ou désactivez les sections pour contrôler ce qui apparaît sur votre profil public. Désactivez les sections que vous n'avez pas encore complétées.",
+    "visibilitySaved": "Paramètres de visibilité enregistrés",
     "tabs": {
       "editProfile": "Modifier le profil",
       "earnings": "Revenus",

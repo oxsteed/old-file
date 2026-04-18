@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { ProgressBar, Card, CardHeader, Btn, Input, Textarea, Select } from './dashboardUI';
@@ -10,9 +11,18 @@ const buildDefaultAvail = () => Object.fromEntries(DAY_LABELS.map(d => [d, { clo
 // ── Main component ────────────────────────────────────────────────────────────
 export default function EditProfileTab() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [section, setSection] = useState('core');
+
+  const [visibility, setVisibility] = useState({
+    show_services: true,
+    show_faqs: true,
+    show_policies: true,
+    show_gallery: true,
+    show_hours: true,
+  });
 
   const [core, setCore] = useState({
     profile_headline: '', bio_long: '', hourly_rate_min: '', hourly_rate_max: '',
@@ -44,6 +54,13 @@ export default function EditProfileTab() {
           availability_json:    d.availability_json     || buildDefaultAvail(),
           is_available_now:     !!d.is_available_now,
         });
+        setVisibility({
+          show_services: d.show_services !== false,
+          show_faqs: d.show_faqs !== false,
+          show_policies: d.show_policies !== false,
+          show_gallery: d.show_gallery !== false,
+          show_hours: d.show_hours !== false,
+        });
         setServices(d.services  || []);
         setFaqs(d.faqs          || []);
         setPolicies(d.policies  || []);
@@ -51,7 +68,7 @@ export default function EditProfileTab() {
       })
       .catch(() => toast.error(t('helperDashboard.failedLoadProfile')))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   // ── Core save ───────────────────────────────────────────────────────────────
   const saveCore = async (e) => {
@@ -126,6 +143,22 @@ export default function EditProfileTab() {
     catch { toast.error(t('helperDashboard.failedDelete')); }
   };
 
+  // ── Visibility save ───────────────────────────────────────────────────────────
+  const saveVisibility = async (updates) => {
+    try {
+      const payload = { ...visibility, ...updates };
+      await api.put('/helper-profile/visibility', payload);
+      setVisibility(payload);
+      toast.success(t('helperDashboard.visibilitySaved'));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('helperDashboard.failedSave'));
+    }
+  };
+
+  const toggleVisibility = (key) => {
+    saveVisibility({ [key]: !visibility[key] });
+  };
+
   // ── Availability helpers ─────────────────────────────────────────────────────
   const toggleDay = (day) => setCore(prev => ({
     ...prev,
@@ -179,6 +212,57 @@ export default function EditProfileTab() {
 
   return (
     <div className="space-y-6">
+      {/* Header with Public Profile Link & Visibility Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-white">{t('helperDashboard.editProfile')}</h2>
+          <p className="text-xs text-gray-500 mt-1">{t('helperDashboard.editProfileDesc')}</p>
+        </div>
+        <a
+          href={`/helpers/${user?.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 text-sm font-semibold whitespace-nowrap"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          {t('helperDashboard.viewPublicProfile')}
+        </a>
+      </div>
+
+      {/* Section Visibility Controls */}
+      <Card>
+        <CardHeader title={t('helperDashboard.sectionVisibility')} />
+        <p className="text-xs text-gray-500 mb-4">{t('helperDashboard.visibilityHint')}</p>
+        <div className="space-y-2">
+          {[
+            { key: 'show_services', label: t('helperDashboard.sectionServices') },
+            { key: 'show_faqs', label: t('helperDashboard.sectionFaqs') },
+            { key: 'show_policies', label: t('helperDashboard.sectionPolicies') },
+            { key: 'show_gallery', label: t('helperDashboard.sectionPhotos') },
+            { key: 'show_hours', label: t('helperDashboard.sectionAvailability') },
+          ].map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between p-3 bg-gray-800/40 rounded-lg border border-gray-700/40">
+              <label className="text-sm font-medium text-gray-300">{label}</label>
+              <button
+                onClick={() => toggleVisibility(key)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  visibility[key] ? 'bg-emerald-600' : 'bg-gray-700'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    visibility[key] ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {/* Completeness */}
       <Card>
         <div className="flex items-center justify-between mb-2">

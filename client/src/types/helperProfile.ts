@@ -212,6 +212,16 @@ export interface ChatSession {
   typing?: TypingIndicator | null;
 }
 
+// ─── Section Visibility ─────────────────────────────────────────────────────
+
+export interface SectionVisibility {
+  services: boolean;
+  gallery: boolean;
+  hours: boolean;
+  policies: boolean;
+  faqs: boolean;
+}
+
 // ─── Page-level aggregate ───────────────────────────────────────────────────
 
 export interface HelperProfileData {
@@ -223,6 +233,7 @@ export interface HelperProfileData {
   policies: Policy[];
   reviews: Review[];
   faqs: FAQ[];
+  visibility: SectionVisibility;
   chatSession: ChatSession;
 }
 

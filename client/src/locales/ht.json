@@ -1441,6 +1441,11 @@
     "wonBidsCount": "{{count}} genyen",
     "noBidsYet": "Pa gen òf toujou. Eksplore travay disponib pou kòmanse.",
     "viewPublicProfile": "Wè pwofil piblik",
+    "editProfile": "Edite Pwofil ou",
+    "editProfileDesc": "Aktyalize enfòmasyon ki kliyè yo wè lè yo vizite pwofil ou.",
+    "sectionVisibility": "Vizibilite Seksyon",
+    "visibilityHint": "Lonje oswa fèmen seksyon pou kontwole sa ki parèt sou pwofil piblik ou. Fèmen seksyon ou poko fini.",
+    "visibilitySaved": "Anviwònman vizibilite te sove",
     "tabs": {
       "editProfile": "Modifye pwofil",
       "earnings": "Revni",
