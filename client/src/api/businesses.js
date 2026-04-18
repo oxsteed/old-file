@@ -62,3 +62,31 @@ export const listVortexTokens    = (bizId)               => api.get(`/businesses
 export const generateVortexToken = (bizId, payload)      => api.post(`/businesses/${bizId}/vortex-tokens`, payload).then(r => r.data?.token);
 export const revokeVortexToken   = (bizId, tokenId)      => api.delete(`/businesses/${bizId}/vortex-tokens/${tokenId}`).then(r => r.data);
 export const redeemVortexToken   = (token)               => api.post('/businesses/vortex/redeem', { token }).then(r => r.data);
+
+// ── Business content: Services ─────────────────────────────────────────────────
+export const listBusinessServices  = (bizId)             => api.get(`/businesses/${bizId}/services`).then(r => r.data || []);
+export const createBusinessService = (bizId, payload)    => api.post(`/businesses/${bizId}/services`, payload).then(r => r.data);
+export const updateBusinessService = (bizId, svcId, p)   => api.put(`/businesses/${bizId}/services/${svcId}`, p).then(r => r.data);
+export const deleteBusinessService = (bizId, svcId)      => api.delete(`/businesses/${bizId}/services/${svcId}`).then(r => r.data);
+
+// ── Business content: Gallery ──────────────────────────────────────────────────
+export const listBusinessGallery   = (bizId)             => api.get(`/businesses/${bizId}/gallery`).then(r => r.data || []);
+export const addBusinessPhoto      = (bizId, payload)    => api.post(`/businesses/${bizId}/gallery`, payload).then(r => r.data);
+export const updateBusinessPhoto   = (bizId, photoId, p) => api.put(`/businesses/${bizId}/gallery/${photoId}`, p).then(r => r.data);
+export const deleteBusinessPhoto   = (bizId, photoId)    => api.delete(`/businesses/${bizId}/gallery/${photoId}`).then(r => r.data);
+
+// ── Business content: Policies ─────────────────────────────────────────────────
+export const listBusinessPolicies  = (bizId)             => api.get(`/businesses/${bizId}/policies`).then(r => r.data || []);
+export const createBusinessPolicy  = (bizId, payload)    => api.post(`/businesses/${bizId}/policies`, payload).then(r => r.data);
+export const updateBusinessPolicy  = (bizId, policyId, p) => api.put(`/businesses/${bizId}/policies/${policyId}`, p).then(r => r.data);
+export const deleteBusinessPolicy  = (bizId, policyId)   => api.delete(`/businesses/${bizId}/policies/${policyId}`).then(r => r.data);
+
+// ── Business content: FAQs ─────────────────────────────────────────────────────
+export const listBusinessFAQs      = (bizId)             => api.get(`/businesses/${bizId}/faqs`).then(r => r.data || []);
+export const createBusinessFAQ     = (bizId, payload)    => api.post(`/businesses/${bizId}/faqs`, payload).then(r => r.data);
+export const updateBusinessFAQ     = (bizId, faqId, p)   => api.put(`/businesses/${bizId}/faqs/${faqId}`, p).then(r => r.data);
+export const deleteBusinessFAQ     = (bizId, faqId)      => api.delete(`/businesses/${bizId}/faqs/${faqId}`).then(r => r.data);
+
+// ── Business content: Hours ────────────────────────────────────────────────────
+export const listBusinessHours     = (bizId)             => api.get(`/businesses/${bizId}/hours`).then(r => r.data || []);
+export const updateBusinessHours   = (bizId, payload)    => api.put(`/businesses/${bizId}/hours`, payload).then(r => r.data);

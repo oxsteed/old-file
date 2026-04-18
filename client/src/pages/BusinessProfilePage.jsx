@@ -59,7 +59,7 @@ function buildBadges(business, t) {
  * to the HelperProfileData shape expected by the shared components.
  */
 function mapToHelperProfileData(profile, t) {
-  const { business, services, reviews, gallery, faqs, policies } = profile;
+  const { business, services, reviews, gallery, faqs, policies, hours } = profile;
 
   const helper = {
     id:            business.owner_id,
@@ -95,7 +95,7 @@ function mapToHelperProfileData(profile, t) {
   const mappedGallery = (gallery || []).map(g => ({
     id:      String(g.id),
     url:     g.url,
-    alt:     g.caption || t('businessProfile.galleryAlt'),
+    alt:     g.alt || g.caption || t('businessProfile.galleryAlt'),
     caption: g.caption || '',
     type:    'photo',
   }));
@@ -134,8 +134,15 @@ function mapToHelperProfileData(profile, t) {
     servesRemotely:false,
   };
 
-  // Hours: not returned by the business public API — rendered only if present.
-  const hours = [];
+  // Hours: mapped from business_hours table (Phase 3 business content)
+  // Convert day_of_week (0-6) to day names expected by HoursSection
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const mappedHours = (hours || []).map(h => ({
+    day:    DAY_NAMES[h.day_of_week] || 'Sunday',
+    open:   h.start_time || '00:00',
+    close:  h.end_time || '00:00',
+    closed: h.is_closed || false,
+  }));
 
   const chatSession = {
     id:            `session_${business.owner_id}`,
@@ -155,7 +162,7 @@ function mapToHelperProfileData(profile, t) {
     faqs:        mappedFaqs,
     policies:    mappedPolicies,
     location,
-    hours,
+    hours:       mappedHours,
     chatSession,
     // Extras not in HelperProfileData — kept for supplementary sections
     team:    profile.team || [],

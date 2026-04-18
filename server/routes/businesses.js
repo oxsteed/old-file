@@ -29,6 +29,14 @@ const {
   generateToken, listTokens, revokeToken, redeemToken,
 } = require('../controllers/vortexController');
 
+const {
+  getBusinessServices, createBusinessService, updateBusinessService, deleteBusinessService,
+  getBusinessGallery, addBusinessGalleryPhoto, updateBusinessGalleryPhoto, deleteBusinessGalleryPhoto,
+  getBusinessPolicies, createBusinessPolicy, updateBusinessPolicy, deleteBusinessPolicy,
+  getBusinessFAQs, createBusinessFAQ, updateBusinessFAQ, deleteBusinessFAQ,
+  getBusinessHours, updateBusinessHours,
+} = require('../controllers/businessContentController');
+
 // ── Public invoice by token (no auth required) ────────────────────────────────
 router.get('/invoices/public/:token', getPublicInvoice);
 
@@ -89,5 +97,34 @@ router.delete('/:id/members/:memberId',         authenticate, revokeMember);
 router.get('/:id/vortex-tokens',                authenticate, listTokens);
 router.post('/:id/vortex-tokens',               authenticate, generateToken);
 router.delete('/:id/vortex-tokens/:tokenId',    authenticate, revokeToken);
+
+// ── Business content (services, gallery, policies, faqs, hours) ────────────────
+// SERVICES
+router.get('/:businessId/services',              getBusinessServices);
+router.post('/:businessId/services',             authenticate, createBusinessService);
+router.put('/:businessId/services/:serviceId',   authenticate, updateBusinessService);
+router.delete('/:businessId/services/:serviceId', authenticate, deleteBusinessService);
+
+// GALLERY
+router.get('/:businessId/gallery',               getBusinessGallery);
+router.post('/:businessId/gallery',              authenticate, addBusinessGalleryPhoto);
+router.put('/:businessId/gallery/:photoId',      authenticate, updateBusinessGalleryPhoto);
+router.delete('/:businessId/gallery/:photoId',   authenticate, deleteBusinessGalleryPhoto);
+
+// POLICIES
+router.get('/:businessId/policies',              getBusinessPolicies);
+router.post('/:businessId/policies',             authenticate, createBusinessPolicy);
+router.put('/:businessId/policies/:policyId',    authenticate, updateBusinessPolicy);
+router.delete('/:businessId/policies/:policyId', authenticate, deleteBusinessPolicy);
+
+// FAQs
+router.get('/:businessId/faqs',                  getBusinessFAQs);
+router.post('/:businessId/faqs',                 authenticate, createBusinessFAQ);
+router.put('/:businessId/faqs/:faqId',           authenticate, updateBusinessFAQ);
+router.delete('/:businessId/faqs/:faqId',        authenticate, deleteBusinessFAQ);
+
+// HOURS
+router.get('/:businessId/hours',                 getBusinessHours);
+router.put('/:businessId/hours',                 authenticate, updateBusinessHours);
 
 module.exports = router;
