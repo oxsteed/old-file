@@ -15,6 +15,7 @@ const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = require('../utils/trial');
 const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
+const tokenRevocationService = require('../services/tokenRevocationService');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 
@@ -423,10 +424,16 @@ async function logout(req, res) {
   try {
     const { refreshToken: token } = req.body;
     let didInvalidateSession = false;
+    let userId = null;
 
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
       await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [hashedToken]);
+
+      // Revoke the refresh token immediately
+      const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+      await tokenRevocationService.revokeRefreshToken(tokenId);
+
       didInvalidateSession = true;
     }
 
@@ -436,7 +443,13 @@ async function logout(req, res) {
       try {
         const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'secret');
         if (decoded?.id) {
+          userId = decoded.id;
           await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [decoded.id]);
+
+          // Revoke the access token immediately
+          const tokenId = crypto.createHash('sha256').update(accessToken).digest('hex');
+          await tokenRevocationService.revokeAccessToken(tokenId);
+
           didInvalidateSession = true;
         }
       } catch (err) {
@@ -446,6 +459,11 @@ async function logout(req, res) {
 
     if (!didInvalidateSession) {
       return res.status(400).json({ error: 'Refresh token or valid access token required' });
+    }
+
+    // Revoke all user tokens on logout
+    if (userId) {
+      await tokenRevocationService.revokeAllUserTokens(userId);
     }
 
     res.json({ message: 'Logged out' });
