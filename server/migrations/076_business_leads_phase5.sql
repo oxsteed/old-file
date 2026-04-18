@@ -2,18 +2,18 @@
 -- This migration creates tables for managing customer service requests (leads)
 -- and quote negotiation between businesses and customers.
 
--- ── 1. business_leads table ───────────────────────────────────────────────
+-- ── 1. business_leads table ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS business_leads (
   id                 BIGSERIAL       PRIMARY KEY,
   business_id        INTEGER         NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-  customer_id        BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  customer_id        UUID            NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   service_ids        INTEGER[]       DEFAULT '{}',  -- IDs of selected services (from business_services)
   description        TEXT,                          -- Customer's detailed request
   budget_min         DECIMAL(10,2),                 -- Customer's budget range (optional)
   budget_max         DECIMAL(10,2),
   status             VARCHAR(20)     NOT NULL DEFAULT 'pending',  -- pending, quoted, accepted, rejected, completed, cancelled
   lead_number        VARCHAR(20),                   -- Human-readable lead ID (LN-001, LN-002, etc.)
-  assigned_to_id     BIGINT          REFERENCES users(id) ON DELETE SET NULL,  -- Business member assigned to lead
+  assigned_to_id     UUID            REFERENCES users(id) ON DELETE SET NULL,  -- Business member assigned to lead
   created_at         TIMESTAMPTZ     NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ     NOT NULL DEFAULT now(),
   completed_at       TIMESTAMPTZ,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS lead_quotes (
   expires_at         TIMESTAMPTZ,                  -- Quote expiration date
   status             VARCHAR(20)     NOT NULL DEFAULT 'pending',  -- pending, accepted, rejected, expired
   accepted_at        TIMESTAMPTZ,
-  accepted_by_id     BIGINT          REFERENCES users(id) ON DELETE SET NULL,
+  accepted_by_id     UUID            REFERENCES users(id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ     NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ     NOT NULL DEFAULT now(),
   CONSTRAINT quote_status_check CHECK (status IN ('pending', 'accepted', 'rejected', 'expired'))
