@@ -35,7 +35,9 @@ const ToolRentalsBrowse = () => {
         const cats = await toolRentalsApi.getCategories();
         setCategories(cats);
       } catch (err) {
-        console.error('Failed to load categories:', err);
+        console.error('Failed to load categories - full error:', err);
+        console.error('Error response:', err.response?.data);
+        console.error('Error status:', err.response?.status);
         setError(t('toolRentals.errorLoadCategories'));
       }
     };
