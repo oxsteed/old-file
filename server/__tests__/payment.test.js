@@ -19,7 +19,7 @@ const TOKEN = jwt.sign({ id: 1, email: 'c@test.com', role: 'customer' }, process
 
 const MOCK_AUTH_USER = {
   id: 1, first_name: 'Alice', last_name: 'Smith', email: 'c@test.com',
-  phone: null, role: 'customer', email_verified: true, is_verified: false,
+  phone: null, role: 'customer', email_verified: true, is_verified: false, is_active: true,
   onboarding_status: 'active', onboarding_completed: true,
   contact_completed: true, profile_completed: true,
   tier_selected: true, w9_completed: false, terms_accepted: true,
@@ -127,7 +127,7 @@ describe('POST /api/payments/capture', () => {
 
   test('returns 404 when no authorized payment found', async () => {
     mockAuth(
-      { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Job' }] },
+      { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Job', client_id: 1 }] },
       { rows: [] } // no payment
     );
     const res = await auth(
@@ -136,22 +136,20 @@ describe('POST /api/payments/capture', () => {
     expect(res.status).toBe(404);
   });
 
-  test('captures payment successfully', async () => {
-    stripe.paymentIntents.capture.mockResolvedValueOnce({ id: 'pi_test123', status: 'succeeded' });
+  test('queues payment capture job and returns 202 Accepted', async () => {
     mockAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] }, // job
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100 }] }, // payment
-      { rows: [] }, // UPDATE payment
-      { rows: [] }, // INSERT income expense
-      { rows: [] }  // INSERT expense
+      { rows: [] } // dispute check
     );
     const res = await auth(
       request(buildApp()).post('/api/payments/capture').send({ job_id: 10 })
     );
-    expect(res.status).toBe(200);
-    expect(stripe.paymentIntents.capture).toHaveBeenCalledWith(
-      'pi_test123', {}, { stripeAccount: 'acct_x' }
-    );
+    expect(res.status).toBe(202);
+    expect(res.body.status).toBe('processing');
+    expect(res.body.message).toBe('Payment capture queued');
+    expect(res.body.payment_id).toBe(5);
+    expect(res.body.job_id).toBe(10);
   });
 });
 

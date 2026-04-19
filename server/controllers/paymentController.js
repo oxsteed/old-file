@@ -149,6 +149,7 @@ exports.createPaymentIntent = async (req, res) => {
 exports.capturePayment = async (req, res) => {
   try {
     const { job_id } = req.body;
+    const { queuePaymentCapture } = require('../services/paymentQueue');
 
     // ── Validation (outside transaction) ──────────────────────────────────
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
@@ -168,64 +169,18 @@ exports.capturePayment = async (req, res) => {
       return res.status(409).json({ error: 'Cannot capture payment while dispute is open. Dispute must be resolved first.' });
     }
 
-    // ── Stripe capture (outside transaction for idempotency) ──────────────
+    // ── Queue payment capture job (asynchronous processing) ──────────────
+    // Instead of blocking on Stripe API call, queue the job and return 202 Accepted
     const paymentData = payment.rows[0];
-    try {
-      await stripe.paymentIntents.capture(
-        paymentData.stripe_payment_intent_id,
-        {},
-        { stripeAccount: paymentData.stripe_account_id }
-      );
-    } catch (stripeErr) {
-      logger.error('Stripe capture failed', { paymentId: paymentData.id, error: stripeErr.message });
-      // If Stripe capture fails, we don't proceed to DB update
-      return res.status(402).json({ error: 'Payment capture failed with payment processor' });
-    }
+    await queuePaymentCapture(paymentData.id, job_id, paymentData.amount);
 
-    // ── Database updates (ATOMIC TRANSACTION) ───────────────────────────────
-    // All database changes happen as a single atomic operation
-    await withPaymentTransaction(pool, async (client) => {
-      // 1. Update payment status
-      await client.query(
-        `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
-         captured_at = NOW(), released_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [paymentData.id]
-      );
-
-      // 2. Log to Life Dashboard (helper income)
-      await client.query(
-        `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
-         VALUES ($1, 'income', $2, 'Gig Payment', $3, CURRENT_DATE)`,
-        [job.rows[0].assigned_helper_id, paymentData.amount, 'Payment: ' + job.rows[0].title]
-      );
-
-      // 3. Log to Life Dashboard (customer expense)
-      await client.query(
-        `INSERT INTO expenses (user_id, type, amount, category, description, occurred_at)
-         VALUES ($1, 'expense', $2, 'Home Services', $3, CURRENT_DATE)`,
-        [job.rows[0].client_id, paymentData.amount, 'Paid: ' + job.rows[0].title]
-      );
-
-      // 4. Log to platform ledger (financial audit trail)
-      await client.query(
-        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-         VALUES (NULL, 'payment_captured', $1, $2, $3)`,
-        [
-          Math.round(paymentData.amount * 100),
-          `Payment #${paymentData.id} captured for job ${job.rows[0].id}`,
-          JSON.stringify({
-            payment_id: paymentData.id,
-            job_id: job.rows[0].id,
-            customer_id: job.rows[0].client_id,
-            helper_id: job.rows[0].assigned_helper_id,
-            stripe_intent: paymentData.stripe_payment_intent_id,
-            amount: paymentData.amount
-          })
-        ]
-      );
-    }, 'capture_payment');
-
-    res.json({ message: 'Payment captured — funds released to helper' });
+    // Return 202 Accepted - job is queued and will be processed asynchronously
+    return res.status(202).json({
+      status: 'processing',
+      message: 'Payment capture queued',
+      payment_id: paymentData.id,
+      job_id: job_id
+    });
   } catch (err) {
     logger.error('Capture payment error', { err });
     res.status(500).json({ error: 'Failed to capture payment' });

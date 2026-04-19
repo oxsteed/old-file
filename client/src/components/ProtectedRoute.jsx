@@ -17,6 +17,11 @@ const DIDIT_EXEMPT_PATHS = [
   '/verify-identity',
 ];
 
+// Paths that are part of email verification flow.
+const EMAIL_VERIFICATION_EXEMPT_PATHS = [
+  '/verify-email',
+];
+
 // Didit statuses that grant full access to protected routes.
 const DIDIT_COMPLETE = ['verified', 'skipped'];
 
@@ -38,6 +43,15 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
 
   if (requiredRole && user.role !== requiredRole) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Email verification gate.
+  // All authenticated users must have a verified email before accessing protected routes.
+  if (
+    !user.email_verified &&
+    !EMAIL_VERIFICATION_EXEMPT_PATHS.includes(location.pathname)
+  ) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   // Didit identity-verification gate.

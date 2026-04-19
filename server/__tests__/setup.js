@@ -17,6 +17,7 @@
 // Set test env vars BEFORE any module is required
 process.env.NODE_ENV        = 'test';
 process.env.JWT_SECRET      = 'test-jwt-secret-min-32-chars-long!!';
+process.env.ENCRYPTION_KEY  = 'a'.repeat(32); // 32-byte key for AES-256
 process.env.DATABASE_URL    = 'postgresql://test:test@localhost/test_db';
 process.env.STRIPE_SECRET_KEY    = 'sk_test_dummy';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_dummy';
@@ -51,6 +52,8 @@ jest.mock('../utils/email',  () => ({ sendOTPEmail: jest.fn().mockResolvedValue(
 jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(true) }));
 jest.mock('../services/socketService', () => ({ init: jest.fn(), emit: jest.fn() }));
 jest.mock('../services/feeService',    () => ({ reloadFeeConfig: jest.fn().mockResolvedValue(true), getFeeConfig: jest.fn().mockReturnValue({ platform_fee_pct: 10 }) }));
+jest.mock('../services/tokenRevocationService', () => ({ isRevoked: jest.fn().mockResolvedValue(false), revoke: jest.fn().mockResolvedValue(true), revokeAll: jest.fn().mockResolvedValue(true) }));
+jest.mock('../services/paymentQueue', () => ({ queuePaymentCapture: jest.fn().mockResolvedValue('job-123'), addJob: jest.fn().mockResolvedValue('job-id'), getNextJob: jest.fn(), retryJob: jest.fn(), completeJob: jest.fn() }));
 jest.mock('stripe', () => {
   const mockInstance = {
     paymentIntents: { create: jest.fn(), capture: jest.fn() },
@@ -70,6 +73,9 @@ jest.mock('ioredis', () => {
     get: jest.fn(), set: jest.fn(), del: jest.fn(), on: jest.fn(),
   }));
 });
+jest.mock('file-type', () => ({
+  fileTypeFromBuffer: jest.fn().mockResolvedValue({ mime: 'image/jpeg', ext: 'jpg' }),
+}));
 
 // ── Export pg mock handle ─────────────────────────────────────────────────────
 const { Pool } = require('pg');
