@@ -12,11 +12,11 @@ const { authenticate } = require('../middleware/auth');
 const pool    = require('../db');
 
 const TOOL_FIELDS = `
-  id, user_id, name, category, description,
-  daily_rate, hourly_rate, deposit_amount,
-  condition, brand, model, is_available,
-  requires_deposit, delivery_available, pickup_only,
-  location_city, location_state, created_at, updated_at
+  t.id, t.user_id, t.name, t.category, t.description,
+  t.daily_rate, t.hourly_rate, t.deposit_amount,
+  t.condition, t.brand, t.model, t.is_available,
+  t.requires_deposit, t.delivery_available, t.pickup_only,
+  t.location_city, t.location_state, t.created_at, t.updated_at
 `;
 
 // Seeded common tool categories (also merged with DB distinct values)
@@ -96,9 +96,9 @@ router.get('/me', authenticate, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS}
-         FROM tool_rentals
-        WHERE user_id = $1
-        ORDER BY created_at DESC`,
+         FROM tool_rentals t
+        WHERE t.user_id = $1
+        ORDER BY t.created_at DESC`,
       [req.user.id]
     );
     res.json({ tools: result.rows });
@@ -137,7 +137,11 @@ router.post('/', authenticate, async (req, res) => {
           is_available, requires_deposit, delivery_available, pickup_only,
           location_city, location_state)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-       RETURNING ${TOOL_FIELDS}`,
+       RETURNING id, user_id, name, category, description,
+                 daily_rate, hourly_rate, deposit_amount,
+                 condition, brand, model, is_available,
+                 requires_deposit, delivery_available, pickup_only,
+                 location_city, location_state, created_at, updated_at`,
       [
         req.user.id,
         name.trim(),
@@ -212,7 +216,11 @@ router.put('/:id', authenticate, async (req, res) => {
          location_state     = COALESCE($15, location_state),
          updated_at         = NOW()
        WHERE id = $16 AND user_id = $17
-       RETURNING ${TOOL_FIELDS}`,
+       RETURNING id, user_id, name, category, description,
+                 daily_rate, hourly_rate, deposit_amount,
+                 condition, brand, model, is_available,
+                 requires_deposit, delivery_available, pickup_only,
+                 location_city, location_state, created_at, updated_at`,
       [
         name?.trim() || null,
         category?.trim() || null,
