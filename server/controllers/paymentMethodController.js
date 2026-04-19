@@ -10,8 +10,15 @@ const validatePaymentIdentifier = (type, identifier) => {
     return /^@[a-zA-Z0-9\-_]{3,}$/.test(identifier);
   }
   if (type === 'bank_transfer') {
-    // Accept various formats: account numbers, email-like identifiers, etc.
-    return identifier.trim().length >= 5;
+    // Bank account validation:
+    // - Must be 5-34 characters (international account number lengths)
+    // - Must contain at least one digit (to distinguish from just text)
+    // - Can contain: alphanumeric, hyphens, spaces, slashes (common separators)
+    const trimmed = identifier.trim();
+    const isValidLength = trimmed.length >= 5 && trimmed.length <= 34;
+    const hasDigit = /[0-9]/.test(trimmed);
+    const isValidFormat = /^[a-zA-Z0-9\-\s\/]+$/.test(trimmed);
+    return isValidLength && hasDigit && isValidFormat;
   }
   return false;
 };
@@ -126,14 +133,23 @@ const setPaymentMethod = async (req, res) => {
     );
 
     const savedMethod = result.rows[0];
+
+    // Log the payment method change for audit purposes
+    logger.info('Payment method updated', {
+      userId: ownerId,
+      paymentType: paymentType,
+      action: 'payment_method_update',
+      timestamp: new Date().toISOString(),
+      // Note: actual payment identifier is NOT logged for security
+      // Only the type is logged so we can audit changes
+    });
+
     res.json({
       id: savedMethod.id,
       payment_type: savedMethod.payment_type,
       payment_identifier_masked: maskPaymentIdentifier(paymentType, paymentIdentifier),
       is_active: true
     });
-
-    logger.info('Payment method saved', { ownerId, paymentType });
   } catch (err) {
     logger.error('setPaymentMethod error', { err });
     res.status(500).json({ error: 'Failed to save payment method' });
@@ -143,10 +159,26 @@ const setPaymentMethod = async (req, res) => {
 const deletePaymentMethod = async (req, res) => {
   try {
     const ownerId = req.user.id;
+
+    // Get existing method for audit logging
+    const existingResult = await db.query(
+      'SELECT payment_type FROM owner_payment_methods WHERE owner_id = $1',
+      [ownerId]
+    );
+
     await db.query(
       'UPDATE owner_payment_methods SET is_active = FALSE WHERE owner_id = $1',
       [ownerId]
     );
+
+    // Log the deletion
+    logger.info('Payment method deleted', {
+      userId: ownerId,
+      paymentType: existingResult.rows[0]?.payment_type,
+      action: 'payment_method_delete',
+      timestamp: new Date().toISOString()
+    });
+
     res.json({ deleted: true });
   } catch (err) {
     logger.error('deletePaymentMethod error', { err });

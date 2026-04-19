@@ -1,5 +1,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const crypto = require('crypto');
+const { hashIP } = require('../utils/encryption');
 
 const TERMS_VERSION = '1.0';
 const TERMS_CONTENT = {
@@ -30,6 +32,10 @@ const acceptTerms = async (req, res) => {
     const userId = req.user.id;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('user-agent') || '';
+
+    // Hash IP and user-agent for privacy (stored hashed, not plaintext)
+    const hashedIp = hashIP(ipAddress);
+    const hashedUserAgent = crypto.createHash('sha256').update(userAgent).digest('hex');
 
     // Validate user role
     if (!['customer', 'owner'].includes(userRole)) {
@@ -68,13 +74,13 @@ const acceptTerms = async (req, res) => {
       return res.status(400).json({ error: 'You have already accepted these terms' });
     }
 
-    // Record acceptance
+    // Record acceptance with hashed IP and user-agent for privacy
     const result = await db.query(
       `INSERT INTO tool_rental_terms_acceptance
        (booking_id, user_id, user_role, terms_version, ip_address, user_agent)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, accepted_at, user_role`,
-      [bookingId, userId, userRole, TERMS_VERSION, ipAddress, userAgent]
+      [bookingId, userId, userRole, TERMS_VERSION, hashedIp, hashedUserAgent]
     );
 
     const acceptance = result.rows[0];

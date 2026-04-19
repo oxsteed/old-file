@@ -1,6 +1,19 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 
+// Map report types to severity levels
+const SEVERITY_MAP = {
+  'fraud': 'critical',        // Fraudulent activity - highest priority
+  'non_payment': 'high',      // Payment non-compliance - high priority
+  'tool_damage': 'medium',    // Tool condition disputes - medium priority
+  'non_return': 'high',       // Missing/non-returned tools - high priority
+  'other': 'low'              // General issues - low priority
+};
+
+const getReportSeverity = (reportType) => {
+  return SEVERITY_MAP[reportType] || 'medium';
+};
+
 const submitReport = async (req, res) => {
   try {
     const { reportedUserId, bookingId, reportType, description } = req.body;
@@ -32,13 +45,16 @@ const submitReport = async (req, res) => {
       return res.status(400).json({ error: 'You have already reported this user for this booking' });
     }
 
-    // Create report
+    // Determine severity based on report type
+    const severity = getReportSeverity(reportType);
+
+    // Create report with intelligent severity mapping
     const result = await db.query(
       `INSERT INTO user_reports
        (reporter_id, reported_user_id, booking_id, report_type, description, status, severity)
-       VALUES ($1, $2, $3, $4, $5, 'open', 'medium')
-       RETURNING id, report_type, status, created_at`,
-      [reporterId, reportedUserId, bookingId, reportType, description.trim()]
+       VALUES ($1, $2, $3, $4, $5, 'open', $6)
+       RETURNING id, report_type, status, severity, created_at`,
+      [reporterId, reportedUserId, bookingId, reportType, description.trim(), severity]
     );
 
     const report = result.rows[0];
@@ -94,18 +110,39 @@ const getMyReports = async (req, res) => {
 const getReportsAgainstMe = async (req, res) => {
   try {
     const userId = req.user.id;
+    const { page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * limitNum;
 
+    // Get total count
+    const countResult = await db.query(
+      `SELECT COUNT(*) as total FROM user_reports WHERE reported_user_id = $1`,
+      [userId]
+    );
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated results
     const result = await db.query(
       `SELECT ur.id, ur.reporter_id, ur.report_type, ur.description, ur.status,
               ur.severity, ur.created_at, u.first_name, u.last_name, u.email
        FROM user_reports ur
        JOIN users u ON ur.reporter_id = u.id
        WHERE ur.reported_user_id = $1
-       ORDER BY ur.severity DESC, ur.created_at DESC`,
-      [userId]
+       ORDER BY ur.severity DESC, ur.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limitNum, offset]
     );
 
-    res.json(result.rows);
+    res.json({
+      reports: result.rows,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (err) {
     logger.error('getReportsAgainstMe error', { err });
     res.status(500).json({ error: 'Failed to load reports against you' });
