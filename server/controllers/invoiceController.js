@@ -5,6 +5,7 @@ const PDFDocument = require('pdfkit');
 const { Readable } = require('stream');
 const crypto = require('crypto');
 const { sendInvoiceEmail } = require('../utils/invoiceEmail');
+const { decrypt } = require('../utils/encryption');
 
 const generateInvoiceNumber = async () => {
   const today = new Date();
@@ -95,7 +96,7 @@ const createInvoice = async (req, res) => {
 
     // Get owner's payment method
     const paymentResult = await client.query(
-      `SELECT payment_type, payment_identifier FROM owner_payment_methods WHERE owner_id = $1`,
+      `SELECT payment_type, payment_identifier, payment_identifier_encrypted FROM owner_payment_methods WHERE owner_id = $1`,
       [ownerId]
     );
 
@@ -104,7 +105,31 @@ const createInvoice = async (req, res) => {
       return res.status(400).json({ error: 'Payment method not configured' });
     }
 
-    const payment = paymentResult.rows[0];
+    const paymentRow = paymentResult.rows[0];
+    let decryptedIdentifier = null;
+
+    try {
+      // Try encrypted column first (new approach)
+      if (paymentRow.payment_identifier_encrypted) {
+        decryptedIdentifier = decrypt(paymentRow.payment_identifier_encrypted);
+      }
+      // Fall back to plaintext for backward compatibility
+      else if (paymentRow.payment_identifier) {
+        decryptedIdentifier = paymentRow.payment_identifier;
+      } else {
+        client.release();
+        return res.status(400).json({ error: 'Payment method not properly configured' });
+      }
+    } catch (decryptErr) {
+      client.release();
+      logger.error('Failed to decrypt payment identifier', { ownerId, error: decryptErr.message });
+      return res.status(500).json({ error: 'Failed to load payment method (encryption error)' });
+    }
+
+    const payment = {
+      payment_type: paymentRow.payment_type,
+      payment_identifier: decryptedIdentifier
+    };
 
     // Start transaction
     await client.query('BEGIN');

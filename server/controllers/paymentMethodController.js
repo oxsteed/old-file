@@ -1,5 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { encrypt, decrypt } = require('../utils/encryption');
 
 const validatePaymentIdentifier = (type, identifier) => {
   if (type === 'cash_app') {
@@ -15,17 +16,63 @@ const validatePaymentIdentifier = (type, identifier) => {
   return false;
 };
 
+const maskPaymentIdentifier = (type, identifier) => {
+  if (!identifier || identifier.length < 4) {
+    return '****';
+  }
+  const lastFour = identifier.slice(-4);
+  switch (type) {
+    case 'cash_app':
+      return '**** ' + lastFour;
+    case 'venmo':
+      return '**** ' + lastFour;
+    case 'bank_transfer':
+      // For bank accounts, mask middle portion
+      if (identifier.length <= 8) return '****';
+      return identifier.slice(0, 2) + '*'.repeat(identifier.length - 6) + identifier.slice(-4);
+    default:
+      return '****';
+  }
+};
+
 const getPaymentMethod = async (req, res) => {
   try {
     const ownerId = req.user.id;
     const result = await db.query(
-      `SELECT id, payment_type, payment_identifier, is_active
+      `SELECT id, payment_type, payment_identifier, payment_identifier_encrypted, is_active
        FROM owner_payment_methods
        WHERE owner_id = $1`,
       [ownerId]
     );
 
-    res.json(result.rows[0] || null);
+    if (!result.rows[0]) {
+      return res.json(null);
+    }
+
+    const paymentMethod = result.rows[0];
+    let decryptedIdentifier = null;
+
+    try {
+      // Try to decrypt from encrypted column first (new approach)
+      if (paymentMethod.payment_identifier_encrypted) {
+        decryptedIdentifier = decrypt(paymentMethod.payment_identifier_encrypted);
+      }
+      // Fall back to plaintext for backward compatibility (during migration)
+      else if (paymentMethod.payment_identifier) {
+        decryptedIdentifier = paymentMethod.payment_identifier;
+      }
+    } catch (decryptErr) {
+      logger.error('Failed to decrypt payment identifier', { ownerId, error: decryptErr.message });
+      return res.status(500).json({ error: 'Failed to load payment method (decryption error)' });
+    }
+
+    res.json({
+      id: paymentMethod.id,
+      payment_type: paymentMethod.payment_type,
+      payment_identifier: decryptedIdentifier,
+      payment_identifier_masked: maskPaymentIdentifier(paymentMethod.payment_type, decryptedIdentifier),
+      is_active: paymentMethod.is_active
+    });
   } catch (err) {
     logger.error('getPaymentMethod error', { err });
     res.status(500).json({ error: 'Failed to load payment method' });
@@ -59,17 +106,34 @@ const setPaymentMethod = async (req, res) => {
       }
     }
 
-    // Upsert payment method
+    // Encrypt the payment identifier
+    let encryptedIdentifier;
+    try {
+      encryptedIdentifier = encrypt(paymentIdentifier);
+    } catch (encryptErr) {
+      logger.error('Failed to encrypt payment identifier', { ownerId, error: encryptErr.message });
+      return res.status(500).json({ error: 'Encryption failed. Payment method not saved.' });
+    }
+
+    // Upsert payment method with encrypted identifier
     const result = await db.query(
-      `INSERT INTO owner_payment_methods (owner_id, payment_type, payment_identifier)
+      `INSERT INTO owner_payment_methods (owner_id, payment_type, payment_identifier_encrypted)
        VALUES ($1, $2, $3)
        ON CONFLICT (owner_id) DO UPDATE
-       SET payment_type = $2, payment_identifier = $3, updated_at = NOW()
-       RETURNING id, payment_type, payment_identifier, is_active`,
-      [ownerId, paymentType, paymentIdentifier]
+       SET payment_type = $2, payment_identifier_encrypted = $3, updated_at = NOW()
+       RETURNING id, payment_type`,
+      [ownerId, paymentType, encryptedIdentifier]
     );
 
-    res.json(result.rows[0]);
+    const savedMethod = result.rows[0];
+    res.json({
+      id: savedMethod.id,
+      payment_type: savedMethod.payment_type,
+      payment_identifier_masked: maskPaymentIdentifier(paymentType, paymentIdentifier),
+      is_active: true
+    });
+
+    logger.info('Payment method saved', { ownerId, paymentType });
   } catch (err) {
     logger.error('setPaymentMethod error', { err });
     res.status(500).json({ error: 'Failed to save payment method' });
