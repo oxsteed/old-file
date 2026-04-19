@@ -291,12 +291,14 @@ router.post('/:toolId/review', authenticate, toolReviewsController.submitReview)
 router.post('/bookings', authenticate, toolBookingsController.createBooking);
 router.get('/bookings/my', authenticate, toolBookingsController.getMyBookings);
 router.get('/bookings/owner', authenticate, toolBookingsController.getBookingsByOwner);
+router.get('/:toolId/availability', toolBookingsController.checkAvailability);
 router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);
 
 // ANALYTICS
 router.post('/analytics/track', toolAnalyticsController.trackEvent);
 router.get('/:toolId/analytics', toolAnalyticsController.getAnalytics);
 router.get('/analytics/top', toolAnalyticsController.getTopTools);
+router.get('/analytics/dashboard', authenticate, toolAnalyticsController.getOwnerDashboard);
 
 // NOTIFICATIONS
 router.get('/notifications/prefs', authenticate, toolNotificationsController.getNotificationPrefs);

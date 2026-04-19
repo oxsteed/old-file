@@ -21,6 +21,33 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
+  const [bookedDates, setBookedDates] = useState<Array<{ start_date: string; end_date: string }>>([]);
+
+  // Load booked dates on mount
+  React.useEffect(() => {
+    if (isOpen && tool.id) {
+      loadBookedDates();
+    }
+  }, [isOpen, tool.id]);
+
+  const loadBookedDates = async () => {
+    try {
+      const response = await fetch(`/api/tool-rentals/${tool.id}/availability`);
+      const data = await response.json();
+      setBookedDates(data.booked_dates || []);
+    } catch (err) {
+      console.error('Failed to load booked dates:', err);
+    }
+  };
+
+  const isDateBooked = (date: string): boolean => {
+    const checkDate = new Date(date);
+    return bookedDates.some((booking) => {
+      const start = new Date(booking.start_date);
+      const end = new Date(booking.end_date);
+      return checkDate >= start && checkDate <= end;
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -57,6 +84,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
       return;
     }
 
+    // Check for calendar conflicts
+    const checkDate = new Date(startDate);
+    const endCheckDate = new Date(endDate);
+    for (const booking of bookedDates) {
+      const bookStart = new Date(booking.start_date);
+      const bookEnd = new Date(booking.end_date);
+      if (checkDate < bookEnd && endCheckDate > bookStart) {
+        toast.error(t('toolRentals.dateConflict') || 'Tool is already booked for these dates');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await toolRentalsApi.createBooking(tool.id, startDate, endDate, totalPrice);
@@ -72,8 +111,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ tool, isOpen, onClose }) =>
 
       toast.success(t('toolRentals.bookingConfirmed') || 'Booking confirmed!');
       onClose();
-    } catch (err) {
-      toast.error(t('toolRentals.bookingFailed') || 'Failed to create booking');
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        toast.error(t('toolRentals.dateConflict') || 'Tool is already booked for these dates');
+      } else {
+        toast.error(t('toolRentals.bookingFailed') || 'Failed to create booking');
+      }
     } finally {
       setLoading(false);
     }
