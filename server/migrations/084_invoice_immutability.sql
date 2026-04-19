@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS invoice_audit_log (
   invoice_id BIGINT NOT NULL REFERENCES tool_rental_invoices(id),
   previous_status VARCHAR(50),
   new_status VARCHAR(50) NOT NULL,
-  changed_by BIGINT,  -- user_id who made the change
+  changed_by UUID,  -- user_id who made the change
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   change_reason TEXT
 );
