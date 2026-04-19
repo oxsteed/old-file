@@ -3563,5 +3563,20 @@
     "priceDrops": "Réductions sur les favoris",
     "saveSearch": "Enregistrer cette recherche",
     "savedSearches": "Recherches Enregistrées"
+    "toolsRented": "Outils que j'ai Loués",
+    "toolsLent": "Mes Outils Loués",
+    "manageBookings": "Consultez et gérez vos locations d'outils",
+    "approve": "Approuver",
+    "decline": "Refuser",
+    "cancelBooking": "Annuler la Réservation",
+    "noBookings": "Vous n'avez aucune réservation pour le moment",
+    "noPendingBookings": "Personne n'a loué vos outils pour le moment",
+    "statusUpdated": "Statut mis à jour",
+    "statusUpdateFailed": "Impossible de mettre à jour le statut",
+    "loadingError": "Impossible de charger les réservations",
+    "pending": "En attente",
+    "confirmed": "Confirmée",
+    "cancelled": "Annulée",
+    "completed": "Complétée",
   }
 }

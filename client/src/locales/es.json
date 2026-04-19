@@ -3563,5 +3563,20 @@
     "priceDrops": "Descuentos en favoritos",
     "saveSearch": "Guardar esta búsqueda",
     "savedSearches": "Búsquedas Guardadas"
+    "toolsRented": "Herramientas que Alquilé",
+    "toolsLent": "Mis Herramientas Alquiladas",
+    "manageBookings": "Ver y gestionar tus alquileres de herramientas",
+    "approve": "Aprobar",
+    "decline": "Rechazar",
+    "cancelBooking": "Cancelar Reserva",
+    "noBookings": "Aún no tienes reservas",
+    "noPendingBookings": "Nadie ha alquilado tus herramientas aún",
+    "statusUpdated": "Estado actualizado",
+    "statusUpdateFailed": "Error al actualizar estado",
+    "loadingError": "Error al cargar reservas",
+    "pending": "Pendiente",
+    "confirmed": "Confirmada",
+    "cancelled": "Cancelada",
+    "completed": "Completada",
   }
 }

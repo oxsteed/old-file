@@ -3563,5 +3563,20 @@
     "priceDrops": "Price drops on favorites",
     "saveSearch": "Save this search",
     "savedSearches": "Saved Searches"
+    "toolsRented": "Tools I Rented",
+    "toolsLent": "My Tools Rented",
+    "manageBookings": "View and manage your tool rentals",
+    "approve": "Approve",
+    "decline": "Decline",
+    "cancelBooking": "Cancel Booking",
+    "noBookings": "You have no bookings yet",
+    "noPendingBookings": "No one has booked your tools yet",
+    "statusUpdated": "Status updated",
+    "statusUpdateFailed": "Failed to update status",
+    "loadingError": "Failed to load bookings",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "completed": "Completed",
   }
 }
