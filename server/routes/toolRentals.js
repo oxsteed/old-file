@@ -9,6 +9,7 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
 const pool    = require('../db');
 const toolFavoritesController = require('../controllers/toolFavoritesController');
 const toolReviewsController = require('../controllers/toolReviewsController');
@@ -314,13 +315,13 @@ router.post('/payment-method', authenticate, paymentMethodController.setPaymentM
 router.delete('/payment-method', authenticate, paymentMethodController.deletePaymentMethod);
 
 // INVOICES (Option C)
-router.post('/invoices', authenticate, invoiceController.createInvoice);
+router.post('/invoices', authenticate, invoiceLimiter, invoiceController.createInvoice);
 router.get('/invoices/:invoiceId', authenticate, invoiceController.getInvoice);
 router.get('/invoices/:invoiceId/pdf', authenticate, invoiceController.generateInvoicePDF);
-router.post('/invoices/:invoiceId/confirm-payment', authenticate, invoiceController.confirmPayment);
+router.post('/invoices/:invoiceId/confirm-payment', authenticate, invoiceLimiter, invoiceController.confirmPayment);
 
 // USER REPORTS (Option C)
-router.post('/reports', authenticate, userReportController.submitReport);
+router.post('/reports', authenticate, reportLimiter, userReportController.submitReport);
 router.get('/reports/me/submitted', authenticate, userReportController.getMyReports);
 router.get('/reports/me/against', authenticate, userReportController.getReportsAgainstMe);
 router.get('/admin/reports', authenticate, userReportController.adminGetReports);
@@ -328,7 +329,7 @@ router.put('/admin/reports/:reportId', authenticate, userReportController.adminU
 
 // TERMS & CONDITIONS (Option C)
 router.get('/terms', termsController.getTerms);
-router.post('/terms/accept', authenticate, termsController.acceptTerms);
+router.post('/terms/accept', authenticate, termsLimiter, termsController.acceptTerms);
 router.get('/bookings/:bookingId/terms-status', authenticate, termsController.getBookingTermsStatus);
 
 module.exports = router;

@@ -129,4 +129,62 @@ const geoLimiter = rateLimit({
   },
 });
 
-module.exports = { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, chatLimiter, geoLimiter };
+// Invoice creation limiter: 10 per hour per user
+// Prevents spam invoice creation and double-billing attacks
+const invoiceLimiter = rateLimit({
+  ...createStoreOption('rl:invoice:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many invoices created. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
+// Report submission limiter: 10 per hour per user
+// Prevents spam reports and abuse of reporting system
+const reportLimiter = rateLimit({
+  ...createStoreOption('rl:report:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many reports submitted. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
+// Terms acceptance limiter: 5 per hour per user
+// Prevents acceptance spam and false acceptance attacks
+const termsLimiter = rateLimit({
+  ...createStoreOption('rl:terms:'),
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many acceptance attempts. Please try again later.',
+    retryAfter: '1 hour',
+  },
+});
+
+module.exports = {
+  generalLimiter,
+  authenticatedLimiter,
+  authLimiter,
+  strictLimiter,
+  chatLimiter,
+  geoLimiter,
+  invoiceLimiter,
+  reportLimiter,
+  termsLimiter,
+};
