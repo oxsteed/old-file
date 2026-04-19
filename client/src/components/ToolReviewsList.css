@@ -1,0 +1,185 @@
+.tool-reviews-list {
+  padding: 20px;
+  background: var(--app-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.tool-reviews-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.tool-reviews-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--app-text);
+}
+
+.tool-reviews-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-reviews-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.tool-review-item {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tool-review-item:last-child {
+  border-bottom: none;
+}
+
+.tool-review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tool-review-rater {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-review-avatar,
+.tool-review-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.tool-review-avatar-placeholder {
+  background: var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-text);
+}
+
+.tool-review-name {
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.tool-review-rating-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.tool-review-text {
+  margin: 8px 0;
+  color: var(--app-text);
+  line-height: 1.5;
+}
+
+.tool-review-date {
+  color: var(--muted-text);
+}
+
+.tool-reviews-button {
+  padding: 10px 16px;
+  background: var(--app-text);
+  color: var(--app-bg);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.tool-reviews-button:hover {
+  opacity: 0.9;
+}
+
+.tool-review-form {
+  padding: 16px;
+  background: var(--card-bg);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.tool-review-form-group {
+  margin-bottom: 16px;
+}
+
+.tool-review-form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--app-text);
+}
+
+.tool-review-form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.tool-review-form-group small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted-text);
+}
+
+.tool-review-rating-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.tool-review-star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s ease;
+}
+
+.tool-review-star-btn:hover {
+  transform: scale(1.1);
+}
+
+.tool-review-submit-btn {
+  padding: 10px 16px;
+  background: var(--app-text);
+  color: var(--app-bg);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tool-review-submit-btn:hover {
+  opacity: 0.9;
+}
+
+.tool-review-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tool-reviews-items {
+  display: flex;
+  flex-direction: column;
+}

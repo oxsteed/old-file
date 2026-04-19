@@ -12,6 +12,10 @@ export const toolRentalsApi = {
     const params = {};
     if (filters.category) params.category = filters.category;
     if (filters.city) params.city = filters.city;
+    if (filters.name) params.name = filters.name;
+    if (filters.priceMin) params.priceMin = filters.priceMin;
+    if (filters.priceMax) params.priceMax = filters.priceMax;
+    if (filters.sort) params.sort = filters.sort;
     if (filters.limit) params.limit = filters.limit;
     if (filters.offset) params.offset = filters.offset;
 
@@ -40,6 +44,80 @@ export const toolRentalsApi = {
   // Delete a tool listing (authenticated)
   deleteTool: async (toolId) => {
     const response = await api.delete(`/tool-rentals/${toolId}`);
+    return response.data;
+  },
+
+  // FAVORITES
+  getFavorites: async () => {
+    const response = await api.get('/tool-rentals/favorites');
+    return response.data || [];
+  },
+
+  toggleFavorite: async (toolId) => {
+    const response = await api.post(`/tool-rentals/${toolId}/favorite`);
+    return response.data;
+  },
+
+  isFavorited: async (toolId) => {
+    const response = await api.get(`/tool-rentals/${toolId}/is-favorited`);
+    return response.data.favorited;
+  },
+
+  // REVIEWS
+  getToolReviews: async (toolId) => {
+    const response = await api.get(`/tool-rentals/${toolId}/reviews`);
+    return response.data || [];
+  },
+
+  submitReview: async (toolId, rating, reviewText) => {
+    const response = await api.post(`/tool-rentals/${toolId}/review`, { rating, review_text: reviewText });
+    return response.data;
+  },
+
+  // BOOKINGS
+  createBooking: async (toolId, startDate, endDate, totalPrice) => {
+    const response = await api.post(`/tool-rentals/bookings`, { toolId, startDate, endDate, totalPrice });
+    return response.data;
+  },
+
+  getMyBookings: async () => {
+    const response = await api.get('/tool-rentals/bookings/my');
+    return response.data || [];
+  },
+
+  getBookingsByOwner: async () => {
+    const response = await api.get('/tool-rentals/bookings/owner');
+    return response.data || [];
+  },
+
+  updateBookingStatus: async (bookingId, status) => {
+    const response = await api.put(`/tool-rentals/bookings/${bookingId}`, { status });
+    return response.data;
+  },
+
+  // ANALYTICS
+  trackEvent: async (toolId, eventType, metadata) => {
+    return api.post('/tool-rentals/analytics/track', { toolId, eventType, metadata }).catch(() => null);
+  },
+
+  getAnalytics: async (toolId) => {
+    const response = await api.get(`/tool-rentals/${toolId}/analytics`);
+    return response.data || [];
+  },
+
+  getTopTools: async () => {
+    const response = await api.get('/tool-rentals/analytics/top');
+    return response.data || [];
+  },
+
+  // NOTIFICATIONS
+  getNotificationPrefs: async () => {
+    const response = await api.get('/tool-rentals/notifications/prefs');
+    return response.data;
+  },
+
+  updateNotificationPrefs: async (prefs) => {
+    const response = await api.put('/tool-rentals/notifications/prefs', prefs);
     return response.data;
   },
 };
