@@ -3467,5 +3467,24 @@
     "sessionsInvalidated": "All sessions invalidated.",
     "forceLogoutFailed": "Failed to force logout.",
     "optionalReason": "Reason (optional):"
+  },
+  "businessSkills": {
+    "addExperience": "Add Experience",
+    "addSkill": "+ Add Skill",
+    "confirmRemove": "Are you sure you want to remove this skill?",
+    "errorAddSkill": "Failed to add skill",
+    "errorLoadSkills": "Failed to load skills",
+    "errorRemoveSkill": "Failed to remove skill",
+    "errorSearchSkills": "Error searching skills",
+    "errorUpdateSkill": "Failed to update skill",
+    "experienceUpdated": "Experience updated",
+    "maxSkillsReached": "Maximum skills reached (20)",
+    "noResults": "No skills found",
+    "noSkillsAdded": "No skills added yet",
+    "searchPlaceholder": "Search for a skill...",
+    "skillAdded": "Skill added successfully",
+    "skillAlreadyAdded": "This skill is already added",
+    "skillRemoved": "Skill removed",
+    "yearsExperience": "years experience"
   }
 }

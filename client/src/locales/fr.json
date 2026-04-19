@@ -3467,5 +3467,24 @@
     "sessionsInvalidated": "Toutes les sessions invalidées.",
     "forceLogoutFailed": "Échec de la déconnexion forcée.",
     "optionalReason": "Raison (facultatif):"
+  },
+  "businessSkills": {
+    "addExperience": "Ajouter Expérience",
+    "addSkill": "+ Ajouter une Compétence",
+    "confirmRemove": "Êtes-vous sûr de vouloir supprimer cette compétence ?",
+    "errorAddSkill": "Erreur lors de l'ajout de la compétence",
+    "errorLoadSkills": "Erreur lors du chargement des compétences",
+    "errorRemoveSkill": "Erreur lors de la suppression de la compétence",
+    "errorSearchSkills": "Erreur lors de la recherche de compétences",
+    "errorUpdateSkill": "Erreur lors de la mise à jour de la compétence",
+    "experienceUpdated": "Expérience mise à jour",
+    "maxSkillsReached": "Nombre maximum de compétences atteint (20)",
+    "noResults": "Aucune compétence trouvée",
+    "noSkillsAdded": "Aucune compétence ajoutée pour le moment",
+    "searchPlaceholder": "Rechercher une compétence...",
+    "skillAdded": "Compétence ajoutée avec succès",
+    "skillAlreadyAdded": "Cette compétence est déjà ajoutée",
+    "skillRemoved": "Compétence supprimée",
+    "yearsExperience": "ans d'expérience"
   }
 }

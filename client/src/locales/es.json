@@ -3467,5 +3467,24 @@
     "sessionsInvalidated": "Todas las sesiones invalidadas.",
     "forceLogoutFailed": "Error al forzar el cierre de sesión.",
     "optionalReason": "Razón (opcional):"
+  },
+  "businessSkills": {
+    "addExperience": "Agregar Experiencia",
+    "addSkill": "+ Agregar Habilidad",
+    "confirmRemove": "¿Estás seguro de que deseas eliminar esta habilidad?",
+    "errorAddSkill": "Error al agregar habilidad",
+    "errorLoadSkills": "Error al cargar habilidades",
+    "errorRemoveSkill": "Error al eliminar habilidad",
+    "errorSearchSkills": "Error al buscar habilidades",
+    "errorUpdateSkill": "Error al actualizar habilidad",
+    "experienceUpdated": "Experiencia actualizada",
+    "maxSkillsReached": "Máximo de habilidades alcanzado (20)",
+    "noResults": "No se encontraron habilidades",
+    "noSkillsAdded": "Sin habilidades añadidas aún",
+    "searchPlaceholder": "Buscar una habilidad...",
+    "skillAdded": "Habilidad agregada correctamente",
+    "skillAlreadyAdded": "Esta habilidad ya está agregada",
+    "skillRemoved": "Habilidad eliminada",
+    "yearsExperience": "años de experiencia"
   }
 }
