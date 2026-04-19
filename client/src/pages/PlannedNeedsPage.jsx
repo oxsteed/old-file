@@ -64,6 +64,8 @@ export default function PlannedNeedsPage() {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSrcs, setShowSrcs] = useState(false);
 
   // ── data loading ──────────────────────────────────────────────────────────
   const loadNeeds = useCallback(async () => {
@@ -229,9 +231,6 @@ export default function PlannedNeedsPage() {
             <>
               {/* Score badge + settings */}
               {(projection.pulse_score !== undefined || projection.no_data) && (() => {
-                const [showSettings, setShowSettings] = useState(false);
-                const [showSrcs, setShowSrcs]         = useState(false);
-
                 if (projection.no_data) return (
                   <div className="pn-pulse-score-row pn-pulse-no-data">
                     {showSettings && (
