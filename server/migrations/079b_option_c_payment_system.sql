@@ -3,7 +3,7 @@
 -- Owner payment method storage (one per owner)
 CREATE TABLE owner_payment_methods (
   id BIGSERIAL PRIMARY KEY,
-  owner_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  owner_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   payment_type VARCHAR(50) NOT NULL CHECK (payment_type IN ('cash_app', 'venmo', 'bank_transfer')),
   payment_identifier VARCHAR(255) NOT NULL, -- Cash App $handle, Venmo @username, Bank account info
   is_active BOOLEAN DEFAULT TRUE,
@@ -19,7 +19,7 @@ CREATE TABLE tool_rental_invoices (
   booking_id BIGINT NOT NULL UNIQUE REFERENCES tool_rentals_bookings(id) ON DELETE CASCADE,
   invoice_number VARCHAR(50) NOT NULL UNIQUE, -- Format: INV-YYYYMMDD-XXXXX
   customer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  owner_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   tool_id BIGINT NOT NULL REFERENCES tool_rentals(id) ON DELETE CASCADE,
 
   -- Invoice details
