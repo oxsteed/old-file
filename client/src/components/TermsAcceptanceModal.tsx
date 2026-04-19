@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -22,6 +22,12 @@ const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
   const { t } = useTranslation();
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAccepted(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -49,7 +55,7 @@ const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
       onClose();
     } catch (err) {
       toast.error(t('toolRentals.acceptTermsFailed') || 'Failed to accept terms');
-      console.error('Error accepting terms:', err);
+      console.error('Error accepting terms:', err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -68,7 +74,7 @@ const TermsAcceptanceModal: React.FC<TermsAcceptanceModalProps> = ({
         <div className="terms-modal-body">
           <div className="terms-warning">
             <AlertCircle className="w-5 h-5" />
-            <p>{t('toolRentals.reportWarning') || 'Please read the terms carefully before proceeding'}</p>
+            <p>{t('toolRentals.termsWarning') || 'Please read the terms carefully before proceeding'}</p>
           </div>
 
           <div className="terms-content">

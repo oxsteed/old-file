@@ -3643,6 +3643,7 @@
     "acceptTerms": "Accept Terms",
     "acceptTermsRequired": "You must accept the terms to continue",
     "termsTitle": "Tool Rental Agreement",
+    "termsWarning": "Please read the terms carefully before proceeding",
     "acknowledgment": "I have read and agree to the Tool Rental Agreement",
     "paymentObligation": "You agree to send payment to the tool owner by the agreed-upon date.",
     "returnObligation": "You agree to return the tool in the agreed-upon condition by the agreed-upon date.",

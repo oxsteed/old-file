@@ -3643,6 +3643,7 @@
     "acceptTerms": "Accepter les Conditions",
     "acceptTermsRequired": "Vous devez accepter les conditions pour continuer",
     "termsTitle": "Accord de Location d'Outils",
+    "termsWarning": "Veuillez lire les conditions attentivement avant de continuer",
     "acknowledgment": "J'ai lu et j'accepte l'Accord de Location d'Outils",
     "paymentObligation": "Vous acceptez d'envoyer le paiement au propriétaire de l'outil à la date convenue.",
     "returnObligation": "Vous acceptez de retourner l'outil dans l'état convenu à la date convenue.",

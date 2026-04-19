@@ -3643,6 +3643,7 @@
     "acceptTerms": "Aceptar Términos",
     "acceptTermsRequired": "Debe aceptar los términos para continuar",
     "termsTitle": "Acuerdo de Alquiler de Herramientas",
+    "termsWarning": "Por favor lea los términos cuidadosamente antes de continuar",
     "acknowledgment": "He leído y acepto el Acuerdo de Alquiler de Herramientas",
     "paymentObligation": "Usted acepta enviar el pago al propietario de la herramienta en la fecha acordada.",
     "returnObligation": "Usted acepta devolver la herramienta en la condición acordada en la fecha acordada.",

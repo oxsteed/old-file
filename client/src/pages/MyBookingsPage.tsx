@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { toolRentalsApi } from '../api/toolRentals';
@@ -138,7 +137,7 @@ const MyBookingsPage = () => {
           <div className="booking-card-customer">
             <User className="w-4 h-4" />
             <span>
-              {booking.first_name} {booking.last_name}
+              {booking.first_name} {booking.last_name || ''}
             </span>
           </div>
         )}
