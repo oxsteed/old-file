@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, MessageCircle, User, Star, MapPin, HelpCircle, Calendar } from 'lucide-react';
 import ToolReviewsList from './ToolReviewsList';
+import BookingModal from './BookingModal';
 import './ToolDetailModal.css';
 
 interface ToolDetailModalProps {
@@ -38,6 +39,7 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [showConditionTooltip, setShowConditionTooltip] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -202,7 +204,11 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                 </div>
               )}
               {tool.is_available && (
-                <button className="tool-modal-booking-btn" disabled={!tool.is_available}>
+                <button
+                  onClick={() => setIsBookingModalOpen(true)}
+                  className="tool-modal-booking-btn"
+                  disabled={!tool.is_available}
+                >
                   <Calendar className="w-4 h-4" />
                   {t('toolRentals.booking')}
                 </button>
@@ -218,6 +224,13 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      <BookingModal
+        tool={tool}
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+      />
     </div>
   );
 };
