@@ -15,6 +15,10 @@ const toolReviewsController = require('../controllers/toolReviewsController');
 const toolBookingsController = require('../controllers/toolBookingsController');
 const toolAnalyticsController = require('../controllers/toolAnalyticsController');
 const toolNotificationsController = require('../controllers/toolNotificationsController');
+const paymentMethodController = require('../controllers/paymentMethodController');
+const invoiceController = require('../controllers/invoiceController');
+const userReportController = require('../controllers/userReportController');
+const termsController = require('../controllers/termsController');
 
 const TOOL_FIELDS = `
   t.id, t.user_id, t.name, t.category, t.description,
@@ -303,5 +307,28 @@ router.get('/analytics/dashboard', authenticate, toolAnalyticsController.getOwne
 // NOTIFICATIONS
 router.get('/notifications/prefs', authenticate, toolNotificationsController.getNotificationPrefs);
 router.put('/notifications/prefs', authenticate, toolNotificationsController.updateNotificationPrefs);
+
+// PAYMENT METHODS (Option C)
+router.get('/payment-method', authenticate, paymentMethodController.getPaymentMethod);
+router.post('/payment-method', authenticate, paymentMethodController.setPaymentMethod);
+router.delete('/payment-method', authenticate, paymentMethodController.deletePaymentMethod);
+
+// INVOICES (Option C)
+router.post('/invoices', authenticate, invoiceController.createInvoice);
+router.get('/invoices/:invoiceId', authenticate, invoiceController.getInvoice);
+router.get('/invoices/:invoiceId/pdf', authenticate, invoiceController.generateInvoicePDF);
+router.post('/invoices/:invoiceId/confirm-payment', authenticate, invoiceController.confirmPayment);
+
+// USER REPORTS (Option C)
+router.post('/reports', authenticate, userReportController.submitReport);
+router.get('/reports/me/submitted', authenticate, userReportController.getMyReports);
+router.get('/reports/me/against', authenticate, userReportController.getReportsAgainstMe);
+router.get('/admin/reports', authenticate, userReportController.adminGetReports);
+router.put('/admin/reports/:reportId', authenticate, userReportController.adminUpdateReportStatus);
+
+// TERMS & CONDITIONS (Option C)
+router.get('/terms', termsController.getTerms);
+router.post('/terms/accept', authenticate, termsController.acceptTerms);
+router.get('/bookings/:bookingId/terms-status', authenticate, termsController.getBookingTermsStatus);
 
 module.exports = router;
