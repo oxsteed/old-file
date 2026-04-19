@@ -65,7 +65,7 @@ CREATE INDEX idx_delivery_log_read ON invoice_delivery_log(read_at) WHERE read_a
 CREATE TABLE tool_rental_terms_acceptance (
   id BIGSERIAL PRIMARY KEY,
   booking_id BIGINT NOT NULL REFERENCES tool_rentals_bookings(id) ON DELETE CASCADE,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   user_role VARCHAR(50) NOT NULL CHECK (user_role IN ('customer', 'owner')),
   terms_version VARCHAR(20) NOT NULL, -- e.g., "1.0"
   accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
