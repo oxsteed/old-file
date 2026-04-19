@@ -4,8 +4,10 @@ import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { toolRentalsApi } from '../api/toolRentals';
-import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
+import InvoiceModal from '../components/InvoiceModal';
+import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
 
 interface Booking {
@@ -32,6 +34,11 @@ const MyBookingsPage = () => {
   const [ownerBookings, setOwnerBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportBookingId, setReportBookingId] = useState<number | null>(null);
+  const [reportOwnerId, setReportOwnerId] = useState<number | null>(null);
 
   useEffect(() => {
     loadBookings();
@@ -154,6 +161,21 @@ const MyBookingsPage = () => {
         </div>
       )}
 
+      {isOwner && booking.status === 'confirmed' && (
+        <div className="booking-card-actions">
+          <button
+            onClick={() => {
+              setInvoiceBookingId(booking.id);
+              setInvoiceModalOpen(true);
+            }}
+            className="booking-action-btn booking-action-invoice"
+          >
+            <FileText className="w-4 h-4" />
+            {t('toolRentals.sendInvoice') || 'Send Invoice'}
+          </button>
+        </div>
+      )}
+
       {!isOwner && booking.status !== 'cancelled' && booking.status !== 'completed' && (
         <div className="booking-card-actions">
           <button
@@ -161,6 +183,17 @@ const MyBookingsPage = () => {
             className="booking-action-btn booking-action-cancel"
           >
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
+          </button>
+          <button
+            onClick={() => {
+              setReportBookingId(booking.id);
+              setReportOwnerId(booking.owner_id);
+              setReportModalOpen(true);
+            }}
+            className="booking-action-btn booking-action-report"
+          >
+            <Flag className="w-4 h-4" />
+            {t('toolRentals.reportUser') || 'Report User'}
           </button>
         </div>
       )}
@@ -238,6 +271,37 @@ const MyBookingsPage = () => {
           )}
         </div>
       </div>
+
+      {invoiceModalOpen && invoiceBookingId && (
+        <InvoiceModal
+          bookingId={invoiceBookingId}
+          isOpen={invoiceModalOpen}
+          onClose={() => {
+            setInvoiceModalOpen(false);
+            setInvoiceBookingId(null);
+            loadBookings();
+          }}
+        />
+      )}
+
+      {reportModalOpen && reportBookingId && reportOwnerId && (
+        <UserReportModal
+          userId={reportOwnerId}
+          bookingId={reportBookingId}
+          isOpen={reportModalOpen}
+          onClose={() => {
+            setReportModalOpen(false);
+            setReportBookingId(null);
+            setReportOwnerId(null);
+          }}
+          onReportSubmitted={() => {
+            toast.success(t('toolRentals.reportSubmitted') || 'Report submitted');
+            setReportModalOpen(false);
+            setReportBookingId(null);
+            setReportOwnerId(null);
+          }}
+        />
+      )}
     </PageShell>
   );
 };

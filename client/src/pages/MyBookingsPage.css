@@ -281,6 +281,50 @@
   border-color: #ef4444;
 }
 
+.booking-action-invoice {
+  background: #dbeafe;
+  border-color: #7dd3fc;
+  color: #0c4a6e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.dark .booking-action-invoice {
+  background: #0e3a5f;
+  border-color: #0369a1;
+  color: #bae6fd;
+}
+
+.booking-action-invoice:hover {
+  background: #0284c7;
+  color: white;
+  border-color: #0284c7;
+}
+
+.booking-action-report {
+  background: #fef08a;
+  border-color: #fcd34d;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.dark .booking-action-report {
+  background: #78350f;
+  border-color: #d97706;
+  color: #fef08a;
+}
+
+.booking-action-report:hover {
+  background: #d97706;
+  color: white;
+  border-color: #d97706;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .my-bookings-container {
