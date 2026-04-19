@@ -21,7 +21,18 @@ const createInvoice = async (req, res) => {
   const client = await db.connect();
   try {
     const { bookingId, deliveryMethod, recipientEmail } = req.body;
+    const idempotencyKey = req.get('Idempotency-Key') || req.body.idempotencyKey;
     const ownerId = req.user.id;
+
+    // Validate idempotency key is present and is valid UUID format
+    if (!idempotencyKey) {
+      return res.status(400).json({ error: 'Idempotency-Key header required' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(idempotencyKey)) {
+      return res.status(400).json({ error: 'Invalid Idempotency-Key format (must be UUID)' });
+    }
 
     // Validate delivery method
     if (!['in_platform', 'email'].includes(deliveryMethod)) {
@@ -35,6 +46,25 @@ const createInvoice = async (req, res) => {
       if (!validateEmail(recipientEmail)) {
         return res.status(400).json({ error: 'Invalid email format' });
       }
+    }
+
+    // Check for existing invoice with same idempotency key (for this booking)
+    const existingResult = await client.query(
+      `SELECT * FROM tool_rental_invoices WHERE booking_id = $1 AND idempotency_key = $2`,
+      [bookingId, idempotencyKey]
+    );
+
+    if (existingResult.rows[0]) {
+      // Idempotent: return existing invoice with 202 Accepted
+      client.release();
+      const existingInvoice = existingResult.rows[0];
+      return res.status(202).json({
+        invoiceId: existingInvoice.id,
+        invoiceNumber: existingInvoice.invoice_number,
+        status: existingInvoice.status,
+        deliveryMethod,
+        isRetry: true
+      });
     }
 
     // Get booking details + owner email
@@ -82,8 +112,8 @@ const createInvoice = async (req, res) => {
     const invoiceNumber = await generateInvoiceNumber();
     const invoiceResult = await client.query(
       `INSERT INTO tool_rental_invoices
-       (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount, payment_type, payment_identifier)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount, payment_type, payment_identifier, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         bookingId,
@@ -96,7 +126,8 @@ const createInvoice = async (req, res) => {
         booking.daily_rate,
         booking.total_price,
         payment.payment_type,
-        payment.payment_identifier
+        payment.payment_identifier,
+        idempotencyKey
       ]
     );
 

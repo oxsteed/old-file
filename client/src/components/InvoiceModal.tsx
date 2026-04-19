@@ -24,6 +24,14 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
     return emailRegex.test(email);
   };
 
+  const generateUUID = (): string => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
   const handleSend = async () => {
     if (deliveryMethod === 'email') {
       if (!recipientEmail.trim()) {
@@ -37,10 +45,15 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
     }
 
     setLoading(true);
+    const idempotencyKey = generateUUID();
+
     try {
       const response = await fetch('/api/tool-rentals/invoices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey
+        },
         body: JSON.stringify({
           bookingId,
           deliveryMethod,
@@ -56,7 +69,6 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
       onClose();
     } catch (err) {
       toast.error(t('toolRentals.invoiceSendFailed') || 'Failed to send invoice');
-      console.error('Error:', err);
     } finally {
       setLoading(false);
     }
@@ -84,7 +96,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
                 name="delivery"
                 value="in_platform"
                 checked={deliveryMethod === 'in_platform'}
-                onChange={e => setDeliveryMethod(e.target.value as any)}
+                onChange={e => setDeliveryMethod(e.target.value as 'in_platform' | 'email')}
                 disabled={loading}
               />
               <div className="invoice-delivery-content">
@@ -104,7 +116,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
                 name="delivery"
                 value="email"
                 checked={deliveryMethod === 'email'}
-                onChange={e => setDeliveryMethod(e.target.value as any)}
+                onChange={e => setDeliveryMethod(e.target.value as 'in_platform' | 'email')}
                 disabled={loading}
               />
               <div className="invoice-delivery-content">
