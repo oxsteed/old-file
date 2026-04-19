@@ -1,6 +1,6 @@
 // server/utils/trial.js
 
-const TRIAL_DURATION_DAYS = 90;
+const TRIAL_DURATION_DAYS = 365;
 
 function getEffectiveTier(user) {
   if (!user) return 'free';
