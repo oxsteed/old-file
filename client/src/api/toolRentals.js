@@ -9,13 +9,13 @@ export const toolRentalsApi = {
 
   // Browse available tools with optional filters
   browseTools: async (filters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.category) params.append('category', filters.category);
-    if (filters.city) params.append('city', filters.city);
-    if (filters.limit) params.append('limit', filters.limit);
-    if (filters.offset) params.append('offset', filters.offset);
+    const params = {};
+    if (filters.category) params.category = filters.category;
+    if (filters.city) params.city = filters.city;
+    if (filters.limit) params.limit = filters.limit;
+    if (filters.offset) params.offset = filters.offset;
 
-    const response = await api.get(`/tool-rentals/browse?${params.toString()}`);
+    const response = await api.get('/tool-rentals/browse', { params });
     return response.data.tools || [];
   },
 
