@@ -382,4 +382,21 @@
   .tool-modal-owner-actions {
     grid-template-columns: 1fr;
   }
+
+  /* Mobile: Owner card stacks vertically */
+  .tool-modal-owner-card-horizontal {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .tool-modal-owner-actions-horizontal {
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .tool-modal-action-btn {
+    flex: 1;
+    min-width: 120px;
+  }
 }

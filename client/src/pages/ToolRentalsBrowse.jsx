@@ -78,11 +78,11 @@ const ToolRentalsBrowse = () => {
 
       if (newOffset === 0) {
         setTools(sortedTools);
-        // Set total count based on first load
-        // API returns exact count or estimates based on query
-        setTotalCount(newTools.length > 0 ? Math.max(newTools.length, 30) : 0);
+        // Set total count: use length as minimum (actual total may be higher)
+        setTotalCount(newTools.length >= PAGE_SIZE ? newTools.length * 3 : newTools.length);
       } else {
         setTools((prev) => [...prev, ...sortedTools]);
+        setTotalCount((prev) => Math.max(prev, offset + PAGE_SIZE + newTools.length));
       }
 
       setHasMore(newTools.length === PAGE_SIZE);
