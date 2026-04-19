@@ -19,7 +19,7 @@ const TOKEN_HELPER = jwt.sign({ id: HELPER_ID, email: 'h@test.com', role: 'helpe
 
 const MOCK_HELPER = {
   id: HELPER_ID, first_name: 'Bob', last_name: 'Fix', email: 'h@test.com',
-  phone: null, role: 'helper', email_verified: true, is_verified: true,
+  phone: null, role: 'helper', email_verified: true, is_verified: true, is_active: true,
   onboarding_status: 'active', onboarding_completed: true,
   contact_completed: true, profile_completed: true,
   tier_selected: true, w9_completed: true, terms_accepted: true,

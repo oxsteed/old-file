@@ -28,7 +28,7 @@ const TEST_TOKEN = jwt.sign(
 // This row is returned as the first mock call in any authenticated request.
 const MOCK_AUTH_USER = {
   id: TEST_USER_ID, first_name: 'Test', last_name: 'User',
-  email: 'test@example.com', phone: null, role: 'customer',
+  email: 'test@example.com', phone: null, role: 'customer', is_active: true,
   email_verified: true, is_verified: false,
   onboarding_status: 'active', onboarding_completed: true,
   contact_completed: true, profile_completed: true,

@@ -23,7 +23,7 @@ const TOKEN_CLIENT = jwt.sign({ id: CLIENT_ID, email: 'c@test.com', role: 'custo
 
 const MOCK_CLIENT = {
   id: CLIENT_ID, first_name: 'Alice', last_name: 'Smith', email: 'c@test.com',
-  phone: null, role: 'customer', email_verified: true, is_verified: false,
+  phone: null, role: 'customer', email_verified: true, is_verified: false, is_active: true,
   onboarding_status: 'active', onboarding_completed: true,
   contact_completed: true, profile_completed: true,
   tier_selected: true, w9_completed: false, terms_accepted: true,
