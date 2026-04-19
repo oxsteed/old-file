@@ -267,7 +267,11 @@ const getInvoice = async (req, res) => {
     );
 
     if (!result.rows[0]) {
-      return res.status(404).json({ error: 'Invoice not found' });
+      return res.status(404).json({
+        error: 'Invoice not found',
+        code: 'INVOICE_NOT_FOUND',
+        message: 'The invoice you requested does not exist or you do not have permission to view it.'
+      });
     }
 
     const invoice = result.rows[0];
@@ -288,7 +292,11 @@ const getInvoice = async (req, res) => {
     res.json(invoice);
   } catch (err) {
     logger.error('getInvoice error', { err });
-    res.status(500).json({ error: 'Failed to load invoice' });
+    res.status(500).json({
+      error: 'Failed to load invoice',
+      code: 'INVOICE_LOAD_ERROR',
+      message: 'An unexpected error occurred while loading the invoice. Please try again.'
+    });
   }
 };
 
@@ -310,7 +318,11 @@ const generateInvoicePDF = async (req, res) => {
     );
 
     if (!result.rows[0]) {
-      return res.status(404).json({ error: 'Invoice not found' });
+      return res.status(404).json({
+        error: 'Invoice not found',
+        code: 'INVOICE_NOT_FOUND',
+        message: 'The invoice you requested does not exist or you do not have permission to access it.'
+      });
     }
 
     const invoice = result.rows[0];
@@ -440,7 +452,11 @@ const generateInvoicePDF = async (req, res) => {
     logger.info('Invoice PDF generated', { invoiceId, invoiceNumber: invoice.invoice_number });
   } catch (err) {
     logger.error('generateInvoicePDF error', { err });
-    res.status(500).json({ error: 'Failed to generate PDF' });
+    res.status(500).json({
+      error: 'Failed to generate PDF',
+      code: 'PDF_GENERATION_ERROR',
+      message: 'The invoice PDF could not be generated. Please try again, or contact support if the problem persists.'
+    });
   }
 };
 
@@ -465,10 +481,10 @@ const confirmPayment = async (req, res) => {
 
     const invoice = invoiceResult.rows[0];
 
-    // Prevent double-confirmation
+    // Prevent double-confirmation (invoice immutability)
     if (invoice.status === 'payment_confirmed') {
       client.release();
-      return res.status(400).json({ error: 'Payment already confirmed' });
+      return res.status(400).json({ error: 'Payment already confirmed. Invoices are immutable after confirmation.' });
     }
 
     // Ensure booking is in correct state
@@ -479,6 +495,8 @@ const confirmPayment = async (req, res) => {
 
     // Transaction for atomicity
     await client.query('BEGIN');
+
+    const previousStatus = invoice.status;
 
     // Update invoice status
     await client.query(
@@ -492,12 +510,19 @@ const confirmPayment = async (req, res) => {
       [invoice.booking_id]
     );
 
+    // Log to audit trail
+    await client.query(
+      `INSERT INTO invoice_audit_log (invoice_id, previous_status, new_status, changed_by, change_reason)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [invoiceId, previousStatus, 'payment_confirmed', ownerId, 'Payment confirmed by owner']
+    );
+
     await client.query('COMMIT');
     client.release();
 
-    res.json({ status: 'payment_confirmed', invoiceId });
+    res.json({ status: 'payment_confirmed', invoiceId, message: 'Invoice is now immutable' });
 
-    logger.info('Payment confirmed', { invoiceId, bookingId: invoice.booking_id });
+    logger.info('Payment confirmed and invoice immutable', { invoiceId, bookingId: invoice.booking_id, ownerId });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     client.release();
