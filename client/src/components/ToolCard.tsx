@@ -6,23 +6,22 @@ import './ToolCard.css';
 interface ToolCardProps {
   tool: {
     id: number;
+    user_id?: string;
     name: string;
     category: string;
     condition: string;
     location_city: string;
     daily_rate: number;
-    weekly_rate?: number;
-    monthly_rate?: number;
+    hourly_rate?: number;
     image_url?: string;
     is_available: boolean;
     first_name?: string;
     last_name?: string;
     avatar_url?: string;
     owner_rating?: number;
-    owner_id?: number;
   };
   onViewDetails: (tool: any) => void;
-  onViewProfile: (userId: number) => void;
+  onViewProfile: (userId: string) => void;
 }
 
 const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile }) => {
@@ -30,11 +29,10 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
 
   const getConditionColor = (condition: string) => {
     const conditionMap: Record<string, string> = {
-      'New': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-      'Like New': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
-      'Good': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-      'Fair': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
-      'Poor': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100',
+      'excellent': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+      'good': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+      'fair': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
+      'poor': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100',
     };
     return conditionMap[condition] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100';
   };
@@ -80,16 +78,10 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
               <span className="tool-price-value">${tool.daily_rate}</span>
             </div>
           )}
-          {tool.weekly_rate && (
+          {tool.hourly_rate && (
             <div className="tool-price-item">
-              <span className="tool-price-label">{t('toolRentals.perWeek')}</span>
-              <span className="tool-price-value">${tool.weekly_rate}</span>
-            </div>
-          )}
-          {tool.monthly_rate && (
-            <div className="tool-price-item">
-              <span className="tool-price-label">{t('toolRentals.perMonth')}</span>
-              <span className="tool-price-value">${tool.monthly_rate}</span>
+              <span className="tool-price-label">{t('toolRentals.perHour')}</span>
+              <span className="tool-price-value">${tool.hourly_rate}</span>
             </div>
           )}
         </div>
@@ -119,6 +111,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
           onClick={() => onViewDetails(tool)}
           disabled={!tool.is_available}
           className="tool-card-button"
+          aria-label={t('toolRentals.viewDetails')}
         >
           {t('toolRentals.viewDetails')}
         </button>

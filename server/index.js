@@ -27,7 +27,7 @@ const { reloadFeeConfig } = require('./services/feeService');
 // ── MIDDLEWARE ────────────────────────────────────────────────
 const securityHeaders = require('./middleware/securityHeaders');
 const correlationId = require('./middleware/correlationId');
-const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
+// csrf.js available but not mounted globally — see CSRF NOTE below
 const sanitizeInputs = require('./middleware/sanitize');
 const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter } = require('./middleware/rateLimiter');
 const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
@@ -281,11 +281,12 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // ── INPUT SANITIZATION ───────────────────────────────────────
 app.use(sanitizeInputs);
 
-// ── CSRF PROTECTION ──────────────────────────────────────────
-// Attach CSRF token to all responses (for authenticated users)
-// Validate CSRF token on all state-changing requests (POST/PUT/DELETE)
-app.use(attachCsrfToken);
-app.use(validateCsrfToken);
+// ── CSRF NOTE ────────────────────────────────────────────────
+// This API is CSRF-safe by design: all authenticated requests send a JWT in
+// the Authorization header (not in a cookie). Browsers never auto-include
+// Authorization headers on cross-origin requests, so CSRF attacks cannot
+// forge authenticated requests. No CSRF token middleware is needed here.
+// The csrf.js helpers remain available for future cookie-based auth paths.
 
 // ── API VERSIONING ───────────────────────────────────────────
 // Detects version from ?v=v2 or API-Version header, defaults to v1

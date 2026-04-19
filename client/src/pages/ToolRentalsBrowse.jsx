@@ -34,26 +34,19 @@ const ToolRentalsBrowse = () => {
       try {
         const cats = await toolRentalsApi.getCategories();
         setCategories(cats);
-      } catch (err) {
-        console.error('Failed to load categories - full error:', err);
-        console.error('Error response:', err.response?.data);
-        console.error('Error status:', err.response?.status);
+      } catch {
         setError(t('toolRentals.errorLoadCategories'));
       }
     };
     loadCategories();
   }, [t]);
 
-  // Load tools when filters change
+  // Load tools when filters change (also runs on initial mount)
   useEffect(() => {
     setOffset(0);
     loadTools(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
-
-  // Load initial tools
-  useEffect(() => {
-    loadTools(0);
-  }, []);
 
   const loadTools = async (newOffset) => {
     try {
@@ -66,7 +59,6 @@ const ToolRentalsBrowse = () => {
         offset: newOffset,
       });
 
-      // Apply client-side sorting based on selected sort option
       const sortedTools = sortTools(newTools, filters.sort);
 
       if (newOffset === 0) {
@@ -76,8 +68,7 @@ const ToolRentalsBrowse = () => {
       }
 
       setHasMore(newTools.length === PAGE_SIZE);
-    } catch (err) {
-      console.error('Failed to load tools:', err);
+    } catch {
       setError(t('toolRentals.errorLoadTools'));
     } finally {
       setLoading(false);
