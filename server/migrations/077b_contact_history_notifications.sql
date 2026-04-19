@@ -14,7 +14,7 @@ CREATE UNIQUE INDEX idx_contact_history_unique ON tool_contact_history(tool_id, 
 -- Notification preferences
 CREATE TABLE tool_rental_notifications (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   notify_new_tools BOOLEAN DEFAULT TRUE,
   notify_bookings BOOLEAN DEFAULT TRUE,
   notify_messages BOOLEAN DEFAULT TRUE,
