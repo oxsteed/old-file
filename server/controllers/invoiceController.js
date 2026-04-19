@@ -4,6 +4,7 @@ const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 const { Readable } = require('stream');
 const crypto = require('crypto');
+const { sendInvoiceEmail } = require('../utils/invoiceEmail');
 
 const generateInvoiceNumber = async () => {
   const today = new Date();
@@ -69,8 +70,8 @@ const createInvoice = async (req, res) => {
 
     // Get booking details + owner email
     const bookingResult = await client.query(
-      `SELECT trb.*, tr.name, tr.daily_rate, cu.email as customer_email, cu.first_name,
-              ou.email as owner_email
+      `SELECT trb.*, tr.name, tr.daily_rate, cu.email as customer_email, cu.first_name as customer_first, cu.last_name as customer_last,
+              ou.email as owner_email, ou.first_name as owner_first, ou.last_name as owner_last
        FROM tool_rentals_bookings trb
        JOIN tool_rentals tr ON trb.tool_id = tr.id
        JOIN users cu ON trb.customer_id = cu.id
@@ -133,12 +134,68 @@ const createInvoice = async (req, res) => {
 
     const invoice = invoiceResult.rows[0];
 
-    // Log delivery
+    // Handle email delivery if requested
+    let emailDeliveryStatus = 'sent';
+    let emailDeliveryError = null;
+
+    if (deliveryMethod === 'email') {
+      // Prepare invoice data for email
+      const invoiceForEmail = {
+        ...invoice,
+        owner_first: booking.owner_first || '',
+        owner_last: booking.owner_last || '',
+        owner_email: booking.owner_email,
+        customer_email: recipientEmail || booking.customer_email,
+        customer_first: booking.customer_first || '',
+        customer_last: booking.customer_last || '',
+        tool_name: booking.name,
+        daily_rate: booking.daily_rate,
+      };
+
+      // Attempt to send email (with retries)
+      const emailResult = await sendInvoiceEmail(invoiceForEmail, recipientEmail || booking.customer_email);
+
+      if (!emailResult.success) {
+        // Email failed - don't mark as sent
+        emailDeliveryStatus = 'failed';
+        emailDeliveryError = emailResult.error;
+        logger.warn('Invoice email delivery failed', {
+          invoiceId: invoice.id,
+          recipientEmail: recipientEmail || booking.customer_email,
+          error: emailDeliveryError,
+        });
+      } else {
+        logger.info('Invoice email delivered', {
+          invoiceId: invoice.id,
+          recipientEmail: recipientEmail || booking.customer_email,
+        });
+      }
+    }
+
+    // Log delivery attempt
     await client.query(
-      `INSERT INTO invoice_delivery_log (invoice_id, delivery_method, recipient_email, sender_email, delivery_status)
-       VALUES ($1, $2, $3, $4, 'sent')`,
-      [invoice.id, deliveryMethod, recipientEmail || booking.customer_email, booking.owner_email]
+      `INSERT INTO invoice_delivery_log (invoice_id, delivery_method, recipient_email, sender_email, delivery_status, email_delivery_errors)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        invoice.id,
+        deliveryMethod,
+        recipientEmail || booking.customer_email,
+        booking.owner_email,
+        emailDeliveryStatus,
+        emailDeliveryError
+      ]
     );
+
+    // If email delivery failed, return 503 Service Unavailable
+    if (emailDeliveryStatus === 'failed') {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(503).json({
+        error: 'Email service temporarily unavailable',
+        message: 'Failed to send invoice email. Please try again later.',
+        details: emailDeliveryError
+      });
+    }
 
     // Update booking status
     await client.query(
