@@ -3,7 +3,7 @@ CREATE TABLE tool_rentals_bookings (
   id BIGSERIAL PRIMARY KEY,
   tool_id BIGINT NOT NULL REFERENCES tool_rentals(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  owner_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
   status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending','confirmed','cancelled','completed')),
