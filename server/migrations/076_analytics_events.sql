@@ -1,7 +1,7 @@
 -- Analytics event tracking
 CREATE TABLE tool_rentals_analytics (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   tool_id BIGINT REFERENCES tool_rentals(id) ON DELETE SET NULL,
   event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('view','favorite','inquire','book','review')),
   metadata JSONB,
