@@ -34,7 +34,7 @@ const PaymentMethodSettings: React.FC = () => {
         setIdentifier(data.payment_identifier);
       }
     } catch (err) {
-      console.error('Error loading payment method:', err);
+      toast.error(t('toolRentals.loadingError') || 'Failed to load payment method');
     } finally {
       setLoading(false);
     }
@@ -106,7 +106,7 @@ const PaymentMethodSettings: React.FC = () => {
           <select
             id="payment-type"
             value={paymentType}
-            onChange={e => setPaymentType(e.target.value as any)}
+            onChange={e => setPaymentType(e.target.value as 'cash_app' | 'venmo' | 'bank_transfer')}
             disabled={saving}
           >
             <option value="cash_app">Cash App</option>
