@@ -34,6 +34,13 @@ const ToolFavoriteButton: React.FC<ToolFavoriteButtonProps> = ({ toolId, onFavor
     try {
       const result = await toolRentalsApi.toggleFavorite(toolId);
       setIsFavorited(result.favorited);
+
+      // Track analytics event
+      await toolRentalsApi.trackEvent(toolId, 'favorite', {
+        favorited: result.favorited,
+        timestamp: new Date().toISOString(),
+      });
+
       toast.success(
         result.favorited
           ? t('toolRentals.addedToFavorites')

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Star, MapPin, Eye, HelpCircle } from 'lucide-react';
+import { Star, MapPin, Eye, HelpCircle, Heart } from 'lucide-react';
+import ToolFavoriteButton from './ToolFavoriteButton';
 import './ToolCard.css';
 
 interface ToolCardProps {
@@ -55,7 +56,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
 
   return (
     <div className="tool-card">
-      {/* Tool Image */}
+      {/* Tool Image + Favorite Button */}
       <div className="tool-card-image-container">
         {tool.image_url ? (
           <img src={tool.image_url} alt={tool.name} className="tool-card-image" loading="lazy" />
@@ -65,6 +66,9 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
           </div>
         )}
         {!tool.is_available && <div className="tool-card-unavailable-overlay">{t('common.unavailable')}</div>}
+        <div className="tool-card-favorite-overlay">
+          <ToolFavoriteButton toolId={tool.id} />
+        </div>
       </div>
 
       {/* Tool Info */}
@@ -121,7 +125,7 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
           ) : null}
         </div>
 
-        {/* Owner Info */}
+        {/* Owner Info + Response Time */}
         <div className="tool-card-owner">
           {tool.avatar_url ? (
             <img src={tool.avatar_url} alt={ownerName} className="tool-card-owner-avatar" />
@@ -132,12 +136,19 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
           )}
           <div className="tool-card-owner-info">
             <p className="tool-card-owner-name">{ownerName}</p>
-            {tool.owner_rating !== undefined && (
-              <div className="tool-card-owner-rating">
-                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                <span>{tool.owner_rating.toFixed(1)}</span>
-              </div>
-            )}
+            <div className="tool-card-owner-meta">
+              {tool.owner_rating !== undefined && (
+                <div className="tool-card-owner-rating">
+                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                  <span>{tool.owner_rating.toFixed(1)}</span>
+                </div>
+              )}
+              {tool.avg_response_time_hours && (
+                <span className="tool-card-response-time">
+                  {t('toolRentals.respondIn', { hours: tool.avg_response_time_hours })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

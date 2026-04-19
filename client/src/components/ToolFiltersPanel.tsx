@@ -12,7 +12,10 @@ interface ToolFiltersPanelProps {
 export interface FilterState {
   category: string;
   city: string;
-  sort: 'newest' | 'price-asc' | 'price-desc';
+  name?: string;
+  priceMin?: number;
+  priceMax?: number;
+  sort: 'newest' | 'price-asc' | 'price-desc' | 'distance';
 }
 
 const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilterChange, isLoading = false }) => {
@@ -20,6 +23,9 @@ const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilte
   const [filters, setFilters] = useState<FilterState>({
     category: '',
     city: '',
+    name: '',
+    priceMin: undefined,
+    priceMax: undefined,
     sort: 'newest',
   });
 
@@ -35,6 +41,24 @@ const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilte
     onFilterChange(newFilters);
   };
 
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFilters = { ...filters, name: e.target.value };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
+  };
+
+  const handlePriceMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFilters = { ...filters, priceMin: e.target.value ? parseFloat(e.target.value) : undefined };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
+  };
+
+  const handlePriceMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFilters = { ...filters, priceMax: e.target.value ? parseFloat(e.target.value) : undefined };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
+  };
+
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newFilters = { ...filters, sort: e.target.value as FilterState['sort'] };
     setFilters(newFilters);
@@ -45,6 +69,9 @@ const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilte
     const newFilters = {
       category: '',
       city: '',
+      name: '',
+      priceMin: undefined,
+      priceMax: undefined,
       sort: 'newest',
     };
     setFilters(newFilters);
@@ -102,6 +129,48 @@ const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilte
         />
       </div>
 
+      {/* Tool Name Search */}
+      <div className="tool-filter-group">
+        <label htmlFor="name-filter" className="tool-filter-label">
+          {t('toolRentals.search')}
+        </label>
+        <input
+          id="name-filter"
+          type="text"
+          value={filters.name || ''}
+          onChange={handleNameChange}
+          disabled={isLoading}
+          placeholder={t('toolRentals.search')}
+          className="tool-filter-input"
+        />
+      </div>
+
+      {/* Price Range Filter */}
+      <div className="tool-filter-group">
+        <label className="tool-filter-label">{t('toolRentals.priceRange')}</label>
+        <div className="tool-filter-price-range">
+          <input
+            type="number"
+            value={filters.priceMin || ''}
+            onChange={handlePriceMinChange}
+            disabled={isLoading}
+            placeholder={t('toolRentals.from')}
+            min="0"
+            className="tool-filter-price-input"
+          />
+          <span>-</span>
+          <input
+            type="number"
+            value={filters.priceMax || ''}
+            onChange={handlePriceMaxChange}
+            disabled={isLoading}
+            placeholder={t('toolRentals.to')}
+            min="0"
+            className="tool-filter-price-input"
+          />
+        </div>
+      </div>
+
       {/* Sort */}
       <div className="tool-filter-group">
         <label htmlFor="sort-filter" className="tool-filter-label">
@@ -117,6 +186,7 @@ const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilte
           <option value="newest">{t('toolRentals.sortNewest')}</option>
           <option value="price-asc">{t('toolRentals.sortPriceLow')}</option>
           <option value="price-desc">{t('toolRentals.sortPriceHigh')}</option>
+          <option value="distance">{t('toolRentals.nearest')}</option>
         </select>
       </div>
 

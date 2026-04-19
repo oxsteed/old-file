@@ -400,3 +400,29 @@
     min-width: 120px;
   }
 }
+
+.tool-modal-booking-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--app-text);
+  color: var(--app-bg);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.tool-modal-booking-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.tool-modal-booking-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -10,6 +10,11 @@ const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
 const pool    = require('../db');
+const toolFavoritesController = require('../controllers/toolFavoritesController');
+const toolReviewsController = require('../controllers/toolReviewsController');
+const toolBookingsController = require('../controllers/toolBookingsController');
+const toolAnalyticsController = require('../controllers/toolAnalyticsController');
+const toolNotificationsController = require('../controllers/toolNotificationsController');
 
 const TOOL_FIELDS = `
   t.id, t.user_id, t.name, t.category, t.description,
@@ -60,27 +65,34 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-// GET /api/tool-rentals/browse?category=&city=&limit=30
+// GET /api/tool-rentals/browse?category=&city=&name=&priceMin=&priceMax=&sort=&limit=30
 router.get('/browse', async (req, res) => {
   try {
-    const { category, city, limit = 30, offset = 0 } = req.query;
+    const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0 } = req.query;
     const params = [true];
     let where = 'WHERE t.is_available = $1';
     let idx = 2;
 
     if (category) { where += ` AND t.category ILIKE $${idx++}`; params.push(`%${category}%`); }
     if (city)     { where += ` AND t.location_city ILIKE $${idx++}`; params.push(`%${city}%`); }
+    if (name)     { where += ` AND t.name ILIKE $${idx++}`; params.push(`%${name}%`); }
+    if (priceMin) { where += ` AND t.daily_rate >= $${idx++}`; params.push(parseFloat(priceMin)); }
+    if (priceMax) { where += ` AND t.daily_rate <= $${idx++}`; params.push(parseFloat(priceMax)); }
+
+    let orderBy = 't.created_at DESC';
+    if (sort === 'price-asc') orderBy = 't.daily_rate ASC';
+    if (sort === 'price-desc') orderBy = 't.daily_rate DESC';
 
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);
 
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS},
-              u.first_name, u.last_name, u.avatar_url
+              u.first_name, u.last_name, u.avatar_url, u.owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         ${where}
-        ORDER BY t.created_at DESC
+        ORDER BY ${orderBy}
         LIMIT $${idx} OFFSET $${idx + 1}`,
       params
     );
@@ -265,5 +277,29 @@ router.delete('/:id', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to delete tool listing' });
   }
 });
+
+// FAVORITES
+router.get('/favorites', authenticate, toolFavoritesController.getFavorites);
+router.post('/:toolId/favorite', authenticate, toolFavoritesController.toggleFavorite);
+router.get('/:toolId/is-favorited', authenticate, toolFavoritesController.isFavorited);
+
+// REVIEWS
+router.get('/:toolId/reviews', toolReviewsController.getToolReviews);
+router.post('/:toolId/review', authenticate, toolReviewsController.submitReview);
+
+// BOOKINGS
+router.post('/bookings', authenticate, toolBookingsController.createBooking);
+router.get('/bookings/my', authenticate, toolBookingsController.getMyBookings);
+router.get('/bookings/owner', authenticate, toolBookingsController.getBookingsByOwner);
+router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);
+
+// ANALYTICS
+router.post('/analytics/track', toolAnalyticsController.trackEvent);
+router.get('/:toolId/analytics', toolAnalyticsController.getAnalytics);
+router.get('/analytics/top', toolAnalyticsController.getTopTools);
+
+// NOTIFICATIONS
+router.get('/notifications/prefs', authenticate, toolNotificationsController.getNotificationPrefs);
+router.put('/notifications/prefs', authenticate, toolNotificationsController.updateNotificationPrefs);
 
 module.exports = router;

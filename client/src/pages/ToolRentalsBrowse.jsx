@@ -28,12 +28,15 @@ const ToolRentalsBrowse = () => {
   const [filters, setFilters] = useState({
     category: '',
     city: '',
+    name: '',
+    priceMin: undefined,
+    priceMax: undefined,
     sort: 'newest',
   });
 
   // Detect if any filters are active
-  const hasActiveFilters = filters.category || filters.city;
-  const activeFilterCount = (filters.category ? 1 : 0) + (filters.city ? 1 : 0);
+  const hasActiveFilters = filters.category || filters.city || filters.name || filters.priceMin || filters.priceMax;
+  const activeFilterCount = (filters.category ? 1 : 0) + (filters.city ? 1 : 0) + (filters.name ? 1 : 0) + (filters.priceMin ? 1 : 0) + (filters.priceMax ? 1 : 0);
 
   // Load categories on mount
   useEffect(() => {
@@ -69,6 +72,10 @@ const ToolRentalsBrowse = () => {
       const newTools = await toolRentalsApi.browseTools({
         category: filters.category,
         city: filters.city,
+        name: filters.name,
+        priceMin: filters.priceMin,
+        priceMax: filters.priceMax,
+        sort: filters.sort,
         limit: PAGE_SIZE,
         offset: newOffset,
       });
@@ -139,6 +146,9 @@ const ToolRentalsBrowse = () => {
     setFilters({
       category: '',
       city: '',
+      name: '',
+      priceMin: undefined,
+      priceMax: undefined,
       sort: 'newest',
     });
   };

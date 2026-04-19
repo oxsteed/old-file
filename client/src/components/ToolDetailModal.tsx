@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, MessageCircle, User, Star, MapPin, HelpCircle } from 'lucide-react';
+import { X, MessageCircle, User, Star, MapPin, HelpCircle, Calendar } from 'lucide-react';
+import ToolReviewsList from './ToolReviewsList';
 import './ToolDetailModal.css';
 
 interface ToolDetailModalProps {
@@ -200,7 +201,20 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                   {t('toolRentals.unavailableNotice')}
                 </div>
               )}
+              {tool.is_available && (
+                <button className="tool-modal-booking-btn" disabled={!tool.is_available}>
+                  <Calendar className="w-4 h-4" />
+                  {t('toolRentals.booking')}
+                </button>
+              )}
             </div>
+
+            {/* Reviews Section */}
+            <ToolReviewsList
+              toolId={tool.id}
+              avgRating={tool.avg_rating}
+              reviewCount={tool.review_count}
+            />
           </div>
         </div>
       </div>
