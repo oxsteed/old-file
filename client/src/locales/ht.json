@@ -3466,5 +3466,24 @@
     "sessionsInvalidated": "Tout sesyon envalidasyon.",
     "forceLogoutFailed": "Erè forse logout.",
     "optionalReason": "Rezon (opsyonèl):"
+  },
+  "businessSkills": {
+    "addExperience": "Ajoute Eksperyans",
+    "addSkill": "+ Ajoute Konpetenns",
+    "confirmRemove": "Èske ou sèten ou vle retire konpetenns sa?",
+    "errorAddSkill": "Erè nan moman yo ajoute konpetenns",
+    "errorLoadSkills": "Erè nan moman yo chaje konpetenns",
+    "errorRemoveSkill": "Erè nan moman yo retire konpetenns",
+    "errorSearchSkills": "Erè nan moman yo chèche konpetenns",
+    "errorUpdateSkill": "Erè nan moman yo mete ajou konpetenns",
+    "experienceUpdated": "Eksperyans mete ajou",
+    "maxSkillsReached": "Maksimom konpetenns atenn (20)",
+    "noResults": "Pa gen konpetenns jwenn",
+    "noSkillsAdded": "Okenn konpetenns pa ajoute ankò",
+    "searchPlaceholder": "Chèche yon konpetenns...",
+    "skillAdded": "Konpetenns ajoute avèk siksè",
+    "skillAlreadyAdded": "Konpetenns sa deja ajoute",
+    "skillRemoved": "Konpetenns retire",
+    "yearsExperience": "zan eksperyans"
   }
 }
