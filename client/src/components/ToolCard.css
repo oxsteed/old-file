@@ -1,0 +1,216 @@
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.tool-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.dark .tool-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Image Section */
+.tool-card-image-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: var(--muted-text);
+  overflow: hidden;
+}
+
+.tool-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.tool-card:hover .tool-card-image {
+  transform: scale(1.05);
+}
+
+.tool-card-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--border-color);
+}
+
+.tool-card-unavailable-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Body Section */
+.tool-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+}
+
+.tool-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.tool-card-category {
+  font-size: 13px;
+  color: var(--muted-text);
+  margin: 0;
+}
+
+.tool-card-condition {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.tool-card-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted-text);
+}
+
+/* Pricing Section */
+.tool-card-pricing {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 0;
+}
+
+.tool-price-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.tool-price-label {
+  color: var(--muted-text);
+}
+
+.tool-price-value {
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+/* Owner Section */
+.tool-card-owner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tool-card-owner-avatar,
+.tool-card-owner-avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.tool-card-owner-avatar-placeholder {
+  background: var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted-text);
+}
+
+.tool-card-owner-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-card-owner-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tool-card-owner-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted-text);
+  margin-top: 2px;
+}
+
+/* Button */
+.tool-card-button {
+  width: 100%;
+  padding: 10px;
+  background: var(--app-text);
+  color: var(--app-bg);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: auto;
+}
+
+.tool-card-button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.tool-card-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .tool-card-body {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .tool-card-title {
+    font-size: 15px;
+  }
+
+  .tool-card-image-container {
+    height: 180px;
+  }
+}

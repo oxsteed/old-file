@@ -111,6 +111,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
+                <NavLink to="/tool-rentals" active={isActive('/tool-rentals')}>{t('toolRentals.browsePage')}</NavLink>
                 <NavLink to="/post-job" active={isActive('/post-job')}>{t('nav.postJob')}</NavLink>
                 <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
                   {t('nav.messages')}
@@ -202,6 +203,7 @@ export default function Navbar() {
               <>
                 <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
+                <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
                 <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
                   {t('nav.messages')} {unreadMsgs > 0 && (
