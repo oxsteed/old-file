@@ -23,28 +23,32 @@ const ToolFiltersPanel: React.FC<ToolFiltersPanelProps> = ({ categories, onFilte
     sort: 'newest',
   });
 
-  useEffect(() => {
-    onFilterChange(filters);
-  }, [filters]);
-
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilters({ ...filters, category: e.target.value });
+    const newFilters = { ...filters, category: e.target.value };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
   };
 
   const handleCityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFilters({ ...filters, city: e.target.value });
+    const newFilters = { ...filters, city: e.target.value };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
   };
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilters({ ...filters, sort: e.target.value as FilterState['sort'] });
+    const newFilters = { ...filters, sort: e.target.value as FilterState['sort'] };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
   };
 
   const handleReset = () => {
-    setFilters({
+    const newFilters = {
       category: '',
       city: '',
       sort: 'newest',
-    });
+    };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
   };
 
   const hasActiveFilters = filters.category || filters.city;
