@@ -1036,6 +1036,7 @@ export default function Dashboard() {
               {to:'/messages',       Ic:IcoChat,    l:t('messages.title'),             c:'text-emerald-400', badge:unreadMsgs},
               {to:'/planned-needs',  Ic:IcoClock,   l:t('dashboard.plannedNeeds.title'), c:'text-purple-400',
                 badge: s?.planned_needs?.activating_soon_count || 0},
+              {to:'/tool-rentals',   Ic:IcoSearch,  l:t('toolRentals.browsePage'),     c:'text-indigo-400'},
             ].map((a,i)=>(
               <Link key={i} to={a.to} className="relative bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                 <a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>

@@ -46,6 +46,7 @@ import CarCarePage from './pages/CarCarePage';
 import BusinessHubPage from './pages/BusinessHubPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
 import PublicInvoiceView from './pages/PublicInvoiceView';
+import ToolRentalsBrowse from './pages/ToolRentalsBrowse';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -96,6 +97,7 @@ export default function App() {
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
+                    <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
