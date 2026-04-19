@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Star, MapPin, Eye } from 'lucide-react';
+import { Star, MapPin, Eye, HelpCircle, Heart } from 'lucide-react';
+import ToolFavoriteButton from './ToolFavoriteButton';
 import './ToolCard.css';
 
 interface ToolCardProps {
@@ -27,6 +28,7 @@ interface ToolCardProps {
 
 const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile }) => {
   const { t } = useTranslation();
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const getConditionColor = (condition: string) => {
     const conditionMap: Record<string, string> = {
@@ -39,11 +41,22 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
     return conditionMap[condition] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100';
   };
 
+  const getConditionTooltip = (condition: string) => {
+    const conditionMap: Record<string, string> = {
+      'New': t('toolRentals.conditionExcellent'),
+      'Like New': t('toolRentals.conditionExcellent'),
+      'Good': t('toolRentals.conditionGood'),
+      'Fair': t('toolRentals.conditionFair'),
+      'Poor': t('toolRentals.conditionPoor'),
+    };
+    return conditionMap[condition] || '';
+  };
+
   const ownerName = tool.first_name && tool.last_name ? `${tool.first_name} ${tool.last_name}` : 'Unknown';
 
   return (
     <div className="tool-card">
-      {/* Tool Image */}
+      {/* Tool Image + Favorite Button */}
       <div className="tool-card-image-container">
         {tool.image_url ? (
           <img src={tool.image_url} alt={tool.name} className="tool-card-image" loading="lazy" />
@@ -53,6 +66,9 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
           </div>
         )}
         {!tool.is_available && <div className="tool-card-unavailable-overlay">{t('common.unavailable')}</div>}
+        <div className="tool-card-favorite-overlay">
+          <ToolFavoriteButton toolId={tool.id} />
+        </div>
       </div>
 
       {/* Tool Info */}
@@ -61,10 +77,27 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
         <h3 className="tool-card-title">{tool.name}</h3>
         <p className="tool-card-category">{tool.category}</p>
 
-        {/* Condition Badge */}
-        <span className={`tool-card-condition ${getConditionColor(tool.condition)}`}>
-          {tool.condition}
-        </span>
+        {/* Condition Badge with Tooltip */}
+        <div className="tool-card-condition-wrapper">
+          <span className={`tool-card-condition ${getConditionColor(tool.condition)}`}>
+            {tool.condition}
+          </span>
+          {getConditionTooltip(tool.condition) && (
+            <div
+              className="tool-card-condition-tooltip-trigger"
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+              aria-label={getConditionTooltip(tool.condition)}
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
+              {showTooltip && (
+                <div className="tool-card-condition-tooltip">
+                  {getConditionTooltip(tool.condition)}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Location */}
         <div className="tool-card-location">
@@ -72,29 +105,27 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
           <span>{tool.location_city}</span>
         </div>
 
-        {/* Pricing */}
+        {/* Pricing - Price Hierarchy: Daily (Hero), Weekly/Monthly (Muted) */}
         <div className="tool-card-pricing">
-          {tool.daily_rate && (
-            <div className="tool-price-item">
-              <span className="tool-price-label">{t('toolRentals.perDay')}</span>
-              <span className="tool-price-value">${tool.daily_rate}</span>
+          {tool.daily_rate && tool.daily_rate > 0 ? (
+            <div className="tool-card-daily-price">
+              <span className="tool-card-daily-rate">${tool.daily_rate}</span>
+              <span className="tool-card-daily-label">{t('toolRentals.perDay')}</span>
             </div>
-          )}
-          {tool.weekly_rate && (
-            <div className="tool-price-item">
-              <span className="tool-price-label">{t('toolRentals.perWeek')}</span>
-              <span className="tool-price-value">${tool.weekly_rate}</span>
+          ) : null}
+          {(tool.weekly_rate && tool.weekly_rate > 0) || (tool.monthly_rate && tool.monthly_rate > 0) ? (
+            <div className="tool-card-other-prices">
+              {tool.weekly_rate && tool.weekly_rate > 0 && (
+                <span className="tool-card-other-price">${tool.weekly_rate}{t('toolRentals.perWeek')}</span>
+              )}
+              {tool.monthly_rate && tool.monthly_rate > 0 && (
+                <span className="tool-card-other-price">${tool.monthly_rate}{t('toolRentals.perMonth')}</span>
+              )}
             </div>
-          )}
-          {tool.monthly_rate && (
-            <div className="tool-price-item">
-              <span className="tool-price-label">{t('toolRentals.perMonth')}</span>
-              <span className="tool-price-value">${tool.monthly_rate}</span>
-            </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Owner Info */}
+        {/* Owner Info + Response Time */}
         <div className="tool-card-owner">
           {tool.avatar_url ? (
             <img src={tool.avatar_url} alt={ownerName} className="tool-card-owner-avatar" />
@@ -105,12 +136,19 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
           )}
           <div className="tool-card-owner-info">
             <p className="tool-card-owner-name">{ownerName}</p>
-            {tool.owner_rating !== undefined && (
-              <div className="tool-card-owner-rating">
-                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                <span>{tool.owner_rating.toFixed(1)}</span>
-              </div>
-            )}
+            <div className="tool-card-owner-meta">
+              {tool.owner_rating !== undefined && (
+                <div className="tool-card-owner-rating">
+                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                  <span>{tool.owner_rating.toFixed(1)}</span>
+                </div>
+              )}
+              {tool.avg_response_time_hours && (
+                <span className="tool-card-response-time">
+                  {t('toolRentals.respondIn', { hours: tool.avg_response_time_hours })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -127,4 +165,4 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onViewDetails, onViewProfile 
   );
 };
 
-export default ToolCard;
+export default React.memo(ToolCard);

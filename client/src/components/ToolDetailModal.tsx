@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, MessageCircle, User, Star, MapPin } from 'lucide-react';
+import { X, MessageCircle, User, Star, MapPin, HelpCircle, Calendar } from 'lucide-react';
+import ToolReviewsList from './ToolReviewsList';
+import BookingModal from './BookingModal';
 import './ToolDetailModal.css';
 
 interface ToolDetailModalProps {
@@ -36,6 +38,8 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
   onViewProfile,
 }) => {
   const { t } = useTranslation();
+  const [showConditionTooltip, setShowConditionTooltip] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -50,6 +54,17 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
       'Poor': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100',
     };
     return conditionMap[condition] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100';
+  };
+
+  const getConditionTooltip = (condition: string) => {
+    const conditionMap: Record<string, string> = {
+      'New': t('toolRentals.conditionExcellent'),
+      'Like New': t('toolRentals.conditionExcellent'),
+      'Good': t('toolRentals.conditionGood'),
+      'Fair': t('toolRentals.conditionFair'),
+      'Poor': t('toolRentals.conditionPoor'),
+    };
+    return conditionMap[condition] || '';
   };
 
   return (
@@ -76,9 +91,26 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
           <div className="tool-modal-info">
             <div className="tool-modal-category-condition">
               <span className="tool-modal-category">{tool.category}</span>
-              <span className={`tool-modal-condition ${getConditionColor(tool.condition)}`}>
-                {tool.condition}
-              </span>
+              <div className="tool-modal-condition-wrapper">
+                <span className={`tool-modal-condition ${getConditionColor(tool.condition)}`}>
+                  {tool.condition}
+                </span>
+                {getConditionTooltip(tool.condition) && (
+                  <div
+                    className="tool-modal-condition-tooltip-trigger"
+                    onMouseEnter={() => setShowConditionTooltip(true)}
+                    onMouseLeave={() => setShowConditionTooltip(false)}
+                    aria-label={getConditionTooltip(tool.condition)}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
+                    {showConditionTooltip && (
+                      <div className="tool-modal-condition-tooltip">
+                        {getConditionTooltip(tool.condition)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Location */}
@@ -120,11 +152,12 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Owner */}
+            {/* Owner - Horizontal Layout */}
             <div className="tool-modal-owner">
               <h3 className="tool-modal-section-title">{t('toolRentals.owner')}</h3>
-              <div className="tool-modal-owner-card">
-                <div className="tool-modal-owner-header">
+              <div className="tool-modal-owner-card-horizontal">
+                {/* Left: Avatar + Name + Rating */}
+                <div className="tool-modal-owner-info-group">
                   {tool.avatar_url ? (
                     <img src={tool.avatar_url} alt={ownerName} className="tool-modal-owner-avatar" />
                   ) : (
@@ -132,7 +165,7 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                       {tool.first_name?.[0]}{tool.last_name?.[0]}
                     </div>
                   )}
-                  <div className="tool-modal-owner-details">
+                  <div className="tool-modal-owner-text">
                     <p className="tool-modal-owner-name">{ownerName}</p>
                     {tool.owner_rating !== undefined && (
                       <div className="tool-modal-owner-rating">
@@ -143,14 +176,14 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Owner Actions */}
-                <div className="tool-modal-owner-actions">
+                {/* Right: Action Buttons */}
+                <div className="tool-modal-owner-actions-horizontal">
                   <button
                     onClick={() => tool.owner_id && onMessage(tool.owner_id)}
                     className="tool-modal-action-btn tool-modal-message-btn"
                   >
                     <MessageCircle className="w-4 h-4" />
-                    {t('toolRentals.messageOwner')}
+                    {t('toolRentals.inquireAboutRental')}
                   </button>
                   <button
                     onClick={() => tool.owner_id && onViewProfile(tool.owner_id)}
@@ -170,10 +203,34 @@ const ToolDetailModal: React.FC<ToolDetailModalProps> = ({
                   {t('toolRentals.unavailableNotice')}
                 </div>
               )}
+              {tool.is_available && (
+                <button
+                  onClick={() => setIsBookingModalOpen(true)}
+                  className="tool-modal-booking-btn"
+                  disabled={!tool.is_available}
+                >
+                  <Calendar className="w-4 h-4" />
+                  {t('toolRentals.booking')}
+                </button>
+              )}
             </div>
+
+            {/* Reviews Section */}
+            <ToolReviewsList
+              toolId={tool.id}
+              avgRating={tool.avg_rating}
+              reviewCount={tool.review_count}
+            />
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      <BookingModal
+        tool={tool}
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+      />
     </div>
   );
 };

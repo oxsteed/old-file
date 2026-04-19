@@ -11,6 +11,7 @@ import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import NotificationPreferences from '../components/NotificationPreferences';
 import ReferralPanel from '../components/ReferralPanel';
+import PaymentMethodSettings from '../components/PaymentMethodSettings';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -66,6 +67,12 @@ const IconTrash = () => (
     <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
   </svg>
 );
+const IconBox = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+  </svg>
+);
 
 // ── Tab definitions (moved inside component for i18n) ─────────────────────────
 
@@ -78,6 +85,7 @@ export default function SettingsPage() {
     { key: 'profile',       label: t('settings.tabProfile'),       icon: <IconUser /> },
     { key: 'security',      label: t('settings.tabSecurity'),      icon: <IconShield /> },
     { key: 'subscription',  label: t('settings.tabSubscription'),  icon: <IconCard /> },
+    { key: 'toolRentals',   label: t('settings.tabToolRentals'),   icon: <IconBox /> },
     { key: 'businesses',    label: t('settings.tabBusinesses'),    icon: <IconBuilding /> },
     { key: 'notifications', label: t('settings.tabNotifications'), icon: <IconBell /> },
     { key: 'referral',      label: t('settings.tabReferral'),      icon: <IconGift /> },
@@ -508,6 +516,12 @@ export default function SettingsPage() {
     </div>
   );
 
+  const tabToolRentals = (
+    <div className="sp-card">
+      <PaymentMethodSettings />
+    </div>
+  );
+
   // NotificationPreferences renders its own card wrapper with heading — render directly
   const tabNotifications = <NotificationPreferences />;
 
@@ -624,6 +638,7 @@ export default function SettingsPage() {
     profile:       tabProfile,
     security:      tabSecurity,
     subscription:  tabSubscription,
+    toolRentals:   tabToolRentals,
     businesses:    tabBusinesses,
     notifications: tabNotifications,
     referral:      tabReferral,

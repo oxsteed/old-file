@@ -47,6 +47,8 @@ import BusinessHubPage from './pages/BusinessHubPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
 import PublicInvoiceView from './pages/PublicInvoiceView';
 import ToolRentalsBrowse from './pages/ToolRentalsBrowse';
+import MyBookingsPage from './pages/MyBookingsPage';
+import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -98,6 +100,8 @@ export default function App() {
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
+                    <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/tool-rentals/analytics"  element={<Guarded><ProtectedRoute><ToolRentalsAnalytics /></ProtectedRoute></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}

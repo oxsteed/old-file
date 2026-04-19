@@ -9,7 +9,17 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { invoiceLimiter, reportLimiter, termsLimiter } = require('../middleware/rateLimiter');
 const pool    = require('../db');
+const toolFavoritesController = require('../controllers/toolFavoritesController');
+const toolReviewsController = require('../controllers/toolReviewsController');
+const toolBookingsController = require('../controllers/toolBookingsController');
+const toolAnalyticsController = require('../controllers/toolAnalyticsController');
+const toolNotificationsController = require('../controllers/toolNotificationsController');
+const paymentMethodController = require('../controllers/paymentMethodController');
+const invoiceController = require('../controllers/invoiceController');
+const userReportController = require('../controllers/userReportController');
+const termsController = require('../controllers/termsController');
 
 const TOOL_FIELDS = `
   t.id, t.user_id, t.name, t.category, t.description,
@@ -60,27 +70,34 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-// GET /api/tool-rentals/browse?category=&city=&limit=30
+// GET /api/tool-rentals/browse?category=&city=&name=&priceMin=&priceMax=&sort=&limit=30
 router.get('/browse', async (req, res) => {
   try {
-    const { category, city, limit = 30, offset = 0 } = req.query;
+    const { category, city, name, priceMin, priceMax, sort = 'newest', limit = 30, offset = 0 } = req.query;
     const params = [true];
     let where = 'WHERE t.is_available = $1';
     let idx = 2;
 
     if (category) { where += ` AND t.category ILIKE $${idx++}`; params.push(`%${category}%`); }
     if (city)     { where += ` AND t.location_city ILIKE $${idx++}`; params.push(`%${city}%`); }
+    if (name)     { where += ` AND t.name ILIKE $${idx++}`; params.push(`%${name}%`); }
+    if (priceMin) { where += ` AND t.daily_rate >= $${idx++}`; params.push(parseFloat(priceMin)); }
+    if (priceMax) { where += ` AND t.daily_rate <= $${idx++}`; params.push(parseFloat(priceMax)); }
+
+    let orderBy = 't.created_at DESC';
+    if (sort === 'price-asc') orderBy = 't.daily_rate ASC';
+    if (sort === 'price-desc') orderBy = 't.daily_rate DESC';
 
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);
 
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS},
-              u.first_name, u.last_name, u.avatar_url
+              u.first_name, u.last_name, u.avatar_url, u.owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         ${where}
-        ORDER BY t.created_at DESC
+        ORDER BY ${orderBy}
         LIMIT $${idx} OFFSET $${idx + 1}`,
       params
     );
@@ -265,5 +282,54 @@ router.delete('/:id', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to delete tool listing' });
   }
 });
+
+// FAVORITES
+router.get('/favorites', authenticate, toolFavoritesController.getFavorites);
+router.post('/:toolId/favorite', authenticate, toolFavoritesController.toggleFavorite);
+router.get('/:toolId/is-favorited', authenticate, toolFavoritesController.isFavorited);
+
+// REVIEWS
+router.get('/:toolId/reviews', toolReviewsController.getToolReviews);
+router.post('/:toolId/review', authenticate, toolReviewsController.submitReview);
+
+// BOOKINGS
+router.post('/bookings', authenticate, toolBookingsController.createBooking);
+router.get('/bookings/my', authenticate, toolBookingsController.getMyBookings);
+router.get('/bookings/owner', authenticate, toolBookingsController.getBookingsByOwner);
+router.get('/:toolId/availability', toolBookingsController.checkAvailability);
+router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);
+
+// ANALYTICS
+router.post('/analytics/track', toolAnalyticsController.trackEvent);
+router.get('/:toolId/analytics', toolAnalyticsController.getAnalytics);
+router.get('/analytics/top', toolAnalyticsController.getTopTools);
+router.get('/analytics/dashboard', authenticate, toolAnalyticsController.getOwnerDashboard);
+
+// NOTIFICATIONS
+router.get('/notifications/prefs', authenticate, toolNotificationsController.getNotificationPrefs);
+router.put('/notifications/prefs', authenticate, toolNotificationsController.updateNotificationPrefs);
+
+// PAYMENT METHODS (Option C)
+router.get('/payment-method', authenticate, paymentMethodController.getPaymentMethod);
+router.post('/payment-method', authenticate, paymentMethodController.setPaymentMethod);
+router.delete('/payment-method', authenticate, paymentMethodController.deletePaymentMethod);
+
+// INVOICES (Option C)
+router.post('/invoices', authenticate, invoiceLimiter, invoiceController.createInvoice);
+router.get('/invoices/:invoiceId', authenticate, invoiceController.getInvoice);
+router.get('/invoices/:invoiceId/pdf', authenticate, invoiceController.generateInvoicePDF);
+router.post('/invoices/:invoiceId/confirm-payment', authenticate, invoiceLimiter, invoiceController.confirmPayment);
+
+// USER REPORTS (Option C)
+router.post('/reports', authenticate, reportLimiter, userReportController.submitReport);
+router.get('/reports/me/submitted', authenticate, userReportController.getMyReports);
+router.get('/reports/me/against', authenticate, userReportController.getReportsAgainstMe);
+router.get('/admin/reports', authenticate, userReportController.adminGetReports);
+router.put('/admin/reports/:reportId', authenticate, userReportController.adminUpdateReportStatus);
+
+// TERMS & CONDITIONS (Option C)
+router.get('/terms', termsController.getTerms);
+router.post('/terms/accept', authenticate, termsLimiter, termsController.acceptTerms);
+router.get('/bookings/:bookingId/terms-status', authenticate, termsController.getBookingTermsStatus);
 
 module.exports = router;

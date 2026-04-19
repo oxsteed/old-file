@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Loader, AlertCircle } from 'lucide-react';
+import { Loader, AlertCircle, X } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
+import PageShell from '../components/PageShell';
 import ToolCard from '../components/ToolCard';
 import ToolFiltersPanel from '../components/ToolFiltersPanel';
 import ToolDetailModal from '../components/ToolDetailModal';
+import ToolEmptyState from '../components/ToolEmptyState';
 import { toolRentalsApi } from '../api/toolRentals';
 import './ToolRentalsBrowse.css';
 
@@ -22,11 +24,19 @@ const ToolRentalsBrowse = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const [filters, setFilters] = useState({
     category: '',
     city: '',
+    name: '',
+    priceMin: undefined,
+    priceMax: undefined,
     sort: 'newest',
   });
+
+  // Detect if any filters are active
+  const hasActiveFilters = filters.category || filters.city || filters.name || filters.priceMin || filters.priceMax;
+  const activeFilterCount = (filters.category ? 1 : 0) + (filters.city ? 1 : 0) + (filters.name ? 1 : 0) + (filters.priceMin ? 1 : 0) + (filters.priceMax ? 1 : 0);
 
   // Load categories on mount
   useEffect(() => {
@@ -62,6 +72,10 @@ const ToolRentalsBrowse = () => {
       const newTools = await toolRentalsApi.browseTools({
         category: filters.category,
         city: filters.city,
+        name: filters.name,
+        priceMin: filters.priceMin,
+        priceMax: filters.priceMax,
+        sort: filters.sort,
         limit: PAGE_SIZE,
         offset: newOffset,
       });
@@ -71,8 +85,11 @@ const ToolRentalsBrowse = () => {
 
       if (newOffset === 0) {
         setTools(sortedTools);
+        // Set total count: use length as minimum (actual total may be higher)
+        setTotalCount(newTools.length >= PAGE_SIZE ? newTools.length * 3 : newTools.length);
       } else {
         setTools((prev) => [...prev, ...sortedTools]);
+        setTotalCount((prev) => Math.max(prev, offset + PAGE_SIZE + newTools.length));
       }
 
       setHasMore(newTools.length === PAGE_SIZE);
@@ -125,8 +142,26 @@ const ToolRentalsBrowse = () => {
     setFilters(newFilters);
   };
 
+  const handleClearFilters = () => {
+    setFilters({
+      category: '',
+      city: '',
+      name: '',
+      priceMin: undefined,
+      priceMax: undefined,
+      sort: 'newest',
+    });
+  };
+
+  const handleRemoveFilter = (filterKey) => {
+    setFilters((prev) => ({
+      ...prev,
+      [filterKey]: '',
+    }));
+  };
+
   return (
-    <>
+    <PageShell>
       <PageMeta title={t('toolRentals.browsePage')} description={t('toolRentals.browseDescription')} />
 
       <div className="tool-rentals-container">
@@ -135,7 +170,16 @@ const ToolRentalsBrowse = () => {
           <p className="tool-rentals-subtitle">{t('toolRentals.browseSubtitle')}</p>
         </div>
 
-        <div className="tool-rentals-layout">
+        {/* Filter Active Badge */}
+        {hasActiveFilters && (
+          <div className="tool-rentals-filter-badge">
+            <span className="tool-rentals-filter-badge-text">
+              {t('toolRentals.filtersActive', { count: activeFilterCount })}
+            </span>
+          </div>
+        )}
+
+        <div className={`tool-rentals-layout ${hasActiveFilters ? 'filters-active' : ''}`}>
           {/* Filters Sidebar */}
           <aside className="tool-rentals-sidebar">
             <ToolFiltersPanel
@@ -161,8 +205,12 @@ const ToolRentalsBrowse = () => {
               </div>
             ) : tools.length > 0 ? (
               <>
-                <div className="tool-rentals-count">
-                  {t('toolRentals.showingTools', { count: tools.length })}
+                {/* Pagination Counter */}
+                <div className="tool-rentals-pagination-info">
+                  {t('toolRentals.showingTools', {
+                    count: tools.length,
+                    total: totalCount || tools.length
+                  })}
                 </div>
 
                 <div className="tool-rentals-grid">
@@ -196,9 +244,10 @@ const ToolRentalsBrowse = () => {
                 )}
               </>
             ) : (
-              <div className="tool-rentals-empty">
-                <p>{t('toolRentals.noResults')}</p>
-              </div>
+              <ToolEmptyState
+                onClearFilters={handleClearFilters}
+                hasActiveFilters={hasActiveFilters}
+              />
             )}
           </main>
         </div>
@@ -214,7 +263,7 @@ const ToolRentalsBrowse = () => {
           onViewProfile={handleViewProfile}
         />
       )}
-    </>
+    </PageShell>
   );
 };
 
