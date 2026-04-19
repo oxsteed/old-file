@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-18 (✅ **Session 2026-04-18: Production Hardening + Infrastructure Complete** — PR #205: 6 security improvements (correlation IDs, CSRF, JWT revocation, error boundaries, transaction wrappers, pool monitoring) + PR #207: 70+ logger migrations, payment queue, API versioning, DB pool scaling. Combined into unified codebase.)
+**Last updated:** 2026-04-19 (✅ **Session 2026-04-19: Phase 7 Complete + Build Fix** — PR #225: Business Skills Integration across Business Hub, Job Creation, and Helper Search. Skills selection in hub, required skills on job posting, server-side GROUP BY/HAVING filtering, full i18n support (EN/ES/FR/HT). Build fix: added missing listBusinessSkills API export.)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.

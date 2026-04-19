@@ -90,3 +90,7 @@ export const deleteBusinessFAQ     = (bizId, faqId)      => api.delete(`/busines
 // ── Business content: Hours ────────────────────────────────────────────────────
 export const listBusinessHours     = (bizId)             => api.get(`/businesses/${bizId}/hours`).then(r => r.data || []);
 export const updateBusinessHours   = (bizId, payload)    => api.put(`/businesses/${bizId}/hours`, payload).then(r => r.data);
+
+// ── Business content: Skills ───────────────────────────────────────────────────
+export const listBusinessSkills    = (bizId)             => api.get(`/businesses/${bizId}/skills`).then(r => r.data || []);
+export const updateBusinessSkills  = (bizId, payload)    => api.put(`/businesses/${bizId}/skills`, payload).then(r => r.data);
