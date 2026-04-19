@@ -19,10 +19,21 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ bookingId, isOpen, onClose,
 
   if (!isOpen) return null;
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSend = async () => {
-    if (deliveryMethod === 'email' && !recipientEmail.trim()) {
-      toast.error(t('toolRentals.emailRequired') || 'Email address required');
-      return;
+    if (deliveryMethod === 'email') {
+      if (!recipientEmail.trim()) {
+        toast.error(t('toolRentals.emailRequired') || 'Email address required');
+        return;
+      }
+      if (!validateEmail(recipientEmail)) {
+        toast.error(t('toolRentals.invalidEmail') || 'Invalid email format');
+        return;
+      }
     }
 
     setLoading(true);

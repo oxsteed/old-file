@@ -3622,6 +3622,7 @@
     "personalEmailDesc": "Voye soti nan kont imel w",
     "recipientEmail": "Email Resipyan",
     "emailRequired": "Adrès imel obliyatwa",
+    "invalidEmail": "Fòma imel envalid",
     "invoiceSent": "Faktir voye avèk siksè",
     "invoiceSendFailed": "Echèk voye faktir",
     "invoiceInfo": "Faktir la pral enkli metòd peman w ak yon kòd QR pou peman fasil.",

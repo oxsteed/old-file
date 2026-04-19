@@ -3,15 +3,22 @@ const logger = require('../utils/logger');
 const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 const { Readable } = require('stream');
+const crypto = require('crypto');
 
 const generateInvoiceNumber = async () => {
   const today = new Date();
   const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-  const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
-  return `INV-${dateStr}-${randomStr}`;
+  const randomBytes = crypto.randomInt(10000, 99999).toString();
+  return `INV-${dateStr}-${randomBytes}`;
+};
+
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 };
 
 const createInvoice = async (req, res) => {
+  const client = await db.connect();
   try {
     const { bookingId, deliveryMethod, recipientEmail } = req.body;
     const ownerId = req.user.id;
@@ -21,41 +28,59 @@ const createInvoice = async (req, res) => {
       return res.status(400).json({ error: 'Invalid delivery method' });
     }
 
-    if (deliveryMethod === 'email' && !recipientEmail) {
-      return res.status(400).json({ error: 'Email required for email delivery' });
+    if (deliveryMethod === 'email') {
+      if (!recipientEmail) {
+        return res.status(400).json({ error: 'Email required for email delivery' });
+      }
+      if (!validateEmail(recipientEmail)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
     }
 
-    // Get booking details
-    const bookingResult = await db.query(
-      `SELECT trb.*, tr.name, tr.daily_rate, u.email as customer_email, u.first_name
+    // Get booking details + owner email
+    const bookingResult = await client.query(
+      `SELECT trb.*, tr.name, tr.daily_rate, cu.email as customer_email, cu.first_name,
+              ou.email as owner_email
        FROM tool_rentals_bookings trb
        JOIN tool_rentals tr ON trb.tool_id = tr.id
-       JOIN users u ON trb.customer_id = u.id
+       JOIN users cu ON trb.customer_id = cu.id
+       JOIN users ou ON trb.owner_id = ou.id
        WHERE trb.id = $1 AND trb.owner_id = $2`,
       [bookingId, ownerId]
     );
 
     if (!bookingResult.rows[0]) {
+      client.release();
       return res.status(404).json({ error: 'Booking not found' });
     }
 
     const booking = bookingResult.rows[0];
 
+    // Verify booking status is pending (no invoice sent yet)
+    if (booking.status !== 'pending') {
+      client.release();
+      return res.status(400).json({ error: 'Invoice already sent for this booking' });
+    }
+
     // Get owner's payment method
-    const paymentResult = await db.query(
+    const paymentResult = await client.query(
       `SELECT payment_type, payment_identifier FROM owner_payment_methods WHERE owner_id = $1`,
       [ownerId]
     );
 
     if (!paymentResult.rows[0]) {
+      client.release();
       return res.status(400).json({ error: 'Payment method not configured' });
     }
 
     const payment = paymentResult.rows[0];
 
+    // Start transaction
+    await client.query('BEGIN');
+
     // Create invoice record
     const invoiceNumber = await generateInvoiceNumber();
-    const invoiceResult = await db.query(
+    const invoiceResult = await client.query(
       `INSERT INTO tool_rental_invoices
        (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount, payment_type, payment_identifier)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -78,17 +103,21 @@ const createInvoice = async (req, res) => {
     const invoice = invoiceResult.rows[0];
 
     // Log delivery
-    await db.query(
-      `INSERT INTO invoice_delivery_log (invoice_id, delivery_method, recipient_email, sent_at, delivery_status)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'sent')`,
-      [invoice.id, deliveryMethod, recipientEmail || booking.customer_email]
+    await client.query(
+      `INSERT INTO invoice_delivery_log (invoice_id, delivery_method, recipient_email, sender_email, delivery_status)
+       VALUES ($1, $2, $3, $4, 'sent')`,
+      [invoice.id, deliveryMethod, recipientEmail || booking.customer_email, booking.owner_email]
     );
 
     // Update booking status
-    await db.query(
+    await client.query(
       `UPDATE tool_rentals_bookings SET status = 'invoice_sent', invoice_sent_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [bookingId]
     );
+
+    await client.query('COMMIT');
+
+    client.release();
 
     res.json({
       invoiceId: invoice.id,
@@ -103,6 +132,8 @@ const createInvoice = async (req, res) => {
       deliveryMethod
     });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    client.release();
     logger.error('createInvoice error', { err });
     res.status(500).json({ error: 'Failed to create invoice' });
   }
@@ -171,8 +202,9 @@ const generateInvoicePDF = async (req, res) => {
 
     const invoice = result.rows[0];
 
-    // Generate QR code
-    const paymentLink = `${process.env.CLIENT_URL || 'https://oxsteed.com'}/pay/${invoice.payment_type}/${encodeURIComponent(invoice.payment_identifier)}`;
+    // Generate QR code with properly encoded payment link
+    const baseUrl = process.env.CLIENT_URL || 'https://oxsteed.com';
+    const paymentLink = `${baseUrl}/pay/${encodeURIComponent(invoice.payment_type)}/${encodeURIComponent(invoice.payment_identifier)}`;
     const qrCodeDataUrl = await QRCode.toDataURL(paymentLink);
 
     // Create PDF
@@ -300,37 +332,62 @@ const generateInvoicePDF = async (req, res) => {
 };
 
 const confirmPayment = async (req, res) => {
+  const client = await db.connect();
   try {
     const { invoiceId } = req.params;
     const ownerId = req.user.id;
 
-    const invoiceResult = await db.query(
-      `SELECT * FROM tool_rental_invoices WHERE id = $1 AND owner_id = $2`,
+    const invoiceResult = await client.query(
+      `SELECT tri.*, trb.status as booking_status
+       FROM tool_rental_invoices tri
+       JOIN tool_rentals_bookings trb ON tri.booking_id = trb.id
+       WHERE tri.id = $1 AND tri.owner_id = $2`,
       [invoiceId, ownerId]
     );
 
     if (!invoiceResult.rows[0]) {
+      client.release();
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
     const invoice = invoiceResult.rows[0];
 
+    // Prevent double-confirmation
+    if (invoice.status === 'payment_confirmed') {
+      client.release();
+      return res.status(400).json({ error: 'Payment already confirmed' });
+    }
+
+    // Ensure booking is in correct state
+    if (invoice.booking_status !== 'invoice_sent') {
+      client.release();
+      return res.status(400).json({ error: 'Booking is not in correct state for payment confirmation' });
+    }
+
+    // Transaction for atomicity
+    await client.query('BEGIN');
+
     // Update invoice status
-    await db.query(
+    await client.query(
       `UPDATE tool_rental_invoices SET status = 'payment_confirmed', payment_confirmed_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [invoiceId]
     );
 
     // Update booking status (immutable after this)
-    await db.query(
+    await client.query(
       `UPDATE tool_rentals_bookings SET status = 'payment_confirmed', payment_confirmed_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [invoice.booking_id]
     );
+
+    await client.query('COMMIT');
+    client.release();
 
     res.json({ status: 'payment_confirmed', invoiceId });
 
     logger.info('Payment confirmed', { invoiceId, bookingId: invoice.booking_id });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    client.release();
     logger.error('confirmPayment error', { err });
     res.status(500).json({ error: 'Failed to confirm payment' });
   }

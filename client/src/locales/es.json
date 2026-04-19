@@ -3623,6 +3623,7 @@
     "personalEmailDesc": "Enviar desde su propia cuenta de correo",
     "recipientEmail": "Email del Destinatario",
     "emailRequired": "Se requiere dirección de correo electrónico",
+    "invalidEmail": "Formato de correo electrónico inválido",
     "invoiceSent": "Factura enviada con éxito",
     "invoiceSendFailed": "No se pudo enviar la factura",
     "invoiceInfo": "La factura incluirá su método de pago y un código QR para pago fácil.",

@@ -1,6 +1,20 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 
+const validatePaymentIdentifier = (type, identifier) => {
+  if (type === 'cash_app') {
+    return /^\$[a-zA-Z0-9\-_]{3,}$/.test(identifier);
+  }
+  if (type === 'venmo') {
+    return /^@[a-zA-Z0-9\-_]{3,}$/.test(identifier);
+  }
+  if (type === 'bank_transfer') {
+    // Accept various formats: account numbers, email-like identifiers, etc.
+    return identifier.trim().length >= 5;
+  }
+  return false;
+};
+
 const getPaymentMethod = async (req, res) => {
   try {
     const ownerId = req.user.id;
@@ -33,11 +47,16 @@ const setPaymentMethod = async (req, res) => {
     }
 
     // Validate payment identifier format
-    if (paymentType === 'cash_app' && !paymentIdentifier.startsWith('$')) {
-      return res.status(400).json({ error: 'Cash App identifier must start with $' });
-    }
-    if (paymentType === 'venmo' && !paymentIdentifier.startsWith('@')) {
-      return res.status(400).json({ error: 'Venmo identifier must start with @' });
+    if (!validatePaymentIdentifier(paymentType, paymentIdentifier)) {
+      if (paymentType === 'cash_app') {
+        return res.status(400).json({ error: 'Cash App identifier must start with $ followed by username' });
+      }
+      if (paymentType === 'venmo') {
+        return res.status(400).json({ error: 'Venmo identifier must start with @ followed by username' });
+      }
+      if (paymentType === 'bank_transfer') {
+        return res.status(400).json({ error: 'Bank account identifier must be at least 5 characters' });
+      }
     }
 
     // Upsert payment method

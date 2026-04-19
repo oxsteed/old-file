@@ -114,6 +114,11 @@ const getReportsAgainstMe = async (req, res) => {
 
 const adminGetReports = async (req, res) => {
   try {
+    // Require admin role
+    if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     const { status, severity, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
 
