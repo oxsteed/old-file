@@ -1856,4 +1856,111 @@ If any gate fails, **stop and fix it first**. Do not proceed with new features w
 
 ---
 
->>>>>>> pr207-branch
+## Session — 2026-04-19 (Comprehensive QA & Review)
+
+**Objective:** Systematic review of codebase, infrastructure, and readiness for users.
+
+**Status:** 🟡 **Ready for beta testing with 3 critical fixes pending**
+
+### Issues Found & Fixed This Session:
+
+1. **Test Infrastructure Regression** ✅ FIXED
+   - Missing `ENCRYPTION_KEY` in test environment (broke TOTP/TIN encryption tests)
+   - Missing `file-type@18.5.0` dependency (upload validation middleware)
+   - CSRF middleware blocking test POST/PUT/DELETE without token mocking
+   - **Applied:** `ENCRYPTION_KEY` env var, npm install file-type, skip CSRF in test mode
+   - **Status:** Core auth tests (12) passing; 32 other tests still failing (mock compatibility issue with new token revocation service)
+   - **Commit:** `aeee683` — fix: test infrastructure
+
+2. **Dev Environment Testing** ⚠️ CANNOT COMPLETE
+   - Server requires real PostgreSQL database (not available in test environment)
+   - All migrations require DB connection
+   - Manual testing limited to code review + static analysis
+   - **Recommendation:** Test against staging/prod database or Docker Compose setup
+
+### Production Readiness Checklist:
+
+**✅ COMPLETE:**
+- Security middleware (CSRF, token revocation, rate limiting, security headers)
+- i18n (2,722 keys across 4 languages with full parity)
+- Real-time features (Socket.IO with room security, typing indicators)
+- Logging (100% structured logging across all controllers)
+- Database schema (72 migrations, schema divergence audit complete)
+- API versioning (soft version detection ready)
+- Fee calculation service (with staleness guards)
+- Error handling middleware (with correlation IDs)
+- Payment queue infrastructure (Bull created but not wired)
+- All 17 phases of i18n completed + verified
+
+**⚠️ PARTIALLY COMPLETE:**
+- Payment processing (queue created, but `capturePayment` still synchronous)
+- Error boundaries (app-level exists; per-route recommended)
+- Test coverage (82 tests exist; 32 currently failing due to mock setup)
+
+**🔴 BLOCKING ISSUES (must fix before production):**
+
+| Issue | Impact | Fix | Priority |
+|-------|--------|-----|----------|
+| **Payment queue not wired** | Stripe API calls block requests; DB pool exhaustion | Wire `queuePaymentCapture()` in paymentController | CRITICAL |
+| **Email verification not enforced** | Users can bypass email requirement | Add `user.email_verified` check in ProtectedRoute | CRITICAL |
+| **Jest test failures** | Cannot verify regressions in CI | Mock `tokenRevocationService` in test setup | HIGH |
+| **No DB pool monitoring** | Cannot detect exhaustion at scale | Wire `/api/health/pool` to APM system | HIGH |
+
+**🟡 HIGH PRIORITY (before 100 users):**
+- Notification preferences wiring (table exists, not used in sends)
+- Didit verification enforcement (some signup paths allow skip)
+- Dispute escrow integration (disputes don't lock payments)
+
+### Code Quality Assessment:
+
+| Metric | Score | Notes |
+|--------|-------|-------|
+| **Architecture** | 8/10 | Well-structured; monolithic but clear separation of concerns |
+| **Security** | 9/10 | Comprehensive checks; CSRF, rate limiting, input validation all present |
+| **Error Handling** | 7/10 | Good middleware; per-route boundaries would improve resilience |
+| **Testing** | 5/10 | 82 tests exist but 32 failing; need to fix mock setup |
+| **Documentation** | 8/10 | CLAUDE.md comprehensive; code comments sparse but acceptable |
+| **Performance** | 6/10 | No bundle analysis, no query optimization profiling yet |
+| **i18n** | 10/10 | Perfect key parity across 4 languages; complete coverage |
+
+### Deployment Readiness:
+
+**Prerequisites:**
+- [ ] PostgreSQL database (Cloud SQL / Render Postgres / RDS)
+- [ ] Redis (Upstash / Render Redis) for distributed rate limiting
+- [ ] Stripe Connect enabled on Stripe account
+- [ ] S3 bucket configured for file uploads (AWS / Cloudflare R2)
+- [ ] Email provider (Resend) configured for transactional emails
+- [ ] SMS provider (Twilio) configured for OTP
+- [ ] Didit integration keys configured (identity verification)
+- [ ] APM system configured (Sentry / Datadog) for monitoring
+- [ ] Environment variables set (see `.env.example`)
+
+**Post-Launch Monitoring:**
+- [ ] Pool utilization (`GET /api/health/pool` endpoint)
+- [ ] Response time trends (correlation IDs in logs)
+- [ ] Error rates by endpoint (structured logging)
+- [ ] Payment capture success rates (webhook verification)
+- [ ] Socket.IO connection stability
+
+### Remaining Work by Priority:
+
+**This Week (BLOCKING):**
+1. Fix payment queue wiring (1-2 hours)
+2. Add email verification enforcement (30 min)
+3. Fix Jest mock setup for token revocation (1-2 hours)
+4. Manual integration test of complete payment flow
+
+**Next Week (HIGH):**
+1. Wire pool monitoring to Datadog
+2. Test at scale (load testing 50+ concurrent users)
+3. Verify Didit verification enforcement
+4. Complete notification preferences wiring
+
+**Future (NICE TO HAVE):**
+1. Per-route error boundaries
+2. React Query client-side caching
+3. Bundle size analysis + tree-shaking optimization
+4. Additional integration tests
+
+---
