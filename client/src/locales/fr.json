@@ -90,7 +90,9 @@
       "mainNavigation": "Navigation principale",
       "location": "Localisation"
     },
-    "failed": "Erreur"
+    "failed": "Erreur",
+    "sortBy": "Trier par",
+    "reset": "Réinitialiser"
   },
   "jobs": {
     "title": "Détails de la mission",

@@ -90,7 +90,9 @@
       "mainNavigation": "Main navigation",
       "location": "Location"
     },
-    "failed": "Failed"
+    "failed": "Failed",
+    "sortBy": "Sort by",
+    "reset": "Reset"
   },
   "jobs": {
     "title": "Job Details",

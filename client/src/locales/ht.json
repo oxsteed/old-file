@@ -90,7 +90,9 @@
       "mainNavigation": "Navigasyon prensipal",
       "location": "Lokasyon"
     },
-    "failed": "Erè"
+    "failed": "Erè",
+    "sortBy": "Triye pa",
+    "reset": "Reinisyalize"
   },
   "trial": {
     "active": "Esè aktif",

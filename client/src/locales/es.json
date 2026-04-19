@@ -90,7 +90,9 @@
       "mainNavigation": "Navegación principal",
       "location": "Ubicación"
     },
-    "failed": "Error"
+    "failed": "Error",
+    "sortBy": "Ordenar por",
+    "reset": "Restablecer"
   },
   "jobs": {
     "title": "Detalles del Trabajo",
