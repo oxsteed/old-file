@@ -247,6 +247,20 @@ export interface HelperServiceSummary {
   priceUnit: PriceUnit;
 }
 
+export interface HelperReview {
+  id: string;
+  rating: number;
+  text: string;
+  authorName: string;
+  date: string;
+  helpfulCount?: number;
+}
+
+export interface HelperAvailabilitySnippet {
+  summary: string; // e.g. "Available Mon–Fri, 9am–5pm"
+  weeklyHours?: Array<{ day: string; open: string | null; close: string | null }>;
+}
+
 export interface HelperCardData {
   id: string;
   /** 'helper' (default) or 'business' for business cards mixed into the grid */
@@ -284,6 +298,16 @@ export interface HelperCardData {
   distanceMiles?: number;
   availableToday: boolean;
   shortBio: string;
+
+  // ── Preview data (Phase 1) ──────────────────────────────────────────────────
+  /** Sample reviews for expanded preview (2–3 most recent) */
+  reviews?: HelperReview[];
+  /** Availability summary for expanded preview */
+  availabilitySnippet?: HelperAvailabilitySnippet;
+
+  // ── Phase 4: Helper settings ────────────────────────────────────────────────
+  /** When true, helpers require guests to verify email/phone before contacting */
+  requireContactSignup?: boolean;
 }
 
 // ─── Directory page state ─────────────────────────────────────────────────────

@@ -1,0 +1,137 @@
+/* ── Helper Carousel — Horizontal Scrolling ───────────────────────────────────── */
+
+.carousel-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.carousel-container {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  gap: 1rem;
+  padding: 1rem 0;
+  /* Hide scrollbar */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.carousel-container::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-card-wrapper {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  width: min(100%, 340px);
+}
+
+.carousel-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--muted-text);
+  font-size: 1rem;
+}
+
+/* ── Navigation Buttons ────────────────────────────────────────────────────────── */
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--border-color);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-btn:hover {
+  background: var(--app-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.carousel-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.carousel-btn--left {
+  left: -20px;
+}
+
+.carousel-btn--right {
+  right: -20px;
+}
+
+/* ── Mobile Hint ───────────────────────────────────────────────────────────────── */
+
+.carousel-hint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted-text);
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+/* ── Dark Mode ─────────────────────────────────────────────────────────────────── */
+
+html.dark .carousel-btn {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--app-text);
+}
+
+html.dark .carousel-btn:hover {
+  background: var(--nav-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Responsive Design ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .carousel-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .carousel-btn--left {
+    left: -18px;
+  }
+
+  .carousel-btn--right {
+    right: -18px;
+  }
+
+  .carousel-hint {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .carousel-wrapper {
+    overflow: hidden;
+  }
+
+  .carousel-btn {
+    display: none; /* Hide buttons on very small screens */
+  }
+
+  .carousel-card-wrapper {
+    width: 100%;
+  }
+
+  .carousel-hint {
+    font-size: 0.7rem;
+    color: var(--muted-text);
+  }
+}

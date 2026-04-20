@@ -1481,7 +1481,8 @@
       "findJobs": "Find Jobs",
       "myBids": "My Bids",
       "reviews": "Reviews",
-      "invoices": "Invoices"
+      "invoices": "Invoices",
+      "contactSettings": "Contact Settings"
     },
     "proActivated": "Pro Plan Activated",
     "products": {
@@ -1603,7 +1604,15 @@
     "addSkill": "Add Skill",
     "manageSkills": "Manage Skills",
     "addTool": "Add Tool",
-    "manageTools": "Manage Tools"
+    "manageTools": "Manage Tools",
+    "contactRequirements": "Contact Requirements",
+    "requireSignupLabel": "Require Signup to Contact",
+    "requireSignupDesc": "When enabled, guests must verify their email before messaging or requesting a booking. This helps prevent spam while keeping friction low.",
+    "requireSignupNote": "Guests will see a soft email verification gate when trying to contact you. They can still browse your profile freely.",
+    "signupRequired": "Guests must now verify email to contact you",
+    "signupNotRequired": "Guests can contact you without signing up",
+    "failedUpdateSettings": "Failed to update contact settings",
+    "failedUpdateStatus": "Failed to update status"
   },
   "postJob": {
     "title": "Post a Job",

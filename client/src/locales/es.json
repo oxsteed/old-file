@@ -1481,7 +1481,8 @@
       "findJobs": "Buscar trabajos",
       "myBids": "Mis ofertas",
       "reviews": "Reseñas",
-      "invoices": "Facturas"
+      "invoices": "Facturas",
+      "contactSettings": "Configuración de Contacto"
     },
     "jobsCompleted": "Trabajos completados",
     "earnedThisMonth": "Ganancia este mes",
@@ -1603,7 +1604,15 @@
     "personalCareDesc": "Descripción del cuidado personal",
     "taskAdded": "Tarea agregada: {title}",
     "pro": "Pro",
-    "subscribed": "Suscrito"
+    "subscribed": "Suscrito",
+    "contactRequirements": "Requisitos de Contacto",
+    "requireSignupLabel": "Requerir Registro para Contactar",
+    "requireSignupDesc": "Cuando está habilitado, los invitados deben verificar su correo electrónico antes de enviar mensajes o solicitar una reserva. Esto ayuda a prevenir spam manteniendo la fricción baja.",
+    "requireSignupNote": "Los invitados verán una puerta de verificación de correo electrónico suave cuando intenten contactarte. Aún pueden navegar tu perfil libremente.",
+    "signupRequired": "Los invitados ahora deben verificar el correo electrónico para contactarte",
+    "signupNotRequired": "Los invitados pueden contactarte sin registrarse",
+    "failedUpdateSettings": "Error al actualizar la configuración de contacto",
+    "failedUpdateStatus": "Error al actualizar el estado"
   },
   "postJob": {
     "title": "Publicar un trabajo",

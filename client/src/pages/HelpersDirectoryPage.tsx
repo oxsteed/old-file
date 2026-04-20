@@ -22,6 +22,11 @@ import SortControls from '../components/helperDirectory/SortControls';
 import ActiveFilterTags from '../components/helperDirectory/ActiveFilterTags';
 import EmptyState from '../components/helperDirectory/EmptyState';
 import HelperCard from '../components/helperDirectory/HelperCard';
+import HelperProfilePreview from '../components/HelperProfilePreview';
+import HelperCarousel from '../components/HelperCarousel';
+import GuestContactGate from '../components/GuestContactGate';
+import { useAuth } from '../context/AuthContext';
+import { useGuestSession } from '../hooks/useGuestSession';
 
 import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';
 import { DEFAULT_FILTERS, countActiveFilters, SKILL_TILES } from '../types/helperDirectory';
@@ -441,6 +446,9 @@ function mergeGridItems(
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { isVerified } = useGuestSession();
+
   // Parse URL params exactly once — destructure for both derived states.
   const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
   const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
@@ -452,6 +460,20 @@ const HelpersDirectoryPage: React.FC = () => {
   const [loadState, setLoadState]       = useState<'loading' | 'success' | 'error'>('loading');
   const [drawerOpen, setDrawerOpen]     = useState(false);
   const [selectedTileId, setSelectedTileId] = useState<string | null>(_initTileId);
+
+  // Layout mode (grid or carousel) persisted in localStorage
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'carousel'>(() => {
+    if (typeof window === 'undefined') return 'grid';
+    return (localStorage.getItem('helperLayoutMode') as 'grid' | 'carousel') || 'grid';
+  });
+
+  // Expanded helper profile (inline expansion)
+  const [expandedHelperId, setExpandedHelperId] = useState<string | null>(null);
+
+  // Guest contact gate state
+  const [gateOpen, setGateOpen] = useState(false);
+  const [gateHelper, setGateHelper] = useState<HelperCardData | null>(null);
+  const [gateAction, setGateAction] = useState<'message' | 'book'>('message');
 
   // Debounce filter/sort changes; skip debounce on first render for instant load
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -552,14 +574,40 @@ const HelpersDirectoryPage: React.FC = () => {
     load(filters, sort, nextPage, true);
   }, [filters, sort, page, load]);
 
-  const handleMessage = useCallback((id: string) => {
+  const toggleLayoutMode = useCallback(() => {
+    const newMode = layoutMode === 'grid' ? 'carousel' : 'grid';
+    setLayoutMode(newMode);
+    localStorage.setItem('helperLayoutMode', newMode);
+  }, [layoutMode]);
+
+  const handleMessage = useCallback((id: string, action: 'message' | 'book' = 'message') => {
     // Business cards have a string id prefixed with 'biz_'; route to business profile
     if (id.startsWith('biz_')) {
       window.location.href = `/business/${id.replace('biz_', '')}`;
-    } else {
-      window.location.href = `/helpers/${id}`;
+      return;
     }
-  }, []);
+
+    // Find the helper to check requireContactSignup
+    const helper = displayed.find((h) => h.id === id);
+    if (!helper) return;
+
+    // If logged in, proceed directly
+    if (user) {
+      window.location.href = `/helpers/${id}`;
+      return;
+    }
+
+    // Guest: check if helper requires signup
+    if (helper.requireContactSignup && !isVerified()) {
+      setGateHelper(helper);
+      setGateAction(action);
+      setGateOpen(true);
+      return;
+    }
+
+    // Guest without requirement, or already verified: proceed
+    window.location.href = `/helpers/${id}`;
+  }, [user, displayed, isVerified]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -647,22 +695,42 @@ const HelpersDirectoryPage: React.FC = () => {
           {/* ── Results column ───────────────────────────────── */}
           <div className="flex-1 min-w-0 space-y-5">
 
-            {/* Sort + active tags — desktop */}
+            {/* Sort + active tags + layout toggle — desktop */}
             <div className="hidden lg:flex flex-col gap-3">
-              <SortControls
-                value={sort}
-                onChange={setSort}
-                resultCount={total}
-              />
+              <div className="flex items-center justify-between">
+                <SortControls
+                  value={sort}
+                  onChange={setSort}
+                  resultCount={total}
+                />
+                <button
+                  onClick={toggleLayoutMode}
+                  className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-gray-300 hover:text-white transition-colors"
+                  title={layoutMode === 'grid' ? 'Switch to carousel' : 'Switch to grid'}
+                >
+                  {layoutMode === 'grid' ? '🎠 Carousel' : '📋 Grid'}
+                </button>
+              </div>
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>
 
             {/* Active tags — mobile */}
             <div className="lg:hidden">
-              <ActiveFilterTags filters={filters} onChange={updateFilters} />
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex-1">
+                  <ActiveFilterTags filters={filters} onChange={updateFilters} />
+                </div>
+                <button
+                  onClick={toggleLayoutMode}
+                  className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-gray-300 hover:text-white transition-colors flex-shrink-0"
+                  title={layoutMode === 'grid' ? 'Switch to carousel' : 'Switch to grid'}
+                >
+                  {layoutMode === 'grid' ? '🎠' : '📋'}
+                </button>
+              </div>
             </div>
 
-            {/* Grid */}
+            {/* Content based on layout mode */}
             {loadState === 'loading' && displayed.length === 0 ? (
               <div
                 className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
@@ -693,7 +761,7 @@ const HelpersDirectoryPage: React.FC = () => {
                 maxDistance={filters.maxDistance}
                 onExpandRadius={() => updateFilters({ maxDistance: Math.min((filters.maxDistance || 25) * 2, 100) })}
               />
-            ) : (
+            ) : layoutMode === 'grid' ? (
               <>
                 <div
                   className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
@@ -702,9 +770,13 @@ const HelpersDirectoryPage: React.FC = () => {
                 >
                   {displayed.map((helper) => (
                     <div key={helper.id} role="listitem">
-                      <HelperCard
+                      <HelperProfilePreview
                         helper={helper}
-                        onMessage={handleMessage}
+                        isExpanded={expandedHelperId === helper.id}
+                        onExpand={() => setExpandedHelperId(helper.id)}
+                        onCollapse={() => setExpandedHelperId(null)}
+                        onBookClick={() => handleMessage(helper.id, 'book')}
+                        onMessageClick={() => handleMessage(helper.id, 'message')}
                         highlightCategory={boostedCategory}
                       />
                     </div>
@@ -736,6 +808,14 @@ const HelpersDirectoryPage: React.FC = () => {
                   </p>
                 )}
               </>
+            ) : (
+              <>
+                <HelperCarousel
+                  helpers={displayed}
+                  onBookClick={(id) => handleMessage(id, 'book')}
+                  onMessageClick={(id) => handleMessage(id, 'message')}
+                />
+              </>
             )}
           </div>
         </div>
@@ -755,6 +835,21 @@ const HelpersDirectoryPage: React.FC = () => {
           onReset={resetFilters}
         />
       </FilterDrawer>
+
+      {/* Guest contact gate */}
+      {gateHelper && (
+        <GuestContactGate
+          isOpen={gateOpen}
+          onClose={() => setGateOpen(false)}
+          helperId={gateHelper.id}
+          helperName={gateHelper.ownerName}
+          onVerified={() => {
+            setGateOpen(false);
+            window.location.href = `/helpers/${gateHelper.id}`;
+          }}
+          action={gateAction}
+        />
+      )}
     </div>
   );
 };
