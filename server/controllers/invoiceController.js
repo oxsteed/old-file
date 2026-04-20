@@ -50,7 +50,33 @@ const createInvoice = async (req, res) => {
       }
     }
 
-    // Check for existing invoice with same idempotency key (for this booking)
+    // Open transaction first, then do the idempotency check + booking lock inside it.
+    // This prevents a race where two concurrent requests with the same idempotency key
+    // both pass the check before either has written to the DB.
+    await client.query('BEGIN');
+
+    // Lock the booking row so concurrent requests queue up rather than racing.
+    const bookingResult = await client.query(
+      `SELECT trb.*, tr.name, tr.daily_rate, cu.email as customer_email, cu.first_name as customer_first, cu.last_name as customer_last,
+              ou.email as owner_email, ou.first_name as owner_first, ou.last_name as owner_last
+       FROM tool_rentals_bookings trb
+       JOIN tool_rentals tr ON trb.tool_id = tr.id
+       JOIN users cu ON trb.customer_id = cu.id
+       JOIN users ou ON trb.owner_id = ou.id
+       WHERE trb.id = $1 AND trb.owner_id = $2
+       FOR UPDATE`,
+      [bookingId, ownerId]
+    );
+
+    if (!bookingResult.rows[0]) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0];
+
+    // Idempotency check inside the transaction — safe from concurrent retries now.
     const existingResult = await client.query(
       `SELECT * FROM tool_rental_invoices WHERE booking_id = $1 AND idempotency_key = $2`,
       [bookingId, idempotencyKey]
@@ -58,6 +84,7 @@ const createInvoice = async (req, res) => {
 
     if (existingResult.rows[0]) {
       // Idempotent: return existing invoice with 202 Accepted
+      await client.query('ROLLBACK');
       client.release();
       const existingInvoice = existingResult.rows[0];
       return res.status(202).json({
@@ -69,27 +96,9 @@ const createInvoice = async (req, res) => {
       });
     }
 
-    // Get booking details + owner email
-    const bookingResult = await client.query(
-      `SELECT trb.*, tr.name, tr.daily_rate, cu.email as customer_email, cu.first_name as customer_first, cu.last_name as customer_last,
-              ou.email as owner_email, ou.first_name as owner_first, ou.last_name as owner_last
-       FROM tool_rentals_bookings trb
-       JOIN tool_rentals tr ON trb.tool_id = tr.id
-       JOIN users cu ON trb.customer_id = cu.id
-       JOIN users ou ON trb.owner_id = ou.id
-       WHERE trb.id = $1 AND trb.owner_id = $2`,
-      [bookingId, ownerId]
-    );
-
-    if (!bookingResult.rows[0]) {
-      client.release();
-      return res.status(404).json({ error: 'Booking not found' });
-    }
-
-    const booking = bookingResult.rows[0];
-
     // Verify booking status is pending (no invoice sent yet)
     if (booking.status !== 'pending') {
+      await client.query('ROLLBACK');
       client.release();
       return res.status(400).json({ error: 'Invoice already sent for this booking' });
     }
@@ -117,10 +126,12 @@ const createInvoice = async (req, res) => {
       else if (paymentRow.payment_identifier) {
         decryptedIdentifier = paymentRow.payment_identifier;
       } else {
+        await client.query('ROLLBACK');
         client.release();
         return res.status(400).json({ error: 'Payment method not properly configured' });
       }
     } catch (decryptErr) {
+      await client.query('ROLLBACK');
       client.release();
       logger.error('Failed to decrypt payment identifier', { ownerId, error: decryptErr.message });
       return res.status(500).json({ error: 'Failed to load payment method (encryption error)' });
@@ -130,9 +141,6 @@ const createInvoice = async (req, res) => {
       payment_type: paymentRow.payment_type,
       payment_identifier: decryptedIdentifier
     };
-
-    // Start transaction
-    await client.query('BEGIN');
 
     // Create invoice record
     const invoiceNumber = await generateInvoiceNumber();
@@ -197,17 +205,18 @@ const createInvoice = async (req, res) => {
       }
     }
 
-    // Log delivery attempt
+    // Log delivery attempt (email_sent_at captured when delivery succeeded)
     await client.query(
-      `INSERT INTO invoice_delivery_log (invoice_id, delivery_method, recipient_email, sender_email, delivery_status, email_delivery_errors)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+      `INSERT INTO invoice_delivery_log (invoice_id, delivery_method, recipient_email, sender_email, delivery_status, email_delivery_errors, email_sent_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         invoice.id,
         deliveryMethod,
         recipientEmail || booking.customer_email,
         booking.owner_email,
         emailDeliveryStatus,
-        emailDeliveryError
+        emailDeliveryError,
+        emailDeliveryStatus === 'sent' ? new Date() : null
       ]
     );
 
@@ -332,10 +341,12 @@ const generateInvoicePDF = async (req, res) => {
     const paymentLink = `${baseUrl}/pay/${encodeURIComponent(invoice.payment_type)}/${encodeURIComponent(invoice.payment_identifier)}`;
     const qrCodeDataUrl = await QRCode.toDataURL(paymentLink);
 
-    // Create PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
+
+    // Pipe PDFDocument directly to the response stream — no intermediate Readable needed.
     const doc = new PDFDocument();
-    const stream = new Readable();
-    doc.pipe(stream);
+    doc.pipe(res);
 
     // Header
     doc.fontSize(24).font('Helvetica-Bold').text('INVOICE', { align: 'left' });
@@ -411,13 +422,17 @@ const generateInvoicePDF = async (req, res) => {
     doc.moveTo(50, y + 10).lineTo(550, y + 10).stroke();
     doc.fontSize(14).font('Helvetica-Bold').text(`TOTAL: $${invoice.total_amount.toFixed(2)}`, 350, y + 20);
 
-    // QR Code section
+    // QR Code section — show masked identifier in human-readable text; QR embeds real handle
+    const { masked: maskedIdentifier } = require('../utils/invoiceEmail').formatPaymentMethod(
+      invoice.payment_type,
+      invoice.payment_identifier
+    );
     doc.fontSize(10).font('Helvetica-Bold').text('PAYMENT INSTRUCTIONS', 50, y + 80);
     doc
       .fontSize(9)
       .font('Helvetica')
       .text(`Payment Method: ${invoice.payment_type.toUpperCase()}`, 50, y + 105)
-      .text(`Account: ${invoice.payment_identifier}`, 50, y + 125)
+      .text(`Account: ${maskedIdentifier}`, 50, y + 125)
       .text('Scan QR code below to pay:', 50, y + 150);
 
     // Add QR code image
@@ -436,27 +451,16 @@ const generateInvoicePDF = async (req, res) => {
 
     doc.end();
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoice.invoice_number}.pdf"`);
-
-    stream.pipe(res);
-
-    stream.on('data', chunk => {
-      res.write(chunk);
-    });
-
-    stream.on('end', () => {
-      res.end();
-    });
-
     logger.info('Invoice PDF generated', { invoiceId, invoiceNumber: invoice.invoice_number });
   } catch (err) {
     logger.error('generateInvoicePDF error', { err });
-    res.status(500).json({
-      error: 'Failed to generate PDF',
-      code: 'PDF_GENERATION_ERROR',
-      message: 'The invoice PDF could not be generated. Please try again, or contact support if the problem persists.'
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Failed to generate PDF',
+        code: 'PDF_GENERATION_ERROR',
+        message: 'The invoice PDF could not be generated. Please try again, or contact support if the problem persists.'
+      });
+    }
   }
 };
 

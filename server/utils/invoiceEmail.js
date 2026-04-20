@@ -2,6 +2,7 @@
 const { sendEmail } = require('./email');
 const logger = require('./logger');
 const QRCode = require('qrcode');
+const escapeHtml = require('./escapeHtml');
 
 /**
  * Generate HTML email template for invoice
@@ -10,8 +11,12 @@ const QRCode = require('qrcode');
  * @returns {string} HTML email content
  */
 function renderInvoiceHTML(invoice, qrCodeDataUrl) {
-  const ownerName = `${invoice.owner_first} ${invoice.owner_last}`;
-  const customerName = `${invoice.customer_first} ${invoice.customer_last}`;
+  const ownerName = escapeHtml(`${invoice.owner_first} ${invoice.owner_last}`);
+  const customerName = escapeHtml(`${invoice.customer_first} ${invoice.customer_last}`);
+  const ownerEmail = escapeHtml(invoice.owner_email);
+  const customerEmail = escapeHtml(invoice.customer_email);
+  const invoiceNumber = escapeHtml(invoice.invoice_number);
+  const toolName = escapeHtml(invoice.tool_name || '');
   const paymentMethodDisplay = formatPaymentMethod(invoice.payment_type, invoice.payment_identifier);
 
   return `
@@ -41,7 +46,7 @@ function renderInvoiceHTML(invoice, qrCodeDataUrl) {
         <div class="invoice-container">
           <div class="invoice-header">
             <div class="invoice-title">INVOICE</div>
-            <div class="invoice-number">Invoice #${invoice.invoice_number}</div>
+            <div class="invoice-number">Invoice #${invoiceNumber}</div>
             <div class="invoice-number" style="margin-top: 4px;">Date: ${new Date(invoice.created_at).toLocaleDateString()}</div>
           </div>
 
@@ -49,7 +54,7 @@ function renderInvoiceHTML(invoice, qrCodeDataUrl) {
             <div class="invoice-section-title">Billing Information</div>
             <div style="padding: 12px 0;">
               <strong>${customerName}</strong><br/>
-              <a href="mailto:${invoice.customer_email}" style="color: #2563eb; text-decoration: none;">${invoice.customer_email}</a>
+              <a href="mailto:${customerEmail}" style="color: #2563eb; text-decoration: none;">${customerEmail}</a>
             </div>
           </div>
 
@@ -57,7 +62,7 @@ function renderInvoiceHTML(invoice, qrCodeDataUrl) {
             <div class="invoice-section-title">Tool Owner</div>
             <div style="padding: 12px 0;">
               <strong>${ownerName}</strong><br/>
-              <a href="mailto:${invoice.owner_email}" style="color: #2563eb; text-decoration: none;">${invoice.owner_email}</a>
+              <a href="mailto:${ownerEmail}" style="color: #2563eb; text-decoration: none;">${ownerEmail}</a>
             </div>
           </div>
 
@@ -65,7 +70,7 @@ function renderInvoiceHTML(invoice, qrCodeDataUrl) {
             <div class="invoice-section-title">Rental Details</div>
             <div class="invoice-row">
               <span class="invoice-label">Tool:</span>
-              <span class="invoice-value"><strong>${invoice.tool_name}</strong></span>
+              <span class="invoice-value"><strong>${toolName}</strong></span>
             </div>
             <div class="invoice-row">
               <span class="invoice-label">Rental Period:</span>
@@ -120,6 +125,7 @@ function renderInvoiceHTML(invoice, qrCodeDataUrl) {
 function renderInvoiceText(invoice) {
   const ownerName = `${invoice.owner_first} ${invoice.owner_last}`;
   const customerName = `${invoice.customer_first} ${invoice.customer_last}`;
+  const { masked: maskedIdentifier } = formatPaymentMethod(invoice.payment_type, invoice.payment_identifier);
 
   return `INVOICE
 Invoice #: ${invoice.invoice_number}
@@ -141,7 +147,7 @@ Daily Rate: $${parseFloat(invoice.daily_rate).toFixed(2)}/day
 TOTAL: $${parseFloat(invoice.total_amount).toFixed(2)}
 
 PAYMENT METHOD:
-Account: ${invoice.payment_identifier}
+Account: ${maskedIdentifier}
 
 This invoice is issued by the tool owner. OxSteed is a technology platform that facilitates rentals but does not control disputes. Contact the owner directly or resolve via your bank's chargeback process.
 

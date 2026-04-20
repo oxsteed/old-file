@@ -2623,6 +2623,8 @@
     "errGeneric": "Une erreur s'est produite.",
     "cancelNeedTitle": "Annuler le Besoin Planifié",
     "cancelNeedConfirm": "Êtes-vous sûr de vouloir annuler {{name}} ? Sa contribution au fonds d'amortissement sera supprimée des projections du Pouls de Vie.",
+    "cancelNeedConfirmPrefix": "Êtes-vous sûr de vouloir annuler",
+    "cancelNeedConfirmSuffix": " ? Sa contribution au fonds d'amortissement sera supprimée des projections du Pouls de Vie.",
     "failedCancel": "Échec de l'annulation.",
     "keepIt": "Conserver",
     "cancelling": "Annulation…",

@@ -2623,6 +2623,8 @@
     "errGeneric": "Algo salió mal.",
     "cancelNeedTitle": "Cancelar Necesidad Planificada",
     "cancelNeedConfirm": "¿Estás seguro de que quieres cancelar {{name}}? Su contribución al fondo de reserva se eliminará de las proyecciones del Pulso de Vida.",
+    "cancelNeedConfirmPrefix": "¿Estás seguro de que quieres cancelar",
+    "cancelNeedConfirmSuffix": "? Su contribución al fondo de reserva se eliminará de las proyecciones del Pulso de Vida.",
     "failedCancel": "Error al cancelar.",
     "keepIt": "Conservarla",
     "cancelling": "Cancelando…",

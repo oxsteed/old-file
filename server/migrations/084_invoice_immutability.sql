@@ -8,7 +8,17 @@
 -- However, we can add a CHECK constraint to document the intent:
 -- Once an invoice reaches payment_confirmed status, it should be immutable
 
--- Add deletion protection: prevent deletion of invoices
+-- Enable Row Level Security so the policy below actually takes effect.
+-- Without this, CREATE POLICY has no effect regardless of what it says.
+ALTER TABLE tool_rental_invoices ENABLE ROW LEVEL SECURITY;
+
+-- Allow all operations by default so existing server-side auth is unchanged.
+-- Only the deletion policy below restricts anything.
+CREATE POLICY invoice_allow_all ON tool_rental_invoices
+  USING (true)
+  WITH CHECK (true);
+
+-- Add deletion protection: prevent deletion of confirmed invoices
 CREATE POLICY no_invoice_deletion ON tool_rental_invoices
   FOR DELETE
   USING (status != 'payment_confirmed');

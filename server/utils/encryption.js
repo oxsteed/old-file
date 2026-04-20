@@ -10,10 +10,12 @@ const SALT_LENGTH = 64;
 const KEY_LENGTH = 32;
 const ITERATIONS = 100000;
 
-// Validate ENCRYPTION_KEY at startup so a missing key fails fast
-// before any user request can reach encrypt() or decrypt().
+// Fail hard at startup when ENCRYPTION_KEY is absent so the process never
+// silently runs without encryption rather than appearing to work and then
+// crashing on the first encrypt/decrypt call.
 if (!process.env.ENCRYPTION_KEY) {
   logger.error('FATAL: ENCRYPTION_KEY env variable is not set. Encryption features will not work.');
+  throw new Error('ENCRYPTION_KEY env variable is required. Generate with: openssl rand -hex 32');
 }
 
 function getKey() {

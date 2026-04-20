@@ -2623,6 +2623,8 @@
     "errGeneric": "Something went wrong.",
     "cancelNeedTitle": "Cancel Planned Need",
     "cancelNeedConfirm": "Are you sure you want to cancel {{name}}? Its sinking fund contribution will be removed from Life Pulse projections.",
+    "cancelNeedConfirmPrefix": "Are you sure you want to cancel",
+    "cancelNeedConfirmSuffix": "? Its sinking fund contribution will be removed from Life Pulse projections.",
     "failedCancel": "Failed to cancel.",
     "keepIt": "Keep It",
     "cancelling": "Cancelling…",

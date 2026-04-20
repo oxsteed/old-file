@@ -26,6 +26,11 @@ const logger = require('../utils/logger');
  * @param {string} cfg.pass
  * @returns {import('nodemailer').Transporter}
  */
+// Strip SMTP header-injection characters (CR, LF, NUL) from display names.
+function sanitizeHeaderValue(str) {
+  return String(str || '').replace(/[\r\n\0]/g, ' ').trim();
+}
+
 function buildTransport(cfg) {
   return nodemailer.createTransport({
     host: cfg.host,
@@ -78,7 +83,7 @@ async function send({ to, subject, html, from, smtpConfig }) {
   if (smtpConfig && smtpConfig.host && smtpConfig.user && smtpConfig.pass) {
     // --- per-user path ---
     transporter = buildTransport(smtpConfig);
-    const displayName = smtpConfig.fromName || smtpConfig.user;
+    const displayName = sanitizeHeaderValue(smtpConfig.fromName || smtpConfig.user);
     fromAddress = from || `"${displayName}" <${smtpConfig.user}>`;
   } else {
     // --- platform fallback path ---

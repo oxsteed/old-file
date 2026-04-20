@@ -186,8 +186,8 @@ exports.stripeWebhook = async (req, res) => {
       case 'payment_intent.amount_capturable_updated': {
         // Authorization succeeded — PaymentIntent is ready to capture after job completion.
         const pi = event.data.object;
-        const jobId = pi.metadata?.job_id;
-        if (jobId) {
+        const jobId = pi.metadata?.job_id ? parseInt(pi.metadata.job_id, 10) : null;
+        if (jobId && Number.isFinite(jobId)) {
           await db.query(
             `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
              updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'`,
@@ -201,8 +201,8 @@ exports.stripeWebhook = async (req, res) => {
       case 'payment_intent.succeeded': {
         // Capture completed — money is on its way to the helper.
         const pi = event.data.object;
-        const jobId = pi.metadata?.job_id;
-        if (jobId) {
+        const jobId = pi.metadata?.job_id ? parseInt(pi.metadata.job_id, 10) : null;
+        if (jobId && Number.isFinite(jobId)) {
           await db.query(
             `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
              captured_at = NOW(), released_at = NOW(), updated_at = NOW()
@@ -222,9 +222,9 @@ exports.stripeWebhook = async (req, res) => {
       case 'payment_intent.payment_failed': {
         // Authorization or capture failed.
         const pi = event.data.object;
-        const jobId = pi.metadata?.job_id;
+        const jobId = pi.metadata?.job_id ? parseInt(pi.metadata.job_id, 10) : null;
         const failureMsg = pi.last_payment_error?.message || 'Payment failed';
-        if (jobId) {
+        if (jobId && Number.isFinite(jobId)) {
           await db.query(
             `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
              updated_at = NOW() WHERE stripe_payment_intent_id = $1`,

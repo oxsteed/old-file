@@ -2623,6 +2623,8 @@
     "errGeneric": "Yon bagay te mal pase.",
     "cancelNeedTitle": "Anile Bezwen Planifye",
     "cancelNeedConfirm": "Èske ou sèten ou vle anile {{name}}? Kontribisyon fon sinkenn li a pral retire nan pwojeksyon Bateman Lavi.",
+    "cancelNeedConfirmPrefix": "Èske ou sèten ou vle anile",
+    "cancelNeedConfirmSuffix": "? Kontribisyon fon sinkenn li a pral retire nan pwojeksyon Bateman Lavi.",
     "failedCancel": "Echèk anilasyon.",
     "keepIt": "Kenbe Li",
     "cancelling": "Ap anile…",
