@@ -3,7 +3,7 @@
 
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const { rateLimiter } = require('../middleware/rateLimiter');
+const rateLimiter = require('../middleware/rateLimiter');
 const { sendOTP } = require('../utils/email');
 const { logger } = require('../utils/logger');
 const pool = require('../db');
