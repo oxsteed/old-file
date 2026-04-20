@@ -978,6 +978,16 @@ export default function HelperDashboard() {
     setListingLoading(false);
   };
 
+  const handleUpdateContactSettings = async (requireSignup) => {
+    try {
+      await api.put('/helpers/me/settings', { require_contact_signup: requireSignup });
+      refreshUser?.();
+      toast.success(requireSignup ? t('helperDashboard.signupRequired') : t('helperDashboard.signupNotRequired'));
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t('helperDashboard.failedUpdateSettings'));
+    }
+  };
+
   // ── Derived ───────────────────────────────────────────────────────────
   const hr=new Date().getHours();
   const greeting=hr<12?t('dashboard.morning'):hr<17?t('dashboard.afternoon'):t('dashboard.evening');
@@ -1011,6 +1021,7 @@ export default function HelperDashboard() {
         {id:'invoices',label:t('helperDashboard.tabs.invoices')},
         {id:'bids',    label:t('helperDashboard.tabs.myBids')},
         {id:'reviews', label:t('helperDashboard.tabs.reviews')},
+        {id:'contact-settings',label:t('helperDashboard.tabs.contactSettings')},
       ];
 
   if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">{t('helperDashboard.loadingDashboard')}</span></div></div></PageShell>);
@@ -1937,6 +1948,42 @@ export default function HelperDashboard() {
                 <Tag text={bid.status.replace(/_/g,' ')} color={bid.status==='accepted'?'green':bid.status==='pending'?'orange':bid.status==='rejected'?'red':'gray'}/>
               </Link>
             ))}</div>}
+          </div>
+        )}
+
+        {/* ═══════ CONTACT SETTINGS ═══════ */}
+        {tab==='contact-settings' && (
+          <div className="max-w-2xl">
+            <Card className="p-6">
+              <h3 className="text-lg font-bold mb-4 text-white">{t('helperDashboard.contactRequirements')}</h3>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={user?.require_contact_signup || false}
+                        onChange={(e) => handleUpdateContactSettings(e.target.checked)}
+                        className="w-4 h-4 rounded border border-gray-600 accent-orange-500"
+                      />
+                      <div>
+                        <div className="font-semibold text-white">{t('helperDashboard.requireSignupLabel')}</div>
+                        <p className="text-sm text-gray-400 mt-1">
+                          {t('helperDashboard.requireSignupDesc')}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {user?.require_contact_signup && (
+                  <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg text-sm text-orange-400">
+                    <p>{t('helperDashboard.requireSignupNote')}</p>
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
         )}
 

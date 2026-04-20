@@ -1481,7 +1481,8 @@
       "findJobs": "Trouver des emplois",
       "myBids": "Mes offres",
       "reviews": "Avis",
-      "invoices": "Factures"
+      "invoices": "Factures",
+      "contactSettings": "Paramètres de Contact"
     },
     "jobsCompleted": "Travaux terminés",
     "earnedThisMonth": "Gains ce mois",
@@ -1603,7 +1604,15 @@
     "personalCareDesc": "Description des soins personnels",
     "taskAdded": "Tâche ajoutée : {title}",
     "pro": "Pro",
-    "subscribed": "Abonné"
+    "subscribed": "Abonné",
+    "contactRequirements": "Exigences de Contact",
+    "requireSignupLabel": "Exiger l'Inscription pour Contacter",
+    "requireSignupDesc": "Lorsqu'elle est activée, les invités doivent vérifier leur adresse e-mail avant d'envoyer des messages ou de demander une réservation. Cela aide à prévenir les messages indésirables tout en réduisant les frictions.",
+    "requireSignupNote": "Les invités verront une porte de vérification d'e-mail souple lorsqu'ils tenteront de vous contacter. Ils peuvent toujours parcourir votre profil librement.",
+    "signupRequired": "Les invités doivent maintenant vérifier leur e-mail pour vous contacter",
+    "signupNotRequired": "Les invités peuvent vous contacter sans vous inscrire",
+    "failedUpdateSettings": "Erreur lors de la mise à jour des paramètres de contact",
+    "failedUpdateStatus": "Erreur lors de la mise à jour du statut"
   },
   "postJob": {
     "title": "Publier une mission",

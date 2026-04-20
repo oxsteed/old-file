@@ -1455,7 +1455,8 @@
       "findJobs": "Jwenn travay",
       "myBids": "Òf mwen yo",
       "reviews": "Kritik",
-      "invoices": "Fakti"
+      "invoices": "Fakti",
+      "contactSettings": "Paramèt Kontak"
     },
     "profileCompleteness": "Pwofil konplè",
     "missingLabel": "Mank: {{label}}",
@@ -1665,7 +1666,15 @@
     "taskAdded": "Travay ajoute: {title}",
     "pro": "Pro",
     "subscribed": "Souskebi",
-    "jobNumber": "Travay #{{id}}"
+    "jobNumber": "Travay #{{id}}",
+    "contactRequirements": "Egzijans Kontak",
+    "requireSignupLabel": "Egzije Enskripsyon pou Kontakte",
+    "requireSignupDesc": "Lè sa a ka, vizitè yo dwe verifye imèl yo anvan yo voye mesaj oswa deman yon rezèvasyon. Sa a ede prevni spam pandan y ap kenbe friksyon ba.",
+    "requireSignupNote": "Vizitè yo pral wè yon pòt verifiye imèl dou lè yo eseye kontakte ou. Yo ka toujou navige pwofil ou lib.",
+    "signupRequired": "Vizitè yo dwe kounye a verifye imèl pou kontakte ou",
+    "signupNotRequired": "Vizitè yo ka kontakte ou san enskripsyon",
+    "failedUpdateSettings": "Echwe nan mete ajou paramèt kontak",
+    "failedUpdateStatus": "Echwe nan mete ajou estati"
   },
   "postJob": {
     "title": "Pibliye yon Travay",
