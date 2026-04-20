@@ -65,8 +65,9 @@ export async function fetchHelpers(
   page = 1,
   limit = 9,
   requiredSkillIds?: number[],
+  includePreviewData = true, // Phase 1: fetch preview data (reviews, availability)
 ): Promise<HelperDirectoryResponse> {
-  const params: Record<string, string | number> = { sort, page, limit };
+  const params: Record<string, string | number | boolean> = { sort, page, limit };
   if (filters.query) params.query = filters.query;
   if (filters.categories.length) params.categories = filters.categories.join(',');
   if (filters.skills.length) params.skills = filters.skills.join(',');
@@ -87,6 +88,9 @@ export async function fetchHelpers(
   }
   if (requiredSkillIds && requiredSkillIds.length > 0) {
     params.requiredSkillIds = requiredSkillIds.join(',');
+  }
+  if (includePreviewData) {
+    params.includePreviewData = 'true'; // Phase 1: request expanded preview data
   }
 
   const { data } = await api.get<HelperDirectoryResponse>('/helpers', { params });
