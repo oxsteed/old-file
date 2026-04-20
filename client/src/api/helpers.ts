@@ -122,3 +122,15 @@ export async function fetchHelperSlots(id: string): Promise<HelperSlotData> {
   const { data } = await api.get<HelperSlotData>(`/helpers/${id}/slots`);
   return data;
 }
+
+// ── Helper Settings (Phase 4) ──────────────────────────────────────────────────
+
+export async function updateHelperSettings(settings: {
+  require_contact_signup?: boolean;
+}): Promise<{ require_contact_signup?: boolean }> {
+  const { data } = await api.put<{ require_contact_signup?: boolean }>(
+    '/helpers/me/settings',
+    settings,
+  );
+  return data;
+}
