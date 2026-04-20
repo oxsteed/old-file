@@ -86,7 +86,7 @@ async function authenticate(req, res, next) {
          u.didit_status, u.didit_verified_at,
          u.trial_started_at, u.trial_ends_at,
          b.business_name,
-         hp.is_listed
+         hp.is_listed, hp.require_contact_signup
        FROM users u
        LEFT JOIN businesses b ON b.user_id = u.id AND b.is_primary = TRUE
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id

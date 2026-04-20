@@ -345,6 +345,14 @@
   font-size: 0.8rem;
   font-weight: 500;
   border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.hpp-category-tag--highlighted {
+  background: rgb(249, 115, 22);
+  color: white;
+  border-color: rgb(249, 115, 22);
+  font-weight: 600;
 }
 
 /* ── CTA Section ───────────────────────────────────────────────────────────── */

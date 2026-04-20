@@ -777,6 +777,7 @@ const HelpersDirectoryPage: React.FC = () => {
                         onCollapse={() => setExpandedHelperId(null)}
                         onBookClick={() => handleMessage(helper.id, 'book')}
                         onMessageClick={() => handleMessage(helper.id, 'message')}
+                        highlightCategory={boostedCategory}
                       />
                     </div>
                   ))}

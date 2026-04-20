@@ -215,7 +215,8 @@ async function listHelpers(req, res) {
          hp.is_identity_verified, hp.is_background_checked,
          hp.insurance_details, hp.license_details,
          hp.is_available_now,
-         hp.search_rank_boost
+         hp.search_rank_boost,
+         hp.require_contact_signup
        FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
        ${categoryJoinClause}
@@ -279,6 +280,7 @@ async function listHelpers(req, res) {
         serviceRadius:    h.service_radius_miles || 10,
         availableToday:   !!h.is_available_now,
         shortBio:         h.bio_short || h.profile_headline || '',
+        requireContactSignup: !!h.require_contact_signup,
       };
     });
 

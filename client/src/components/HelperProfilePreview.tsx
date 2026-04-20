@@ -10,6 +10,7 @@ interface HelperProfilePreviewProps {
   onCollapse: () => void;
   onBookClick: (helperId: string) => void;
   onMessageClick: (helperId: string) => void;
+  highlightCategory?: string;
 }
 
 export default function HelperProfilePreview({
@@ -19,6 +20,7 @@ export default function HelperProfilePreview({
   onCollapse,
   onBookClick,
   onMessageClick,
+  highlightCategory,
 }: HelperProfilePreviewProps) {
   const expandableRef = useRef<HTMLDivElement>(null);
 
@@ -169,11 +171,17 @@ export default function HelperProfilePreview({
           <div className="hpp-section">
             <h4 className="hpp-section-title">Services</h4>
             <div className="hpp-categories">
-              {helper.categories.slice(0, 5).map((cat, i) => (
-                <span key={i} className="hpp-category-tag">
-                  {cat}
-                </span>
-              ))}
+              {helper.categories.slice(0, 5).map((cat, i) => {
+                const isHighlighted = highlightCategory && cat === highlightCategory;
+                return (
+                  <span
+                    key={i}
+                    className={`hpp-category-tag${isHighlighted ? ' hpp-category-tag--highlighted' : ''}`}
+                  >
+                    {cat}
+                  </span>
+                );
+              })}
             </div>
           </div>
         )}
