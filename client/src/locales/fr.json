@@ -3043,7 +3043,11 @@
       "availToday": "Aujourd'hui",
       "availTodayTitle": "Afficher uniquement les aidants disponibles aujourd'hui",
       "findJobs": "Trouver des missions",
-      "search": "Rechercher"
+      "search": "Rechercher",
+      "discoverAll": "Tout découvrir",
+      "discoverLabel": "Rechercher sur OxSteed",
+      "discoverPh": "Outils, missions, assistants, produits…",
+      "discoverSearch": "Rechercher sur OxSteed"
     },
     "skills": {
       "showMore": "Voir plus de compétences",
@@ -3692,5 +3696,35 @@
     "noNearbyDesc": "Publiez une tâche et nous vous mettrons en relation avec l'aide appropriée",
     "loadingError": "Erreur lors du chargement des aides",
     "usingFallbackLocation": "Utilisation de l'emplacement par défaut. Activez les services de localisation pour des résultats plus précis."
+  },
+  "discover": {
+    "metaTitle": "Découvrir — OxSteed",
+    "metaDesc": "Recherchez des assistants, missions, entreprises, locations d’outils et produits publics sur OxSteed.",
+    "title": "Découvrir",
+    "subtitle": "Une recherche dans les annonces publiques OxSteed — assistants, missions, entreprises, outils à louer et produits.",
+    "showingFor": "Résultats pour « {{query}} » dans ~{{radius}} miles",
+    "nearCoords": "près de votre position",
+    "emptyQuery": "Saisissez une recherche depuis l’accueil pour voir des résultats ici.",
+    "expandedTerms": "Correspond aussi à :",
+    "saveAlertTitle": "M’avertir par e-mail quand les résultats changent",
+    "saveAlertDesc": "Au plus un résumé par jour lorsque de nouvelles annonces publiques correspondent (même zone et rayon).",
+    "alertRadius": "Rayon d’alerte",
+    "saveAlertBtn": "Enregistrer l’alerte",
+    "signInToSave": "Connectez-vous pour enregistrer des alertes.",
+    "alertSaved": "Alerte enregistrée",
+    "alertFailed": "Impossible d’enregistrer l’alerte",
+    "alertRemoved": "Alerte supprimée",
+    "alertRemoveFailed": "Impossible de supprimer l’alerte",
+    "loadError": "Échec de la recherche. Réessayez.",
+    "noResults": "Aucune annonce publique ne correspond encore.",
+    "noResultsHint": "Essayez un mot plus court, vérifiez l’orthographe ou élargissez la zone depuis l’accueil.",
+    "distanceAway": "{{miles}} mi",
+    "relatedHelpers": "Assistants à considérer aussi",
+    "typeHelper": "Assistant",
+    "typeJob": "Mission",
+    "typeBusiness": "Entreprise",
+    "typeTool": "Location d’outil",
+    "typeProduct": "Produit",
+    "typeOther": "Annonce"
   }
 }

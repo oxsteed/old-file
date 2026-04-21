@@ -315,6 +315,7 @@
 /* ── Search v2: mode tabs ────────────────────────────────── */
 .hp-search-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: .25rem;
   margin-bottom: .5rem;
 }

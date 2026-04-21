@@ -1,6 +1,8 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
+**Last updated:** 2026-04-22 (✅ **Session 2026-04-22: Public Discover search** — unified `/api/discover`, `/discover` page, homepage tab, saved alerts + daily digest, synonym expansion, tool deep links.)
+
+> Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
 > **Instructions for every AI session:**
 > 1. Read this file first. It is the authoritative source of truth for what exists, what works, and what still needs to be done.
@@ -1833,6 +1835,17 @@ Next actions:
 - **`listHelpers`** (`helpersController.js`): fills **`topServices`** from active `helper_services` (non-legacy) + `business_services` joined via owner’s businesses; adds **`profileUrl`** (`/helpers/:id`) on helper rows; businesses get **owner skill names** in `skills` and **business_services** names in `topServices`.
 - **`LiveHelpersHeroCard`**: each row is a **`Link`** to `profileUrl` (helper or business); shows up to **4** merged **skill + service** chips (deduped); “Available now” / empty state use **`liveHelpers.*`** i18n.
 - **`useHelpersInfiniteScroll`**: types extended with **`profileUrl`**, **`businessId`**.
+
+---
+
+### Session — 2026-04-22 (Public “Discover” search + alerts + homepage tab)
+
+- **Migration** `086_discover_search_alerts.sql`: `discover_search_alerts` (user, query, radius, optional lat/lng, fingerprint, last_signature).
+- **API** `server/routes/discover.js`: `GET /api/discover?q=&lat=&lng=&radius=` (default 60 mi); auth `GET/POST/DELETE /api/discover/alerts`.
+- **`discoverController.js`**: unified ILIKE search across helpers (`helper`+`helper_pro`+`broker`), published jobs, businesses, tool rentals, helper products; **synonym expansion** for common trades; **related helpers** block on tool hits; ranked mixed results + `contentSignature` for digest.
+- **Cron** `jobs/discoverDigest.js`: daily 9am Eastern — emails when alert fingerprint changes (Resend); **bootstrap** sets `last_signature` on first run so no spam on first digest.
+- **Tools:** `GET /api/tool-rentals/public/:id`; Discover tool URLs use `/tool-rentals?openTool=`; **`ToolRentalsBrowse`** opens modal from query + `toolRentalsApi.getPublicTool`.
+- **Frontend:** `DiscoverPage.jsx` + route `/discover`; **HomePage** third tab “Discover all” (60 mi + optional geo); i18n `discover.*` + `homePage.search.discover*` in EN/ES/FR/HT.
 
 ---
 
