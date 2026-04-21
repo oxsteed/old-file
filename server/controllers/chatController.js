@@ -612,6 +612,92 @@ exports.profileChatMessage = async (req, res) => {
 };
 
 /**
+ * POST /api/chat/sessions/guest
+ * Public — stores a guest inquiry when the helper allows guest contact.
+ * Does not create a full conversation row (no customer user id).
+ */
+exports.guestProfileChatSession = async (req, res) => {
+  try {
+    const {
+      helperId: rawHelperId,
+      businessId,
+      guestName: rawName,
+      guestEmail: rawEmail,
+      message: rawMessage,
+    } = req.body || {};
+
+    let resolvedHelperId = rawHelperId;
+    let resolvedBusinessId = businessId ? parseInt(businessId, 10) || null : null;
+
+    if (resolvedBusinessId) {
+      const bizRes = await pool.query(
+        `SELECT user_id FROM businesses WHERE id = $1 AND is_active = TRUE`,
+        [resolvedBusinessId]
+      );
+      if (!bizRes.rows.length) {
+        return res.status(404).json({ error: 'Business not found' });
+      }
+      resolvedHelperId = bizRes.rows[0].user_id;
+    }
+
+    if (!resolvedHelperId) {
+      return res.status(400).json({ error: 'helperId is required' });
+    }
+
+    const guestName = String(rawName || '').trim().slice(0, 200);
+    const guestEmail = String(rawEmail || '').trim().toLowerCase().slice(0, 254);
+    const message = String(rawMessage || '').trim().slice(0, 2000);
+
+    if (!guestName || !guestEmail || !message) {
+      return res.status(400).json({ error: 'guestName, guestEmail, and message are required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    const gate = await pool.query(
+      `SELECT COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact
+       FROM users u
+       JOIN helper_profiles hp ON hp.user_id = u.id
+       WHERE u.id = $1 AND u.deleted_at IS NULL`,
+      [resolvedHelperId]
+    );
+    if (!gate.rows.length) {
+      return res.status(404).json({ error: 'Helper not found' });
+    }
+    if (!gate.rows[0].allow_guest_contact) {
+      return res.status(403).json({ error: 'Guest messaging is disabled for this helper' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO guest_profile_chat_inbound (helper_id, business_id, guest_name, guest_email, message)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, created_at`,
+      [resolvedHelperId, resolvedBusinessId, guestName, guestEmail, message]
+    );
+
+    const row = rows[0];
+    socketService.broadcastToUser(resolvedHelperId, 'profile_chat:guest_message', {
+      id: row.id,
+      guestName,
+      guestEmail,
+      message,
+      businessId: resolvedBusinessId,
+      createdAt: row.created_at,
+    });
+
+    return res.status(201).json({
+      ok: true,
+      id: row.id,
+      message: 'Your message was sent. The helper may reply by email.',
+    });
+  } catch (err) {
+    logger.error('[GuestProfileChat]', { message: err.message });
+    return res.status(500).json({ error: 'Failed to send message' });
+  }
+};
+
+/**
  * POST /api/chat/transcribe
  * Transcribe audio using OpenRouter when Web Speech API confidence is low.
  * Requires authentication.

@@ -69,6 +69,7 @@ function formatAuthUser(user) {
     display_name_preference: user.display_name_preference || 'first_name',
     business_name:         user.business_name || null,
     is_listed:             user.is_listed !== undefined ? !!user.is_listed : true,
+    allow_guest_contact:   user.allow_guest_contact !== undefined ? !!user.allow_guest_contact : true,
   };
 }
 

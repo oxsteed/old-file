@@ -78,7 +78,7 @@ const IconBox = () => (
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout, switchRole, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const TABS = useMemo(() => [
@@ -123,6 +123,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [allowGuestContact, setAllowGuestContact] = useState(true);
+  const [guestContactSaving, setGuestContactSaving] = useState(false);
 
   const { subscription, plans, loading: subLoading, openPortal, cancelSubscription, createCheckout } = useSubscription();
 
@@ -148,6 +150,11 @@ export default function SettingsPage() {
           zipcode: u.zip_code || u.zipcode || '',
           display_name_preference: u.display_name_preference || 'first_name',
         });
+        if (typeof u.allow_guest_contact === 'boolean') {
+          setAllowGuestContact(u.allow_guest_contact);
+        } else {
+          setAllowGuestContact(true);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -179,6 +186,23 @@ export default function SettingsPage() {
       toast.success(t('settings.passwordChanged'));
       setPasswords({ current: '', newPass: '', confirm: '' });
     } catch (err) { toast.error(err.response?.data?.error || t('settings.passwordChangeFailed')); }
+  };
+
+  const saveGuestContactPreference = async (next) => {
+    setGuestContactSaving(true);
+    try {
+      await api.patch('/settings/privacy', { allow_guest_contact: next });
+      setAllowGuestContact(next);
+      try {
+        await refreshUser();
+      } catch {
+        /* non-blocking */
+      }
+      toast.success(t('settings.privacy.guestContactUpdated'));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('settings.privacy.guestContactFailed'));
+    }
+    setGuestContactSaving(false);
   };
 
   const deleteAccount = async () => {
@@ -537,6 +561,28 @@ export default function SettingsPage() {
     <div className="sp-card">
       <h2 className="sp-card-title">{t('settings.privacy.title')}</h2>
       <p className="sp-card-subtitle">{t('settings.privacy.subtitle')}</p>
+      {isHelper && (
+        <div className="mb-6 pb-6 border-b border-[var(--border-color,#334155)]">
+          <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+            {t('settings.privacy.guestContactTitle')}
+          </h3>
+          <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            {t('settings.privacy.guestContactDesc')}
+          </p>
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="w-4 h-4 rounded border-gray-600"
+              checked={allowGuestContact}
+              disabled={guestContactSaving}
+              onChange={(e) => saveGuestContactPreference(e.target.checked)}
+            />
+            <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+              {t('settings.privacy.guestContactLabel')}
+            </span>
+          </label>
+        </div>
+      )}
       <button
         className="sp-btn sp-btn-ghost"
         onClick={() => {

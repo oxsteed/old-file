@@ -8,6 +8,7 @@
     "settings": "Settings",
     "signOut": "Sign Out",
     "signIn": "Sign In",
+    "register": "Register",
     "howItWorks": "How It Works",
     "listSkills": "List Your Skills",
     "closeMenu": "Close menu",
@@ -256,7 +257,7 @@
     "otpInputAria": "6-digit verification code",
     "stepOf": "Step {{current}} of 2",
     "step1Label": "Create your profile",
-    "step2Label": "Verify your identity",
+    "step2Label": "Verify Identity (Optional)",
     "firstNamePlaceholder": "Toussaint",
     "lastNamePlaceholder": "Louverture",
     "businessNamePlaceholder": "My Business Name LLC",
@@ -275,6 +276,7 @@
     "step3Hint": "Live face match against your document photo",
     "notice": "Each person can have only one account. If you run multiple businesses, you can add them from your dashboard.",
     "startButton": "Start Verification",
+    "verifyLater": "Verify later",
     "launching": "Launching Didit...",
     "backToProfile": "Back to profile",
     "pendingTitle": "Verifying...",
@@ -665,7 +667,12 @@
       "subtitle": "Control your personal information",
       "exportSuccess": "Your data export is ready for download",
       "exportFailed": "Failed to export data",
-      "exportBtn": "Export My Data"
+      "exportBtn": "Export My Data",
+      "guestContactTitle": "Public profile messaging",
+      "guestContactDesc": "Control whether visitors without an OxSteed account can start a message from your public helper profile.",
+      "guestContactLabel": "Allow non-registered users to message me",
+      "guestContactUpdated": "Preference saved",
+      "guestContactFailed": "Could not update preference"
     },
     "account": {
       "title": "Account Type",
@@ -750,7 +757,14 @@
     "empty": "No messages",
     "emptyDesc": "Your message history is empty",
     "clearChat": "Clear chat",
-    "clearChatConfirm": "Are you sure you want to clear this conversation?"
+    "clearChatConfirm": "Are you sure you want to clear this conversation?",
+    "guestContactIntro": "Add your contact so the helper can reach you.",
+    "guestNamePlaceholder": "Your name",
+    "guestEmailPlaceholder": "Your email",
+    "guestMessagePlaceholder": "Write your message…",
+    "guestMissingContact": "Please enter your name and email.",
+    "guestMessageSent": "Your message was sent. The helper may reply by email.",
+    "guestMessageSentToast": "Message sent"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",
@@ -2796,6 +2810,8 @@
     }
   },
   "helperProfile": {
+    "guestSignInTitle": "Sign in to message {{name}}",
+    "guestSignInBody": "This helper only accepts messages from registered accounts.",
     "reviews": {
       "title": "Reviews",
       "verifiedReviews": "{{count}} verified reviews",
@@ -3659,7 +3675,9 @@
   "liveHelpers": {
     "sectionTitle": "Live helpers near you",
     "sectionSubtitle": "Verified local professionals ready to help today",
-    "heroCardTitle": "Live helpers near you",
+    "heroCardTitle": "Live helpers & businesses near you",
+    "badgeHelper": "Helper",
+    "badgeBusiness": "Business",
     "availableNow": "Available now",
     "viewProfile": "View Profile",
     "viewProfileAria": "View {{name}}'s profile",

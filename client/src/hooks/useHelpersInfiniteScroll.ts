@@ -3,6 +3,8 @@ import api from '../api/axios';
 
 export interface Helper {
   id: string;
+  /** 'business' when row is a business card from directory API */
+  type?: 'business';
   businessName: string;
   ownerName: string;
   avatar: string;
@@ -40,6 +42,7 @@ interface UseHelpersInfiniteScrollParams {
 
 interface HelpersResponse {
   helpers: Helper[];
+  businesses?: Helper[];
   total: number;
   page: number;
 }
@@ -52,6 +55,7 @@ export function useHelpersInfiniteScroll({
   radius = 60,
 }: UseHelpersInfiniteScrollParams) {
   const [helpers, setHelpers] = useState<Helper[]>([]);
+  const [businesses, setBusinesses] = useState<Helper[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -79,6 +83,7 @@ export function useHelpersInfiniteScroll({
         });
 
         setHelpers(response.data.helpers);
+        setBusinesses(response.data.businesses || []);
         setTotalCount(response.data.total);
         setPage(1);
         setHasMore((response.data.helpers?.length || 0) >= limit);
@@ -142,6 +147,7 @@ export function useHelpersInfiniteScroll({
 
   return {
     helpers,
+    businesses,
     isLoading,
     isError,
     isFetchingNextPage,

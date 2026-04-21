@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { X, MessageCircle, Building2, LogIn, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import type {
   ChatSession,
   ChatDestination,
@@ -24,6 +25,8 @@ interface ChatPanelProps {
   helperId: string;
   /** When set, the chat is scoped to a business (used on /business/:id pages). */
   businessId?: string;
+  /** Visitor without an account — collect name/email and POST to guest session endpoint */
+  isGuest?: boolean;
   /** 'sidebar' = embedded on desktop (no close btn). 'modal' = mobile drawer (shows close btn). */
   variant?: 'sidebar' | 'modal';
   onClose?: () => void;
@@ -107,6 +110,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   helperName,
   helperId,
   businessId,
+  isGuest = false,
   variant = 'sidebar',
   onClose,
   className = '',
@@ -118,6 +122,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [session,          setSession]          = useState<ChatSession>(initialSession);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
   const [sending,          setSending]          = useState(false);
+  const [guestName,        setGuestName]        = useState('');
+  const [guestEmail,       setGuestEmail]       = useState('');
   const [conversationId,   setConversationId]   = useState<string | null>(null);
   // threadId ties this chat session to server-side Redis history (AI mode only).
   // null until the first AI response is received; echoed back on every subsequent send.
@@ -183,6 +189,58 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   const handleSend = useCallback(async (text: string) => {
     if (sending) return;
+
+    if (isGuest && session.destination === 'helper') {
+      const name = guestName.trim();
+      const email = guestEmail.trim();
+      if (!name || !email) {
+        toast.error(t('messages.guestMissingContact'));
+        return;
+      }
+      setSending(true);
+      const userMsg: ChatMessage = {
+        id:         `msg-${Date.now()}`,
+        itemType:   'message',
+        authorType: 'user',
+        content:    text,
+        timestamp:  new Date().toISOString(),
+      };
+      setSession(prev => ({
+        ...prev,
+        timeline: [...prev.timeline, userMsg],
+      }));
+      try {
+        await api.post('/chat/sessions/guest', {
+          helperId,
+          ...(businessId ? { businessId } : {}),
+          guestName: name,
+          guestEmail: email,
+          message: text,
+        });
+        const ack: TimelineEvent = {
+          id:        `evt-${Date.now()}-guest`,
+          itemType:  'system',
+          eventType: 'message_sent',
+          content:   t('messages.guestMessageSent'),
+          timestamp: new Date().toISOString(),
+        };
+        setSession(prev => ({
+          ...prev,
+          timeline: [...prev.timeline, ack],
+        }));
+        toast.success(t('messages.guestMessageSentToast'));
+      } catch (err: any) {
+        const msg = err?.response?.data?.error || t('messages.aiError');
+        toast.error(msg);
+        setSession(prev => ({
+          ...prev,
+          timeline: prev.timeline.filter((i) => i.id !== userMsg.id),
+        }));
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
 
     const userMsg: ChatMessage = {
       id:         `msg-${Date.now()}`,
@@ -277,7 +335,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     } finally {
       setSending(false);
     }
-  }, [helperId, session, user, helperName, sending, t]);
+  }, [helperId, businessId, session, user, helperName, sending, t, isGuest, guestName, guestEmail]);
 
   const helperIsLive  = session.helperStatus === 'live';
   const isOffline     = currentStatus === 'offline';
@@ -319,22 +377,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, []);
 
   const handleQuickReply = useCallback((text: string) => {
-    // Populate the composer with quick reply and focus
-    // This would be handled by passing text to MessageComposer state
-    // For now, we'll just send it directly
-    const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      itemType: 'message',
-      authorType: 'user',
-      content: text,
-      timestamp: new Date().toISOString(),
-    };
-    setSession(prev => ({
-      ...prev,
-      timeline: [...prev.timeline, userMsg],
-    }));
-    // Trigger AI response
-    handleSend([userMsg]);
+    handleSend(text);
   }, [handleSend]);
 
   return (
@@ -398,8 +441,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       />
 
       {/* ── Sign-in prompt when helper is live but user isn't auth'd ── */}
-      {helperIsLive && !user && session.destination === 'helper' && (
+      {helperIsLive && !user && session.destination === 'helper' && !isGuest && (
         <SignInPrompt helperName={helperName} />
+      )}
+
+      {isGuest && session.destination === 'helper' && (
+        <div className="px-4 py-3 border-b border-gray-800 space-y-2 bg-gray-950/40">
+          <p className="text-xs text-gray-400">{t('messages.guestContactIntro')}</p>
+          <input
+            type="text"
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            placeholder={t('messages.guestNamePlaceholder')}
+            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500"
+            autoComplete="name"
+          />
+          <input
+            type="email"
+            value={guestEmail}
+            onChange={(e) => setGuestEmail(e.target.value)}
+            placeholder={t('messages.guestEmailPlaceholder')}
+            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500"
+            autoComplete="email"
+          />
+        </div>
       )}
 
       {/* ── Handoff banner ─────────────────────────────────── */}
@@ -436,6 +501,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         placeholder={
           session.destination === 'oxsteed'
             ? t('messages.typeMessage')
+            : isGuest
+            ? t('messages.guestMessagePlaceholder')
             : helperIsLive && user
             ? t('messages.chatWith', { name: helperName })
             : undefined

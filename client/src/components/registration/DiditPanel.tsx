@@ -288,6 +288,14 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
             </button>
             <button
               type="button"
+              onClick={handleSkip}
+              disabled={skipping}
+              className="w-full py-2.5 text-sm font-medium text-gray-300 hover:text-white border border-gray-600 rounded-lg hover:bg-gray-800/60 transition-colors disabled:opacity-50"
+            >
+              {skipping ? t('didit.continuing') : t('didit.verifyLater')}
+            </button>
+            <button
+              type="button"
               onClick={onBack}
               className="flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded px-3 py-2 transition-colors mx-auto"
             >

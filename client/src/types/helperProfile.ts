@@ -31,6 +31,8 @@ export interface HelperProfile {
   categories: string[];
   /** Display location override, e.g. "Austin, TX" */
   city?: string;
+  /** When true, visitors without an account can send a guest message from the public profile */
+  allowGuestContact?: boolean;
 }
 
 // ─── Services ───────────────────────────────────────────────────────────────

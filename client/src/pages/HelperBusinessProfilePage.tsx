@@ -13,10 +13,11 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import { MessageCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -54,11 +55,13 @@ const HelperBusinessProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [data, setData] = useState<HelperProfileData | null>(null);
   const [loadState, setLoadState] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
 
   // Set scroll-padding-top so SectionNav anchor links don't hide under sticky bars
   useEffect(() => {
@@ -103,8 +106,17 @@ const HelperBusinessProfilePage: React.FC = () => {
   }, [id, data, navigate]);
 
   const handleOpenChat = useCallback(() => {
-    setChatOpen(true);
-  }, []);
+    if (user) {
+      setChatOpen(true);
+      return;
+    }
+    const allow = data?.helper?.allowGuestContact !== false;
+    if (allow) {
+      setChatOpen(true);
+    } else {
+      setGuestSignInModalOpen(true);
+    }
+  }, [user, data?.helper?.allowGuestContact]);
 
   // ── Render states ──────────────────────────────────────────────────────────
   if (loadState === 'loading' || loadState === 'idle') {
@@ -133,6 +145,8 @@ const HelperBusinessProfilePage: React.FC = () => {
 
   const { helper, services, gallery, hours, location, policies, reviews, faqs, visibility, chatSession } =
     data;
+
+  const isGuestVisitor = !user;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -243,6 +257,7 @@ const HelperBusinessProfilePage: React.FC = () => {
                   session={chatSession}
                   helperName={helper.businessName}
                   helperId={helper.id}
+                  isGuest={isGuestVisitor}
                   variant="sidebar"
                   className="h-full"
                 />
@@ -289,11 +304,51 @@ const HelperBusinessProfilePage: React.FC = () => {
           session={chatSession}
           helperName={helper.businessName}
           helperId={helper.id}
+          isGuest={isGuestVisitor}
           variant="modal"
           onClose={() => setChatOpen(false)}
           className="h-full"
         />
       </MobileChatDrawer>
+
+      {guestSignInModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="guest-signin-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 shadow-xl">
+            <h2 id="guest-signin-title" className="text-lg font-semibold text-white mb-2">
+              {t('helperProfile.guestSignInTitle', { name: helper.businessName })}
+            </h2>
+            <p className="text-sm text-gray-400 mb-6">
+              {t('helperProfile.guestSignInBody')}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/login"
+                className="flex-1 text-center py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors"
+              >
+                {t('auth.signIn')}
+              </Link>
+              <Link
+                to="/register"
+                className="flex-1 text-center py-2.5 rounded-xl border border-gray-600 text-gray-200 font-semibold text-sm hover:bg-gray-800 transition-colors"
+              >
+                {t('nav.register')}
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={() => setGuestSignInModalOpen(false)}
+              className="mt-4 w-full text-sm text-gray-500 hover:text-gray-300"
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/*
         ── Mobile chat FAB ────────────────────────────────────────

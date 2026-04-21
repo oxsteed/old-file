@@ -1,11 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Star, CheckCircle2, Zap } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useHelpersInfiniteScroll } from '../hooks/useHelpersInfiniteScroll';
 import type { Helper } from '../hooks/useHelpersInfiniteScroll';
 
 const FALLBACK_LAT = 39.921923;
 const FALLBACK_LNG = -82.998619;
+
+function initialsFromName(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n.charAt(0).toUpperCase())
+    .join('');
+}
 
 export default function LiveHelpersHeroCard() {
   const { t } = useTranslation();
@@ -13,7 +22,7 @@ export default function LiveHelpersHeroCard() {
   const [displayedHelpers, setDisplayedHelpers] = useState<Helper[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const { helpers, isLoading } = useHelpersInfiniteScroll({
+  const { helpers, businesses, isLoading, fetchNextPage, hasMore, isFetchingNextPage } = useHelpersInfiniteScroll({
     latitude: userLocation?.lat,
     longitude: userLocation?.lng,
     limit: 10,
@@ -21,7 +30,34 @@ export default function LiveHelpersHeroCard() {
     enabled: !!userLocation,
   });
 
-  // Get user's geolocation on mount
+  const mergedRows = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Helper[] = [];
+    for (const h of helpers) {
+      if (seen.has(h.id)) continue;
+      seen.add(h.id);
+      out.push(h);
+    }
+    for (const b of businesses) {
+      if (seen.has(b.id)) continue;
+      seen.add(b.id);
+      out.push(b);
+    }
+    return out;
+  }, [helpers, businesses]);
+
+  useEffect(() => {
+    if (mergedRows.length > 0) {
+      setDisplayedHelpers(mergedRows);
+    }
+  }, [mergedRows]);
+
+  useEffect(() => {
+    if (hasMore && !isFetchingNextPage && helpers.length > 0 && mergedRows.length < 25) {
+      fetchNextPage();
+    }
+  }, [hasMore, isFetchingNextPage, helpers.length, mergedRows.length, fetchNextPage]);
+
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -41,14 +77,6 @@ export default function LiveHelpersHeroCard() {
     }
   }, []);
 
-  // Update displayed helpers and auto-cycle through them
-  useEffect(() => {
-    if (helpers.length > 0) {
-      setDisplayedHelpers(helpers.slice(0, 3));
-    }
-  }, [helpers]);
-
-  // Auto-cycle through helpers every 5 seconds
   useEffect(() => {
     if (displayedHelpers.length === 0) return;
 
@@ -61,7 +89,8 @@ export default function LiveHelpersHeroCard() {
 
   const location =
     userLocation && userLocation.lat !== FALLBACK_LAT ? 'Near you' : 'Near you';
-  const badgeLabel = helpers.length > 0 ? `${Math.min(helpers.length, 99)}+ online` : 'Loading';
+  const badgeLabel =
+    displayedHelpers.length > 0 ? `${Math.min(displayedHelpers.length, 99)}+ online` : 'Loading';
   const isLoading_ = isLoading || !userLocation;
 
   return (
@@ -88,7 +117,6 @@ export default function LiveHelpersHeroCard() {
           e.currentTarget.style.transform = 'rotateY(-4deg) rotateX(2deg)';
         }}
       >
-        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -109,7 +137,7 @@ export default function LiveHelpersHeroCard() {
             }}
           />
           <span style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--hp-text)' }}>
-            {t('liveHelpers.heroCardTitle', 'Live helpers near you')}
+            {t('liveHelpers.heroCardTitle')}
           </span>
           <span
             style={{
@@ -126,7 +154,6 @@ export default function LiveHelpersHeroCard() {
           </span>
         </div>
 
-        {/* Location Info */}
         <div style={{ marginBottom: '0.875rem' }}>
           <div
             style={{
@@ -168,116 +195,130 @@ export default function LiveHelpersHeroCard() {
           )}
         </div>
 
-        {/* Helper Cards - Display 3 at a time */}
-        {displayedHelpers.length > 0
-          ? displayedHelpers.map((helper, i) => (
-              <div
-                key={helper.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.625rem 0',
-                  borderTop: '1px solid var(--hp-divider)',
-                  opacity: i === currentIndex ? 1 : 0.5,
-                  transition: 'opacity 0.3s ease',
-                }}
-              >
-                {/* Avatar */}
+        {displayedHelpers.length > 0 ? (
+          <div style={{ maxHeight: '210px', overflowY: 'auto' }}>
+            {displayedHelpers.map((helper, i) => {
+              const isBusiness = helper.type === 'business';
+              const displayName = helper.businessName || helper.ownerName || '';
+              return (
                 <div
+                  key={helper.id}
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: helper.avatar
-                      ? `url(${helper.avatar}) center/cover`
-                      : 'var(--hp-primary-bg)',
-                    color: 'var(--hp-primary)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '.8rem',
-                    fontWeight: 700,
-                    flexShrink: 0,
-                    overflow: 'hidden',
+                    gap: '0.75rem',
+                    padding: '0.625rem 0',
+                    borderTop: '1px solid var(--hp-divider)',
+                    opacity: i === currentIndex ? 1 : 0.5,
+                    transition: 'opacity 0.3s ease',
                   }}
                 >
-                  {!helper.avatar &&
-                    helper.businessName
-                      .split(' ')
-                      .slice(0, 2)
-                      .map((n) => n.charAt(0).toUpperCase())
-                      .join('')}
-                </div>
-
-                {/* Name & Badge */}
-                <div style={{ flex: 1 }}>
                   <div
                     style={{
-                      fontSize: '.8rem',
-                      fontWeight: 600,
-                      color: 'var(--hp-text)',
-                      marginBottom: '0.125rem',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: helper.avatar
+                        ? `url(${helper.avatar}) center/cover`
+                        : 'var(--hp-primary-bg)',
+                      color: 'var(--hp-primary)',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.3rem',
+                      justifyContent: 'center',
+                      fontSize: '.8rem',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      overflow: 'hidden',
                     }}
                   >
-                    {helper.businessName.split(' ')[0]}
-                    {(helper.verified || helper.backgroundChecked) && (
-                      <CheckCircle2
-                        width={12}
-                        height={12}
-                        style={{
-                          color: 'var(--hp-green)',
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
+                    {!helper.avatar && initialsFromName(displayName)}
                   </div>
-                  <div
-                    style={{
-                      fontSize: '.7rem',
-                      color: 'var(--hp-green)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    ✓ Verified
-                  </div>
-                </div>
 
-                {/* Price & Rating */}
-                <div style={{ textAlign: 'right' }}>
-                  {helper.startingPrice > 0 && (
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: '.875rem',
-                        fontWeight: 700,
+                        fontSize: '.8rem',
+                        fontWeight: 600,
                         color: 'var(--hp-text)',
                         marginBottom: '0.125rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        flexWrap: 'wrap',
                       }}
                     >
-                      ${helper.startingPrice}
-                      {helper.startingPriceUnit === 'hour' ? '/hr' : ''}
+                      <span
+                        style={{
+                          fontSize: '.62rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          padding: '2px 6px',
+                          borderRadius: '999px',
+                          background: isBusiness ? 'rgba(99,102,241,0.2)' : 'rgba(34,197,94,0.15)',
+                          color: isBusiness ? '#a5b4fc' : 'var(--hp-green)',
+                        }}
+                      >
+                        {isBusiness ? t('liveHelpers.badgeBusiness') : t('liveHelpers.badgeHelper')}
+                      </span>
+                      <span className="truncate">{displayName.split(' ')[0]}</span>
+                      {(helper.verified || helper.backgroundChecked) && (
+                        <CheckCircle2
+                          width={12}
+                          height={12}
+                          style={{
+                            color: 'var(--hp-green)',
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
                     </div>
-                  )}
-                  <div
-                    style={{
-                      fontSize: '.65rem',
-                      color: 'var(--hp-text-muted)',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    {'★'.repeat(Math.round(helper.rating || 4.5))}
+                    <div
+                      style={{
+                        fontSize: '.7rem',
+                        color: 'var(--hp-green)',
+                        fontWeight: 500,
+                      }}
+                    >
+                      ✓ Verified
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    {helper.startingPrice > 0 && (
+                      <div
+                        style={{
+                          fontSize: '.875rem',
+                          fontWeight: 700,
+                          color: 'var(--hp-text)',
+                          marginBottom: '0.125rem',
+                        }}
+                      >
+                        ${helper.startingPrice}
+                        {helper.startingPriceUnit === 'hour' ? '/hr' : ''}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        fontSize: '.65rem',
+                        color: 'var(--hp-text-muted)',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {'★'.repeat(Math.round(helper.rating || 4.5))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          : !isLoading_ && (
-              <div style={{ textAlign: 'center', padding: '1rem 0', color: 'var(--hp-text-muted)' }}>
-                <p style={{ fontSize: '.8rem' }}>No helpers nearby</p>
-              </div>
-            )}
+              );
+            })}
+          </div>
+        ) : (
+          !isLoading_ && (
+            <div style={{ textAlign: 'center', padding: '1rem 0', color: 'var(--hp-text-muted)' }}>
+              <p style={{ fontSize: '.8rem' }}>No helpers nearby</p>
+            </div>
+          )
+        )}
       </div>
 
       <style>{`
