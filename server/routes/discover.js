@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { discoverLimiter } = require('../middleware/rateLimiter');
+const { discoverLimiter, discoverAuthLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const {
   discoverSearch,
@@ -9,8 +9,8 @@ const {
   deleteDiscoverAlert,
 } = require('../controllers/discoverController');
 
-router.get('/popular', discoverLimiter, discoverPopular);
-router.get('/', discoverLimiter, discoverSearch);
+router.get('/popular', discoverLimiter, discoverAuthLimiter, discoverPopular);
+router.get('/', discoverLimiter, discoverAuthLimiter, discoverSearch);
 router.get('/alerts', authenticate, listDiscoverAlerts);
 router.post('/alerts', authenticate, createDiscoverAlert);
 router.delete('/alerts/:id', authenticate, deleteDiscoverAlert);

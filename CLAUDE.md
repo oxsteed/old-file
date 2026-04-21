@@ -1852,7 +1852,7 @@ Next actions:
 ### Session — 2026-04-22 (Discover polish: UX, analytics, stricter rate limit)
 
 - **Migration** `087_discover_search_analytics.sql`: `discover_search_log` (query_normalized, result_count, radius, lat/lng, **ip_hash**, user_id).
-- **`discoverLimiter`** (`rateLimiter.js`): 40 req / 15 min / IP for unauthenticated; **`discover.js`** applies to `GET /` and `GET /popular`.
+- **`discoverLimiter`** + **`discoverAuthLimiter`** (`rateLimiter.js`): 40/15m per IP for guests, 200/15m per user id when Bearer present; both chained on `GET /` and `GET /popular`.
 - **`discoverController`**: pagination `limit`/`offset`, `total`/`hasMore`; rows include **matchReasons**, **freshness**, helper **rating/badges/availableToday**, **primaryAction**; **`GET /discover/popular`** for empty-state listings; **logDiscoverQuery** on each search (non-fatal if table missing).
 
 ---
