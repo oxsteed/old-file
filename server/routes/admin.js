@@ -58,6 +58,7 @@ router.get('/payments', requireAdmin, requirePermission('view_financials'), paym
 router.get('/users',            requireAdmin, superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, superCtrl.getUserDetail);
 router.put('/users/:userId/name',  requireAdmin, superCtrl.updateUserName);
+router.put('/users/:userId/didit-enforcement', requireAdmin, superCtrl.setUserDiditEnforcement);
 router.post('/users/:userId/ban',  requireAdmin, superCtrl.toggleUserBan);
 
 // Market / Zip Code management
@@ -74,9 +75,8 @@ router.get('/super/dashboard',     requireSuperAdmin, superCtrl.getDashboardStat
 router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart);
 
 // User management (privileged write)
-// verify_users and delete_users can be delegated via permission grants;
-// role changes and force-logout remain super-admin only (no delegation scope).
-router.post('/users/:userId/verify', requireAdmin,      requirePermission('verify_users'), superCtrl.verifyUser);
+// ID / background "confirm" is super-admin only (trust & compliance).
+router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
 router.delete('/users/:userId',      requireAdmin,      requirePermission('delete_users'), superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
@@ -144,7 +144,7 @@ router.post('/super/permission-grants',   requireSuperAdmin, permCtrl.createGran
 router.delete('/super/permission-grants/:id', requireSuperAdmin, permCtrl.revokeGrant);
 
 // Create regular user — super-admin, or admin with create_users grant
-router.post('/super/users', requireAdmin, requirePermission('create_users'), superCtrl.createUser);
+router.post('/super/users', requireSuperAdmin, superCtrl.createUser);
 
 // ══════════════════════════════════════════════════════════════
 // ADMIN → USER LIVE MESSAGING (super-admin only)

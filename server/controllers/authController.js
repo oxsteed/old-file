@@ -61,6 +61,7 @@ function formatAuthUser(user) {
     trial_ends_at:         user.trial_ends_at || null,
     didit_status:          user.didit_status || 'pending',
     didit_verified_at:     user.didit_verified_at || null,
+    didit_enforcement_required: !!user.didit_enforcement_required,
     id_verified:           !!user.id_verified,
     background_check_passed: !!user.background_check_passed,
     city:                  user.city,
@@ -135,7 +136,8 @@ const { rows } = await pool.query(
    onboarding_status, onboarding_completed, contact_completed, profile_completed,
    tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
    background_check_passed, city, state, zip_code,
-   trial_started_at, trial_ends_at, didit_status, didit_verified_at
+   trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+   COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
    FROM users WHERE id = $1`,
   [user.id]
 );
@@ -165,7 +167,8 @@ async function login(req, res) {
               tier_selected, w9_completed, terms_accepted,
               membership_tier, id_verified, background_check_passed,
               city, state, zip_code, totp_enabled,
-              trial_started_at, trial_ends_at, didit_status, didit_verified_at
+              trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+              COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
        FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
@@ -288,7 +291,8 @@ async function loginWith2FA(req, res) {
        onboarding_status, onboarding_completed, contact_completed, profile_completed,
        tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
        background_check_passed, city, state, zip_code,
-       trial_started_at, trial_ends_at, didit_status, didit_verified_at
+       trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+       COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
        FROM users WHERE id = $1`,
       [user.id]
     );
@@ -397,7 +401,8 @@ async function refreshToken(req, res) {
               tier_selected, w9_completed, terms_accepted,
               membership_tier, id_verified, background_check_passed,
               city, state, zip_code,
-              trial_started_at, trial_ends_at, didit_status, didit_verified_at
+              trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+              COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
        FROM users WHERE id = $1`,
       [sessionRows[0].user_id]
     );

@@ -11,6 +11,11 @@
     "register": "Enskri",
     "howItWorks": "Kijan sa Mache",
     "listSkills": "Ofri Sèvis Ou",
+    "joinOxsteed": "Antre nan OxSteed",
+    "joinAsCustomer": "Enskri kòm kliyan",
+    "joinAsHelper": "Enskri kòm èd",
+    "joinAsCustomerHint": "Poste travay e anboche èd lokal",
+    "joinAsHelperHint": "Ofri sèvis epi jwenn travay",
     "closeMenu": "Fèmen meni",
     "openMenu": "Louvri meni"
   },
@@ -3496,7 +3501,18 @@
     "cancelReasonRequired": "Yon rezon obligatwa pou anile.",
     "sessionsInvalidated": "Tout sesyon envalidasyon.",
     "forceLogoutFailed": "Erè forse logout.",
-    "optionalReason": "Rezon (opsyonèl):"
+    "optionalReason": "Rezon (opsyonèl):",
+    "diditStatus": "Didit: {{status}}",
+    "diditEnforcementOn": "Verifikasyon idantite obligatwa",
+    "diditEnforcementOff": "Verifikasyon idantite opsyonèl",
+    "diditRequireConfirm": "Eske w vle mande itilizatè sa a konplete verifikasyon idantite Didit? Yo pral oblije verifye anvan yo itilize aplikasyon an.",
+    "diditRelaxConfirm": "Eske w pèmèt itilizatè a sote Didit ankò (jiskaske w mande l)?",
+    "diditEnforcementUpdated": "Kondisyon Didit mete ajou.",
+    "diditEnforcementFailed": "Pa t kapab mete ajou kondisyon Didit.",
+    "verifyIdButton": "Konfime ID (manyèl)",
+    "verifyIdConfirm": "Eske w vle make idantite itilizatè a kòm verifye manyèlman? Sa ap mete Didit verified e retire obligasyon an — sèlman pou revizyon konfyans.",
+    "verifyBgButton": "Konfime verifikasyon antsedan",
+    "verifyBgConfirm": "Eske w vle make verifikasyon antsedan an kòm pase manyèlman? Sèlman pou revizyon konfyans."
   },
   "businessSkills": {
     "addExperience": "Ajoute Eksperyans",

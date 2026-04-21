@@ -30,6 +30,7 @@ const MOCK_CLIENT = {
   membership_tier: 'free', id_verified: false, background_check_passed: false,
   city: null, state: null, zip_code: null,
   display_name_preference: 'first_name', business_name: null,
+  didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
 };
 
 function buildApp() {

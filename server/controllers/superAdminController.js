@@ -143,7 +143,9 @@ exports.getUserDetail = async (req, res) => {
       'u.onboarding_status', 'u.onboarding_completed', 'u.contact_completed', 'u.profile_completed',
       'u.tier_selected', 'u.w9_completed', 'u.terms_accepted', 'u.membership_tier', 'u.id_verified',
       'u.background_check_passed', 'u.city', 'u.state', 'u.zip_code',
-      'u.didit_status', 'u.didit_verified_at', 'u.last_login_at',
+      'u.didit_status', 'u.didit_verified_at',
+      'COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required',
+      'u.last_login_at',
       'u.subscription_status', 'u.background_check_status', 'u.identity_verified'
     ];
 
@@ -201,6 +203,73 @@ exports.getUserDetail = async (req, res) => {
   } catch (err) { logger.error('getUserDetail error', { err }); res.status(500).json({ error: 'Failed to fetch user detail.' }); }
 };
 
+/**
+ * PUT /admin/users/:userId/didit-enforcement
+ * Body: { required: boolean }
+ * When required=true, user must complete Didit (skipped no longer satisfies API gate).
+ * If they had skipped, didit_status is reset to pending so they see the flow again.
+ */
+exports.setUserDiditEnforcement = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { required } = req.body;
+    if (typeof required !== 'boolean') {
+      return res.status(400).json({ error: 'required must be a boolean' });
+    }
+    const adminId = req.user.id;
+    const { rows: before } = await db.query(
+      'SELECT id, role, didit_enforcement_required, didit_status FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!before.length) return res.status(404).json({ error: 'User not found.' });
+    if (['admin', 'super_admin'].includes(before[0].role)) {
+      return res.status(403).json({ error: 'Cannot change Didit policy for admin accounts.' });
+    }
+
+    await db.query(
+      `UPDATE users SET
+         didit_enforcement_required = $2,
+         didit_status = CASE
+           WHEN $2 = TRUE AND didit_status = 'skipped' THEN 'pending'
+           ELSE didit_status
+         END,
+         updated_at = NOW()
+       WHERE id = $1`,
+      [userId, required]
+    );
+
+    if (required) {
+      try {
+        await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+        socketService.broadcastToUser(userId, 'force_logout', { reason: 'didit_enforcement_required' });
+      } catch (e) { /* non-fatal */ }
+    }
+
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_didit_enforcement',
+        targetType: 'user',
+        targetId: userId,
+        description: `didit_enforcement_required=${required}`,
+        before: { didit_enforcement_required: before[0].didit_enforcement_required, didit_status: before[0].didit_status },
+        after: { didit_enforcement_required: required },
+        req,
+      });
+    } catch (e) { /* non-fatal */ }
+
+    return res.json({
+      message: required
+        ? 'Identity verification is now required for this user.'
+        : 'Optional identity verification restored for this user.',
+      didit_enforcement_required: required,
+    });
+  } catch (err) {
+    logger.error('setUserDiditEnforcement error', { err });
+    return res.status(500).json({ error: 'Failed to update Didit enforcement.' });
+  }
+};
+
 exports.toggleUserBan = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -219,18 +288,91 @@ exports.toggleUserBan = async (req, res) => {
   } catch (err) { logger.error('toggleUserBan error', { err }); res.status(500).json({ error: 'Failed to update user status.' }); }
 };
 
+/**
+ * POST /admin/users/:userId/verify — super-admin only (route).
+ * Body: { field: 'is_identity_verified' | 'is_background_checked' }
+ * Confirms ID or background at the platform level (users + helper_profiles).
+ */
 exports.verifyUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const { field } = req.body;
     const adminId = req.user.id;
-    const allowed = ['is_identity_verified','is_background_checked'];
+    const allowed = ['is_identity_verified', 'is_background_checked'];
     if (!allowed.includes(field)) return res.status(400).json({ error: 'Invalid verification field.' });
-    if (!(await tableExists('helper_profiles'))) return res.status(400).json({ error: 'Helper profiles table not yet created.' });
-    await db.query(`UPDATE helper_profiles SET ${field} = $1, updated_at = now() WHERE user_id = $2`, [true, userId]);
-    try { await logAdminAction({ adminId, action: 'user_verified', targetType: 'user', targetId: userId, description: `Admin set ${field} = true`, req }); } catch(e) {}
-    res.json({ message: `User ${field} updated successfully.` });
-  } catch (err) { logger.error('verifyUser error', { err }); res.status(500).json({ error: 'Failed to verify user.' }); }
+
+    const { rows: targets } = await db.query(
+      'SELECT id, role FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!targets.length) return res.status(404).json({ error: 'User not found.' });
+    if (['admin', 'super_admin'].includes(targets[0].role)) {
+      return res.status(403).json({ error: 'Cannot modify verification flags for admin accounts.' });
+    }
+
+    const isHelperRole = ['helper', 'helper_pro', 'broker'].includes(targets[0].role);
+
+    if (field === 'is_identity_verified') {
+      await db.query(
+        `UPDATE users SET
+           didit_status = 'verified',
+           identity_verified = TRUE,
+           id_verified = TRUE,
+           didit_verified_at = COALESCE(didit_verified_at, NOW()),
+           didit_enforcement_required = FALSE,
+           updated_at = NOW()
+         WHERE id = $1`,
+        [userId]
+      );
+      if (isHelperRole && (await tableExists('helper_profiles'))) {
+        await db.query(
+          `INSERT INTO helper_profiles (user_id, is_identity_verified, tier, is_listed, created_at, updated_at)
+           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+           ON CONFLICT (user_id) DO UPDATE SET
+             is_identity_verified = TRUE,
+             updated_at = NOW()`,
+          [userId]
+        );
+      }
+    } else if (field === 'is_background_checked') {
+      await db.query(
+        `UPDATE users SET
+           background_check_status = 'passed',
+           background_check_passed = TRUE,
+           background_check_passed_at = COALESCE(background_check_passed_at, NOW()),
+           background_check_expiry = COALESCE(background_check_expiry, NOW() + INTERVAL '1 year'),
+           updated_at = NOW()
+         WHERE id = $1`,
+        [userId]
+      );
+      if (isHelperRole && (await tableExists('helper_profiles'))) {
+        await db.query(
+          `INSERT INTO helper_profiles (user_id, is_background_checked, tier, is_listed, created_at, updated_at)
+           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+           ON CONFLICT (user_id) DO UPDATE SET
+             is_background_checked = TRUE,
+             updated_at = NOW()`,
+          [userId]
+        );
+      }
+    }
+
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_verified',
+        targetType: 'user',
+        targetId: userId,
+        description: `Super-admin confirmed ${field}`,
+        req,
+      });
+    } catch (e) { /* non-fatal */ }
+
+    res.json({ message: `${field} confirmed successfully.` });
+  } catch (err) {
+    logger.error('verifyUser error', { err });
+    res.status(500).json({ error: 'Failed to verify user.' });
+  }
 };
 
 exports.updateUserRole = async (req, res) => {

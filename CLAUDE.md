@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Footer Vortex** — pill is **always shown** (was gated on `user`, hiding for guests); label uses **`t('footer.vortex')`**. Helpers directory geo crash fix retained: **`topServices`** objects + **HelperCard** guards.)
+**Last updated:** 2026-04-22 (✅ **Super-admin only:** **POST /admin/users/:id/verify** (ID + background manual confirm updates `users` + helper `helper_profiles` when helper role); **POST /admin/super/users** create-user. Regular admins lose verify + create_users delegation for those paths. Users list **Create User** button super-admin only.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 

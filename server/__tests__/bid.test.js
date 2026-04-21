@@ -26,6 +26,7 @@ const MOCK_HELPER = {
   membership_tier: 'pro', id_verified: true, background_check_passed: true,
   city: 'Austin', state: 'TX', zip_code: '78701',
   display_name_preference: 'first_name', business_name: null,
+  didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
 };
 
 function buildApp() {

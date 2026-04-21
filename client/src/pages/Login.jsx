@@ -6,6 +6,13 @@ import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import Footer from '../components/Footer';
 
+function diditGateSatisfied(user) {
+  if (!user?.email_verified) return true;
+  const ds = user.didit_status || 'pending';
+  if (user.didit_enforcement_required) return ds === 'verified';
+  return ds === 'verified' || ds === 'skipped';
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,12 +33,7 @@ export default function Login() {
       const result = await login({ email, password, rememberMe });
       const loggedInUser = result?.user;
 
-      // If the user has verified their email but hasn't completed Didit identity
-      // verification, send them to the verification page before the app.
-      if (
-        loggedInUser?.email_verified &&
-        !['verified', 'skipped'].includes(loggedInUser?.didit_status)
-      ) {
+      if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
         toast.success(t('login.verifyIdentityToast'));
         navigate('/verify-identity', { replace: true });
         return;

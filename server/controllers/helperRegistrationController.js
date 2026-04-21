@@ -256,7 +256,8 @@ async function verifyOTP(req, res) {
               onboarding_status, onboarding_completed, contact_completed, profile_completed,
               tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
               background_check_passed, city, state, zip_code,
-              trial_started_at, trial_ends_at, didit_status, didit_verified_at
+              trial_started_at, trial_ends_at, didit_status, didit_verified_at,
+              COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
        FROM users WHERE id = $1`,
       [userId]
     );

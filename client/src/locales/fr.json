@@ -11,6 +11,11 @@
     "register": "S’inscrire",
     "howItWorks": "Comment ça marche",
     "listSkills": "Proposer mes services",
+    "joinOxsteed": "Rejoindre OxSteed",
+    "joinAsCustomer": "S'inscrire en tant que client",
+    "joinAsHelper": "S'inscrire en tant qu'intervenant",
+    "joinAsCustomerHint": "Publiez des missions et embauchez de l'aide locale",
+    "joinAsHelperHint": "Proposez des services et soyez sollicité",
     "closeMenu": "Fermer le menu",
     "openMenu": "Ouvrir le menu"
   },
@@ -3497,7 +3502,18 @@
     "cancelReasonRequired": "Une raison est requise pour annuler.",
     "sessionsInvalidated": "Toutes les sessions invalidées.",
     "forceLogoutFailed": "Échec de la déconnexion forcée.",
-    "optionalReason": "Raison (facultatif):"
+    "optionalReason": "Raison (facultatif):",
+    "diditStatus": "Didit : {{status}}",
+    "diditEnforcementOn": "Vérification d'identité obligatoire",
+    "diditEnforcementOff": "Vérification d'identité facultative",
+    "diditRequireConfirm": "Exiger que cet utilisateur termine la vérification d'identité Didit ? Il devra vérifier avant d'utiliser l'application.",
+    "diditRelaxConfirm": "Autoriser à nouveau cet utilisateur à ignorer Didit (jusqu'à ce que vous l'exigiez) ?",
+    "diditEnforcementUpdated": "Exigence Didit mise à jour.",
+    "diditEnforcementFailed": "Échec de la mise à jour de l'exigence Didit.",
+    "verifyIdButton": "Confirmer l'identité (manuel)",
+    "verifyIdConfirm": "Marquer manuellement l'identité comme vérifiée ? Cela définit Didit sur « vérifié » et désactive l'exigence — réservé à un examen manuel de confiance.",
+    "verifyBgButton": "Confirmer le casier judiciaire",
+    "verifyBgConfirm": "Marquer manuellement le casier comme validé ? Réservé à un examen manuel de confiance."
   },
   "businessSkills": {
     "addExperience": "Ajouter Expérience",

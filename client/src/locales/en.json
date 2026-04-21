@@ -11,6 +11,11 @@
     "register": "Register",
     "howItWorks": "How It Works",
     "listSkills": "List Your Skills",
+    "joinOxsteed": "Join OxSteed",
+    "joinAsCustomer": "Sign up as a customer",
+    "joinAsHelper": "Sign up as a helper",
+    "joinAsCustomerHint": "Post jobs and hire local help",
+    "joinAsHelperHint": "Offer services and get hired",
     "closeMenu": "Close menu",
     "openMenu": "Open menu"
   },
@@ -3497,7 +3502,18 @@
     "cancelReasonRequired": "A reason is required to cancel.",
     "sessionsInvalidated": "All sessions invalidated.",
     "forceLogoutFailed": "Failed to force logout.",
-    "optionalReason": "Reason (optional):"
+    "optionalReason": "Reason (optional):",
+    "diditStatus": "Didit: {{status}}",
+    "diditEnforcementOn": "ID verification required",
+    "diditEnforcementOff": "ID verification optional",
+    "diditRequireConfirm": "Require this user to complete Didit identity verification? They will be signed out of other sessions and must verify before using the app.",
+    "diditRelaxConfirm": "Allow this user to skip Didit again (until you require it)?",
+    "diditEnforcementUpdated": "Didit requirement updated.",
+    "diditEnforcementFailed": "Failed to update Didit requirement.",
+    "verifyIdButton": "Confirm ID (manual)",
+    "verifyIdConfirm": "Manually mark this user as identity-verified? This sets Didit to verified and clears enforcement — use only for trusted manual review.",
+    "verifyBgButton": "Confirm background check",
+    "verifyBgConfirm": "Manually mark this user's background check as passed? Use only for trusted manual review."
   },
   "businessSkills": {
     "addExperience": "Add Experience",
