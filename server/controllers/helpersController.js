@@ -1,7 +1,7 @@
-
 // server/controllers/helpersController.js
 // Public helper discovery endpoints — no authentication required.
 // Powers /helpers (directory) and /helpers/:id (profile page).
+
 
 const pool          = require('../db');
 const socketService = require('../services/socketService');
@@ -53,6 +53,7 @@ async function listHelpers(req, res) {
       lat,
       lng,
       radius,
+      includePreviewData = 'false', // Phase 1: fetch preview data (reviews, availability)
     } = req.query;
 
     const pageNum  = Math.max(1, parseInt(page)  || 1);
@@ -181,7 +182,7 @@ async function listHelpers(req, res) {
     const whereClause = conditions.join(' AND ');
 
     const sortMap = {
-      best_match:      'hp.search_rank_boost DESC, hp.avg_rating DESC',
+      best_match:      'hp.avg_rating DESC, hp.total_reviews DESC',
       highest_rated:   'hp.avg_rating DESC, hp.total_reviews DESC',
       most_reviews:    'hp.total_reviews DESC, hp.avg_rating DESC',
       lowest_price:    'hp.hourly_rate_min ASC NULLS LAST',
@@ -215,7 +216,8 @@ async function listHelpers(req, res) {
          hp.is_identity_verified, hp.is_background_checked,
          hp.insurance_details, hp.license_details,
          hp.is_available_now,
-         hp.search_rank_boost
+         
+         hp.require_contact_signup
        FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
        ${categoryJoinClause}
@@ -279,6 +281,7 @@ async function listHelpers(req, res) {
         serviceRadius:    h.service_radius_miles || 10,
         availableToday:   !!h.is_available_now,
         shortBio:         h.bio_short || h.profile_headline || '',
+        requireContactSignup: !!h.require_contact_signup,
       };
     });
 
@@ -385,6 +388,47 @@ async function listHelpers(req, res) {
         availableToday:   false,
         shortBio:         b.tagline || b.about || '',
       }));
+    }
+
+    // ── Phase 1: Fetch preview data (reviews, availability) if requested ────────────
+    if (includePreviewData === 'true' && mapped.length > 0) {
+      const mapHelperIds = mapped.map(h => h.id);
+
+      // Fetch 2-3 most recent reviews per helper
+      const { rows: reviewRows } = await pool.query(
+        `SELECT r.reviewee_id, r.id, r.rating, r.comment AS text,
+                u.first_name, u.last_name, r.created_at AS date
+         FROM reviews r
+         JOIN users u ON u.id = r.reviewer_id
+         WHERE r.reviewee_id = ANY($1) AND r.is_public = TRUE
+         ORDER BY r.rating DESC, r.created_at DESC`,
+        [mapHelperIds]
+      );
+
+      const reviewsByHelper = {};
+      for (const review of reviewRows) {
+        if (!reviewsByHelper[review.reviewee_id]) {
+          reviewsByHelper[review.reviewee_id] = [];
+        }
+        if (reviewsByHelper[review.reviewee_id].length < 3) {
+          reviewsByHelper[review.reviewee_id].push({
+            id: review.id,
+            rating: review.rating,
+            text: review.text || '',
+            authorName: `${review.first_name.charAt(0)}. ${review.last_name}`,
+            date: review.date,
+          });
+        }
+      }
+
+      // Attach reviews and availability to each helper
+      for (const helper of mapped) {
+        helper.reviews = reviewsByHelper[helper.id] || [];
+        helper.availabilitySnippet = {
+          summary: `Available ${helper.availableToday ? 'today and ' : ''}in ${helper.city || helper.state || 'your area'}`,
+        };
+        // Note: require_contact_signup will be fetched separately if needed
+      }
     }
 
     return res.json({ helpers: mapped, businesses, total: parseInt(count), page: pageNum });
@@ -911,4 +955,42 @@ async function getMyListingStatus(req, res) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus };
+// ── PUT /api/helpers/me/settings ──────────────────────────────────────────────
+// Phase 4: Update helper contact settings (require_contact_signup)
+async function updateHelperSettings(req, res) {
+  try {
+    const { require_contact_signup } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (require_contact_signup !== undefined && typeof require_contact_signup !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid require_contact_signup value' });
+    }
+
+    // Update helper_profiles
+    const { rows } = await pool.query(
+      `UPDATE helper_profiles
+       SET require_contact_signup = COALESCE($1, require_contact_signup),
+           contact_gate_enabled_at = CASE WHEN $1 = TRUE THEN NOW() ELSE contact_gate_enabled_at END
+       WHERE user_id = $2
+       RETURNING require_contact_signup`,
+      [require_contact_signup, userId],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Helper profile not found' });
+    }
+
+    logger.info('[updateHelperSettings] settings updated', {
+      userId,
+      require_contact_signup: rows[0].require_contact_signup,
+    });
+
+    res.json({ require_contact_signup: rows[0].require_contact_signup });
+  } catch (err) {
+    logger.error('[updateHelperSettings] error:', { err });
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, updateHelperSettings };
