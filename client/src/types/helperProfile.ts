@@ -29,8 +29,10 @@ export interface HelperProfile {
   responseRate: number;
   badges: Badge[];
   categories: string[];
-  /** Display location override, e.g. "Austin, TX" */
+  /** Service city (public) */
   city?: string;
+  /** Service state code (public) */
+  state?: string;
   /** When true, visitors without an account can send a guest message from the public profile */
   allowGuestContact?: boolean;
 }

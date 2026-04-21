@@ -2846,6 +2846,7 @@
       "message": "Message",
       "bookNow": "Book Now",
       "openChatAria": "Open chat",
+      "areaFallback": "Your area",
       "verifiedAria": "Verified",
       "verifiedTitle": "Identity verified by OxSteed",
       "trustBadgesAria": "Trust and verification badges"

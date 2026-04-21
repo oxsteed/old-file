@@ -126,7 +126,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
                 </span>
                 <span className="flex items-center justify-center sm:justify-start gap-1">
                   <MapPin className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
-                  {helper.city || 'Austin, TX'}
+                  {[helper.city, helper.state].filter(Boolean).join(', ') || t('helperProfile.header.areaFallback')}
                 </span>
                 <span className="flex items-center justify-center sm:justify-start gap-1">
                   <Clock className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />

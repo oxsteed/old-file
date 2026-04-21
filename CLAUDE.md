@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Discover polish** — analytics table, stricter `discoverLimiter`, `/discover/popular`, pagination, match reasons + freshness + CTAs, recent searches, UI icons/highlights.)
+**Last updated:** 2026-04-22 (✅ **SEO: profiles + sitemap + robots** — env-based canonical URLs, `/business/:id` prerender + JSON-LD, sitemap businesses, `robots.txt`, client `ProfileJsonLd` + meta descriptions.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -1854,6 +1854,18 @@ Next actions:
 - **Migration** `087_discover_search_analytics.sql`: `discover_search_log` (query_normalized, result_count, radius, lat/lng, **ip_hash**, user_id).
 - **`discoverLimiter`** + **`discoverAuthLimiter`** (`rateLimiter.js`): 40/15m per IP for guests, 200/15m per user id when Bearer present; both chained on `GET /` and `GET /popular`.
 - **`discoverController`**: pagination `limit`/`offset`, `total`/`hasMore`; rows include **matchReasons**, **freshness**, helper **rating/badges/availableToday**, **primaryAction**; **`GET /discover/popular`** for empty-state listings; **logDiscoverQuery** on each search (non-fatal if table missing).
+
+---
+
+### Session — 2026-04-22 (SEO production: prerender, sitemap, robots, JSON-LD, meta)
+
+- **`publicSiteUrl.js`** + **`seoProfileDescription.js`**: canonical origin from `APP_URL` / `CLIENT_URL`; long-tail meta description builder (shared logic with client `seoDescription.ts`).
+- **`prerenderHelperProfile.js`**: `/business/:numeric` prerender (LocalBusiness JSON-LD + shell); helper prerender uses **Person** schema, **listed + helper roles** gate, canonical + **twitter:image**; homepage / helpers URLs use dynamic origin.
+- **`sitemap.js`**: static URLs + helpers + **active businesses** (owner verified/onboarding + listing rules); loc from `getPublicSiteUrl()`.
+- **`robots.txt`** route (`server/routes/robots.js`) + mount in `index.js`; disallows `/api/`, `/admin/`, auth-only app paths; `Sitemap:` line uses env origin.
+- **Client:** `PageMeta` adds **canonical**, resolves **og:image** absolute URLs via `VITE_PUBLIC_SITE_URL` or `window.location.origin`; **`ProfileJsonLd`** on helper + business profile pages; **`buildPublicProfileDescription`** for meta text; API returns **`helper.city` / `helper.state`**; `BusinessHeader` location line uses city+state + i18n **`helperProfile.header.areaFallback`** (4 locales).
+- **API hardening:** `getHelperProfile` requires **listed** + helper-like roles; `getBusinessPublicProfile` same **listing + verification** gates as prerender.
+- **Docs:** `server/.env.example` (`APP_URL`), `client/.env.example` (`VITE_PUBLIC_SITE_URL`).
 
 ---
 

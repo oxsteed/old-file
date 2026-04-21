@@ -478,7 +478,12 @@ async function getHelperProfile(req, res) {
            COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact
          FROM users u
          JOIN helper_profiles hp ON hp.user_id = u.id
-         WHERE u.id = $1 AND u.deleted_at IS NULL AND u.email_verified = TRUE AND u.onboarding_completed = TRUE`,
+         WHERE u.id = $1
+           AND u.deleted_at IS NULL
+           AND u.role IN ('helper', 'helper_pro', 'broker')
+           AND u.email_verified = TRUE
+           AND u.onboarding_completed = TRUE
+           AND COALESCE(hp.is_listed, TRUE) = TRUE`,
         [id],
       ),
       pool.query(
@@ -633,6 +638,8 @@ async function getHelperProfile(req, res) {
         responseRate: rateRes.rows[0]?.response_rate ?? 0,
         badges,
         categories,
+        city:         h.service_city  || '',
+        state:        h.service_state || '',
       },
       services,
       gallery,

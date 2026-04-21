@@ -34,6 +34,7 @@ const prerenderHelperProfile = require('./middleware/prerenderHelperProfile');
 
 // ── ROUTES ───────────────────────────────────────────────────
 const sitemapRoutes = require('./routes/sitemap');
+const robotsRoutes = require('./routes/robots');
 const authRoutes = require('./routes/auth');
 const subscriptionRoutes = require('./routes/subscription');
 const webhookRoutes = require('./routes/webhook');
@@ -359,7 +360,8 @@ const { getPublicProfile } = require('./controllers/authController');
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
-// Sitemap — works in all environments, no auth required
+// Sitemap + robots — works in all environments, no auth required
+app.use('/robots.txt', robotsRoutes);
 app.use('/sitemap.xml', sitemapRoutes);
 
 // ── PRODUCTION STATIC SERVING ────────────────────────────────

@@ -676,7 +676,11 @@ async function getBusinessPublicProfile(req, res) {
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
        WHERE b.id        = $1
          AND b.is_active = TRUE
-         AND u.deleted_at IS NULL`,
+         AND u.deleted_at IS NULL
+         AND u.role IN ('helper', 'helper_pro', 'broker')
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE
+         AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)`,
       [bizId]
     );
 
