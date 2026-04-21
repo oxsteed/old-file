@@ -8,6 +8,7 @@
     "settings": "Paramèt",
     "signOut": "Dekonekte",
     "signIn": "Konekte",
+    "register": "Enskri",
     "howItWorks": "Kijan sa Mache",
     "listSkills": "Ofri Sèvis Ou",
     "closeMenu": "Fèmen meni",
@@ -318,7 +319,7 @@
     "otpInputAria": "Kòd verifikasyon 6 chif",
     "stepOf": "Etap {{current}} sou 2",
     "step1Label": "Kreye pwofil ou",
-    "step2Label": "Verifye idantite ou",
+    "step2Label": "Verifye idantite (opsyonèl)",
     "firstNamePlaceholder": "Premye non",
     "lastNamePlaceholder": "Dènye non",
     "businessNamePlaceholder": "Non biznis",
@@ -337,6 +338,7 @@
     "step3Hint": "Konparezon vizaj an direktè ak foto sou dokiman ou",
     "notice": "Chak moun ka gen yon sèl kont. Si ou gen plizyè biznis, ou ka ajoute yo depi tablo de bò ou.",
     "startButton": "Kòmanse Verifikasyon",
+    "verifyLater": "Verifye pita",
     "launching": "Ap lanse Didit...",
     "backToProfile": "Tounen nan pwofil",
     "pendingTitle": "Ap verifye...",
@@ -728,7 +730,12 @@
       "subtitle": "Kontwole enfòmasyon pèsonèl ou",
       "exportSuccess": "Ekspò done ou a pré pou telechaje",
       "exportFailed": "Erè ekspò done",
-      "exportBtn": "Ekspò Done Mwen"
+      "exportBtn": "Ekspò Done Mwen",
+      "guestContactTitle": "Mesaj sou pwofil piblik la",
+      "guestContactDesc": "Kontwole si vizitè ki pa gen kont OxSteed ka kòmanse yon mesaj depi pwofil piblik asistan ou.",
+      "guestContactLabel": "Pèmèt moun ki pa anrejistre voye mesaj ba mwen",
+      "guestContactUpdated": "Preferans anrejistre",
+      "guestContactFailed": "Pa t ka mete ajou preferans la"
     },
     "account": {
       "title": "Tip Kont",
@@ -812,7 +819,14 @@
     "empty": "Poko gen mesaj",
     "emptyDesc": "Istwa mesaj ou a vid",
     "clearChat": "Clear chat",
-    "clearChatConfirm": "Are you sure you want to clear this conversation?"
+    "clearChatConfirm": "Are you sure you want to clear this conversation?",
+    "guestContactIntro": "Ajoute kontak ou pou asistan an ka reponn ou.",
+    "guestNamePlaceholder": "Non ou",
+    "guestEmailPlaceholder": "Imèl ou",
+    "guestMessagePlaceholder": "Ekri mesaj ou…",
+    "guestMissingContact": "Tanpri antre non ou ak imèl ou.",
+    "guestMessageSent": "Mesaj ou voye. Asistan an ka reponn pa imèl.",
+    "guestMessageSentToast": "Mesaj voye"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -2795,6 +2809,8 @@
     }
   },
   "helperProfile": {
+    "guestSignInTitle": "Konekte pou voye mesaj bay {{name}}",
+    "guestSignInBody": "Asistan sa a sèlman aksepte mesaj soti nan kont ki anrejistre.",
     "reviews": {
       "ratingDistribution": "Distribisyon nòt yo",
       "verifiedReviews": "{{count}} kòmantè verifye",
@@ -3658,7 +3674,9 @@
   "liveHelpers": {
     "sectionTitle": "Èd vivan prè de ou",
     "sectionSubtitle": "Pwofesyonèl lokal verifye ki pare ede ou jòdi a",
-    "heroCardTitle": "Èd vivan prè de ou",
+    "heroCardTitle": "Èd ak biznis vivan prè de ou",
+    "badgeHelper": "Asistan",
+    "badgeBusiness": "Biznis",
     "availableNow": "Disponib kounye a",
     "viewProfile": "Wè Pwofil",
     "viewProfileAria": "Wè pwofil {{name}} la",

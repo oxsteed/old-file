@@ -8,6 +8,7 @@
     "settings": "Configuración",
     "signOut": "Cerrar Sesión",
     "signIn": "Iniciar Sesión",
+    "register": "Registrarse",
     "howItWorks": "Cómo Funciona",
     "listSkills": "Ofrecer Servicios",
     "closeMenu": "Cerrar menú",
@@ -256,7 +257,7 @@
     "otpInputAria": "Código de verificación de 6 dígitos",
     "stepOf": "Paso {{current}} de 2",
     "step1Label": "Crea tu perfil",
-    "step2Label": "Verifica tu identidad",
+    "step2Label": "Verificar identidad (opcional)",
     "firstNamePlaceholder": "Nombre de pila",
     "lastNamePlaceholder": "Apellido",
     "businessNamePlaceholder": "Nombre del negocio",
@@ -275,6 +276,7 @@
     "step3Hint": "Coincidencia facial en vivo con la foto de tu documento",
     "notice": "Cada persona puede tener solo una cuenta. Si tienes varios negocios, puedes agregarlos desde tu panel.",
     "startButton": "Iniciar verificación",
+    "verifyLater": "Verificar más tarde",
     "launching": "Iniciando Didit...",
     "backToProfile": "Volver al perfil",
     "pendingTitle": "Verificando...",
@@ -666,7 +668,12 @@
       "subtitle": "Controla tu información personal",
       "exportSuccess": "Tu exportación de datos está lista para descargar",
       "exportFailed": "Error al exportar datos",
-      "exportBtn": "Exportar Mis Datos"
+      "exportBtn": "Exportar Mis Datos",
+      "guestContactTitle": "Mensajes en el perfil público",
+      "guestContactDesc": "Controla si los visitantes sin cuenta de OxSteed pueden iniciar un mensaje desde tu perfil público de ayudante.",
+      "guestContactLabel": "Permitir que usuarios no registrados me envíen mensajes",
+      "guestContactUpdated": "Preferencia guardada",
+      "guestContactFailed": "No se pudo actualizar la preferencia"
     },
     "account": {
       "title": "Tipo de Cuenta",
@@ -750,7 +757,14 @@
     "empty": "Sin mensajes",
     "emptyDesc": "Tu historial de mensajes está vacío",
     "clearChat": "Borrar chat",
-    "clearChatConfirm": "¿Estás seguro de que deseas borrar esta conversación?"
+    "clearChatConfirm": "¿Estás seguro de que deseas borrar esta conversación?",
+    "guestContactIntro": "Añade tu contacto para que el ayudante pueda responderte.",
+    "guestNamePlaceholder": "Tu nombre",
+    "guestEmailPlaceholder": "Tu correo electrónico",
+    "guestMessagePlaceholder": "Escribe tu mensaje…",
+    "guestMissingContact": "Introduce tu nombre y correo electrónico.",
+    "guestMessageSent": "Tu mensaje fue enviado. El ayudante puede responder por correo.",
+    "guestMessageSentToast": "Mensaje enviado"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
@@ -2796,6 +2810,8 @@
     }
   },
   "helperProfile": {
+    "guestSignInTitle": "Inicia sesión para enviar un mensaje a {{name}}",
+    "guestSignInBody": "Este ayudante solo acepta mensajes de cuentas registradas.",
     "reviews": {
       "ratingDistribution": "Distribución de calificaciones",
       "verifiedReviews": "{{count}} reseñas verificadas",
@@ -3659,7 +3675,9 @@
   "liveHelpers": {
     "sectionTitle": "Ayudantes disponibles cerca de ti",
     "sectionSubtitle": "Profesionales locales verificados listos para ayudarte hoy",
-    "heroCardTitle": "Ayudantes en directo cerca de ti",
+    "heroCardTitle": "Ayudantes y negocios en directo cerca de ti",
+    "badgeHelper": "Ayudante",
+    "badgeBusiness": "Negocio",
     "availableNow": "Disponible ahora",
     "viewProfile": "Ver Perfil",
     "viewProfileAria": "Ver el perfil de {{name}}",

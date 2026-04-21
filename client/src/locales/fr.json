@@ -8,6 +8,7 @@
     "settings": "Paramètres",
     "signOut": "Se déconnecter",
     "signIn": "Se connecter",
+    "register": "S’inscrire",
     "howItWorks": "Comment ça marche",
     "listSkills": "Proposer mes services",
     "closeMenu": "Fermer le menu",
@@ -256,7 +257,7 @@
     "otpInputAria": "Code de vérification à 6 chiffres",
     "stepOf": "Étape {{current}} sur 2",
     "step1Label": "Créez votre profil",
-    "step2Label": "Vérifiez votre identité",
+    "step2Label": "Vérifier l’identité (facultatif)",
     "firstNamePlaceholder": "Prénom",
     "lastNamePlaceholder": "Nom de famille",
     "businessNamePlaceholder": "Nom de l'entreprise",
@@ -275,6 +276,7 @@
     "step3Hint": "Reconnaissance faciale en temps réel avec la photo de votre document",
     "notice": "Chaque personne ne peut avoir qu'un seul compte. Si vous gérez plusieurs entreprises, vous pouvez les ajouter depuis votre tableau de bord.",
     "startButton": "Démarrer la vérification",
+    "verifyLater": "Vérifier plus tard",
     "launching": "Lancement de Didit...",
     "backToProfile": "Retour au profil",
     "pendingTitle": "Vérification en cours...",
@@ -666,7 +668,12 @@
       "subtitle": "Contrôlez vos informations personnelles",
       "exportSuccess": "Votre export de données est prêt à télécharger",
       "exportFailed": "Erreur lors de l'export des données",
-      "exportBtn": "Exporter Mes Données"
+      "exportBtn": "Exporter Mes Données",
+      "guestContactTitle": "Messages sur le profil public",
+      "guestContactDesc": "Choisissez si les visiteurs sans compte OxSteed peuvent démarrer un message depuis votre profil public d’assistant.",
+      "guestContactLabel": "Autoriser les visiteurs sans compte à m’écrire",
+      "guestContactUpdated": "Préférence enregistrée",
+      "guestContactFailed": "Impossible de mettre à jour la préférence"
     },
     "account": {
       "title": "Type de Compte",
@@ -750,7 +757,14 @@
     "empty": "Pas de messages",
     "emptyDesc": "Votre historique de messages est vide",
     "clearChat": "Clear chat",
-    "clearChatConfirm": "Are you sure you want to clear this conversation?"
+    "clearChatConfirm": "Are you sure you want to clear this conversation?",
+    "guestContactIntro": "Ajoutez vos coordonnées pour que l’assistant puisse vous répondre.",
+    "guestNamePlaceholder": "Votre nom",
+    "guestEmailPlaceholder": "Votre e-mail",
+    "guestMessagePlaceholder": "Écrivez votre message…",
+    "guestMissingContact": "Veuillez saisir votre nom et votre e-mail.",
+    "guestMessageSent": "Votre message a été envoyé. L’assistant peut répondre par e-mail.",
+    "guestMessageSentToast": "Message envoyé"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
@@ -2796,6 +2810,8 @@
     }
   },
   "helperProfile": {
+    "guestSignInTitle": "Connectez-vous pour écrire à {{name}}",
+    "guestSignInBody": "Cet assistant n’accepte les messages que des comptes enregistrés.",
     "reviews": {
       "ratingDistribution": "Répartition des notes",
       "verifiedReviews": "{{count}} avis vérifiés",
@@ -3659,7 +3675,9 @@
   "liveHelpers": {
     "sectionTitle": "Aide en direct près de vous",
     "sectionSubtitle": "Professionnels locaux vérifiés prêts à vous aider aujourd'hui",
-    "heroCardTitle": "Aide en direct près de vous",
+    "heroCardTitle": "Aides et entreprises en direct près de vous",
+    "badgeHelper": "Assistant",
+    "badgeBusiness": "Entreprise",
     "availableNow": "Disponible maintenant",
     "viewProfile": "Voir le profil",
     "viewProfileAria": "Voir le profil de {{name}}",

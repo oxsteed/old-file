@@ -52,7 +52,10 @@ export default function CustomerRegister() {
           </section>
 
           <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg shadow-black/30 overflow-hidden">
-            <StepBar current={step} />
+            <StepBar
+              current={step}
+              labels={[t('register.step1Label'), t('register.step2Label')]}
+            />
 
             {step === 1 && (
               <div className="animate-fadeIn">
