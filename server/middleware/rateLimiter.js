@@ -115,6 +115,43 @@ const chatLimiter = rateLimit({
   },
 });
 
+// Public Discover unified search — stricter than generalLimiter for anonymous scraping
+const discoverLimiter = rateLimit({
+  ...createStoreOption('rl:discover:'),
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  skip: (req) => !!req.headers.authorization?.startsWith('Bearer '),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Discover search rate limit exceeded. Please wait a few minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Authenticated Discover — separate bucket so signed-in users are not capped at guest limits
+const discoverAuthLimiter = rateLimit({
+  ...createStoreOption('rl:discover_auth:'),
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  skip: (req) => !req.headers.authorization?.startsWith('Bearer '),
+  keyGenerator: (req) => {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      return `discover:${decoded.id}`;
+    } catch {
+      return req.ip;
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Discover search rate limit exceeded. Please wait a few minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Geo services limiter: 100 requests per 15 minutes per IP
 // Prevents scraping and map API cost spikes.
 const geoLimiter = rateLimit({
@@ -183,6 +220,8 @@ module.exports = {
   authLimiter,
   strictLimiter,
   chatLimiter,
+  discoverLimiter,
+  discoverAuthLimiter,
   geoLimiter,
   invoiceLimiter,
   reportLimiter,

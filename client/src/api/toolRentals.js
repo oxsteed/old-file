@@ -8,6 +8,11 @@ export const toolRentalsApi = {
   },
 
   // Browse available tools with optional filters
+  getPublicTool: async (toolId) => {
+    const response = await api.get(`/tool-rentals/public/${toolId}`);
+    return response.data.tool;
+  },
+
   browseTools: async (filters = {}) => {
     const params = {};
     if (filters.category) params.category = filters.category;

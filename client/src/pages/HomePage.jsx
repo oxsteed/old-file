@@ -107,7 +107,7 @@ function HomeSearch() {
   }));
 
   // ── Mode ──────────────────────────────────────────────────────────────────
-  const [mode, setMode] = useState('helpers'); // 'helpers' | 'jobs'
+  const [mode, setMode] = useState('helpers'); // 'helpers' | 'jobs' | 'discover'
 
   // ── Query / skill autocomplete ────────────────────────────────────────────
   const [query, setQuery]             = useState('');
@@ -129,7 +129,7 @@ function HomeSearch() {
   const locInputRef      = useRef(null);
   const userHasTypedLoc  = useRef(false);   // guard: don't overwrite after user types
 
-  // ── Geolocation on mount (helpers mode) ──────────────────────────────────
+  // ── Geolocation on mount (helpers + discover use location radius) ────────
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -264,6 +264,18 @@ function HomeSearch() {
       navigate(`/jobs${q ? `?q=${encodeURIComponent(q)}` : ''}`);
       return;
     }
+    if (mode === 'discover') {
+      const p = new URLSearchParams();
+      const qv = query.trim();
+      if (qv) p.set('q', qv);
+      p.set('radius', '60');
+      if (locCoords.lat !== null && locCoords.lng !== null) {
+        p.set('lat', locCoords.lat.toFixed(6));
+        p.set('lng', locCoords.lng.toFixed(6));
+      }
+      navigate(`/discover?${p.toString()}`);
+      return;
+    }
     navigate(`/helpers?${buildHelperParams().toString()}`);
   }
 
@@ -307,6 +319,13 @@ function HomeSearch() {
         >
           {t('homePage.search.browseJobs')}
         </button>
+        <button
+          type="button" role="tab" aria-selected={mode === 'discover'}
+          className={`hp-search-tab${mode === 'discover' ? ' hp-search-tab--active' : ''}`}
+          onClick={() => setMode('discover')}
+        >
+          {t('homePage.search.discoverAll')}
+        </button>
       </div>
 
       {/* ── Search form ───────────────────────────────────────────────────── */}
@@ -316,17 +335,27 @@ function HomeSearch() {
         <div className="hp-search-field hp-search-field--query">
           <span className="hp-search-icon">{SEARCH_ICON}</span>
           <label htmlFor="hp-search-input" className="sr-only">
-            {mode === 'helpers' ? t('homePage.search.helperLabel') : t('homePage.search.jobsLabel')}
+            {mode === 'helpers'
+              ? t('homePage.search.helperLabel')
+              : mode === 'discover'
+                ? t('homePage.search.discoverLabel')
+                : t('homePage.search.jobsLabel')}
           </label>
           <input
             ref={queryRef}
             id="hp-search-input"
             className="hp-search-input"
             type="text"
-            placeholder={mode === 'helpers' ? t('homePage.search.helperPh') : t('homePage.search.jobsPh')}
+            placeholder={
+              mode === 'helpers'
+                ? t('homePage.search.helperPh')
+                : mode === 'discover'
+                  ? t('homePage.search.discoverPh')
+                  : t('homePage.search.jobsPh')
+            }
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => skillSugg.length > 0 && setSkillsOpen(true)}
+            onFocus={() => mode === 'helpers' && skillSugg.length > 0 && setSkillsOpen(true)}
             onKeyDown={handleQueryKeyDown}
             aria-autocomplete="list"
             aria-controls="hp-skill-sugg"
@@ -341,8 +370,8 @@ function HomeSearch() {
           )}
         </div>
 
-        {/* Location field — helpers mode only */}
-        {mode === 'helpers' && (
+        {/* Location field — helpers + discover (60 mi radius) */}
+        {(mode === 'helpers' || mode === 'discover') && (
           <div className="hp-search-field hp-search-field--loc">
             <span className="hp-search-icon">{PIN_ICON}</span>
             <input
@@ -394,12 +423,16 @@ function HomeSearch() {
         )}
 
         <button type="submit" className="hp-btn hp-btn-primary hp-search-btn">
-          {mode === 'jobs' ? t('homePage.search.findJobs') : t('homePage.search.search')}
+          {mode === 'jobs'
+            ? t('homePage.search.findJobs')
+            : mode === 'discover'
+              ? t('homePage.search.discoverSearch')
+              : t('homePage.search.search')}
         </button>
       </form>
 
       {/* ── Skill suggestions dropdown ────────────────────────────────────── */}
-      {skillsOpen && skillSugg.length > 0 && (
+      {mode === 'helpers' && skillsOpen && skillSugg.length > 0 && (
         <ul id="hp-skill-sugg" className="hp-search-suggestions" role="listbox" aria-label={t('homePage.search.skillSuggestions')}>
           {skillSugg.map((tile, i) => (
             <li

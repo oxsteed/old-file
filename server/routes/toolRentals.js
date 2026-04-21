@@ -108,6 +108,27 @@ router.get('/browse', async (req, res) => {
   }
 });
 
+// GET /api/tool-rentals/public/:id — single listing for deep links (Discover, etc.)
+router.get('/public/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid tool id' });
+    const result = await pool.query(
+      `SELECT ${TOOL_FIELDS},
+              u.first_name, u.last_name, u.avatar_url, u.owner_rating
+         FROM tool_rentals t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.id = $1 AND t.is_available = TRUE AND u.is_active = TRUE`,
+      [id],
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Tool not found' });
+    return res.json({ tool: result.rows[0] });
+  } catch (err) {
+    require('../utils/logger').error('[toolRentals] public get error:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch tool' });
+  }
+});
+
 // GET /api/tool-rentals/me
 router.get('/me', authenticate, async (req, res) => {
   try {

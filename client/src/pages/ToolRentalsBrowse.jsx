@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader, AlertCircle, X } from 'lucide-react';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -16,6 +16,7 @@ const PAGE_SIZE = 30;
 const ToolRentalsBrowse = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tools, setTools] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +65,29 @@ const ToolRentalsBrowse = () => {
   useEffect(() => {
     loadTools(0);
   }, []);
+
+  // Deep link from Discover: /tool-rentals?openTool=123
+  useEffect(() => {
+    const raw = searchParams.get('openTool');
+    if (!raw) return;
+    const id = parseInt(raw, 10);
+    if (!Number.isInteger(id) || id < 1) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const tool = await toolRentalsApi.getPublicTool(id);
+        if (cancelled || !tool) return;
+        setSelectedTool(tool);
+        setIsModalOpen(true);
+        const next = new URLSearchParams(searchParams);
+        next.delete('openTool');
+        setSearchParams(next, { replace: true });
+      } catch {
+        /* listing may have been removed */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams, setSearchParams]);
 
   const loadTools = async (newOffset) => {
     try {

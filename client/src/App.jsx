@@ -47,6 +47,7 @@ import BusinessHubPage from './pages/BusinessHubPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
 import PublicInvoiceView from './pages/PublicInvoiceView';
 import ToolRentalsBrowse from './pages/ToolRentalsBrowse';
+import DiscoverPage from './pages/DiscoverPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
 
@@ -97,6 +98,7 @@ export default function App() {
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
+                    <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
