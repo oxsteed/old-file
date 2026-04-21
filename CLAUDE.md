@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Launch hardening** — default **synchronous** payment capture (no worker required); `PAYMENT_CAPTURE_ASYNC=true` for queued path; Socket.IO rejects **deleted** users; shared `paymentCaptureService`.)
+**Last updated:** 2026-04-22 (✅ **E2E satisfaction pass** — Tier‑3 escrow **auto-capture on customer complete**; `GET /jobs/:id` exposes `job_type`/`job_type_label`; HelperOffersCard **fixed API paths** + toasts; JobDetail **createPaymentIntent** call fixed; Jest **`withJobTransaction`** mock shim.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -1885,6 +1885,17 @@ Next actions:
 - **`usePayments.js`**: tolerates **200** or **202** from capture.
 - **Socket.IO auth**: `deleted_at IS NULL` so soft-deleted accounts cannot connect.
 - **`payment.test.js`**: sync capture case + optional async env test; **96** tests total.
+
+---
+
+### Session — 2026-04-22 (E2E: escrow complete + planned-needs offers + payment intent bug)
+
+- **`completeJob`**: when **customer** completes a **Tier‑3 / escrow** job (`job_type_label` or `job_type` contains `tier3`/`escrow`), **captures authorized payment inside the same DB transaction** (dispute check with `FOR UPDATE` on payment row); rolls back job completion if Stripe fails.
+- **`paymentCaptureService`**: **`captureAuthorizedPaymentWithClient`** for transactional capture.
+- **`getJob`**: SELECT includes **`job_type`** + **`job_type_label`** for client UX.
+- **`HelperOffersCard`**: POST paths **`/planned-needs/...`** (no double `/api`); **toast** success/errors; i18n **`helperOffers.accepted` / `declined`** (4 locales).
+- **`JobDetailPage`**: **`createPaymentIntent(id)`** — second arg was ignored and broke the API contract.
+- **`__tests__/setup.js`**: mock **`withJobTransaction`** (and other `with*Transaction` helpers) same as **`withTransaction`** so job completion tests run; **98** tests.
 
 ---
 

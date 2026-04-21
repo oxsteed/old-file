@@ -63,15 +63,19 @@ jest.mock('../services/tokenRevocationService', () => ({
 // Run the operation callback with pool.query bound as the client so tests queue mocks linearly.
 jest.mock('../utils/transaction', () => {
   const actual = jest.requireActual('../utils/transaction');
+  const runWithClient = async (pool, operation) => {
+    const client = {
+      query: (text, vals) => pool.query(text, vals),
+      release: () => {},
+    };
+    return operation(client);
+  };
   return {
     ...actual,
-    withTransaction: async (pool, operation) => {
-      const client = {
-        query: (text, vals) => pool.query(text, vals),
-        release: () => {},
-      };
-      return operation(client);
-    },
+    withTransaction: runWithClient,
+    withJobTransaction: runWithClient,
+    withPaymentTransaction: runWithClient,
+    withSubscriptionTransaction: runWithClient,
   };
 });
 jest.mock('../services/paymentQueue', () => ({ queuePaymentCapture: jest.fn().mockResolvedValue('job-123'), addJob: jest.fn().mockResolvedValue('job-id'), getNextJob: jest.fn(), retryJob: jest.fn(), completeJob: jest.fn() }));

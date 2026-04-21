@@ -3292,7 +3292,9 @@
     "viewDetails": "Voir les détails du travail",
     "confirmDecline": "Refuser cette offre ? Le travail sera ouvert à tous les prestataires.",
     "failedAccept": "Échec de l'acceptation",
-    "failedDecline": "Échec du refus"
+    "failedDecline": "Échec du refus",
+    "accepted": "Offre acceptée",
+    "declined": "Offre refusée"
   },
   "termsGate": {
     "title": "Conditions mises à jour",

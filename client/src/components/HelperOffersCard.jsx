@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 
 /**
  * Task 3: "Offers for Me" card for the Helper Dashboard.
@@ -29,20 +30,22 @@ export default function HelperOffersCard() {
 
   const handleAccept = async (id) => {
     try {
-      await api.post(`/api/planned-needs/${id}/helper/accept`);
+      await api.post(`/planned-needs/${id}/helper/accept`);
+      toast.success(t('helperOffers.accepted'));
       fetchOffers();
     } catch (err) {
-      alert(err.response?.data?.error || t('helperOffers.failedAccept'));
+      toast.error(err.response?.data?.error || t('helperOffers.failedAccept'));
     }
   };
 
   const handleDecline = async (id) => {
     if (!window.confirm(t('helperOffers.confirmDecline'))) return;
     try {
-      await api.post(`/api/planned-needs/${id}/helper/decline`);
+      await api.post(`/planned-needs/${id}/helper/decline`);
+      toast.success(t('helperOffers.declined'));
       fetchOffers();
     } catch (err) {
-      alert(err.response?.data?.error || t('helperOffers.failedDecline'));
+      toast.error(err.response?.data?.error || t('helperOffers.failedDecline'));
     }
   };
 

@@ -3292,7 +3292,9 @@
     "viewDetails": "View Job Details",
     "confirmDecline": "Decline this offer? The job will be opened to all helpers.",
     "failedAccept": "Failed to accept",
-    "failedDecline": "Failed to decline"
+    "failedDecline": "Failed to decline",
+    "accepted": "Offer accepted",
+    "declined": "Offer declined"
   },
   "termsGate": {
     "title": "Updated Terms",

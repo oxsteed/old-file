@@ -64,4 +64,40 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
   };
 }
 
-module.exports = { captureAuthorizedPayment };
+/**
+ * Capture using an existing transaction client (row must be `authorized`).
+ * Used when completing a job so escrow capture rolls back with the job if Stripe fails.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {{ id: any, amount: number, stripe_payment_intent_id: string, stripe_account_id: string }} paymentRow
+ */
+async function captureAuthorizedPaymentWithClient(client, paymentRow) {
+  if (!paymentRow || paymentRow.status !== 'authorized') {
+    throw new Error('Invalid payment row for capture');
+  }
+  if (!paymentRow.stripe_payment_intent_id || !paymentRow.stripe_account_id) {
+    throw new Error('Payment missing Stripe identifiers');
+  }
+
+  const captured = await stripe.paymentIntents.capture(
+    paymentRow.stripe_payment_intent_id,
+    { amount_to_capture: Math.round(Number(paymentRow.amount) * 100) },
+    { stripeAccount: paymentRow.stripe_account_id },
+  );
+
+  await client.query(
+    `UPDATE payments
+     SET status = $1, stripe_charge_id = $2, updated_at = now()
+     WHERE id = $3 AND status = 'authorized'`,
+    ['captured', captured.charges?.data?.[0]?.id || null, paymentRow.id],
+  );
+
+  logger.info('Payment captured (in job transaction)', {
+    paymentId: paymentRow.id,
+    chargeId: captured.charges?.data?.[0]?.id,
+  });
+
+  return { paymentId: paymentRow.id, chargeId: captured.charges?.data?.[0]?.id || null };
+}
+
+module.exports = { captureAuthorizedPayment, captureAuthorizedPaymentWithClient };

@@ -4,6 +4,13 @@ const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
 const { withJobTransaction } = require('../utils/transaction');
+const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
+
+function isTier3EscrowJob(jobRow) {
+  const label = String(jobRow?.job_type_label || '').toLowerCase();
+  const jt = String(jobRow?.job_type || '').toLowerCase();
+  return label.includes('tier3') || label.includes('escrow') || jt.includes('tier3') || jt.includes('escrow');
+}
 
 // Create a new job (wizard publish)
 exports.createJob = async (req, res) => {
@@ -264,6 +271,7 @@ exports.getJob = async (req, res) => {
       SELECT
         j.id, j.client_id, j.title, j.description, j.category_name, j.category_id,
         j.budget_type, j.budget_min, j.budget_max, j.urgency, j.is_urgent, j.status,
+        j.job_type, j.job_type_label,
         j.location_city, j.location_state, j.location_zip,
         j.location_approx_lat, j.location_approx_lng,
         j.requirements, j.media_urls, j.bid_count, j.assigned_helper_id,
@@ -416,7 +424,7 @@ exports.completeJob = async (req, res) => {
 
     // First, verify the job exists and user has permission (outside transaction for early validation)
     const { rows: jobRows } = await pool.query(`
-      SELECT id, client_id, assigned_helper_id, status
+      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label
       FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
       AND status = 'in_progress'
@@ -430,7 +438,28 @@ exports.completeJob = async (req, res) => {
 
     // Wrap all state changes in a transaction for atomicity
     const result = await withJobTransaction(pool, async (client) => {
-      // Update job status
+      // Tier-3 escrow: when the customer marks complete, capture authorized funds in the same transaction
+      // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
+      if (job.client_id === req.user.id && isTier3EscrowJob(job)) {
+        const { rows: payRows } = await client.query(
+          `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status
+           FROM payments WHERE job_id = $1 AND status = 'authorized' FOR UPDATE`,
+          [id],
+        );
+        if (payRows[0]) {
+          const dispute = await client.query(
+            `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'in_progress')`,
+            [id],
+          );
+          if (dispute.rows[0]) {
+            const e = new Error('DISPUTE_OPEN');
+            e.code = 'DISPUTE_OPEN';
+            throw e;
+          }
+          await captureAuthorizedPaymentWithClient(client, payRows[0]);
+        }
+      }
+
       const { rows } = await client.query(`
         UPDATE jobs SET
           status = 'completed',
@@ -445,6 +474,11 @@ exports.completeJob = async (req, res) => {
 
     res.json({ message: 'Job completed', job: result });
   } catch (err) {
+    if (err && err.code === 'DISPUTE_OPEN') {
+      return res.status(409).json({
+        error: 'Cannot complete job while a payment dispute is open. Resolve the dispute first.',
+      });
+    }
     logger.error('Complete job error', { err });
     res.status(500).json({ error: 'Failed to complete job' });
   }

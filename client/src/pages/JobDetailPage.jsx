@@ -181,7 +181,7 @@ export default function JobDetailPage() {
     if (!acceptedBid) return toast.error(t('jobDetail.noBidFound'));
     setActionLoading(true);
     try {
-      const result = await createPaymentIntent(id, acceptedBid.amount);
+      const result = await createPaymentIntent(id);
       if (result?.client_secret) {
         toast.success(t('jobDetail.paymentInitiated'));
         fetchJob(id);

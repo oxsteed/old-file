@@ -3292,7 +3292,9 @@
     "viewDetails": "Ver detalles del trabajo",
     "confirmDecline": "¿Rechazar esta oferta? El trabajo se abrirá a todos los ayudantes.",
     "failedAccept": "Error al aceptar",
-    "failedDecline": "Error al rechazar"
+    "failedDecline": "Error al rechazar",
+    "accepted": "Oferta aceptada",
+    "declined": "Oferta rechazada"
   },
   "termsGate": {
     "title": "Términos actualizados",

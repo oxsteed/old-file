@@ -23,6 +23,8 @@ const jobRoutes = require('../routes/jobs');
 const TOKEN_CUSTOMER = jwt.sign({ id: 1, email: 'c@test.com', role: 'customer' }, process.env.JWT_SECRET);
 const TOKEN_HELPER   = jwt.sign({ id: 2, email: 'h@test.com', role: 'helper'   }, process.env.JWT_SECRET);
 
+const stripe = require('stripe')();
+
 const MOCK_USER_CUSTOMER = {
   id: 1, first_name: 'Alice', last_name: 'Smith', email: 'c@test.com',
   phone: null, role: 'customer', email_verified: true, is_verified: false, is_active: true,
@@ -155,5 +157,73 @@ describe('GET /api/jobs/me/list', () => {
   test('returns 401 without auth', async () => {
     const res = await request(buildApp()).get('/api/jobs/me/list');
     expect(res.status).toBe(401);
+  });
+});
+
+// ── POST /api/jobs/:id/complete ───────────────────────────────────────────────
+describe('POST /api/jobs/:id/complete', () => {
+  test('helper completes in_progress job (no escrow capture)', async () => {
+    const helperUser = {
+      ...MOCK_USER_CUSTOMER,
+      id: 2,
+      email: 'h@test.com',
+      role: 'helper',
+    };
+    mockAuth(
+      helperUser,
+      {
+        rows: [{
+          id: 10,
+          client_id: 1,
+          assigned_helper_id: 2,
+          status: 'in_progress',
+          job_type: 'one_time',
+          job_type_label: 'One-Time',
+        }],
+      },
+      { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
+    );
+    const res = await auth(
+      request(buildApp()).post('/api/jobs/10/complete').send({}),
+      TOKEN_HELPER,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.job.status).toBe('completed');
+  });
+
+  test('customer completes tier-3 escrow job and captures authorized payment', async () => {
+    stripe.paymentIntents.capture.mockResolvedValueOnce({
+      charges: { data: [{ id: 'ch_job_complete' }] },
+      amount_received: 10000,
+    });
+    mockAuth(
+      MOCK_USER_CUSTOMER,
+      {
+        rows: [{
+          id: 10,
+          client_id: 1,
+          assigned_helper_id: 2,
+          status: 'in_progress',
+          job_type: 'tier3_escrow',
+          job_type_label: 'Escrow Protected',
+        }],
+      },
+      {
+        rows: [{
+          id: 5,
+          amount: 100,
+          stripe_payment_intent_id: 'pi_t3',
+          stripe_account_id: 'acct_x',
+          status: 'authorized',
+        }],
+      },
+      { rows: [] },
+      { rowCount: 1, rows: [] },
+      { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
+    );
+    const res = await auth(request(buildApp()).post('/api/jobs/10/complete').send({}));
+    expect(res.status).toBe(200);
+    expect(stripe.paymentIntents.capture).toHaveBeenCalled();
+    expect(res.body.job.status).toBe('completed');
   });
 });

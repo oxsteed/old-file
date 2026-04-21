@@ -3291,7 +3291,9 @@
     "viewDetails": "Wè detay travay la",
     "confirmDecline": "Refize ofèt sa a? Travay la pral ouvri pou tout aidant yo.",
     "failedAccept": "Echèk akseptasyon",
-    "failedDecline": "Echèk refize"
+    "failedDecline": "Echèk refize",
+    "accepted": "Ofèt aksepte",
+    "declined": "Ofèt refize"
   },
   "termsGate": {
     "title": "Kondisyon mete ajou",
