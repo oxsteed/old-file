@@ -330,7 +330,11 @@
     "vortexJoining": "Uniéndose…",
     "vortexSuccess": "¡Te has unido a {{name}}!",
     "vortexRole": "Rol: {{role}}",
-    "vortexContinue": "Continuar"
+    "vortexContinue": "Continuar",
+    "vortexSignInHint": "Necesitas una cuenta de OxSteed iniciada para canjear un token de equipo.",
+    "vortexSignIn": "Iniciar sesión",
+    "vortexContinueToLogin": "Continuar para iniciar sesión",
+    "vortexRedeemFailed": "No se pudo canjear este token. Verifica que sea correcto, no usado y no haya caducado."
   },
   "howItWorks": {
     "badge": "Descripción de la plataforma",
@@ -1913,6 +1917,7 @@
     "badgeInsured": "Asegurado",
     "heroTitle": "Encuentra un ayudante local de confianza",
     "heroSubtitle": "Explora ayudantes verificados, con revisión de antecedentes y asegurados. Reserva en minutos — satisfacción garantizada.",
+    "metaDescription": "Explora ayudantes locales verificados: electricidad, plomería, jardinería, bricolaje y más. Compara perfiles y contrata con confianza.",
     "heroSearchPlaceholder": "Prueba 'cortar césped', 'electricista' o 'limpieza profunda'…",
     "browseBySkill": "Explorar por habilidad",
     "filterByJob": "Filtrar por trabajo específico:",

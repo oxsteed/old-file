@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **E2E satisfaction pass** — Tier‑3 escrow **auto-capture on customer complete**; `GET /jobs/:id` exposes `job_type`/`job_type_label`; HelperOffersCard **fixed API paths** + toasts; JobDetail **createPaymentIntent** call fixed; Jest **`withJobTransaction`** mock shim.)
+**Last updated:** 2026-04-22 (✅ **Vortex + helpers directory** — Footer modal **no longer shadows `t()`**; sign-in flow saves token to **sessionStorage**; helpers page **SPA navigate** + **i18n meta** + **CATEGORIES** hero chips.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -1885,6 +1885,14 @@ Next actions:
 - **`usePayments.js`**: tolerates **200** or **202** from capture.
 - **Socket.IO auth**: `deleted_at IS NULL` so soft-deleted accounts cannot connect.
 - **`payment.test.js`**: sync capture case + optional async env test; **96** tests total.
+
+---
+
+### Session — 2026-04-22 (Vortex redeem UX + helpers directory polish)
+
+- **`Footer.jsx` / `VortexModal`**: fixed **`const t = token.trim()`** shadowing **`useTranslation().t`** (broke validation + all `t('footer.*')` calls). Unauthenticated users see sign-in hint; **64-char token** saved to **`sessionStorage`** `oxs:vortexToken` before redirect to login; after login modal reopens with token. Primary button uses **`footer.vortexContinueToLogin`** when logged out. Cancel uses **`footer.vortexCancel`**.
+- **`helpersDir.metaDescription`** (4 locales); **`HelpersDirectoryPage`**: **`PageMeta`** `url` from **`getPublicSiteUrl()`**; **`handleMessage`** uses **`navigate`**; hero quick-categories from **`CATEGORIES`** slice; drawer close **`aria-label`** → **`common.close`**.
+- **Locales:** `footer.vortexSignInHint`, `vortexSignIn`, `vortexContinueToLogin`, `vortexRedeemFailed`.
 
 ---
 

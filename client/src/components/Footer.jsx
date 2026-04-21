@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
@@ -10,6 +10,22 @@ export default function Footer() {
   const { user } = useAuth();
   const year = new Date().getFullYear();
   const [vortexOpen, setVortexOpen] = useState(false);
+  const [vortexPrefill, setVortexPrefill] = useState('');
+
+  // After login, reopen Vortex with a token saved before sign-in.
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const pending = sessionStorage.getItem('oxs:vortexToken');
+      if (pending && /^[a-f0-9]{64}$/i.test(pending)) {
+        sessionStorage.removeItem('oxs:vortexToken');
+        setVortexPrefill(pending);
+        setVortexOpen(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [user]);
   // Reads from the shared CookieConsentProvider — openSettings() here will
   // update the same showSettings state that <CookieConsent> is listening to.
   const { openSettings } = useCookieConsentContext();
@@ -179,7 +195,13 @@ export default function Footer() {
     </footer>
     {/* Vortex redeem modal — portalled to body to avoid footer stacking context */}
     {vortexOpen && createPortal(
-      <VortexModal onClose={() => setVortexOpen(false)} />,
+      <VortexModal
+        initialToken={vortexPrefill}
+        onClose={() => {
+          setVortexOpen(false);
+          setVortexPrefill('');
+        }}
+      />,
       document.body
     )}
     </>
@@ -222,26 +244,44 @@ function LegalLink({ to, children }) {
   );
 }
 
-function VortexModal({ onClose }) {
+function VortexModal({ onClose, initialToken = '' }) {
   const { t } = useTranslation();
-  const [token, setToken]   = useState('');
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [token, setToken]   = useState(initialToken);
   const [error, setError]   = useState('');
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (initialToken) setToken(initialToken);
+  }, [initialToken]);
+
   async function handleRedeem() {
     setError('');
-    const t = token.trim();
-    if (t.length !== 64) {
+    if (!user) {
+      const raw = token.trim();
+      if (raw.length === 64) {
+        try {
+          sessionStorage.setItem('oxs:vortexToken', raw);
+        } catch {
+          /* ignore */
+        }
+      }
+      navigate(`/login?next=${encodeURIComponent('/')}`);
+      return;
+    }
+    const raw = token.trim();
+    if (raw.length !== 64) {
       setError(t('footer.vortexTokenError'));
       return;
     }
     setLoading(true);
     try {
-      const result = await redeemVortexToken(t);
+      const result = await redeemVortexToken(raw);
       setSuccess(result);
     } catch (e) {
-      setError(e?.response?.data?.error || 'Failed to redeem token.');
+      setError(e?.response?.data?.error || t('footer.vortexRedeemFailed'));
     } finally {
       setLoading(false);
     }
@@ -273,6 +313,14 @@ function VortexModal({ onClose }) {
 
         {!success ? (
           <>
+            {!user && (
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '0 0 1rem', lineHeight: 1.5 }}>
+                {t('footer.vortexSignInHint')}{' '}
+                <Link to={`/login?next=${encodeURIComponent('/')}`} style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+                  {t('footer.vortexSignIn')}
+                </Link>
+              </p>
+            )}
             <input
               type="text"
               placeholder={t('footer.vortexPlaceholder')}
@@ -308,7 +356,7 @@ function VortexModal({ onClose }) {
                 onClick={onClose}
                 style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}
               >
-                Cancel
+                {t('footer.vortexCancel')}
               </button>
               <button
                 onClick={handleRedeem}
@@ -324,7 +372,11 @@ function VortexModal({ onClose }) {
                   opacity: loading || token.trim().length !== 64 ? 0.7 : 1,
                 }}
               >
-                {loading ? t('footer.vortexJoining') : t('footer.vortexJoin')}
+                {loading
+                  ? t('footer.vortexJoining')
+                  : user
+                    ? t('footer.vortexJoin')
+                    : t('footer.vortexContinueToLogin')}
               </button>
             </div>
           </>

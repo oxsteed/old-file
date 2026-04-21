@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
 
@@ -24,7 +25,8 @@ import EmptyState from '../components/helperDirectory/EmptyState';
 import HelperCard from '../components/helperDirectory/HelperCard';
 
 import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';
-import { DEFAULT_FILTERS, countActiveFilters, SKILL_TILES } from '../types/helperDirectory';
+import { DEFAULT_FILTERS, countActiveFilters, SKILL_TILES, CATEGORIES } from '../types/helperDirectory';
+import { getPublicSiteUrl } from '../utils/seoDescription';
 import { fetchHelpers } from '../api/helpers';
 import PageMeta from '../components/PageMeta';
 
@@ -192,7 +194,7 @@ const FilterDrawer: React.FC<{
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            aria-label="Close filters"
+            aria-label={t('common.close')}
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -351,17 +353,16 @@ const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => vo
 
         {/* Popular categories */}
         <div className="mt-4 flex flex-wrap gap-2">
-          {['Landscaping', 'Cleaning', 'Electrical', 'Plumbing', 'HVAC', 'Moving', 'Painting'].map(
-            (cat) => (
-              <button
-                key={cat}
-                onClick={() => onSearch(cat)}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
-              >
-                {cat}
-              </button>
-            ),
-          )}
+          {CATEGORIES.slice(0, 8).map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => onSearch(cat)}
+              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -441,6 +442,7 @@ function mergeGridItems(
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   // Parse URL params exactly once — destructure for both derived states.
   const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
   const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
@@ -553,20 +555,19 @@ const HelpersDirectoryPage: React.FC = () => {
   }, [filters, sort, page, load]);
 
   const handleMessage = useCallback((id: string) => {
-    // Business cards have a string id prefixed with 'biz_'; route to business profile
     if (id.startsWith('biz_')) {
-      window.location.href = `/business/${id.replace('biz_', '')}`;
+      navigate(`/business/${id.replace('biz_', '')}`);
     } else {
-      window.location.href = `/helpers/${id}`;
+      navigate(`/helpers/${id}`);
     }
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <PageMeta
         title={t('helpersDir.heroTitle')}
-        description="Browse verified local helpers for electrical, plumbing, landscaping, handyman work and more. Compare bids and hire with confidence."
-        url="https://oxsteed.com/helpers"
+        description={t('helpersDir.metaDescription')}
+        url={`${getPublicSiteUrl()}/helpers`}
       />
       <Navbar />
 

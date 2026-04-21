@@ -330,7 +330,11 @@
     "vortexJoining": "Adhésion en cours…",
     "vortexSuccess": "Vous avez rejoint {{name}} !",
     "vortexRole": "Rôle : {{role}}",
-    "vortexContinue": "Continuer"
+    "vortexContinue": "Continuer",
+    "vortexSignInHint": "Vous devez être connecté à OxSteed pour utiliser un jeton d’équipe.",
+    "vortexSignIn": "Se connecter",
+    "vortexContinueToLogin": "Continuer pour vous connecter",
+    "vortexRedeemFailed": "Impossible d’utiliser ce jeton. Vérifiez qu’il est correct, inutilisé et non expiré."
   },
   "howItWorks": {
     "badge": "Présentation de la plateforme",
@@ -1913,6 +1917,7 @@
     "badgeInsured": "Assuré",
     "heroTitle": "Trouvez un prestataire local de confiance",
     "heroSubtitle": "Parcourez des prestataires vérifiés, contrôlés et assurés. Réservez en quelques minutes — satisfaction garantie.",
+    "metaDescription": "Parcourez des prestataires locaux vérifiés : électricité, plomberie, paysagisme, bricolage et plus. Comparez les profils et embauchez en toute confiance.",
     "heroSearchPlaceholder": "Essayez 'tonte de gazon', 'électricien' ou 'nettoyage en profondeur'…",
     "browseBySkill": "Parcourir par compétence",
     "filterByJob": "Filtrer par mission spécifique :",

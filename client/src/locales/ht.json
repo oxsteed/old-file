@@ -392,7 +392,11 @@
     "vortexJoining": "Ap rejwenn…",
     "vortexSuccess": "Ou rejwenn {{name}}!",
     "vortexRole": "Wòl: {{role}}",
-    "vortexContinue": "Kontinye"
+    "vortexContinue": "Kontinye",
+    "vortexSignInHint": "Ou bezwen yon kont OxSteed konekte pou w itilize yon token ekip.",
+    "vortexSignIn": "Konekte",
+    "vortexContinueToLogin": "Kontinye pou konekte",
+    "vortexRedeemFailed": "Token sa a pa t ka itilize. Verifye li kòrèk, pa itilize, epi pa ekspire."
   },
   "howItWorks": {
     "badge": "Apèsi Platfòm",
@@ -1975,6 +1979,7 @@
     "badgeInsured": "Asire",
     "heroTitle": "Jwenn yon aidant lokal ou ka fè konfyans",
     "heroSubtitle": "Chèche aidant ki verifye, ki gen antesdan netwaye epi asire. Rezève an kèk minit — satisfaksyon garanti.",
+    "metaDescription": "Gade aidant lokal ki verifye pou elektisite, plonbri, jaden, travay manyèl, elatriye. Konpare pwofil yo epi anboche ak konfyans.",
     "heroSearchPlaceholder": "Eseye 'koupe gazon', 'elektrisyen', oswa 'netwayaj an fon'…",
     "browseBySkill": "Chèche pa konpetans",
     "filterByJob": "Filtre pa travay espesifik:",

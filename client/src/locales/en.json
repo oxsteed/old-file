@@ -330,7 +330,11 @@
     "vortexJoining": "Joining…",
     "vortexSuccess": "You've joined {{name}}!",
     "vortexRole": "Role: {{role}}",
-    "vortexContinue": "Continue"
+    "vortexContinue": "Continue",
+    "vortexSignInHint": "You need a signed-in OxSteed account to redeem a team token.",
+    "vortexSignIn": "Sign in",
+    "vortexContinueToLogin": "Continue to sign in",
+    "vortexRedeemFailed": "Could not redeem this token. Check it is correct, unused, and not expired."
   },
   "howItWorks": {
     "badge": "Platform Overview",
@@ -1886,6 +1890,7 @@
     "milesAway": "{{miles}} mi",
     "heroTitle": "Find a trusted local helper",
     "heroSubtitle": "Browse background-checked, licensed, and insured helpers. Book in minutes — satisfaction guaranteed.",
+    "metaDescription": "Browse verified local helpers for electrical, plumbing, landscaping, handyman work and more. Compare profiles and hire with confidence.",
     "heroSearchPlaceholder": "Try 'lawn mowing', 'electrician', or 'deep clean'…",
     "browseBySkill": "Browse by skill",
     "filterByJob": "Filter by specific job:",
