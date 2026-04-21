@@ -1828,3 +1828,11 @@ Next actions:
 
 ---
 
+### Session — 2026-04-21 (LiveHelpersHeroCard: skills/services + profile links)
+
+- **`listHelpers`** (`helpersController.js`): fills **`topServices`** from active `helper_services` (non-legacy) + `business_services` joined via owner’s businesses; adds **`profileUrl`** (`/helpers/:id`) on helper rows; businesses get **owner skill names** in `skills` and **business_services** names in `topServices`.
+- **`LiveHelpersHeroCard`**: each row is a **`Link`** to `profileUrl` (helper or business); shows up to **4** merged **skill + service** chips (deduped); “Available now” / empty state use **`liveHelpers.*`** i18n.
+- **`useHelpersInfiniteScroll`**: types extended with **`profileUrl`**, **`businessId`**.
+
+---
+
