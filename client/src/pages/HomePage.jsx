@@ -8,6 +8,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
 import LiveHelpersInfiniteScroll from '../components/LiveHelpersInfiniteScroll';
+import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
 
 const SKILL_SLUGS = [
   { slug: 'electrical',   icon: '⚡' },
@@ -68,122 +69,6 @@ function OxSteedIcon({ size = 26 }) {
   );
 }
 
-/** Fetches nearby helpers based on user's geolocation for the hero card */
-function useLiveHelpersNearYou() {
-  const [data, setData] = useState(null);
-  const [newCount, setNewCount] = useState(0);
-  const [noDataMsg, setNoDataMsg] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        // Try to get user's geolocation
-        if (!navigator.geolocation) {
-          throw new Error('Geolocation not available');
-        }
-
-        navigator.geolocation.getCurrentPosition(
-          async ({ coords: { latitude: lat, longitude: lng } }) => {
-            try {
-              // Fetch helpers near user's location
-              const { data: helpersRes } = await api.get('/helpers', {
-                params: {
-                  lat: lat.toFixed(6),
-                  lng: lng.toFixed(6),
-                  radius: 25, // 25 mile radius for homepage preview
-                  limit: 5,
-                  sort: 'rating',
-                },
-              });
-
-              if (cancelled) return;
-
-              const helpers = helpersRes.helpers || helpersRes.data?.helpers || [];
-
-              if (!helpers.length) {
-                setNoDataMsg('No helpers currently available nearby');
-                return;
-              }
-
-              // Get reverse geocode for location label
-              let location = 'Near you';
-              try {
-                const { data: geoRes } = await api.get('/geo/reverse', {
-                  params: { lat, lng },
-                });
-                if (geoRes.display) {
-                  location = geoRes.display;
-                }
-              } catch {
-                // Keep default "Near you"
-              }
-
-              // Format helpers for display
-              const formattedHelpers = helpers.slice(0, 3).map((h) => {
-                const name = h.display_name || h.first_name || 'Helper';
-                const initial = name.charAt(0).toUpperCase();
-                const firstLast =
-                  name.split(' ').length >= 2
-                    ? `${name.split(' ')[0].charAt(0)}. ${name.split(' ').slice(-1)[0]}`
-                    : name;
-
-                // Determine badge based on verification status
-                let badge = '✓ Verified';
-                if (h.is_id_verified && h.background_check_status === 'completed') {
-                  badge = '✓ Verified';
-                } else if (h.is_licensed) {
-                  badge = '✓ Licensed';
-                } else if (h.has_insurance) {
-                  badge = '✓ Insured';
-                }
-
-                // Format hourly rate if available
-                const amt = h.hourly_rate_min
-                  ? `$${Math.round(h.hourly_rate_min)}/hr`
-                  : h.hourly_rate_max
-                    ? `$${Math.round(h.hourly_rate_max)}/hr`
-                    : '—';
-
-                const stars = Math.min(5, Math.max(1, Math.round(h.rating || 4.5)));
-
-                return { name: firstLast, initial, badge, amt, stars };
-              });
-
-              setData({
-                location,
-                helpers: formattedHelpers,
-              });
-              setNewCount(helpers.length);
-              setNoDataMsg('');
-            } catch (err) {
-              if (!cancelled) {
-                setNoDataMsg('Unable to load nearby helpers');
-              }
-            }
-          },
-          () => {
-            // Geolocation denied or error
-            if (!cancelled) {
-              setNoDataMsg('Enable location to see nearby helpers');
-            }
-          },
-          { timeout: 5000, maximumAge: 600000 },
-        );
-      } catch {
-        if (!cancelled) {
-          setNoDataMsg('Location required to show helpers');
-        }
-      }
-    }
-
-    load();
-    return () => { cancelled = true; };
-  }, []);
-
-  return { preview: data, newCount, noDataMsg };
-}
 
 const SEARCH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -543,7 +428,6 @@ function HomeSearch() {
 }
 
 export default function HomePage() {
-  const { preview, newCount, noDataMsg } = useLiveHelpersNearYou();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const [skillsExpanded, setSkillsExpanded] = useState(false);
@@ -554,10 +438,6 @@ export default function HomePage() {
     name: t(`homePage.skills.tiles.${s.slug}.name`),
     desc: t(`homePage.skills.tiles.${s.slug}.desc`),
   }));
-
-  const location   = preview?.location  ?? '—';
-  const helpers    = preview?.helpers    ?? [];
-  const badgeLabel = newCount > 0 ? `${newCount} online` : 'Available';
 
   return (
     <PageShell>
@@ -574,60 +454,8 @@ export default function HomePage() {
       <section className="hp-hero">
         <Hero search={<HomeSearch />} />
 
-        {/* Hero live helpers near you card */}
-        <div className="hp-hero-card" aria-hidden="true">
-          <div className="hp-mock-card">
-            <div className="hp-mock-header">
-              <span className="hp-mock-dot" style={{ background: '#01696f' }}/>
-              <span style={{ fontSize: '.75rem', fontWeight: 600, color: '#6e6c66' }}>Live helpers near you</span>
-              <span className="hp-mock-badge">{badgeLabel}</span>
-            </div>
-            <div className="hp-mock-job">
-              <div className="hp-mock-job-title">
-                {noDataMsg ? (
-                  <span style={{ fontSize: '.85rem', color: '#6e6c66' }}>{noDataMsg}</span>
-                ) : preview ? (
-                  <span>Available now</span>
-                ) : (
-                  <span style={{ opacity: .4 }}>Loading…</span>
-                )}
-              </div>
-              {!noDataMsg && (
-                <div className="hp-mock-job-loc">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  {location}
-                </div>
-              )}
-            </div>
-            {helpers.length > 0
-              ? helpers.map((h, i) => (
-                  <div key={i} className="hp-mock-bid">
-                    <div className="hp-mock-avatar">{h.initial}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#26231c' }}>{h.name}</div>
-                      <div style={{ fontSize: '.7rem', color: '#01696f' }}>{h.badge}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '.875rem', fontWeight: 700, color: '#26231c' }}>{h.amt}</div>
-                      <div style={{ fontSize: '.65rem', color: '#b0aea9', textAlign: 'right' }}>{'★'.repeat(h.stars)}</div>
-                    </div>
-                  </div>
-                ))
-              : !noDataMsg && [0, 1, 2].map(i => (
-                  <div key={i} className="hp-mock-bid" style={{ opacity: .35 }}>
-                    <div className="hp-mock-avatar" style={{ background: '#e0deda' }}>?</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#26231c' }}>—</div>
-                      <div style={{ fontSize: '.7rem', color: '#01696f' }}>✓ Verified</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '.875rem', fontWeight: 700, color: '#26231c' }}>—</div>
-                    </div>
-                  </div>
-                ))
-            }
-          </div>
-        </div>
+        {/* Hero live helpers near you card — now interactive infinite scroll */}
+        <LiveHelpersHeroCard />
       </section>
 
       {/* -- Browse by Skills -- */}

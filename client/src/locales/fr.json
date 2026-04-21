@@ -3659,6 +3659,7 @@
   "liveHelpers": {
     "sectionTitle": "Aide en direct près de vous",
     "sectionSubtitle": "Professionnels locaux vérifiés prêts à vous aider aujourd'hui",
+    "heroCardTitle": "Aide en direct près de vous",
     "availableNow": "Disponible maintenant",
     "viewProfile": "Voir le profil",
     "viewProfileAria": "Voir le profil de {{name}}",
