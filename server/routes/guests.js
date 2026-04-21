@@ -1,18 +1,19 @@
 // routes/guests.js — Guest session and verification endpoints
 // No authentication required — designed for unauthenticated users
 
+const crypto = require('crypto');
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const rateLimiter = require('../middleware/rateLimiter');
-const { sendOTP } = require('../utils/email');
-const { logger } = require('../utils/logger');
+const { sendEmail } = require('../utils/email');
+const logger = require('../utils/logger');
 const pool = require('../db');
 
 const router = express.Router();
 
 // Store guest sessions in-memory (can be extended to database for analytics)
 const guestSessions = new Map();
-const otpCache = new Map(); // { verificationId: { email, phone, code, expiresAt } }
+const otpCache = new Map(); // { verificationId: { email, phone, code, expiresAt, attempts } }
 
 /**
  * POST /api/guests/sessions
@@ -31,11 +32,12 @@ router.post('/sessions', async (req, res) => {
       createdAt: new Date(),
       lastActivity: new Date(),
       verifications: [],
+      verifiedEmails: new Set(),
     });
 
     res.json({ sessionId, createdAt: new Date().toISOString() });
   } catch (err) {
-    logger.error('Failed to create guest session', err);
+    logger.error('Failed to create guest session', { err });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -54,28 +56,24 @@ router.post('/sessions/:sessionId/track', rateLimiter.generalLimiter, async (req
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Update last activity
     session.lastActivity = new Date();
 
-    // Log action (optional: store in database for analytics)
     logger.info('Guest action tracked', {
       sessionId,
       action,
-      data,
       timestamp: new Date().toISOString(),
     });
 
     res.json({ tracked: true });
   } catch (err) {
-    logger.error('Failed to track guest action', err);
+    logger.error('Failed to track guest action', { err });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 /**
  * POST /api/guests/sessions/:sessionId/contact-verify
- * Send OTP to guest email/phone for verification
- * Prevents spam while keeping friction low
+ * Send OTP to guest email for verification before messaging a helper
  */
 router.post(
   '/sessions/:sessionId/contact-verify',
@@ -85,7 +83,6 @@ router.post(
       const { sessionId } = req.params;
       const { email, phone } = req.body;
 
-      // Validate email
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Invalid email address' });
       }
@@ -95,12 +92,11 @@ router.post(
         return res.status(404).json({ error: 'Session not found' });
       }
 
-      // Generate 6-digit OTP
-      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      // Use crypto.randomInt — Math.random() is not cryptographically secure
+      const otp = crypto.randomInt(100000, 1000000).toString();
       const verificationId = uuidv4();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Store OTP
       otpCache.set(verificationId, {
         email,
         phone,
@@ -109,41 +105,30 @@ router.post(
         attempts: 0,
       });
 
-      // Send OTP email
       try {
-        await sendOTP(email, otp, {
+        await sendEmail({
+          to: email,
           subject: 'Your OxSteed Verification Code',
-          context: {
-            code: otp,
-            expiresIn: '10 minutes',
-            action: 'verify email to contact a helper',
-          },
+          text: `Your OxSteed verification code is: ${otp}\n\nThis code expires in 10 minutes. Do not share it with anyone.`,
+          html: `<p>Your OxSteed verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes. Do not share it with anyone.</p>`,
         });
       } catch (emailErr) {
-        logger.warn('Failed to send verification OTP', emailErr);
+        otpCache.delete(verificationId);
+        logger.warn('Failed to send guest verification OTP', { email, err: emailErr });
         return res.status(500).json({ error: 'Failed to send verification code. Please try again.' });
       }
 
-      // Update session
       session.lastActivity = new Date();
-      session.verifications.push({
-        verificationId,
-        email,
-        createdAt: new Date(),
-      });
+      session.verifications.push({ verificationId, email, createdAt: new Date() });
 
-      logger.info('Guest verification OTP sent', {
-        sessionId,
-        email,
-        verificationId,
-      });
+      logger.info('Guest verification OTP sent', { sessionId, verificationId });
 
       res.json({
         verificationId,
         expiresAt: expiresAt.toISOString(),
       });
     } catch (err) {
-      logger.error('Failed to send verification OTP', err);
+      logger.error('Failed to send verification OTP', { err });
       res.status(500).json({ error: 'Internal server error' });
     }
   },
@@ -151,7 +136,7 @@ router.post(
 
 /**
  * POST /api/guests/sessions/:sessionId/contact-verify/:verificationId
- * Verify OTP code submitted by guest
+ * Verify OTP code submitted by guest — marks the email as verified in the session
  */
 router.post(
   '/sessions/:sessionId/contact-verify/:verificationId',
@@ -171,25 +156,30 @@ router.post(
         return res.status(404).json({ error: 'Verification code not found or expired' });
       }
 
-      // Check expiration
       if (new Date() > otpData.expiresAt) {
         otpCache.delete(verificationId);
         return res.status(400).json({ error: 'Verification code expired. Request a new one.' });
       }
 
-      // Check attempt count (max 3 attempts)
       if (otpData.attempts >= 3) {
         otpCache.delete(verificationId);
         return res.status(429).json({ error: 'Too many failed attempts. Request a new code.' });
       }
 
-      // Verify code (constant-time comparison to prevent timing attacks)
       const submittedCode = String(code).trim();
-      const isValid = submittedCode === otpData.code;
+
+      // Use constant-time comparison to prevent timing attacks
+      let isValid = false;
+      if (submittedCode.length === otpData.code.length) {
+        isValid = crypto.timingSafeEqual(
+          Buffer.from(submittedCode),
+          Buffer.from(otpData.code),
+        );
+      }
 
       if (!isValid) {
         otpData.attempts += 1;
-        logger.warn('Invalid OTP attempt', {
+        logger.warn('Invalid guest OTP attempt', {
           sessionId,
           verificationId,
           attempts: otpData.attempts,
@@ -199,20 +189,18 @@ router.post(
         });
       }
 
-      // Success — remove OTP from cache
+      // Success — remove OTP and mark email as verified in the session
+      const verifiedEmail = otpData.email;
       otpCache.delete(verificationId);
 
-      logger.info('Guest email verified', {
-        sessionId,
-        email: otpData.email,
-      });
+      session.verifiedEmails.add(verifiedEmail);
+      session.lastActivity = new Date();
 
-      res.json({
-        verified: true,
-        email: otpData.email,
-      });
+      logger.info('Guest email verified', { sessionId });
+
+      res.json({ verified: true, email: verifiedEmail });
     } catch (err) {
-      logger.error('Failed to verify OTP', err);
+      logger.error('Failed to verify guest OTP', { err });
       res.status(500).json({ error: 'Internal server error' });
     }
   },
@@ -221,6 +209,7 @@ router.post(
 /**
  * POST /api/guests/sessions/:sessionId/contact-message
  * Create a guest-to-helper message (one-way until guest signs up)
+ * Requires the guest to have verified the email address via OTP first.
  */
 router.post(
   '/sessions/:sessionId/contact-message',
@@ -238,9 +227,27 @@ router.post(
         return res.status(400).json({ error: 'Valid email required' });
       }
 
-      // Verify helper exists
+      const session = guestSessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      // Enforce email verification — callers cannot skip the OTP step
+      if (!session.verifiedEmails || !session.verifiedEmails.has(email)) {
+        return res.status(403).json({
+          error: 'Email not verified. Please verify your email address before sending a message.',
+        });
+      }
+
+      // Verify helper exists and is active
       const helperResult = await pool.query(
-        'SELECT id, user_id, require_contact_signup FROM helper_profiles WHERE user_id = $1',
+        `SELECT hp.user_id, u.email, u.first_name
+         FROM helper_profiles hp
+         JOIN users u ON u.id = hp.user_id
+         WHERE hp.user_id = $1
+           AND u.deleted_at IS NULL
+           AND u.email_verified = TRUE
+           AND u.onboarding_completed = TRUE`,
         [helperId],
       );
 
@@ -250,7 +257,6 @@ router.post(
 
       const helper = helperResult.rows[0];
 
-      // Create guest conversation record
       const result = await pool.query(
         `INSERT INTO guest_conversations (guest_email, helper_id, message, guest_session_id, status, created_at)
          VALUES ($1, $2, $3, $4, 'pending', NOW())
@@ -258,11 +264,25 @@ router.post(
         [email, helperId, message, sessionId],
       );
 
-      // TODO: Send email to helper notifying them of the message
+      // Notify helper of the new guest message
+      try {
+        await sendEmail({
+          to: helper.email,
+          subject: 'New message from a potential customer on OxSteed',
+          text: `Hi ${helper.first_name},\n\nA potential customer left you a message on OxSteed:\n\n"${message}"\n\nThey provided their email: ${email}\n\nReply to them directly or log in to OxSteed to respond.\n\nThe OxSteed Team`,
+          html: `<p>Hi ${helper.first_name},</p><p>A potential customer left you a message on OxSteed:</p><blockquote style="border-left:3px solid #ccc;padding-left:1em;">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</blockquote><p>They provided their email: <a href="mailto:${email}">${email}</a></p><p>Reply to them directly or <a href="${process.env.CLIENT_URL || process.env.APP_URL || 'https://oxsteed.com'}">log in to OxSteed</a> to respond.</p><p>The OxSteed Team</p>`,
+        });
+      } catch (emailErr) {
+        // Non-fatal — the message is saved; log and continue
+        logger.warn('Failed to notify helper of guest message', {
+          helperId,
+          guestEmail: email,
+          err: emailErr,
+        });
+      }
 
       logger.info('Guest message sent', {
         sessionId,
-        email,
         helperId,
         messageLength: message.length,
       });
@@ -273,7 +293,7 @@ router.post(
         message: 'Message sent! The helper will contact you if interested.',
       });
     } catch (err) {
-      logger.error('Failed to send guest message', err);
+      logger.error('Failed to send guest message', { err });
       res.status(500).json({ error: 'Internal server error' });
     }
   },
@@ -288,5 +308,15 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+
+// Cleanup stale guest sessions older than 24 hours of inactivity
+setInterval(() => {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  for (const [id, session] of guestSessions.entries()) {
+    if (session.lastActivity < cutoff) {
+      guestSessions.delete(id);
+    }
+  }
+}, 60 * 60 * 1000); // Run hourly
 
 module.exports = router;
