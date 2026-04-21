@@ -247,6 +247,35 @@ async function listHelpers(req, res) {
       (categoriesByUser[row.user_id] ||= new Set()).add(row.category_name);
     }
 
+    // Service titles for directory cards (helper-owned + primary business)
+    const topServicesByUser = {};
+    if (helperIds.length > 0) {
+      const { rows: legacySvcRows } = await pool.query(
+        `SELECT user_id, name, sort_order, id
+         FROM helper_services
+         WHERE user_id = ANY($1) AND is_active = TRUE AND COALESCE(is_legacy, FALSE) = FALSE
+         ORDER BY user_id, sort_order NULLS LAST, id`,
+        [helperIds],
+      );
+      const { rows: bizSvcRows } = await pool.query(
+        `SELECT b.user_id, bs.name, bs.sort_order, bs.id
+         FROM business_services bs
+         JOIN businesses b ON b.id = bs.business_id AND b.is_active = TRUE
+         WHERE b.user_id = ANY($1) AND bs.is_active = TRUE
+         ORDER BY b.user_id, bs.sort_order, bs.id`,
+        [helperIds],
+      );
+      const addSvc = (uid, name) => {
+        if (!name || !String(name).trim()) return;
+        const list = (topServicesByUser[uid] ||= []);
+        if (list.length >= 4) return;
+        const n = String(name).trim();
+        if (!list.includes(n)) list.push(n);
+      };
+      for (const r of legacySvcRows) addSvc(r.user_id, r.name);
+      for (const r of bizSvcRows) addSvc(r.user_id, r.name);
+    }
+
     // Note: Category & Skills filtering now done server-side in the main query (above)
     // No client-side post-filtering needed anymore
 
@@ -255,6 +284,7 @@ async function listHelpers(req, res) {
       const responseMinutes = responseHours ? Math.round(responseHours * 60) : 480;
       return {
         id:               h.id,
+        profileUrl:       `/helpers/${h.id}`,
         businessName:     `${h.first_name} ${h.last_name}`,
         ownerName:        `${h.first_name} ${h.last_name}`,
         avatar:           h.profile_photo_url || '',
@@ -268,7 +298,7 @@ async function listHelpers(req, res) {
         skills:           skillsByUser[h.id]     ? [...skillsByUser[h.id]]     : [],
         licenses:         parseJsonList(h.license_details),
         insurance:        parseJsonList(h.insurance_details),
-        topServices:      [],
+        topServices:      topServicesByUser[h.id] ? [...topServicesByUser[h.id]] : [],
         startingPrice:    h.hourly_rate_min ? parseFloat(h.hourly_rate_min) : 0,
         startingPriceUnit:h.flat_rate_available ? 'flat' : 'hour',
         responseTime:     formatResponseTime(responseHours),
@@ -343,6 +373,7 @@ async function listHelpers(req, res) {
       // Fetch categories for business owners so client-side filtering works
       const bizOwnerIds = bizRows.map(b => b.owner_id);
       let bizCategoriesByOwner = {};
+      let bizSkillsByOwner = {};
       if (bizOwnerIds.length > 0) {
         const { rows: bizSkillRows } = await pool.query(
           `SELECT hs.user_id, c.name AS category_name
@@ -353,6 +384,32 @@ async function listHelpers(req, res) {
         );
         for (const row of bizSkillRows) {
           (bizCategoriesByOwner[row.user_id] ||= new Set()).add(row.category_name);
+        }
+        const { rows: bizSkillNameRows } = await pool.query(
+          `SELECT hs.user_id, hs.skill_name
+           FROM helper_skills hs
+           WHERE hs.user_id = ANY($1)
+           ORDER BY hs.user_id, hs.skill_name`,
+          [bizOwnerIds],
+        );
+        for (const row of bizSkillNameRows) {
+          const list = (bizSkillsByOwner[row.user_id] ||= []);
+          if (list.length < 8) list.push(row.skill_name);
+        }
+      }
+
+      const bizIds = bizRows.map((r) => r.id);
+      const servicesByBusinessId = {};
+      if (bizIds.length > 0) {
+        const { rows: bsRows } = await pool.query(
+          `SELECT business_id, name FROM business_services
+           WHERE business_id = ANY($1) AND is_active = TRUE
+           ORDER BY business_id, sort_order, id`,
+          [bizIds],
+        );
+        for (const row of bsRows) {
+          const list = (servicesByBusinessId[row.business_id] ||= []);
+          if (list.length < 4) list.push(row.name);
         }
       }
 
@@ -370,10 +427,10 @@ async function listHelpers(req, res) {
         verified:         !!b.is_verified,
         backgroundChecked:false,
         categories:       bizCategoriesByOwner[b.owner_id] ? [...bizCategoriesByOwner[b.owner_id]] : [],
-        skills:           [],
+        skills:           bizSkillsByOwner[b.owner_id] ? [...bizSkillsByOwner[b.owner_id]] : [],
         licenses:         [],
         insurance:        [],
-        topServices:      [],
+        topServices:      servicesByBusinessId[b.id] ? [...servicesByBusinessId[b.id]] : [],
         startingPrice:    0,
         startingPriceUnit:'hour',
         responseTime:     'Varies',

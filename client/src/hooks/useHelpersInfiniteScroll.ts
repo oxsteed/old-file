@@ -5,6 +5,9 @@ export interface Helper {
   id: string;
   /** 'business' when row is a business card from directory API */
   type?: 'business';
+  /** Public profile path from API (e.g. /helpers/:id or /business/:id) */
+  profileUrl?: string;
+  businessId?: number;
   businessName: string;
   ownerName: string;
   avatar: string;

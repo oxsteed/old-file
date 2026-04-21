@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2 } from 'lucide-react';
 import { useHelpersInfiniteScroll } from '../hooks/useHelpersInfiniteScroll';
@@ -6,6 +7,7 @@ import type { Helper } from '../hooks/useHelpersInfiniteScroll';
 
 const FALLBACK_LAT = 39.921923;
 const FALLBACK_LNG = -82.998619;
+const MAX_PREVIEW_LABELS = 4;
 
 function initialsFromName(name: string) {
   return name
@@ -14,6 +16,26 @@ function initialsFromName(name: string) {
     .slice(0, 2)
     .map((n) => n.charAt(0).toUpperCase())
     .join('');
+}
+
+function profilePath(row: Helper): string {
+  if (row.profileUrl) return row.profileUrl;
+  if (row.type === 'business' && row.businessId != null) return `/business/${row.businessId}`;
+  return `/helpers/${row.id}`;
+}
+
+function mergeSkillServiceLabels(row: Helper): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (s: string | undefined | null) => {
+    const t = String(s || '').trim();
+    if (!t || seen.has(t.toLowerCase())) return;
+    seen.add(t.toLowerCase());
+    out.push(t);
+  };
+  for (const s of row.skills || []) push(s);
+  for (const s of row.topServices || []) push(s);
+  return out.slice(0, MAX_PREVIEW_LABELS);
 }
 
 export default function LiveHelpersHeroCard() {
@@ -166,7 +188,7 @@ export default function LiveHelpersHeroCard() {
             {isLoading_ ? (
               <span style={{ opacity: 0.4 }}>Loading…</span>
             ) : (
-              <span>Available now</span>
+              <span>{t('liveHelpers.availableNow')}</span>
             )}
           </div>
           {!isLoading_ && (
@@ -200,17 +222,24 @@ export default function LiveHelpersHeroCard() {
             {displayedHelpers.map((helper, i) => {
               const isBusiness = helper.type === 'business';
               const displayName = helper.businessName || helper.ownerName || '';
+              const preview = mergeSkillServiceLabels(helper);
+              const to = profilePath(helper);
               return (
-                <div
+                <Link
                   key={helper.id}
+                  to={to}
+                  aria-label={t('liveHelpers.viewProfileAria', { name: displayName })}
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     gap: '0.75rem',
                     padding: '0.625rem 0',
                     borderTop: '1px solid var(--hp-divider)',
                     opacity: i === currentIndex ? 1 : 0.5,
                     transition: 'opacity 0.3s ease',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
                   }}
                 >
                   <div
@@ -278,10 +307,43 @@ export default function LiveHelpersHeroCard() {
                         fontSize: '.7rem',
                         color: 'var(--hp-green)',
                         fontWeight: 500,
+                        marginBottom: preview.length ? '0.25rem' : 0,
                       }}
                     >
                       ✓ Verified
                     </div>
+                    {preview.length > 0 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '0.25rem',
+                          marginTop: '0.125rem',
+                        }}
+                      >
+                        {preview.map((label) => (
+                          <span
+                            key={label}
+                            style={{
+                              fontSize: '.62rem',
+                              lineHeight: 1.2,
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              background: 'var(--hp-surface-1, rgba(0,0,0,0.06))',
+                              border: '1px solid var(--hp-divider)',
+                              color: 'var(--hp-text-muted)',
+                              maxWidth: '100%',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={label}
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -308,14 +370,14 @@ export default function LiveHelpersHeroCard() {
                       {'★'.repeat(Math.round(helper.rating || 4.5))}
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
         ) : (
           !isLoading_ && (
             <div style={{ textAlign: 'center', padding: '1rem 0', color: 'var(--hp-text-muted)' }}>
-              <p style={{ fontSize: '.8rem' }}>No helpers nearby</p>
+              <p style={{ fontSize: '.8rem' }}>{t('liveHelpers.noNearby')}</p>
             </div>
           )
         )}
