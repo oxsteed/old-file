@@ -24,6 +24,13 @@ function parseJsonList(raw) {
   }
 }
 
+/** Normalize service price_unit for API + directory cards */
+function sanitizeServicePriceUnit(u) {
+  const v = String(u || 'flat').toLowerCase();
+  if (v === 'flat' || v === 'hour' || v === 'starting_at' || v === 'quote') return v;
+  return 'flat';
+}
+
 // ── GET /api/helpers ──────────────────────────────────────────────────────────
 // Query params (all optional):
 //   query, categories (comma-separated), skills (comma-separated, skill names),
@@ -251,29 +258,36 @@ async function listHelpers(req, res) {
     const topServicesByUser = {};
     if (helperIds.length > 0) {
       const { rows: legacySvcRows } = await pool.query(
-        `SELECT user_id, name, sort_order, id
+        `SELECT user_id, name, price, price_unit, sort_order, id
          FROM helper_services
          WHERE user_id = ANY($1) AND is_active = TRUE AND COALESCE(is_legacy, FALSE) = FALSE
          ORDER BY user_id, sort_order NULLS LAST, id`,
         [helperIds],
       );
       const { rows: bizSvcRows } = await pool.query(
-        `SELECT b.user_id, bs.name, bs.sort_order, bs.id
+        `SELECT b.user_id, bs.name, bs.price, bs.price_unit, bs.sort_order, bs.id
          FROM business_services bs
          JOIN businesses b ON b.id = bs.business_id AND b.is_active = TRUE
          WHERE b.user_id = ANY($1) AND bs.is_active = TRUE
          ORDER BY b.user_id, bs.sort_order, bs.id`,
         [helperIds],
       );
-      const addSvc = (uid, name) => {
-        if (!name || !String(name).trim()) return;
+      const addSvcRow = (uid, row) => {
+        if (!row?.name || !String(row.name).trim()) return;
         const list = (topServicesByUser[uid] ||= []);
         if (list.length >= 4) return;
-        const n = String(name).trim();
-        if (!list.includes(n)) list.push(n);
+        const n = String(row.name).trim();
+        if (list.some((s) => s.name === n)) return;
+        const rawPrice = row.price != null ? parseFloat(row.price) : 0;
+        const price = Number.isFinite(rawPrice) ? rawPrice : 0;
+        list.push({
+          name: n,
+          price,
+          priceUnit: sanitizeServicePriceUnit(row.price_unit),
+        });
       };
-      for (const r of legacySvcRows) addSvc(r.user_id, r.name);
-      for (const r of bizSvcRows) addSvc(r.user_id, r.name);
+      for (const r of legacySvcRows) addSvcRow(r.user_id, r);
+      for (const r of bizSvcRows) addSvcRow(r.user_id, r);
     }
 
     // Note: Category & Skills filtering now done server-side in the main query (above)
@@ -402,14 +416,22 @@ async function listHelpers(req, res) {
       const servicesByBusinessId = {};
       if (bizIds.length > 0) {
         const { rows: bsRows } = await pool.query(
-          `SELECT business_id, name FROM business_services
+          `SELECT business_id, name, price, price_unit FROM business_services
            WHERE business_id = ANY($1) AND is_active = TRUE
            ORDER BY business_id, sort_order, id`,
           [bizIds],
         );
         for (const row of bsRows) {
           const list = (servicesByBusinessId[row.business_id] ||= []);
-          if (list.length < 4) list.push(row.name);
+          if (list.length >= 4) continue;
+          if (!row.name || !String(row.name).trim()) continue;
+          const rawPrice = row.price != null ? parseFloat(row.price) : 0;
+          const price = Number.isFinite(rawPrice) ? rawPrice : 0;
+          list.push({
+            name: String(row.name).trim(),
+            price,
+            priceUnit: sanitizeServicePriceUnit(row.price_unit),
+          });
         }
       }
 

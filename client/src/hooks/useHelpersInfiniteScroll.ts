@@ -21,7 +21,8 @@ export interface Helper {
   skills: string[];
   licenses: string[];
   insurance: string[];
-  topServices: string[];
+  /** Service names only, or full objects from `/helpers` API */
+  topServices: Array<string | { name: string; price?: number; priceUnit?: string }>;
   startingPrice: number;
   startingPriceUnit: string;
   responseTime: string;
