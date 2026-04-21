@@ -5,3 +5,4 @@
 
 ALTER TABLE helper_profiles
   ADD COLUMN IF NOT EXISTS search_rank_boost INTEGER NOT NULL DEFAULT 0;
+
