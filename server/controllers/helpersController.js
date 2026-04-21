@@ -395,22 +395,22 @@ async function listHelpers(req, res) {
 
       // Fetch 2-3 most recent reviews per helper
       const { rows: reviewRows } = await pool.query(
-        `SELECT r.helper_id, r.id, r.rating, r.comment AS text,
+        `SELECT r.reviewee_id, r.id, r.rating, r.comment AS text,
                 u.first_name, u.last_name, r.created_at AS date
          FROM reviews r
          JOIN users u ON u.id = r.customer_id
-         WHERE r.helper_id = ANY($1) AND r.is_public = TRUE
+         WHERE r.reviewee_id = ANY($1) AND r.is_public = TRUE
          ORDER BY r.rating DESC, r.created_at DESC`,
         [mapHelperIds]
       );
 
       const reviewsByHelper = {};
       for (const review of reviewRows) {
-        if (!reviewsByHelper[review.helper_id]) {
-          reviewsByHelper[review.helper_id] = [];
+        if (!reviewsByHelper[review.reviewee_id]) {
+          reviewsByHelper[review.reviewee_id] = [];
         }
-        if (reviewsByHelper[review.helper_id].length < 3) {
-          reviewsByHelper[review.helper_id].push({
+        if (reviewsByHelper[review.reviewee_id].length < 3) {
+          reviewsByHelper[review.reviewee_id].push({
             id: review.id,
             rating: review.rating,
             text: review.text || '',
