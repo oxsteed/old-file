@@ -67,113 +67,75 @@ function OxSteedIcon({ size = 26 }) {
   );
 }
 
-/** Fetches nearby helpers based on user's geolocation for the hero card */
-function useLiveHelpersNearYou() {
+/** Fetches the 3 most recent open jobs + their latest bid amounts for the hero card */
+function useLiveBidsPreview() {
   const [data, setData] = useState(null);
   const [newCount, setNewCount] = useState(0);
-  const [noDataMsg, setNoDataMsg] = useState('');
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        // Try to get user's geolocation
-        if (!navigator.geolocation) {
-          throw new Error('Geolocation not available');
+        const { data: jobsRes } = await api.get('/jobs?status=published&limit=10&sort=newest');
+        const jobs = jobsRes.jobs || jobsRes || [];
+        if (!jobs.length) {
+          if (cancelled) return;
+          setData({
+            jobTitle: 'Kitchen sink replacement',
+            location: 'Local area',
+            bids: [
+              { name: 'Mike R.', initial: 'M', badge: '\u2713 Licensed', amt: '$185', stars: 5 },
+              { name: 'Sarah T.', initial: 'S', badge: '\u2713 Insured', amt: '$210', stars: 4 },
+              { name: 'James L.', initial: 'J', badge: '\u2713 Verified', amt: '$165', stars: 5 },
+            ],
+          });
+          setNewCount(3);
+          return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-          async ({ coords: { latitude: lat, longitude: lng } }) => {
-            try {
-              // Fetch helpers near user's location
-              const { data: helpersRes } = await api.get('/helpers', {
-                params: {
-                  lat: lat.toFixed(6),
-                  lng: lng.toFixed(6),
-                  radius: 25, // 25 mile radius for homepage preview
-                  limit: 5,
-                  sort: 'rating',
-                },
-              });
+        let chosenJob = null;
+        let liveBids = [];
 
-              if (cancelled) return;
-
-              const helpers = helpersRes.helpers || helpersRes.data?.helpers || [];
-
-              if (!helpers.length) {
-                setNoDataMsg('No helpers currently available nearby');
-                return;
-              }
-
-              // Get reverse geocode for location label
-              let location = 'Near you';
-              try {
-                const { data: geoRes } = await api.get('/geo/reverse', {
-                  params: { lat, lng },
-                });
-                if (geoRes.display) {
-                  location = geoRes.display;
-                }
-              } catch {
-                // Keep default "Near you"
-              }
-
-              // Format helpers for display
-              const formattedHelpers = helpers.slice(0, 3).map((h) => {
-                const name = h.display_name || h.first_name || 'Helper';
-                const initial = name.charAt(0).toUpperCase();
-                const firstLast =
-                  name.split(' ').length >= 2
-                    ? `${name.split(' ')[0].charAt(0)}. ${name.split(' ').slice(-1)[0]}`
-                    : name;
-
-                // Determine badge based on verification status
-                let badge = '✓ Verified';
-                if (h.is_id_verified && h.background_check_status === 'completed') {
-                  badge = '✓ Verified';
-                } else if (h.is_licensed) {
-                  badge = '✓ Licensed';
-                } else if (h.has_insurance) {
-                  badge = '✓ Insured';
-                }
-
-                // Format hourly rate if available
-                const amt = h.hourly_rate_min
-                  ? `$${Math.round(h.hourly_rate_min)}/hr`
-                  : h.hourly_rate_max
-                    ? `$${Math.round(h.hourly_rate_max)}/hr`
-                    : '—';
-
-                const stars = Math.min(5, Math.max(1, Math.round(h.rating || 4.5)));
-
-                return { name: firstLast, initial, badge, amt, stars };
-              });
-
-              setData({
-                location,
-                helpers: formattedHelpers,
-              });
-              setNewCount(helpers.length);
-              setNoDataMsg('');
-            } catch (err) {
-              if (!cancelled) {
-                setNoDataMsg('Unable to load nearby helpers');
-              }
+        for (const j of jobs) {
+          try {
+            const { data: bidsRes } = await api.get(`/bids/job/${j.id}`);
+            const bids = bidsRes.bids || bidsRes || [];
+            if (bids.length > 0) {
+              chosenJob = j;
+              liveBids = bids;
+              break;
             }
-          },
-          () => {
-            // Geolocation denied or error
-            if (!cancelled) {
-              setNoDataMsg('Enable location to see nearby helpers');
-            }
-          },
-          { timeout: 5000, maximumAge: 600000 },
-        );
+          } catch {
+            // skip
+          }
+        }
+
+        if (!chosenJob) chosenJob = jobs[0];
+        if (cancelled) return;
+
+        const formattedBids = liveBids.slice(0, 3).map((b) => {
+          const helperName = b.helper_name || b.helper?.name || b.bidder_name || 'Helper';
+          const initial = helperName.charAt(0).toUpperCase();
+          const firstLast =
+            helperName.split(' ').length >= 2
+              ? `${helperName.split(' ')[0].charAt(0)}. ${helperName.split(' ').slice(-1)[0]}`
+              : helperName;
+          const badge = b.is_licensed ? '✓ Licensed' : b.is_insured ? '✓ Insured' : '✓ Verified';
+          const amt = b.amount != null ? `$${Number(b.amount).toLocaleString()}` : b.bid_amount != null ? `$${Number(b.bid_amount).toLocaleString()}` : '—';
+          const stars = Math.min(5, Math.max(1, Math.round(b.helper_rating || b.rating || 4)));
+          return { name: firstLast, initial, badge, amt, stars };
+        });
+
+        const location =
+          chosenJob.city && chosenJob.state
+            ? `${chosenJob.city}, ${chosenJob.state}`
+            : chosenJob.location || chosenJob.zip_code || 'Local area';
+
+        setData({ jobTitle: chosenJob.title || chosenJob.category || 'Local job', location, bids: formattedBids });
+        setNewCount(Math.min(liveBids.length, 9));
       } catch {
-        if (!cancelled) {
-          setNoDataMsg('Location required to show helpers');
-        }
+        // silently fail
       }
     }
 
@@ -181,7 +143,7 @@ function useLiveHelpersNearYou() {
     return () => { cancelled = true; };
   }, []);
 
-  return { preview: data, newCount, noDataMsg };
+  return { preview: data, newCount };
 }
 
 const SEARCH_ICON = (
@@ -542,7 +504,7 @@ function HomeSearch() {
 }
 
 export default function HomePage() {
-  const { preview, newCount, noDataMsg } = useLiveHelpersNearYou();
+  const { preview, newCount } = useLiveBidsPreview();
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const [skillsExpanded, setSkillsExpanded] = useState(false);
@@ -554,9 +516,10 @@ export default function HomePage() {
     desc: t(`homePage.skills.tiles.${s.slug}.desc`),
   }));
 
-  const location   = preview?.location  ?? '—';
-  const helpers    = preview?.helpers    ?? [];
-  const badgeLabel = newCount > 0 ? `${newCount} online` : 'Available';
+  const jobTitle  = preview?.jobTitle  ?? '…';
+  const location  = preview?.location  ?? '—';
+  const bids      = preview?.bids      ?? [];
+  const badgeLabel = newCount > 0 ? `${newCount} new` : 'Live';
 
   return (
     <PageShell>
@@ -573,46 +536,38 @@ export default function HomePage() {
       <section className="hp-hero">
         <Hero search={<HomeSearch />} />
 
-        {/* Hero live helpers near you card */}
+        {/* Hero live bids card */}
         <div className="hp-hero-card" aria-hidden="true">
           <div className="hp-mock-card">
             <div className="hp-mock-header">
               <span className="hp-mock-dot" style={{ background: '#01696f' }}/>
-              <span style={{ fontSize: '.75rem', fontWeight: 600, color: '#6e6c66' }}>Live helpers near you</span>
+              <span style={{ fontSize: '.75rem', fontWeight: 600, color: '#6e6c66' }}>Live bids</span>
               <span className="hp-mock-badge">{badgeLabel}</span>
             </div>
             <div className="hp-mock-job">
               <div className="hp-mock-job-title">
-                {noDataMsg ? (
-                  <span style={{ fontSize: '.85rem', color: '#6e6c66' }}>{noDataMsg}</span>
-                ) : preview ? (
-                  <span>Available now</span>
-                ) : (
-                  <span style={{ opacity: .4 }}>Loading…</span>
-                )}
+                {preview ? jobTitle : <span style={{ opacity: .4 }}>Loading…</span>}
               </div>
-              {!noDataMsg && (
-                <div className="hp-mock-job-loc">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  {location}
-                </div>
-              )}
+              <div className="hp-mock-job-loc">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                {location}
+              </div>
             </div>
-            {helpers.length > 0
-              ? helpers.map((h, i) => (
+            {bids.length > 0
+              ? bids.map((b, i) => (
                   <div key={i} className="hp-mock-bid">
-                    <div className="hp-mock-avatar">{h.initial}</div>
+                    <div className="hp-mock-avatar">{b.initial}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#26231c' }}>{h.name}</div>
-                      <div style={{ fontSize: '.7rem', color: '#01696f' }}>{h.badge}</div>
+                      <div style={{ fontSize: '.8rem', fontWeight: 600, color: '#26231c' }}>{b.name}</div>
+                      <div style={{ fontSize: '.7rem', color: '#01696f' }}>{b.badge}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '.875rem', fontWeight: 700, color: '#26231c' }}>{h.amt}</div>
-                      <div style={{ fontSize: '.65rem', color: '#b0aea9', textAlign: 'right' }}>{'★'.repeat(h.stars)}</div>
+                      <div style={{ fontSize: '.875rem', fontWeight: 700, color: '#26231c' }}>{b.amt}</div>
+                      <div style={{ fontSize: '.65rem', color: '#b0aea9', textAlign: 'right' }}>{'★'.repeat(b.stars)}</div>
                     </div>
                   </div>
                 ))
-              : !noDataMsg && [0, 1, 2].map(i => (
+              : [0, 1, 2].map(i => (
                   <div key={i} className="hp-mock-bid" style={{ opacity: .35 }}>
                     <div className="hp-mock-avatar" style={{ background: '#e0deda' }}>?</div>
                     <div style={{ flex: 1 }}>
