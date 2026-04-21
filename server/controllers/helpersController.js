@@ -181,7 +181,7 @@ async function listHelpers(req, res) {
     const whereClause = conditions.join(' AND ');
 
     const sortMap = {
-      best_match:      'hp.search_rank_boost DESC, hp.avg_rating DESC',
+      best_match:      'hp.avg_rating DESC, hp.total_reviews DESC',
       highest_rated:   'hp.avg_rating DESC, hp.total_reviews DESC',
       most_reviews:    'hp.total_reviews DESC, hp.avg_rating DESC',
       lowest_price:    'hp.hourly_rate_min ASC NULLS LAST',
@@ -215,7 +215,7 @@ async function listHelpers(req, res) {
          hp.is_identity_verified, hp.is_background_checked,
          hp.insurance_details, hp.license_details,
          hp.is_available_now,
-         hp.search_rank_boost,
+         
          hp.require_contact_signup
        FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
