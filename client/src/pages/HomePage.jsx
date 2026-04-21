@@ -7,7 +7,6 @@ import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
-import LiveHelpersInfiniteScroll from '../components/LiveHelpersInfiniteScroll';
 import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
 
 const SKILL_SLUGS = [
@@ -531,17 +530,6 @@ export default function HomePage() {
               </svg>
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* -- Live Helpers Infinite Scroll -- */}
-      <section className="hp-section">
-        <div className="hp-container">
-          <div className="hp-section-head">
-            <h2 className="hp-section-title">{t('liveHelpers.sectionTitle', 'Live helpers near you')}</h2>
-            <p className="hp-section-sub">{t('liveHelpers.sectionSubtitle', 'Verified local professionals ready to help today')}</p>
-          </div>
-          <LiveHelpersInfiniteScroll />
         </div>
       </section>
 
