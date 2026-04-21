@@ -3502,7 +3502,14 @@
     "cancelReasonRequired": "Une raison est requise pour annuler.",
     "sessionsInvalidated": "Toutes les sessions invalidées.",
     "forceLogoutFailed": "Échec de la déconnexion forcée.",
-    "optionalReason": "Raison (facultatif):"
+    "optionalReason": "Raison (facultatif):",
+    "diditStatus": "Didit : {{status}}",
+    "diditEnforcementOn": "Vérification d'identité obligatoire",
+    "diditEnforcementOff": "Vérification d'identité facultative",
+    "diditRequireConfirm": "Exiger que cet utilisateur termine la vérification d'identité Didit ? Il devra vérifier avant d'utiliser l'application.",
+    "diditRelaxConfirm": "Autoriser à nouveau cet utilisateur à ignorer Didit (jusqu'à ce que vous l'exigiez) ?",
+    "diditEnforcementUpdated": "Exigence Didit mise à jour.",
+    "diditEnforcementFailed": "Échec de la mise à jour de l'exigence Didit."
   },
   "businessSkills": {
     "addExperience": "Ajouter Expérience",

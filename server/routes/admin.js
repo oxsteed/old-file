@@ -58,6 +58,7 @@ router.get('/payments', requireAdmin, requirePermission('view_financials'), paym
 router.get('/users',            requireAdmin, superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, superCtrl.getUserDetail);
 router.put('/users/:userId/name',  requireAdmin, superCtrl.updateUserName);
+router.put('/users/:userId/didit-enforcement', requireAdmin, superCtrl.setUserDiditEnforcement);
 router.post('/users/:userId/ban',  requireAdmin, superCtrl.toggleUserBan);
 
 // Market / Zip Code management

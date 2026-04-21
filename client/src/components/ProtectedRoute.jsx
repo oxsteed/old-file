@@ -22,8 +22,14 @@ const EMAIL_VERIFICATION_EXEMPT_PATHS = [
   '/verify-email',
 ];
 
-// Didit statuses that grant full access to protected routes.
-const DIDIT_COMPLETE = ['verified', 'skipped'];
+function diditGateSatisfied(user) {
+  if (!user?.email_verified) return true;
+  const ds = user.didit_status || 'pending';
+  if (user.didit_enforcement_required) {
+    return ds === 'verified';
+  }
+  return ds === 'verified' || ds === 'skipped';
+}
 
 export default function ProtectedRoute({ children, requiredRole, requireOnboarded = true }) {
   const { user, loading, isOnboardingComplete } = useAuth();
@@ -54,13 +60,10 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
     return <Navigate to="/verify-email" replace />;
   }
 
-  // Didit identity-verification gate.
-  // Once a user's email is verified they must also pass Didit before accessing
-  // any protected page. 'skipped' is set when Didit is not configured on the
-  // server (development / staging environments).
+  // Didit identity-verification gate (matches server authenticate middleware).
   if (
     user.email_verified &&
-    !DIDIT_COMPLETE.includes(user.didit_status) &&
+    !diditGateSatisfied(user) &&
     !DIDIT_EXEMPT_PATHS.includes(location.pathname)
   ) {
     return <Navigate to="/verify-identity" replace />;

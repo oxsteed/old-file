@@ -36,6 +36,7 @@ const MOCK_AUTH_USER = {
   membership_tier: 'free', id_verified: false, background_check_passed: false,
   city: 'Austin', state: 'TX', zip_code: '78701',
   display_name_preference: 'first_name', business_name: null,
+  didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
 };
 
 /** Mock the authenticate DB query, then any further query results */

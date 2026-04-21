@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { isDiditIdentitySatisfied } = require('../utils/diditGate');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
@@ -84,6 +85,7 @@ async function authenticate(req, res, next) {
          u.city, u.state, u.zip_code,
          u.display_name_preference, u.is_active,
          u.didit_status, u.didit_verified_at,
+         COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
          u.trial_started_at, u.trial_ends_at,
          b.business_name,
          hp.is_listed,
@@ -105,6 +107,32 @@ async function authenticate(req, res, next) {
 
     // Compute consistent onboarding_step matching authController.formatAuthUser
     user.onboarding_step = computeOnboardingStep(user);
+
+    // Identity (Didit): block API access when email is verified but identity gate not met
+    const DIDIT_EXEMPT_PATH_PREFIXES = [
+      '/api/auth/',
+      '/api/didit/',
+      '/api/consent',
+      '/api/privacy',
+      '/api/geo',
+      '/api/support',
+    ];
+    const fullPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
+    const isDiditExempt =
+      DIDIT_EXEMPT_PATH_PREFIXES.some((p) => fullPath.startsWith(p)) ||
+      fullPath.startsWith('/api/webhooks');
+    if (
+      user.email_verified &&
+      !isDiditIdentitySatisfied(user) &&
+      !isDiditExempt
+    ) {
+      return res.status(403).json({
+        error: 'identity_verification_required',
+        code: 'DIDIT_REQUIRED',
+        didit_status: user.didit_status || 'pending',
+        didit_enforcement_required: !!user.didit_enforcement_required,
+      });
+    }
 
     req.user = user;
     next();

@@ -3501,7 +3501,14 @@
     "cancelReasonRequired": "Yon rezon obligatwa pou anile.",
     "sessionsInvalidated": "Tout sesyon envalidasyon.",
     "forceLogoutFailed": "Erè forse logout.",
-    "optionalReason": "Rezon (opsyonèl):"
+    "optionalReason": "Rezon (opsyonèl):",
+    "diditStatus": "Didit: {{status}}",
+    "diditEnforcementOn": "Verifikasyon idantite obligatwa",
+    "diditEnforcementOff": "Verifikasyon idantite opsyonèl",
+    "diditRequireConfirm": "Eske w vle mande itilizatè sa a konplete verifikasyon idantite Didit? Yo pral oblije verifye anvan yo itilize aplikasyon an.",
+    "diditRelaxConfirm": "Eske w pèmèt itilizatè a sote Didit ankò (jiskaske w mande l)?",
+    "diditEnforcementUpdated": "Kondisyon Didit mete ajou.",
+    "diditEnforcementFailed": "Pa t kapab mete ajou kondisyon Didit."
   },
   "businessSkills": {
     "addExperience": "Ajoute Eksperyans",

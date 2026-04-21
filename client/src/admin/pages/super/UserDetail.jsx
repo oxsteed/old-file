@@ -25,6 +25,7 @@ export default function UserDetail() {
   const [showMsgModal, setShowMsgModal] = useState(false);
   const [msgText,     setMsgText]     = useState('');
   const [msgSending,  setMsgSending]  = useState(false);
+  const [diditSaving, setDiditSaving] = useState(false);
 
   const fetchUser = async () => {
     setLoading(true);
@@ -76,6 +77,25 @@ export default function UserDetail() {
       });
     } finally {
       setWorking(false);
+    }
+  };
+
+  const setDiditEnforcement = async (required) => {
+    const key = required ? 'diditRequireConfirm' : 'diditRelaxConfirm';
+    if (!window.confirm(t(`admin.${key}`))) return;
+    setDiditSaving(true);
+    setMessage(null);
+    try {
+      await adminApi.put(`/admin/users/${userId}/didit-enforcement`, { required });
+      setMessage({ type: 'success', text: t('admin.diditEnforcementUpdated') });
+      fetchUser();
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.error || t('admin.diditEnforcementFailed'),
+      });
+    } finally {
+      setDiditSaving(false);
     }
   };
 
@@ -233,7 +253,39 @@ export default function UserDetail() {
                   ✓ Background Check
                 </span>
               )}
+              <span className="px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded-full">
+                {t('admin.diditStatus', { status: user.didit_status || 'pending' })}
+              </span>
+              {user.didit_enforcement_required && (
+                <span className="px-2 py-0.5 bg-amber-900 text-amber-200 text-xs rounded-full">
+                  {t('admin.diditEnforcementOn')}
+                </span>
+              )}
             </div>
+            {isAdmin && !['admin', 'super_admin'].includes(user.role) && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={diditSaving || user.didit_enforcement_required}
+                  onClick={() => setDiditEnforcement(true)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-900/80
+                             text-amber-100 hover:bg-amber-800 border border-amber-700
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {t('admin.diditEnforcementOn')}
+                </button>
+                <button
+                  type="button"
+                  disabled={diditSaving || !user.didit_enforcement_required}
+                  onClick={() => setDiditEnforcement(false)}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-700
+                             text-gray-200 hover:bg-gray-600 border border-gray-600
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {t('admin.diditEnforcementOff')}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

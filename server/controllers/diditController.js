@@ -9,6 +9,7 @@ const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
 const DIDIT_API_KEY = process.env.DIDIT_API_KEY;
 const DIDIT_WORKFLOW_ID = process.env.DIDIT_WORKFLOW_ID || '3d74f89a-8a9a-4a0a-a401-1501baaf2b7d';
 const DIDIT_WEBHOOK_SECRET = process.env.DIDIT_WEBHOOK_SECRET;
+const { diditAllowUserSkip } = require('../utils/diditGate');
 
 // ── Create a Didit session for a user ────────────────────
 // Called by the frontend before launching the Didit SDK.
@@ -188,18 +189,31 @@ async function getStatus(req, res) {
   }
 }
 
-// ── Skip verification (Didit not configured / development) ──────────────────
-// Sets didit_status = 'skipped' so ProtectedRoute stops redirecting the user.
-// Only reachable when DIDIT_API_KEY is absent (server returns 503 on session
-// creation), preventing deliberate bypass in production.
+// ── Skip verification ────────────────────────────────────────────────────────
+// Sets didit_status = 'skipped' when allowed (see DIDIT_ALLOW_USER_SKIP).
+// Per-user didit_enforcement_required=true blocks skip (admin can clear or user must verify).
 async function skipVerification(req, res) {
   try {
-    if (DIDIT_API_KEY) {
-      // Didit IS configured — skipping is not allowed.
-      return res.status(403).json({ error: 'Identity verification is required and cannot be skipped.' });
+    const userId = req.user.id;
+    const { rows } = await pool.query(
+      `SELECT didit_enforcement_required, didit_status FROM users WHERE id = $1`,
+      [userId]
+    );
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'User not found' });
+    if (row.didit_enforcement_required) {
+      return res.status(403).json({
+        error: 'Identity verification is required for your account and cannot be skipped.',
+        code: 'DIDIT_ENFORCEMENT_ACTIVE',
+      });
+    }
+    if (!diditAllowUserSkip()) {
+      return res.status(403).json({
+        error: 'Identity verification is required and cannot be skipped.',
+        code: 'DIDIT_SKIP_DISABLED',
+      });
     }
 
-    const userId = req.user.id;
     await pool.query(
       `UPDATE users SET didit_status = 'skipped', updated_at = NOW() WHERE id = $1`,
       [userId]

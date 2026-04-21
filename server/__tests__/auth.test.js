@@ -95,6 +95,7 @@ describe('POST /api/auth/register', () => {
       city: null, state: null, zip_code: null,
       trial_started_at: null, trial_ends_at: null,
       didit_status: 'pending', didit_verified_at: null,
+      didit_enforcement_required: false,
       id_verified: false, background_check_passed: false,
     };
 

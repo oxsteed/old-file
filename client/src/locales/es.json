@@ -3502,7 +3502,14 @@
     "cancelReasonRequired": "Se requiere una razón para cancelar.",
     "sessionsInvalidated": "Todas las sesiones invalidadas.",
     "forceLogoutFailed": "Error al forzar el cierre de sesión.",
-    "optionalReason": "Razón (opcional):"
+    "optionalReason": "Razón (opcional):",
+    "diditStatus": "Didit: {{status}}",
+    "diditEnforcementOn": "Verificación de identidad obligatoria",
+    "diditEnforcementOff": "Verificación de identidad opcional",
+    "diditRequireConfirm": "¿Exigir a este usuario completar la verificación de identidad Didit? Deberá verificar antes de usar la app.",
+    "diditRelaxConfirm": "¿Permitir de nuevo que este usuario omita Didit (hasta que lo exijas)?",
+    "diditEnforcementUpdated": "Requisito de Didit actualizado.",
+    "diditEnforcementFailed": "No se pudo actualizar el requisito de Didit."
   },
   "businessSkills": {
     "addExperience": "Agregar Experiencia",
