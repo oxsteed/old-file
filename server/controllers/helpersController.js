@@ -398,7 +398,7 @@ async function listHelpers(req, res) {
         `SELECT r.reviewee_id, r.id, r.rating, r.comment AS text,
                 u.first_name, u.last_name, r.created_at AS date
          FROM reviews r
-         JOIN users u ON u.id = r.customer_id
+         JOIN users u ON u.id = r.reviewer_id
          WHERE r.reviewee_id = ANY($1) AND r.is_public = TRUE
          ORDER BY r.rating DESC, r.created_at DESC`,
         [mapHelperIds]
