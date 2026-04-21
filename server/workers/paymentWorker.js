@@ -5,9 +5,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
-const Stripe = require('stripe');
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const { captureAuthorizedPayment } = require('../services/paymentCaptureService');
 
 /**
  * Process payment capture job
@@ -15,59 +13,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
  */
 const processPaymentCapture = async (job) => {
   const { paymentId, jobId, amount } = job.data;
-  logger.info('Processing payment capture', { paymentId, jobId, amount });
-
-  try {
-    // Fetch payment record to get intent ID
-    const paymentResult = await pool.query(
-      'SELECT id, stripe_payment_intent_id, stripe_account_id, status FROM payments WHERE id = $1',
-      [paymentId]
-    );
-
-    if (paymentResult.rows.length === 0) {
-      throw new Error(`Payment not found: ${paymentId}`);
-    }
-
-    const payment = paymentResult.rows[0];
-    if (!payment.stripe_payment_intent_id) {
-      throw new Error(`No PaymentIntent for payment ${paymentId}`);
-    }
-    if (!payment.stripe_account_id) {
-      throw new Error(`No Stripe account for payment ${paymentId}`);
-    }
-
-    // Capture via Stripe (outside transaction to avoid lock contention)
-    const captured = await stripe.paymentIntents.capture(
-      payment.stripe_payment_intent_id,
-      { amount_to_capture: Math.round(amount * 100) },
-      { stripeAccount: payment.stripe_account_id }
-    );
-
-    // Update payment status in transaction
-    await withTransaction(pool, async (client) => {
-      await client.query(
-        `UPDATE payments
-         SET status = $1, stripe_charge_id = $2, updated_at = now()
-         WHERE id = $3`,
-        ['captured', captured.charges.data[0]?.id || null, paymentId]
-      );
-
-      logger.info('Payment captured', {
-        paymentId,
-        chargeId: captured.charges.data[0]?.id,
-        amount: captured.amount_received / 100,
-      });
-    });
-
-    return { success: true, paymentId, chargeId: captured.charges.data[0]?.id };
-  } catch (error) {
-    logger.error('Payment capture failed', {
-      paymentId,
-      jobId,
-      error: error.message,
-    });
-    throw error;
-  }
+  logger.info('Processing payment capture (worker)', { paymentId, jobId, amount });
+  return captureAuthorizedPayment({ paymentId, jobId, amount });
 };
 
 /**

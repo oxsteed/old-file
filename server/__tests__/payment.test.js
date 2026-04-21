@@ -136,20 +136,41 @@ describe('POST /api/payments/capture', () => {
     expect(res.status).toBe(404);
   });
 
-  test('queues payment capture job and returns 202 Accepted', async () => {
+  test('captures payment synchronously and returns 200 by default', async () => {
+    stripe.paymentIntents.capture.mockResolvedValueOnce({
+      charges: { data: [{ id: 'ch_test1' }] },
+      amount_received: 10000,
+    });
     mockAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] }, // job
-      { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100 }] }, // payment
-      { rows: [] } // dispute check
+      { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (controller)
+      { rows: [] }, // dispute check
+      { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (capture service)
+      { rows: [] }, // UPDATE inside withTransaction mock
+    );
+    const res = await auth(
+      request(buildApp()).post('/api/payments/capture').send({ job_id: 10 })
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('captured');
+    expect(res.body.payment_id).toBe(5);
+    expect(res.body.job_id).toBe(10);
+    expect(stripe.paymentIntents.capture).toHaveBeenCalled();
+  });
+
+  test('queues capture and returns 202 when PAYMENT_CAPTURE_ASYNC=true', async () => {
+    process.env.PAYMENT_CAPTURE_ASYNC = 'true';
+    mockAuth(
+      { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] },
+      { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] },
+      { rows: [] },
     );
     const res = await auth(
       request(buildApp()).post('/api/payments/capture').send({ job_id: 10 })
     );
     expect(res.status).toBe(202);
     expect(res.body.status).toBe('processing');
-    expect(res.body.message).toBe('Payment capture queued');
-    expect(res.body.payment_id).toBe(5);
-    expect(res.body.job_id).toBe(10);
+    delete process.env.PAYMENT_CAPTURE_ASYNC;
   });
 });
 

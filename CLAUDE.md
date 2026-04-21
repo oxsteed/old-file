@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Production readiness pass** — server `package-lock.json` synced, Docker `npm ci`, Jest mocks + `withTransaction` test shim, `file-type@22` + `nodemailer@8`, 0 `npm audit` issues on server.)
+**Last updated:** 2026-04-22 (✅ **Launch hardening** — default **synchronous** payment capture (no worker required); `PAYMENT_CAPTURE_ASYNC=true` for queued path; Socket.IO rejects **deleted** users; shared `paymentCaptureService`.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -1875,6 +1875,16 @@ Next actions:
 - **`Dockerfile`**: server install uses **`npm ci --omit=dev`** (reproducible builds).
 - **`__tests__/setup.js`**: `tokenRevocationService` mock exposes **`revokeAccessToken` / `revokeRefreshToken` / `revokeAllUserTokens`** (matches `authController.logout`); **`withTransaction`** mocked to run on `pool.query` so bid tests work without real `connect()`.
 - **Security deps:** `file-type` **^22.0.1** + `validateFileUpload.js` uses **`fileTypeFromBuffer`**; `nodemailer` **^8.0.5** (SMTP path in `emailService.js`). **`npm audit`**: 0 vulnerabilities (server).
+
+---
+
+### Session — 2026-04-22 (Launch: payment capture + socket hardening)
+
+- **`paymentCaptureService.js`**: shared Stripe capture + DB update; **`paymentWorker`** delegates to it.
+- **`capturePayment`**: default **in-request** capture (`200` + `status: captured`); if **`PAYMENT_CAPTURE_ASYNC=true`**, keeps **202** + queue (worker required).
+- **`usePayments.js`**: tolerates **200** or **202** from capture.
+- **Socket.IO auth**: `deleted_at IS NULL` so soft-deleted accounts cannot connect.
+- **`payment.test.js`**: sync capture case + optional async env test; **96** tests total.
 
 ---
 

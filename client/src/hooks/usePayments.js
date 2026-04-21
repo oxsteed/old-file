@@ -29,7 +29,11 @@ export default function usePayments() {
   };
 
   const capturePayment = async (jobId) => {
-    const { data } = await api.post('/payments/capture', { job_id: jobId });
+    const { data, status } = await api.post('/payments/capture', { job_id: jobId });
+    // 200 = captured in-request; 202 = queued (requires worker + PAYMENT_CAPTURE_ASYNC=true)
+    if (status === 202 && data?.status === 'processing') {
+      return { ...data, queued: true };
+    }
     return data;
   };
 

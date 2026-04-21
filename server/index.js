@@ -107,7 +107,7 @@ io.use((socket, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Check if user is still active before allowing WebSocket
-      pool.query('SELECT is_active, role FROM users WHERE id = $1', [decoded.id]).then(({ rows }) => {
+      pool.query('SELECT is_active, role FROM users WHERE id = $1 AND deleted_at IS NULL', [decoded.id]).then(({ rows }) => {
         if (!rows[0] || !rows[0].is_active) {
           return next(new Error('Account suspended'));
         }

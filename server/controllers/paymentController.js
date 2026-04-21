@@ -4,6 +4,12 @@ const { calculateTier3Fees } = require('../utils/feeCalculator');
 const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
 const { withPaymentTransaction } = require('../utils/transaction');
+const { captureAuthorizedPayment } = require('../services/paymentCaptureService');
+
+/** When true, capture is queued to Redis (requires worker). Default false = capture in-request so funds release without a separate process. */
+function isAsyncPaymentCapture() {
+  return String(process.env.PAYMENT_CAPTURE_ASYNC || '').toLowerCase() === 'true';
+}
 
 /**
  * Payment Controller — Stripe Connect Direct Charges
@@ -149,7 +155,6 @@ exports.createPaymentIntent = async (req, res) => {
 exports.capturePayment = async (req, res) => {
   try {
     const { job_id } = req.body;
-    const { queuePaymentCapture } = require('../services/paymentQueue');
 
     // ── Validation (outside transaction) ──────────────────────────────────
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
@@ -169,18 +174,44 @@ exports.capturePayment = async (req, res) => {
       return res.status(409).json({ error: 'Cannot capture payment while dispute is open. Dispute must be resolved first.' });
     }
 
-    // ── Queue payment capture job (asynchronous processing) ──────────────
-    // Instead of blocking on Stripe API call, queue the job and return 202 Accepted
     const paymentData = payment.rows[0];
-    await queuePaymentCapture(paymentData.id, job_id, paymentData.amount);
 
-    // Return 202 Accepted - job is queued and will be processed asynchronously
-    return res.status(202).json({
-      status: 'processing',
-      message: 'Payment capture queued',
-      payment_id: paymentData.id,
-      job_id: job_id
-    });
+    if (isAsyncPaymentCapture()) {
+      const { queuePaymentCapture } = require('../services/paymentQueue');
+      await queuePaymentCapture(paymentData.id, job_id, paymentData.amount);
+      return res.status(202).json({
+        status: 'processing',
+        message: 'Payment capture queued',
+        payment_id: paymentData.id,
+        job_id,
+      });
+    }
+
+    // Default: capture synchronously so production works without a separate worker process.
+    try {
+      const result = await captureAuthorizedPayment({
+        paymentId: paymentData.id,
+        jobId: job_id,
+        amount: paymentData.amount,
+      });
+      return res.status(200).json({
+        status: 'captured',
+        message: 'Payment captured',
+        payment_id: result.paymentId,
+        charge_id: result.chargeId,
+        job_id,
+      });
+    } catch (capErr) {
+      logger.error('Synchronous payment capture failed', {
+        jobId: job_id,
+        paymentId: paymentData.id,
+        error: capErr.message,
+      });
+      return res.status(502).json({
+        error: 'payment_capture_failed',
+        message: capErr.message || 'Could not capture payment. Please try again or contact support.',
+      });
+    }
   } catch (err) {
     logger.error('Capture payment error', { err });
     res.status(500).json({ error: 'Failed to capture payment' });
