@@ -12,9 +12,9 @@ RUN cd client && npm ci
 COPY client/ ./client/
 RUN cd client && npm run build
 
-# Install server dependencies
+# Install server dependencies (lockfile must match package.json for reproducible builds)
 COPY server/package*.json ./server/
-RUN cd server && npm install --omit=dev
+RUN cd server && npm ci --omit=dev
 
 COPY server/ ./server/
 

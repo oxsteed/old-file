@@ -1,4 +1,4 @@
-const FileType = require('file-type');
+const { fileTypeFromBuffer } = require('file-type');
 const logger = require('../utils/logger');
 
 /**
@@ -26,7 +26,7 @@ const validateFileUpload = async (req, res, next) => {
       if (!file.buffer || file.buffer.length === 0) continue;
 
       // Detection using the first few bytes of the buffer
-      const detected = await FileType.fromBuffer(file.buffer);
+      const detected = await fileTypeFromBuffer(file.buffer);
       
       if (!detected) {
         // Some text-based files (txt, csv, json) might not have magic bytes detected by file-type

@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **SEO: profiles + sitemap + robots** — env-based canonical URLs, `/business/:id` prerender + JSON-LD, sitemap businesses, `robots.txt`, client `ProfileJsonLd` + meta descriptions.)
+**Last updated:** 2026-04-22 (✅ **Production readiness pass** — server `package-lock.json` synced, Docker `npm ci`, Jest mocks + `withTransaction` test shim, `file-type@22` + `nodemailer@8`, 0 `npm audit` issues on server.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -1866,6 +1866,15 @@ Next actions:
 - **Client:** `PageMeta` adds **canonical**, resolves **og:image** absolute URLs via `VITE_PUBLIC_SITE_URL` or `window.location.origin`; **`ProfileJsonLd`** on helper + business profile pages; **`buildPublicProfileDescription`** for meta text; API returns **`helper.city` / `helper.state`**; `BusinessHeader` location line uses city+state + i18n **`helperProfile.header.areaFallback`** (4 locales).
 - **API hardening:** `getHelperProfile` requires **listed** + helper-like roles; `getBusinessPublicProfile` same **listing + verification** gates as prerender.
 - **Docs:** `server/.env.example` (`APP_URL`), `client/.env.example` (`VITE_PUBLIC_SITE_URL`).
+
+---
+
+### Session — 2026-04-22 (Production readiness: CI/Docker + tests + deps)
+
+- **`server/package-lock.json`**: regenerated (was out of sync with `package.json` → `npm ci` failed in Docker/CI).
+- **`Dockerfile`**: server install uses **`npm ci --omit=dev`** (reproducible builds).
+- **`__tests__/setup.js`**: `tokenRevocationService` mock exposes **`revokeAccessToken` / `revokeRefreshToken` / `revokeAllUserTokens`** (matches `authController.logout`); **`withTransaction`** mocked to run on `pool.query` so bid tests work without real `connect()`.
+- **Security deps:** `file-type` **^22.0.1** + `validateFileUpload.js` uses **`fileTypeFromBuffer`**; `nodemailer` **^8.0.5** (SMTP path in `emailService.js`). **`npm audit`**: 0 vulnerabilities (server).
 
 ---
 

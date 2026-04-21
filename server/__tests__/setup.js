@@ -52,7 +52,28 @@ jest.mock('../utils/email',  () => ({ sendOTPEmail: jest.fn().mockResolvedValue(
 jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(true) }));
 jest.mock('../services/socketService', () => ({ init: jest.fn(), emit: jest.fn() }));
 jest.mock('../services/feeService',    () => ({ reloadFeeConfig: jest.fn().mockResolvedValue(true), getFeeConfig: jest.fn().mockReturnValue({ platform_fee_pct: 10 }) }));
-jest.mock('../services/tokenRevocationService', () => ({ isRevoked: jest.fn().mockResolvedValue(false), revoke: jest.fn().mockResolvedValue(true), revokeAll: jest.fn().mockResolvedValue(true) }));
+jest.mock('../services/tokenRevocationService', () => ({
+  isRevoked: jest.fn().mockResolvedValue(false),
+  revokeAccessToken: jest.fn().mockResolvedValue(undefined),
+  revokeRefreshToken: jest.fn().mockResolvedValue(undefined),
+  revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
+}));
+
+// withTransaction uses pool.connect(); the pg mock has no real connections.
+// Run the operation callback with pool.query bound as the client so tests queue mocks linearly.
+jest.mock('../utils/transaction', () => {
+  const actual = jest.requireActual('../utils/transaction');
+  return {
+    ...actual,
+    withTransaction: async (pool, operation) => {
+      const client = {
+        query: (text, vals) => pool.query(text, vals),
+        release: () => {},
+      };
+      return operation(client);
+    },
+  };
+});
 jest.mock('../services/paymentQueue', () => ({ queuePaymentCapture: jest.fn().mockResolvedValue('job-123'), addJob: jest.fn().mockResolvedValue('job-id'), getNextJob: jest.fn(), retryJob: jest.fn(), completeJob: jest.fn() }));
 jest.mock('stripe', () => {
   const mockInstance = {
