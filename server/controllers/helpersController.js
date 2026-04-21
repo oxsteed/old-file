@@ -1,3 +1,4 @@
+
 // server/controllers/helpersController.js
 // Public helper discovery endpoints — no authentication required.
 // Powers /helpers (directory) and /helpers/:id (profile page).
