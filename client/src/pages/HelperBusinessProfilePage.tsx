@@ -16,6 +16,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
+import ProfileJsonLd from '../components/ProfileJsonLd';
+import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import { MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -152,13 +154,24 @@ const HelperBusinessProfilePage: React.FC = () => {
     <div className="min-h-screen bg-gray-950 text-white">
       <PageMeta
         title={helper.businessName || helper.ownerName}
-        description={
-          helper.tagline ||
-          `Hire ${helper.businessName || helper.ownerName} on OxSteed — verified local helper in ${helper.city || 'your area'}.`
-        }
+        description={buildPublicProfileDescription({
+          displayName: helper.businessName || helper.ownerName,
+          tagline: helper.tagline,
+          bio: helper.bio,
+          city: helper.city,
+          state: helper.state,
+          entityLabel: 'helper',
+        })}
         image={helper.coverImage || helper.avatar}
-        url={`https://oxsteed.com/helpers/${id}`}
+        url={`${getPublicSiteUrl()}/helpers/${id}`}
         type="profile"
+      />
+      <ProfileJsonLd
+        variant="helper"
+        helperId={id!}
+        helper={helper}
+        location={location}
+        services={services}
       />
       <Navbar />
 

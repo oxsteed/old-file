@@ -16,6 +16,8 @@ import { MessageCircle } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
+import ProfileJsonLd from '../components/ProfileJsonLd';
+import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
 import {
   ProfileSkeleton,
   ProfileError,
@@ -78,7 +80,8 @@ function mapToHelperProfileData(profile, t) {
     responseRate:  0,
     badges:        buildBadges(business, t),
     categories:    business.business_type ? [business.business_type] : [],
-    city:          [business.address_city, business.address_state].filter(Boolean).join(', '),
+    city:          business.address_city || '',
+    state:         business.address_state || '',
   };
 
   const mappedServices = (services || []).map(s => ({
@@ -343,14 +346,25 @@ export default function BusinessProfilePage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <PageMeta
-        title={`${helper.businessName} — OxSteed`}
-        description={
-          helper.tagline ||
-          `Hire ${helper.businessName} on OxSteed — verified local business in ${helper.city || 'your area'}.`
-        }
+        title={helper.businessName}
+        description={buildPublicProfileDescription({
+          displayName: helper.businessName,
+          tagline: helper.tagline,
+          bio: helper.bio,
+          city: helper.city,
+          state: helper.state,
+          entityLabel: 'business',
+        })}
         image={helper.coverImage || helper.avatar}
-        url={`https://oxsteed.com/business/${id}`}
+        url={`${getPublicSiteUrl()}/business/${id}`}
         type="profile"
+      />
+      <ProfileJsonLd
+        variant="business"
+        businessId={bizId}
+        helper={helper}
+        location={location}
+        services={services}
       />
       <Navbar />
 
