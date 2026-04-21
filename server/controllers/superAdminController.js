@@ -288,18 +288,91 @@ exports.toggleUserBan = async (req, res) => {
   } catch (err) { logger.error('toggleUserBan error', { err }); res.status(500).json({ error: 'Failed to update user status.' }); }
 };
 
+/**
+ * POST /admin/users/:userId/verify — super-admin only (route).
+ * Body: { field: 'is_identity_verified' | 'is_background_checked' }
+ * Confirms ID or background at the platform level (users + helper_profiles).
+ */
 exports.verifyUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const { field } = req.body;
     const adminId = req.user.id;
-    const allowed = ['is_identity_verified','is_background_checked'];
+    const allowed = ['is_identity_verified', 'is_background_checked'];
     if (!allowed.includes(field)) return res.status(400).json({ error: 'Invalid verification field.' });
-    if (!(await tableExists('helper_profiles'))) return res.status(400).json({ error: 'Helper profiles table not yet created.' });
-    await db.query(`UPDATE helper_profiles SET ${field} = $1, updated_at = now() WHERE user_id = $2`, [true, userId]);
-    try { await logAdminAction({ adminId, action: 'user_verified', targetType: 'user', targetId: userId, description: `Admin set ${field} = true`, req }); } catch(e) {}
-    res.json({ message: `User ${field} updated successfully.` });
-  } catch (err) { logger.error('verifyUser error', { err }); res.status(500).json({ error: 'Failed to verify user.' }); }
+
+    const { rows: targets } = await db.query(
+      'SELECT id, role FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!targets.length) return res.status(404).json({ error: 'User not found.' });
+    if (['admin', 'super_admin'].includes(targets[0].role)) {
+      return res.status(403).json({ error: 'Cannot modify verification flags for admin accounts.' });
+    }
+
+    const isHelperRole = ['helper', 'helper_pro', 'broker'].includes(targets[0].role);
+
+    if (field === 'is_identity_verified') {
+      await db.query(
+        `UPDATE users SET
+           didit_status = 'verified',
+           identity_verified = TRUE,
+           id_verified = TRUE,
+           didit_verified_at = COALESCE(didit_verified_at, NOW()),
+           didit_enforcement_required = FALSE,
+           updated_at = NOW()
+         WHERE id = $1`,
+        [userId]
+      );
+      if (isHelperRole && (await tableExists('helper_profiles'))) {
+        await db.query(
+          `INSERT INTO helper_profiles (user_id, is_identity_verified, tier, is_listed, created_at, updated_at)
+           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+           ON CONFLICT (user_id) DO UPDATE SET
+             is_identity_verified = TRUE,
+             updated_at = NOW()`,
+          [userId]
+        );
+      }
+    } else if (field === 'is_background_checked') {
+      await db.query(
+        `UPDATE users SET
+           background_check_status = 'passed',
+           background_check_passed = TRUE,
+           background_check_passed_at = COALESCE(background_check_passed_at, NOW()),
+           background_check_expiry = COALESCE(background_check_expiry, NOW() + INTERVAL '1 year'),
+           updated_at = NOW()
+         WHERE id = $1`,
+        [userId]
+      );
+      if (isHelperRole && (await tableExists('helper_profiles'))) {
+        await db.query(
+          `INSERT INTO helper_profiles (user_id, is_background_checked, tier, is_listed, created_at, updated_at)
+           VALUES ($1, TRUE, 'tier1', FALSE, NOW(), NOW())
+           ON CONFLICT (user_id) DO UPDATE SET
+             is_background_checked = TRUE,
+             updated_at = NOW()`,
+          [userId]
+        );
+      }
+    }
+
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_verified',
+        targetType: 'user',
+        targetId: userId,
+        description: `Super-admin confirmed ${field}`,
+        req,
+      });
+    } catch (e) { /* non-fatal */ }
+
+    res.json({ message: `${field} confirmed successfully.` });
+  } catch (err) {
+    logger.error('verifyUser error', { err });
+    res.status(500).json({ error: 'Failed to verify user.' });
+  }
 };
 
 exports.updateUserRole = async (req, res) => {

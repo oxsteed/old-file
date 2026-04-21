@@ -3509,7 +3509,11 @@
     "diditRequireConfirm": "¿Exigir a este usuario completar la verificación de identidad Didit? Deberá verificar antes de usar la app.",
     "diditRelaxConfirm": "¿Permitir de nuevo que este usuario omita Didit (hasta que lo exijas)?",
     "diditEnforcementUpdated": "Requisito de Didit actualizado.",
-    "diditEnforcementFailed": "No se pudo actualizar el requisito de Didit."
+    "diditEnforcementFailed": "No se pudo actualizar el requisito de Didit.",
+    "verifyIdButton": "Confirmar ID (manual)",
+    "verifyIdConfirm": "¿Marcar manualmente la identidad como verificada? Esto marca Didit como verificado y quita el requisito forzoso — solo para revisión manual de confianza.",
+    "verifyBgButton": "Confirmar verificación de antecedentes",
+    "verifyBgConfirm": "¿Marcar manualmente la verificación de antecedentes como aprobada? Solo para revisión manual de confianza."
   },
   "businessSkills": {
     "addExperience": "Agregar Experiencia",

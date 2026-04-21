@@ -217,14 +217,16 @@ export default function UsersList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600
-                       text-white text-sm font-semibold rounded-lg transition"
-          >
-            <UserPlus size={15} />
-            Create User
-          </button>
+          {isSuper && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600
+                         text-white text-sm font-semibold rounded-lg transition"
+            >
+              <UserPlus size={15} />
+              Create User
+            </button>
+          )}
           {isSuper && (
             <button
               onClick={handleExport}
@@ -517,7 +519,7 @@ export default function UsersList() {
         </div>
       )}
 
-      {showCreate && (
+      {isSuper && showCreate && (
         <CreateUserModal
           onClose={() => setShowCreate(false)}
           onCreated={(newUser) => {

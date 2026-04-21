@@ -3509,7 +3509,11 @@
     "diditRequireConfirm": "Require this user to complete Didit identity verification? They will be signed out of other sessions and must verify before using the app.",
     "diditRelaxConfirm": "Allow this user to skip Didit again (until you require it)?",
     "diditEnforcementUpdated": "Didit requirement updated.",
-    "diditEnforcementFailed": "Failed to update Didit requirement."
+    "diditEnforcementFailed": "Failed to update Didit requirement.",
+    "verifyIdButton": "Confirm ID (manual)",
+    "verifyIdConfirm": "Manually mark this user as identity-verified? This sets Didit to verified and clears enforcement — use only for trusted manual review.",
+    "verifyBgButton": "Confirm background check",
+    "verifyBgConfirm": "Manually mark this user's background check as passed? Use only for trusted manual review."
   },
   "businessSkills": {
     "addExperience": "Add Experience",

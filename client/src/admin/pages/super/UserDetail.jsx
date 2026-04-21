@@ -330,15 +330,30 @@ export default function UserDetail() {
               onClick={() => doAction(
                 'verify',
                 { field: 'is_identity_verified' },
-                'Mark ID as verified'
+                t('admin.verifyIdConfirm')
               )}
-              disabled={working || user.id_verified}
+              disabled={working || (user.didit_status === 'verified' && user.id_verified)}
               className="flex items-center gap-1.5 px-3 py-2 bg-blue-900
                          text-blue-300 hover:bg-blue-800 rounded-lg text-xs
                          font-semibold transition disabled:opacity-40"
             >
               <Shield size={13} />
-              Verify ID
+              {t('admin.verifyIdButton')}
+            </button>
+
+            <button
+              onClick={() => doAction(
+                'verify',
+                { field: 'is_background_checked' },
+                t('admin.verifyBgConfirm')
+              )}
+              disabled={working || (user.background_check_passed && user.background_check_status === 'passed')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-900
+                         text-emerald-200 hover:bg-emerald-800 rounded-lg text-xs
+                         font-semibold transition disabled:opacity-40"
+            >
+              <CheckCircle size={13} />
+              {t('admin.verifyBgButton')}
             </button>
 
             <select

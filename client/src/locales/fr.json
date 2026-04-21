@@ -3509,7 +3509,11 @@
     "diditRequireConfirm": "Exiger que cet utilisateur termine la vérification d'identité Didit ? Il devra vérifier avant d'utiliser l'application.",
     "diditRelaxConfirm": "Autoriser à nouveau cet utilisateur à ignorer Didit (jusqu'à ce que vous l'exigiez) ?",
     "diditEnforcementUpdated": "Exigence Didit mise à jour.",
-    "diditEnforcementFailed": "Échec de la mise à jour de l'exigence Didit."
+    "diditEnforcementFailed": "Échec de la mise à jour de l'exigence Didit.",
+    "verifyIdButton": "Confirmer l'identité (manuel)",
+    "verifyIdConfirm": "Marquer manuellement l'identité comme vérifiée ? Cela définit Didit sur « vérifié » et désactive l'exigence — réservé à un examen manuel de confiance.",
+    "verifyBgButton": "Confirmer le casier judiciaire",
+    "verifyBgConfirm": "Marquer manuellement le casier comme validé ? Réservé à un examen manuel de confiance."
   },
   "businessSkills": {
     "addExperience": "Ajouter Expérience",

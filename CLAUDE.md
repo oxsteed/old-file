@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Didit optional skip (live key)** — `DIDIT_ALLOW_USER_SKIP` (default allow); **`users.didit_enforcement_required`** + admin **PUT /admin/users/:id/didit-enforcement**; **`authenticate`** returns **403 DIDIT_REQUIRED** until verified/skipped per policy; migration **088**. Navbar **Join OxSteed** dropdown retained.)
+**Last updated:** 2026-04-22 (✅ **Super-admin only:** **POST /admin/users/:id/verify** (ID + background manual confirm updates `users` + helper `helper_profiles` when helper role); **POST /admin/super/users** create-user. Regular admins lose verify + create_users delegation for those paths. Users list **Create User** button super-admin only.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
