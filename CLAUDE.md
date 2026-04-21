@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Vortex + helpers directory** — Footer modal **no longer shadows `t()`**; sign-in flow saves token to **sessionStorage**; helpers page **SPA navigate** + **i18n meta** + **CATEGORIES** hero chips.)
+**Last updated:** 2026-04-22 (✅ **Helpers directory geo crash** — `/helpers?lat=&lng=&radius=` no longer hits ErrorBoundary: API **`topServices`** now returns `{ name, price, priceUnit }`; **HelperCard** tolerates legacy string rows + nullish prices; **LiveHelpersHeroCard** label merge handles objects.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 

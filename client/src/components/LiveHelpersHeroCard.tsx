@@ -34,7 +34,10 @@ function mergeSkillServiceLabels(row: Helper): string[] {
     out.push(t);
   };
   for (const s of row.skills || []) push(s);
-  for (const s of row.topServices || []) push(s);
+  for (const s of row.topServices || []) {
+    if (typeof s === 'string') push(s);
+    else if (s && typeof s === 'object' && 'name' in s) push((s as { name?: string }).name);
+  }
   return out.slice(0, MAX_PREVIEW_LABELS);
 }
 

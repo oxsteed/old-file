@@ -34,11 +34,13 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
   const isExactMatch  = !!(highlightCategory && helper.categories.includes(highlightCategory));
   const profileLink   = helper.profileUrl ?? `/helpers/${helper.id}`;
 
-  const formatPrice = (price: number, unit: string): string => {
-    if (unit === 'quote') return t('helpersDir.getQuote');
-    const f = price.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
-    if (unit === 'hour')        return `${f}${t('helpersDir.perHour')}`;
-    if (unit === 'starting_at') return `From ${f}`;
+  const formatPrice = (price: number | undefined | null, unit: string): string => {
+    const u = unit || 'hour';
+    if (u === 'quote') return t('helpersDir.getQuote');
+    const n = typeof price === 'number' && Number.isFinite(price) ? price : 0;
+    const f = n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+    if (u === 'hour') return `${f}${t('helpersDir.perHour')}`;
+    if (u === 'starting_at') return `From ${f}`;
     return f;
   };
 
@@ -148,7 +150,9 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         <div className="flex items-center gap-3 text-sm">
           <span className="flex items-center gap-1">
             <StarRating rating={helper.rating} size="sm" />
-            <span className="font-semibold text-white ml-1">{helper.rating.toFixed(1)}</span>
+            <span className="font-semibold text-white ml-1">
+              {(Number.isFinite(helper.rating) ? helper.rating : 0).toFixed(1)}
+            </span>
             <span className="text-gray-500 text-xs">({helper.reviewCount})</span>
           </span>
           <span className="text-gray-600">·</span>
@@ -192,17 +196,23 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
 
         {/* Top services */}
         <ul className="space-y-1" aria-label="Top services">
-          {helper.topServices.slice(0, 3).map((svc) => (
-            <li
-              key={svc.name}
-              className="flex items-center justify-between text-xs"
-            >
-              <span className="text-gray-400 truncate pr-2">{svc.name}</span>
-              <span className="font-medium text-white whitespace-nowrap flex-shrink-0">
-                {formatPrice(svc.price, svc.priceUnit)}
-              </span>
-            </li>
-          ))}
+          {helper.topServices.slice(0, 3).map((svc, idx) => {
+            const row =
+              typeof svc === 'string'
+                ? { name: svc, price: helper.startingPrice, priceUnit: helper.startingPriceUnit }
+                : svc;
+            const name = row?.name || '';
+            const price = row?.price ?? helper.startingPrice;
+            const priceUnit = row?.priceUnit ?? helper.startingPriceUnit;
+            return (
+              <li key={`${name}-${idx}`} className="flex items-center justify-between text-xs">
+                <span className="text-gray-400 truncate pr-2">{name}</span>
+                <span className="font-medium text-white whitespace-nowrap flex-shrink-0">
+                  {formatPrice(price, priceUnit)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
 
         {/* Trust row */}
