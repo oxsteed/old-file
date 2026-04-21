@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import ThemeToggle from './ThemeToggle';
@@ -35,6 +35,8 @@ export default function Navbar() {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [joinMenuOpen, setJoinMenuOpen] = useState(false);
+  const joinMenuRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -57,10 +59,28 @@ export default function Navbar() {
     fetchCounts();
   }, [user]);
 
-  // Close mobile menu on route change
+  // Close mobile menu + join dropdown on route change
   useEffect(() => {
     setMobileOpen(false);
+    setJoinMenuOpen(false);
   }, [location.pathname]);
+
+  // Desktop: close "Join OxSteed" menu on outside click / Escape
+  useEffect(() => {
+    if (!joinMenuOpen) return;
+    const onDoc = (e) => {
+      if (joinMenuRef.current && !joinMenuRef.current.contains(e.target)) setJoinMenuOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setJoinMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [joinMenuOpen]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -150,12 +170,59 @@ export default function Navbar() {
                 <NavLink to="/login" active={isActive('/login')}>{t('nav.signIn')}</NavLink>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
                 <NavLink to="/how-it-works" active={isActive('/how-it-works')}>{t('nav.howItWorks')}</NavLink>
-                <Link to="/register/helper" className="ox-btn ox-btn-secondary ox-btn-sm">
-                  {t('nav.listSkills')}
-                </Link>
-                <Link to="/register/customer" className="ox-btn ox-btn-primary ox-btn-sm">
-                  {t('nav.postJob')}
-                </Link>
+                <div ref={joinMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
+                  <button
+                    type="button"
+                    className="ox-btn ox-btn-primary ox-btn-sm"
+                    aria-haspopup="menu"
+                    aria-expanded={joinMenuOpen}
+                    aria-controls="nav-join-menu"
+                    onClick={() => setJoinMenuOpen((o) => !o)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    {t('nav.joinOxsteed')}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  {joinMenuOpen && (
+                    <div
+                      id="nav-join-menu"
+                      role="menu"
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 'calc(100% + 0.35rem)',
+                        minWidth: 'min(18rem, calc(100vw - 2rem))',
+                        padding: '0.35rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface)',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.18)',
+                        zIndex: 60,
+                      }}
+                    >
+                      <Link
+                        role="menuitem"
+                        to="/register/customer"
+                        className="ox-nav-join-option"
+                        onClick={() => setJoinMenuOpen(false)}
+                      >
+                        <span className="ox-nav-join-option-title">{t('nav.joinAsCustomer')}</span>
+                        <span className="ox-nav-join-option-hint">{t('nav.joinAsCustomerHint')}</span>
+                      </Link>
+                      <Link
+                        role="menuitem"
+                        to="/register/helper"
+                        className="ox-nav-join-option"
+                        onClick={() => setJoinMenuOpen(false)}
+                      >
+                        <span className="ox-nav-join-option-title">{t('nav.joinAsHelper')}</span>
+                        <span className="ox-nav-join-option-hint">{t('nav.joinAsHelperHint')}</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </>
             )}
             <LanguageSelector />
@@ -246,12 +313,32 @@ export default function Navbar() {
                 <MobileNavLink to="/login" onClick={() => setMobileOpen(false)}>{t('nav.signIn')}</MobileNavLink>
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
                 <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howItWorks')}</MobileNavLink>
-                <MobileNavLink to="/register/helper" onClick={() => setMobileOpen(false)} highlight>
-                  {t('nav.listSkills')}
-                </MobileNavLink>
-                <MobileNavLink to="/register/customer" onClick={() => setMobileOpen(false)} primary>
-                  {t('nav.postJob')}
-                </MobileNavLink>
+                <div
+                  style={{
+                    marginTop: 'var(--space-2)',
+                    paddingTop: 'var(--space-2)',
+                    borderTop: '1px solid var(--color-border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--color-text-muted)',
+                      padding: '0 0.75rem 0.35rem',
+                    }}
+                  >
+                    {t('nav.joinOxsteed')}
+                  </div>
+                  <MobileNavLink to="/register/customer" onClick={() => setMobileOpen(false)} primary>
+                    {t('nav.joinAsCustomer')}
+                  </MobileNavLink>
+                  <MobileNavLink to="/register/helper" onClick={() => setMobileOpen(false)} highlight>
+                    {t('nav.joinAsHelper')}
+                  </MobileNavLink>
+                </div>
               </>
             )}
           </div>
@@ -263,6 +350,29 @@ export default function Navbar() {
         @media (max-width: 768px) {
           .ox-nav-desktop { display: none !important; }
           .ox-nav-mobile-controls { display: flex !important; }
+        }
+        .ox-nav-join-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.15rem;
+          padding: 0.65rem 0.75rem;
+          border-radius: var(--radius-sm);
+          text-decoration: none;
+          color: var(--color-text);
+          transition: background var(--transition-fast);
+        }
+        .ox-nav-join-option:hover {
+          background: var(--color-surface-2);
+        }
+        .ox-nav-join-option-title {
+          font-size: var(--text-sm);
+          font-weight: 600;
+        }
+        .ox-nav-join-option-hint {
+          font-size: 0.75rem;
+          color: var(--color-text-muted);
+          line-height: 1.35;
         }
       `}</style>
     </nav>

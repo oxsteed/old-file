@@ -11,6 +11,11 @@
     "register": "Register",
     "howItWorks": "How It Works",
     "listSkills": "List Your Skills",
+    "joinOxsteed": "Join OxSteed",
+    "joinAsCustomer": "Sign up as a customer",
+    "joinAsHelper": "Sign up as a helper",
+    "joinAsCustomerHint": "Post jobs and hire local help",
+    "joinAsHelperHint": "Offer services and get hired",
     "closeMenu": "Close menu",
     "openMenu": "Open menu"
   },

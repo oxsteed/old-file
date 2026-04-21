@@ -11,6 +11,11 @@
     "register": "Enskri",
     "howItWorks": "Kijan sa Mache",
     "listSkills": "Ofri Sèvis Ou",
+    "joinOxsteed": "Antre nan OxSteed",
+    "joinAsCustomer": "Enskri kòm kliyan",
+    "joinAsHelper": "Enskri kòm èd",
+    "joinAsCustomerHint": "Poste travay e anboche èd lokal",
+    "joinAsHelperHint": "Ofri sèvis epi jwenn travay",
     "closeMenu": "Fèmen meni",
     "openMenu": "Louvri meni"
   },
