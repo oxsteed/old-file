@@ -3655,5 +3655,23 @@
     "canReport": "Vous pouvez signaler les violations; la plateforme prendra des mesures.",
     "termsAccepted": "Conditions acceptées",
     "acceptTermsFailed": "Impossible d'accepter les conditions"
+  },
+  "liveHelpers": {
+    "sectionTitle": "Aide en direct près de vous",
+    "sectionSubtitle": "Professionnels locaux vérifiés prêts à vous aider aujourd'hui",
+    "availableNow": "Disponible maintenant",
+    "viewProfile": "Voir le profil",
+    "viewProfileAria": "Voir le profil de {{name}}",
+    "badgeIdVerified": "Identité Vérifiée",
+    "badgeBackgroundChecked": "Vérification Antécédents",
+    "live": "En Direct",
+    "showing": "Affichage {{count}} aides disponibles",
+    "loadMore": "Charger plus d'aides",
+    "showingAll": "Vous avez vu toutes les aides disponibles",
+    "postJobCta": "Publiez Votre Tâche",
+    "noNearby": "Aucune aide à proximité",
+    "noNearbyDesc": "Publiez une tâche et nous vous mettrons en relation avec l'aide appropriée",
+    "loadingError": "Erreur lors du chargement des aides",
+    "usingFallbackLocation": "Utilisation de l'emplacement par défaut. Activez les services de localisation pour des résultats plus précis."
   }
 }

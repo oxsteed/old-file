@@ -3655,5 +3655,23 @@
     "canReport": "You can report violations; platform will take action.",
     "termsAccepted": "Terms accepted",
     "acceptTermsFailed": "Failed to accept terms"
+  },
+  "liveHelpers": {
+    "sectionTitle": "Live helpers near you",
+    "sectionSubtitle": "Verified local professionals ready to help today",
+    "availableNow": "Available now",
+    "viewProfile": "View Profile",
+    "viewProfileAria": "View {{name}}'s profile",
+    "badgeIdVerified": "ID Verified",
+    "badgeBackgroundChecked": "Background Checked",
+    "live": "Live",
+    "showing": "Showing {{count}} available helpers",
+    "loadMore": "Load more helpers",
+    "showingAll": "You've seen all available helpers",
+    "postJobCta": "Post Your Job Instead",
+    "noNearby": "No helpers nearby",
+    "noNearbyDesc": "Post a job and we'll connect you with the right helper",
+    "loadingError": "Failed to load helpers",
+    "usingFallbackLocation": "Using default location. Enable location services for more accurate results."
   }
 }

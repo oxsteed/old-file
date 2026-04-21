@@ -3654,5 +3654,23 @@
     "canReport": "W ka rapòte violasyon; platfòm pral pran aksyon.",
     "termsAccepted": "Kondisyon aksepte",
     "acceptTermsFailed": "Echèk aksepte kondisyon"
+  },
+  "liveHelpers": {
+    "sectionTitle": "Èd vivan prè de ou",
+    "sectionSubtitle": "Pwofesyonèl lokal verifye ki pare ede ou jòdi a",
+    "availableNow": "Disponib kounye a",
+    "viewProfile": "Wè Pwofil",
+    "viewProfileAria": "Wè pwofil {{name}} la",
+    "badgeIdVerified": "Idantite Verifye",
+    "badgeBackgroundChecked": "Antesidan Verifye",
+    "live": "Vivan",
+    "showing": "Montre {{count}} èd disponib",
+    "loadMore": "Chaje plis èd",
+    "showingAll": "Ou te wè tout èd disponib yo",
+    "postJobCta": "Poste Travay Ou",
+    "noNearby": "Okenn èd pa prè",
+    "noNearbyDesc": "Poste yon travay e nou pral konekte ou ak èd ki bon pou ou",
+    "loadingError": "Erè nan chajman èd yo",
+    "usingFallbackLocation": "Sèvi ak lokasyon default. Aktive sèvis lokasyon pou rezilta ki pi egzak."
   }
 }

@@ -3655,5 +3655,23 @@
     "canReport": "Puede reportar violaciones; la plataforma tomará medidas.",
     "termsAccepted": "Términos aceptados",
     "acceptTermsFailed": "No se pudo aceptar los términos"
+  },
+  "liveHelpers": {
+    "sectionTitle": "Ayudantes disponibles cerca de ti",
+    "sectionSubtitle": "Profesionales locales verificados listos para ayudarte hoy",
+    "availableNow": "Disponible ahora",
+    "viewProfile": "Ver Perfil",
+    "viewProfileAria": "Ver el perfil de {{name}}",
+    "badgeIdVerified": "Identificación Verificada",
+    "badgeBackgroundChecked": "Antecedentes Verificados",
+    "live": "En Vivo",
+    "showing": "Mostrando {{count}} ayudantes disponibles",
+    "loadMore": "Cargar más ayudantes",
+    "showingAll": "Has visto todos los ayudantes disponibles",
+    "postJobCta": "Publica Tu Trabajo",
+    "noNearby": "No hay ayudantes cerca",
+    "noNearbyDesc": "Publica un trabajo y te conectaremos con el ayudante adecuado",
+    "loadingError": "Error al cargar ayudantes",
+    "usingFallbackLocation": "Usando ubicación predeterminada. Habilita los servicios de ubicación para resultados más precisos."
   }
 }
