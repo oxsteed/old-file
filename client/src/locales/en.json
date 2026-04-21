@@ -3704,7 +3704,7 @@
     "subtitle": "One search across public listings on OxSteed — helpers, jobs, businesses, tools for rent, and helper products.",
     "showingFor": "Results for “{{query}}” within ~{{radius}} miles",
     "nearCoords": "near your location",
-    "emptyQuery": "Enter a search from the home page to see results here.",
+    "emptyQuery": "Search from the home page, or browse popular listings and shortcuts below.",
     "expandedTerms": "Also matching:",
     "saveAlertTitle": "Email me when results change",
     "saveAlertDesc": "We’ll send at most one digest per day when new public listings match your search (same area and radius).",
@@ -3725,6 +3725,38 @@
     "typeBusiness": "Business",
     "typeTool": "Tool rental",
     "typeProduct": "Product",
-    "typeOther": "Listing"
+    "typeOther": "Listing",
+    "recentSearches": "Recent searches",
+    "popularNearYou": "Popular near you",
+    "popularEmpty": "No listings to show yet.",
+    "ctaPostJob": "Post a job",
+    "ctaListTool": "Browse tool rentals",
+    "ctaBrowseHelpers": "Browse helpers",
+    "widenRadius": "Widen search to {{next}} mi",
+    "loadMore": "Load more results",
+    "resultCount": "{{shown}} of {{total}} results",
+    "matches": "Matches:",
+    "match": {
+      "skill": "skill",
+      "name": "name",
+      "profile": "profile text",
+      "title": "title",
+      "description": "description",
+      "category": "category",
+      "other": "keyword"
+    },
+    "actionView": "View",
+    "actionBid": "View & bid",
+    "actionRent": "View & rent",
+    "badgeVerified": "ID verified",
+    "badgeBg": "Background checked",
+    "badgeAvailable": "Available today",
+    "fresh": {
+      "today": "Updated today",
+      "yesterday": "Updated yesterday",
+      "daysAgo": "Updated {{count}} days ago",
+      "thisMonth": "Updated this month",
+      "older": "Older listing"
+    }
   }
 }

@@ -3704,7 +3704,7 @@
     "subtitle": "Une recherche dans les annonces publiques OxSteed — assistants, missions, entreprises, outils à louer et produits.",
     "showingFor": "Résultats pour « {{query}} » dans ~{{radius}} miles",
     "nearCoords": "près de votre position",
-    "emptyQuery": "Saisissez une recherche depuis l’accueil pour voir des résultats ici.",
+    "emptyQuery": "Recherchez depuis l’accueil ou parcourez les contenus populaires et les raccourcis ci-dessous.",
     "expandedTerms": "Correspond aussi à :",
     "saveAlertTitle": "M’avertir par e-mail quand les résultats changent",
     "saveAlertDesc": "Au plus un résumé par jour lorsque de nouvelles annonces publiques correspondent (même zone et rayon).",
@@ -3725,6 +3725,38 @@
     "typeBusiness": "Entreprise",
     "typeTool": "Location d’outil",
     "typeProduct": "Produit",
-    "typeOther": "Annonce"
+    "typeOther": "Annonce",
+    "recentSearches": "Recherches récentes",
+    "popularNearYou": "Populaire près de vous",
+    "popularEmpty": "Aucune annonce à afficher pour le moment.",
+    "ctaPostJob": "Publier une mission",
+    "ctaListTool": "Voir les locations d’outils",
+    "ctaBrowseHelpers": "Parcourir les assistants",
+    "widenRadius": "Élargir la recherche à {{next}} mi",
+    "loadMore": "Charger plus de résultats",
+    "resultCount": "{{shown}} sur {{total}} résultats",
+    "matches": "Correspond à :",
+    "match": {
+      "skill": "compétence",
+      "name": "nom",
+      "profile": "profil",
+      "title": "titre",
+      "description": "description",
+      "category": "catégorie",
+      "other": "mot-clé"
+    },
+    "actionView": "Voir",
+    "actionBid": "Voir et enchérir",
+    "actionRent": "Voir et louer",
+    "badgeVerified": "Identité vérifiée",
+    "badgeBg": "Antécédents vérifiés",
+    "badgeAvailable": "Disponible aujourd’hui",
+    "fresh": {
+      "today": "Mis à jour aujourd’hui",
+      "yesterday": "Mis à jour hier",
+      "daysAgo": "Mis à jour il y a {{count}} jours",
+      "thisMonth": "Mis à jour ce mois-ci",
+      "older": "Annonce plus ancienne"
+    }
   }
 }

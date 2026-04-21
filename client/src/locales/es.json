@@ -3704,7 +3704,7 @@
     "subtitle": "Una búsqueda en listados públicos de OxSteed: ayudantes, trabajos, negocios, herramientas en alquiler y productos.",
     "showingFor": "Resultados para “{{query}}” en ~{{radius}} millas",
     "nearCoords": "cerca de tu ubicación",
-    "emptyQuery": "Introduce una búsqueda desde la página de inicio para ver resultados aquí.",
+    "emptyQuery": "Busca desde la página de inicio o explora lo popular y los accesos directos abajo.",
     "expandedTerms": "También coincide con:",
     "saveAlertTitle": "Avísame por correo si cambian los resultados",
     "saveAlertDesc": "Enviaremos como máximo un resumen diario cuando haya nuevos listados públicos que coincidan (misma zona y radio).",
@@ -3725,6 +3725,38 @@
     "typeBusiness": "Negocio",
     "typeTool": "Alquiler de herramienta",
     "typeProduct": "Producto",
-    "typeOther": "Listado"
+    "typeOther": "Listado",
+    "recentSearches": "Búsquedas recientes",
+    "popularNearYou": "Popular cerca de ti",
+    "popularEmpty": "Aún no hay listados para mostrar.",
+    "ctaPostJob": "Publicar un trabajo",
+    "ctaListTool": "Ver alquiler de herramientas",
+    "ctaBrowseHelpers": "Ver ayudantes",
+    "widenRadius": "Ampliar búsqueda a {{next}} mi",
+    "loadMore": "Cargar más resultados",
+    "resultCount": "{{shown}} de {{total}} resultados",
+    "matches": "Coincide con:",
+    "match": {
+      "skill": "habilidad",
+      "name": "nombre",
+      "profile": "perfil",
+      "title": "título",
+      "description": "descripción",
+      "category": "categoría",
+      "other": "palabra clave"
+    },
+    "actionView": "Ver",
+    "actionBid": "Ver y ofertar",
+    "actionRent": "Ver y alquilar",
+    "badgeVerified": "ID verificado",
+    "badgeBg": "Antecedentes verificados",
+    "badgeAvailable": "Disponible hoy",
+    "fresh": {
+      "today": "Actualizado hoy",
+      "yesterday": "Actualizado ayer",
+      "daysAgo": "Actualizado hace {{count}} días",
+      "thisMonth": "Actualizado este mes",
+      "older": "Listado antiguo"
+    }
   }
 }

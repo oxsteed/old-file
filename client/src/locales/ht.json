@@ -3703,7 +3703,7 @@
     "subtitle": "Yon sèl rechèch nan lis piblik OxSteed — asistan, travay, biznis, zouti pou lwe, ak pwodwi.",
     "showingFor": "Rezilta pou “{{query}}” nan ~{{radius}} mil",
     "nearCoords": "toupre kote ou ye a",
-    "emptyQuery": "Antre yon rechèch depi paj dakèy la pou wè rezilta isit la.",
+    "emptyQuery": "Chèche depi paj dakèy la, oswa gade sa ki popilè ak raccourci anba a.",
     "expandedTerms": "Matche tou ak:",
     "saveAlertTitle": "Imèl mwen lè rezilta yo chanje",
     "saveAlertDesc": "N ap voye omwen yon rezime pa jou lè gen nouvo lis piblik ki matche (menm zòn ak reyon).",
@@ -3724,6 +3724,38 @@
     "typeBusiness": "Biznis",
     "typeTool": "Lokasyon zouti",
     "typeProduct": "Pwodwi",
-    "typeOther": "Lis"
+    "typeOther": "Lis",
+    "recentSearches": "Dènye rechèch yo",
+    "popularNearYou": "Popilè toupre ou",
+    "popularEmpty": "Pa gen lis pou montre ankò.",
+    "ctaPostJob": "Poste yon travay",
+    "ctaListTool": "Gade lokasyon zouti",
+    "ctaBrowseHelpers": "Gade asistan",
+    "widenRadius": "Elaji rechèch nan {{next}} mil",
+    "loadMore": "Chaje plis rezilta",
+    "resultCount": "{{shown}} sou {{total}} rezilta",
+    "matches": "Matche ak:",
+    "match": {
+      "skill": "konpetans",
+      "name": "non",
+      "profile": "pwofil",
+      "title": "tit",
+      "description": "deskripsyon",
+      "category": "kategori",
+      "other": "mo kle"
+    },
+    "actionView": "Gade",
+    "actionBid": "Gade epi ofri",
+    "actionRent": "Gade epi lwe",
+    "badgeVerified": "ID verifye",
+    "badgeBg": "Antesidan verifye",
+    "badgeAvailable": "Disponib jodi a",
+    "fresh": {
+      "today": "Mete ajou jodi a",
+      "yesterday": "Mete ajou yè",
+      "daysAgo": "Mete ajou {{count}} jou de sa",
+      "thisMonth": "Mete ajou mwa sa a",
+      "older": "Lis ki pi ansyen"
+    }
   }
 }

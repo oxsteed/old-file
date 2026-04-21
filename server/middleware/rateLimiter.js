@@ -115,6 +115,20 @@ const chatLimiter = rateLimit({
   },
 });
 
+// Public Discover unified search — stricter than generalLimiter to reduce scraping
+const discoverLimiter = rateLimit({
+  ...createStoreOption('rl:discover:'),
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  skip: (req) => !!req.headers.authorization?.startsWith('Bearer '),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Discover search rate limit exceeded. Please wait a few minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Geo services limiter: 100 requests per 15 minutes per IP
 // Prevents scraping and map API cost spikes.
 const geoLimiter = rateLimit({
@@ -183,6 +197,7 @@ module.exports = {
   authLimiter,
   strictLimiter,
   chatLimiter,
+  discoverLimiter,
   geoLimiter,
   invoiceLimiter,
   reportLimiter,

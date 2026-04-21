@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Session 2026-04-22: Public Discover search** — unified `/api/discover`, `/discover` page, homepage tab, saved alerts + daily digest, synonym expansion, tool deep links.)
+**Last updated:** 2026-04-22 (✅ **Discover polish** — analytics table, stricter `discoverLimiter`, `/discover/popular`, pagination, match reasons + freshness + CTAs, recent searches, UI icons/highlights.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -1846,6 +1846,14 @@ Next actions:
 - **Cron** `jobs/discoverDigest.js`: daily 9am Eastern — emails when alert fingerprint changes (Resend); **bootstrap** sets `last_signature` on first run so no spam on first digest.
 - **Tools:** `GET /api/tool-rentals/public/:id`; Discover tool URLs use `/tool-rentals?openTool=`; **`ToolRentalsBrowse`** opens modal from query + `toolRentalsApi.getPublicTool`.
 - **Frontend:** `DiscoverPage.jsx` + route `/discover`; **HomePage** third tab “Discover all” (60 mi + optional geo); i18n `discover.*` + `homePage.search.discover*` in EN/ES/FR/HT.
+
+---
+
+### Session — 2026-04-22 (Discover polish: UX, analytics, stricter rate limit)
+
+- **Migration** `087_discover_search_analytics.sql`: `discover_search_log` (query_normalized, result_count, radius, lat/lng, **ip_hash**, user_id).
+- **`discoverLimiter`** (`rateLimiter.js`): 40 req / 15 min / IP for unauthenticated; **`discover.js`** applies to `GET /` and `GET /popular`.
+- **`discoverController`**: pagination `limit`/`offset`, `total`/`hasMore`; rows include **matchReasons**, **freshness**, helper **rating/badges/availableToday**, **primaryAction**; **`GET /discover/popular`** for empty-state listings; **logDiscoverQuery** on each search (non-fatal if table missing).
 
 ---
 
