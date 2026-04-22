@@ -950,6 +950,9 @@ export default function HelperDashboard() {
     setListingLoading(false);
   };
 
+  /** True until helper finishes onboarding — dims pulse-dependent UI and gates some blocks */
+  const showOnboarding = !isOnboardingComplete;
+
     // ── Derived ───────────────────────────────────────────────────────────
   const hr = new Date().getHours();
   const greeting = hr < 12 ? t('dashboard.morning') : hr < 17 ? t('dashboard.afternoon') : t('dashboard.evening');
