@@ -124,6 +124,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [sending,          setSending]          = useState(false);
   const [guestName,        setGuestName]        = useState('');
   const [guestEmail,       setGuestEmail]       = useState('');
+  /** Guest saved contact locally — send button sends message + this contact */
+  const [guestContactSaved, setGuestContactSaved] = useState(false);
   const [conversationId,   setConversationId]   = useState<string | null>(null);
   // threadId ties this chat session to server-side Redis history (AI mode only).
   // null until the first AI response is received; echoed back on every subsequent send.
@@ -147,6 +149,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     const interval = setInterval(checkStatus, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [helperId]);
+
+  const guestStorageKey = `oxs:guest-contact:${helperId}:${businessId ?? 'personal'}`;
+  useEffect(() => {
+    if (!isGuest) return;
+    try {
+      const raw = sessionStorage.getItem(guestStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { name?: string; email?: string };
+      if (parsed?.name?.trim()) setGuestName(parsed.name.trim());
+      if (parsed?.email?.trim()) setGuestEmail(parsed.email.trim());
+      if (parsed?.name?.trim() && parsed?.email?.trim()) setGuestContactSaved(true);
+    } catch { /* ignore */ }
+  }, [isGuest, guestStorageKey]);
 
   // ── Real-time: listen for helper replies via Socket.IO ───────────────────
   useEffect(() => {
@@ -193,8 +208,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     if (isGuest && session.destination === 'helper') {
       const name = guestName.trim();
       const email = guestEmail.trim();
-      if (!name || !email) {
-        toast.error(t('messages.guestMissingContact'));
+      if (!guestContactSaved || !name || !email) {
+        toast.error(t('messages.guestSaveContactFirst'));
         return;
       }
       setSending(true);
@@ -220,15 +235,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         const ack: TimelineEvent = {
           id:        `evt-${Date.now()}-guest`,
           itemType:  'system',
-          eventType: 'message_sent',
-          content:   t('messages.guestMessageSent'),
+          eventType: 'guest_delivered',
+          content:   t('messages.guestDeliveredDetail'),
           timestamp: new Date().toISOString(),
         };
         setSession(prev => ({
           ...prev,
           timeline: [...prev.timeline, ack],
         }));
-        toast.success(t('messages.guestMessageSentToast'));
+        toast.success(t('messages.guestDeliveredToast'));
       } catch (err: any) {
         const msg = err?.response?.data?.error || t('messages.aiError');
         toast.error(msg);
@@ -335,10 +350,34 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     } finally {
       setSending(false);
     }
-  }, [helperId, businessId, session, user, helperName, sending, t, isGuest, guestName, guestEmail]);
+  }, [helperId, businessId, session, user, helperName, sending, t, isGuest, guestName, guestEmail, guestContactSaved]);
+
+  const saveGuestContact = useCallback(() => {
+    const name = guestName.trim();
+    const email = guestEmail.trim();
+    if (!name || !email) {
+      toast.error(t('messages.guestMissingContact'));
+      return;
+    }
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!emailOk) {
+      toast.error(t('messages.guestInvalidEmail'));
+      return;
+    }
+    try {
+      sessionStorage.setItem(guestStorageKey, JSON.stringify({ name, email }));
+    } catch { /* ignore */ }
+    setGuestContactSaved(true);
+    toast.success(t('messages.guestContactSavedToast'));
+  }, [guestName, guestEmail, guestStorageKey, t]);
 
   const helperIsLive  = session.helperStatus === 'live';
   const isOffline     = currentStatus === 'offline';
+  /** Guest inquiries are persisted server-side even when the helper is offline */
+  const guestWritesAlways = isGuest && session.destination === 'helper';
+  const showOfflineWall = isOffline && !guestWritesAlways;
+  const composerStatus =
+    guestWritesAlways ? 'ai_assistant' : isOffline ? 'offline' : 'ai_assistant';
 
   const displayTimeline = React.useMemo(() => {
     const msgs = session.timeline.filter((item) => {
@@ -446,24 +485,67 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       )}
 
       {isGuest && session.destination === 'helper' && (
-        <div className="px-4 py-3 border-b border-gray-800 space-y-2 bg-gray-950/40">
-          <p className="text-xs text-gray-400">{t('messages.guestContactIntro')}</p>
-          <input
-            type="text"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            placeholder={t('messages.guestNamePlaceholder')}
-            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500"
-            autoComplete="name"
-          />
-          <input
-            type="email"
-            value={guestEmail}
-            onChange={(e) => setGuestEmail(e.target.value)}
-            placeholder={t('messages.guestEmailPlaceholder')}
-            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500"
-            autoComplete="email"
-          />
+        <div className="px-4 py-3 border-b border-gray-800 space-y-3 bg-gray-950/40">
+          {!guestContactSaved ? (
+            <>
+              <p className="text-xs text-gray-400">{t('messages.guestContactIntro')}</p>
+              <div className="space-y-2">
+                <label className="block">
+                  <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{t('messages.guestNameLabel')}</span>
+                  <input
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => { setGuestName(e.target.value); setGuestContactSaved(false); }}
+                    placeholder={t('messages.guestNamePlaceholder')}
+                    className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500"
+                    autoComplete="name"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{t('messages.guestEmailLabel')}</span>
+                  <input
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => { setGuestEmail(e.target.value); setGuestContactSaved(false); }}
+                    placeholder={t('messages.guestEmailPlaceholder')}
+                    className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500"
+                    autoComplete="email"
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={saveGuestContact}
+                className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold transition-colors"
+              >
+                {t('messages.guestSaveContact')}
+              </button>
+              <p className="text-[11px] text-gray-600">{t('messages.guestSaveContactHint')}</p>
+            </>
+          ) : (
+            <div
+              className="rounded-xl border border-emerald-800/60 bg-emerald-950/30 px-3 py-2.5 flex items-start gap-2"
+              role="status"
+            >
+              <span className="text-emerald-400 text-lg leading-none" aria-hidden="true">✓</span>
+              <div>
+                <p className="text-sm font-medium text-emerald-200">{t('messages.guestContactSavedTitle')}</p>
+                <p className="text-xs text-emerald-200/80 mt-0.5">
+                  {t('messages.guestContactSavedBody', { name: guestName.trim(), email: guestEmail.trim() })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGuestContactSaved(false);
+                    try { sessionStorage.removeItem(guestStorageKey); } catch { /* ignore */ }
+                  }}
+                  className="text-[11px] text-emerald-400/90 underline mt-1.5 hover:text-emerald-300"
+                >
+                  {t('messages.guestEditContact')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -477,7 +559,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       )}
 
       {/* ── Timeline / Empty state ──────────────────────────── */}
-      {isOffline ? (
+      {showOfflineWall ? (
         <UnavailableState
           destination={session.destination}
           helperName={helperName}
@@ -496,8 +578,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
       {/* ── Composer ────────────────────────────────────────── */}
       <MessageComposer
-        status={isOffline ? 'offline' : 'ai_assistant'}
+        status={composerStatus}
         onSend={handleSend}
+        compact={!!(isGuest && session.destination === 'helper')}
+        hint={
+          isGuest && session.destination === 'helper' && guestContactSaved ? (
+            <span className="text-emerald-400/90">{t('messages.guestComposerHint')}</span>
+          ) : isGuest && session.destination === 'helper' ? (
+            <span>{t('messages.guestComposerLocked')}</span>
+          ) : undefined
+        }
+        disabled={!!(isGuest && session.destination === 'helper' && !guestContactSaved)}
         placeholder={
           session.destination === 'oxsteed'
             ? t('messages.typeMessage')
@@ -512,7 +603,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       {/* ── Footer ──────────────────────────────────────────── */}
       <div className="px-4 py-2 bg-gray-950/40 border-t border-gray-800/50 flex-shrink-0">
         <p className="text-xs text-gray-600 text-center">
-          {helperIsLive && user
+          {isGuest && session.destination === 'helper'
+            ? t('messages.guestFooterNote')
+            : helperIsLive && user
             ? t('messages.helperWillReceive', { name: helperName })
             : t('messages.aiMonitored')}
         </p>

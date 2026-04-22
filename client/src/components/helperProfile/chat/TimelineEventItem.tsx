@@ -69,10 +69,21 @@ const EVENT_STYLES: Record<string, EventStyle> = {
 const SUB_TYPE_ICON: Record<string, React.ElementType> = {
   booking_confirmed: CheckCircle2,
   quote_sent: Clock,
+  guest_delivered: CheckCircle2,
 };
 
 const TimelineEventItem: React.FC<TimelineEventItemProps> = ({ event }) => {
-  const style = EVENT_STYLES[event.itemType] ?? EVENT_STYLES.system;
+  const guestOk = event.eventType === 'guest_delivered';
+  const baseStyle = EVENT_STYLES[event.itemType] ?? EVENT_STYLES.system;
+  const style = guestOk
+    ? {
+        icon: CheckCircle2,
+        iconColor: 'text-emerald-400',
+        pillBg: 'bg-emerald-950/40',
+        pillText: 'text-emerald-200',
+        pillBorder: 'border-emerald-700/80',
+      }
+    : baseStyle;
   const IconComponent = SUB_TYPE_ICON[event.eventType] ?? style.icon;
 
   return (

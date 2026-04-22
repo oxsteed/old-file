@@ -39,10 +39,21 @@ export default function HelperInboxPage() {
   }, []);
 
   const fetchConversations = useCallback(async () => {
+    setLoading(true);
     try {
       const params = businessFilter !== 'all' ? `?business_id=${businessFilter}` : '';
-      const res = await api.get(`/messages/conversations${params}`);
-      setConversations(res.data);
+      const [convRes, guestRes] = await Promise.all([
+        api.get(`/messages/conversations${params}`),
+        api.get(`/messages/guest-inquiries${params}`).catch(() => ({ data: [] })),
+      ]);
+      const convList = convRes.data || [];
+      const guestList = guestRes.data || [];
+      const merged = [...guestList, ...convList].sort((a, b) => {
+        const ta = new Date(a.last_message_at || a.created_at || 0).getTime();
+        const tb = new Date(b.last_message_at || b.created_at || 0).getTime();
+        return tb - ta;
+      });
+      setConversations(merged);
     } catch (err) {
       console.error('[HelperInbox] Failed to load conversations:', err);
     } finally {
@@ -54,35 +65,67 @@ export default function HelperInboxPage() {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Real-time inbox updates: listen for both direct messages (message:new) and
-  // profile-page initiated conversations (profile_chat:new_message).
+  // Real-time: registered threads + guest profile inquiries (guest uses synthetic ids).
   useEffect(() => {
     if (!socket) return;
 
-    const handleInbound = ({ conversationId }) => {
-      if (!conversationId) return;
+    const bumpConv = (conversationId) => {
       fetchConversations();
-      setNewInbound(prev => {
+      setNewInbound((prev) => {
         const next = new Set(prev);
         next.add(String(conversationId));
         return next;
       });
     };
 
-    socket.on('message:new',            handleInbound);
-    socket.on('profile_chat:new_message', handleInbound);
+    const handleMessageNew = ({ conversationId }) => {
+      if (conversationId) bumpConv(conversationId);
+    };
+
+    const handleProfileChat = (payload) => {
+      if (payload?.guestInquiry && payload?.guestInquiryId != null) {
+        fetchConversations();
+        setNewInbound((prev) => {
+          const next = new Set(prev);
+          next.add(`guest-${payload.guestInquiryId}`);
+          return next;
+        });
+        return;
+      }
+      if (payload?.conversationId) bumpConv(payload.conversationId);
+    };
+
+    socket.on('message:new', handleMessageNew);
+    socket.on('profile_chat:new_message', handleProfileChat);
     return () => {
-      socket.off('message:new',            handleInbound);
-      socket.off('profile_chat:new_message', handleInbound);
+      socket.off('message:new', handleMessageNew);
+      socket.off('profile_chat:new_message', handleProfileChat);
     };
   }, [socket, fetchConversations]);
 
-  const handleOpen = (convId) => {
-    setNewInbound(prev => {
+  const handleOpen = (conv) => {
+    const convId = conv.id;
+    setNewInbound((prev) => {
       const next = new Set(prev);
       next.delete(String(convId));
       return next;
     });
+    if (conv.is_guest_inquiry || String(convId).startsWith('guest-')) {
+      const numeric = String(convId).replace(/^guest-/i, '');
+      try {
+        sessionStorage.setItem(
+          `oxs:guest-inquiry:${numeric}`,
+          JSON.stringify({
+            guestName: conv.other_user_name,
+            guestEmail: conv.guest_email,
+            message: conv.guest_message_full || conv.last_message,
+            createdAt: conv.last_message_at || conv.created_at,
+          })
+        );
+      } catch { /* ignore quota */ }
+      navigate(`/helper/messages/guest/${numeric}`);
+      return;
+    }
     navigate(`/helper/messages/${convId}`);
   };
 
@@ -135,10 +178,11 @@ export default function HelperInboxPage() {
               const isNew  = newInbound.has(String(conv.id));
               const unread = parseInt(conv.unread_count) > 0 || isNew;
               const badge  = isNew && !parseInt(conv.unread_count) ? t('messages.newBadge') : conv.unread_count;
+              const isGuestRow = conv.is_guest_inquiry || String(conv.id).startsWith('guest-');
               return (
                 <button
                   key={conv.id}
-                  onClick={() => handleOpen(conv.id)}
+                  onClick={() => handleOpen(conv)}
                   className={`w-full text-left px-4 py-4 flex items-center gap-4 transition hover:bg-gray-800/60 ${
                     isNew ? 'bg-blue-500/5' : ''
                   }`}
@@ -153,6 +197,11 @@ export default function HelperInboxPage() {
                       <div className="min-w-0 flex-1 mr-2">
                         <p className={`text-sm truncate ${unread ? 'font-semibold text-white' : 'font-medium text-gray-300'}`}>
                           {conv.other_user_name || t('messages.customer')}
+                          {isGuestRow && (
+                            <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-orange-400/90">
+                              {t('messages.guestInquiryBadge')}
+                            </span>
+                          )}
                         </p>
                         {/* Show which of the helper's businesses this conversation is under */}
                         {(conv.conversation_business_name || conv.helper_business_name) && (

@@ -2,6 +2,67 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
 
+/**
+ * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
+ */
+const getGuestInquiries = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const role = req.user.role;
+    if (!['helper', 'helper_pro', 'broker'].includes(role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
+    const params = [userId];
+    let bizClause = '';
+    if (filterBizId) {
+      params.push(filterBizId);
+      bizClause = ` AND g.business_id = $${params.length}`;
+    }
+
+    const result = await pool.query(
+      `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
+              cb.business_name AS conversation_business_name
+       FROM guest_profile_chat_inbound g
+       LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
+       WHERE g.helper_id = $1${bizClause}
+       ORDER BY g.created_at DESC
+       LIMIT 100`,
+      params
+    );
+
+    const rows = result.rows.map((r) => ({
+      id: `guest-${r.id}`,
+      is_guest_inquiry: true,
+      job_id: null,
+      customer_id: null,
+      helper_id: r.helper_id,
+      business_id: r.business_id,
+      status: 'active',
+      last_message_at: r.created_at,
+      created_at: r.created_at,
+      updated_at: r.created_at,
+      other_user_name: r.guest_name,
+      other_user_id: null,
+      job_title: null,
+      last_message:
+        r.message.length > 140 ? `${r.message.slice(0, 137)}…` : r.message,
+      last_message_sender_id: null,
+      helper_business_name: null,
+      conversation_business_name: r.conversation_business_name,
+      unread_count: 1,
+      guest_email: r.guest_email,
+      guest_message_full: r.message,
+    }));
+
+    res.json(rows);
+  } catch (error) {
+    logger.error('Error fetching guest inquiries', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch guest inquiries' });
+  }
+};
+
 // Get all conversations for the current user (including business rep access)
 // Optional query params: ?business_id=<id> to filter by business
 const getConversations = async (req, res) => {
@@ -442,4 +503,13 @@ const editMessage = async (req, res) => {
   }
 };
 
-module.exports = { getConversations, getOrCreateConversation, getConversationMeta, getMessages, sendMessage, deleteMessage, editMessage };
+module.exports = {
+  getConversations,
+  getGuestInquiries,
+  getOrCreateConversation,
+  getConversationMeta,
+  getMessages,
+  sendMessage,
+  deleteMessage,
+  editMessage,
+};

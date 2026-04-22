@@ -7,6 +7,11 @@ interface MessageComposerProps {
   status: ChatStatus;
   onSend: (text: string) => void;
   placeholder?: string;
+  /** Hide attachment/emoji row for a lighter composer (e.g. guest profile chat) */
+  compact?: boolean;
+  /** Extra hint above the textarea (e.g. guest flow: contact saved) */
+  hint?: React.ReactNode;
+  disabled?: boolean;
 }
 
 const DISABLED_STATUSES: ChatStatus[] = ['offline'];
@@ -17,13 +22,16 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   status,
   onSend,
   placeholder,
+  compact = false,
+  hint,
+  disabled: disabledProp = false,
 }) => {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
-  const isDisabled = DISABLED_STATUSES.includes(status);
+  const isDisabled = disabledProp || DISABLED_STATUSES.includes(status);
 
   const autoResize = () => {
     const el = textareaRef.current;
@@ -93,7 +101,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       }`}
       aria-label="Message composer"
     >
+      {hint && (
+        <div className="mb-2 text-xs text-gray-400 px-0.5" role="status">
+          {hint}
+        </div>
+      )}
       {/* Attachment row */}
+      {!compact && (
       <div className="flex items-center gap-1 mb-2 relative">
         <button
           className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
@@ -137,6 +151,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         </div>
         <span className="text-xs text-gray-600 ml-auto hidden sm:block">{t('messages.shiftEnter')}</span>
       </div>
+      )}
 
       {/* Input row */}
       <div className="flex items-end gap-2">

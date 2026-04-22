@@ -677,14 +677,65 @@ exports.guestProfileChatSession = async (req, res) => {
     );
 
     const row = rows[0];
-    socketService.broadcastToUser(resolvedHelperId, 'profile_chat:guest_message', {
-      id: row.id,
+
+    // Real-time: use profile_chat:new_message so inbox/dashboard match authenticated profile-chat behavior
+    socketService.broadcastToUser(resolvedHelperId, 'profile_chat:new_message', {
+      conversationId: null,
+      guestInquiry: true,
+      guestInquiryId: row.id,
+      preview: message.length > 160 ? `${message.slice(0, 157)}…` : message,
       guestName,
       guestEmail,
       message,
       businessId: resolvedBusinessId,
       createdAt: row.created_at,
     });
+
+    // Email fallback when Resend is configured (helpers are not notified otherwise if offline)
+    try {
+      const helperUser = await pool.query(
+        `SELECT email, first_name FROM users WHERE id = $1 AND deleted_at IS NULL`,
+        [resolvedHelperId]
+      );
+      const helperEmail = helperUser.rows[0]?.email;
+      if (helperEmail) {
+        const { sendEmail } = require('../utils/email');
+        const siteUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
+        const inboxUrl = `${String(siteUrl).replace(/\/$/, '')}/helper/messages`;
+        const bizNote = resolvedBusinessId
+          ? `\nBusiness context ID: ${resolvedBusinessId}\n`
+          : '\n';
+        const text = [
+          `Hi ${helperUser.rows[0]?.first_name || 'there'},`,
+          '',
+          `You have a new guest inquiry on your OxSteed profile from ${guestName} (${guestEmail}).${bizNote}`,
+          'Message:',
+          message,
+          '',
+          `Reply to the visitor at: ${guestEmail}`,
+          `Open your inbox: ${inboxUrl}`,
+          '',
+          '- OxSteed',
+        ].join('\n');
+        const safeName = String(guestName).replace(/</g, '&lt;');
+        const safeMsg = String(message)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br/>');
+        await sendEmail({
+          to: helperEmail,
+          subject: `New guest message from ${guestName}`,
+          text,
+          html: `<p>Hi ${helperUser.rows[0]?.first_name || 'there'},</p>
+<p><strong>${safeName}</strong> (${guestEmail}) sent you a message from your public profile:</p>
+<p style="white-space:pre-wrap;border-left:3px solid #ea580c;padding-left:12px;margin:16px 0;">${safeMsg}</p>
+<p><a href="mailto:${guestEmail.replace(/"/g, '&quot;')}">Reply via email</a> · <a href="${inboxUrl.replace(/"/g, '&quot;')}">Open inbox</a></p>`,
+        });
+      }
+    } catch (mailErr) {
+      logger.warn('[GuestProfileChat] Email notify failed', { message: mailErr.message });
+    }
 
     return res.status(201).json({
       ok: true,

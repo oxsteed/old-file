@@ -41,6 +41,7 @@ import MessagesPage from './pages/MessagesPage';
 import ConversationPage from './pages/ConversationPage';
 import HelperInboxPage from './pages/HelperInboxPage';
 import HelperConversationPage from './pages/HelperConversationPage';
+import HelperGuestInquiryPage from './pages/HelperGuestInquiryPage';
 import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
 import BusinessHubPage from './pages/BusinessHubPage';
@@ -137,6 +138,7 @@ export default function App() {
                     <Route path="/messages"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><MessagesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/messages/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/messages" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperInboxPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/helper/messages/guest/:inquiryId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperGuestInquiryPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper/messages/:conversationId" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperConversationPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     {/* Financial planning: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/planned-needs" element={<Guarded><ProtectedRoute><RouteErrorBoundary><PlannedNeedsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
