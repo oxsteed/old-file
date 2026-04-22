@@ -78,7 +78,7 @@ router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart)
 // ID / background "confirm" is super-admin only (trust & compliance).
 router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
-router.delete('/users/:userId',      requireAdmin,      requirePermission('delete_users'), superCtrl.deleteUser);
+router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 
 // Conversations (super-admin only — every read is audited)
