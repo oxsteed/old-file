@@ -1,4 +1,8 @@
-const { translateTexts, getSupportedLanguages, detectLanguage } = require('../utils/translateService');
+const { getSupportedLanguages } = require('../utils/translateService');
+const {
+  getTranslations,
+  getCachedDetectedLanguage,
+} = require('../utils/translationCache');
 const logger = require('../utils/logger');
 
 const MAX_TEXTS = 50;      // max strings per request
@@ -34,10 +38,11 @@ exports.translate = async (req, res) => {
     if (source === 'auto') {
       const sample =
         texts.map((x) => String(x || '').trim()).find((s) => s.length > 0) || '';
-      effectiveSource = sample ? await detectLanguage(sample) : 'en';
+      effectiveSource = sample ? await getCachedDetectedLanguage(sample) : 'en';
     }
 
-    const translations = await translateTexts(texts, target, effectiveSource);
+    // Redis-backed cache (translationCache) → LibreTranslate on miss
+    const translations = await getTranslations(texts, effectiveSource, target);
     return res.json({ translations, source: effectiveSource, target });
   } catch (err) {
     logger.error('translate endpoint error', { err: err.message });

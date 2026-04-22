@@ -8,10 +8,12 @@
 
 const redis = require('./redis');
 const crypto = require('crypto');
-const { translateTexts } = require('./translateService');
+const { translateTexts, detectLanguage } = require('./translateService');
 const logger = require('./logger');
 
 const TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+/** `/detect` results — same short text queried often from chat UI */
+const DETECT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 /**
  * Get or compute a translation, using Redis as the persistent cache.
@@ -47,17 +49,53 @@ async function getTranslation(text, sourceLanguage, targetLanguage) {
   // Translate
   const [translated] = await translateTexts([text], targetLanguage, sourceLanguage);
 
-  // Store in Redis if available
-  if (redis && translated !== text) {
+  // Store in Redis when available (including identity/no-op so we skip repeat LT calls)
+  if (redis) {
     try {
       await redis.setex(cacheKey, TTL_SECONDS, translated);
     } catch (err) {
       logger.warn('Redis set failed for translation', { err: err.message, cacheKey });
-      // Non-fatal — translation was successful, just caching failed
     }
   }
 
   return translated;
+}
+
+/**
+ * LibreTranslate /detect with Redis cache (keyed by full text hash).
+ * Used for translate API source=auto to avoid repeated detect calls on popular phrases.
+ */
+async function getCachedDetectedLanguage(text) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return 'en';
+
+  const hash = crypto.createHash('md5').update(trimmed).digest('hex');
+  const cacheKey = `lt_detect:${hash}`;
+
+  if (redis) {
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        logger.debug('Translation detect cache hit', { hash });
+        return cached;
+      }
+    } catch (err) {
+      logger.warn('Redis get failed for detect', { err: err.message });
+    }
+  }
+
+  const lang = await detectLanguage(trimmed);
+  const code = lang && typeof lang === 'string' ? lang.split('-')[0].toLowerCase() : 'en';
+
+  if (redis) {
+    try {
+      await redis.setex(cacheKey, DETECT_TTL_SECONDS, code);
+    } catch (err) {
+      logger.warn('Redis set failed for detect', { err: err.message });
+    }
+  }
+
+  return code;
 }
 
 /**
@@ -111,25 +149,22 @@ async function getTranslations(texts, sourceLanguage, targetLanguage) {
   const uncachedTexts = uncachedIndices.map(i => texts[i]);
   const translated = await translateTexts(uncachedTexts, targetLanguage, sourceLanguage);
 
-  // Store in Redis and populate results
+  uncachedIndices.forEach((origIdx, i) => {
+    results[origIdx] = translated[i];
+  });
+
   if (redis) {
     const pipeline = redis.pipeline();
     uncachedIndices.forEach((origIdx, i) => {
       const hash = crypto.createHash('md5').update(texts[origIdx]).digest('hex');
       const cacheKey = `translation:${sourceLanguage}:${targetLanguage}:${hash}`;
       pipeline.setex(cacheKey, TTL_SECONDS, translated[i]);
-      results[origIdx] = translated[i];
     });
     try {
       await pipeline.exec();
     } catch (err) {
       logger.warn('Redis pipeline failed for translations', { err: err.message });
-      // Non-fatal — translations were successful
     }
-  } else {
-    uncachedIndices.forEach((origIdx, i) => {
-      results[origIdx] = translated[i];
-    });
   }
 
   return results;
@@ -154,5 +189,6 @@ async function invalidateTranslation(text, sourceLanguage, targetLanguage) {
 module.exports = {
   getTranslation,
   getTranslations,
+  getCachedDetectedLanguage,
   invalidateTranslation,
 };
