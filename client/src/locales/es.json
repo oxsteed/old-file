@@ -813,7 +813,10 @@
     "guestInquiryUnavailableHint": "Por privacidad, los datos del invitado se muestran al abrir una notificación reciente de la lista.",
     "guestInquiryMessageLabel": "Su mensaje",
     "guestInquiryForbidden": "No tienes acceso a esta consulta.",
-    "guestInquirySignIn": "Inicia sesión para ver esta consulta."
+    "guestInquirySignIn": "Inicia sesión para ver esta consulta.",
+    "translating": "Traduciendo…",
+    "showOriginalMessage": "Mostrar original",
+    "showTranslationMessage": "Mostrar traducción"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",

@@ -813,7 +813,10 @@
     "guestInquiryUnavailableHint": "For privacy, guest details are shown when you open a fresh notification from the list.",
     "guestInquiryMessageLabel": "Their message",
     "guestInquiryForbidden": "You don't have access to this inquiry.",
-    "guestInquirySignIn": "Please sign in to view this inquiry."
+    "guestInquirySignIn": "Please sign in to view this inquiry.",
+    "translating": "Translating…",
+    "showOriginalMessage": "Show original",
+    "showTranslationMessage": "Show translation"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",

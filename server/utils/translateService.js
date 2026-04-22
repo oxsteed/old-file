@@ -64,20 +64,41 @@ function ltPost(path, body) {
 }
 
 /**
+ * Guess source language using LibreTranslate /detect when available.
+ * Returns ISO code or 'en' on failure.
+ */
+async function detectLanguage(text) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed || !BASE_URL) return 'en';
+
+  try {
+    const json = await ltPost('/detect', { q: trimmed });
+    const first = Array.isArray(json) ? json[0] : json;
+    const code = first?.language || first?.detectedLanguage;
+    if (code && typeof code === 'string') return code.split('-')[0].toLowerCase();
+  } catch (err) {
+    logger.warn('LibreTranslate detect fallback', { err: err.message });
+  }
+  return 'en';
+}
+
+/**
  * Translate an array of strings from source → target language.
+ * Pass source 'auto' to detect from the first non-empty text (same for all texts).
  * Returns an array of translated strings in the same order.
  * Falls back to the original strings on any error.
  */
 async function translateTexts(texts, target, source = 'en') {
   if (!Array.isArray(texts) || texts.length === 0) return [];
-  if (source === target) return texts;
+  const resolvedSource = source;
+  if (resolvedSource === target) return texts;
 
   // Split into cached vs uncached
   const results = new Array(texts.length);
   const uncachedIndices = [];
 
   texts.forEach((text, i) => {
-    const key = `${source}|${target}|${text}`;
+    const key = `${resolvedSource}|${target}|${text}`;
     if (cache.has(key)) {
       results[i] = cache.get(key);
     } else {
@@ -92,7 +113,7 @@ async function translateTexts(texts, target, source = 'en') {
   try {
     const body = {
       q: uncachedTexts,
-      source,
+      source: resolvedSource,
       target,
       format: 'text',
     };
@@ -107,7 +128,7 @@ async function translateTexts(texts, target, source = 'en') {
 
     uncachedIndices.forEach((origIdx, i) => {
       const translated = translations[i] ?? texts[origIdx];
-      cacheSet(`${source}|${target}|${texts[origIdx]}`, translated);
+      cacheSet(`${resolvedSource}|${target}|${texts[origIdx]}`, translated);
       results[origIdx] = translated;
     });
   } catch (err) {
@@ -163,4 +184,4 @@ async function getSupportedLanguages() {
   }
 }
 
-module.exports = { translateTexts, getSupportedLanguages };
+module.exports = { translateTexts, getSupportedLanguages, detectLanguage };

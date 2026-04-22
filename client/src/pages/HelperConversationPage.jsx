@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useConversationChat } from '../hooks/useConversationChat';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import AutoTranslatedMessage from '../components/AutoTranslatedMessage';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -99,7 +100,11 @@ export default function HelperConversationPage() {
                     ? 'bg-orange-500 text-white rounded-br-sm'
                     : 'bg-gray-700/70 text-gray-100 rounded-bl-sm'
                 }`}>
-                  {msg.content}
+                  <AutoTranslatedMessage
+                    text={msg.content}
+                    incomingOnly
+                    isOwnMessage={isMe}
+                  />
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5 px-1">
                   <span className="text-[11px] text-gray-600">{formatTime(msg.created_at)}</span>

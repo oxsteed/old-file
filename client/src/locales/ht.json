@@ -875,7 +875,10 @@
     "guestInquiryUnavailableHint": "Pou vi prive, detay envite yo montre lè ou ouvri yon notifikasyon fre nan lis la.",
     "guestInquiryMessageLabel": "Mesaj yo",
     "guestInquiryForbidden": "Ou pa gen aksè nan demann sa a.",
-    "guestInquirySignIn": "Tanpri konekte pou wè demann sa a."
+    "guestInquirySignIn": "Tanpri konekte pou wè demann sa a.",
+    "translating": "Ap tradui…",
+    "showOriginalMessage": "Montre orijinal la",
+    "showTranslationMessage": "Montre tradiksyon an"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
