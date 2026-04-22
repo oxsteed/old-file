@@ -356,10 +356,10 @@ app.use('/api/settings',     settingsRoutes);
 app.use('/api/discover',     discoverRoutes);
 // NOTE: /api/role-toggle intentionally removed — see comment near top of file
 
-// Sentry wizard "Verify" route — development only (do not expose in production)
+// Sentry wizard "Verify" route — development/staging only (omit in production)
 if (process.env.NODE_ENV !== 'production') {
-  app.get('/api/debug-sentry', (req, res, next) => {
-    next(new Error('Sentry debug test error'));
+  app.get('/debug-sentry', function mainHandler(req, res) {
+    throw new Error('My first Sentry error!');
   });
 }
 
