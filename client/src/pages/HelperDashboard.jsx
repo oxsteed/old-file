@@ -1485,19 +1485,19 @@ export default function HelperDashboard() {
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.home.noTasks')}</p>
               ):(
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {life.homeTasks.map(t=>{
-                    const overdue=t.due_date&&new Date(t.due_date)<new Date()&&!t.is_completed;
+                  {life.homeTasks.map(task=>{
+                    const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;
                     return(
-                      <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${t.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
-                        <button onClick={()=>toggleHomeTask(t)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${t.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
-                          {t.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
+                      <div key={task.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${task.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
+                        <button onClick={()=>toggleHomeTask(task)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${task.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
+                          {task.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}
                         </button>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${t.is_completed?'line-through text-gray-600':'text-white'}`}>{t.title}</p>
+                          <p className={`text-sm font-medium ${task.is_completed?'line-through text-gray-600':'text-white'}`}>{task.title}</p>
                           <p className={`text-xs mt-0.5 ${overdue?'text-red-400':'text-gray-600'}`}>
-                            {t.due_date?(overdue?'Overdue · ':'')+new Date(t.due_date).toLocaleDateString():'No due date'}
-                            {t.recurrence_days?` · Every ${t.recurrence_days}d`:''}
-                            {t.home_name?` · ${t.home_name}`:''}
+                            {task.due_date?(overdue?'Overdue · ':'')+new Date(task.due_date).toLocaleDateString():'No due date'}
+                            {task.recurrence_days?` · Every ${task.recurrence_days}d`:''}
+                            {task.home_name?` · ${task.home_name}`:''}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">

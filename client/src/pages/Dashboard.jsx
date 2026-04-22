@@ -122,6 +122,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState('pulse');
+  const [showPulseSettings, setShowPulseSettings] = useState(false);
+  const [showSources, setShowSources] = useState(false);
 
   // Modal state
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -763,19 +765,19 @@ export default function Dashboard() {
               { id: 'personalcare', label: t('dashboard.tabs.personalCare'), icon: IcoHeart },
               { id: 'carcare',      label: t('dashboard.tabs.carCare'),      icon: IcoCar },
               { id: 'skills',       label: t('dashboard.tabs.skillsTools'),  icon: IcoBriefcase },
-            ].map(t => (
+            ].map(tabDef => (
               <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
+                key={tabDef.id}
+                onClick={() => setTab(tabDef.id)}
                 className={`flex items-center gap-2 px-5 py-3 rounded-t-xl text-xs font-bold uppercase tracking-wider transition-all flex-shrink-0 ${
-                  tab === t.id
+                  tab === tabDef.id
                     ? 'bg-gray-800/80 text-orange-500 border-b-2 border-orange-500'
                     : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800/40'
                 }`}
                 style={{ whiteSpace: 'nowrap' }}
               >
-                <t.icon size={14} cls={tab === t.id ? 'text-orange-500' : 'text-gray-500'} />
-                {t.label}
+                <tabDef.icon size={14} cls={tab === tabDef.id ? 'text-orange-500' : 'text-gray-500'} />
+                {tabDef.label}
               </button>
             ))}
           </div>
@@ -847,40 +849,38 @@ export default function Dashboard() {
           </div>
 
           {/* Life Pulse Score — powered by the unified engine (30-day horizon) */}
-          {(() => {
-            const [showPulseSettings, setShowPulseSettings] = useState(false);
-            const [showSources, setShowSources] = useState(false);
+          {life.financialPulse && (() => {
             const fp = life.financialPulse;
-            if (!fp) return null;
-
             // No data entered yet — show onboarding prompt instead of a fabricated score
-            if (fp.no_data) return (
-              <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold">{t('dashboard.pulse.next30Days')}</p>
-                  <button onClick={() => setShowPulseSettings(true)} className="text-[11px] text-gray-600 hover:text-gray-400 transition flex items-center gap-1">
-                    <IcoSettings size={13} cls="text-gray-600" /> {t('dashboard.pulse.configure')}
-                  </button>
-                </div>
-                {showPulseSettings && (
-                  <PulseScoreSettings onClose={() => setShowPulseSettings(false)} onSaved={() => life.fetchFinancialPulse('1m')} />
-                )}
-                <div className="flex flex-col items-center justify-center py-6 gap-3 text-center">
-                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-gray-700">—</span>
+            if (fp.no_data) {
+              return (
+                <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] uppercase tracking-widest text-orange-400 font-semibold">{t('dashboard.pulse.next30Days')}</p>
+                    <button onClick={() => setShowPulseSettings(true)} className="text-[11px] text-gray-600 hover:text-gray-400 transition flex items-center gap-1">
+                      <IcoSettings size={13} cls="text-gray-600" /> {t('dashboard.pulse.configure')}
+                    </button>
                   </div>
-                  <p className="text-sm font-semibold text-gray-400">{t('dashboard.pulse.noData')}</p>
-                  <p className="text-xs text-gray-600 max-w-xs">
-                    {t('dashboard.pulse.noDataSub')}
-                  </p>
-                  <div className="flex gap-2 mt-1">
-                    <Link to="/dashboard" onClick={() => {}} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2">
-                      {t('dashboard.pulse.logTransaction')}
-                    </Link>
+                  {showPulseSettings && (
+                    <PulseScoreSettings onClose={() => setShowPulseSettings(false)} onSaved={() => life.fetchFinancialPulse('1m')} />
+                  )}
+                  <div className="flex flex-col items-center justify-center py-6 gap-3 text-center">
+                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-gray-700">—</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-400">{t('dashboard.pulse.noData')}</p>
+                    <p className="text-xs text-gray-600 max-w-xs">
+                      {t('dashboard.pulse.noDataSub')}
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      <Link to="/dashboard" onClick={() => {}} className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                        {t('dashboard.pulse.logTransaction')}
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
+              );
+            }
 
             const score = fp.pulse_score;
             const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
