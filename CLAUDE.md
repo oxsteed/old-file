@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Signup → dashboard:** customer `verifyRegistrationOTP` + helper `verifyOTP` mark **`onboarding_complete`** + profile/plan/terms flags; **`helper_profiles`** row on signup; **`POST /auth/register` helper** same; **HelperDashboard** onboarding wizard card **removed**. Didit stays optional step 2.)
+**Last updated:** 2026-04-22 (✅ **Structured signup address:** `AccountForm` uses street / city / state / ZIP; **`pending_registrations`** + **`users.address_line1`** via migration **089**; **`/auth/register/start`** + **`/helper-registration/start`** validate and persist; helper OTP creates user with **city/state/zip** + **`helper_profiles.service_*`**. Prior: signup → dashboard, Navbar Join OxSteed, Didit enforcement flag, super-admin-only verify/create user.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 

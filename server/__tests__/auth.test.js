@@ -154,6 +154,9 @@ describe('POST /api/auth/register/start', () => {
         firstName: '  Customer ',
         lastName: ' User  ',
         phone: ' +1 (555) 111-2222 ',
+        addressLine1: '  123 Main St  ',
+        city: ' Springfield ',
+        state: 'oh',
         zip: '12345',
         ageConfirmed: true,
       });
@@ -163,6 +166,9 @@ describe('POST /api/auth/register/start', () => {
     expect(insertArgs[1]).toBe('customer@example.com');
     expect(insertArgs[3]).toBe('Customer');
     expect(insertArgs[4]).toBe('User');
+    expect(insertArgs[7]).toBe('123 Main St');
+    expect(insertArgs[8]).toBe('Springfield');
+    expect(insertArgs[9]).toBe('OH');
   });
 
   test('returns 400 for DB field length overflow instead of 500', async () => {
@@ -179,6 +185,9 @@ describe('POST /api/auth/register/start', () => {
         firstName: 'Customer',
         lastName: 'User',
         phone: '+15551112222',
+        addressLine1: '1 Main',
+        city: 'Dayton',
+        state: 'OH',
         zip: '12345',
         ageConfirmed: true,
       });

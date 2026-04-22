@@ -538,7 +538,14 @@ async function addToWaitlist(req, res) {
 
 async function startRegistration(req, res) {
   try {
-    const { email, password, firstName, lastName, phone, zip, ageConfirmed, ref } = req.body;
+    const {
+      email, password, firstName, lastName, phone, zip,
+      addressLine1, address_line1, city, state,
+      ageConfirmed, ref,
+    } = req.body;
+    const line1 = String(addressLine1 ?? address_line1 ?? '').trim();
+    const cityTrim = String(city || '').trim();
+    const stateTrim = String(state || '').trim().toUpperCase();
     const normalized = {
       email: String(email || '').trim().toLowerCase(),
       password,
@@ -546,6 +553,9 @@ async function startRegistration(req, res) {
       lastName: String(lastName || '').trim(),
       phone: String(phone || '').trim(),
       zip: String(zip || '').trim(),
+      addressLine1: line1,
+      city: cityTrim,
+      state: stateTrim,
       ageConfirmed,
       ref: ref ? String(ref).trim() : null,
     };
@@ -556,6 +566,9 @@ async function startRegistration(req, res) {
       firstName: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
       lastName: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
       phone: [rules.required, rules.phone, rules.maxLen(20)],
+      addressLine1: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
+      city: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
+      state: [rules.required, rules.usState],
       zip: [rules.required, rules.zip, rules.maxLen(10)],
     });
     if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
@@ -573,9 +586,17 @@ async function startRegistration(req, res) {
     const token = crypto.randomBytes(32).toString('hex');
     await pool.query('DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)', [normalized.email, 'customer']);
     await pool.query(
-  'INSERT INTO pending_registrations (token, email, password_hash, first_name, last_name, phone, zip_code, age_confirmed, role, referral_ref) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-  [token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalized.zip, normalized.ageConfirmed, 'customer', normalized.ref]
-);
+      `INSERT INTO pending_registrations (
+         token, email, password_hash, first_name, last_name, phone, zip_code,
+         address_line1, city, state,
+         age_confirmed, role, referral_ref
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalized.zip,
+        normalized.addressLine1, normalized.city, normalized.state,
+        normalized.ageConfirmed, 'customer', normalized.ref,
+      ],
+    );
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
     if (err?.code === '22001') {
@@ -652,22 +673,29 @@ async function verifyRegistrationOTP(req, res) {
       if (refRows.length) referrerId = refRows[0].id;
     }
 
+    const addr1 = (pending.address_line1 || '').trim() || null;
+    const cityU = (pending.city || '').trim() || null;
+    const stateU = (pending.state || '').trim().toUpperCase() || null;
+
     const userResult = await pool.query(
       `INSERT INTO users (
-         email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified,
+         email, password_hash, first_name, last_name, phone, zip_code, city, state, address_line1,
+         role, age_confirmed, email_verified,
          terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
          trial_started_at, trial_ends_at, referred_by,
          onboarding_status, onboarding_completed, profile_completed, tier_selected, terms_accepted,
          contact_completed, membership_tier
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,'customer',$7,true,
-         $8,$9,$10,$11,$12,
-         $13,$14,$15,
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,
+         'customer',$10,true,
+         $11,$12,$13,$14,$15,
+         $16,$17,$18,
          'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
          TRUE, 'tier1'
        ) RETURNING *`,
       [
         pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
+        cityU, stateU, addr1,
         pending.age_confirmed,
         pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
         trial_started_at, trial_ends_at, referrerId,

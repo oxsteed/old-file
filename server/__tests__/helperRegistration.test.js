@@ -46,6 +46,9 @@ describe('POST /api/helper-registration/start', () => {
         firstName: '  Helper  ',
         lastName: '  User  ',
         phone: '  +1 (234) 567-8901  ',
+        addressLine1: '  99 Oak Ave  ',
+        city: ' Columbus ',
+        state: ' oh ',
         zip: ' 12345 ',
         ageConfirmed: true,
       });
@@ -59,6 +62,9 @@ describe('POST /api/helper-registration/start', () => {
     expect(insertArgs[4]).toBe('User');
     expect(insertArgs[5]).toBe('+1 (234) 567-8901');
     expect(insertArgs[6]).toBe('12345');
+    expect(insertArgs[7]).toBe('99 Oak Ave');
+    expect(insertArgs[8]).toBe('Columbus');
+    expect(insertArgs[9]).toBe('OH');
   });
 
   test('returns 400 for DB field length overflow instead of 500', async () => {
@@ -76,6 +82,9 @@ describe('POST /api/helper-registration/start', () => {
         firstName: 'Helper',
         lastName: 'User',
         phone: '+12345678901',
+        addressLine1: '1 Elm',
+        city: 'Toledo',
+        state: 'OH',
         zip: '12345',
         ageConfirmed: true,
       });
