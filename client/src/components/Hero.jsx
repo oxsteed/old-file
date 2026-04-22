@@ -8,7 +8,7 @@ export default function Hero({ search }) {
 
   return (
     <div className="hp-hero-inner">
-      <div className="hp-hero-eyebrow">Local trades marketplace</div>
+      <div className="hp-hero-eyebrow">Local Skills & Tools Directory</div>
       <h1 className="hp-hero-title">
         {t('hero.title').split('\n').map((line, i, arr) => (
           i < arr.length - 1
