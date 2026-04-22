@@ -5,6 +5,8 @@
 //   const errs = validate(req.body, { email: [rules.required, rules.email], password: [rules.required, rules.minLen(8)] });
 //   if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
+const { isUsStateCode } = require('./usStates');
+
 const rules = {
   required: (v, field) =>
     (v === undefined || v === null || String(v).trim() === '') ? `${field} is required` : null,
@@ -72,6 +74,14 @@ const rules = {
     if (!v) return null;
     return /^\d{5}(-\d{4})?$/.test(String(v).trim())
       ? null : 'Must be a valid US ZIP code';
+  },
+
+  /** 2-letter US state / DC code */
+  usState: (v) => {
+    if (!v) return null;
+    const s = String(v).trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(s)) return 'Must be a 2-letter state code';
+    return isUsStateCode(s) ? null : 'Must be a valid US state or territory';
   },
 };
 

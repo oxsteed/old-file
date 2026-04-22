@@ -1,6 +1,6 @@
 // client/src/components/registration/AccountForm.tsx
 // Unified Step 1 form for both customer & helper registration.
-// Handles: avatar, name, business name, email + inline OTP, phone, address, password, terms.
+// Handles: avatar, name, business name, email + inline OTP, phone, structured US address, password, terms.
 // Orchestrates backend calls: register/start → accept-terms → verify-otp
 
 import { useState, useCallback } from 'react';
@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import AvatarUpload from './AvatarUpload';
 import OTPInput from './OTPInput';
 import PasswordField, { scorePassword } from './PasswordField';
+import { US_STATE_CODES } from '../../constants/usStates';
 
 // ── Types ────────────────────────────────────────────────
 interface Props {
@@ -27,7 +28,10 @@ type FormState = {
   businessName: string;
   email: string;
   phone: string;
-  address: string;
+  addressLine1: string;
+  city: string;
+  state: string;
+  zipCode: string;
   password: string;
   termsAccepted: boolean;
 };
@@ -36,6 +40,7 @@ type FormErrors = Partial<Record<keyof FormState | 'general', string>>;
 
 // ── Helpers ──────────────────────────────────────────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ZIP_RE = /^\d{5}(-\d{4})?$/;
 
 function FieldError({ id, msg }: { id?: string; msg?: string }) {
   if (!msg) return null;
@@ -61,7 +66,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
     businessName: '',
     email: '',
     phone: '',
-    address: '',
+    addressLine1: '',
+    city: '',
+    state: '',
+    zipCode: '',
     password: '',
     termsAccepted: false,
   });
@@ -107,17 +115,17 @@ export default function AccountForm({ role, onSuccess }: Props) {
 
   // ── Send OTP with real form values ─────────────────────
   const sendOtp = useCallback(async (formData: FormState): Promise<string | null> => {
-    const phoneDigits = formData.phone.replace(/\D/g, '');
-    const zip = formData.address.match(/\d{5}/)?.[0] || '';
-
     const endpoint = role === 'helper' ? '/helper-registration/start' : '/auth/register/start';
     const res = await api.post(endpoint, {
       email: formData.email.trim().toLowerCase(),
       password: formData.password,
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
-      phone: phoneDigits,
-      zip: zip || '00000',
+      phone: formData.phone.trim(),
+      addressLine1: formData.addressLine1.trim(),
+      city: formData.city.trim(),
+      state: formData.state.trim().toUpperCase(),
+      zip: formData.zipCode.trim(),
       ageConfirmed: true,
       ...(referralRef ? { ref: referralRef } : {}),
     });
@@ -186,7 +194,12 @@ export default function AccountForm({ role, onSuccess }: Props) {
     if (emailAvailable === false) e.email = t('register.emailTaken');
     const phoneDigits = form.phone.replace(/\D/g, '');
     if (phoneDigits.length < 7) e.phone = t('register.errorPhone');
-    if (!form.address.trim()) e.address = t('register.errorAddress');
+    if (!form.addressLine1.trim()) e.addressLine1 = t('register.errorStreet');
+    if (!form.city.trim()) e.city = t('register.errorCity');
+    if (!form.state) e.state = t('register.errorState');
+    const z = form.zipCode.trim();
+    if (!z) e.zipCode = t('register.errorZip');
+    else if (!ZIP_RE.test(z)) e.zipCode = t('register.errorZipInvalid');
     if (scorePassword(form.password) < 3) e.password = t('register.errorPassword');
     if (!form.termsAccepted) e.termsAccepted = t('register.errorTerms');
     setErrors(e);
@@ -397,29 +410,97 @@ export default function AccountForm({ role, onSuccess }: Props) {
             <FieldError id="err-phone" msg={errors.phone} />
           </div>
 
-          {/* ── Address ─────────────────────────────── */}
-          <div className="flex flex-col gap-1">
-            <label htmlFor="address" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-              {t('register.address')}
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-                <MapPin size={16} />
-              </span>
-              <input
-                id="address"
-                type="text"
-                value={form.address}
-                onChange={(e) => set('address', e.target.value)}
-                className={`${inputWithIcon} ${errors.address ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder={t('register.addressPlaceholder')}
-                autoComplete="street-address"
-                required
-                aria-invalid={!!errors.address}
-                aria-describedby={errors.address ? 'err-address' : undefined}
-              />
+          {/* ── Address (structured) ───────────────── */}
+          <div className="flex flex-col gap-3">
+            <span className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+              {t('register.addressSection')}
+            </span>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="addressLine1" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+                {t('register.streetAddress')}
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                  <MapPin size={16} />
+                </span>
+                <input
+                  id="addressLine1"
+                  type="text"
+                  value={form.addressLine1}
+                  onChange={(e) => set('addressLine1', e.target.value)}
+                  className={`${inputWithIcon} ${errors.addressLine1 ? 'border-red-500 bg-red-900/20' : ''}`}
+                  placeholder={t('register.streetPlaceholder')}
+                  autoComplete="address-line1"
+                  required
+                  aria-invalid={!!errors.addressLine1}
+                  aria-describedby={errors.addressLine1 ? 'err-addressLine1' : undefined}
+                />
+              </div>
+              <FieldError id="err-addressLine1" msg={errors.addressLine1} />
             </div>
-            <FieldError id="err-address" msg={errors.address} />
+            <div className="grid grid-cols-2 gap-3 max-[400px]:grid-cols-1">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="city" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+                  {t('register.city')}
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  value={form.city}
+                  onChange={(e) => set('city', e.target.value)}
+                  className={`${inputBase} px-3 ${errors.city ? 'border-red-500 bg-red-900/20' : ''}`}
+                  placeholder={t('register.cityPlaceholder')}
+                  autoComplete="address-level2"
+                  required
+                  aria-invalid={!!errors.city}
+                  aria-describedby={errors.city ? 'err-city' : undefined}
+                />
+                <FieldError id="err-city" msg={errors.city} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="state" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+                  {t('register.state')}
+                </label>
+                <select
+                  id="state"
+                  value={form.state}
+                  onChange={(e) => set('state', e.target.value)}
+                  className={`${inputBase} px-3 ${errors.state ? 'border-red-500 bg-red-900/20' : ''}`}
+                  autoComplete="address-level1"
+                  required
+                  aria-invalid={!!errors.state}
+                  aria-describedby={errors.state ? 'err-state' : undefined}
+                >
+                  <option value="">{t('register.stateSelect')}</option>
+                  {US_STATE_CODES.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+                <FieldError id="err-state" msg={errors.state} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 max-w-[200px]">
+              <label htmlFor="zipCode" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+                {t('register.zipCode')}
+              </label>
+              <input
+                id="zipCode"
+                type="text"
+                inputMode="numeric"
+                value={form.zipCode}
+                onChange={(e) => set('zipCode', e.target.value)}
+                className={`${inputBase} px-3 ${errors.zipCode ? 'border-red-500 bg-red-900/20' : ''}`}
+                placeholder={t('register.zipPlaceholder')}
+                autoComplete="postal-code"
+                required
+                maxLength={10}
+                aria-invalid={!!errors.zipCode}
+                aria-describedby={errors.zipCode ? 'err-zipCode' : undefined}
+              />
+              <FieldError id="err-zipCode" msg={errors.zipCode} />
+            </div>
           </div>
 
           {/* ── Password ────────────────────────────── */}

@@ -60,8 +60,16 @@ async function startRegistration(req, res) {
       lastName,
       phone,
       zip,
-      ageConfirmed
+      addressLine1,
+      address_line1,
+      city,
+      state,
+      ageConfirmed,
     } = req.body;
+
+    const line1 = String(addressLine1 ?? address_line1 ?? '').trim();
+    const cityTrim = String(city || '').trim();
+    const stateTrim = String(state || '').trim().toUpperCase();
 
     const normalized = {
       email: String(email || '').trim().toLowerCase(),
@@ -70,6 +78,9 @@ async function startRegistration(req, res) {
       lastName: String(lastName || '').trim(),
       phone: String(phone || '').trim(),
       zip: String(zip || '').trim(),
+      addressLine1: line1,
+      city: cityTrim,
+      state: stateTrim,
       ageConfirmed,
     };
 
@@ -79,6 +90,9 @@ async function startRegistration(req, res) {
       firstName: [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
       lastName:  [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
       phone:     [rules.required, rules.phone, rules.maxLen(20)],
+      addressLine1: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
+      city:      [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
+      state:     [rules.required, rules.usState],
       zip:       [rules.required, rules.zip, rules.maxLen(10)],
     });
     if (errs) {
@@ -117,8 +131,10 @@ async function startRegistration(req, res) {
     const result = hasRole
       ? await pool.query(`
           INSERT INTO pending_registrations
-            (token, email, password_hash, first_name, last_name, phone, zip_code, role, otp_code, otp_expires_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,'helper',$8,$9)
+            (token, email, password_hash, first_name, last_name, phone, zip_code,
+             address_line1, city, state,
+             role, otp_code, otp_expires_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'helper',$11,$12)
           RETURNING token
         `, [
           token,
@@ -128,13 +144,18 @@ async function startRegistration(req, res) {
           normalized.lastName,
           normalized.phone,
           normalized.zip,
+          normalized.addressLine1,
+          normalized.city,
+          normalized.state,
           otpHash,
-          otp_expires
+          otp_expires,
         ])
       : await pool.query(`
           INSERT INTO pending_registrations
-            (token, email, password_hash, first_name, last_name, phone, zip_code, otp_code, otp_expires_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            (token, email, password_hash, first_name, last_name, phone, zip_code,
+             address_line1, city, state,
+             otp_code, otp_expires_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
           RETURNING token
         `, [
           token,
@@ -144,8 +165,11 @@ async function startRegistration(req, res) {
           normalized.lastName,
           normalized.phone,
           normalized.zip,
+          normalized.addressLine1,
+          normalized.city,
+          normalized.state,
           otpHash,
-          otp_expires
+          otp_expires,
         ]);
 
     await sendOTPEmail(normalized.email, otp);
@@ -177,6 +201,7 @@ async function verifyOTP(req, res) {
 
     const { rows } = await client.query(
       `SELECT id, email, password_hash, first_name, last_name, phone, zip_code,
+              address_line1, city, state,
               otp_code, otp_expires_at, otp_attempts, otp_locked_until, user_id, account_created
        FROM pending_registrations
        WHERE token = $1 AND role = 'helper'`,
@@ -226,18 +251,37 @@ async function verifyOTP(req, res) {
     } else {
       // Create the helper user row
       const { trial_started_at, trial_ends_at } = trialDefaults();
+      const addr1 = (reg.address_line1 || '').trim() || null;
+      const cityU = (reg.city || '').trim() || null;
+      const stateU = (reg.state || '').trim().toUpperCase() || null;
+
       const userResult = await client.query(`
         INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code,
-                           role, email_verified, onboarding_status,
+                           city, state, address_line1,
+                           role, email_verified, onboarding_status, onboarding_completed,
+                           membership_tier, profile_completed, tier_selected, terms_accepted, contact_completed,
                            trial_started_at, trial_ends_at)
-        VALUES ($1, $2, $3, $4, $5, $6, 'helper', true, 'verified_pending_onboarding',
-                $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'helper', true, 'onboarding_complete', TRUE,
+                'tier1', TRUE, TRUE, TRUE, TRUE,
+                $10, $11)
         RETURNING id
       `, [reg.email, reg.password_hash, reg.first_name, reg.last_name,
           reg.phone || null, reg.zip_code || null,
+          cityU, stateU, addr1,
           trial_started_at, trial_ends_at]);
 
       userId = userResult.rows[0].id;
+
+      await client.query(
+        `INSERT INTO helper_profiles (user_id, tier, is_listed, service_city, service_state, service_zip, created_at, updated_at)
+         VALUES ($1, 'tier1', false, $2, $3, $4, NOW(), NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           service_city = COALESCE(EXCLUDED.service_city, helper_profiles.service_city),
+           service_state = COALESCE(EXCLUDED.service_state, helper_profiles.service_state),
+           service_zip = COALESCE(EXCLUDED.service_zip, helper_profiles.service_zip),
+           updated_at = NOW()`,
+        [userId, cityU, stateU, reg.zip_code || null],
+      );
 
       // Mark the pending row so we don't re-create on retry
       await client.query(

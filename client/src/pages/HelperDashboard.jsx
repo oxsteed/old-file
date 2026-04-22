@@ -65,34 +65,6 @@ const Modal = ({open,onClose,title,children})=>{
 const localDateStr = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-// ── Onboarding ─────────────────────────────────────────────────────────────
-function getOBSteps(t) {
-  return [
-    {key:'account',label:t('dashboard.onboarding.createAccount'),desc:t('dashboard.onboarding.createAccountDesc'),check:()=>true},
-    {key:'email',label:t('dashboard.onboarding.verifyEmail'),desc:t('dashboard.onboarding.verifyEmailDesc'),check:u=>!!u?.email_verified},
-    {key:'profile',label:t('dashboard.onboarding.profileLocation'),desc:t('dashboard.onboarding.profileLocationDesc'),check:u=>!!u?.profile_completed},
-    {key:'plan',label:t('dashboard.onboarding.choosePlan'),desc:t('dashboard.onboarding.choosePlanDesc'),check:u=>!!u?.tier_selected},
-    {key:'tax',label:t('dashboard.onboarding.taxInfo'),desc:t('dashboard.onboarding.taxInfoDesc'),check:u=>!!u?.w9_completed||u?.effective_tier==='free',onlyFor:u=>u?.effective_tier==='pro'},
-    {key:'review',label:t('dashboard.onboarding.reviewComplete'),desc:t('dashboard.onboarding.reviewCompleteDesc'),check:u=>!!u?.onboarding_completed},
-  ];
-}
-
-function OnboardingProgress({user,onResume}){
-  const { t } = useTranslation();
-  const steps=getOBSteps(t).filter(s=>!s.onlyFor||s.onlyFor(user));
-  const done=steps.filter(s=>s.check(user)).length;
-  const pct=Math.round((done/steps.length)*100);
-  const next=steps.find(s=>!s.check(user));
-  return(
-    <div className="bg-gradient-to-br from-orange-500/[0.08] to-gray-900/90 border border-orange-500/30 rounded-2xl p-6 mb-6">
-      <div className="flex justify-between items-start mb-4"><div><h2 className="text-lg font-bold text-white mb-1">{t('dashboard.onboarding.title')}</h2><p className="text-sm text-gray-500">{t('dashboard.onboarding.subtitle')}</p></div><span className="text-2xl font-extrabold text-orange-400 ml-4">{pct}%</span></div>
-      <ProgressBar pct={pct} color="bg-orange-500"/>
-      <ul className="mt-5 space-y-2">{steps.map(s=>{const d=s.check(user);return(<li key={s.key} className={`flex items-center gap-3 ${d?'opacity-50':''}`}><div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${d?'bg-emerald-500/20 text-emerald-400':'bg-gray-700/40 text-gray-500 border border-gray-600'}`}>{d?'✓':'○'}</div><div><span className={`text-sm font-semibold ${d?'text-gray-500 line-through':'text-gray-200'}`}>{s.label}</span><span className="text-xs text-gray-600 ml-2">{s.desc}</span></div></li>);})}</ul>
-      {next&&<button onClick={onResume} className="mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition text-sm">{next.key==='profile'?t('dashboard.onboarding.addProfile'):next.key==='plan'?t('dashboard.onboarding.choosePlan_btn'):next.key==='tax'?t('dashboard.onboarding.addTax'):next.key==='review'?t('dashboard.onboarding.reviewGoLive'):t('dashboard.onboarding.resume')}</button>}
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HelperDashboard() {
   const { t } = useTranslation();
@@ -988,7 +960,6 @@ export default function HelperDashboard() {
     return user?.first_name || '';
   })();
   const isProActive=subscription?.status==='active';
-  const showOnboarding=!isOnboardingComplete;
   const unreadNotifs=notifications.filter(n=>!n.read&&!n.read_at).length;
   const activeBids=myBids.filter(b=>b.status==='pending'||b.status==='accepted');
   const wonBids=myBids.filter(b=>b.status==='accepted');
@@ -1075,7 +1046,6 @@ export default function HelperDashboard() {
               <span>{t('helperDashboard.someDataFailed')} <button onClick={retryLoad} className="underline hover:text-red-300">{t('common.retry')}</button></span>
             </div>
           )}
-          {showOnboarding&&<div className="mt-6"><OnboardingProgress user={user} onResume={()=>navigate('/settings')}/></div>}
 
           {/* Financial Pulse Score — upgraded to match customer dashboard */}
           {!showOnboarding && fp && (() => {
