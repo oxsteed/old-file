@@ -1,5 +1,5 @@
 // client/src/pages/HelperRegister.tsx
-// 2-step registration: Account → Didit (required) → Helper Dashboard
+// 2-step registration: Account → Didit (optional) → Helper Dashboard
 // Identical structure to CustomerRegister. Onboarding finishes from dashboard.
 
 import { useState, useEffect } from 'react';

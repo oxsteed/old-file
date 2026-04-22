@@ -228,9 +228,11 @@ async function verifyOTP(req, res) {
       const { trial_started_at, trial_ends_at } = trialDefaults();
       const userResult = await client.query(`
         INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code,
-                           role, email_verified, onboarding_status,
+                           role, email_verified, onboarding_status, onboarding_completed,
+                           membership_tier, profile_completed, tier_selected, terms_accepted, contact_completed,
                            trial_started_at, trial_ends_at)
-        VALUES ($1, $2, $3, $4, $5, $6, 'helper', true, 'verified_pending_onboarding',
+        VALUES ($1, $2, $3, $4, $5, $6, 'helper', true, 'onboarding_complete', TRUE,
+                'tier1', TRUE, TRUE, TRUE, TRUE,
                 $7, $8)
         RETURNING id
       `, [reg.email, reg.password_hash, reg.first_name, reg.last_name,
@@ -238,6 +240,13 @@ async function verifyOTP(req, res) {
           trial_started_at, trial_ends_at]);
 
       userId = userResult.rows[0].id;
+
+      await client.query(
+        `INSERT INTO helper_profiles (user_id, tier, is_listed, created_at, updated_at)
+         VALUES ($1, 'tier1', false, NOW(), NOW())
+         ON CONFLICT (user_id) DO NOTHING`,
+        [userId],
+      );
 
       // Mark the pending row so we don't re-create on retry
       await client.query(

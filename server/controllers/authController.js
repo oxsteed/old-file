@@ -93,9 +93,7 @@ async function register(req, res) {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const referralCode = crypto.randomBytes(6).toString('hex');
     const finalRole = role || 'customer';
-const defaultOnboardingStatus = finalRole === 'helper' ? 'verified_pending_onboarding' : null;
-const defaultMembershipTier = finalRole === 'helper' ? 'tier1' : null;
-const { trial_started_at, trial_ends_at } = trialDefaults();
+    const { trial_started_at, trial_ends_at } = trialDefaults();
 
     // Resolve referrer from optional ?ref= code
     let referrerId = null;
@@ -106,18 +104,35 @@ const { trial_started_at, trial_ends_at } = trialDefaults();
       if (refRows.length) referrerId = refRows[0].id;
     }
 
-const { rows } = await pool.query(
-  `INSERT INTO users (email, password_hash, first_name, last_name, phone, role,
-   preferred_language, referral_code, onboarding_status, membership_tier,
-   trial_started_at, trial_ends_at, referred_by)
-   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-   RETURNING id, email, role`,
-  [email.toLowerCase(), passwordHash, first_name, last_name, phone || null,
-   finalRole, language || 'en', referralCode,
-   defaultOnboardingStatus, defaultMembershipTier,
-   trial_started_at, trial_ends_at, referrerId]
-);
+    const isHelper = finalRole === 'helper';
+    const { rows } = await pool.query(
+      `INSERT INTO users (email, password_hash, first_name, last_name, phone, role,
+         preferred_language, referral_code, onboarding_status, membership_tier,
+         trial_started_at, trial_ends_at, referred_by,
+         email_verified, onboarding_completed, profile_completed, tier_selected, terms_accepted, contact_completed)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+         $14, $15, $16, $17, $18, $19)
+       RETURNING id, email, role`,
+      [
+        email.toLowerCase(), passwordHash, first_name, last_name, phone || null,
+        finalRole, language || 'en', referralCode,
+        isHelper ? 'onboarding_complete' : null,
+        isHelper ? 'tier1' : null,
+        trial_started_at, trial_ends_at, referrerId,
+        false,
+        isHelper, isHelper, isHelper, isHelper, isHelper,
+      ]
+    );
     const user = rows[0];
+
+    if (isHelper) {
+      await pool.query(
+        `INSERT INTO helper_profiles (user_id, tier, is_listed, created_at, updated_at)
+         VALUES ($1, 'tier1', false, NOW(), NOW())
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id],
+      );
+    }
 
     // Increment referrer's count
     if (referrerId) {
@@ -638,8 +653,25 @@ async function verifyRegistrationOTP(req, res) {
     }
 
     const userResult = await pool.query(
-      'INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified, terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code, trial_started_at, trial_ends_at, referred_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *',
-      [pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code, 'customer', pending.age_confirmed, pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode, trial_started_at, trial_ends_at, referrerId]
+      `INSERT INTO users (
+         email, password_hash, first_name, last_name, phone, zip_code, role, age_confirmed, email_verified,
+         terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
+         trial_started_at, trial_ends_at, referred_by,
+         onboarding_status, onboarding_completed, profile_completed, tier_selected, terms_accepted,
+         contact_completed, membership_tier
+       ) VALUES (
+         $1,$2,$3,$4,$5,$6,'customer',$7,true,
+         $8,$9,$10,$11,$12,
+         $13,$14,$15,
+         'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
+         TRUE, 'tier1'
+       ) RETURNING *`,
+      [
+        pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
+        pending.age_confirmed,
+        pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
+        trial_started_at, trial_ends_at, referrerId,
+      ]
     );
     const user = userResult.rows[0];
     await pool.query('DELETE FROM pending_registrations WHERE token = $1', [token]);

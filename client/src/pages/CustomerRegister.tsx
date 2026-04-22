@@ -1,5 +1,5 @@
 // client/src/pages/CustomerRegister.tsx
-// 2-step registration: Account → Didit (required) → Dashboard
+// 2-step registration: Account → Didit (optional) → Dashboard
 
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
