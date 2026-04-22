@@ -636,14 +636,19 @@ export default function Dashboard() {
   }, []);
 
   // ── Derived ───────────────────────────────────────────────────────
-  const hr = new Date().getHours();
-  const greeting = hr < 12 ? t('dashboard.greeting', { time: t('dashboard.morning'), name: displayName }) : hr < 17 ? t('dashboard.greeting', { time: t('dashboard.afternoon'), name: displayName }) : t('dashboard.greeting', { time: t('dashboard.evening'), name: displayName });
   const displayName = (() => {
     const pref = user?.display_name_preference || 'first_name';
     if (pref === 'full_name') return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
     if (pref === 'business_name') return user?.business_name || user?.first_name || '';
     return user?.first_name || '';
   })();
+  const hr = new Date().getHours();
+  const greeting =
+    hr < 12
+      ? t('dashboard.greeting', { time: t('dashboard.morning'), name: displayName })
+      : hr < 17
+        ? t('dashboard.greeting', { time: t('dashboard.afternoon'), name: displayName })
+        : t('dashboard.greeting', { time: t('dashboard.evening'), name: displayName });
   const unreadNotifs = Array.isArray(notifications) ? notifications.filter(n => !n.read && !n.read_at).length : 0;
   const unreadMsgs = Array.isArray(conversations) ? conversations.filter(c => c.unread_count > 0).length : 0;
   const activeJobs = Array.isArray(myJobs) ? myJobs.filter(j => ['open','in_progress','published'].includes(j.status)) : [];
