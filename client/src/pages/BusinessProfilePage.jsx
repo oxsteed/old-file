@@ -12,6 +12,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MessageCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -82,6 +84,10 @@ function mapToHelperProfileData(profile, t) {
     categories:    business.business_type ? [business.business_type] : [],
     city:          business.address_city || '',
     state:         business.address_state || '',
+    allowGuestContact:
+      typeof business.allow_guest_contact === 'boolean'
+        ? business.allow_guest_contact
+        : true,
   };
 
   const mappedServices = (services || []).map(s => ({
@@ -267,11 +273,13 @@ export default function BusinessProfilePage() {
   const { id }    = useParams();
   const navigate  = useNavigate();
   const { t }     = useTranslation();
+  const { user } = useAuth();
 
   const [profileData, setProfileData] = useState(null);
   const [loadState,   setLoadState]   = useState('idle');
   const [error,       setError]       = useState(null);
   const [chatOpen,    setChatOpen]    = useState(false);
+  const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
 
   // Scroll padding: Navbar (~64px) + SectionNav (~40px) + breathing room
   useEffect(() => {
@@ -308,7 +316,18 @@ export default function BusinessProfilePage() {
     navigate(`/post-job?${params.toString()}`);
   }, [profileData, navigate]);
 
-  const handleOpenChat  = useCallback(() => setChatOpen(true),  []);
+  const handleOpenChat = useCallback(() => {
+    if (user) {
+      setChatOpen(true);
+      return;
+    }
+    const allow = profileData?.helper?.allowGuestContact !== false;
+    if (allow) {
+      setChatOpen(true);
+    } else {
+      setGuestSignInModalOpen(true);
+    }
+  }, [user, profileData?.helper?.allowGuestContact]);
   const handleSelectService = useCallback(() => {}, []); // future: /book/:id?service=
 
   // ── Loading / error shells ─────────────────────────────────────────────────
@@ -342,6 +361,8 @@ export default function BusinessProfilePage() {
     policies, reviews, faqs, chatSession,
     team, bizId, phone, website,
   } = profileData;
+
+  const isGuestVisitor = !user;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -463,6 +484,7 @@ export default function BusinessProfilePage() {
                   helperName={helper.businessName}
                   helperId={helper.id}
                   businessId={String(bizId)}
+                  isGuest={isGuestVisitor}
                   variant="sidebar"
                   className="h-full"
                 />
@@ -507,11 +529,51 @@ export default function BusinessProfilePage() {
           helperName={helper.businessName}
           helperId={helper.id}
           businessId={String(bizId)}
+          isGuest={isGuestVisitor}
           variant="modal"
           onClose={() => setChatOpen(false)}
           className="h-full"
         />
       </MobileChatDrawer>
+
+      {guestSignInModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="biz-guest-signin-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 shadow-xl">
+            <h2 id="biz-guest-signin-title" className="text-lg font-semibold text-white mb-2">
+              {t('helperProfile.guestSignInTitle', { name: helper.businessName })}
+            </h2>
+            <p className="text-sm text-gray-400 mb-6">
+              {t('helperProfile.guestSignInBody')}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/login"
+                className="flex-1 text-center py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors"
+              >
+                {t('auth.signIn')}
+              </Link>
+              <Link
+                to="/register"
+                className="flex-1 text-center py-2.5 rounded-xl border border-gray-600 text-gray-200 font-semibold text-sm hover:bg-gray-800 transition-colors"
+              >
+                {t('nav.register')}
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={() => setGuestSignInModalOpen(false)}
+              className="mt-4 w-full text-sm text-gray-500 hover:text-gray-300"
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile chat FAB ──────────────────────────────────────────── */}
       {!chatOpen && (

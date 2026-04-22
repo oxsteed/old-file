@@ -811,7 +811,9 @@
     "guestInquiryInvalid": "This inquiry link is invalid.",
     "guestInquiryUnavailable": "Open this inquiry from your inbox",
     "guestInquiryUnavailableHint": "For privacy, guest details are shown when you open a fresh notification from the list.",
-    "guestInquiryMessageLabel": "Their message"
+    "guestInquiryMessageLabel": "Their message",
+    "guestInquiryForbidden": "You don't have access to this inquiry.",
+    "guestInquirySignIn": "Please sign in to view this inquiry."
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",

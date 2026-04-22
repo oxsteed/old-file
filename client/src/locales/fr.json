@@ -811,7 +811,9 @@
     "guestInquiryInvalid": "Ce lien n’est pas valide.",
     "guestInquiryUnavailable": "Ouvrez cette demande depuis votre boîte",
     "guestInquiryUnavailableHint": "Pour la confidentialité, les détails de l’invité s’affichent en ouvrant une notification récente depuis la liste.",
-    "guestInquiryMessageLabel": "Son message"
+    "guestInquiryMessageLabel": "Son message",
+    "guestInquiryForbidden": "Vous n’avez pas accès à cette demande.",
+    "guestInquirySignIn": "Connectez-vous pour voir cette demande."
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",

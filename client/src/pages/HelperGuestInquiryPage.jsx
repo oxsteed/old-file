@@ -1,37 +1,86 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Mail, ArrowLeft } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
+
+/** UUID v4 pattern for guest_profile_chat_inbound.id */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Read-only view for a guest profile inquiry (visitor had no OxSteed account).
- * IDs in the URL look like guest-123 — natural key is the numeric suffix.
+ * URL: /helper/messages/guest/:inquiryId (UUID, optional `guest-` prefix in storage keys).
  */
 export default function HelperGuestInquiryPage() {
   const { inquiryId } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
-  const parsed = useMemo(() => {
-    const raw = String(inquiryId || '');
-    const num = raw.replace(/^guest-/i, '');
-    const id = parseInt(num, 10);
-    return Number.isFinite(id) ? id : null;
+  const inquiryUuid = useMemo(() => {
+    const raw = String(inquiryId || '').trim();
+    const stripped = raw.replace(/^guest-/i, '');
+    return UUID_RE.test(stripped) ? stripped : null;
   }, [inquiryId]);
 
-  const payloadKey = parsed != null ? `oxs:guest-inquiry:${parsed}` : null;
-  const payload = useMemo(() => {
-    if (!payloadKey) return null;
+  const storageKey = inquiryUuid ? `oxs:guest-inquiry:${inquiryUuid}` : null;
+
+  const [payload, setPayload] = useState(() => {
+    if (!storageKey) return null;
     try {
-      const raw = sessionStorage.getItem(payloadKey);
+      const raw = sessionStorage.getItem(storageKey);
       if (!raw) return null;
       return JSON.parse(raw);
     } catch {
       return null;
     }
-  }, [payloadKey]);
+  });
+
+  useEffect(() => {
+    if (!inquiryUuid) {
+      setLoading(false);
+      return;
+    }
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    if (payload?.guestEmail) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get(`/messages/guest-inquiries/${inquiryUuid}`);
+        if (cancelled) return;
+        const next = {
+          guestName: data.other_user_name,
+          guestEmail: data.guest_email,
+          message: data.guest_message_full || data.last_message,
+          createdAt: data.last_message_at || data.created_at,
+        };
+        setPayload(next);
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify(next));
+        } catch { /* quota */ }
+        setFetchError(null);
+      } catch (e) {
+        if (!cancelled) setFetchError(e?.response?.status === 403 ? 'forbidden' : 'error');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inquiryUuid, user]);
 
   const guestName = payload?.guestName || '';
   const guestEmail = payload?.guestEmail || '';
@@ -49,6 +98,30 @@ export default function HelperGuestInquiryPage() {
       ? `mailto:${guestEmail}`
       : '';
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-950">
+        <Navbar />
+        <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+          <p className="text-gray-400">{t('messages.guestInquirySignIn')}</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-950">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
       <Navbar />
@@ -62,8 +135,10 @@ export default function HelperGuestInquiryPage() {
           {t('messages.backToInbox')}
         </button>
 
-        {!parsed ? (
+        {!inquiryUuid ? (
           <p className="text-gray-400">{t('messages.guestInquiryInvalid')}</p>
+        ) : fetchError === 'forbidden' ? (
+          <p className="text-gray-400">{t('messages.guestInquiryForbidden')}</p>
         ) : !payload ? (
           <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
             <h1 className="text-lg font-semibold text-white mb-2">{t('messages.guestInquiryUnavailable')}</h1>

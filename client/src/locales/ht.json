@@ -873,7 +873,9 @@
     "guestInquiryInvalid": "Lyen sa a pa valab.",
     "guestInquiryUnavailable": "Ouvri demann nan nan bwat ou",
     "guestInquiryUnavailableHint": "Pou vi prive, detay envite yo montre lè ou ouvri yon notifikasyon fre nan lis la.",
-    "guestInquiryMessageLabel": "Mesaj yo"
+    "guestInquiryMessageLabel": "Mesaj yo",
+    "guestInquiryForbidden": "Ou pa gen aksè nan demann sa a.",
+    "guestInquirySignIn": "Tanpri konekte pou wè demann sa a."
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",

@@ -111,10 +111,10 @@ export default function HelperInboxPage() {
       return next;
     });
     if (conv.is_guest_inquiry || String(convId).startsWith('guest-')) {
-      const numeric = String(convId).replace(/^guest-/i, '');
+      const uuid = String(convId).replace(/^guest-/i, '');
       try {
         sessionStorage.setItem(
-          `oxs:guest-inquiry:${numeric}`,
+          `oxs:guest-inquiry:${uuid}`,
           JSON.stringify({
             guestName: conv.other_user_name,
             guestEmail: conv.guest_email,
@@ -123,7 +123,7 @@ export default function HelperInboxPage() {
           })
         );
       } catch { /* ignore quota */ }
-      navigate(`/helper/messages/guest/${numeric}`);
+      navigate(`/helper/messages/guest/${uuid}`);
       return;
     }
     navigate(`/helper/messages/${convId}`);

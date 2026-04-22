@@ -678,8 +678,7 @@ exports.guestProfileChatSession = async (req, res) => {
 
     const row = rows[0];
 
-    // Real-time: use profile_chat:new_message so inbox/dashboard match authenticated profile-chat behavior
-    socketService.broadcastToUser(resolvedHelperId, 'profile_chat:new_message', {
+    const guestPayload = {
       conversationId: null,
       guestInquiry: true,
       guestInquiryId: row.id,
@@ -689,6 +688,24 @@ exports.guestProfileChatSession = async (req, res) => {
       message,
       businessId: resolvedBusinessId,
       createdAt: row.created_at,
+    };
+
+    // Owner + active business reps (parity with live profile_chat:new_message)
+    const notifyTargets = new Set([String(resolvedHelperId)]);
+    if (resolvedBusinessId) {
+      try {
+        const repsRes = await pool.query(
+          `SELECT member_id FROM business_members
+           WHERE business_id = $1 AND status = 'active'`,
+          [resolvedBusinessId]
+        );
+        repsRes.rows.forEach((r) => notifyTargets.add(String(r.member_id)));
+      } catch (e) {
+        logger.warn('[GuestProfileChat] rep notify list failed', { message: e.message });
+      }
+    }
+    notifyTargets.forEach((uid) => {
+      socketService.broadcastToUser(uid, 'profile_chat:new_message', guestPayload);
     });
 
     // Email fallback when Resend is configured (helpers are not notified otherwise if offline)

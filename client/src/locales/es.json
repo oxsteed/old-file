@@ -811,7 +811,9 @@
     "guestInquiryInvalid": "Este enlace no es válido.",
     "guestInquiryUnavailable": "Abre esta consulta desde tu bandeja",
     "guestInquiryUnavailableHint": "Por privacidad, los datos del invitado se muestran al abrir una notificación reciente de la lista.",
-    "guestInquiryMessageLabel": "Su mensaje"
+    "guestInquiryMessageLabel": "Su mensaje",
+    "guestInquiryForbidden": "No tienes acceso a esta consulta.",
+    "guestInquirySignIn": "Inicia sesión para ver esta consulta."
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
