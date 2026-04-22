@@ -30,6 +30,7 @@ const securityHeaders = helmet({
         'https://api.didit.me',
         'https://www.google-analytics.com',
         process.env.CLIENT_URL || 'https://oxsteed.com',
+                  'https://o4511157112471552.ingest.us.sentry.io',
       ],
       frameSrc: ['https://js.stripe.com', 'https://hooks.stripe.com', 'https://verify.didit.me'],
       objectSrc: ["'none'"],
