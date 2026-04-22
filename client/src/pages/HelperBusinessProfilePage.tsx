@@ -265,7 +265,7 @@ const HelperBusinessProfilePage: React.FC = () => {
                 onOpenChat={handleOpenChat}
                 hasServices={services.length > 0}
               />
-              <div className="flex-1 min-h-0" style={{ minHeight: '480px', height: '540px' }}>
+              <div className="flex-1 min-h-0" style={{ minHeight: '360px', height: '440px', maxHeight: 'min(520px, 55vh)' }}>
                 <ChatPanel
                   session={chatSession}
                   helperName={helper.businessName}

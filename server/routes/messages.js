@@ -1,10 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { getConversations, getOrCreateConversation, getConversationMeta, getMessages, sendMessage, deleteMessage, editMessage } = require('../controllers/messageController');
+const {
+  getConversations,
+  getGuestInquiries,
+  getGuestInquiryById,
+  getOrCreateConversation,
+  getConversationMeta,
+  getMessages,
+  sendMessage,
+  deleteMessage,
+  editMessage,
+} = require('../controllers/messageController');
 
 // All routes require authentication
 router.use(authenticate);
+
+// GET /api/messages/guest-inquiries — profile visitors without accounts (helper inbox)
+router.get('/guest-inquiries', getGuestInquiries);
+
+// GET /api/messages/guest-inquiries/:id — single inquiry (UUID)
+router.get('/guest-inquiries/:id', getGuestInquiryById);
 
 // GET /api/messages/conversations - Get all conversations
 router.get('/conversations', getConversations);

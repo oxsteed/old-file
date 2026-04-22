@@ -118,7 +118,7 @@ export function MobileChatDrawer({ open, onClose, children }) {
       <div
         ref={drawerRef}
         className="relative mt-auto bg-gray-950 rounded-t-2xl flex flex-col shadow-2xl transition-transform duration-300"
-        style={{ height: '90dvh' }}
+        style={{ height: 'min(72dvh, 640px)' }}
       >
         <div
           className="flex justify-center pt-3 pb-1 flex-shrink-0 cursor-pointer"

@@ -2,6 +2,136 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
 
+/**
+ * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
+ */
+function mapGuestInquiryRow(r) {
+  return {
+      id: `guest-${r.id}`,
+      is_guest_inquiry: true,
+      job_id: null,
+      customer_id: null,
+      helper_id: r.helper_id,
+      business_id: r.business_id,
+      status: 'active',
+      last_message_at: r.created_at,
+      created_at: r.created_at,
+      updated_at: r.created_at,
+      other_user_name: r.guest_name,
+      other_user_id: null,
+      job_title: null,
+      last_message:
+        r.message.length > 140 ? `${r.message.slice(0, 137)}…` : r.message,
+      last_message_sender_id: null,
+      helper_business_name: null,
+      conversation_business_name: r.conversation_business_name,
+      unread_count: 1,
+      guest_email: r.guest_email,
+      guest_message_full: r.message,
+    };
+}
+
+const getGuestInquiries = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const role = req.user.role;
+    if (!['helper', 'helper_pro', 'broker'].includes(role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
+
+    let result;
+    if (filterBizId) {
+      result = await pool.query(
+        `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
+                cb.business_name AS conversation_business_name
+         FROM guest_profile_chat_inbound g
+         LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
+         WHERE g.business_id = $1 AND (
+           g.helper_id = $2 OR EXISTS (
+             SELECT 1 FROM business_members bm
+             WHERE bm.business_id = g.business_id AND bm.member_id = $2 AND bm.status = 'active'
+           )
+         )
+         ORDER BY g.created_at DESC
+         LIMIT 100`,
+        [filterBizId, userId]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
+                cb.business_name AS conversation_business_name
+         FROM guest_profile_chat_inbound g
+         LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
+         WHERE g.helper_id = $1
+            OR (
+              g.business_id IS NOT NULL AND EXISTS (
+                SELECT 1 FROM business_members bm
+                WHERE bm.business_id = g.business_id AND bm.member_id = $1 AND bm.status = 'active'
+              )
+            )
+         ORDER BY g.created_at DESC
+         LIMIT 100`,
+        [userId]
+      );
+    }
+
+    const rows = result.rows.map(mapGuestInquiryRow);
+    res.json(rows);
+  } catch (error) {
+    logger.error('Error fetching guest inquiries', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch guest inquiries' });
+  }
+};
+
+/**
+ * GET /api/messages/guest-inquiries/:id — one guest inquiry (owner or active business rep).
+ */
+const getGuestInquiryById = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const role = req.user.role;
+    if (!['helper', 'helper_pro', 'broker'].includes(role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const inquiryId = req.params.id;
+    if (!inquiryId || typeof inquiryId !== 'string') {
+      return res.status(400).json({ error: 'Invalid inquiry id' });
+    }
+
+    const rowRes = await pool.query(
+      `SELECT g.id, g.helper_id, g.business_id, g.guest_name, g.guest_email, g.message, g.created_at,
+              cb.business_name AS conversation_business_name
+       FROM guest_profile_chat_inbound g
+       LEFT JOIN businesses cb ON cb.id = g.business_id AND cb.is_active = TRUE
+       WHERE g.id = $1`,
+      [inquiryId]
+    );
+
+    const r = rowRes.rows[0];
+    if (!r) return res.status(404).json({ error: 'Not found' });
+
+    let allowed = String(r.helper_id) === String(userId);
+    if (!allowed && r.business_id != null) {
+      const rep = await pool.query(
+        `SELECT 1 FROM business_members bm
+         WHERE bm.business_id = $1 AND bm.member_id = $2 AND bm.status = 'active'`,
+        [r.business_id, userId]
+      );
+      allowed = rep.rows.length > 0;
+    }
+
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    res.json(mapGuestInquiryRow(r));
+  } catch (error) {
+    logger.error('Error fetching guest inquiry', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch guest inquiry' });
+  }
+};
+
 // Get all conversations for the current user (including business rep access)
 // Optional query params: ?business_id=<id> to filter by business
 const getConversations = async (req, res) => {
@@ -442,4 +572,14 @@ const editMessage = async (req, res) => {
   }
 };
 
-module.exports = { getConversations, getOrCreateConversation, getConversationMeta, getMessages, sendMessage, deleteMessage, editMessage };
+module.exports = {
+  getConversations,
+  getGuestInquiries,
+  getGuestInquiryById,
+  getOrCreateConversation,
+  getConversationMeta,
+  getMessages,
+  sendMessage,
+  deleteMessage,
+  editMessage,
+};

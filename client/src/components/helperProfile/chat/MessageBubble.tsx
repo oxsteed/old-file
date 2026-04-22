@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Bot, Building2, User, UserCheck, Copy, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import type { ChatMessage, MessageAuthorType } from '../../../types/helperProfile';
 import api from '../../../api/axios';
+import AutoTranslatedMessage from '../../AutoTranslatedMessage';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -161,7 +162,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${config.bubble} ${
             isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'
           }`}>
-            {message.content}
+            <AutoTranslatedMessage
+              text={message.content}
+              incomingOnly
+              isOwnMessage={isUser}
+              compact
+            />
 
             {/* Attachments */}
             {message.attachments && message.attachments.length > 0 && (

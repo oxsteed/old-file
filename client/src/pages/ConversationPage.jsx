@@ -1,3 +1,4 @@
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useConversationChat } from '../hooks/useConversationChat';
@@ -5,6 +6,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import AutoTranslatedMessage from '../components/AutoTranslatedMessage';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -215,7 +217,11 @@ export default function ConversationPage() {
                         ? 'bg-blue-600 text-white rounded-br-sm'
                         : 'bg-gray-100 text-gray-800 rounded-bl-sm'
                     }`}>
-                      {msg.content}
+                      <AutoTranslatedMessage
+                        text={msg.content}
+                        incomingOnly
+                        isOwnMessage={isMe}
+                      />
                       {msg.updated_at && msg.updated_at > msg.created_at && (
                         <span className="text-xs opacity-75 ml-2">(edited)</span>
                       )}

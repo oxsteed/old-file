@@ -677,14 +677,82 @@ exports.guestProfileChatSession = async (req, res) => {
     );
 
     const row = rows[0];
-    socketService.broadcastToUser(resolvedHelperId, 'profile_chat:guest_message', {
-      id: row.id,
+
+    const guestPayload = {
+      conversationId: null,
+      guestInquiry: true,
+      guestInquiryId: row.id,
+      preview: message.length > 160 ? `${message.slice(0, 157)}…` : message,
       guestName,
       guestEmail,
       message,
       businessId: resolvedBusinessId,
       createdAt: row.created_at,
+    };
+
+    // Owner + active business reps (parity with live profile_chat:new_message)
+    const notifyTargets = new Set([String(resolvedHelperId)]);
+    if (resolvedBusinessId) {
+      try {
+        const repsRes = await pool.query(
+          `SELECT member_id FROM business_members
+           WHERE business_id = $1 AND status = 'active'`,
+          [resolvedBusinessId]
+        );
+        repsRes.rows.forEach((r) => notifyTargets.add(String(r.member_id)));
+      } catch (e) {
+        logger.warn('[GuestProfileChat] rep notify list failed', { message: e.message });
+      }
+    }
+    notifyTargets.forEach((uid) => {
+      socketService.broadcastToUser(uid, 'profile_chat:new_message', guestPayload);
     });
+
+    // Email fallback when Resend is configured (helpers are not notified otherwise if offline)
+    try {
+      const helperUser = await pool.query(
+        `SELECT email, first_name FROM users WHERE id = $1 AND deleted_at IS NULL`,
+        [resolvedHelperId]
+      );
+      const helperEmail = helperUser.rows[0]?.email;
+      if (helperEmail) {
+        const { sendEmail } = require('../utils/email');
+        const siteUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
+        const inboxUrl = `${String(siteUrl).replace(/\/$/, '')}/helper/messages`;
+        const bizNote = resolvedBusinessId
+          ? `\nBusiness context ID: ${resolvedBusinessId}\n`
+          : '\n';
+        const text = [
+          `Hi ${helperUser.rows[0]?.first_name || 'there'},`,
+          '',
+          `You have a new guest inquiry on your OxSteed profile from ${guestName} (${guestEmail}).${bizNote}`,
+          'Message:',
+          message,
+          '',
+          `Reply to the visitor at: ${guestEmail}`,
+          `Open your inbox: ${inboxUrl}`,
+          '',
+          '- OxSteed',
+        ].join('\n');
+        const safeName = String(guestName).replace(/</g, '&lt;');
+        const safeMsg = String(message)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br/>');
+        await sendEmail({
+          to: helperEmail,
+          subject: `New guest message from ${guestName}`,
+          text,
+          html: `<p>Hi ${helperUser.rows[0]?.first_name || 'there'},</p>
+<p><strong>${safeName}</strong> (${guestEmail}) sent you a message from your public profile:</p>
+<p style="white-space:pre-wrap;border-left:3px solid #ea580c;padding-left:12px;margin:16px 0;">${safeMsg}</p>
+<p><a href="mailto:${guestEmail.replace(/"/g, '&quot;')}">Reply via email</a> · <a href="${inboxUrl.replace(/"/g, '&quot;')}">Open inbox</a></p>`,
+        });
+      }
+    } catch (mailErr) {
+      logger.warn('[GuestProfileChat] Email notify failed', { message: mailErr.message });
+    }
 
     return res.status(201).json({
       ok: true,

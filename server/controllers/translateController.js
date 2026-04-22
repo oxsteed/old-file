@@ -1,4 +1,8 @@
-const { translateTexts, getSupportedLanguages } = require('../utils/translateService');
+const { getSupportedLanguages } = require('../utils/translateService');
+const {
+  getTranslations,
+  getCachedDetectedLanguage,
+} = require('../utils/translationCache');
 const logger = require('../utils/logger');
 
 const MAX_TEXTS = 50;      // max strings per request
@@ -9,7 +13,7 @@ const MAX_TEXT_LEN = 5000; // max chars per string
  * Body: { texts: string[], target: string, source?: string }
  */
 exports.translate = async (req, res) => {
-  const { texts, target, source = 'en' } = req.body;
+  let { texts, target, source = 'en' } = req.body;
 
   if (!Array.isArray(texts) || texts.length === 0) {
     return res.status(400).json({ error: 'texts must be a non-empty array' });
@@ -30,8 +34,16 @@ exports.translate = async (req, res) => {
   }
 
   try {
-    const translations = await translateTexts(texts, target, source);
-    return res.json({ translations, source, target });
+    let effectiveSource = source;
+    if (source === 'auto') {
+      const sample =
+        texts.map((x) => String(x || '').trim()).find((s) => s.length > 0) || '';
+      effectiveSource = sample ? await getCachedDetectedLanguage(sample) : 'en';
+    }
+
+    // Redis-backed cache (translationCache) → LibreTranslate on miss
+    const translations = await getTranslations(texts, effectiveSource, target);
+    return res.json({ translations, source: effectiveSource, target });
   } catch (err) {
     logger.error('translate endpoint error', { err: err.message });
     return res.status(502).json({ error: 'Translation service unavailable' });
