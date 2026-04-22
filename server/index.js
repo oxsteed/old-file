@@ -5,6 +5,7 @@ require('dotenv').config();
 // its OpenTelemetry hooks can instrument pg, http, and other modules.
 // dotenv must come first so SENTRY_DSN is available from .env in development.
 require('./instrument');
+const Sentry = require('@sentry/node');
 
 // Validate required env vars before anything else loads
 require('./utils/validateEnv')();
@@ -355,6 +356,13 @@ app.use('/api/settings',     settingsRoutes);
 app.use('/api/discover',     discoverRoutes);
 // NOTE: /api/role-toggle intentionally removed — see comment near top of file
 
+// Sentry wizard "Verify" route — development only (do not expose in production)
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/debug-sentry', (req, res, next) => {
+    next(new Error('Sentry debug test error'));
+  });
+}
+
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
 app.use('/api/chat', chatRoutes);
@@ -385,8 +393,7 @@ if (process.env.NODE_ENV === 'production') {
 
 // ── ERROR HANDLER ────────────────────────────────────────────
 // Sentry error handler must come after all routes and before the generic handler.
-const { setupExpressErrorHandler } = require('@sentry/node');
-setupExpressErrorHandler(app);
+Sentry.setupExpressErrorHandler(app);
 
 // Standardized Error Handler (L-02) to prevent leaking stack traces or internal details.
 app.use(errorHandler);
