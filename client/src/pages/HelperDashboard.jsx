@@ -950,65 +950,71 @@ export default function HelperDashboard() {
     setListingLoading(false);
   };
 
-  // ── Derived ───────────────────────────────────────────────────────────
-  const hr=new Date().getHours();
-  const greeting=hr<12?t('dashboard.morning'):hr<17?t('dashboard.afternoon'):t('dashboard.evening');
+    // ── Derived ───────────────────────────────────────────────────────────
+  const hr = new Date().getHours();
+  const greeting = hr < 12 ? t('dashboard.morning') : hr < 17 ? t('dashboard.afternoon') : t('dashboard.evening');
   const displayName = (() => {
     const pref = user?.display_name_preference || 'first_name';
     if (pref === 'full_name') return `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
     if (pref === 'business_name') return user?.business_name || user?.first_name || '';
     return user?.first_name || '';
   })();
-  const isProActive=subscription?.status==='active';
-  const unreadNotifs=notifications.filter(n=>!n.read&&!n.read_at).length;
-  const activeBids=myBids.filter(b=>b.status==='pending'||b.status==='accepted');
-  const wonBids=myBids.filter(b=>b.status==='accepted');
-  const s=life.summary;
-  const fp=life.financialPulse;
+  const isProActive = subscription?.status === 'active';
+  const unreadNotifs = notifications.filter(n => !n.read && !n.read_at).length;
+  const activeBids = myBids.filter(b => b.status === 'pending' || b.status === 'accepted');
+  const wonBids = myBids.filter(b => b.status === 'accepted');
+  const s = life.summary;
+  const fp = life.financialPulse;
 
-  const tabs = showOnboarding
-    ? [{id:'pulse',label:t('dashboard.tabs.getStarted')}]
-    : [
-        {id:'editprofile',label:t('helperDashboard.tabs.editProfile')},
-        {id:'earnings',   label:t('helperDashboard.tabs.earnings')},
-        {id:'jobs',       label:t('helperDashboard.tabs.findJobs')},
-        {id:'money',      label:t('dashboard.tabs.money')},
-        {id:'home',       label:t('dashboard.tabs.home')},
-        {id:'goals',      label:t('dashboard.tabs.goals')},
-        {id:'personalcare',label:t('dashboard.tabs.personalCare')},
-        {id:'carcare',label:t('dashboard.tabs.carCare')},
-        {id:'skills',label:t('dashboard.tabs.skillsTools')},
-        {id:'products',label:t('dashboard.tabs.products')},
-        {id:'invoices',label:t('helperDashboard.tabs.invoices')},
-        {id:'bids',    label:t('helperDashboard.tabs.myBids')},
-        {id:'reviews', label:t('helperDashboard.tabs.reviews')},
-      ];
+  const tabs = [
+    { id: 'editprofile', label: t('helperDashboard.tabs.editProfile') },
+    { id: 'earnings', label: t('helperDashboard.tabs.earnings') },
+    { id: 'jobs', label: t('helperDashboard.tabs.findJobs') },
+    { id: 'money', label: t('dashboard.tabs.money') },
+    { id: 'home', label: t('dashboard.tabs.home') },
+    { id: 'goals', label: t('dashboard.tabs.goals') },
+    { id: 'personalcare', label: t('dashboard.tabs.personalCare') },
+    { id: 'carcare', label: t('dashboard.tabs.carCare') },
+    { id: 'skills', label: t('dashboard.tabs.skillsTools') },
+    { id: 'products', label: t('dashboard.tabs.products') },
+    { id: 'invoices', label: t('helperDashboard.tabs.invoices') },
+    { id: 'bids', label: t('helperDashboard.tabs.myBids') },
+    { id: 'reviews', label: t('helperDashboard.tabs.reviews') },
+  ];
 
-  if(loading) return(<PageShell><div className="min-h-screen text-white"><div className="flex flex-col items-center justify-center py-24 text-gray-500"><div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"/><span className="text-sm">{t('helperDashboard.loadingDashboard')}</span></div></div></PageShell>);
-
-  return(
+  if (loading) return (
     <PageShell>
-    <div className="min-h-screen text-white">
-      <PageMeta title={t('helperDashboard.title')} description={t('helperDashboard.metaDesc')} noIndex={true} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-          <div>
-            <h1 className="text-4xl font-black text-white tracking-tight mb-2">
-              {t('dashboard.welcome', { name: user?.first_name || 'there' })}
-            </h1>
-            <p className="text-gray-400 font-medium">
-              {t('dashboard.atAGlanceHelper')}
-            </p>
-          </div>
-          <TrialBanner />
+      <div className="min-h-screen text-white">
+        <div className="flex flex-col items-center justify-center py-24 text-gray-500">
+          <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4" />
+          <span className="text-sm">{t('helperDashboard.loadingDashboard')}</span>
         </div>
-        <HelperOffersCard />
+      </div>
+    </PageShell>
+  );
 
-        {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
+  return (
+    <PageShell>
+      <div className="min-h-screen text-white">
+        <PageMeta title={t('helperDashboard.title')} description={t('helperDashboard.metaDesc')} noIndex={true} />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* Status bar */}
-        {!showOnboarding && (
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+            <div>
+              <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+                {t('dashboard.welcome', { name: user?.first_name || 'there' })}
+              </h1>
+              <p className="text-gray-400 font-medium">
+                {t('dashboard.atAGlanceHelper')}
+              </p>
+            </div>
+            <TrialBanner />
+          </div>
+          <HelperOffersCard />
+
+          {welcomeMsg&&<div className="mb-5 flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm font-medium"><span>🎉</span><span>{welcomeMsg}</span></div>}
+
+          {/* Status bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 bg-gray-900/60 border border-gray-700/40 rounded-2xl p-4">
             <div className="flex items-center gap-4">
               <div className={`w-3 h-3 rounded-full ${isListed ? 'bg-emerald-500 animate-pulse' : 'bg-gray-600'}`} />
@@ -1029,23 +1035,22 @@ export default function HelperDashboard() {
               {isListed ? t('helperDashboard.goOffline') : t('helperDashboard.goOnline')}
             </Btn>
           </div>
-        )}
 
-        {/* Tabs */}
-        {tabs.length>1&&(
-          <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-            {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
-          </div>
-        )}
-
-        {/* ═══════ PULSE ═══════ */}
-        {tab==='pulse'&&(<>
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
-              <span>⚠</span>
-              <span>{t('helperDashboard.someDataFailed')} <button onClick={retryLoad} className="underline hover:text-red-300">{t('common.retry')}</button></span>
+          {/* Tabs */}
+          {tabs.length>1&&(
+            <div className="grid grid-cols-4 sm:flex gap-1 my-6 bg-gray-900/80 rounded-xl p-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+              {tabs.map(tb=>(<button key={tb.id} onClick={()=>setTab(tb.id)} className={`px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all sm:whitespace-nowrap text-center flex-shrink-0 ${tab===tb.id?'bg-orange-500 text-gray-950':'text-gray-500 hover:text-gray-300'}`}>{tb.label}</button>))}
             </div>
           )}
+
+          {/* ═══════ PULSE ═══════ */}
+          {tab==='pulse'&&(<>
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-2">
+                <span>⚠</span>
+                <span>{t('helperDashboard.someDataFailed')} <button onClick={retryLoad} className="underline hover:text-red-300">{t('common.retry')}</button></span>
+              </div>
+            )}
 
           {/* Financial Pulse Score — upgraded to match customer dashboard */}
           {!showOnboarding && fp && (() => {
