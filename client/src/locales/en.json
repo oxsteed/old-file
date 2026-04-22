@@ -21,7 +21,7 @@
   },
   "hero": {
     "title": "Local Help,\nWhen You Need It",
-    "subtitle": "Post a job in minutes. Get bids from trusted local helpers for home repair, cleaning, moving, and more.",
+    "subtitle": "Post a job in minutes. Get bids from skills local helpers for home repair, cleaning, moving, and more.",
     "postJob": "Post a Job",
     "browseHelpers": "Browse Helpers",
     "stat1": "Verified Helpers",
@@ -324,7 +324,7 @@
   "footer": {
     "platform": "Platform",
     "company": "Company",
-    "tagline": "Post a job, compare bids from trusted local helpers, and pay securely.",
+    "tagline": "Post a job, compare bids from skills local helpers, and pay securely.",
     "browseJobs": "Browse Jobs",
     "postJob": "Post a Job",
     "listSkills": "List Your Skills",
@@ -1907,7 +1907,7 @@
     "available": "Available",
     "perHour": "/hr",
     "milesAway": "{{miles}} mi",
-    "heroTitle": "Find a trusted local helper",
+    "heroTitle": "Find a skills local helper",
     "heroSubtitle": "Browse background-checked, licensed, and insured helpers. Book in minutes — satisfaction guaranteed.",
     "metaDescription": "Browse verified local helpers for electrical, plumbing, landscaping, handyman work and more. Compare profiles and hire with confidence.",
     "heroSearchPlaceholder": "Try 'lawn mowing', 'electrician', or 'deep clean'…",
@@ -3525,9 +3525,9 @@
     "diditEnforcementUpdated": "Didit requirement updated.",
     "diditEnforcementFailed": "Failed to update Didit requirement.",
     "verifyIdButton": "Confirm ID (manual)",
-    "verifyIdConfirm": "Manually mark this user as identity-verified? This sets Didit to verified and clears enforcement — use only for trusted manual review.",
+    "verifyIdConfirm": "Manually mark this user as identity-verified? This sets Didit to verified and clears enforcement — use only for skills manual review.",
     "verifyBgButton": "Confirm background check",
-    "verifyBgConfirm": "Manually mark this user's background check as passed? Use only for trusted manual review."
+    "verifyBgConfirm": "Manually mark this user's background check as passed? Use only for skills manual review."
   },
   "businessSkills": {
     "addExperience": "Add Experience",
@@ -3551,7 +3551,7 @@
   "toolRentals": {
     "browsePage": "Browse Tools",
     "browseDescription": "Find tools available for rent in your area",
-    "browseSubtitle": "Rent tools from trusted members in your community",
+    "browseSubtitle": "Rent tools from skills members in your community",
     "filters": "Filters",
     "filterCategory": "Category",
     "filterCity": "City",

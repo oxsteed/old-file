@@ -9,7 +9,7 @@ import { getPublicSiteUrl, toAbsoluteUrl } from '../utils/seoDescription';
 const SITE_NAME = 'OxSteed';
 const DEFAULT_TITLE = 'OxSteed — Hire Local Help Today';
 const DEFAULT_DESC =
-  'Post a job, compare bids from trusted local helpers, and pay securely with optional escrow protection. Free to start.';
+  'Post a job, compare bids from skills local helpers, and pay on OxSteed. Free to start.';
 const TWITTER_HANDLE = '@oxsteed';
 
 export default function PageMeta({
