@@ -4,17 +4,51 @@ import * as Sentry from '@sentry/react';
 import App from './App';
 import './index.css';
 
-Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.MODE,
-  sendDefaultPii: false,
-  integrations: [Sentry.browserTracingIntegration()],
-  tracesSampleRate: 0.2,
-});
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: import.meta.env.MODE,
+    sendDefaultPii: false,
+    integrations: [Sentry.browserTracingIntegration()],
+    tracesSampleRate: 0.2,
+  });
+}
+
+function sentryRootFallback({ error, resetError }) {
+  return (
+    <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center justify-center px-6 py-16">
+      <p className="text-lg font-semibold text-white mb-2">Something went wrong</p>
+      <p className="text-sm text-gray-500 text-center max-w-md mb-6">
+        {error instanceof Error ? error.message : 'An unexpected error occurred.'}
+      </p>
+      <div className="flex flex-wrap gap-3 justify-center">
+        <button
+          type="button"
+          onClick={resetError}
+          className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium"
+        >
+          Try again
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = '/';
+          }}
+          className="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium border border-gray-700"
+        >
+          Go home
+        </button>
+      </div>
+    </div>
+  );
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <Sentry.ErrorBoundary fallback={sentryRootFallback}>
+      <App />
+    </Sentry.ErrorBoundary>
   </React.StrictMode>
 );
 
