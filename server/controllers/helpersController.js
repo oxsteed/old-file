@@ -499,7 +499,10 @@ async function getHelperProfile(req, res) {
            COALESCE(hp.show_policies, TRUE) AS show_policies,
            COALESCE(hp.show_gallery, TRUE) AS show_gallery,
            COALESCE(hp.show_hours, TRUE) AS show_hours,
-           COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact
+           COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact,
+           COALESCE(hp.allow_live_chat, TRUE) AS allow_live_chat,
+           COALESCE(hp.allow_booking, TRUE) AS allow_booking,
+           COALESCE(hp.allow_scheduling, TRUE) AS allow_scheduling
          FROM users u
          JOIN helper_profiles hp ON hp.user_id = u.id
          WHERE u.id = $1
@@ -657,6 +660,9 @@ async function getHelperProfile(req, res) {
         jobsCompleted:h.completed_jobs_count   || 0,
         memberSince:  h.member_since,
         allowGuestContact: !!h.allow_guest_contact,
+        allowLiveChat: !!h.allow_live_chat,
+        allowBooking: !!h.allow_booking,
+        allowScheduling: !!h.allow_scheduling,
         verified:     !!h.is_identity_verified,
         responseTime: formatResponseTime(responseHours),
         responseRate: rateRes.rows[0]?.response_rate ?? 0,

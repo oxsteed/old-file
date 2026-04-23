@@ -27,6 +27,8 @@ interface ChatPanelProps {
   businessId?: string;
   /** Visitor without an account — collect name/email and POST to guest session endpoint */
   isGuest?: boolean;
+  /** When false, disables live chat mode; user can only use AI assistant */
+  allowLiveChat?: boolean;
   /** 'sidebar' = embedded on desktop (no close btn). 'modal' = mobile drawer (shows close btn). */
   variant?: 'sidebar' | 'modal';
   onClose?: () => void;
@@ -111,6 +113,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   helperId,
   businessId,
   isGuest = false,
+  allowLiveChat = true,
   variant = 'sidebar',
   onClose,
   className = '',
@@ -469,6 +472,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           helperName={helperName}
           helperStatus={session.helperStatus}
           oxsteedStatus={session.oxsteedStatus}
+          allowLiveChat={allowLiveChat}
           onChange={handleDestinationChange}
         />
       </div>

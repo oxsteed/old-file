@@ -478,13 +478,14 @@ export default function BusinessProfilePage() {
                 onOpenChat={handleOpenChat}
                 hasServices={services.length > 0}
               />
-              <div className="flex-1 min-h-0" style={{ minHeight: '360px', height: '440px', maxHeight: 'min(520px, 55vh)' }}>
+              <div className="flex-1 min-h-0" style={{ minHeight: '360px', maxHeight: 'min(80vh, calc(100vh - 200px))' }}>
                 <ChatPanel
                   session={chatSession}
                   helperName={helper.businessName}
                   helperId={helper.id}
                   businessId={String(bizId)}
                   isGuest={isGuestVisitor}
+                  allowLiveChat={helper.allowLiveChat}
                   variant="sidebar"
                   className="h-full"
                 />
@@ -530,6 +531,7 @@ export default function BusinessProfilePage() {
           helperId={helper.id}
           businessId={String(bizId)}
           isGuest={isGuestVisitor}
+          allowLiveChat={helper.allowLiveChat}
           variant="modal"
           onClose={() => setChatOpen(false)}
           className="h-full"

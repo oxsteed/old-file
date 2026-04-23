@@ -35,6 +35,12 @@ export interface HelperProfile {
   state?: string;
   /** When true, visitors without an account can send a guest message from the public profile */
   allowGuestContact?: boolean;
+  /** When true, helper accepts live chat requests */
+  allowLiveChat?: boolean;
+  /** When true, helper accepts booking requests */
+  allowBooking?: boolean;
+  /** When true, helper accepts scheduling requests */
+  allowScheduling?: boolean;
 }
 
 // ─── Services ───────────────────────────────────────────────────────────────
