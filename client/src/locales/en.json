@@ -3556,7 +3556,13 @@
     "verifyIdButton": "Confirm ID (manual)",
     "verifyIdConfirm": "Manually mark this user as identity-verified? This sets Didit to verified and clears enforcement — use only for skills manual review.",
     "verifyBgButton": "Confirm background check",
-    "verifyBgConfirm": "Manually mark this user's background check as passed? Use only for skills manual review."
+    "verifyBgConfirm": "Manually mark this user's background check as passed? Use only for skills manual review.",
+    "deleteUserButton": "Delete user permanently",
+    "deleteUserConfirm": "Permanently delete this account and related data? This cannot be undone.",
+    "deleteUserTypeEmail": "Type the user's email address to confirm:",
+    "deleteUserEmailMismatch": "Email does not match — deletion cancelled.",
+    "deleteUserReasonPrompt": "Optional audit note (reason):",
+    "deleteUserFailed": "Failed to delete user."
   },
   "businessSkills": {
     "addExperience": "Add Experience",

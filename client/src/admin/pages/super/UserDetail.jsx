@@ -1,16 +1,17 @@
 import { useEffect, useState }  from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, Link }      from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Shield, Ban, CheckCircle,
          ExternalLink, AlertCircle,
          ChevronLeft, MessageSquare,
-         X, Loader2 }           from 'lucide-react';
+         X, Loader2, Trash2 } from 'lucide-react';
 import adminApi                 from '../../../lib/adminApi';
 import { useAuth }              from '../../../hooks/useAuth';
 
 export default function UserDetail() {
   const { t } = useTranslation();
   const { userId }           = useParams();
+  const navigate             = useNavigate();
   const { user: me }         = useAuth();
   const isSuper              = me?.role === 'super_admin';
   const isAdmin              = me?.role === 'admin' || me?.role === 'super_admin';
@@ -112,6 +113,33 @@ export default function UserDetail() {
       setMessage({
         type: 'error',
         text: err.response?.data?.error || 'Role change failed.'
+      });
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const deleteUserAccount = async () => {
+    if (!window.confirm(t('admin.deleteUserConfirm'))) return;
+    const typed = window.prompt(t('admin.deleteUserTypeEmail'), '');
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== (data?.user?.email || '').toLowerCase()) {
+      setMessage({ type: 'error', text: t('admin.deleteUserEmailMismatch') });
+      return;
+    }
+    const reason = window.prompt(t('admin.deleteUserReasonPrompt'), '') ?? '';
+    setWorking(true);
+    setMessage(null);
+    try {
+      const { data: res } = await adminApi.delete(`/admin/users/${userId}`, {
+        data: { reason: reason.trim() || undefined },
+      });
+      setMessage({ type: 'success', text: res.message });
+      navigate('/admin/users');
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.error || t('admin.deleteUserFailed'),
       });
     } finally {
       setWorking(false);
@@ -369,6 +397,21 @@ export default function UserDetail() {
                 <option key={r} value={r} className="capitalize">{r}</option>
               ))}
             </select>
+
+            {!['admin', 'super_admin'].includes(user.role) && me?.id !== user.id && (
+              <button
+                type="button"
+                onClick={deleteUserAccount}
+                disabled={working}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-950
+                           text-red-200 hover:bg-red-900 border border-red-800
+                           rounded-lg text-xs font-semibold transition
+                           disabled:opacity-50"
+              >
+                <Trash2 size={13} />
+                {t('admin.deleteUserButton')}
+              </button>
+            )}
             </>
         )}
       </div>

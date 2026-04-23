@@ -3556,7 +3556,13 @@
     "verifyIdButton": "Confirmar ID (manual)",
     "verifyIdConfirm": "¿Marcar manualmente la identidad como verificada? Esto marca Didit como verificado y quita el requisito forzoso — solo para revisión manual de confianza.",
     "verifyBgButton": "Confirmar verificación de antecedentes",
-    "verifyBgConfirm": "¿Marcar manualmente la verificación de antecedentes como aprobada? Solo para revisión manual de confianza."
+    "verifyBgConfirm": "¿Marcar manualmente la verificación de antecedentes como aprobada? Solo para revisión manual de confianza.",
+    "deleteUserButton": "Eliminar usuario permanentemente",
+    "deleteUserConfirm": "¿Eliminar permanentemente esta cuenta y datos relacionados? No se puede deshacer.",
+    "deleteUserTypeEmail": "Escribe el correo del usuario para confirmar:",
+    "deleteUserEmailMismatch": "El correo no coincide — eliminación cancelada.",
+    "deleteUserReasonPrompt": "Nota de auditoría opcional (motivo):",
+    "deleteUserFailed": "No se pudo eliminar el usuario."
   },
   "businessSkills": {
     "addExperience": "Agregar Experiencia",

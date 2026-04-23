@@ -3555,7 +3555,13 @@
     "verifyIdButton": "Konfime ID (manyèl)",
     "verifyIdConfirm": "Eske w vle make idantite itilizatè a kòm verifye manyèlman? Sa ap mete Didit verified e retire obligasyon an — sèlman pou revizyon konfyans.",
     "verifyBgButton": "Konfime verifikasyon antsedan",
-    "verifyBgConfirm": "Eske w vle make verifikasyon antsedan an kòm pase manyèlman? Sèlman pou revizyon konfyans."
+    "verifyBgConfirm": "Eske w vle make verifikasyon antsedan an kòm pase manyèlman? Sèlman pou revizyon konfyans.",
+    "deleteUserButton": "Efase itilizatè a nèt",
+    "deleteUserConfirm": "Efase kont sa a ak tout done li yo nèt? Sa pa ka defèt.",
+    "deleteUserTypeEmail": "Tape imèl itilizatè a pou konfime:",
+    "deleteUserEmailMismatch": "Imèl la pa matche — efase anile.",
+    "deleteUserReasonPrompt": "Nòt odit opsyonèl (rezon):",
+    "deleteUserFailed": "Pa t kapab efase itilizatè a."
   },
   "businessSkills": {
     "addExperience": "Ajoute Eksperyans",
