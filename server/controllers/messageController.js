@@ -392,6 +392,86 @@ const getConversationMeta = async (req, res) => {
   }
 };
 
+// Search messages in a conversation by keyword and/or sender
+const searchMessages = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    const q = (req.query.q || '').trim().slice(0, 200);
+    const sender = (req.query.sender || 'all').toLowerCase();
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    const { customer_id, helper_id } = conv.rows[0];
+
+    // Build query based on filters
+    let whereClause = `m.conversation_id = $1 AND m.deleted_at IS NULL`;
+    const params = [conversationId];
+
+    // Filter by keyword if provided
+    if (q) {
+      params.push(`%${q}%`);
+      whereClause += ` AND m.content ILIKE $${params.length}`;
+    }
+
+    // Filter by sender if specified (me = current user, helper = the other helper/customer)
+    if (sender === 'me') {
+      params.push(userId);
+      whereClause += ` AND m.sender_id = $${params.length}`;
+    } else if (sender === 'helper') {
+      const otherId = userId === customer_id ? helper_id : customer_id;
+      params.push(otherId);
+      whereClause += ` AND m.sender_id = $${params.length}`;
+    }
+
+    // Count total results (without limit/offset)
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM messages m WHERE ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get paginated results
+    params.push(limit);
+    params.push(offset);
+    const result = await pool.query(
+      `SELECT m.*, u.first_name || ' ' || u.last_name AS sender_name
+       FROM messages m
+       LEFT JOIN users u ON m.sender_id = u.id
+       WHERE ${whereClause}
+       ORDER BY m.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    res.json({
+      results: result.rows,
+      total,
+      limit,
+      offset,
+      hasMore: offset + limit < total,
+    });
+  } catch (error) {
+    logger.error('Error searching messages', { err: error.message });
+    res.status(500).json({ error: 'Failed to search messages' });
+  }
+};
+
 // Send a message
 const sendMessage = async (req, res) => {
   try {
@@ -597,6 +677,7 @@ module.exports = {
   getOrCreateConversation,
   getConversationMeta,
   getMessages,
+  searchMessages,
   sendMessage,
   deleteMessage,
   editMessage,

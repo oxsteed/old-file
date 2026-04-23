@@ -3025,7 +3025,15 @@
       "helperMsgSub": "Message the business directly",
       "talkToOxsteed": "Talk to OxSteed",
       "oxsteedSub": "Platform support & help",
-      "seen": "Seen"
+      "seen": "Seen",
+      "searchPlaceholder": "Search messages…",
+      "searchFilterAll": "All messages",
+      "searchFilterMe": "My messages",
+      "searchFilterHelper": "Their messages",
+      "searchResults": "{{count}} result found",
+      "searchResultsPlural": "{{count}} results found",
+      "searchNoResults": "No messages match your search",
+      "searchLoading": "Searching…"
     }
   },
   "disputes": {

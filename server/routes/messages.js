@@ -9,6 +9,7 @@ const {
   getOrCreateConversation,
   getConversationMeta,
   getMessages,
+  searchMessages,
   sendMessage,
   deleteMessage,
   editMessage,
@@ -34,6 +35,9 @@ router.get('/conversations/:conversationId/meta', getConversationMeta);
 
 // GET /api/messages/conversations/:conversationId - Get messages for a conversation
 router.get('/conversations/:conversationId', getMessages);
+
+// GET /api/messages/conversations/:conversationId/search - Search messages in conversation
+router.get('/conversations/:conversationId/search', searchMessages);
 
 // POST /api/messages/conversations/:conversationId - Send a message
 router.post('/conversations/:conversationId', conversationMessageLimiter, sendMessage);

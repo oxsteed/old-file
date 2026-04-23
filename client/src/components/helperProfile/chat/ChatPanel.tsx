@@ -134,6 +134,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // null until the first AI response is received; echoed back on every subsequent send.
   const [threadId,         setThreadId]         = useState<string | null>(null);
 
+  // Search state
+  const [searchQuery,      setSearchQuery]      = useState('');
+  const [searchFilter,     setSearchFilter]     = useState<'all' | 'me' | 'helper'>('all');
+  const [searchResults,    setSearchResults]    = useState<ChatMessage[]>([]);
+  const [searchLoading,    setSearchLoading]    = useState(false);
+  const searchTimeoutRef   = useRef<NodeJS.Timeout | null>(null);
+
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -532,6 +539,62 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     handleSend(text);
   }, [handleSend]);
 
+  // Debounced search handler
+  const performSearch = useCallback(async (q: string, filter: string) => {
+    if (!conversationId) return;
+
+    if (!q.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const { data } = await api.get(`/messages/conversations/${conversationId}/search`, {
+        params: {
+          q: q.trim(),
+          sender: filter,
+          limit: 50,
+          offset: 0,
+        },
+      });
+      setSearchResults(data.results || []);
+    } catch (error) {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [conversationId]);
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, []);
+
+  // Debounce search input
+  const handleSearchQueryChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(q, searchFilter);
+    }, 300);
+  }, [searchFilter, performSearch]);
+
+  const handleSearchFilterChange = useCallback((filter: 'all' | 'me' | 'helper') => {
+    setSearchFilter(filter);
+    if (searchQuery.trim()) {
+      performSearch(searchQuery, filter);
+    }
+  }, [searchQuery, performSearch]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+  }, []);
+
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
@@ -585,6 +648,37 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           allowLiveChat={allowLiveChat}
           onChange={handleDestinationChange}
         />
+
+        {/* Search bar */}
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchQueryChange(e.target.value)}
+            placeholder={t('helperProfile.chat.searchPlaceholder')}
+            className="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-500"
+            aria-label={t('helperProfile.chat.searchPlaceholder')}
+          />
+          <select
+            value={searchFilter}
+            onChange={(e) => handleSearchFilterChange(e.target.value as 'all' | 'me' | 'helper')}
+            className="rounded-lg bg-gray-800 border border-gray-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+            aria-label="Filter search results"
+          >
+            <option value="all">{t('helperProfile.chat.searchFilterAll')}</option>
+            <option value="me">{t('helperProfile.chat.searchFilterMe')}</option>
+            <option value="helper">{t('helperProfile.chat.searchFilterHelper')}</option>
+          </select>
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Context banner (when OxSteed selected) ─────────── */}
@@ -672,8 +766,40 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         />
       )}
 
-      {/* ── Timeline / Empty state ──────────────────────────── */}
-      {showOfflineWall ? (
+      {/* ── Timeline / Search Results / Empty state ──────────── */}
+      {searchQuery ? (
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+          {searchLoading && (
+            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchLoading')}</p>
+          )}
+          {!searchLoading && searchResults.length === 0 && (
+            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchNoResults')}</p>
+          )}
+          {searchResults.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500 text-center mb-2">
+                {searchResults.length === 1
+                  ? t('helperProfile.chat.searchResults', { count: searchResults.length })
+                  : t('helperProfile.chat.searchResultsPlural', { count: searchResults.length })}
+              </p>
+              <div className="space-y-2">
+                {searchResults.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className="p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:border-brand-600/50 transition-colors cursor-pointer"
+                    onClick={clearSearch}
+                  >
+                    <p className="text-xs text-gray-500 mb-1">
+                      {msg.sender_name || 'Unknown'} • {new Date(msg.timestamp).toLocaleString()}
+                    </p>
+                    <p className="line-clamp-2 text-gray-200">{msg.content}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      ) : showOfflineWall ? (
         <UnavailableState
           destination={session.destination}
           helperName={helperName}

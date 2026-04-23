@@ -3024,7 +3024,15 @@
       "helperMsgSub": "Voye mesaj dirèkteman bay biznis lan",
       "talkToOxsteed": "Pale ak OxSteed",
       "oxsteedSub": "Sipò ak èd platfòm",
-      "seen": "Li"
+      "seen": "Li",
+      "searchPlaceholder": "Chèche mesaj…",
+      "searchFilterAll": "Tout mesaj",
+      "searchFilterMe": "Mesaj mwen",
+      "searchFilterHelper": "Mesaj yo",
+      "searchResults": "{{count}} rezilta jwenn",
+      "searchResultsPlural": "{{count}} rezilta jwenn",
+      "searchNoResults": "Pa gen mesaj ki koresponn ak chèch la",
+      "searchLoading": "Chèche…"
     }
   },
   "disputes": {
