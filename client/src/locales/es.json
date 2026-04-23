@@ -696,7 +696,20 @@
       "guestContactDesc": "Controla si los visitantes sin cuenta de OxSteed pueden iniciar un mensaje desde tu perfil público de ayudante.",
       "guestContactLabel": "Permitir que usuarios no registrados me envíen mensajes",
       "guestContactUpdated": "Preferencia guardada",
-      "guestContactFailed": "No se pudo actualizar la preferencia"
+      "guestContactFailed": "No se pudo actualizar la preferencia",
+      "communicationControls": "Controles de Comunicación",
+      "jobControls": "Controles de Trabajo",
+      "liveChatTitle": "Chat en Vivo",
+      "liveChatDesc": "Permite que los clientes te envíen mensajes en vivo mientras estés en línea.",
+      "liveChatLabel": "Aceptar mensajes de chat en vivo",
+      "bookingTitle": "Reserva",
+      "bookingDesc": "Controla si los clientes pueden colocarte trabajos para que ofertes o aceptes directamente.",
+      "bookingLabel": "Aceptar reservas de trabajo",
+      "schedulingTitle": "Programación",
+      "schedulingDesc": "Permite que los clientes vean tu disponibilidad y programen citas.",
+      "schedulingLabel": "Permitir programación de citas",
+      "updated": "Configuración de privacidad actualizada",
+      "updateFailed": "No se pudo actualizar la configuración de privacidad"
     },
     "account": {
       "title": "Tipo de Cuenta",
