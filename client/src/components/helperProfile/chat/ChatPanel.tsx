@@ -249,8 +249,35 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }));
     };
 
+    const handleMessageEdited = (payload: { conversationId: string; message: any }) => {
+      if (payload.conversationId !== conversationId) return;
+      const msg = payload.message;
+      setSession(prev => ({
+        ...prev,
+        timeline: prev.timeline.map(item =>
+          item.itemType === 'message' && item.id === String(msg.id)
+            ? { ...item, content: msg.content, timestamp: msg.edited_at || item.timestamp }
+            : item
+        ),
+      }));
+    };
+
+    const handleMessageDeleted = (payload: { conversationId: string; messageId: string }) => {
+      if (payload.conversationId !== conversationId) return;
+      setSession(prev => ({
+        ...prev,
+        timeline: prev.timeline.filter(item => !(item.itemType === 'message' && item.id === String(payload.messageId))),
+      }));
+    };
+
     socket.on('message:new', handleNewMessage);
-    return () => { socket.off('message:new', handleNewMessage); };
+    socket.on('message:edited', handleMessageEdited);
+    socket.on('message:deleted', handleMessageDeleted);
+    return () => {
+      socket.off('message:new', handleNewMessage);
+      socket.off('message:edited', handleMessageEdited);
+      socket.off('message:deleted', handleMessageDeleted);
+    };
   }, [socket, conversationId]);
 
   const currentStatus =

@@ -333,7 +333,7 @@ const getMessages = async (req, res) => {
       `SELECT m.*, u.first_name || ' ' || u.last_name AS sender_name
        FROM messages m
        LEFT JOIN users u ON m.sender_id = u.id
-       WHERE m.conversation_id = $1
+       WHERE m.conversation_id = $1 AND m.deleted_at IS NULL
        ORDER BY m.created_at ASC
        LIMIT $2 OFFSET $3`,
       [conversationId, limit, offset]
@@ -497,7 +497,7 @@ const deleteMessage = async (req, res) => {
 
     // Verify message exists and user is the sender
     const msgResult = await pool.query(
-      `SELECT m.id, m.sender_id, m.conversation_id
+      `SELECT m.id, m.sender_id, m.conversation_id, m.deleted_at
        FROM messages m
        WHERE m.id = $1 AND m.conversation_id = $2`,
       [messageId, conversationId]
@@ -512,8 +512,15 @@ const deleteMessage = async (req, res) => {
       return res.status(403).json({ error: 'You can only delete your own messages' });
     }
 
-    // Delete the message
-    await pool.query('DELETE FROM messages WHERE id = $1', [messageId]);
+    if (message.deleted_at) {
+      return res.status(400).json({ error: 'Message is already deleted' });
+    }
+
+    // Soft delete the message (set deleted_at timestamp)
+    await pool.query(
+      'UPDATE messages SET deleted_at = NOW() WHERE id = $1',
+      [messageId]
+    );
 
     // Broadcast delete event to the conversation room
     socketService.broadcastToConversation(conversationId, 'message:deleted', {
@@ -533,14 +540,17 @@ const editMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId, messageId } = req.params;
-    const content = (req.body.content || '').trim();
+    const rawContent = (req.body.content || '').trim();
 
-    if (!content) return res.status(400).json({ error: 'Message content is required' });
-    if (content.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+    if (!rawContent) return res.status(400).json({ error: 'Message content is required' });
+    if (rawContent.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+
+    // Sanitize message content to prevent XSS
+    const content = sanitizeMessage(rawContent);
 
     // Verify message exists and user is the sender
     const msgResult = await pool.query(
-      `SELECT m.id, m.sender_id, m.conversation_id
+      `SELECT m.id, m.sender_id, m.conversation_id, m.deleted_at
        FROM messages m
        WHERE m.id = $1 AND m.conversation_id = $2`,
       [messageId, conversationId]
@@ -555,16 +565,20 @@ const editMessage = async (req, res) => {
       return res.status(403).json({ error: 'You can only edit your own messages' });
     }
 
-    // Update the message
+    if (message.deleted_at) {
+      return res.status(400).json({ error: 'Cannot edit a deleted message' });
+    }
+
+    // Update the message with edited_at timestamp
     const result = await pool.query(
-      `UPDATE messages SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      `UPDATE messages SET content = $1, edited_at = NOW() WHERE id = $2 RETURNING *`,
       [content, messageId]
     );
 
     const updatedMessage = result.rows[0];
 
     // Broadcast edit event to the conversation room
-    socketService.broadcastToConversation(conversationId, 'message:updated', {
+    socketService.broadcastToConversation(conversationId, 'message:edited', {
       conversationId,
       message: updatedMessage,
     });
