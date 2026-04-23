@@ -3,6 +3,7 @@ const { ROLES }     = require('../constants/roles');
 const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
+const { sanitizeMessage } = require('../utils/messageSanitizer');
 
 // BCP-47 code → English name, covering all languages LibreTranslate exposes
 const LANGUAGE_NAMES = {
@@ -646,7 +647,8 @@ exports.guestProfileChatSession = async (req, res) => {
 
     const guestName = String(rawName || '').trim().slice(0, 200);
     const guestEmail = String(rawEmail || '').trim().toLowerCase().slice(0, 254);
-    const message = String(rawMessage || '').trim().slice(0, 2000);
+    const rawMsg = String(rawMessage || '').trim().slice(0, 2000);
+    const message = sanitizeMessage(rawMsg);
 
     if (!guestName || !guestEmail || !message) {
       return res.status(400).json({ error: 'guestName, guestEmail, and message are required' });
@@ -754,10 +756,65 @@ exports.guestProfileChatSession = async (req, res) => {
       logger.warn('[GuestProfileChat] Email notify failed', { message: mailErr.message });
     }
 
+    // Generate guest token so they can return to check for replies
+    const jwt = require('jsonwebtoken');
+    const guestToken = jwt.sign(
+      {
+        guestEmail,
+        guestName,
+        helperId: resolvedHelperId,
+        businessId: resolvedBusinessId,
+        inquiryId: row.id,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    // Send confirmation email to guest
+    try {
+      const { sendEmail } = require('../utils/email');
+      const siteUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
+      const returnUrl = `${String(siteUrl).replace(/\/$/, '')}/helpers/${resolvedHelperId}?guest-token=${guestToken}`;
+      const helperName = (await pool.query(
+        `SELECT first_name, last_name FROM users WHERE id = $1`,
+        [resolvedHelperId]
+      )).rows[0];
+      const helperFullName = `${helperName?.first_name || ''} ${helperName?.last_name || ''}`.trim() || 'the helper';
+
+      const text = [
+        `Hi ${guestName},`,
+        '',
+        `Thank you for reaching out to ${helperFullName} on OxSteed!`,
+        '',
+        'Your message was delivered. The helper may reply by email.',
+        'You can also return to check for replies here:',
+        returnUrl,
+        '',
+        'This link will work for 30 days.',
+        '',
+        '- OxSteed',
+      ].join('\n');
+
+      const safeHelperName = String(helperFullName).replace(/</g, '&lt;');
+      await sendEmail({
+        to: guestEmail,
+        subject: `Message delivered to ${helperFullName}`,
+        text,
+        html: `<p>Hi ${String(guestName).replace(/</g, '&lt;')},</p>
+<p>Thank you for reaching out to <strong>${safeHelperName}</strong> on OxSteed!</p>
+<p>Your message was delivered. The helper may reply by email or you can <a href="${returnUrl}">check back here for replies</a>.</p>
+<p><em>This link will work for 30 days.</em></p>`,
+      });
+    } catch (mailErr) {
+      logger.warn('[GuestProfileChat] Confirmation email failed', { message: mailErr.message });
+      // Non-fatal: guest inquiry was saved, just email failed
+    }
+
     return res.status(201).json({
       ok: true,
       id: row.id,
-      message: 'Your message was sent. The helper may reply by email.',
+      token: guestToken,
+      message: 'Your message was sent. A confirmation email has been sent to your inbox.',
     });
   } catch (err) {
     logger.error('[GuestProfileChat]', { message: err.message });

@@ -1,6 +1,8 @@
 const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
+const { sanitizeMessage } = require('../utils/messageSanitizer');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
@@ -133,11 +135,12 @@ const getGuestInquiryById = async (req, res) => {
 };
 
 // Get all conversations for the current user (including business rep access)
-// Optional query params: ?business_id=<id> to filter by business
+// Optional query params: ?business_id=<id> to filter by business, ?include_archived=true to show archived
 const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
     const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
+    const includeArchived = req.query.include_archived === 'true';
 
     const params = [userId];
     let bizFilter = '';
@@ -146,9 +149,12 @@ const getConversations = async (req, res) => {
       bizFilter = ` AND c.business_id = $${params.length}`;
     }
 
+    // By default, exclude archived conversations; add filter to include them if requested
+    const archivedFilter = includeArchived ? '' : ' AND c.archived_at IS NULL';
+
     const result = await pool.query(
       `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
-              c.last_message_at, c.created_at, c.updated_at,
+              c.archived_at, c.last_message_at, c.created_at, c.updated_at,
               CASE
                 WHEN c.customer_id = $1 THEN h.first_name || ' ' || h.last_name
                 WHEN c.helper_id   = $1 THEN cu.first_name || ' ' || cu.last_name
@@ -192,7 +198,7 @@ const getConversations = async (req, res) => {
            SELECT 1 FROM business_members bm
            WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
          ))
-       ) AND c.status = 'active'${bizFilter}
+       ) AND c.status = 'active'${bizFilter}${archivedFilter}
        ORDER BY c.last_message_at DESC NULLS LAST`,
       params
     );
@@ -226,58 +232,47 @@ const getOrCreateConversation = async (req, res) => {
     }
 
     const bizId = businessId ? parseInt(businessId, 10) || null : null;
+    const jobIdParam = jobId || null;
 
-    let result;
-    if (jobId) {
-      result = await pool.query(
-        'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id = $3',
-        [userId, helperId, jobId]
-      );
-    } else if (bizId) {
-      result = await pool.query(
-        'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id = $3',
-        [userId, helperId, bizId]
-      );
-    } else {
-      result = await pool.query(
-        'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL',
-        [userId, helperId]
-      );
-    }
+    // Use a single consolidated query that handles all three cases with conditional WHERE
+    const result = await pool.query(
+      `SELECT * FROM conversations
+       WHERE customer_id = $1 AND helper_id = $2
+         AND (
+           (job_id = $3)
+           OR (job_id IS NULL AND business_id = $4)
+           OR (job_id IS NULL AND business_id IS NULL AND $3 IS NULL AND $4 IS NULL)
+         )`,
+      [userId, helperId, jobIdParam, bizId]
+    );
 
     if (result.rows.length > 0) {
       return res.json(result.rows[0]);
     }
 
-    let newConv;
-    if (jobId) {
-      newConv = await pool.query(
-        'INSERT INTO conversations (customer_id, helper_id, job_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *',
-        [userId, helperId, jobId]
-      );
-    } else if (bizId) {
-      newConv = await pool.query(
-        'INSERT INTO conversations (customer_id, helper_id, business_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *',
-        [userId, helperId, bizId]
-      );
-    } else {
-      newConv = await pool.query(
-        'INSERT INTO conversations (customer_id, helper_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *',
-        [userId, helperId]
-      );
-    }
+    // Try to insert the conversation with the appropriate parameters
+    const newConv = await pool.query(
+      `INSERT INTO conversations (customer_id, helper_id, job_id, business_id)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
+      [userId, helperId, jobIdParam, bizId]
+    );
 
     if (newConv.rows.length) {
       return res.status(201).json(newConv.rows[0]);
     }
-    // Concurrent insert: fetch the row that already exists
+
+    // Concurrent insert: fetch the row that was inserted by another request
     const existing = await pool.query(
-      jobId
-        ? 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id = $3'
-        : bizId
-        ? 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id = $3'
-        : 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL',
-      jobId ? [userId, helperId, jobId] : bizId ? [userId, helperId, bizId] : [userId, helperId]
+      `SELECT * FROM conversations
+       WHERE customer_id = $1 AND helper_id = $2
+         AND (
+           (job_id = $3)
+           OR (job_id IS NULL AND business_id = $4)
+           OR (job_id IS NULL AND business_id IS NULL AND $3 IS NULL AND $4 IS NULL)
+         )`,
+      [userId, helperId, jobIdParam, bizId]
     );
     if (!existing.rows[0]) return res.status(500).json({ error: 'Failed to create conversation' });
     res.json(existing.rows[0]);
@@ -332,7 +327,7 @@ const getMessages = async (req, res) => {
       `SELECT m.*, u.first_name || ' ' || u.last_name AS sender_name
        FROM messages m
        LEFT JOIN users u ON m.sender_id = u.id
-       WHERE m.conversation_id = $1
+       WHERE m.conversation_id = $1 AND m.deleted_at IS NULL
        ORDER BY m.created_at ASC
        LIMIT $2 OFFSET $3`,
       [conversationId, limit, offset]
@@ -391,15 +386,98 @@ const getConversationMeta = async (req, res) => {
   }
 };
 
+// Search messages in a conversation by keyword and/or sender
+const searchMessages = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    const q = (req.query.q || '').trim().slice(0, 200);
+    const sender = (req.query.sender || 'all').toLowerCase();
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    const { customer_id, helper_id } = conv.rows[0];
+
+    // Build query based on filters
+    let whereClause = `m.conversation_id = $1 AND m.deleted_at IS NULL`;
+    const params = [conversationId];
+
+    // Filter by keyword if provided
+    if (q) {
+      params.push(`%${q}%`);
+      whereClause += ` AND m.content ILIKE $${params.length}`;
+    }
+
+    // Filter by sender if specified (me = current user, helper = the other helper/customer)
+    if (sender === 'me') {
+      params.push(userId);
+      whereClause += ` AND m.sender_id = $${params.length}`;
+    } else if (sender === 'helper') {
+      const otherId = userId === customer_id ? helper_id : customer_id;
+      params.push(otherId);
+      whereClause += ` AND m.sender_id = $${params.length}`;
+    }
+
+    // Combine count + select into one query using a CTE (Common Table Expression)
+    // This avoids two round-trips to the database for the same filtered data
+    params.push(limit);
+    params.push(offset);
+    const result = await pool.query(
+      `WITH filtered_messages AS (
+         SELECT m.*, u.first_name || ' ' || u.last_name AS sender_name,
+                COUNT(*) OVER() AS total
+         FROM messages m
+         LEFT JOIN users u ON m.sender_id = u.id
+         WHERE ${whereClause}
+       )
+       SELECT * FROM filtered_messages
+       ORDER BY created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    const total = result.rows.length > 0 ? parseInt(result.rows[0].total) : 0;
+
+    res.json({
+      results: result.rows,
+      total,
+      limit,
+      offset,
+      hasMore: offset + limit < total,
+    });
+  } catch (error) {
+    logger.error('Error searching messages', { err: error.message });
+    res.status(500).json({ error: 'Failed to search messages' });
+  }
+};
+
 // Send a message
 const sendMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
-    const content = (req.body.content || '').trim();
+    const rawContent = (req.body.content || '').trim();
 
-    if (!content) return res.status(400).json({ error: 'Message content is required' });
-    if (content.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+    if (!rawContent) return res.status(400).json({ error: 'Message content is required' });
+    if (rawContent.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+
+    // Sanitize message to prevent XSS
+    const content = sanitizeMessage(rawContent);
 
     // Verify user is part of conversation (direct participant or active business rep)
     const conv = await pool.query(
@@ -478,6 +556,69 @@ const sendMessage = async (req, res) => {
       }
     }
 
+    // Send notifications based on user preferences (async, non-blocking)
+    setImmediate(async () => {
+      try {
+        const notifData = { conversationId, senderName };
+        if (userId === customer_id) {
+          // Customer sent — notify the helper/owner
+          await sendNotification({
+            userId: helper_id,
+            type: 'new_message',
+            title: 'New message from ' + senderName,
+            body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+            data: notifData,
+            action_url: `/messages/${conversationId}`,
+          });
+        } else if (userId === helper_id) {
+          // Owner sent — notify the customer
+          await sendNotification({
+            userId: customer_id,
+            type: 'new_message',
+            title: 'New message from ' + senderName,
+            body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+            data: notifData,
+            action_url: `/messages/${conversationId}`,
+          });
+        } else {
+          // Rep sent — notify the customer and owner
+          await Promise.all([
+            sendNotification({
+              userId: customer_id,
+              type: 'new_message',
+              title: 'New message from ' + senderName,
+              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+              data: notifData,
+              action_url: `/messages/${conversationId}`,
+            }),
+            sendNotification({
+              userId: helper_id,
+              type: 'new_message',
+              title: 'New message from ' + senderName,
+              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+              data: notifData,
+              action_url: `/messages/${conversationId}`,
+            }),
+          ]);
+        }
+        // Notify all other reps
+        for (const repId of repIds) {
+          if (repId !== userId && repId !== helper_id) {
+            await sendNotification({
+              userId: repId,
+              type: 'new_message',
+              title: 'New message from ' + senderName,
+              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+              data: notifData,
+              action_url: `/messages/${conversationId}`,
+            });
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to send chat notifications', { err: err.message, conversationId });
+      }
+    });
+
     res.status(201).json(messagePayload);
   } catch (error) {
     logger.error('Error sending message', { err: error.message });
@@ -493,7 +634,7 @@ const deleteMessage = async (req, res) => {
 
     // Verify message exists and user is the sender
     const msgResult = await pool.query(
-      `SELECT m.id, m.sender_id, m.conversation_id
+      `SELECT m.id, m.sender_id, m.conversation_id, m.deleted_at
        FROM messages m
        WHERE m.id = $1 AND m.conversation_id = $2`,
       [messageId, conversationId]
@@ -508,8 +649,15 @@ const deleteMessage = async (req, res) => {
       return res.status(403).json({ error: 'You can only delete your own messages' });
     }
 
-    // Delete the message
-    await pool.query('DELETE FROM messages WHERE id = $1', [messageId]);
+    if (message.deleted_at) {
+      return res.status(400).json({ error: 'Message is already deleted' });
+    }
+
+    // Soft delete the message (set deleted_at timestamp)
+    await pool.query(
+      'UPDATE messages SET deleted_at = NOW() WHERE id = $1',
+      [messageId]
+    );
 
     // Broadcast delete event to the conversation room
     socketService.broadcastToConversation(conversationId, 'message:deleted', {
@@ -529,14 +677,17 @@ const editMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId, messageId } = req.params;
-    const content = (req.body.content || '').trim();
+    const rawContent = (req.body.content || '').trim();
 
-    if (!content) return res.status(400).json({ error: 'Message content is required' });
-    if (content.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+    if (!rawContent) return res.status(400).json({ error: 'Message content is required' });
+    if (rawContent.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+
+    // Sanitize message content to prevent XSS
+    const content = sanitizeMessage(rawContent);
 
     // Verify message exists and user is the sender
     const msgResult = await pool.query(
-      `SELECT m.id, m.sender_id, m.conversation_id
+      `SELECT m.id, m.sender_id, m.conversation_id, m.deleted_at
        FROM messages m
        WHERE m.id = $1 AND m.conversation_id = $2`,
       [messageId, conversationId]
@@ -551,16 +702,20 @@ const editMessage = async (req, res) => {
       return res.status(403).json({ error: 'You can only edit your own messages' });
     }
 
-    // Update the message
+    if (message.deleted_at) {
+      return res.status(400).json({ error: 'Cannot edit a deleted message' });
+    }
+
+    // Update the message with edited_at timestamp
     const result = await pool.query(
-      `UPDATE messages SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      `UPDATE messages SET content = $1, edited_at = NOW() WHERE id = $2 RETURNING *`,
       [content, messageId]
     );
 
     const updatedMessage = result.rows[0];
 
     // Broadcast edit event to the conversation room
-    socketService.broadcastToConversation(conversationId, 'message:updated', {
+    socketService.broadcastToConversation(conversationId, 'message:edited', {
       conversationId,
       message: updatedMessage,
     });
@@ -572,6 +727,312 @@ const editMessage = async (req, res) => {
   }
 };
 
+// Add a reaction to a message
+const addReaction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+    const { reaction } = req.body;
+
+    // Validate reaction type
+    const validReactions = ['thumbs_up', 'heart', 'laugh', 'sad', 'angry', 'wow'];
+    if (!reaction || !validReactions.includes(reaction)) {
+      return res.status(400).json({ error: 'Invalid reaction type' });
+    }
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Verify message exists and belongs to this conversation
+    const msg = await pool.query(
+      `SELECT id FROM messages WHERE id = $1 AND conversation_id = $2 AND deleted_at IS NULL`,
+      [messageId, conversationId]
+    );
+    if (msg.rows.length === 0) return res.status(404).json({ error: 'Message not found' });
+
+    // Insert or ignore if reaction already exists (upsert behavior)
+    const result = await pool.query(
+      `INSERT INTO message_reactions (message_id, user_id, reaction)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (message_id, user_id, reaction) DO NOTHING
+       RETURNING *`,
+      [messageId, userId, reaction]
+    );
+
+    // Fetch all reactions for this message to broadcast the updated state
+    const reactionsResult = await pool.query(
+      `SELECT reaction, COUNT(*) as count, array_agg(user_id) as users
+       FROM message_reactions
+       WHERE message_id = $1
+       GROUP BY reaction`,
+      [messageId]
+    );
+
+    // Broadcast reaction update to all participants in the conversation
+    socketService.broadcastToConversation(conversationId, 'message:reaction', {
+      conversationId,
+      messageId,
+      reaction,
+      userId,
+      allReactions: reactionsResult.rows,
+    });
+
+    res.status(201).json({ reaction, allReactions: reactionsResult.rows });
+  } catch (error) {
+    logger.error('Error adding reaction', { err: error.message });
+    res.status(500).json({ error: 'Failed to add reaction' });
+  }
+};
+
+// Remove a reaction from a message
+const removeReaction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+    const { reaction } = req.body;
+
+    // Validate reaction type
+    const validReactions = ['thumbs_up', 'heart', 'laugh', 'sad', 'angry', 'wow'];
+    if (!reaction || !validReactions.includes(reaction)) {
+      return res.status(400).json({ error: 'Invalid reaction type' });
+    }
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Remove the reaction
+    const deleteResult = await pool.query(
+      `DELETE FROM message_reactions
+       WHERE message_id = $1 AND user_id = $2 AND reaction = $3
+       RETURNING *`,
+      [messageId, userId, reaction]
+    );
+
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Reaction not found' });
+    }
+
+    // Fetch updated reactions for this message
+    const reactionsResult = await pool.query(
+      `SELECT reaction, COUNT(*) as count, array_agg(user_id) as users
+       FROM message_reactions
+       WHERE message_id = $1
+       GROUP BY reaction`,
+      [messageId]
+    );
+
+    // Broadcast reaction update
+    socketService.broadcastToConversation(conversationId, 'message:reaction_removed', {
+      conversationId,
+      messageId,
+      reaction,
+      userId,
+      allReactions: reactionsResult.rows,
+    });
+
+    res.json({ reaction, allReactions: reactionsResult.rows });
+  } catch (error) {
+    logger.error('Error removing reaction', { err: error.message });
+    res.status(500).json({ error: 'Failed to remove reaction' });
+  }
+};
+
+// Archive a conversation
+const archiveConversation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    const { reason } = req.body;
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id FROM conversations c
+       WHERE c.id = $1 AND (c.customer_id = $2 OR c.helper_id = $2)`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Archive the conversation
+    const result = await pool.query(
+      `UPDATE conversations
+       SET archived_at = NOW()
+       WHERE id = $1 AND archived_at IS NULL
+       RETURNING *`,
+      [conversationId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Conversation is already archived' });
+    }
+
+    // Log the archival event
+    await pool.query(
+      `INSERT INTO conversation_archive_log (conversation_id, user_id, action, reason)
+       VALUES ($1, $2, 'archived', $3)`,
+      [conversationId, userId, reason || null]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    logger.error('Error archiving conversation', { err: error.message });
+    res.status(500).json({ error: 'Failed to archive conversation' });
+  }
+};
+
+// Restore an archived conversation
+const restoreConversation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id FROM conversations c
+       WHERE c.id = $1 AND (c.customer_id = $2 OR c.helper_id = $2)`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Restore the conversation
+    const result = await pool.query(
+      `UPDATE conversations
+       SET archived_at = NULL
+       WHERE id = $1 AND archived_at IS NOT NULL
+       RETURNING *`,
+      [conversationId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Conversation is not archived' });
+    }
+
+    // Log the restoration event
+    await pool.query(
+      `INSERT INTO conversation_archive_log (conversation_id, user_id, action)
+       VALUES ($1, $2, 'restored')`,
+      [conversationId, userId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    logger.error('Error restoring conversation', { err: error.message });
+    res.status(500).json({ error: 'Failed to restore conversation' });
+  }
+};
+
+// Get archived conversations for the current user
+const getArchivedConversations = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+
+    const result = await pool.query(
+      `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
+              c.archived_at, c.last_message_at,
+              CASE
+                WHEN c.customer_id = $1 THEN h.first_name || ' ' || h.last_name
+                WHEN c.helper_id   = $1 THEN cu.first_name || ' ' || cu.last_name
+                ELSE cu.first_name || ' ' || cu.last_name
+              END AS other_user_name,
+              j.title AS job_title
+       FROM conversations c
+       LEFT JOIN users h  ON c.helper_id   = h.id
+       LEFT JOIN users cu ON c.customer_id = cu.id
+       LEFT JOIN jobs j   ON c.job_id      = j.id
+       WHERE (c.customer_id = $1 OR c.helper_id = $1)
+         AND c.archived_at IS NOT NULL
+       ORDER BY c.archived_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM conversations
+       WHERE (customer_id = $1 OR helper_id = $1) AND archived_at IS NOT NULL`,
+      [userId]
+    );
+
+    res.json({
+      archived: result.rows,
+      total: parseInt(countResult.rows[0].count),
+      limit,
+      offset,
+      hasMore: offset + limit < parseInt(countResult.rows[0].count),
+    });
+  } catch (error) {
+    logger.error('Error fetching archived conversations', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch archived conversations' });
+  }
+};
+
+// Get all reactions for a message
+const getMessageReactions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Fetch all reactions and details
+    const result = await pool.query(
+      `SELECT
+         mr.reaction,
+         COUNT(*) as count,
+         array_agg(json_build_object('user_id', u.id, 'name', u.first_name || ' ' || u.last_name))
+           FILTER (WHERE u.id IS NOT NULL) as users,
+         BOOL_OR(mr.user_id = $2) as user_reacted
+       FROM message_reactions mr
+       LEFT JOIN users u ON mr.user_id = u.id
+       WHERE mr.message_id = $1
+       GROUP BY mr.reaction`,
+      [messageId, userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    logger.error('Error fetching reactions', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch reactions' });
+  }
+};
+
 module.exports = {
   getConversations,
   getGuestInquiries,
@@ -579,7 +1040,14 @@ module.exports = {
   getOrCreateConversation,
   getConversationMeta,
   getMessages,
+  searchMessages,
   sendMessage,
   deleteMessage,
   editMessage,
+  addReaction,
+  removeReaction,
+  getMessageReactions,
+  archiveConversation,
+  restoreConversation,
+  getArchivedConversations,
 };

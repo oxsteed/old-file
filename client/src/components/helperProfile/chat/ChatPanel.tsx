@@ -27,6 +27,8 @@ interface ChatPanelProps {
   businessId?: string;
   /** Visitor without an account — collect name/email and POST to guest session endpoint */
   isGuest?: boolean;
+  /** When false, disables live chat mode; user can only use AI assistant */
+  allowLiveChat?: boolean;
   /** 'sidebar' = embedded on desktop (no close btn). 'modal' = mobile drawer (shows close btn). */
   variant?: 'sidebar' | 'modal';
   onClose?: () => void;
@@ -77,7 +79,7 @@ const DestinationContextBanner: React.FC<{
   return (
     <div
       className="flex items-center gap-2 px-4 py-2.5 bg-violet-900/20 border-b border-violet-800/50"
-      aria-label="You are talking to OxSteed platform support"
+      aria-label={t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
     >
       <Building2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" aria-hidden="true" />
       <p className="text-xs text-violet-300">
@@ -111,6 +113,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   helperId,
   businessId,
   isGuest = false,
+  allowLiveChat = true,
   variant = 'sidebar',
   onClose,
   className = '',
@@ -130,6 +133,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // threadId ties this chat session to server-side Redis history (AI mode only).
   // null until the first AI response is received; echoed back on every subsequent send.
   const [threadId,         setThreadId]         = useState<string | null>(null);
+
+  // Search state
+  const [searchQuery,      setSearchQuery]      = useState('');
+  const [searchFilter,     setSearchFilter]     = useState<'all' | 'me' | 'helper'>('all');
+  const [searchResults,    setSearchResults]    = useState<ChatMessage[]>([]);
+  const [searchLoading,    setSearchLoading]    = useState(false);
+  const searchTimeoutRef   = useRef<NodeJS.Timeout | null>(null);
+
+  // Pagination state
+  const [messageOffset,    setMessageOffset]    = useState(0);
+  const [hasMoreMessages,  setHasMoreMessages]  = useState(true);
+  const [loadingOlder,     setLoadingOlder]     = useState(false);
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -151,17 +166,85 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [helperId]);
 
   const guestStorageKey = `oxs:guest-contact:${helperId}:${businessId ?? 'personal'}`;
+  const guestTokenKey = `oxs:guest-token:${helperId}:${businessId ?? 'personal'}`;
+
   useEffect(() => {
     if (!isGuest) return;
-    try {
-      const raw = sessionStorage.getItem(guestStorageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { name?: string; email?: string };
-      if (parsed?.name?.trim()) setGuestName(parsed.name.trim());
-      if (parsed?.email?.trim()) setGuestEmail(parsed.email.trim());
-      if (parsed?.name?.trim() && parsed?.email?.trim()) setGuestContactSaved(true);
-    } catch { /* ignore */ }
-  }, [isGuest, guestStorageKey]);
+
+    // Try to restore from URL guest-token param first (returning visitor)
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('guest-token');
+
+    let restored = false;
+
+    if (urlToken) {
+      try {
+        const decoded = JSON.parse(atob(urlToken.split('.')[1])) as any;
+        const now = Math.floor(Date.now() / 1000);
+        if (decoded.exp && decoded.exp < now) {
+          // Token expired
+          localStorage.removeItem(guestTokenKey);
+          return;
+        }
+        if (decoded.guestEmail?.trim()) {
+          setGuestEmail(decoded.guestEmail.trim());
+          setGuestName(decoded.guestName?.trim() || '');
+          if (decoded.guestEmail?.trim() && decoded.guestName?.trim()) {
+            setGuestContactSaved(true);
+            localStorage.setItem(guestTokenKey, urlToken);
+            restored = true;
+          }
+        }
+      } catch {
+        // Invalid token, ignore
+      }
+    }
+
+    // Fall back to localStorage guest token
+    if (!restored) {
+      try {
+        const savedToken = localStorage.getItem(guestTokenKey);
+        if (savedToken) {
+          const decoded = JSON.parse(atob(savedToken.split('.')[1])) as any;
+          const now = Math.floor(Date.now() / 1000);
+          if (decoded.exp && decoded.exp < now) {
+            localStorage.removeItem(guestTokenKey);
+            return;
+          }
+          if (decoded.guestEmail?.trim()) {
+            setGuestEmail(decoded.guestEmail.trim());
+            setGuestName(decoded.guestName?.trim() || '');
+            if (decoded.guestEmail?.trim() && decoded.guestName?.trim()) {
+              setGuestContactSaved(true);
+              restored = true;
+            }
+          }
+        }
+      } catch {
+        localStorage.removeItem(guestTokenKey);
+      }
+    }
+
+    // Fall back to sessionStorage contact form data
+    if (!restored) {
+      try {
+        const raw = sessionStorage.getItem(guestStorageKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { name?: string; email?: string };
+        if (parsed?.name?.trim()) setGuestName(parsed.name.trim());
+        if (parsed?.email?.trim()) setGuestEmail(parsed.email.trim());
+        if (parsed?.name?.trim() && parsed?.email?.trim()) setGuestContactSaved(true);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [isGuest, guestStorageKey, guestTokenKey]);
+
+  // Reset pagination when conversation changes
+  useEffect(() => {
+    setMessageOffset(0);
+    setHasMoreMessages(true);
+  }, [conversationId]);
 
   // ── Real-time: listen for helper replies via Socket.IO ───────────────────
   useEffect(() => {
@@ -184,8 +267,50 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }));
     };
 
+    const handleMessageEdited = (payload: { conversationId: string; message: any }) => {
+      if (payload.conversationId !== conversationId) return;
+      const msg = payload.message;
+      setSession(prev => ({
+        ...prev,
+        timeline: prev.timeline.map(item =>
+          item.itemType === 'message' && item.id === String(msg.id)
+            ? { ...item, content: msg.content, timestamp: msg.edited_at || item.timestamp }
+            : item
+        ),
+      }));
+    };
+
+    const handleMessageDeleted = (payload: { conversationId: string; messageId: string }) => {
+      if (payload.conversationId !== conversationId) return;
+      setSession(prev => ({
+        ...prev,
+        timeline: prev.timeline.filter(item => !(item.itemType === 'message' && item.id === String(payload.messageId))),
+      }));
+    };
+
+    const handleMessagesRead = (payload: { conversationId: string; readBy: string; readAt: string }) => {
+      if (payload.conversationId !== conversationId) return;
+      // Mark all messages sent by current user as read
+      setSession(prev => ({
+        ...prev,
+        timeline: prev.timeline.map(item =>
+          item.itemType === 'message' && item.authorType === 'user'
+            ? { ...item, isRead: true, readAt: payload.readAt }
+            : item
+        ),
+      }));
+    };
+
     socket.on('message:new', handleNewMessage);
-    return () => { socket.off('message:new', handleNewMessage); };
+    socket.on('message:edited', handleMessageEdited);
+    socket.on('message:deleted', handleMessageDeleted);
+    socket.on('messages:read', handleMessagesRead);
+    return () => {
+      socket.off('message:new', handleNewMessage);
+      socket.off('message:edited', handleMessageEdited);
+      socket.off('message:deleted', handleMessageDeleted);
+      socket.off('messages:read', handleMessagesRead);
+    };
   }, [socket, conversationId]);
 
   const currentStatus =
@@ -225,13 +350,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         timeline: [...prev.timeline, userMsg],
       }));
       try {
-        await api.post('/chat/sessions/guest', {
+        const res = await api.post('/chat/sessions/guest', {
           helperId,
           ...(businessId ? { businessId } : {}),
           guestName: name,
           guestEmail: email,
           message: text,
         });
+
+        // Save guest token for future visits
+        if (res.data?.token) {
+          localStorage.setItem(guestTokenKey, res.data.token);
+        }
+
         const ack: TimelineEvent = {
           id:        `evt-${Date.now()}-guest`,
           itemType:  'system',
@@ -419,10 +550,98 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     handleSend(text);
   }, [handleSend]);
 
+  // Debounced search handler
+  const performSearch = useCallback(async (q: string, filter: string) => {
+    if (!conversationId) return;
+
+    if (!q.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const { data } = await api.get(`/messages/conversations/${conversationId}/search`, {
+        params: {
+          q: q.trim(),
+          sender: filter,
+          limit: 50,
+          offset: 0,
+        },
+      });
+      setSearchResults(data.results || []);
+    } catch (error) {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [conversationId]);
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, []);
+
+  // Debounce search input
+  const handleSearchQueryChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(q, searchFilter);
+    }, 300);
+  }, [searchFilter, performSearch]);
+
+  const handleSearchFilterChange = useCallback((filter: 'all' | 'me' | 'helper') => {
+    setSearchFilter(filter);
+    if (searchQuery.trim()) {
+      performSearch(searchQuery, filter);
+    }
+  }, [searchQuery, performSearch]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchResults([]);
+  }, []);
+
+  // Load older messages
+  const loadOlderMessages = useCallback(async () => {
+    if (!conversationId || loadingOlder || !hasMoreMessages) return;
+
+    setLoadingOlder(true);
+    try {
+      const newOffset = messageOffset + 50;
+      const { data } = await api.get(`/messages/conversations/${conversationId}`, {
+        params: { limit: 50, offset: newOffset },
+      });
+
+      if (data && data.length > 0) {
+        // Prepend older messages to the beginning of timeline (filter out duplicates)
+        const messageIds = new Set(data.map((m: ChatMessage) => m.id));
+        setSession(prev => ({
+          ...prev,
+          timeline: [...data, ...prev.timeline.filter(item => !(item.itemType === 'message' && messageIds.has(item.id)))],
+        }));
+        setMessageOffset(newOffset);
+        if (data.length < 50) {
+          setHasMoreMessages(false);
+        }
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error('Error loading older messages:', error);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [conversationId, messageOffset, loadingOlder, hasMoreMessages]);
+
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
-      aria-label="Chat panel"
+      aria-label={t('helperProfile.chat.chatPanel')}
       role="region"
     >
       {/* ── Header ─────────────────────────────────────────── */}
@@ -447,7 +666,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               }}
               className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
               aria-label={t('messages.clearChat') || 'Clear chat'}
-              title="Clear all messages"
+              title={t('messages.clearChat')}
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -469,8 +688,40 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           helperName={helperName}
           helperStatus={session.helperStatus}
           oxsteedStatus={session.oxsteedStatus}
+          allowLiveChat={allowLiveChat}
           onChange={handleDestinationChange}
         />
+
+        {/* Search bar */}
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchQueryChange(e.target.value)}
+            placeholder={t('helperProfile.chat.searchPlaceholder')}
+            className="flex-1 rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-500"
+            aria-label={t('helperProfile.chat.searchPlaceholder')}
+          />
+          <select
+            value={searchFilter}
+            onChange={(e) => handleSearchFilterChange(e.target.value as 'all' | 'me' | 'helper')}
+            className="rounded-lg bg-gray-800 border border-gray-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+            aria-label={t('helperProfile.chat.filterSearchResults')}
+          >
+            <option value="all">{t('helperProfile.chat.searchFilterAll')}</option>
+            <option value="me">{t('helperProfile.chat.searchFilterMe')}</option>
+            <option value="helper">{t('helperProfile.chat.searchFilterHelper')}</option>
+          </select>
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+              aria-label={t('helperProfile.chat.clearSearch')}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Context banner (when OxSteed selected) ─────────── */}
@@ -558,22 +809,67 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         />
       )}
 
-      {/* ── Timeline / Empty state ──────────────────────────── */}
-      {showOfflineWall ? (
+      {/* ── Timeline / Search Results / Empty state ──────────── */}
+      {searchQuery ? (
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+          {searchLoading && (
+            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchLoading')}</p>
+          )}
+          {!searchLoading && searchResults.length === 0 && (
+            <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchNoResults')}</p>
+          )}
+          {searchResults.length > 0 && (
+            <>
+              <p className="text-xs text-gray-500 text-center mb-2">
+                {searchResults.length === 1
+                  ? t('helperProfile.chat.searchResults', { count: searchResults.length })
+                  : t('helperProfile.chat.searchResultsPlural', { count: searchResults.length })}
+              </p>
+              <div className="space-y-2">
+                {searchResults.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className="p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:border-brand-600/50 transition-colors cursor-pointer"
+                    onClick={clearSearch}
+                  >
+                    <p className="text-xs text-gray-500 mb-1">
+                      {msg.sender_name || 'Unknown'} • {new Date(msg.timestamp).toLocaleString()}
+                    </p>
+                    <p className="line-clamp-2 text-gray-200">{msg.content}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      ) : showOfflineWall ? (
         <UnavailableState
           destination={session.destination}
           helperName={helperName}
         />
       ) : (
-        <ChatTimeline
-          items={displayTimeline}
-          helperName={helperName}
-          typing={sending ? session.typing : null}
-          currentUserId={user?.id}
-          onMessageDelete={handleMessageDelete}
-          onMessageEdit={handleMessageEdit}
-          onQuickReply={handleQuickReply}
-        />
+        <div className="flex flex-col h-full">
+          {hasMoreMessages && (
+            <div className="px-4 pt-3 pb-2 flex-shrink-0">
+              <button
+                onClick={loadOlderMessages}
+                disabled={loadingOlder}
+                className="w-full py-2 px-3 text-xs text-gray-400 hover:text-gray-300 border border-gray-700/50 rounded-lg hover:border-gray-600/50 transition-colors disabled:opacity-50"
+              >
+                {loadingOlder ? t('common.loading') : t('messages.loadOlderMessages', { defaultValue: 'Load Older Messages' })}
+              </button>
+            </div>
+          )}
+          <ChatTimeline
+            items={displayTimeline}
+            helperName={helperName}
+            typing={sending ? session.typing : null}
+            currentUserId={user?.id}
+            onMessageDelete={handleMessageDelete}
+            onMessageEdit={handleMessageEdit}
+            onQuickReply={handleQuickReply}
+          />
+        </div>
       )}
 
       {/* ── Composer ────────────────────────────────────────── */}

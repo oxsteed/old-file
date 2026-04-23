@@ -150,16 +150,21 @@
       "in_app_new_review": "Nouvo kòmantè resevwa",
       "in_app_dispute_update": "Mizajou dispute",
       "in_app_subscription": "Mizajou abònman",
+      "in_app_new_message": "Nouvo mesaj chat",
+      "in_app_message_mention": "Lè yo menn mwen nan chat",
       "push_new_job_nearby": "Nouvo travay pre ou",
       "push_new_bid": "Nouvo òf resevwa",
       "push_bid_accepted": "Òf aksepte",
       "push_payment_released": "Peman libere",
       "push_dispute_update": "Mizajou dispute",
+      "push_new_message": "Nouvo mesaj chat",
+      "push_message_mention": "Lè yo menn mwen nan chat",
       "email_bid_accepted": "Òf aksepte",
       "email_payment_released": "Peman libere",
       "email_subscription": "Mizajou abònman",
       "email_dispute_update": "Mizajou dispute",
-      "email_weekly_summary": "Rezime chak semèn"
+      "email_weekly_summary": "Rezime chak semèn",
+      "email_new_message": "Nouvo mesaj chat"
     }
   },
   "jobs": {
@@ -891,7 +896,25 @@
     "guestInquirySignIn": "Tanpri konekte pou wè demann sa a.",
     "translating": "Ap tradui…",
     "showOriginalMessage": "Montre orijinal la",
-    "showTranslationMessage": "Montre tradiksyon an"
+    "showTranslationMessage": "Montre tradiksyon an",
+    "loadOlderMessages": "Chaje Vye Mesaj",
+    "reactions": {
+      "thumbs_up": "👍 Gwo pous",
+      "heart": "❤️ Renmen",
+      "laugh": "😂 Komik",
+      "sad": "😢 Triste",
+      "angry": "😠 Fache",
+      "wow": "😮 Wow"
+    },
+    "addReaction": "Ajoute reyaksyon",
+    "reactedWith": "Ou reyaji avèk {{reaction}}",
+    "removeReaction": "Retire reyaksyon",
+    "archive": "Archive conversation",
+    "archived": "Conversation archived",
+    "restore": "Restore conversation",
+    "restored": "Conversation restored",
+    "viewArchived": "View archived conversations",
+    "noArchivedConversations": "No archived conversations"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -3023,7 +3046,31 @@
       "talkToHelper": "Pale ak asistan sa a",
       "helperMsgSub": "Voye mesaj dirèkteman bay biznis lan",
       "talkToOxsteed": "Pale ak OxSteed",
-      "oxsteedSub": "Sipò ak èd platfòm"
+      "oxsteedSub": "Sipò ak èd platfòm",
+      "helperOffline": "Asistan sa a pa anliy kounye a",
+      "liveChatDisabled": "Chat dirèk la deaktive pou asistan sa a",
+      "seen": "Li",
+      "searchPlaceholder": "Chèche mesaj…",
+      "searchFilterAll": "Tout mesaj",
+      "searchFilterMe": "Mesaj mwen",
+      "searchFilterHelper": "Mesaj yo",
+      "searchResults": "{{count}} rezilta jwenn",
+      "searchResultsPlural": "{{count}} rezilta jwenn",
+      "searchNoResults": "Pa gen mesaj ki koresponn ak chèch la",
+      "searchLoading": "Chèche…",
+      "copyMessage": "Kopye mesaj",
+      "copied": "Kopye!",
+      "helpfulLabel": "Itil",
+      "helpful": "Sa a te itil",
+      "notHelpful": "Sa a pa t itil",
+      "notHelpfulLabel": "Pa itil",
+      "quickReplies": "Repons vit",
+      "editMessage": "Edite mesaj",
+      "deleteMessage": "Efase mesaj",
+      "deleteConfirm": "Efase mesaj sa a?",
+      "messageComposer": "Konpoze Mesaj",
+      "chatPanel": "Panèl Chat",
+      "filterSearchResults": "Filtye rezilta chèch"
     }
   },
   "disputes": {

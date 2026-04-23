@@ -9,6 +9,7 @@ interface ChatDestinationDropdownProps {
   helperName: string;
   helperStatus: ChatStatus;
   oxsteedStatus: ChatStatus;
+  allowLiveChat?: boolean;
   onChange: (dest: ChatDestination) => void;
 }
 
@@ -22,6 +23,7 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
   helperName,
   helperStatus,
   oxsteedStatus,
+  allowLiveChat = true,
   onChange,
 }) => {
   const { t } = useTranslation();
@@ -29,6 +31,8 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
   const ref = useRef<HTMLDivElement>(null);
   const openRef = useRef(open);
   useEffect(() => { openRef.current = open; }, [open]);
+
+  const helperLiveDisabled = helperStatus !== 'live' || !allowLiveChat;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -92,14 +96,22 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
             const title = destTitle(key);
             const sub = destSub(key);
             const selected = destination === key;
+            const disabled = key === 'helper' && helperLiveDisabled;
+            const disabledReason = key === 'helper'
+              ? (helperStatus !== 'live' ? t('helperProfile.chat.helperOffline') : t('helperProfile.chat.liveChatDisabled'))
+              : '';
+
             return (
               <button
                 key={key}
                 role="option"
                 aria-selected={selected}
-                onClick={() => { onChange(key); setOpen(false); }}
+                disabled={disabled}
+                onClick={() => { if (!disabled) { onChange(key); setOpen(false); } }}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                  selected
+                  disabled
+                    ? 'opacity-50 cursor-not-allowed'
+                    : selected
                     ? 'bg-brand-500/10 border-l-2 border-brand-500'
                     : 'hover:bg-gray-700/60 border-l-2 border-transparent'
                 }`}
@@ -115,14 +127,23 @@ const ChatDestinationDropdown: React.FC<ChatDestinationDropdownProps> = ({
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-sm font-medium truncate ${
-                      selected ? 'text-white' : 'text-gray-300'
-                    }`}
-                  >
-                    {title}
+                  <div className="flex items-center gap-2">
+                    <p
+                      className={`text-sm font-medium truncate ${
+                        selected ? 'text-white' : 'text-gray-300'
+                      }`}
+                    >
+                      {title}
+                    </p>
+                    {key === 'helper' && helperStatus === 'live' && (
+                      <span className="inline-block px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs font-semibold rounded">
+                        LIVE
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">
+                    {disabled ? disabledReason : sub}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{sub}</p>
                   <p className="text-xs text-gray-600 truncate">{label}</p>
                 </div>
                 <StatusBadge status={status} className="flex-shrink-0" />

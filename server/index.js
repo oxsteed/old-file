@@ -405,12 +405,14 @@ httpServer.listen(PORT, async () => {
 });
 
 // ── CRON JOBS ────────────────────────────────────────────────
-const { startWeeklySummaryJob }      = require('./jobs/weeklySummary');
-const { startPlannedNeedsScheduler } = require('./jobs/plannedNeedsScheduler');
-const { startDiscoverDigestJob }     = require('./jobs/discoverDigest');
+const { startWeeklySummaryJob }         = require('./jobs/weeklySummary');
+const { startPlannedNeedsScheduler }    = require('./jobs/plannedNeedsScheduler');
+const { startDiscoverDigestJob }        = require('./jobs/discoverDigest');
+const { startConversationRetentionCleanup } = require('./jobs/conversationRetentionCleanup');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
+startConversationRetentionCleanup();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {

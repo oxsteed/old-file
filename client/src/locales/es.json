@@ -829,7 +829,25 @@
     "guestInquirySignIn": "Inicia sesión para ver esta consulta.",
     "translating": "Traduciendo…",
     "showOriginalMessage": "Mostrar original",
-    "showTranslationMessage": "Mostrar traducción"
+    "showTranslationMessage": "Mostrar traducción",
+    "loadOlderMessages": "Cargar Mensajes Más Antiguos",
+    "reactions": {
+      "thumbs_up": "👍 Pulgar hacia arriba",
+      "heart": "❤️ Me encanta",
+      "laugh": "😂 Divertido",
+      "sad": "😢 Triste",
+      "angry": "😠 Enojado",
+      "wow": "😮 Asombrado"
+    },
+    "addReaction": "Añadir reacción",
+    "reactedWith": "Reaccionaste con {{reaction}}",
+    "removeReaction": "Eliminar reacción",
+    "archive": "Archive conversation",
+    "archived": "Conversation archived",
+    "restore": "Restore conversation",
+    "restored": "Conversation restored",
+    "viewArchived": "View archived conversations",
+    "noArchivedConversations": "No archived conversations"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
@@ -2588,16 +2606,21 @@
       "in_app_new_review": "Nueva reseña recibida",
       "in_app_dispute_update": "Actualización de disputa",
       "in_app_subscription": "Actualizaciones de suscripción",
+      "in_app_new_message": "Nuevos mensajes de chat",
+      "in_app_message_mention": "Cuando se me mencione en el chat",
       "push_new_job_nearby": "Nuevo trabajo cercano",
       "push_new_bid": "Nueva oferta recibida",
       "push_bid_accepted": "Oferta aceptada",
       "push_payment_released": "Pago liberado",
       "push_dispute_update": "Actualización de disputa",
+      "push_new_message": "Nuevos mensajes de chat",
+      "push_message_mention": "Cuando se me mencione en el chat",
       "email_bid_accepted": "Oferta aceptada",
       "email_payment_released": "Pago liberado",
       "email_subscription": "Actualizaciones de suscripción",
       "email_dispute_update": "Actualización de disputa",
-      "email_weekly_summary": "Resumen semanal"
+      "email_weekly_summary": "Resumen semanal",
+      "email_new_message": "Nuevos mensajes de chat"
     }
   },
   "plannedNeeds": {
@@ -3024,7 +3047,31 @@
       "talkToHelper": "Hablar con este ayudante",
       "helperMsgSub": "Enviar mensaje directamente al negocio",
       "talkToOxsteed": "Hablar con OxSteed",
-      "oxsteedSub": "Soporte y ayuda de la plataforma"
+      "oxsteedSub": "Soporte y ayuda de la plataforma",
+      "helperOffline": "Este ayudante está actualmente desconectado",
+      "liveChatDisabled": "El chat en vivo está deshabilitado para este ayudante",
+      "seen": "Visto",
+      "searchPlaceholder": "Buscar mensajes…",
+      "searchFilterAll": "Todos los mensajes",
+      "searchFilterMe": "Mis mensajes",
+      "searchFilterHelper": "Sus mensajes",
+      "searchResults": "{{count}} resultado encontrado",
+      "searchResultsPlural": "{{count}} resultados encontrados",
+      "searchNoResults": "Ningún mensaje coincide con tu búsqueda",
+      "searchLoading": "Buscando…",
+      "copyMessage": "Copiar mensaje",
+      "copied": "¡Copiado!",
+      "helpfulLabel": "Útil",
+      "helpful": "Esto fue útil",
+      "notHelpful": "Esto no fue útil",
+      "notHelpfulLabel": "No útil",
+      "quickReplies": "Respuestas rápidas",
+      "editMessage": "Editar mensaje",
+      "deleteMessage": "Eliminar mensaje",
+      "deleteConfirm": "¿Eliminar este mensaje?",
+      "messageComposer": "Compositor de mensajes",
+      "chatPanel": "Panel de chat",
+      "filterSearchResults": "Filtrar resultados de búsqueda"
     }
   },
   "disputes": {

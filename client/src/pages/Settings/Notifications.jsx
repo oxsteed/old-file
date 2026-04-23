@@ -19,6 +19,8 @@ const PREF_GROUPS = [
       'in_app_new_review',
       'in_app_dispute_update',
       'in_app_subscription',
+      'in_app_new_message',
+      'in_app_message_mention',
     ],
   },
   {
@@ -29,6 +31,8 @@ const PREF_GROUPS = [
       'push_bid_accepted',
       'push_payment_released',
       'push_dispute_update',
+      'push_new_message',
+      'push_message_mention',
     ],
   },
   {
@@ -39,6 +43,7 @@ const PREF_GROUPS = [
       'email_subscription',
       'email_dispute_update',
       'email_weekly_summary',
+      'email_new_message',
     ],
   },
 ];

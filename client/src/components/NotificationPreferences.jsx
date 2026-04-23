@@ -39,16 +39,21 @@ export default function NotificationPreferences() {
     in_app_new_review:       t('notifications.prefs.in_app_new_review'),
     in_app_dispute_update:   t('notifications.prefs.in_app_dispute_update'),
     in_app_subscription:     t('notifications.prefs.in_app_subscription'),
+    in_app_new_message:      t('notifications.prefs.in_app_new_message'),
+    in_app_message_mention:  t('notifications.prefs.in_app_message_mention'),
     push_new_job_nearby:     t('notifications.prefs.push_new_job_nearby'),
     push_new_bid:            t('notifications.prefs.push_new_bid'),
     push_bid_accepted:       t('notifications.prefs.push_bid_accepted'),
     push_payment_released:   t('notifications.prefs.push_payment_released'),
     push_dispute_update:     t('notifications.prefs.push_dispute_update'),
+    push_new_message:        t('notifications.prefs.push_new_message'),
+    push_message_mention:    t('notifications.prefs.push_message_mention'),
     email_bid_accepted:      t('notifications.prefs.email_bid_accepted'),
     email_payment_released:  t('notifications.prefs.email_payment_released'),
     email_subscription:      t('notifications.prefs.email_subscription'),
     email_dispute_update:    t('notifications.prefs.email_dispute_update'),
     email_weekly_summary:    t('notifications.prefs.email_weekly_summary'),
+    email_new_message:       t('notifications.prefs.email_new_message'),
   }), [t]);
 
   const SECTIONS = useMemo(() => [
@@ -65,6 +70,8 @@ export default function NotificationPreferences() {
         'in_app_new_review',
         'in_app_dispute_update',
         'in_app_subscription',
+        'in_app_new_message',
+        'in_app_message_mention',
       ],
     },
     {
@@ -77,6 +84,8 @@ export default function NotificationPreferences() {
         'push_bid_accepted',
         'push_payment_released',
         'push_dispute_update',
+        'push_new_message',
+        'push_message_mention',
       ],
     },
     {
@@ -89,6 +98,7 @@ export default function NotificationPreferences() {
         'email_subscription',
         'email_dispute_update',
         'email_weekly_summary',
+        'email_new_message',
       ],
     },
   ], [t]);

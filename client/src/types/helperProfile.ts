@@ -35,6 +35,12 @@ export interface HelperProfile {
   state?: string;
   /** When true, visitors without an account can send a guest message from the public profile */
   allowGuestContact?: boolean;
+  /** When true, helper accepts live chat requests */
+  allowLiveChat?: boolean;
+  /** When true, helper accepts booking requests */
+  allowBooking?: boolean;
+  /** When true, helper accepts scheduling requests */
+  allowScheduling?: boolean;
 }
 
 // ─── Services ───────────────────────────────────────────────────────────────
@@ -177,6 +183,8 @@ export interface ChatMessage {
   timestamp: string;
   attachments?: Attachment[];
   isRead?: boolean;
+  /** When message was read by recipient (ISO date string) */
+  readAt?: string;
 }
 
 export type TimelineEventKind =

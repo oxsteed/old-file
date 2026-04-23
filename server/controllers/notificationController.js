@@ -106,10 +106,13 @@ exports.updatePreferences = async (req, res) => {
       'in_app_new_bid','in_app_bid_accepted','in_app_job_started',
       'in_app_job_completed','in_app_payment_released',
       'in_app_new_review','in_app_dispute_update','in_app_subscription',
+      'in_app_new_message','in_app_message_mention',
       'push_new_job_nearby','push_new_bid','push_bid_accepted',
       'push_payment_released','push_dispute_update',
+      'push_new_message','push_message_mention',
       'email_bid_accepted','email_payment_released',
-      'email_subscription','email_dispute_update','email_weekly_summary'
+      'email_subscription','email_dispute_update','email_weekly_summary',
+      'email_new_message'
     ];
 
     const filteredKeys = Object.keys(updates).filter(k => allowed.includes(k));

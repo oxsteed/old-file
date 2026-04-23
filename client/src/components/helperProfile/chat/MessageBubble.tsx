@@ -187,14 +187,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
           </div>
 
+          {/* Seen indicator for user messages */}
+          {isUser && message.isRead && (
+            <div className="text-xs text-gray-500 mt-1 text-right">
+              {t('helperProfile.chat.seen')}
+            </div>
+          )}
+        </div>
+
           {/* Action buttons (copy, like/dislike, edit, delete) */}
           {showActions && (
             <div className={`flex items-center gap-1 mt-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
               <button
                 onClick={handleCopy}
                 className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
-                title={copied ? 'Copied!' : 'Copy message'}
-                aria-label="Copy message"
+                title={copied ? t('helperProfile.chat.copied') : t('helperProfile.chat.copyMessage')}
+                aria-label={t('helperProfile.chat.copyMessage')}
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
@@ -208,8 +216,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         ? 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
                     }`}
-                    title="This was helpful"
-                    aria-label="Helpful"
+                    title={t('helperProfile.chat.helpful')}
+                    aria-label={t('helperProfile.chat.helpfulLabel')}
                   >
                     <ThumbsUp className="w-3.5 h-3.5" />
                   </button>
@@ -220,8 +228,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         ? 'text-red-500 bg-red-100 dark:bg-red-900/30'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
                     }`}
-                    title="This was not helpful"
-                    aria-label="Not helpful"
+                    title={t('helperProfile.chat.notHelpful')}
+                    aria-label={t('helperProfile.chat.notHelpfulLabel')}
                   >
                     <ThumbsDown className="w-3.5 h-3.5" />
                   </button>
@@ -232,8 +240,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                         ? 'text-blue-500 bg-blue-100 dark:bg-blue-900/30'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300'
                     }`}
-                    title="Quick replies"
-                    aria-label="Quick replies"
+                    title={t('helperProfile.chat.quickReplies')}
+                    aria-label={t('helperProfile.chat.quickReplies')}
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                   </button>
@@ -245,20 +253,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <button
                     onClick={() => onEdit?.(message.id)}
                     className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
-                    title="Edit message"
-                    aria-label="Edit message"
+                    title={t('helperProfile.chat.editMessage')}
+                    aria-label={t('helperProfile.chat.editMessage')}
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm('Delete this message?')) {
+                      if (window.confirm(t('helperProfile.chat.deleteConfirm', { defaultValue: 'Delete this message?' }))) {
                         onDelete?.(message.id);
                       }
                     }}
                     className="p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
-                    title="Delete message"
-                    aria-label="Delete message"
+                    title={t('helperProfile.chat.deleteMessage')}
+                    aria-label={t('helperProfile.chat.deleteMessage')}
                   >
                     🗑️
                   </button>
