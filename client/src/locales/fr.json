@@ -3556,7 +3556,13 @@
     "verifyIdButton": "Confirmer l'identité (manuel)",
     "verifyIdConfirm": "Marquer manuellement l'identité comme vérifiée ? Cela définit Didit sur « vérifié » et désactive l'exigence — réservé à un examen manuel de confiance.",
     "verifyBgButton": "Confirmer le casier judiciaire",
-    "verifyBgConfirm": "Marquer manuellement le casier comme validé ? Réservé à un examen manuel de confiance."
+    "verifyBgConfirm": "Marquer manuellement le casier comme validé ? Réservé à un examen manuel de confiance.",
+    "deleteUserButton": "Supprimer définitivement l'utilisateur",
+    "deleteUserConfirm": "Supprimer définitivement ce compte et les données associées ? Irréversible.",
+    "deleteUserTypeEmail": "Saisissez l'e-mail de l'utilisateur pour confirmer :",
+    "deleteUserEmailMismatch": "L'e-mail ne correspond pas — suppression annulée.",
+    "deleteUserReasonPrompt": "Note d'audit facultative (motif) :",
+    "deleteUserFailed": "Échec de la suppression de l'utilisateur."
   },
   "businessSkills": {
     "addExperience": "Ajouter Expérience",
