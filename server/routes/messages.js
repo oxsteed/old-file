@@ -16,6 +16,9 @@ const {
   addReaction,
   removeReaction,
   getMessageReactions,
+  archiveConversation,
+  restoreConversation,
+  getArchivedConversations,
 } = require('../controllers/messageController');
 
 // All routes require authentication
@@ -62,5 +65,14 @@ router.post('/conversations/:conversationId/:messageId/reactions', addReaction);
 
 // DELETE /api/messages/conversations/:conversationId/:messageId/reactions - Remove a reaction
 router.delete('/conversations/:conversationId/:messageId/reactions', removeReaction);
+
+// GET /api/messages/archived - Get archived conversations for current user
+router.get('/archived', getArchivedConversations);
+
+// POST /api/messages/conversations/:conversationId/archive - Archive a conversation
+router.post('/conversations/:conversationId/archive', archiveConversation);
+
+// POST /api/messages/conversations/:conversationId/restore - Restore an archived conversation
+router.post('/conversations/:conversationId/restore', restoreConversation);
 
 module.exports = router;

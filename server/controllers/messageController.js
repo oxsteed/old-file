@@ -135,11 +135,12 @@ const getGuestInquiryById = async (req, res) => {
 };
 
 // Get all conversations for the current user (including business rep access)
-// Optional query params: ?business_id=<id> to filter by business
+// Optional query params: ?business_id=<id> to filter by business, ?include_archived=true to show archived
 const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
     const filterBizId = req.query.business_id ? parseInt(req.query.business_id, 10) || null : null;
+    const includeArchived = req.query.include_archived === 'true';
 
     const params = [userId];
     let bizFilter = '';
@@ -148,9 +149,12 @@ const getConversations = async (req, res) => {
       bizFilter = ` AND c.business_id = $${params.length}`;
     }
 
+    // By default, exclude archived conversations; add filter to include them if requested
+    const archivedFilter = includeArchived ? '' : ' AND c.archived_at IS NULL';
+
     const result = await pool.query(
       `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
-              c.last_message_at, c.created_at, c.updated_at,
+              c.archived_at, c.last_message_at, c.created_at, c.updated_at,
               CASE
                 WHEN c.customer_id = $1 THEN h.first_name || ' ' || h.last_name
                 WHEN c.helper_id   = $1 THEN cu.first_name || ' ' || cu.last_name
@@ -194,7 +198,7 @@ const getConversations = async (req, res) => {
            SELECT 1 FROM business_members bm
            WHERE bm.business_id = c.business_id AND bm.member_id = $1 AND bm.status = 'active'
          ))
-       ) AND c.status = 'active'${bizFilter}
+       ) AND c.status = 'active'${bizFilter}${archivedFilter}
        ORDER BY c.last_message_at DESC NULLS LAST`,
       params
     );
@@ -857,6 +861,135 @@ const removeReaction = async (req, res) => {
   }
 };
 
+// Archive a conversation
+const archiveConversation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    const { reason } = req.body;
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id FROM conversations c
+       WHERE c.id = $1 AND (c.customer_id = $2 OR c.helper_id = $2)`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Archive the conversation
+    const result = await pool.query(
+      `UPDATE conversations
+       SET archived_at = NOW()
+       WHERE id = $1 AND archived_at IS NULL
+       RETURNING *`,
+      [conversationId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Conversation is already archived' });
+    }
+
+    // Log the archival event
+    await pool.query(
+      `INSERT INTO conversation_archive_log (conversation_id, user_id, action, reason)
+       VALUES ($1, $2, 'archived', $3)`,
+      [conversationId, userId, reason || null]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    logger.error('Error archiving conversation', { err: error.message });
+    res.status(500).json({ error: 'Failed to archive conversation' });
+  }
+};
+
+// Restore an archived conversation
+const restoreConversation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id FROM conversations c
+       WHERE c.id = $1 AND (c.customer_id = $2 OR c.helper_id = $2)`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Restore the conversation
+    const result = await pool.query(
+      `UPDATE conversations
+       SET archived_at = NULL
+       WHERE id = $1 AND archived_at IS NOT NULL
+       RETURNING *`,
+      [conversationId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Conversation is not archived' });
+    }
+
+    // Log the restoration event
+    await pool.query(
+      `INSERT INTO conversation_archive_log (conversation_id, user_id, action)
+       VALUES ($1, $2, 'restored')`,
+      [conversationId, userId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    logger.error('Error restoring conversation', { err: error.message });
+    res.status(500).json({ error: 'Failed to restore conversation' });
+  }
+};
+
+// Get archived conversations for the current user
+const getArchivedConversations = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+
+    const result = await pool.query(
+      `SELECT c.id, c.job_id, c.customer_id, c.helper_id, c.business_id, c.status,
+              c.archived_at, c.last_message_at,
+              CASE
+                WHEN c.customer_id = $1 THEN h.first_name || ' ' || h.last_name
+                WHEN c.helper_id   = $1 THEN cu.first_name || ' ' || cu.last_name
+                ELSE cu.first_name || ' ' || cu.last_name
+              END AS other_user_name,
+              j.title AS job_title
+       FROM conversations c
+       LEFT JOIN users h  ON c.helper_id   = h.id
+       LEFT JOIN users cu ON c.customer_id = cu.id
+       LEFT JOIN jobs j   ON c.job_id      = j.id
+       WHERE (c.customer_id = $1 OR c.helper_id = $1)
+         AND c.archived_at IS NOT NULL
+       ORDER BY c.archived_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM conversations
+       WHERE (customer_id = $1 OR helper_id = $1) AND archived_at IS NOT NULL`,
+      [userId]
+    );
+
+    res.json({
+      archived: result.rows,
+      total: parseInt(countResult.rows[0].count),
+      limit,
+      offset,
+      hasMore: offset + limit < parseInt(countResult.rows[0].count),
+    });
+  } catch (error) {
+    logger.error('Error fetching archived conversations', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch archived conversations' });
+  }
+};
+
 // Get all reactions for a message
 const getMessageReactions = async (req, res) => {
   try {
@@ -914,4 +1047,7 @@ module.exports = {
   addReaction,
   removeReaction,
   getMessageReactions,
+  archiveConversation,
+  restoreConversation,
+  getArchivedConversations,
 };

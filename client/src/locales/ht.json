@@ -908,7 +908,13 @@
     },
     "addReaction": "Ajoute reyaksyon",
     "reactedWith": "Ou reyaji avèk {{reaction}}",
-    "removeReaction": "Retire reyaksyon"
+    "removeReaction": "Retire reyaksyon",
+    "archive": "Archive conversation",
+    "archived": "Conversation archived",
+    "restore": "Restore conversation",
+    "restored": "Conversation restored",
+    "viewArchived": "View archived conversations",
+    "noArchivedConversations": "No archived conversations"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",

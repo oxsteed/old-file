@@ -841,7 +841,13 @@
     },
     "addReaction": "Ajouter une réaction",
     "reactedWith": "Vous avez réagi avec {{reaction}}",
-    "removeReaction": "Supprimer la réaction"
+    "removeReaction": "Supprimer la réaction",
+    "archive": "Archive conversation",
+    "archived": "Conversation archived",
+    "restore": "Restore conversation",
+    "restored": "Conversation restored",
+    "viewArchived": "View archived conversations",
+    "noArchivedConversations": "No archived conversations"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
