@@ -228,58 +228,47 @@ const getOrCreateConversation = async (req, res) => {
     }
 
     const bizId = businessId ? parseInt(businessId, 10) || null : null;
+    const jobIdParam = jobId || null;
 
-    let result;
-    if (jobId) {
-      result = await pool.query(
-        'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id = $3',
-        [userId, helperId, jobId]
-      );
-    } else if (bizId) {
-      result = await pool.query(
-        'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id = $3',
-        [userId, helperId, bizId]
-      );
-    } else {
-      result = await pool.query(
-        'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL',
-        [userId, helperId]
-      );
-    }
+    // Use a single consolidated query that handles all three cases with conditional WHERE
+    const result = await pool.query(
+      `SELECT * FROM conversations
+       WHERE customer_id = $1 AND helper_id = $2
+         AND (
+           (job_id = $3)
+           OR (job_id IS NULL AND business_id = $4)
+           OR (job_id IS NULL AND business_id IS NULL AND $3 IS NULL AND $4 IS NULL)
+         )`,
+      [userId, helperId, jobIdParam, bizId]
+    );
 
     if (result.rows.length > 0) {
       return res.json(result.rows[0]);
     }
 
-    let newConv;
-    if (jobId) {
-      newConv = await pool.query(
-        'INSERT INTO conversations (customer_id, helper_id, job_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *',
-        [userId, helperId, jobId]
-      );
-    } else if (bizId) {
-      newConv = await pool.query(
-        'INSERT INTO conversations (customer_id, helper_id, business_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *',
-        [userId, helperId, bizId]
-      );
-    } else {
-      newConv = await pool.query(
-        'INSERT INTO conversations (customer_id, helper_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *',
-        [userId, helperId]
-      );
-    }
+    // Try to insert the conversation with the appropriate parameters
+    const newConv = await pool.query(
+      `INSERT INTO conversations (customer_id, helper_id, job_id, business_id)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
+      [userId, helperId, jobIdParam, bizId]
+    );
 
     if (newConv.rows.length) {
       return res.status(201).json(newConv.rows[0]);
     }
-    // Concurrent insert: fetch the row that already exists
+
+    // Concurrent insert: fetch the row that was inserted by another request
     const existing = await pool.query(
-      jobId
-        ? 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id = $3'
-        : bizId
-        ? 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id = $3'
-        : 'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id IS NULL AND business_id IS NULL',
-      jobId ? [userId, helperId, jobId] : bizId ? [userId, helperId, bizId] : [userId, helperId]
+      `SELECT * FROM conversations
+       WHERE customer_id = $1 AND helper_id = $2
+         AND (
+           (job_id = $3)
+           OR (job_id IS NULL AND business_id = $4)
+           OR (job_id IS NULL AND business_id IS NULL AND $3 IS NULL AND $4 IS NULL)
+         )`,
+      [userId, helperId, jobIdParam, bizId]
     );
     if (!existing.rows[0]) return res.status(500).json({ error: 'Failed to create conversation' });
     res.json(existing.rows[0]);
@@ -440,25 +429,25 @@ const searchMessages = async (req, res) => {
       whereClause += ` AND m.sender_id = $${params.length}`;
     }
 
-    // Count total results (without limit/offset)
-    const countResult = await pool.query(
-      `SELECT COUNT(*) as total FROM messages m WHERE ${whereClause}`,
-      params
-    );
-    const total = parseInt(countResult.rows[0].total);
-
-    // Get paginated results
+    // Combine count + select into one query using a CTE (Common Table Expression)
+    // This avoids two round-trips to the database for the same filtered data
     params.push(limit);
     params.push(offset);
     const result = await pool.query(
-      `SELECT m.*, u.first_name || ' ' || u.last_name AS sender_name
-       FROM messages m
-       LEFT JOIN users u ON m.sender_id = u.id
-       WHERE ${whereClause}
-       ORDER BY m.created_at DESC
+      `WITH filtered_messages AS (
+         SELECT m.*, u.first_name || ' ' || u.last_name AS sender_name,
+                COUNT(*) OVER() AS total
+         FROM messages m
+         LEFT JOIN users u ON m.sender_id = u.id
+         WHERE ${whereClause}
+       )
+       SELECT * FROM filtered_messages
+       ORDER BY created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
+
+    const total = result.rows.length > 0 ? parseInt(result.rows[0].total) : 0;
 
     res.json({
       results: result.rows,
