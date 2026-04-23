@@ -183,6 +183,8 @@ export interface ChatMessage {
   timestamp: string;
   attachments?: Attachment[];
   isRead?: boolean;
+  /** When message was read by recipient (ISO date string) */
+  readAt?: string;
 }
 
 export type TimelineEventKind =

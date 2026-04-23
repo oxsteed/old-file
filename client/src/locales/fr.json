@@ -3024,7 +3024,8 @@
       "talkToHelper": "Parler à cet assistant",
       "helperMsgSub": "Envoyer un message directement à l'entreprise",
       "talkToOxsteed": "Parler à OxSteed",
-      "oxsteedSub": "Support et aide de la plateforme"
+      "oxsteedSub": "Support et aide de la plateforme",
+      "seen": "Vu"
     }
   },
   "disputes": {

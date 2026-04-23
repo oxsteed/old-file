@@ -3024,7 +3024,8 @@
       "talkToHelper": "Talk to this helper",
       "helperMsgSub": "Message the business directly",
       "talkToOxsteed": "Talk to OxSteed",
-      "oxsteedSub": "Platform support & help"
+      "oxsteedSub": "Platform support & help",
+      "seen": "Seen"
     }
   },
   "disputes": {

@@ -187,6 +187,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
           </div>
 
+          {/* Seen indicator for user messages */}
+          {isUser && message.isRead && (
+            <div className="text-xs text-gray-500 mt-1 text-right">
+              {t('helperProfile.chat.seen')}
+            </div>
+          )}
+        </div>
+
           {/* Action buttons (copy, like/dislike, edit, delete) */}
           {showActions && (
             <div className={`flex items-center gap-1 mt-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>

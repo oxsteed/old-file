@@ -270,13 +270,28 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }));
     };
 
+    const handleMessagesRead = (payload: { conversationId: string; readBy: string; readAt: string }) => {
+      if (payload.conversationId !== conversationId) return;
+      // Mark all messages sent by current user as read
+      setSession(prev => ({
+        ...prev,
+        timeline: prev.timeline.map(item =>
+          item.itemType === 'message' && item.authorType === 'user'
+            ? { ...item, isRead: true, readAt: payload.readAt }
+            : item
+        ),
+      }));
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('message:edited', handleMessageEdited);
     socket.on('message:deleted', handleMessageDeleted);
+    socket.on('messages:read', handleMessagesRead);
     return () => {
       socket.off('message:new', handleNewMessage);
       socket.off('message:edited', handleMessageEdited);
       socket.off('message:deleted', handleMessageDeleted);
+      socket.off('messages:read', handleMessagesRead);
     };
   }, [socket, conversationId]);
 
