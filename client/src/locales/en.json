@@ -3047,7 +3047,9 @@
       "editMessage": "Edit message",
       "deleteMessage": "Delete message",
       "deleteConfirm": "Delete this message?",
-      "messageComposer": "Message composer"
+      "messageComposer": "Message composer",
+      "chatPanel": "Chat panel",
+      "filterSearchResults": "Filter search results"
     }
   },
   "disputes": {

@@ -79,7 +79,7 @@ const DestinationContextBanner: React.FC<{
   return (
     <div
       className="flex items-center gap-2 px-4 py-2.5 bg-violet-900/20 border-b border-violet-800/50"
-      aria-label="You are talking to OxSteed platform support"
+      aria-label={t('messages.talkingToSupport', { name: helperName, support: t('messages.oxsteedSupport') })}
     >
       <Building2 className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" aria-hidden="true" />
       <p className="text-xs text-violet-300">
@@ -641,7 +641,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
-      aria-label="Chat panel"
+      aria-label={t('helperProfile.chat.chatPanel')}
       role="region"
     >
       {/* ── Header ─────────────────────────────────────────── */}
@@ -666,7 +666,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               }}
               className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
               aria-label={t('messages.clearChat') || 'Clear chat'}
-              title="Clear all messages"
+              title={t('messages.clearChat')}
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -706,7 +706,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             value={searchFilter}
             onChange={(e) => handleSearchFilterChange(e.target.value as 'all' | 'me' | 'helper')}
             className="rounded-lg bg-gray-800 border border-gray-700 px-2 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
-            aria-label="Filter search results"
+            aria-label={t('helperProfile.chat.filterSearchResults')}
           >
             <option value="all">{t('helperProfile.chat.searchFilterAll')}</option>
             <option value="me">{t('helperProfile.chat.searchFilterMe')}</option>
@@ -716,7 +716,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <button
               onClick={clearSearch}
               className="p-2 text-gray-400 hover:text-white transition-colors"
-              aria-label="Clear search"
+              aria-label={t('helperProfile.chat.clearSearch')}
             >
               <X className="w-4 h-4" />
             </button>

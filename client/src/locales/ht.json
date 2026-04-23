@@ -3046,7 +3046,9 @@
       "editMessage": "Edite mesaj",
       "deleteMessage": "Efase mesaj",
       "deleteConfirm": "Efase mesaj sa a?",
-      "messageComposer": "Konpoze Mesaj"
+      "messageComposer": "Konpoze Mesaj",
+      "chatPanel": "Panèl Chat",
+      "filterSearchResults": "Filtye rezilta chèch"
     }
   },
   "disputes": {
