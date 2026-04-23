@@ -22,8 +22,8 @@ ON conversations (customer_id, helper_id, last_message_at DESC);
 
 -- Index for helper's active conversations
 CREATE INDEX IF NOT EXISTS idx_conversations_helper
-ON conversations (helper_id, is_active, last_message_at DESC)
-WHERE is_active = TRUE;
+ON conversations (helper_id, last_message_at DESC)
+WHERE status = 'active';
 
 -- Index for business reps (business_members lookup)
 CREATE INDEX IF NOT EXISTS idx_business_members_status
