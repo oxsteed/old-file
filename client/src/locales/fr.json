@@ -696,7 +696,20 @@
       "guestContactDesc": "Choisissez si les visiteurs sans compte OxSteed peuvent démarrer un message depuis votre profil public d’assistant.",
       "guestContactLabel": "Autoriser les visiteurs sans compte à m’écrire",
       "guestContactUpdated": "Préférence enregistrée",
-      "guestContactFailed": "Impossible de mettre à jour la préférence"
+      "guestContactFailed": "Impossible de mettre à jour la préférence",
+      "communicationControls": "Contrôles de Communication",
+      "jobControls": "Contrôles de Travail",
+      "liveChatTitle": "Chat en Direct",
+      "liveChatDesc": "Autoriser les clients à vous envoyer des messages en direct lorsque vous êtes en ligne.",
+      "liveChatLabel": "Accepter les messages de chat en direct",
+      "bookingTitle": "Réservation",
+      "bookingDesc": "Contrôlez si les clients peuvent vous placer des travaux pour que vous enchérissiez ou acceptiez directement.",
+      "bookingLabel": "Accepter les réservations de travail",
+      "schedulingTitle": "Planification",
+      "schedulingDesc": "Autoriser les clients à voir votre disponibilité et à prendre des rendez-vous.",
+      "schedulingLabel": "Autoriser la planification des rendez-vous",
+      "updated": "Paramètres de confidentialité mis à jour",
+      "updateFailed": "Impossible de mettre à jour les paramètres de confidentialité"
     },
     "account": {
       "title": "Type de Compte",

@@ -758,7 +758,20 @@
       "guestContactDesc": "Kontwole si vizitè ki pa gen kont OxSteed ka kòmanse yon mesaj depi pwofil piblik asistan ou.",
       "guestContactLabel": "Pèmèt moun ki pa anrejistre voye mesaj ba mwen",
       "guestContactUpdated": "Preferans anrejistre",
-      "guestContactFailed": "Pa t ka mete ajou preferans la"
+      "guestContactFailed": "Pa t ka mete ajou preferans la",
+      "communicationControls": "Kontwòl Kominikasyon",
+      "jobControls": "Kontwòl Travay",
+      "liveChatTitle": "Chat Direktè",
+      "liveChatDesc": "Pèmèt kliyann yo voye ou mesaj direktè pandan ou sou sèlèn.",
+      "liveChatLabel": "Asepte mesaj chat direktè",
+      "bookingTitle": "Rezèvasyon",
+      "bookingDesc": "Kontwole si kliyann yo ka mete ou nan travay pou ou ensheri oswa asepte dirèkteman.",
+      "bookingLabel": "Asepte rezèvasyon travay",
+      "schedulingTitle": "Orè",
+      "schedulingDesc": "Pèmèt kliyann yo wè disp ou yo e planifye randevou.",
+      "schedulingLabel": "Pèmèt planifikasyon randevou",
+      "updated": "Paramèt privasi a mete ajou",
+      "updateFailed": "Pa t kapab mete ajou paramèt privasi"
     },
     "account": {
       "title": "Tip Kont",

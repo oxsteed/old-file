@@ -124,7 +124,10 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [allowGuestContact, setAllowGuestContact] = useState(true);
-  const [guestContactSaving, setGuestContactSaving] = useState(false);
+  const [allowBooking, setAllowBooking] = useState(true);
+  const [allowScheduling, setAllowScheduling] = useState(true);
+  const [allowLiveChat, setAllowLiveChat] = useState(true);
+  const [privacySaving, setPrivacySaving] = useState(null);
 
   const { subscription, plans, loading: subLoading, openPortal, cancelSubscription, createCheckout } = useSubscription();
 
@@ -154,6 +157,21 @@ export default function SettingsPage() {
           setAllowGuestContact(u.allow_guest_contact);
         } else {
           setAllowGuestContact(true);
+        }
+        if (typeof u.allow_booking === 'boolean') {
+          setAllowBooking(u.allow_booking);
+        } else {
+          setAllowBooking(true);
+        }
+        if (typeof u.allow_scheduling === 'boolean') {
+          setAllowScheduling(u.allow_scheduling);
+        } else {
+          setAllowScheduling(true);
+        }
+        if (typeof u.allow_live_chat === 'boolean') {
+          setAllowLiveChat(u.allow_live_chat);
+        } else {
+          setAllowLiveChat(true);
         }
         setLoading(false);
       })
@@ -188,21 +206,28 @@ export default function SettingsPage() {
     } catch (err) { toast.error(err.response?.data?.error || t('settings.passwordChangeFailed')); }
   };
 
-  const saveGuestContactPreference = async (next) => {
-    setGuestContactSaving(true);
+  const savePrivacySetting = async (setting, value) => {
+    setPrivacySaving(setting);
     try {
-      await api.patch('/settings/privacy', { allow_guest_contact: next });
-      setAllowGuestContact(next);
+      const body = { [setting]: value };
+      await api.patch('/settings/privacy', body);
+
+      // Update the appropriate state
+      if (setting === 'allow_guest_contact') setAllowGuestContact(value);
+      if (setting === 'allow_booking') setAllowBooking(value);
+      if (setting === 'allow_scheduling') setAllowScheduling(value);
+      if (setting === 'allow_live_chat') setAllowLiveChat(value);
+
       try {
         await refreshUser();
       } catch {
         /* non-blocking */
       }
-      toast.success(t('settings.privacy.guestContactUpdated'));
+      toast.success(t('settings.privacy.updated'));
     } catch (err) {
-      toast.error(err.response?.data?.error || t('settings.privacy.guestContactFailed'));
+      toast.error(err.response?.data?.error || t('settings.privacy.updateFailed'));
     }
-    setGuestContactSaving(false);
+    setPrivacySaving(null);
   };
 
   const deleteAccount = async () => {
@@ -563,24 +588,106 @@ export default function SettingsPage() {
       <p className="sp-card-subtitle">{t('settings.privacy.subtitle')}</p>
       {isHelper && (
         <div className="mb-6 pb-6 border-b border-[var(--border-color,#334155)]">
-          <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--app-text,#f1f5f9)' }}>
-            {t('settings.privacy.guestContactTitle')}
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+            {t('settings.privacy.communicationControls')}
           </h3>
-          <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-            {t('settings.privacy.guestContactDesc')}
-          </p>
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              className="w-4 h-4 rounded border-gray-600"
-              checked={allowGuestContact}
-              disabled={guestContactSaving}
-              onChange={(e) => saveGuestContactPreference(e.target.checked)}
-            />
-            <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
-              {t('settings.privacy.guestContactLabel')}
-            </span>
-          </label>
+          <div className="space-y-4">
+            {/* Guest Contact */}
+            <div>
+              <p className="text-xs font-medium mb-2 uppercase tracking-widest" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.guestContactTitle')}
+              </p>
+              <p className="text-sm mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.guestContactDesc')}
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-gray-600"
+                  checked={allowGuestContact}
+                  disabled={privacySaving === 'allow_guest_contact'}
+                  onChange={(e) => savePrivacySetting('allow_guest_contact', e.target.checked)}
+                />
+                <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+                  {t('settings.privacy.guestContactLabel')}
+                </span>
+              </label>
+            </div>
+
+            {/* Live Chat */}
+            <div>
+              <p className="text-xs font-medium mb-2 uppercase tracking-widest" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.liveChatTitle')}
+              </p>
+              <p className="text-sm mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.liveChatDesc')}
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-gray-600"
+                  checked={allowLiveChat}
+                  disabled={privacySaving === 'allow_live_chat'}
+                  onChange={(e) => savePrivacySetting('allow_live_chat', e.target.checked)}
+                />
+                <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+                  {t('settings.privacy.liveChatLabel')}
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+      {isHelper && (
+        <div className="mb-6 pb-6 border-b border-[var(--border-color,#334155)]">
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+            {t('settings.privacy.jobControls')}
+          </h3>
+          <div className="space-y-4">
+            {/* Booking */}
+            <div>
+              <p className="text-xs font-medium mb-2 uppercase tracking-widest" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.bookingTitle')}
+              </p>
+              <p className="text-sm mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.bookingDesc')}
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-gray-600"
+                  checked={allowBooking}
+                  disabled={privacySaving === 'allow_booking'}
+                  onChange={(e) => savePrivacySetting('allow_booking', e.target.checked)}
+                />
+                <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+                  {t('settings.privacy.bookingLabel')}
+                </span>
+              </label>
+            </div>
+
+            {/* Scheduling */}
+            <div>
+              <p className="text-xs font-medium mb-2 uppercase tracking-widest" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.schedulingTitle')}
+              </p>
+              <p className="text-sm mb-3" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+                {t('settings.privacy.schedulingDesc')}
+              </p>
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-gray-600"
+                  checked={allowScheduling}
+                  disabled={privacySaving === 'allow_scheduling'}
+                  onChange={(e) => savePrivacySetting('allow_scheduling', e.target.checked)}
+                />
+                <span className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+                  {t('settings.privacy.schedulingLabel')}
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
       )}
       <button

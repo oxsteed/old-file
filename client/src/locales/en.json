@@ -695,7 +695,20 @@
       "guestContactDesc": "Control whether visitors without an OxSteed account can start a message from your public helper profile.",
       "guestContactLabel": "Allow non-registered users to message me",
       "guestContactUpdated": "Preference saved",
-      "guestContactFailed": "Could not update preference"
+      "guestContactFailed": "Could not update preference",
+      "communicationControls": "Communication Controls",
+      "jobControls": "Job Controls",
+      "liveChatTitle": "Live Chat",
+      "liveChatDesc": "Allow customers to send you live messages while you're online.",
+      "liveChatLabel": "Accept live chat messages",
+      "bookingTitle": "Booking",
+      "bookingDesc": "Control whether customers can place jobs for you to bid on or accept directly.",
+      "bookingLabel": "Accept job bookings",
+      "schedulingTitle": "Scheduling",
+      "schedulingDesc": "Allow customers to view your availability and schedule appointments.",
+      "schedulingLabel": "Allow scheduling appointments",
+      "updated": "Privacy settings updated",
+      "updateFailed": "Could not update privacy settings"
     },
     "account": {
       "title": "Account Type",
