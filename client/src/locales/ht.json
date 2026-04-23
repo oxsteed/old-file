@@ -3033,7 +3033,18 @@
       "searchResults": "{{count}} rezilta jwenn",
       "searchResultsPlural": "{{count}} rezilta jwenn",
       "searchNoResults": "Pa gen mesaj ki koresponn ak chèch la",
-      "searchLoading": "Chèche…"
+      "searchLoading": "Chèche…",
+      "copyMessage": "Kopye mesaj",
+      "copied": "Kopye!",
+      "helpfulLabel": "Itil",
+      "helpful": "Sa a te itil",
+      "notHelpful": "Sa a pa t itil",
+      "notHelpfulLabel": "Pa itil",
+      "quickReplies": "Repons vit",
+      "editMessage": "Edite mesaj",
+      "deleteMessage": "Efase mesaj",
+      "deleteConfirm": "Efase mesaj sa a?",
+      "messageComposer": "Konpoze Mesaj"
     }
   },
   "disputes": {

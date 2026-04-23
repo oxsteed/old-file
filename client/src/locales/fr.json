@@ -3034,7 +3034,18 @@
       "searchResults": "{{count}} résultat trouvé",
       "searchResultsPlural": "{{count}} résultats trouvés",
       "searchNoResults": "Aucun message ne correspond à votre recherche",
-      "searchLoading": "Recherche…"
+      "searchLoading": "Recherche…",
+      "copyMessage": "Copier le message",
+      "copied": "Copié !",
+      "helpfulLabel": "Utile",
+      "helpful": "C'était utile",
+      "notHelpful": "Ce n'était pas utile",
+      "notHelpfulLabel": "Pas utile",
+      "quickReplies": "Réponses rapides",
+      "editMessage": "Modifier le message",
+      "deleteMessage": "Supprimer le message",
+      "deleteConfirm": "Supprimer ce message?",
+      "messageComposer": "Compositeur de messages"
     }
   },
   "disputes": {
