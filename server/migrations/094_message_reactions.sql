@@ -3,8 +3,8 @@
 
 CREATE TABLE message_reactions (
   id BIGSERIAL PRIMARY KEY,
-  message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reaction VARCHAR(50) NOT NULL, -- emoji name like 'thumbs_up', 'heart', 'laugh', 'sad', 'angry'
   created_at TIMESTAMP DEFAULT NOW(),
 
