@@ -154,17 +154,79 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [helperId]);
 
   const guestStorageKey = `oxs:guest-contact:${helperId}:${businessId ?? 'personal'}`;
+  const guestTokenKey = `oxs:guest-token:${helperId}:${businessId ?? 'personal'}`;
+
   useEffect(() => {
     if (!isGuest) return;
-    try {
-      const raw = sessionStorage.getItem(guestStorageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { name?: string; email?: string };
-      if (parsed?.name?.trim()) setGuestName(parsed.name.trim());
-      if (parsed?.email?.trim()) setGuestEmail(parsed.email.trim());
-      if (parsed?.name?.trim() && parsed?.email?.trim()) setGuestContactSaved(true);
-    } catch { /* ignore */ }
-  }, [isGuest, guestStorageKey]);
+
+    // Try to restore from URL guest-token param first (returning visitor)
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('guest-token');
+
+    let restored = false;
+
+    if (urlToken) {
+      try {
+        const decoded = JSON.parse(atob(urlToken.split('.')[1])) as any;
+        const now = Math.floor(Date.now() / 1000);
+        if (decoded.exp && decoded.exp < now) {
+          // Token expired
+          localStorage.removeItem(guestTokenKey);
+          return;
+        }
+        if (decoded.guestEmail?.trim()) {
+          setGuestEmail(decoded.guestEmail.trim());
+          setGuestName(decoded.guestName?.trim() || '');
+          if (decoded.guestEmail?.trim() && decoded.guestName?.trim()) {
+            setGuestContactSaved(true);
+            localStorage.setItem(guestTokenKey, urlToken);
+            restored = true;
+          }
+        }
+      } catch {
+        // Invalid token, ignore
+      }
+    }
+
+    // Fall back to localStorage guest token
+    if (!restored) {
+      try {
+        const savedToken = localStorage.getItem(guestTokenKey);
+        if (savedToken) {
+          const decoded = JSON.parse(atob(savedToken.split('.')[1])) as any;
+          const now = Math.floor(Date.now() / 1000);
+          if (decoded.exp && decoded.exp < now) {
+            localStorage.removeItem(guestTokenKey);
+            return;
+          }
+          if (decoded.guestEmail?.trim()) {
+            setGuestEmail(decoded.guestEmail.trim());
+            setGuestName(decoded.guestName?.trim() || '');
+            if (decoded.guestEmail?.trim() && decoded.guestName?.trim()) {
+              setGuestContactSaved(true);
+              restored = true;
+            }
+          }
+        }
+      } catch {
+        localStorage.removeItem(guestTokenKey);
+      }
+    }
+
+    // Fall back to sessionStorage contact form data
+    if (!restored) {
+      try {
+        const raw = sessionStorage.getItem(guestStorageKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { name?: string; email?: string };
+        if (parsed?.name?.trim()) setGuestName(parsed.name.trim());
+        if (parsed?.email?.trim()) setGuestEmail(parsed.email.trim());
+        if (parsed?.name?.trim() && parsed?.email?.trim()) setGuestContactSaved(true);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [isGuest, guestStorageKey, guestTokenKey]);
 
   // ── Real-time: listen for helper replies via Socket.IO ───────────────────
   useEffect(() => {
@@ -228,13 +290,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         timeline: [...prev.timeline, userMsg],
       }));
       try {
-        await api.post('/chat/sessions/guest', {
+        const res = await api.post('/chat/sessions/guest', {
           helperId,
           ...(businessId ? { businessId } : {}),
           guestName: name,
           guestEmail: email,
           message: text,
         });
+
+        // Save guest token for future visits
+        if (res.data?.token) {
+          localStorage.setItem(guestTokenKey, res.data.token);
+        }
+
         const ack: TimelineEvent = {
           id:        `evt-${Date.now()}-guest`,
           itemType:  'system',
