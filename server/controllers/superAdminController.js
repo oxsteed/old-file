@@ -4,6 +4,8 @@ const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
+const tokenRevocationService = require('../services/tokenRevocationService');
+const { withTransaction } = require('../utils/transaction');
 
 // Helper: check if a table exists
 async function tableExists(name) {
@@ -867,53 +869,93 @@ exports.exportData = async (req, res) => {
   } catch (err) { logger.error('exportData error', { err }); res.status(500).json({ error: 'Export failed.' }); }
 };
 
-// DELETE USER ACCOUNT
+// DELETE USER ACCOUNT (super_admin only — route guard)
 exports.deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const { reason } = req.body;
     const adminId = req.user.id;
 
-    // Fetch user before deletion
-    const { rows: userRows } = await db.query('SELECT id, first_name, last_name, email, role FROM users WHERE id = $1', [userId]);
+    const { rows: userRows } = await db.query(
+      'SELECT id, first_name, last_name, email, role FROM users WHERE id = $1',
+      [userId],
+    );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
 
-    // Prevent deleting admin/super_admin accounts
     if (['admin', 'super_admin'].includes(user.role)) {
       return res.status(403).json({ error: 'Cannot delete admin accounts.' });
     }
 
-    // Delete related data in correct order to respect foreign keys
-    const tablesToClean = [
-      { table: 'reviews', conditions: ['reviewer_id = $1', 'reviewee_id = $1'] },
-      { table: 'bids', condition: 'helper_id = $1' },
-      { table: 'messages', conditions: ['sender_id = $1', 'receiver_id = $1'] },
-      { table: 'notifications', condition: 'user_id = $1' },
-      { table: 'subscriptions', condition: 'user_id = $1' },
-      { table: 'helper_profiles', condition: 'user_id = $1' },
-      { table: 'consent_records', condition: 'user_id = $1' },
-      { table: 'user_2fa', condition: 'user_id = $1' },
-      { table: 'refresh_tokens', condition: 'user_id = $1' },
-      { table: 'jobs', conditions: ['client_id = $1', 'assigned_helper_id = $1'] },
-      { table: 'platform_ledger', condition: 'user_id = $1' },
-    ];
-
-    for (const entry of tablesToClean) {
-      if (!(await tableExists(entry.table))) continue;
-      if (entry.conditions) {
-        for (const cond of entry.conditions) {
-          await db.query(`DELETE FROM ${entry.table} WHERE ${cond}`, [userId]);
-        }
-      } else if (entry.condition) {
-        await db.query(`DELETE FROM ${entry.table} WHERE ${entry.condition}`, [userId]);
-      }
+    try {
+      await tokenRevocationService.revokeAllUserTokens(userId);
+    } catch (e) {
+      /* non-fatal */
     }
+    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+    socketService.disconnectUserSockets(userId);
 
-    // Delete the user
-    await db.query('DELETE FROM users WHERE id = $1', [userId]);
+    await withTransaction(
+      db,
+      async (client) => {
+        const q = (sql, params) => client.query(sql, params);
 
-    // Log the action
+        const deleteWhere = async (table, condition) => {
+          if (!(await tableExists(table))) return;
+          await q(`DELETE FROM ${table} WHERE ${condition}`, [userId]);
+        };
+
+        const deleteWhereAny = async (table, conditions) => {
+          if (!(await tableExists(table))) return;
+          for (const cond of conditions) {
+            await q(`DELETE FROM ${table} WHERE ${cond}`, [userId]);
+          }
+        };
+
+        const nullWhere = async (table, column) => {
+          if (!(await tableExists(table))) return;
+          await q(`UPDATE ${table} SET ${column} = NULL WHERE ${column} = $1`, [userId]);
+        };
+
+        await nullWhere('platform_settings', 'updated_by');
+        await nullWhere('feature_flags', 'updated_by');
+        await nullWhere('content_reports', 'reviewed_by');
+        await nullWhere('moderation_queue', 'reported_by');
+        await nullWhere('moderation_queue', 'assigned_to');
+        await nullWhere('moderation_queue', 'resolved_by');
+
+        // disputes.payment_id → payments; clear dispute rows before payments
+        await deleteWhere('dispute_messages', 'sender_id = $1');
+        await deleteWhere('disputes', 'raised_by = $1');
+        await deleteWhere('disputes', 'against_user = $1');
+        await deleteWhere('disputes', 'resolved_by = $1');
+        await deleteWhere('payments', 'payer_id = $1');
+        await deleteWhere('payments', 'payee_id = $1');
+
+        await deleteWhereAny('reviews', ['reviewer_id = $1', 'reviewee_id = $1']);
+        await deleteWhere('bids', 'helper_id = $1');
+
+        await deleteWhere('guest_profile_chat_inbound', 'helper_id = $1');
+
+        // Job-linked messaging (messages CASCADE from conversations)
+        await deleteWhere('conversations', 'customer_id = $1');
+        await deleteWhere('conversations', 'helper_id = $1');
+
+        await deleteWhere('notifications', 'user_id = $1');
+        await deleteWhere('subscriptions', 'user_id = $1');
+        await deleteWhere('helper_profiles', 'user_id = $1');
+        await deleteWhere('consent_records', 'user_id = $1');
+        await deleteWhere('user_2fa', 'user_id = $1');
+        await deleteWhere('sessions', 'user_id = $1');
+
+        await deleteWhere('jobs', 'client_id = $1');
+        await deleteWhere('jobs', 'assigned_helper_id = $1');
+
+        await q('DELETE FROM users WHERE id = $1', [userId]);
+      },
+      'super_admin_delete_user',
+    );
+
     try {
       await logAdminAction({
         adminId,
@@ -923,9 +965,11 @@ exports.deleteUser = async (req, res) => {
         description: reason || `Deleted user ${user.email}`,
         before: { email: user.email, role: user.role, name: `${user.first_name} ${user.last_name}` },
         after: null,
-        req
+        req,
       });
-    } catch(e) {}
+    } catch (e) {
+      /* audit non-fatal */
+    }
 
     res.json({ message: `User ${user.email} deleted successfully.` });
   } catch (err) {

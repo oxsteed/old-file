@@ -50,4 +50,26 @@ function broadcastToAdmins(event, data) {
   io.to('admins').emit(event, data);
 }
 
-module.exports = { init, trackConnect, trackDisconnect, isOnline, broadcastToUser, broadcastToConversation, broadcastToAdmins };
+/** Disconnect every socket in user_{userId} (super-admin account purge, force logout). */
+function disconnectUserSockets(userId) {
+  if (!io) return;
+  try {
+    io.in(`user_${userId}`).disconnectSockets(true);
+  } catch (err) {
+    require('../utils/logger').warn('disconnectUserSockets failed', {
+      userId: String(userId),
+      error: err.message,
+    });
+  }
+}
+
+module.exports = {
+  init,
+  trackConnect,
+  trackDisconnect,
+  isOnline,
+  broadcastToUser,
+  broadcastToConversation,
+  broadcastToAdmins,
+  disconnectUserSockets,
+};
