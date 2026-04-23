@@ -829,7 +829,8 @@
     "guestInquirySignIn": "Connectez-vous pour voir cette demande.",
     "translating": "Traduction…",
     "showOriginalMessage": "Afficher l’original",
-    "showTranslationMessage": "Afficher la traduction"
+    "showTranslationMessage": "Afficher la traduction",
+    "loadOlderMessages": "Charger les Anciens Messages"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",

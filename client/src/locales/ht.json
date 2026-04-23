@@ -891,7 +891,8 @@
     "guestInquirySignIn": "Tanpri konekte pou wè demann sa a.",
     "translating": "Ap tradui…",
     "showOriginalMessage": "Montre orijinal la",
-    "showTranslationMessage": "Montre tradiksyon an"
+    "showTranslationMessage": "Montre tradiksyon an",
+    "loadOlderMessages": "Chaje Vye Mesaj"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",

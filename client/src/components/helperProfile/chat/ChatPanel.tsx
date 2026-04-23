@@ -141,6 +141,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [searchLoading,    setSearchLoading]    = useState(false);
   const searchTimeoutRef   = useRef<NodeJS.Timeout | null>(null);
 
+  // Pagination state
+  const [messageOffset,    setMessageOffset]    = useState(0);
+  const [hasMoreMessages,  setHasMoreMessages]  = useState(true);
+  const [loadingOlder,     setLoadingOlder]     = useState(false);
+
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -234,6 +239,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       }
     }
   }, [isGuest, guestStorageKey, guestTokenKey]);
+
+  // Reset pagination when conversation changes
+  useEffect(() => {
+    setMessageOffset(0);
+    setHasMoreMessages(true);
+  }, [conversationId]);
 
   // ── Real-time: listen for helper replies via Socket.IO ───────────────────
   useEffect(() => {
@@ -595,6 +606,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     setSearchResults([]);
   }, []);
 
+  // Load older messages
+  const loadOlderMessages = useCallback(async () => {
+    if (!conversationId || loadingOlder || !hasMoreMessages) return;
+
+    setLoadingOlder(true);
+    try {
+      const newOffset = messageOffset + 50;
+      const { data } = await api.get(`/messages/conversations/${conversationId}`, {
+        params: { limit: 50, offset: newOffset },
+      });
+
+      if (data && data.length > 0) {
+        // Prepend older messages to the beginning of timeline (filter out duplicates)
+        const messageIds = new Set(data.map((m: ChatMessage) => m.id));
+        setSession(prev => ({
+          ...prev,
+          timeline: [...data, ...prev.timeline.filter(item => !(item.itemType === 'message' && messageIds.has(item.id)))],
+        }));
+        setMessageOffset(newOffset);
+        if (data.length < 50) {
+          setHasMoreMessages(false);
+        }
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error('Error loading older messages:', error);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [conversationId, messageOffset, loadingOlder, hasMoreMessages]);
+
   return (
     <div
       className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
@@ -805,15 +848,28 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           helperName={helperName}
         />
       ) : (
-        <ChatTimeline
-          items={displayTimeline}
-          helperName={helperName}
-          typing={sending ? session.typing : null}
-          currentUserId={user?.id}
-          onMessageDelete={handleMessageDelete}
-          onMessageEdit={handleMessageEdit}
-          onQuickReply={handleQuickReply}
-        />
+        <div className="flex flex-col h-full">
+          {hasMoreMessages && (
+            <div className="px-4 pt-3 pb-2 flex-shrink-0">
+              <button
+                onClick={loadOlderMessages}
+                disabled={loadingOlder}
+                className="w-full py-2 px-3 text-xs text-gray-400 hover:text-gray-300 border border-gray-700/50 rounded-lg hover:border-gray-600/50 transition-colors disabled:opacity-50"
+              >
+                {loadingOlder ? t('common.loading') : t('messages.loadOlderMessages', { defaultValue: 'Load Older Messages' })}
+              </button>
+            </div>
+          )}
+          <ChatTimeline
+            items={displayTimeline}
+            helperName={helperName}
+            typing={sending ? session.typing : null}
+            currentUserId={user?.id}
+            onMessageDelete={handleMessageDelete}
+            onMessageEdit={handleMessageEdit}
+            onQuickReply={handleQuickReply}
+          />
+        </div>
       )}
 
       {/* ── Composer ────────────────────────────────────────── */}

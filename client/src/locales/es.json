@@ -829,7 +829,8 @@
     "guestInquirySignIn": "Inicia sesión para ver esta consulta.",
     "translating": "Traduciendo…",
     "showOriginalMessage": "Mostrar original",
-    "showTranslationMessage": "Mostrar traducción"
+    "showTranslationMessage": "Mostrar traducción",
+    "loadOlderMessages": "Cargar Mensajes Más Antiguos"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
