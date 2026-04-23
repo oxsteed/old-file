@@ -118,6 +118,9 @@ const HelperBusinessProfilePage: React.FC = () => {
   }, [id, data, navigate]);
 
   const handleOpenChat = useCallback(() => {
+    // On mobile, open the chat drawer. On desktop, chat is always visible in sidebar.
+    if (!isMobile) return;
+
     if (user) {
       setChatOpen(true);
       return;
@@ -128,7 +131,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     } else {
       setGuestSignInModalOpen(true);
     }
-  }, [user, data?.helper?.allowGuestContact]);
+  }, [isMobile, user, data?.helper?.allowGuestContact]);
 
   // ── Render states ──────────────────────────────────────────────────────────
   if (loadState === 'loading' || loadState === 'idle') {
