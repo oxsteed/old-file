@@ -115,6 +115,43 @@ const chatLimiter = rateLimit({
   },
 });
 
+// Conversation message limiter: 10 messages per minute per conversation
+// Prevents message spam and chat abuse within individual conversations
+const conversationMessageLimiter = rateLimit({
+  ...createStoreOption('rl:conv_msg:'),
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  keyGenerator: (req) => {
+    const { conversationId } = req.params;
+    const userId = req.user?.id || req.ip;
+    return conversationId ? `conv:${conversationId}:${userId}` : req.ip;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many messages in this conversation. Please slow down.',
+    retryAfter: '1 minute',
+  },
+});
+
+// Profile chat limiter: 5 messages per minute per user
+// Prevents spam in guest inquiry and helper contact flows
+const profileChatLimiter = rateLimit({
+  ...createStoreOption('rl:profile_chat:'),
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  keyGenerator: (req) => {
+    // For authenticated users, key by user ID; for guests, key by IP
+    return req.user?.id ? `user:${req.user.id}` : req.ip;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many messages sent. Please wait a moment before trying again.',
+    retryAfter: '1 minute',
+  },
+});
+
 // Public Discover unified search — stricter than generalLimiter for anonymous scraping
 const discoverLimiter = rateLimit({
   ...createStoreOption('rl:discover:'),
@@ -220,6 +257,8 @@ module.exports = {
   authLimiter,
   strictLimiter,
   chatLimiter,
+  conversationMessageLimiter,
+  profileChatLimiter,
   discoverLimiter,
   discoverAuthLimiter,
   geoLimiter,

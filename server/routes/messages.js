@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { conversationMessageLimiter } = require('../middleware/rateLimiter');
 const {
   getConversations,
   getGuestInquiries,
@@ -35,7 +36,7 @@ router.get('/conversations/:conversationId/meta', getConversationMeta);
 router.get('/conversations/:conversationId', getMessages);
 
 // POST /api/messages/conversations/:conversationId - Send a message
-router.post('/conversations/:conversationId', sendMessage);
+router.post('/conversations/:conversationId', conversationMessageLimiter, sendMessage);
 
 // DELETE /api/messages/conversations/:conversationId/:messageId - Delete a message
 router.delete('/conversations/:conversationId/:messageId', deleteMessage);

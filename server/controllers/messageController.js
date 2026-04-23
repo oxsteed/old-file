@@ -1,6 +1,7 @@
 const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
+const { sanitizeMessage } = require('../utils/messageSanitizer');
 
 /**
  * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
@@ -396,10 +397,13 @@ const sendMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
-    const content = (req.body.content || '').trim();
+    const rawContent = (req.body.content || '').trim();
 
-    if (!content) return res.status(400).json({ error: 'Message content is required' });
-    if (content.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+    if (!rawContent) return res.status(400).json({ error: 'Message content is required' });
+    if (rawContent.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+
+    // Sanitize message to prevent XSS
+    const content = sanitizeMessage(rawContent);
 
     // Verify user is part of conversation (direct participant or active business rep)
     const conv = await pool.query(

@@ -3,6 +3,7 @@ const { ROLES }     = require('../constants/roles');
 const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
+const { sanitizeMessage } = require('../utils/messageSanitizer');
 
 // BCP-47 code → English name, covering all languages LibreTranslate exposes
 const LANGUAGE_NAMES = {
@@ -646,7 +647,8 @@ exports.guestProfileChatSession = async (req, res) => {
 
     const guestName = String(rawName || '').trim().slice(0, 200);
     const guestEmail = String(rawEmail || '').trim().toLowerCase().slice(0, 254);
-    const message = String(rawMessage || '').trim().slice(0, 2000);
+    const rawMsg = String(rawMessage || '').trim().slice(0, 2000);
+    const message = sanitizeMessage(rawMsg);
 
     if (!guestName || !guestEmail || !message) {
       return res.status(400).json({ error: 'guestName, guestEmail, and message are required' });
