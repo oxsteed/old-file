@@ -195,9 +195,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
         </div>
 
-          {/* Action buttons (copy, like/dislike, edit, delete) */}
-          {showActions && (
-            <div className={`flex items-center gap-1 mt-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+        {/* Action buttons (copy, like/dislike, edit, delete) */}
+        {showActions && (
+          <div className={`flex items-center gap-1 mt-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
               <button
                 onClick={handleCopy}
                 className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
@@ -274,7 +274,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               )}
             </div>
           )}
-        </div>
 
         {/* Timestamp */}
         <time
