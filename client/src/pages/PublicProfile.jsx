@@ -17,7 +17,7 @@ export default function PublicProfile() {
     const load = async () => {
       try {
         const [profileRes, reviewsRes, badgesRes] = await Promise.all([
-          api.get(`/users/${id}/profile`),
+                    api.get(`/helpers/${id}/profile`),
           api.get(`/reviews/users/${id}`),
           api.get(`/verification/badges/${id}`),
         ]);
