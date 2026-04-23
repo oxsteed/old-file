@@ -3026,6 +3026,8 @@
       "helperMsgSub": "Enviar mensaje directamente al negocio",
       "talkToOxsteed": "Hablar con OxSteed",
       "oxsteedSub": "Soporte y ayuda de la plataforma",
+      "helperOffline": "Este ayudante está actualmente desconectado",
+      "liveChatDisabled": "El chat en vivo está deshabilitado para este ayudante",
       "seen": "Visto",
       "searchPlaceholder": "Buscar mensajes…",
       "searchFilterAll": "Todos los mensajes",
@@ -3034,7 +3036,18 @@
       "searchResults": "{{count}} resultado encontrado",
       "searchResultsPlural": "{{count}} resultados encontrados",
       "searchNoResults": "Ningún mensaje coincide con tu búsqueda",
-      "searchLoading": "Buscando…"
+      "searchLoading": "Buscando…",
+      "copyMessage": "Copiar mensaje",
+      "copied": "¡Copiado!",
+      "helpfulLabel": "Útil",
+      "helpful": "Esto fue útil",
+      "notHelpful": "Esto no fue útil",
+      "notHelpfulLabel": "No útil",
+      "quickReplies": "Respuestas rápidas",
+      "editMessage": "Editar mensaje",
+      "deleteMessage": "Eliminar mensaje",
+      "deleteConfirm": "¿Eliminar este mensaje?",
+      "messageComposer": "Compositor de mensajes"
     }
   },
   "disputes": {

@@ -3026,6 +3026,8 @@
       "helperMsgSub": "Message the business directly",
       "talkToOxsteed": "Talk to OxSteed",
       "oxsteedSub": "Platform support & help",
+      "helperOffline": "This helper is currently offline",
+      "liveChatDisabled": "Live chat is disabled for this helper",
       "seen": "Seen",
       "searchPlaceholder": "Search messages…",
       "searchFilterAll": "All messages",
@@ -3034,7 +3036,18 @@
       "searchResults": "{{count}} result found",
       "searchResultsPlural": "{{count}} results found",
       "searchNoResults": "No messages match your search",
-      "searchLoading": "Searching…"
+      "searchLoading": "Searching…",
+      "copyMessage": "Copy message",
+      "copied": "Copied!",
+      "helpfulLabel": "Helpful",
+      "helpful": "This was helpful",
+      "notHelpful": "This was not helpful",
+      "notHelpfulLabel": "Not helpful",
+      "quickReplies": "Quick replies",
+      "editMessage": "Edit message",
+      "deleteMessage": "Delete message",
+      "deleteConfirm": "Delete this message?",
+      "messageComposer": "Message composer"
     }
   },
   "disputes": {

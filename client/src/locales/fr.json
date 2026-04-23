@@ -3026,6 +3026,8 @@
       "helperMsgSub": "Envoyer un message directement à l'entreprise",
       "talkToOxsteed": "Parler à OxSteed",
       "oxsteedSub": "Support et aide de la plateforme",
+      "helperOffline": "Cet assistant est actuellement hors ligne",
+      "liveChatDisabled": "Le chat en direct est désactivé pour cet assistant",
       "seen": "Vu",
       "searchPlaceholder": "Rechercher les messages…",
       "searchFilterAll": "Tous les messages",
