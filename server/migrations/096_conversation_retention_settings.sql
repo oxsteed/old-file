@@ -3,7 +3,7 @@
 
 CREATE TABLE conversation_retention_settings (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   retention_days INT DEFAULT 90, -- Keep archived conversations for 90 days before deletion
   auto_delete BOOLEAN DEFAULT TRUE, -- Whether to automatically delete old conversations
   created_at TIMESTAMP DEFAULT NOW(),
@@ -17,8 +17,8 @@ ON conversation_retention_settings(user_id);
 -- Add audit log for archival events
 CREATE TABLE conversation_archive_log (
   id BIGSERIAL PRIMARY KEY,
-  conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
   action VARCHAR(20) NOT NULL, -- 'archived' or 'restored'
   reason VARCHAR(255),
   created_at TIMESTAMP DEFAULT NOW()
