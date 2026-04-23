@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { conversationMessageLimiter } = require('../middleware/rateLimiter');
+const { conversationMessageLimiter, userChatLimiter } = require('../middleware/rateLimiter');
 const {
   getConversations,
   getGuestInquiries,
@@ -43,7 +43,10 @@ router.get('/conversations/:conversationId', getMessages);
 router.get('/conversations/:conversationId/search', searchMessages);
 
 // POST /api/messages/conversations/:conversationId - Send a message
-router.post('/conversations/:conversationId', conversationMessageLimiter, sendMessage);
+// Apply both user-level (global) and conversation-level rate limits
+// User limit prevents chat spam across all conversations
+// Conversation limit prevents spam within a single conversation
+router.post('/conversations/:conversationId', userChatLimiter, conversationMessageLimiter, sendMessage);
 
 // DELETE /api/messages/conversations/:conversationId/:messageId - Delete a message
 router.delete('/conversations/:conversationId/:messageId', deleteMessage);

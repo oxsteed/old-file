@@ -251,6 +251,30 @@ const termsLimiter = rateLimit({
   },
 });
 
+// Per-user chat rate limiter: 100 messages per 5 minutes per user (global across all conversations)
+// Prevents chat spam and abuse at the user level, complementing conversation-level limiter
+// Falls back to IP for unauthenticated requests
+const userChatLimiter = rateLimit({
+  ...createStoreOption('rl:user_chat:'),
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 100,
+  keyGenerator: (req) => {
+    // Key by user ID if authenticated, otherwise by IP
+    // This ensures each user gets their own bucket regardless of which conversation they're in
+    if (req.user?.id) {
+      return `user:${req.user.id}`;
+    }
+    return req.ip;
+  },
+  skip: (req) => !req.user, // Only applies to authenticated users
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'You are sending messages too quickly. Please wait a moment before sending more.',
+    retryAfter: '5 minutes',
+  },
+});
+
 module.exports = {
   generalLimiter,
   authenticatedLimiter,
@@ -259,6 +283,7 @@ module.exports = {
   chatLimiter,
   conversationMessageLimiter,
   profileChatLimiter,
+  userChatLimiter,
   discoverLimiter,
   discoverAuthLimiter,
   geoLimiter,
