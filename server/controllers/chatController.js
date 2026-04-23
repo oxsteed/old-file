@@ -420,8 +420,17 @@ exports.profileChatMessage = async (req, res) => {
 
     if (!resolvedHelperId) return res.status(400).json({ error: 'helperId or businessId is required' });
 
-    const helperOnline = socketService.isOnline(resolvedHelperId);
     const userId = req.user?.id;
+
+    // Check helper availability (is_available_now) AND Socket.IO connection status
+    const { rows: [helperProfile] } = await pool.query(
+      `SELECT hp.is_available_now FROM helper_profiles hp
+       JOIN users u ON u.id = hp.user_id
+       WHERE hp.user_id = $1 AND u.deleted_at IS NULL`,
+      [resolvedHelperId]
+    ).catch(() => ({ rows: [{ is_available_now: false }] }));
+    const helperAvailable = helperProfile?.is_available_now || false;
+    const helperOnline = helperAvailable || socketService.isOnline(resolvedHelperId);
 
     // Check if any active rep for this business is online; also collect their IDs
     // so we can notify them directly (FIX Bugbot #2)

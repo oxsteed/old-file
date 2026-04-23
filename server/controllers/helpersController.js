@@ -695,8 +695,8 @@ async function getHelperProfile(req, res) {
       chatSession: {
         id:            `session_${id}`,
         destination:   'helper',
-        status:        socketService.isOnline(id) ? 'live' : 'ai_assistant',
-        helperStatus:  socketService.isOnline(id) ? 'live' : 'ai_assistant',
+        status:        (hp.is_available_now || socketService.isOnline(id)) ? 'live' : 'ai_assistant',
+        helperStatus:  (hp.is_available_now || socketService.isOnline(id)) ? 'live' : 'ai_assistant',
         oxsteedStatus: 'ai_assistant',
         timeline:      [],
         typing:        null,
@@ -770,7 +770,15 @@ async function searchLicenses(req, res) {
 async function getHelperStatus(req, res) {
   try {
     const { id } = req.params;
-    const online  = socketService.isOnline(id);
+    // Check is_available_now first (manual toggle), then fall back to Socket.IO status
+    const { rows: [hp] } = await pool.query(
+      `SELECT hp.is_available_now FROM helper_profiles hp
+       JOIN users u ON u.id = hp.user_id
+       WHERE hp.user_id = $1 AND u.deleted_at IS NULL`,
+      [id]
+    );
+    const available = hp ? hp.is_available_now : false;
+    const online = available || socketService.isOnline(id);
     res.json({
       helperId:     id,
       online,
