@@ -99,7 +99,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       className={`px-3 py-3 bg-gray-900 border-t border-gray-800 ${
         isDisabled ? 'opacity-60' : ''
       }`}
-      aria-label="Message composer"
+      aria-label={t('helperProfile.chat.messageComposer', { defaultValue: 'Message composer' })}
     >
       {hint && (
         <div className="mb-2 text-xs text-gray-400 px-0.5" role="status">
@@ -113,7 +113,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
           aria-label={t('messages.attachFile')}
           disabled
-          title="Attach file"
+          title={t('messages.attachFile')}
         >
           <Paperclip className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -121,7 +121,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
           aria-label={t('messages.attachImage')}
           disabled
-          title="Attach image"
+          title={t('messages.attachImage')}
         >
           <Image className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -130,7 +130,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
             aria-label={t('messages.addEmoji')}
-            title="Emoji"
+            title={t('messages.addEmoji')}
           >
             <Smile className="w-4 h-4" aria-hidden="true" />
           </button>
