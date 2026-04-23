@@ -4,7 +4,7 @@
 
 ALTER TABLE conversations
 ADD COLUMN archived_at TIMESTAMP NULL,
-ADD COLUMN archived_by BIGINT REFERENCES users(id) ON DELETE SET NULL;
+ADD COLUMN archived_by UUID REFERENCES users(id) ON DELETE SET NULL;
 
 -- Index for efficient querying of archived conversations (for restoration UI)
 CREATE INDEX idx_conversations_archived
