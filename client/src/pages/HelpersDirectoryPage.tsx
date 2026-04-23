@@ -417,7 +417,7 @@ function getInitialState(): { filters: DirectoryFilters; tileId: string | null }
   const skillIdsParam = params.get('requiredSkillIds');
   if (skillIdsParam) {
     const ids = skillIdsParam.split(',').map(id => parseInt(id, 10)).filter(Number.isInteger);
-    (filters as any).requiredSkillIds = ids;
+    filters.requiredSkillIds = ids;
   }
 
   return { filters, tileId };
