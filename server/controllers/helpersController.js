@@ -171,9 +171,10 @@ async function listHelpers(req, res) {
     }
 
     // Skills filter by ID (from job requirements): ALL-of logic (helper must have EVERY required skill)
+    // If both skill name and skill ID filters are provided, chain both JOINs
     if (skillIdList.length > 0) {
       params.push(skillIdList);
-      skillJoinClause = `
+      const skillIdJoin = `
         JOIN (
           SELECT user_id FROM helper_skills hs
           WHERE hs.skill_id = ANY($${pIdx}::int[])
@@ -181,6 +182,7 @@ async function listHelpers(req, res) {
           HAVING COUNT(DISTINCT hs.skill_id) = ${skillIdList.length}
         ) hs_req ON hs_req.user_id = u.id
       `;
+      skillJoinClause = skillJoinClause ? skillJoinClause + skillIdJoin : skillIdJoin;
       pIdx++;
     }
 
