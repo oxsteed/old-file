@@ -830,7 +830,18 @@
     "translating": "Traduction…",
     "showOriginalMessage": "Afficher l’original",
     "showTranslationMessage": "Afficher la traduction",
-    "loadOlderMessages": "Charger les Anciens Messages"
+    "loadOlderMessages": "Charger les Anciens Messages",
+    "reactions": {
+      "thumbs_up": "👍 Pouce vers le haut",
+      "heart": "❤️ J'aime",
+      "laugh": "😂 Amusant",
+      "sad": "😢 Triste",
+      "angry": "😠 Fâché",
+      "wow": "😮 Wow"
+    },
+    "addReaction": "Ajouter une réaction",
+    "reactedWith": "Vous avez réagi avec {{reaction}}",
+    "removeReaction": "Supprimer la réaction"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",

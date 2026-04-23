@@ -830,7 +830,18 @@
     "translating": "Translating…",
     "showOriginalMessage": "Show original",
     "showTranslationMessage": "Show translation",
-    "loadOlderMessages": "Load Older Messages"
+    "loadOlderMessages": "Load Older Messages",
+    "reactions": {
+      "thumbs_up": "👍 Thumbs Up",
+      "heart": "❤️ Love",
+      "laugh": "😂 Funny",
+      "sad": "😢 Sad",
+      "angry": "😠 Angry",
+      "wow": "😮 Wow"
+    },
+    "addReaction": "Add reaction",
+    "reactedWith": "You reacted with {{reaction}}",
+    "removeReaction": "Remove reaction"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",

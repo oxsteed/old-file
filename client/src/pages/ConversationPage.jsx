@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import AutoTranslatedMessage from '../components/AutoTranslatedMessage';
+import MessageReactions from '../components/MessageReactions';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -212,19 +213,28 @@ export default function ConversationPage() {
                   </div>
                 ) : (
                   <>
-                    <div className={`px-4 py-2 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
-                      isMe
-                        ? 'bg-blue-600 text-white rounded-br-sm'
-                        : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                    }`}>
-                      <AutoTranslatedMessage
-                        text={msg.content}
-                        incomingOnly
-                        isOwnMessage={isMe}
-                      />
-                      {msg.updated_at && msg.updated_at > msg.created_at && (
-                        <span className="text-xs opacity-75 ml-2">(edited)</span>
-                      )}
+                    <div className={`flex flex-col gap-1`}>
+                      <div className={`px-4 py-2 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
+                        isMe
+                          ? 'bg-blue-600 text-white rounded-br-sm'
+                          : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                      }`}>
+                        <AutoTranslatedMessage
+                          text={msg.content}
+                          incomingOnly
+                          isOwnMessage={isMe}
+                        />
+                        {msg.updated_at && msg.updated_at > msg.created_at && (
+                          <span className="text-xs opacity-75 ml-2">(edited)</span>
+                        )}
+                      </div>
+                      <div className={isMe ? 'flex justify-end' : 'flex justify-start'}>
+                        <MessageReactions
+                          conversationId={conversationId}
+                          messageId={msg.id}
+                          reactions={msg.reactions || []}
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5 px-1">
                       <span className="text-[11px] text-gray-400">{formatTime(msg.created_at)}</span>

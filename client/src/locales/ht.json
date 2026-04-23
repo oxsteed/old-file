@@ -897,7 +897,18 @@
     "translating": "Ap tradui…",
     "showOriginalMessage": "Montre orijinal la",
     "showTranslationMessage": "Montre tradiksyon an",
-    "loadOlderMessages": "Chaje Vye Mesaj"
+    "loadOlderMessages": "Chaje Vye Mesaj",
+    "reactions": {
+      "thumbs_up": "👍 Gwo pous",
+      "heart": "❤️ Renmen",
+      "laugh": "😂 Komik",
+      "sad": "😢 Triste",
+      "angry": "😠 Fache",
+      "wow": "😮 Wow"
+    },
+    "addReaction": "Ajoute reyaksyon",
+    "reactedWith": "Ou reyaji avèk {{reaction}}",
+    "removeReaction": "Retire reyaksyon"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",

@@ -13,6 +13,9 @@ const {
   sendMessage,
   deleteMessage,
   editMessage,
+  addReaction,
+  removeReaction,
+  getMessageReactions,
 } = require('../controllers/messageController');
 
 // All routes require authentication
@@ -47,5 +50,14 @@ router.delete('/conversations/:conversationId/:messageId', deleteMessage);
 
 // PUT /api/messages/conversations/:conversationId/:messageId - Edit a message
 router.put('/conversations/:conversationId/:messageId', editMessage);
+
+// GET /api/messages/conversations/:conversationId/:messageId/reactions - Get all reactions for a message
+router.get('/conversations/:conversationId/:messageId/reactions', getMessageReactions);
+
+// POST /api/messages/conversations/:conversationId/:messageId/reactions - Add a reaction
+router.post('/conversations/:conversationId/:messageId/reactions', addReaction);
+
+// DELETE /api/messages/conversations/:conversationId/:messageId/reactions - Remove a reaction
+router.delete('/conversations/:conversationId/:messageId/reactions', removeReaction);
 
 module.exports = router;

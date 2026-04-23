@@ -723,6 +723,183 @@ const editMessage = async (req, res) => {
   }
 };
 
+// Add a reaction to a message
+const addReaction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+    const { reaction } = req.body;
+
+    // Validate reaction type
+    const validReactions = ['thumbs_up', 'heart', 'laugh', 'sad', 'angry', 'wow'];
+    if (!reaction || !validReactions.includes(reaction)) {
+      return res.status(400).json({ error: 'Invalid reaction type' });
+    }
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Verify message exists and belongs to this conversation
+    const msg = await pool.query(
+      `SELECT id FROM messages WHERE id = $1 AND conversation_id = $2 AND deleted_at IS NULL`,
+      [messageId, conversationId]
+    );
+    if (msg.rows.length === 0) return res.status(404).json({ error: 'Message not found' });
+
+    // Insert or ignore if reaction already exists (upsert behavior)
+    const result = await pool.query(
+      `INSERT INTO message_reactions (message_id, user_id, reaction)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (message_id, user_id, reaction) DO NOTHING
+       RETURNING *`,
+      [messageId, userId, reaction]
+    );
+
+    // Fetch all reactions for this message to broadcast the updated state
+    const reactionsResult = await pool.query(
+      `SELECT reaction, COUNT(*) as count, array_agg(user_id) as users
+       FROM message_reactions
+       WHERE message_id = $1
+       GROUP BY reaction`,
+      [messageId]
+    );
+
+    // Broadcast reaction update to all participants in the conversation
+    socketService.broadcastToConversation(conversationId, 'message:reaction', {
+      conversationId,
+      messageId,
+      reaction,
+      userId,
+      allReactions: reactionsResult.rows,
+    });
+
+    res.status(201).json({ reaction, allReactions: reactionsResult.rows });
+  } catch (error) {
+    logger.error('Error adding reaction', { err: error.message });
+    res.status(500).json({ error: 'Failed to add reaction' });
+  }
+};
+
+// Remove a reaction from a message
+const removeReaction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+    const { reaction } = req.body;
+
+    // Validate reaction type
+    const validReactions = ['thumbs_up', 'heart', 'laugh', 'sad', 'angry', 'wow'];
+    if (!reaction || !validReactions.includes(reaction)) {
+      return res.status(400).json({ error: 'Invalid reaction type' });
+    }
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Remove the reaction
+    const deleteResult = await pool.query(
+      `DELETE FROM message_reactions
+       WHERE message_id = $1 AND user_id = $2 AND reaction = $3
+       RETURNING *`,
+      [messageId, userId, reaction]
+    );
+
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Reaction not found' });
+    }
+
+    // Fetch updated reactions for this message
+    const reactionsResult = await pool.query(
+      `SELECT reaction, COUNT(*) as count, array_agg(user_id) as users
+       FROM message_reactions
+       WHERE message_id = $1
+       GROUP BY reaction`,
+      [messageId]
+    );
+
+    // Broadcast reaction update
+    socketService.broadcastToConversation(conversationId, 'message:reaction_removed', {
+      conversationId,
+      messageId,
+      reaction,
+      userId,
+      allReactions: reactionsResult.rows,
+    });
+
+    res.json({ reaction, allReactions: reactionsResult.rows });
+  } catch (error) {
+    logger.error('Error removing reaction', { err: error.message });
+    res.status(500).json({ error: 'Failed to remove reaction' });
+  }
+};
+
+// Get all reactions for a message
+const getMessageReactions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId, messageId } = req.params;
+
+    // Verify user is part of conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id, c.business_id FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    // Fetch all reactions and details
+    const result = await pool.query(
+      `SELECT
+         mr.reaction,
+         COUNT(*) as count,
+         array_agg(json_build_object('user_id', u.id, 'name', u.first_name || ' ' || u.last_name))
+           FILTER (WHERE u.id IS NOT NULL) as users,
+         BOOL_OR(mr.user_id = $2) as user_reacted
+       FROM message_reactions mr
+       LEFT JOIN users u ON mr.user_id = u.id
+       WHERE mr.message_id = $1
+       GROUP BY mr.reaction`,
+      [messageId, userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    logger.error('Error fetching reactions', { err: error.message });
+    res.status(500).json({ error: 'Failed to fetch reactions' });
+  }
+};
+
 module.exports = {
   getConversations,
   getGuestInquiries,
@@ -734,4 +911,7 @@ module.exports = {
   sendMessage,
   deleteMessage,
   editMessage,
+  addReaction,
+  removeReaction,
+  getMessageReactions,
 };

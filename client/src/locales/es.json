@@ -830,7 +830,18 @@
     "translating": "Traduciendo…",
     "showOriginalMessage": "Mostrar original",
     "showTranslationMessage": "Mostrar traducción",
-    "loadOlderMessages": "Cargar Mensajes Más Antiguos"
+    "loadOlderMessages": "Cargar Mensajes Más Antiguos",
+    "reactions": {
+      "thumbs_up": "👍 Pulgar hacia arriba",
+      "heart": "❤️ Me encanta",
+      "laugh": "😂 Divertido",
+      "sad": "😢 Triste",
+      "angry": "😠 Enojado",
+      "wow": "😮 Asombrado"
+    },
+    "addReaction": "Añadir reacción",
+    "reactedWith": "Reaccionaste con {{reaction}}",
+    "removeReaction": "Eliminar reacción"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
