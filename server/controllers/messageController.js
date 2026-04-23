@@ -2,6 +2,7 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
+const { sendNotification } = require('../services/notificationService');
 
 /**
  * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
@@ -561,6 +562,69 @@ const sendMessage = async (req, res) => {
         socketService.broadcastToUser(repId, 'message:new', { conversationId, message: messagePayload });
       }
     }
+
+    // Send notifications based on user preferences (async, non-blocking)
+    setImmediate(async () => {
+      try {
+        const notifData = { conversationId, senderName };
+        if (userId === customer_id) {
+          // Customer sent — notify the helper/owner
+          await sendNotification({
+            userId: helper_id,
+            type: 'new_message',
+            title: 'New message from ' + senderName,
+            body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+            data: notifData,
+            action_url: `/messages/${conversationId}`,
+          });
+        } else if (userId === helper_id) {
+          // Owner sent — notify the customer
+          await sendNotification({
+            userId: customer_id,
+            type: 'new_message',
+            title: 'New message from ' + senderName,
+            body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+            data: notifData,
+            action_url: `/messages/${conversationId}`,
+          });
+        } else {
+          // Rep sent — notify the customer and owner
+          await Promise.all([
+            sendNotification({
+              userId: customer_id,
+              type: 'new_message',
+              title: 'New message from ' + senderName,
+              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+              data: notifData,
+              action_url: `/messages/${conversationId}`,
+            }),
+            sendNotification({
+              userId: helper_id,
+              type: 'new_message',
+              title: 'New message from ' + senderName,
+              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+              data: notifData,
+              action_url: `/messages/${conversationId}`,
+            }),
+          ]);
+        }
+        // Notify all other reps
+        for (const repId of repIds) {
+          if (repId !== userId && repId !== helper_id) {
+            await sendNotification({
+              userId: repId,
+              type: 'new_message',
+              title: 'New message from ' + senderName,
+              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
+              data: notifData,
+              action_url: `/messages/${conversationId}`,
+            });
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to send chat notifications', { err: err.message, conversationId });
+      }
+    });
 
     res.status(201).json(messagePayload);
   } catch (error) {

@@ -150,16 +150,21 @@
       "in_app_new_review": "Nouvo kòmantè resevwa",
       "in_app_dispute_update": "Mizajou dispute",
       "in_app_subscription": "Mizajou abònman",
+      "in_app_new_message": "Nouvo mesaj chat",
+      "in_app_message_mention": "Lè yo menn mwen nan chat",
       "push_new_job_nearby": "Nouvo travay pre ou",
       "push_new_bid": "Nouvo òf resevwa",
       "push_bid_accepted": "Òf aksepte",
       "push_payment_released": "Peman libere",
       "push_dispute_update": "Mizajou dispute",
+      "push_new_message": "Nouvo mesaj chat",
+      "push_message_mention": "Lè yo menn mwen nan chat",
       "email_bid_accepted": "Òf aksepte",
       "email_payment_released": "Peman libere",
       "email_subscription": "Mizajou abònman",
       "email_dispute_update": "Mizajou dispute",
-      "email_weekly_summary": "Rezime chak semèn"
+      "email_weekly_summary": "Rezime chak semèn",
+      "email_new_message": "Nouvo mesaj chat"
     }
   },
   "jobs": {

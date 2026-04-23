@@ -2589,16 +2589,21 @@
       "in_app_new_review": "Nouvel avis reçu",
       "in_app_dispute_update": "Mise à jour du litige",
       "in_app_subscription": "Mises à jour de l'abonnement",
+      "in_app_new_message": "Nouveaux messages de chat",
+      "in_app_message_mention": "Quand je suis mentionné dans le chat",
       "push_new_job_nearby": "Nouvelle mission à proximité",
       "push_new_bid": "Nouvelle offre reçue",
       "push_bid_accepted": "Offre acceptée",
       "push_payment_released": "Paiement libéré",
       "push_dispute_update": "Mise à jour du litige",
+      "push_new_message": "Nouveaux messages de chat",
+      "push_message_mention": "Quand je suis mentionné dans le chat",
       "email_bid_accepted": "Offre acceptée",
       "email_payment_released": "Paiement libéré",
       "email_subscription": "Mises à jour de l'abonnement",
       "email_dispute_update": "Mise à jour du litige",
-      "email_weekly_summary": "Résumé hebdomadaire"
+      "email_weekly_summary": "Résumé hebdomadaire",
+      "email_new_message": "Nouveaux messages de chat"
     }
   },
   "plannedNeeds": {
