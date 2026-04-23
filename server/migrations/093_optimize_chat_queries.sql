@@ -11,9 +11,10 @@ CREATE INDEX IF NOT EXISTS idx_messages_conv_search
 ON messages (conversation_id, sender_id, created_at DESC)
 WHERE deleted_at IS NULL;
 
--- Index for unread message count (conversation_id + read_by)
-CREATE INDEX IF NOT EXISTS idx_message_reads_conv
-ON message_reads (conversation_id, reader_id);
+-- Index for unread message count queries (conversation_id + read status)
+CREATE INDEX IF NOT EXISTS idx_messages_unread
+ON messages (conversation_id, sender_id, is_read)
+WHERE deleted_at IS NULL AND is_read = FALSE;
 
 -- Index for conversation listing (customer + helper)
 CREATE INDEX IF NOT EXISTS idx_conversations_participants
