@@ -64,6 +64,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
 
   // Set scroll-padding-top so SectionNav anchor links don't hide under sticky bars
   useEffect(() => {
@@ -73,6 +74,15 @@ const HelperBusinessProfilePage: React.FC = () => {
     return () => {
       document.documentElement.style.scrollPaddingTop = previous;
     };
+  }, []);
+
+  // Track window resize to determine if we're on mobile/tablet
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint in Tailwind
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadProfile = useCallback(async () => {
@@ -313,17 +323,19 @@ const HelperBusinessProfilePage: React.FC = () => {
       </div>
 
       {/* ── Mobile chat drawer ───────────────────────────────── */}
-      <MobileChatDrawer open={chatOpen} onClose={() => setChatOpen(false)}>
-        <ChatPanel
-          session={chatSession}
-          helperName={helper.businessName}
-          helperId={helper.id}
-          isGuest={isGuestVisitor}
-          variant="modal"
-          onClose={() => setChatOpen(false)}
-          className="h-full"
-        />
-      </MobileChatDrawer>
+      {isMobile && (
+        <MobileChatDrawer open={chatOpen} onClose={() => setChatOpen(false)}>
+          <ChatPanel
+            session={chatSession}
+            helperName={helper.businessName}
+            helperId={helper.id}
+            isGuest={isGuestVisitor}
+            variant="modal"
+            onClose={() => setChatOpen(false)}
+            className="h-full"
+          />
+        </MobileChatDrawer>
+      )}
 
       {guestSignInModalOpen && (
         <div
