@@ -12,7 +12,13 @@ const {
   updateQRCode,
   deleteQRCode,
   downloadQRCode,
-  generateQRWithLogo,
+  getTemplates,
+  savePreset,
+  getPresets,
+  deletePreset,
+  createBatch,
+  getBatches,
+  generateBatchQRCodes,
 } = require('../controllers/qrCodesController');
 
 // Simple middleware to check Pro tier (helper_pro role)
@@ -54,5 +60,38 @@ router.delete('/:id', deleteQRCode);
 
 // Download QR code (with analytics tracking)
 router.post('/:id/download', downloadQRCode);
+
+// ────────────────────────────────────────────────────────────────────────────
+// TEMPLATES
+// ────────────────────────────────────────────────────────────────────────────
+
+// Get available preset templates (public, no auth needed for listing)
+router.get('/templates/list', getTemplates);
+
+// ────────────────────────────────────────────────────────────────────────────
+// PRESETS - Save and manage user's styling presets
+// ────────────────────────────────────────────────────────────────────────────
+
+// Save a new preset
+router.post('/presets/save', savePreset);
+
+// Get all presets for the user
+router.get('/presets/list', getPresets);
+
+// Delete a preset
+router.delete('/presets/:presetId', deletePreset);
+
+// ────────────────────────────────────────────────────────────────────────────
+// BATCH GENERATION - Generate multiple QR codes at once
+// ────────────────────────────────────────────────────────────────────────────
+
+// Create a new batch
+router.post('/batches/create', createBatch);
+
+// Get all batches for the user
+router.get('/batches/list', getBatches);
+
+// Generate QR codes from a batch
+router.post('/batches/:batchId/generate', generateBatchQRCodes);
 
 module.exports = router;
