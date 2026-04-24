@@ -561,6 +561,30 @@
   transform: rotate(180deg);
 }
 
+/* ── Mission / Trust Section ─────────────────────────────── */
+.hp-mission-section { background: var(--hp-surface-2); }
+.hp-mission-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+}
+@media (max-width: 640px) {
+  .hp-mission-grid { grid-template-columns: 1fr; gap: 2rem; }
+}
+.hp-mission-block { display: flex; flex-direction: column; gap: 1rem; }
+.hp-mission-title {
+  font-family: var(--hp-font-display);
+  font-size: clamp(1.25rem, 1rem + 1vw, 1.6rem);
+  font-weight: 400;
+  color: var(--hp-text);
+  line-height: 1.2;
+}
+.hp-mission-text {
+  font-size: .9375rem;
+  color: var(--hp-text-muted);
+  line-height: 1.7;
+}
+
 /* ── Trust / Why OxSteed ─────────────────────────────────── */
 .hp-trust-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2rem; }
 @media (max-width: 720px) { .hp-trust-grid { grid-template-columns: 1fr; gap: 1.5rem; } }

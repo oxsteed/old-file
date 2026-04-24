@@ -566,6 +566,22 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* -- Mission/Trust Section -- */}
+      <section className="hp-section hp-mission-section">
+        <div className="hp-container">
+          <div className="hp-mission-grid">
+            <div className="hp-mission-block">
+              <h3 className="hp-mission-title">{t('homePage.mission.invisibleTitle')}</h3>
+              <p className="hp-mission-text">{t('homePage.mission.invisibleDesc')}</p>
+            </div>
+            <div className="hp-mission-block">
+              <h3 className="hp-mission-title">{t('homePage.mission.ownershipTitle')}</h3>
+              <p className="hp-mission-text">{t('homePage.mission.ownershipDesc')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* -- Helper CTA -- */}
       <section className="hp-section hp-cta-section">
         <div className="hp-container">

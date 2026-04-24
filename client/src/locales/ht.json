@@ -3257,6 +3257,12 @@
       "postJobLink": "Pibliye yon travay",
       "dontSeeEnd": "epi kite èd ki kalifye yo vin jwenn ou."
     },
+    "mission": {
+      "invisibleTitle": "Twòp moun ki gen kapasite yo rete envisib",
+      "invisibleDesc": "Milyon moun konnen ki jan yo genyen ke netwaye, repare, deplase, enstale, òganize, anseye, kondwi, kwit ak rezoud pwoblèm. Men konnen ki jan fè yon bagay ak konnen ki jan vire li an nèg se pa menm bagay.",
+      "ownershipTitle": "Nou kwè ke pwopriyete biznis ta dwe aksesib",
+      "ownershipDesc": "Se pa tout moun ki kòmanse ak kapital, koneksyon oswa fòmasyon biznis. Men anpil moun genyen deja yon bagay ki gen valè: yon kapasite ki rezoud pwoblèm reyèl. OxSteed egziste pou èd moun yo kòmanse soti nan la. Misyon an se senp: bay moun òdinè a opòtinite a al soti nan konnen ki jan fè yon bagay a posede pwòp biznis yo pou lontan."
+    },
     "cta": {
       "title": "Pare pou kòmanse?",
       "titleEm": "kòmanse",
