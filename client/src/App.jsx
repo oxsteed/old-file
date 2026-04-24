@@ -106,6 +106,7 @@ export default function App() {
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/tool-rentals/analytics"  element={<Guarded><ProtectedRoute><ToolRentalsAnalytics /></ProtectedRoute></Guarded>} />
+                    <Route path="/qr-code-generator"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invoice/p/:token"        element={<Guarded><PublicInvoiceView /></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
