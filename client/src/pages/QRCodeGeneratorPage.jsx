@@ -64,7 +64,8 @@ const QRCodeGeneratorPage = () => {
         ? {
             image: {
               src: formData.logoUrl,
-              hideBackgroundDots: true,
+              width: 100,
+              height: 100,
             },
           }
         : {};
