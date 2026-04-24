@@ -695,8 +695,8 @@ async function getHelperProfile(req, res) {
       chatSession: {
         id:            `session_${id}`,
         destination:   'helper',
-        status:        (hp.is_available_now || socketService.isOnline(id)) ? 'live' : 'ai_assistant',
-        helperStatus:  (hp.is_available_now || socketService.isOnline(id)) ? 'live' : 'ai_assistant',
+        status:        (h.is_available_now || socketService.isOnline(id)) ? 'live' : 'ai_assistant',
+        helperStatus:  (h.is_available_now || socketService.isOnline(id)) ? 'live' : 'ai_assistant',
         oxsteedStatus: 'ai_assistant',
         timeline:      [],
         typing:        null,
