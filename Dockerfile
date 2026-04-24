@@ -26,7 +26,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:5000/api/health || exit 1
 
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 --ingroup nodejs nodeuser
+    adduser --system --uid 1001 --ingroup nodejs nodeuser && \
+    mkdir -p /app/public && \
+    chown -R nodeuser:nodejs /app/public
 USER nodeuser
 
 # Run migrations then start the server
