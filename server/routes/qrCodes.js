@@ -12,6 +12,7 @@ const {
   updateQRCode,
   deleteQRCode,
   downloadQRCode,
+  generateQRWithLogo,
 } = require('../controllers/qrCodesController');
 
 // Simple middleware to check Pro tier (helper_pro role)
@@ -32,6 +33,9 @@ const requireProTier = (req, res, next) => {
 router.use(authenticate);
 router.use(requireProTier);
 router.use(generalLimiter);
+
+// Generate QR code with embedded logo (server-side)
+router.post('/generate-with-logo', generateQRWithLogo);
 
 // Create new QR code
 router.post('/', createQRCode);

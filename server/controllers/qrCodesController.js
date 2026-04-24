@@ -7,6 +7,8 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
+const QRCode = require('qrcode');
+const { createCanvas, loadImage } = require('canvas');
 
 // Ensure upload directory exists
 const QR_UPLOAD_DIR = path.join(__dirname, '../../public/qr-codes');
@@ -398,5 +400,85 @@ exports.downloadQRCode = async (req, res, next) => {
     res.status(500).json({ error: 'Failed to download QR code' });
   } finally {
     client.release();
+  }
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// GENERATE - Generate QR code with embedded logo (server-side)
+// ────────────────────────────────────────────────────────────────────────────
+exports.generateQRWithLogo = async (req, res, next) => {
+  try {
+    const {
+      url,
+      logoDataUrl,
+      dotColor = '#000000',
+      backgroundColor = '#ffffff',
+      size = 480,
+      logoSizeRatio = 0.22,
+    } = req.body;
+
+    // Validate input
+    if (!url) {
+      return res.status(400).json({ error: 'url is required' });
+    }
+
+    if (!/^#[0-9a-fA-F]{6}$/.test(dotColor) || !/^#[0-9a-fA-F]{6}$/.test(backgroundColor)) {
+      return res.status(400).json({ error: 'invalid color format (must be hex)' });
+    }
+
+    if (size < 100 || size > 1000) {
+      return res.status(400).json({ error: 'size must be between 100 and 1000' });
+    }
+
+    // Create canvas at target size
+    const canvas = createCanvas(size, size);
+
+    // Generate QR directly onto canvas with HIGH error correction
+    // This is REQUIRED for logo overlay (allows 30% error correction)
+    await QRCode.toCanvas(canvas, url, {
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      width: size,
+      color: {
+        dark: dotColor,
+        light: backgroundColor,
+      },
+    });
+
+    // If logo provided, composite it in center
+    if (logoDataUrl && logoDataUrl.trim()) {
+      try {
+        const ctx = canvas.getContext('2d');
+        const logo = await loadImage(logoDataUrl);
+
+        const logoSize = Math.round(size * logoSizeRatio);
+        const centerX = (size - logoSize) / 2;
+        const centerY = (size - logoSize) / 2;
+
+        // Draw white rounded rect behind logo for contrast + scannability
+        const padding = 4;
+        ctx.fillStyle = backgroundColor;
+        ctx.beginPath();
+        ctx.roundRect(centerX - padding, centerY - padding, logoSize + padding * 2, logoSize + padding * 2, 8);
+        ctx.fill();
+
+        // Draw logo centered
+        ctx.drawImage(logo, centerX, centerY, logoSize, logoSize);
+      } catch (logoErr) {
+        logger.warn('qrCodesController.generateQRWithLogo: logo embedding failed', { err: logoErr.message });
+        // Continue without logo if it fails
+      }
+    }
+
+    // Convert to PNG data URL
+    const pngDataUrl = canvas.toDataURL('image/png');
+
+    res.json({
+      success: true,
+      image: pngDataUrl,
+    });
+  } catch (err) {
+    logger.error('qrCodesController.generateQRWithLogo: error', { err: err.message });
+    res.status(500).json({ error: 'Failed to generate QR code with logo' });
   }
 };
