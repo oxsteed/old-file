@@ -1014,4 +1014,50 @@ async function getMyListingStatus(req, res) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus };
+// ── GET /api/helpers/me/availability ───────────────────────────────────────
+// Returns whether the logged-in helper is currently available for live chat
+async function getMyAvailability(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT is_available_now FROM helper_profiles WHERE user_id = $1`,
+      [req.user.id],
+    );
+
+    const is_available_now = rows[0] ? rows[0].is_available_now : false;
+    return res.json({ is_available_now });
+  } catch (err) {
+    logger.error('[getMyAvailability] error:', { err: err });
+    return res.status(500).json({ error: 'Failed to fetch availability status' });
+  }
+}
+
+// ── PUT /api/helpers/me/availability ───────────────────────────────────────
+// Toggle live chat availability (is_available_now)
+async function toggleAvailability(req, res) {
+  try {
+    const { is_available_now } = req.body;
+
+    if (typeof is_available_now !== 'boolean') {
+      return res.status(400).json({ error: 'is_available_now must be a boolean' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE helper_profiles
+       SET is_available_now = $1
+       WHERE user_id = $2
+       RETURNING is_available_now`,
+      [is_available_now, req.user.id],
+    );
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Helper profile not found' });
+    }
+
+    return res.json({ is_available_now: rows[0].is_available_now });
+  } catch (err) {
+    logger.error('[toggleAvailability] error:', { err: err });
+    return res.status(500).json({ error: 'Failed to update availability' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability };
