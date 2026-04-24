@@ -280,6 +280,16 @@ export default function BusinessProfilePage() {
   const [error,       setError]       = useState(null);
   const [chatOpen,    setChatOpen]    = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
+
+  // Track window resize to determine if we're on mobile/tablet
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint in Tailwind
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Scroll padding: Navbar (~64px) + SectionNav (~40px) + breathing room
   useEffect(() => {
@@ -317,6 +327,17 @@ export default function BusinessProfilePage() {
   }, [profileData, navigate]);
 
   const handleOpenChat = useCallback(() => {
+    // On desktop, scroll to chat panel in sidebar. On mobile, open drawer.
+    if (!isMobile) {
+      // Desktop: scroll right sidebar into view
+      const chatAside = document.querySelector('aside[aria-label*="bookAndChat"]');
+      if (chatAside) {
+        chatAside.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
+
+    // Mobile: open chat drawer
     if (user) {
       setChatOpen(true);
       return;
@@ -327,7 +348,7 @@ export default function BusinessProfilePage() {
     } else {
       setGuestSignInModalOpen(true);
     }
-  }, [user, profileData?.helper?.allowGuestContact]);
+  }, [isMobile, user, profileData?.helper?.allowGuestContact]);
   const handleSelectService = useCallback(() => {}, []); // future: /book/:id?service=
 
   // ── Loading / error shells ─────────────────────────────────────────────────
