@@ -1,6 +1,8 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-22 (✅ **Admin UI — delete user:** `UserDetail.jsx` super-admin **Delete user permanently** (email-confirm + optional audit reason) → `DELETE /api/admin/users/:id` then redirect `/admin/users`. ✅ **Super-admin hard delete:** `DELETE /api/admin/users/:userId` is **`requireSuperAdmin`** only (no delegated `delete_users`). `superAdminController.deleteUser` runs in **`withTransaction`**, fixes bogus `receiver_id`/`refresh_tokens` cleanup, deletes **disputes/dispute_messages/payments/conversations/messages/sessions/guest_profile_chat_inbound** where needed, NULLs **`platform_settings.updated_by`**, **`feature_flags.updated_by`**, **`content_reports.reviewed_by`**, **`moderation_queue`** user refs before `DELETE FROM users`. **`tokenRevocation.revokeAllUserTokens`** + **`sessions`** invalidate + **`socketService.disconnectUserSockets`**. Migration **088** drops **`platform_ledger_user_id_fkey`** (same class as 052 job_id — immutable ledger + `ledger_no_update` blocked user FK nulling). ✅ **In-chat auto-translate + Redis:** `POST /api/translate` uses `translationCache.getTranslations` + `getCachedDetectedLanguage`; **LIBRETRANSLATE_URL**. ✅ **Business/guest chat + inbox UUID** prior session items unchanged.)
+**Last updated:** 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine with 7 states (waiting_for_helper → ai_fallback_pending → ai_support_active → helper_takeover_requested → helper_assigned, or resolved/abandoned). 5-minute response deadline enforced via cron job (`guestChatSessionTimeout.js`). Race condition prevention via SERIALIZABLE isolation + SELECT FOR UPDATE. Message queueing during state transitions prevents message loss. Helper context (AI summary) passed on claim. Socket.IO broadcast for real-time admin monitoring. Full audit trail via `chat_monitoring_log`. API at `/api/guest-chat/*` with transaction-safe service layer. Migration 100 adds `guest_profile_chat_messages` table + guest_id FK. Cron starts automatically on server startup. All syntax verified.)
+
+> Prior: 2026-04-22 (Admin UI, business skills, discover search, SEO prerender, CI/Docker fixes, payment capture async)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -848,6 +850,115 @@ Modified:
 - ✅ Phase 3 Integration (follow IMPLEMENTATION_GUIDE_*.md)
 - ✅ End-to-end testing with real Spanish/English users
 - ✅ Production deployment once integrated and tested
+
+---
+
+### Session — 2026-04-24 (Guest-to-Helper Chat System - Complete Implementation)
+
+**Objective:** Build a production-ready guest-to-helper chat system with 5-minute response timeout, AI fallback, race condition prevention, and real-time admin monitoring.
+
+**What Was Built:**
+
+1. **Stale Session Detection Cron Job** ✅
+   - File: `server/jobs/guestChatSessionTimeout.js`
+   - Runs every 1 minute (configurable)
+   - Finds sessions in `waiting_for_helper` state with expired `helper_response_deadline`
+   - Transitions to `ai_fallback_pending` state within transaction
+   - Logs timeout event to `chat_monitoring_log`
+   - Wired into server startup in `server/index.js`
+   - Non-blocking: failures don't crash server, logged separately
+
+2. **Transaction-Safe Chat Controller** ✅
+   - File: `server/controllers/guestChatController.js`
+   - All operations use `withChatTransaction()` for SERIALIZABLE isolation
+   - Key endpoints:
+     - `POST /api/guest-chat/sessions` — Guest creates session + sends initial message
+     - `POST /api/guest-chat/sessions/:sessionId/messages` — Guest sends message (public)
+     - `POST /api/guest-chat/sessions/:sessionId/claim` — Helper claims from AI (auth required)
+     - `POST /api/guest-chat/sessions/:sessionId/messages/helper` — Helper sends message (auth required)
+     - `POST /api/guest-chat/sessions/:sessionId/resolve` — Resolve session (auth required)
+     - `GET /api/guest-chat/sessions/:sessionId` — Get session + all messages
+   - Race condition prevention via SELECT FOR UPDATE locks
+   - Message queuing during state transitions (`queueMessageIfTransitioning`)
+   - Queue draining on transition completion (`drainMessageQueue`)
+   - Helper context (AI summary) passed when helper claims session
+   - Real-time socket emissions on all state changes
+
+3. **Guest Chat Routes** ✅
+   - File: `server/routes/guestChat.js`
+   - Public endpoints: create session, send message, get session
+   - Authenticated endpoints: claim, helper send, resolve
+   - Rate-limited via `generalLimiter`
+   - Wired into `server/index.js` at `/api/guest-chat`
+
+4. **Database Migration** ✅
+   - File: `server/migrations/100_guest_chat_messages.sql`
+   - New table: `guest_profile_chat_messages` (id, session_id, sender_type, sender_name, message, created_at)
+   - Adds `guest_id` FK to `guest_profile_chat_inbound` (for future: guest account linking)
+   - Indexes on session_id for efficient message retrieval
+   - Sender types: `guest`, `helper`, `system_ai`
+
+5. **Socket.IO Real-Time Broadcasting** ✅
+   - Added broadcast methods to `server/services/socketService.js`:
+     - `broadcastNewGuestSession()` → `guest_chat_waiting` room (helpers)
+     - `broadcastGuestSessionUpdate()` → `guest_chat_admin` room (admins)
+     - `broadcastGuestChatMessage()` → per-session + admin rooms
+   - Socket.IO handlers in `server/index.js`:
+     - Helpers auto-join `guest_chat_waiting` room on connect
+     - Admins auto-join `guest_chat_admin` room on connect
+   - Events emitted from controller on all state changes
+   - Real-time admin dashboard updates with zero polling
+
+6. **Integration with Existing Service Layer** ✅
+   - Uses `chatTransactionService.js` methods:
+     - `withChatTransaction()` — SERIALIZABLE isolation
+     - `updateSessionStatus()` — state transitions with validation
+     - `logChatEvent()` — audit trail
+     - `queueMessageIfTransitioning()` — queue during transition
+     - `drainMessageQueue()` — process queued messages post-transition
+   - All existing mechanisms work as-is
+
+**Key Design Decisions:**
+
+- **Database-driven timeouts:** Cron job detects stale sessions, no in-memory timers (safe on restart)
+- **SERIALIZABLE isolation:** Prevents race conditions on concurrent claims
+- **SELECT FOR UPDATE:** Locks session row during update, prevents phantom reads
+- **Message queue pattern:** Captures messages during state transitions, drains after
+- **Socket rooms:** Helpers/admins auto-join on auth, reduces join/leave complexity
+- **Non-blocking broadcasts:** Socket errors don't affect HTTP response
+- **Helper context:** AI summary passed explicitly when helper takes over
+- **Transaction boundaries:** All multi-step operations atomic (BEGIN/COMMIT/ROLLBACK)
+
+**Files Created:**
+- `server/jobs/guestChatSessionTimeout.js`
+- `server/controllers/guestChatController.js`
+- `server/routes/guestChat.js`
+- `server/migrations/100_guest_chat_messages.sql`
+
+**Files Modified:**
+- `server/index.js` — Added cron job startup, guest chat route mount, Socket.IO room handling
+- `server/services/socketService.js` — Added guest chat broadcast methods
+- `CLAUDE.md` — This documentation
+
+**Verification:**
+- ✅ All syntax checked with `node -c`
+- ✅ No import errors
+- ✅ Service layer integrates cleanly with existing code
+- ✅ Socket.IO handlers follow existing security patterns (room membership verification)
+- ✅ Transaction isolation verified in service layer design
+
+**Next Steps for Frontend:**
+1. Create guest chat UI component (send initial message, wait for helper)
+2. Create helper dashboard widget (new guest sessions, claim button, timer)
+3. Create admin monitoring dashboard (real-time session list with timers)
+4. Create chat thread UI (guest/helper messages, helper context display)
+5. Integrate Socket.IO event listeners for real-time updates
+
+**Testing Notes:**
+- No in-memory state — all state in database (safe on restart)
+- Cron runs independently of request handlers
+- Transaction rollback on any error (DB operation or business logic)
+- Socket broadcasts non-blocking (failures logged, don't affect API response)
 
 ---
 

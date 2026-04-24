@@ -78,6 +78,29 @@ async function getSocketCount(roomName) {
   }
 }
 
+/** Broadcast new guest session to all online helpers (guest_chat_waiting room). */
+function broadcastNewGuestSession(sessionData) {
+  if (!io) return;
+  io.to('guest_chat_waiting').emit('guest_session:new', sessionData);
+}
+
+/** Broadcast guest session status update to admins (guest_chat_admin room). */
+function broadcastGuestSessionUpdate(sessionId, sessionData) {
+  if (!io) return;
+  io.to('guest_chat_admin').emit('guest_session:updated', {
+    sessionId,
+    ...sessionData,
+  });
+}
+
+/** Broadcast guest chat message to helpers and admins monitoring this session. */
+function broadcastGuestChatMessage(sessionId, messageData) {
+  if (!io) return;
+  // Broadcast to helpers in this specific session room and admins
+  io.to(`guest_session_${sessionId}`).emit('guest_chat:message', messageData);
+  io.to('guest_chat_admin').emit('guest_chat:message', { sessionId, ...messageData });
+}
+
 module.exports = {
   init,
   trackConnect,
@@ -86,6 +109,9 @@ module.exports = {
   broadcastToUser,
   broadcastToConversation,
   broadcastToAdmins,
+  broadcastNewGuestSession,
+  broadcastGuestSessionUpdate,
+  broadcastGuestChatMessage,
   disconnectUserSockets,
   getSocketCount,
 };

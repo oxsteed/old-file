@@ -60,6 +60,7 @@ const businessRoutes = require('./routes/businesses');
 const supportRoutes = require('./routes/support');
 const supportChatRoutes = require('./routes/supportChat');
 const chatRoutes    = require('./routes/chat');
+const guestChatRoutes = require('./routes/guestChat');
 const geoRoutes     = require('./routes/geo');
 const helperRoutes      = require('./routes/helpers');
 const userSkillsRoutes  = require('./routes/userSkills');
@@ -225,6 +226,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ── GUEST CHAT ROOMS ──────────────────────────────────────────
+  // Helpers join 'guest_chat_waiting' room to receive notifications about
+  // new guest sessions. This allows real-time matching of guests to helpers.
+  //
+  // SECURITY: Only helpers (verified via socket.userRole) can join this room.
+  // New guest sessions are broadcast to all connected helpers in this room.
+  if (['helper', 'helper_pro', 'broker'].includes(socket.userRole)) {
+    socket.join('guest_chat_waiting');
+    logger.debug('Helper joined guest chat waiting room', { userId });
+  }
+
+  // Admins join 'guest_chat_admin' room to monitor all active sessions
+  if (['admin', 'super_admin'].includes(socket.userRole)) {
+    socket.join('guest_chat_admin');
+    logger.debug('Admin joined guest chat monitoring room', { userId });
+  }
+
   socketService.trackConnect(userId, socket.id);
   logger.debug('Socket connected', { userId, role: socket.userRole, socketId: socket.id });
 
@@ -341,6 +359,8 @@ app.use('/api/didit', diditRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/reviews/business', businessReviewsRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/guest-chat', guestChatRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/support-chat', supportChatRoutes);
 app.use('/api/geo',          geoRoutes);
@@ -411,10 +431,12 @@ const { startWeeklySummaryJob }         = require('./jobs/weeklySummary');
 const { startPlannedNeedsScheduler }    = require('./jobs/plannedNeedsScheduler');
 const { startDiscoverDigestJob }        = require('./jobs/discoverDigest');
 const { startConversationRetentionCleanup } = require('./jobs/conversationRetentionCleanup');
+const { startGuestChatSessionTimeoutJob } = require('./jobs/guestChatSessionTimeout');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
 startConversationRetentionCleanup();
+startGuestChatSessionTimeoutJob();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
