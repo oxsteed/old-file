@@ -6,7 +6,7 @@ BEGIN;
 -- Set helper_response_deadline to NULL for sessions not in waiting_for_helper state
 UPDATE guest_profile_chat_inbound
 SET helper_response_deadline = NULL
-WHERE (session_status IS NULL OR session_status != 'waiting_for_helper')
+WHERE session_status IS DISTINCT FROM 'waiting_for_helper'
   AND helper_response_deadline IS NOT NULL;
 
 -- Prevent orphaned AI summaries (only set when transitioning to helper)
@@ -30,7 +30,7 @@ ALTER TABLE guest_profile_chat_inbound
   ADD CONSTRAINT check_deadline_during_waiting
   CHECK (
     (session_status = 'waiting_for_helper' AND helper_response_deadline IS NOT NULL)
-    OR (session_status != 'waiting_for_helper' AND helper_response_deadline IS NULL)
+    OR (session_status IS DISTINCT FROM 'waiting_for_helper' AND helper_response_deadline IS NULL)
   );
 
 -- Create trigger to update last_activity_at on any state change
