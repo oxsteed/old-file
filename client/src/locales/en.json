@@ -354,7 +354,9 @@
     "vortexSignInHint": "You need a signed-in OxSteed account to redeem a team token.",
     "vortexSignIn": "Sign in",
     "vortexContinueToLogin": "Continue to sign in",
-    "vortexRedeemFailed": "Could not redeem this token. Check it is correct, unused, and not expired."
+    "vortexRedeemFailed": "Could not redeem this token. Check it is correct, unused, and not expired.",
+    "resource": "Resources",
+    "qrGenerator": "QR Generator"
   },
   "howItWorks": {
     "badge": "Platform Overview",

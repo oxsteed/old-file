@@ -421,7 +421,9 @@
     "vortexSignInHint": "Ou bezwen yon kont OxSteed konekte pou w itilize yon token ekip.",
     "vortexSignIn": "Konekte",
     "vortexContinueToLogin": "Kontinye pou konekte",
-    "vortexRedeemFailed": "Token sa a pa t ka itilize. Verifye li kòrèk, pa itilize, epi pa ekspire."
+    "vortexRedeemFailed": "Token sa a pa t ka itilize. Verifye li kòrèk, pa itilize, epi pa ekspire.",
+    "resource": "Resous",
+    "qrGenerator": "Jeneratè QR"
   },
   "howItWorks": {
     "badge": "Apèsi Platfòm",

@@ -354,7 +354,9 @@
     "vortexSignInHint": "Necesitas una cuenta de OxSteed iniciada para canjear un token de equipo.",
     "vortexSignIn": "Iniciar sesión",
     "vortexContinueToLogin": "Continuar para iniciar sesión",
-    "vortexRedeemFailed": "No se pudo canjear este token. Verifica que sea correcto, no usado y no haya caducado."
+    "vortexRedeemFailed": "No se pudo canjear este token. Verifica que sea correcto, no usado y no haya caducado.",
+    "resource": "Recursos",
+    "qrGenerator": "Generador QR"
   },
   "howItWorks": {
     "badge": "Descripción de la plataforma",
