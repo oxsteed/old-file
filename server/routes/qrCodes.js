@@ -12,6 +12,7 @@ const {
   updateQRCode,
   deleteQRCode,
   downloadQRCode,
+  generateQRWithLogo,
   getTemplates,
   savePreset,
   getPresets,
