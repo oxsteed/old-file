@@ -63,6 +63,21 @@ function disconnectUserSockets(userId) {
   }
 }
 
+/** Get count of connected sockets in a room (e.g., 'admins'). */
+async function getSocketCount(roomName) {
+  if (!io) return 0;
+  try {
+    const room = io.sockets.adapter.rooms.get(roomName);
+    return room ? room.size : 0;
+  } catch (err) {
+    require('../utils/logger').warn('getSocketCount failed', {
+      room: roomName,
+      error: err.message,
+    });
+    return 0;
+  }
+}
+
 module.exports = {
   init,
   trackConnect,
@@ -72,4 +87,5 @@ module.exports = {
   broadcastToConversation,
   broadcastToAdmins,
   disconnectUserSockets,
+  getSocketCount,
 };
