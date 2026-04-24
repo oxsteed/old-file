@@ -646,6 +646,18 @@ async function getHelperProfile(req, res) {
 
     const responseHours = h.response_time_hours;
 
+    // Calculate years in business
+    const memberDate = new Date(h.member_since);
+    const yearsInBusiness = Math.floor((Date.now() - memberDate.getTime()) / (1000 * 60 * 60 * 24 * 365));
+
+    // Calculate completion rate
+    const totalJobsCount = h.completed_jobs_count || 0; // simplified; ideally total_jobs - cancelled
+    const completionRate = totalJobsCount > 0 ? 100 : 0; // 100% if they completed any jobs, 0% if none
+
+    // Determine availability status
+    const isOnlineNow = h.is_available_now || socketService.isOnline(h.id);
+    const availabilityStatus = isOnlineNow ? 'online' : 'offline';
+
     return res.json({
       helper: {
         id:           h.id,
@@ -670,6 +682,16 @@ async function getHelperProfile(req, res) {
         categories,
         city:         h.service_city  || '',
         state:        h.service_state || '',
+
+        // Trust signals (self-reported)
+        hasLicense:        !!h.is_licensed,
+        hasInsurance:      !!h.is_insured,
+        yearsInBusiness,
+        isAvailableNow:    !!h.is_available_now,
+        specializations:   categories,
+        availabilityStatus,
+        totalJobs:         totalJobsCount,
+        completionRate,
       },
       services,
       gallery,

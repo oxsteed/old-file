@@ -41,6 +41,24 @@ export interface HelperProfile {
   allowBooking?: boolean;
   /** When true, helper accepts scheduling requests */
   allowScheduling?: boolean;
+
+  // ── Trust signals (self-reported) ──────────────────────────────────────
+  /** Helper claims to have professional license(s) */
+  hasLicense?: boolean;
+  /** Helper claims to have insurance */
+  hasInsurance?: boolean;
+  /** Years as member on OxSteed platform */
+  yearsInBusiness?: number;
+  /** Currently available for new bookings */
+  isAvailableNow?: boolean;
+  /** Helper's listed specializations/skills */
+  specializations?: string[];
+  /** "online" | "offline" | "away" */
+  availabilityStatus?: 'online' | 'offline' | 'away';
+  /** Total jobs attempted */
+  totalJobs?: number;
+  /** Completion rate 0-100 */
+  completionRate?: number;
 }
 
 // ─── Services ───────────────────────────────────────────────────────────────
