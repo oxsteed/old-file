@@ -33,6 +33,12 @@ interface ChatPanelProps {
   variant?: 'sidebar' | 'modal';
   onClose?: () => void;
   className?: string;
+  /** Override the chat destination (helper or oxsteed) from parent */
+  destination?: ChatDestination;
+  /** Callback when destination changes */
+  onDestinationChange?: (destination: ChatDestination) => void;
+  /** Ref to the message input textarea for external focus/scroll */
+  messageInputRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 /** Check if the most recent handoff event is unacknowledged */
@@ -117,6 +123,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   variant = 'sidebar',
   onClose,
   className = '',
+  destination: externalDestination,
+  onDestinationChange,
+  messageInputRef,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -133,6 +142,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // threadId ties this chat session to server-side Redis history (AI mode only).
   // null until the first AI response is received; echoed back on every subsequent send.
   const [threadId,         setThreadId]         = useState<string | null>(null);
+  const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const textareaRef = messageInputRef || internalTextareaRef;
 
   // Search state
   const [searchQuery,      setSearchQuery]      = useState('');
@@ -329,7 +340,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       status: dest === 'helper' ? prev.helperStatus : prev.oxsteedStatus,
     }));
     setHandoffDismissed(false);
-  }, []);
+    if (onDestinationChange) {
+      onDestinationChange(dest);
+    }
+  }, [onDestinationChange]);
+
+  // Sync external destination prop
+  useEffect(() => {
+    if (externalDestination) {
+      setSession(prev => ({
+        ...prev,
+        destination: externalDestination,
+        status: externalDestination === 'helper' ? prev.helperStatus : prev.oxsteedStatus,
+      }));
+      setHandoffDismissed(false);
+    }
+  }, [externalDestination]);
 
   const handleSend = useCallback(async (text: string, attachment?: { url: string; key: string | null; name: string; size: number; mimeType: string }) => {
     if (sending) return;
@@ -949,6 +975,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             ? t('messages.chatWith', { name: helperName })
             : undefined
         }
+        textareaRef={textareaRef}
       />
 
       {/* ── Footer ──────────────────────────────────────────── */}

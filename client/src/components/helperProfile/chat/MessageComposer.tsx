@@ -23,6 +23,8 @@ interface MessageComposerProps {
   disabled?: boolean;
   /** conversationId needed for server-side upload; omit to disable upload */
   conversationId?: string | null;
+  /** External ref to control textarea focus/scroll */
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 const DISABLED_STATUSES: ChatStatus[] = ['offline'];
@@ -37,13 +39,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   hint,
   disabled: disabledProp = false,
   conversationId,
+  textareaRef: externalTextareaRef,
 }) => {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<AttachmentMeta | null>(null);
   const [uploading, setUploading] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = externalTextareaRef || internalTextareaRef;
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);

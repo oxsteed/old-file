@@ -2967,6 +2967,21 @@
       "messageHelperAria": "Send a message to this helper",
       "trustSignalsAria": "Trust signals"
     },
+    "trust": {
+      "trustSignalsAria": "Trust & Reliability",
+      "backgroundCheck": "Background check",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "responseTime": "Response time",
+      "respondTime": "Usually {{time}}",
+      "responseVaries": "Varies",
+      "notAvailable": "Not available",
+      "jobsCompleted": "Jobs completed",
+      "jobsCompletedCount": "{{count}} completed",
+      "noJobsYet": "No jobs yet",
+      "oxsteedGuarantee": "OxSteed guarantee",
+      "guaranteeCovered": "Covered"
+    },
     "gallery": {
       "title": "Photos & Work Samples",
       "photoCount_one": "{{count}} photo from recent jobs",
