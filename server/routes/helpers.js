@@ -10,7 +10,8 @@ const {
   markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
 } = require('../controllers/businessInvoiceController');
 const { generalLimiter } = require('../middleware/rateLimiter');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
 
 // ── Admin-only endpoints (must come before /:id wildcards) ────────────────────
 router.post('/:id/remove-credential', requireAdmin, removeCredential);
