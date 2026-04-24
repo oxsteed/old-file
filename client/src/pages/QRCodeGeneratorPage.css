@@ -16,7 +16,7 @@
   font-size: 3rem;
   font-weight: 800;
   margin: 0 0 16px 0;
-  background: linear-gradient(135deg, #a855f7, #6366f1);
+  background: linear-gradient(135deg, #ff6b35, #ff8c42);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -104,8 +104,8 @@
 .qrg-input:focus,
 .qrg-select:focus {
   outline: none;
-  border-color: #a855f7;
-  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
 }
 
 .qrg-input::placeholder {
@@ -165,21 +165,21 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #a855f7, #6366f1);
+  background: linear-gradient(135deg, #ff6b35, #ff8c42);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .qrg-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
-  box-shadow: 0 0 0 6px rgba(168, 85, 247, 0.1);
+  box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.1);
 }
 
 .qrg-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #a855f7, #6366f1);
+  background: linear-gradient(135deg, #ff6b35, #ff8c42);
   cursor: pointer;
   border: none;
   transition: all 0.2s ease;
@@ -187,7 +187,7 @@
 
 .qrg-slider::-moz-range-thumb:hover {
   transform: scale(1.2);
-  box-shadow: 0 0 0 6px rgba(168, 85, 247, 0.1);
+  box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.1);
 }
 
 /* File Input */
@@ -204,48 +204,8 @@
 }
 
 .qrg-file-input:hover {
-  border-color: #a855f7;
-  background: rgba(168, 85, 247, 0.05);
-}
-
-/* Logo Preview */
-.qrg-logo-preview {
-  position: relative;
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--app-bg);
-}
-
-.qrg-logo-preview img {
-  max-width: 100%;
-  max-height: 150px;
-  display: block;
-  border-radius: 4px;
-}
-
-.qrg-remove-logo {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: #ef4444;
-  color: white;
-  border-radius: 50%;
-  font-size: 18px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.qrg-remove-logo:hover {
-  background: #dc2626;
-  transform: scale(1.1);
+  border-color: #ff6b35;
+  background: rgba(255, 107, 53, 0.05);
 }
 
 /* Preview Panel */
@@ -297,14 +257,14 @@
 }
 
 .qrg-button-primary {
-  background: linear-gradient(135deg, #a855f7, #6366f1);
+  background: linear-gradient(135deg, #ff6b35, #ff8c42);
   color: white;
   width: 100%;
 }
 
 .qrg-button-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(168, 85, 247, 0.3);
+  box-shadow: 0 8px 16px rgba(255, 107, 53, 0.3);
 }
 
 .qrg-button-secondary {
@@ -314,7 +274,7 @@
 }
 
 .qrg-button-secondary:hover:not(:disabled) {
-  background: rgba(168, 85, 247, 0.1);
+  background: rgba(255, 107, 53, 0.1);
 }
 
 .qrg-button-accent {
@@ -324,7 +284,7 @@
 }
 
 .qrg-button-accent:hover:not(:disabled) {
-  background: rgba(168, 85, 247, 0.15);
+  background: rgba(255, 107, 53, 0.15);
 }
 
 .qrg-download-buttons {
@@ -454,7 +414,7 @@
 }
 
 .qrg-action-btn:hover {
-  background: rgba(168, 85, 247, 0.1);
+  background: rgba(255, 107, 53, 0.1);
 }
 
 .qrg-action-delete:hover {
@@ -530,7 +490,7 @@
 }
 
 .dark .qrg-file-input:hover {
-  background: rgba(168, 85, 247, 0.08);
+  background: rgba(255, 107, 53, 0.08);
 }
 
 /* Responsive */

@@ -19,7 +19,6 @@ const QRCodeGeneratorPage = () => {
   const [formData, setFormData] = useState({
     title: '',
     url: 'https://example.com',
-    logoUrl: '',
     dotColor: '#000000',
     backgroundColor: '#ffffff',
     dotStyle: 'square',
@@ -108,20 +107,6 @@ const QRCodeGeneratorPage = () => {
     }));
   };
 
-  const handleLogoUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setFormData((prev) => ({
-        ...prev,
-        logoUrl: event.target?.result,
-      }));
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleSaveQR = async () => {
     if (!formData.title.trim()) {
       toast.error(t('qrGenerator.titleRequired'));
@@ -145,7 +130,6 @@ const QRCodeGeneratorPage = () => {
       const payload = {
         title: formData.title,
         url: formData.url,
-        logoUrl: formData.logoUrl,
         dotColor: formData.dotColor,
         backgroundColor: formData.backgroundColor,
         dotStyle: formData.dotStyle,
@@ -330,38 +314,6 @@ const QRCodeGeneratorPage = () => {
               </div>
             </div>
 
-            {/* Logo */}
-            <div className="qrg-section">
-              <h2 className="qrg-section-title">{t('qrGenerator.logo')}</h2>
-
-              <div className="qrg-form-group">
-                <label htmlFor="logo-upload">{t('qrGenerator.uploadLogo')}</label>
-                <input
-                  id="logo-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="qrg-file-input"
-                />
-                {formData.logoUrl && (
-                  <div className="qrg-logo-preview">
-                    <img src={formData.logoUrl} alt="Logo preview" />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          logoUrl: '',
-                        }))
-                      }
-                      className="qrg-remove-logo"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Right: Preview */}
