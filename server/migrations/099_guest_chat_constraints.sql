@@ -15,7 +15,7 @@ ALTER TABLE guest_profile_chat_inbound
   CHECK (
     (session_status IN ('helper_takeover_requested', 'helper_assigned') AND ai_summary IS NOT NULL)
     OR (session_status NOT IN ('helper_takeover_requested', 'helper_assigned') AND ai_summary IS NULL)
-  );
+  ) NOT VALID;
 
 -- Ensure helper_id is set when helper_assigned
 ALTER TABLE guest_profile_chat_inbound
@@ -23,7 +23,7 @@ ALTER TABLE guest_profile_chat_inbound
   CHECK (
     (session_status = 'helper_assigned' AND helper_id IS NOT NULL)
     OR (session_status != 'helper_assigned')
-  );
+  ) NOT VALID;
 
 -- Ensure deadlines only set during waiting period
 ALTER TABLE guest_profile_chat_inbound
@@ -31,7 +31,7 @@ ALTER TABLE guest_profile_chat_inbound
   CHECK (
     (session_status = 'waiting_for_helper' AND helper_response_deadline IS NOT NULL)
     OR (session_status IS DISTINCT FROM 'waiting_for_helper' AND helper_response_deadline IS NULL)
-  );
+  ) NOT VALID;
 
 -- Create trigger to update last_activity_at on any state change
 CREATE OR REPLACE FUNCTION update_guest_chat_activity()
