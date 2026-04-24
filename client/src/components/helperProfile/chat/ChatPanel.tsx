@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { X, MessageCircle, Building2, LogIn, Trash2 } from 'lucide-react';
+import { X, MessageCircle, Building2, LogIn, Trash2, Check, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -145,6 +145,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [messageOffset,    setMessageOffset]    = useState(0);
   const [hasMoreMessages,  setHasMoreMessages]  = useState(true);
   const [loadingOlder,     setLoadingOlder]     = useState(false);
+
+  // Inline-edit state for ChatPanel messages
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText,      setEditingText]      = useState('');
 
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
@@ -327,7 +331,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     setHandoffDismissed(false);
   }, []);
 
-  const handleSend = useCallback(async (text: string) => {
+  const handleSend = useCallback(async (text: string, attachment?: { url: string; key: string | null; name: string; size: number; mimeType: string }) => {
     if (sending) return;
 
     if (isGuest && session.destination === 'helper') {
@@ -388,12 +392,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       return;
     }
 
+    const msgContent = attachment
+      ? `${text ? text + '\n' : ''}[attachment:${attachment.url}|${attachment.name}|${attachment.mimeType}]`
+      : text;
+
     const userMsg: ChatMessage = {
       id:         `msg-${Date.now()}`,
       itemType:   'message',
       authorType: 'user',
-      content:    text,
+      content:    msgContent,
       timestamp:  new Date().toISOString(),
+      ...(attachment ? { attachment } : {}),
     };
     setSession(prev => ({
       ...prev,
@@ -541,9 +550,49 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, []);
 
   const handleMessageEdit = useCallback((messageId: string) => {
-    // Edit mode would require inline editing state — not yet implemented for ChatPanel
-    // For now, we log that edit was clicked. A full implementation would show edit UI.
-    console.log('Edit message:', messageId);
+    const item = session.timeline.find(i => i.id === messageId);
+    if (!item || item.itemType !== 'message') return;
+    setEditingMessageId(messageId);
+    setEditingText((item as ChatMessage).content);
+  }, [session.timeline]);
+
+  const handleEditSave = useCallback(async () => {
+    if (!editingMessageId || !editingText.trim() || !conversationId) {
+      setEditingMessageId(null);
+      return;
+    }
+    const original = session.timeline.find(i => i.id === editingMessageId);
+    // Optimistic update
+    setSession(prev => ({
+      ...prev,
+      timeline: prev.timeline.map(item =>
+        item.id === editingMessageId && item.itemType === 'message'
+          ? { ...item, content: editingText.trim() } as ChatMessage
+          : item
+      ),
+    }));
+    setEditingMessageId(null);
+    try {
+      await api.put(`/messages/conversations/${conversationId}/${editingMessageId}`, {
+        content: editingText.trim(),
+      });
+    } catch {
+      // Revert on failure
+      toast.error(t('messages.editFailed') || 'Failed to edit message');
+      if (original) {
+        setSession(prev => ({
+          ...prev,
+          timeline: prev.timeline.map(item =>
+            item.id === editingMessageId ? original : item
+          ),
+        }));
+      }
+    }
+  }, [editingMessageId, editingText, conversationId, session.timeline, t]);
+
+  const handleEditCancel = useCallback(() => {
+    setEditingMessageId(null);
+    setEditingText('');
   }, []);
 
   const handleQuickReply = useCallback((text: string) => {
@@ -868,6 +917,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             onMessageDelete={handleMessageDelete}
             onMessageEdit={handleMessageEdit}
             onQuickReply={handleQuickReply}
+            editingMessageId={editingMessageId}
+            editingText={editingText}
+            onEditTextChange={setEditingText}
+            onEditSave={handleEditSave}
+            onEditCancel={handleEditCancel}
           />
         </div>
       )}
@@ -885,6 +939,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           ) : undefined
         }
         disabled={!!(isGuest && session.destination === 'helper' && !guestContactSaved)}
+        conversationId={conversationId}
         placeholder={
           session.destination === 'oxsteed'
             ? t('messages.typeMessage')

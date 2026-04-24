@@ -3899,5 +3899,17 @@
       "thisMonth": "Actualizado este mes",
       "older": "Listado antiguo"
     }
+  },
+  "financialAdvisor": {
+    "title": "💰 Asesor Financiero",
+    "buttonLabel": "Asesoría Financiera",
+    "disclaimerTitle": "Aviso de IA — No es Asesoría Financiera",
+    "disclaimerBody": "Esta IA puede cometer errores y no constituye asesoramiento financiero profesional. Consulte siempre a un asesor financiero certificado antes de tomar decisiones. Las respuestas se basan en sus datos y pueden ser inexactas.",
+    "emptyPrompt": "Pregúntame lo que quieras sobre tus finanzas.",
+    "notAdviceTag": "⚠️ No es asesoramiento financiero profesional",
+    "inputPlaceholder": "Pregunta sobre tus finanzas…",
+    "windowLabel": "Ventana de análisis",
+    "authRequired": "Inicia sesión para usar el asesor financiero.",
+    "error": "Servicio de IA no disponible. Por favor intenta de nuevo."
   }
 }

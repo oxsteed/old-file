@@ -3,6 +3,7 @@ const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { sendNotification } = require('../services/notificationService');
+const { uploadFile, getSignedDownloadUrl, getPublicUrl } = require('../utils/storage');
 
 /**
  * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
@@ -1050,4 +1051,61 @@ module.exports = {
   archiveConversation,
   restoreConversation,
   getArchivedConversations,
+  uploadAttachment,
 };
+
+/**
+ * POST /api/messages/conversations/:conversationId/attachments
+ * Upload a file attachment for a conversation message.
+ * Returns { url, key, name, size, mimeType } for the frontend to send as a message.
+ * Images are returned as public S3 URLs; other files as signed 1-hour download URLs.
+ */
+async function uploadAttachment(req, res) {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+
+    if (!req.file) return res.status(400).json({ error: 'No file provided' });
+
+    // Verify the user is a participant of this conversation
+    const conv = await pool.query(
+      `SELECT c.customer_id, c.helper_id, c.business_id
+       FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+
+    const { buffer, originalname, mimetype, size } = req.file;
+    const key = await uploadFile(buffer, 'chat-attachments', originalname, mimetype);
+
+    if (!key) {
+      // S3 not configured — return a base64 data-URL fallback (dev only)
+      const b64 = buffer.toString('base64');
+      return res.json({
+        url:      `data:${mimetype};base64,${b64}`,
+        key:      null,
+        name:     originalname,
+        size,
+        mimeType: mimetype,
+      });
+    }
+
+    const isImage = mimetype.startsWith('image/');
+    const url = isImage
+      ? getPublicUrl(key)
+      : await getSignedDownloadUrl(key, 3600);
+
+    return res.json({ url, key, name: originalname, size, mimeType: mimetype });
+  } catch (err) {
+    logger.error('uploadAttachment error', { err: err.message });
+    return res.status(500).json({ error: 'Upload failed' });
+  }
+}

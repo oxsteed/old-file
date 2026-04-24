@@ -35,6 +35,7 @@ import LicensesManager from './pages/LicensesManager';
 import ContentRemovals from './pages/ContentRemovals';
 import SupportTickets  from './pages/SupportTickets';
 import AdminSearch     from './pages/AdminSearch';
+import AdminMessages   from './pages/AdminMessages';
 import AdminLogin      from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
@@ -89,6 +90,7 @@ export default function AdminApp() {
           <Route path="content-removals"    element={<ContentRemovals />} />
           <Route path="support"             element={<SupportTickets />} />
           <Route path="search"              element={<AdminSearch />} />
+          <Route path="messages"            element={<AdminMessages />} />
           <Route path="businesses"          element={<BusinessModeration />} />
           <Route path="tool-rentals"        element={<ToolRentalModeration />} />
           <Route path="planned-needs"       element={<PlannedNeedsAdmin />} />

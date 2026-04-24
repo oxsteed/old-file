@@ -58,3 +58,20 @@ export async function logChatFeedback(value, messageContent, pageContext) {
     pageContext,
   });
 }
+
+/**
+ * Upload a file/image attachment for a conversation message.
+ * Returns { url, key, name, size, mimeType }
+ * @param {string} conversationId
+ * @param {File} file
+ */
+export async function uploadMessageAttachment(conversationId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await api.post(
+    `/messages/conversations/${conversationId}/attachments`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return response.data;
+}
