@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Shield, Ban, CheckCircle,
          ExternalLink, AlertCircle,
          ChevronLeft, MessageSquare,
-         X, Loader2, Trash2 } from 'lucide-react';
+         X, Loader2, Trash2, FileCheck, AlertTriangle } from 'lucide-react';
 import adminApi                 from '../../../lib/adminApi';
 import { useAuth }              from '../../../hooks/useAuth';
 
@@ -27,6 +27,10 @@ export default function UserDetail() {
   const [msgText,     setMsgText]     = useState('');
   const [msgSending,  setMsgSending]  = useState(false);
   const [diditSaving, setDiditSaving] = useState(false);
+  const [credentialModal, setCredentialModal] = useState(null); // { type: 'license'|'insurance' }
+  const [credentialReason, setCredentialReason] = useState('');
+  const [credentialNotes, setCredentialNotes] = useState('');
+  const [credentialSaving, setCredentialSaving] = useState(false);
 
   const fetchUser = async () => {
     setLoading(true);
@@ -97,6 +101,38 @@ export default function UserDetail() {
       });
     } finally {
       setDiditSaving(false);
+    }
+  };
+
+  const removeCredential = async (e) => {
+    e.preventDefault();
+    if (!credentialModal?.type || !credentialReason.trim()) {
+      setMessage({ type: 'error', text: 'Reason is required.' });
+      return;
+    }
+    setCredentialSaving(true);
+    setMessage(null);
+    try {
+      const { data: res } = await adminApi.post(
+        `/helpers/${userId}/remove-credential`,
+        {
+          credential_type: credentialModal.type,
+          removal_reason: credentialReason,
+          notes: credentialNotes.trim() || undefined,
+        }
+      );
+      setMessage({ type: 'success', text: res.message || `${credentialModal.type} removed successfully` });
+      setCredentialModal(null);
+      setCredentialReason('');
+      setCredentialNotes('');
+      fetchUser();
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to remove credential.',
+      });
+    } finally {
+      setCredentialSaving(false);
     }
   };
 
@@ -449,6 +485,67 @@ export default function UserDetail() {
         ))}
       </div>
 
+      {/* Credentials section (for helpers) */}
+      {user.role && ['helper', 'helper_pro', 'broker'].includes(user.role) && (
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-5 mb-6 sm:mb-8">
+          <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+            <FileCheck size={18} />
+            Self-Reported Credentials
+          </h3>
+          <div className="space-y-3">
+            {/* License */}
+            <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg border border-gray-700">
+              <div className="flex items-center gap-3">
+                <FileCheck size={16} className={user.is_licensed ? 'text-sky-400' : 'text-gray-500'} />
+                <div>
+                  <p className="text-sm text-white font-medium">Professional License</p>
+                  <p className={`text-xs ${user.is_licensed ? 'text-sky-400' : 'text-gray-500'}`}>
+                    {user.is_licensed ? 'License claimed' : 'Not claimed'}
+                  </p>
+                </div>
+              </div>
+              {user.is_licensed && isSuper && (
+                <button
+                  onClick={() => setCredentialModal({ type: 'license' })}
+                  disabled={credentialSaving}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg
+                             bg-red-900 text-red-300 hover:bg-red-800
+                             transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Trash2 size={13} />
+                  Remove
+                </button>
+              )}
+            </div>
+
+            {/* Insurance */}
+            <div className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg border border-gray-700">
+              <div className="flex items-center gap-3">
+                <AlertTriangle size={16} className={user.is_insured ? 'text-amber-400' : 'text-gray-500'} />
+                <div>
+                  <p className="text-sm text-white font-medium">Insurance</p>
+                  <p className={`text-xs ${user.is_insured ? 'text-amber-400' : 'text-gray-500'}`}>
+                    {user.is_insured ? 'Insurance claimed' : 'Not claimed'}
+                  </p>
+                </div>
+              </div>
+              {user.is_insured && isSuper && (
+                <button
+                  onClick={() => setCredentialModal({ type: 'insurance' })}
+                  disabled={credentialSaving}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg
+                             bg-red-900 text-red-300 hover:bg-red-800
+                             transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Trash2 size={13} />
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Two-column detail */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 
@@ -689,6 +786,82 @@ export default function UserDetail() {
                     : <MessageSquare size={13} />
                   }
                   Send Message
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Credential Removal Modal */}
+      {credentialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="text-red-400 shrink-0" size={20} />
+              <h2 className="text-white font-semibold text-lg">
+                Remove {credentialModal.type === 'license' ? 'Professional License' : 'Insurance'}
+              </h2>
+            </div>
+
+            <p className="text-gray-400 text-sm mb-4">
+              This credential will be removed and the helper will be notified in their inbox with the reason.
+            </p>
+
+            <form onSubmit={removeCredential}>
+              <label className="block text-sm text-gray-400 mb-2">
+                Reason <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={credentialReason}
+                onChange={e => setCredentialReason(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 mb-4
+                           text-sm focus:border-orange-500 focus:outline-none"
+                required
+              >
+                <option value="">Select a reason…</option>
+                <option value="unverified">Unverified / No documentation</option>
+                <option value="expired">License/Insurance expired</option>
+                <option value="false_claim">False or fraudulent claim</option>
+                <option value="user_report">Helper self-reported issue</option>
+                <option value="other">Other (see notes below)</option>
+              </select>
+
+              <label className="block text-sm text-gray-400 mb-2">
+                Notes <span className="text-gray-600">(optional)</span>
+              </label>
+              <textarea
+                value={credentialNotes}
+                onChange={e => setCredentialNotes(e.target.value)}
+                rows={2}
+                maxLength={255}
+                placeholder="Additional details for audit trail…"
+                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 mb-4
+                           text-sm focus:border-orange-500 focus:outline-none resize-none"
+              />
+              <p className="text-xs text-gray-600 mb-4">{credentialNotes.length}/255</p>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={credentialSaving || !credentialReason}
+                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white
+                             py-2 rounded-lg text-sm font-medium transition"
+                >
+                  {credentialSaving ? 'Removing…' : 'Remove Credential'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCredentialModal(null);
+                    setCredentialReason('');
+                    setCredentialNotes('');
+                  }}
+                  disabled={credentialSaving}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2
+                             rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  Cancel
                 </button>
               </div>
             </form>
