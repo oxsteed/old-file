@@ -7,6 +7,8 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
+const QRCode = require('qrcode');
+const { createCanvas, loadImage } = require('canvas');
 
 // Ensure upload directory exists
 const QR_UPLOAD_DIR = path.join(__dirname, '../../public/qr-codes');

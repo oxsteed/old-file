@@ -273,9 +273,36 @@ const QRCodeGeneratorPage = () => {
     try {
       setLoading(true);
 
-      // Get current QR code image
+      // Get QR code image
       let imageData = null;
-      if (qrInstance) {
+
+      if (formData.logoUrl && formData.logoUrl.trim()) {
+        // Use server-side generation for proper logo embedding
+        const response = await fetch('/api/qr-codes/generate-with-logo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: formData.url,
+            logoDataUrl: formData.logoUrl,
+            dotColor: formData.dotColor,
+            backgroundColor: formData.backgroundColor,
+            size: parseInt(formData.size, 10),
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to generate QR with logo');
+        }
+
+        const data = await response.json();
+        if (!data.success || !data.image) {
+          throw new Error('Invalid response from server');
+        }
+
+        imageData = data.image;
+      } else if (qrInstance) {
+        // No logo — use client-side qr-code-styling
         const blob = await qrInstance.getRawData('png');
         imageData = await new Promise((resolve) => {
           const reader = new FileReader();
@@ -365,20 +392,54 @@ const QRCodeGeneratorPage = () => {
 
   const handleDownloadQR = async (format = 'png') => {
     try {
-      if (!qrInstance) {
-        toast.error(t('qrGenerator.errorGenerating'));
-        return;
-      }
+      // If logo is present, use server-side generation for proper embedding
+      if (formData.logoUrl && formData.logoUrl.trim()) {
+        const response = await fetch('/api/qr-codes/generate-with-logo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: formData.url,
+            logoDataUrl: formData.logoUrl,
+            dotColor: formData.dotColor,
+            backgroundColor: formData.backgroundColor,
+            size: parseInt(formData.size, 10),
+          }),
+        });
 
-      const blob = await qrInstance.getRawData(format);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `qr-code-${Date.now()}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to generate QR with logo');
+        }
+
+        const data = await response.json();
+        if (!data.success || !data.image) {
+          throw new Error('Invalid response from server');
+        }
+
+        // Download from data URL
+        const link = document.createElement('a');
+        link.href = data.image;
+        link.download = `qr-code-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // No logo — use client-side qr-code-styling
+        if (!qrInstance) {
+          toast.error(t('qrGenerator.errorGenerating'));
+          return;
+        }
+
+        const blob = await qrInstance.getRawData(format);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `qr-code-${Date.now()}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
 
       toast.success(t('qrGenerator.downloadSuccess'));
     } catch (err) {
