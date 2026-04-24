@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { conversationMessageLimiter, userChatLimiter } = require('../middleware/rateLimiter');
+const upload = require('../middleware/upload');
 const {
   getConversations,
   getGuestInquiries,
@@ -19,6 +20,7 @@ const {
   archiveConversation,
   restoreConversation,
   getArchivedConversations,
+  uploadAttachment,
 } = require('../controllers/messageController');
 
 // All routes require authentication
@@ -74,5 +76,9 @@ router.post('/conversations/:conversationId/archive', archiveConversation);
 
 // POST /api/messages/conversations/:conversationId/restore - Restore an archived conversation
 router.post('/conversations/:conversationId/restore', restoreConversation);
+
+// POST /api/messages/conversations/:conversationId/attachments - Upload a file/image attachment
+// Accepts a single file under the field name "file" (max 10 MB, images + docs)
+router.post('/conversations/:conversationId/attachments', upload.single('file'), uploadAttachment);
 
 module.exports = router;

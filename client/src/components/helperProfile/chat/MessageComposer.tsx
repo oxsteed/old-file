@@ -1,17 +1,28 @@
 import React, { useRef, useState } from 'react';
-import { Send, Paperclip, Image, Smile } from 'lucide-react';
+import { Send, Paperclip, Image, Smile, X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import type { ChatStatus } from '../../../types/helperProfile';
+
+export interface AttachmentMeta {
+  url: string;
+  key: string | null;
+  name: string;
+  size: number;
+  mimeType: string;
+}
 
 interface MessageComposerProps {
   status: ChatStatus;
-  onSend: (text: string) => void;
+  onSend: (text: string, attachment?: AttachmentMeta) => void;
   placeholder?: string;
   /** Hide attachment/emoji row for a lighter composer (e.g. guest profile chat) */
   compact?: boolean;
   /** Extra hint above the textarea (e.g. guest flow: contact saved) */
   hint?: React.ReactNode;
   disabled?: boolean;
+  /** conversationId needed for server-side upload; omit to disable upload */
+  conversationId?: string | null;
 }
 
 const DISABLED_STATUSES: ChatStatus[] = ['offline'];
@@ -25,12 +36,17 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   compact = false,
   hint,
   disabled: disabledProp = false,
+  conversationId,
 }) => {
   const { t } = useTranslation();
   const [text, setText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<AttachmentMeta | null>(null);
+  const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const isDisabled = disabledProp || DISABLED_STATUSES.includes(status);
 
   const autoResize = () => {
@@ -60,11 +76,35 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     }, 300);
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (!conversationId) {
+      toast.error(t('messages.attachNeedsConversation') || 'Start a conversation first to send attachments');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Lazy-import to keep initial bundle small
+      const { uploadMessageAttachment } = await import('../../../api/chat');
+      const meta = await uploadMessageAttachment(conversationId, file);
+      setPendingAttachment(meta);
+    } catch {
+      toast.error(t('messages.attachUploadFailed') || 'Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const submit = () => {
     const trimmed = text.trim();
-    if (!trimmed || isDisabled) return;
-    onSend(trimmed);
+    if ((!trimmed && !pendingAttachment) || isDisabled || uploading) return;
+    onSend(trimmed, pendingAttachment ?? undefined);
     setText('');
+    setPendingAttachment(null);
     setShowEmojiPicker(false);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
@@ -106,22 +146,68 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           {hint}
         </div>
       )}
+
+      {/* Pending attachment preview */}
+      {pendingAttachment && (
+        <div className="flex items-center gap-2 mb-2 px-1 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300">
+          {pendingAttachment.mimeType.startsWith('image/') ? (
+            <img
+              src={pendingAttachment.url}
+              alt={pendingAttachment.name}
+              className="w-10 h-10 rounded object-cover flex-shrink-0"
+            />
+          ) : (
+            <Paperclip className="w-4 h-4 flex-shrink-0 text-gray-400" />
+          )}
+          <span className="flex-1 truncate">{pendingAttachment.name}</span>
+          <button
+            onClick={() => setPendingAttachment(null)}
+            className="p-0.5 rounded text-gray-500 hover:text-red-400 transition-colors"
+            aria-label={t('common.remove') || 'Remove'}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        className="hidden"
+        onChange={handleFileChange}
+        aria-hidden="true"
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+        aria-hidden="true"
+      />
+
       {/* Attachment row */}
       {!compact && (
       <div className="flex items-center gap-1 mb-2 relative">
         <button
-          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-40"
           aria-label={t('messages.attachFile')}
-          disabled
-          title={t('messages.attachFile')}
+          disabled={isDisabled || uploading || !conversationId}
+          title={conversationId ? t('messages.attachFile') : (t('messages.attachNeedsConversation') || 'Send a message first')}
+          onClick={() => fileInputRef.current?.click()}
+          type="button"
         >
-          <Paperclip className="w-4 h-4" aria-hidden="true" />
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" aria-hidden="true" />}
         </button>
         <button
-          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-40"
           aria-label={t('messages.attachImage')}
-          disabled
-          title={t('messages.attachImage')}
+          disabled={isDisabled || uploading || !conversationId}
+          title={conversationId ? t('messages.attachImage') : (t('messages.attachNeedsConversation') || 'Send a message first')}
+          onClick={() => imageInputRef.current?.click()}
+          type="button"
         >
           <Image className="w-4 h-4" aria-hidden="true" />
         </button>
@@ -171,11 +257,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         />
         <button
           onClick={submit}
-          disabled={!text.trim() || isDisabled}
+          disabled={(!text.trim() && !pendingAttachment) || isDisabled || uploading}
           className="flex-shrink-0 w-10 h-10 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:bg-gray-700 disabled:text-gray-500 text-white flex items-center justify-center transition-colors"
           aria-label={t('messages.sendMessage')}
         >
-          <Send className="w-4 h-4" aria-hidden="true" />
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" aria-hidden="true" />}
         </button>
       </div>
     </div>

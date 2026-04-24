@@ -1,21 +1,45 @@
-import { useEffect, useRef, useState } from 'react';
-import { io }                          from 'socket.io-client';
-import { useAuth }                     from './useAuth';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { io }                                       from 'socket.io-client';
+import { useAuth }                                  from './useAuth';
 
+// Module-level singleton — one socket per browser tab regardless of how many
+// components call useSocket(). Re-created only on explicit disconnect/logout.
 let socketInstance = null;
 
+// Listeners registered globally so multiple hook instances can all react to
+// connect/disconnect events without each needing its own listener.
+const connListeners = new Set();
+
+function notifyListeners(connected) {
+  connListeners.forEach(fn => fn(connected));
+}
+
 export const useSocket = () => {
-  const { user }            = useAuth();
-  const [connected, setConnected] = useState(false);
-  const socketRef           = useRef(null);
+  const { user }    = useAuth();
+  const [connected, setConnected] = useState(() => !!socketInstance?.connected);
+  const socketRef   = useRef(socketInstance);
+
+  // Keep each instance's connected state in sync with the singleton.
+  useEffect(() => {
+    const handler = (c) => setConnected(c);
+    connListeners.add(handler);
+    return () => connListeners.delete(handler);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
 
-    // Reuse existing socket if already connected
+    // Reuse existing connected socket — update ref and reflect current state.
     if (socketInstance?.connected) {
       socketRef.current = socketInstance;
       setConnected(true);
+      return;
+    }
+
+    // If an instance exists but is disconnected, reconnect it.
+    if (socketInstance && !socketInstance.connected) {
+      socketInstance.connect();
+      socketRef.current = socketInstance;
       return;
     }
 
@@ -24,20 +48,22 @@ export const useSocket = () => {
     socketInstance = io(
       import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
       {
-        auth:            { token },
-        transports:      ['websocket'],
-        reconnection:    true,
-        reconnectionDelay: 2000,
-        reconnectionAttempts: 10
+        auth:                 { token },
+        transports:           ['websocket'],
+        reconnection:         true,
+        reconnectionDelay:    2000,
+        reconnectionAttempts: 10,
       }
     );
 
     socketInstance.on('connect', () => {
       setConnected(true);
+      notifyListeners(true);
     });
 
     socketInstance.on('disconnect', () => {
       setConnected(false);
+      notifyListeners(false);
     });
 
     socketInstance.on('connect_error', (err) => {
@@ -45,49 +71,48 @@ export const useSocket = () => {
     });
 
     // Server emits this when an admin bans or deactivates the account.
-    // Clear auth state immediately — don't wait for the next API call to 401.
     socketInstance.on('force_logout', () => {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       socketInstance?.disconnect();
       socketInstance = null;
+      notifyListeners(false);
       window.location.replace('/login');
     });
 
     socketRef.current = socketInstance;
 
-    return () => {
-      // Don't disconnect on unmount — keep alive for the session
-      // Only disconnect on explicit logout
-    };
+    // Intentionally no cleanup: keep socket alive across component unmounts.
+    // Explicit disconnect happens only on logout (see disconnect() below).
   }, [user]);
 
-  /** Join a per-conversation Socket.IO room to get typing indicators and
-   *  conversation-scoped message delivery.  Server verifies membership. */
-  const joinConversation = (conversationId) => {
+  const joinConversation = useCallback((conversationId) => {
     socketRef.current?.emit('conversation:join', conversationId);
-  };
+  }, []);
 
-  /** Leave a conversation room (called on unmount of ConversationPage). */
-  const leaveConversation = (conversationId) => {
+  const leaveConversation = useCallback((conversationId) => {
     socketRef.current?.emit('conversation:leave', conversationId);
-  };
+  }, []);
 
-  const joinJobRoom = (jobId) => {
+  const joinJobRoom = useCallback((jobId) => {
     socketRef.current?.emit('job:join', jobId);
-  };
+  }, []);
 
-  const leaveJobRoom = (jobId) => {
+  const leaveJobRoom = useCallback((jobId) => {
     socketRef.current?.emit('job:leave', jobId);
-  };
+  }, []);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     socketInstance?.disconnect();
     socketInstance = null;
+    socketRef.current = null;
     setConnected(false);
-  };
+    notifyListeners(false);
+  }, []);
 
+  // Return the ref so callers always access the current socket instance, but
+  // `connected` is proper React state so re-renders happen on connect/disconnect.
   return {
     socket:            socketRef.current,
     connected,

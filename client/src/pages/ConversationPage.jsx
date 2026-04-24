@@ -8,6 +8,7 @@ import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
 import AutoTranslatedMessage from '../components/AutoTranslatedMessage';
 import MessageReactions from '../components/MessageReactions';
+import FinancialAdvisorPanel from '../components/FinancialAdvisorPanel';
 
 function formatTime(ts) {
   if (!ts) return '';
@@ -72,6 +73,7 @@ export default function ConversationPage() {
   const navigate = useNavigate();
   const [editingId, setEditingId] = React.useState(null);
   const [editText, setEditText] = React.useState('');
+  const [showAdvisor, setShowAdvisor] = React.useState(false);
 
   const {
     messages, otherName, helperBusiness, jobTitle,
@@ -153,12 +155,13 @@ export default function ConversationPage() {
             onClick={() => navigate('/messages')}
             className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm transition"
           >
+
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             {t('common.back')}
           </button>
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
               {(otherName || '?').charAt(0).toUpperCase()}
             </div>
@@ -172,6 +175,14 @@ export default function ConversationPage() {
               )}
             </div>
           </div>
+          {/* Financial Advisor button */}
+          <button
+            onClick={() => setShowAdvisor(v => !v)}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-medium transition"
+            title={t('financialAdvisor.title') || 'Financial Advisor'}
+          >
+            💰 <span className="hidden sm:inline">{t('financialAdvisor.buttonLabel') || 'Financial Advice'}</span>
+          </button>
         </div>
 
         {/* Message thread */}
@@ -316,6 +327,7 @@ export default function ConversationPage() {
         <p className="text-xs text-gray-400 mt-1.5 text-right">{t('messages.enterToSend')}</p>
       </main>
       <Footer />
+      <FinancialAdvisorPanel isOpen={showAdvisor} onClose={() => setShowAdvisor(false)} />
     </div>
   );
 }

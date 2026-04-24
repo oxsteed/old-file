@@ -3898,5 +3898,17 @@
       "thisMonth": "Mete ajou mwa sa a",
       "older": "Lis ki pi ansyen"
     }
+  },
+  "financialAdvisor": {
+    "title": "💰 Konsèy Finansye",
+    "buttonLabel": "Konsèy Finansye",
+    "disclaimerTitle": "Avètisman IA — Pa Konsèy Finansye",
+    "disclaimerBody": "IA sa a ka fè erè epi li pa reprezante konsèy finansye pwofesyonèl. Toujou konsilte yon konsèy finansye ki gen lisans anvan ou pran desizyon finansye. Repons yo baze sou done ou yo epi yo ka pa egzat.",
+    "emptyPrompt": "Poze mwen nenpòt kesyon sou finans ou.",
+    "notAdviceTag": "⚠️ Pa konsèy finansye pwofesyonèl",
+    "inputPlaceholder": "Poze kesyon sou finans ou…",
+    "windowLabel": "Fenèt analiz",
+    "authRequired": "Konekte pou itilize konsèy finansye a.",
+    "error": "Sèvis IA pa disponib pou kounye a. Tanpri eseye ankò."
   }
 }

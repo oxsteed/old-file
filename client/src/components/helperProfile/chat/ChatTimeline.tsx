@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Check, X } from 'lucide-react';
 import type {
   TimelineItem,
   ChatMessage as ChatMessageType,
@@ -17,6 +18,11 @@ interface ChatTimelineProps {
   onMessageDelete?: (messageId: string) => void;
   onMessageEdit?: (messageId: string) => void;
   onQuickReply?: (text: string) => void;
+  editingMessageId?: string | null;
+  editingText?: string;
+  onEditTextChange?: (text: string) => void;
+  onEditSave?: () => void;
+  onEditCancel?: () => void;
 }
 
 function isMessage(item: TimelineItem): item is ChatMessageType {
@@ -46,6 +52,11 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
   onMessageDelete,
   onMessageEdit,
   onQuickReply,
+  editingMessageId,
+  editingText,
+  onEditTextChange,
+  onEditSave,
+  onEditCancel,
 }) => {
   const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -63,6 +74,42 @@ const ChatTimeline: React.FC<ChatTimelineProps> = ({
     >
       {items.map((item) => {
         if (isMessage(item)) {
+          // Render inline edit form when this message is being edited
+          if (editingMessageId === item.id) {
+            return (
+              <div key={item.id} className="flex flex-col items-end gap-1.5">
+                <textarea
+                  value={editingText}
+                  onChange={e => onEditTextChange?.(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEditSave?.(); }
+                    if (e.key === 'Escape') onEditCancel?.();
+                  }}
+                  autoFocus
+                  rows={2}
+                  maxLength={4000}
+                  className="w-full max-w-xs sm:max-w-sm rounded-2xl rounded-br-sm bg-brand-900 border border-brand-500 text-white text-sm px-3.5 py-2.5 resize-none focus:outline-none"
+                  aria-label={t('helperProfile.chat.editMessage') || 'Edit message'}
+                />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={onEditSave}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium transition-colors"
+                    aria-label={t('common.save') || 'Save'}
+                  >
+                    <Check className="w-3 h-3" /> {t('common.save') || 'Save'}
+                  </button>
+                  <button
+                    onClick={onEditCancel}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-medium transition-colors"
+                    aria-label={t('common.cancel') || 'Cancel'}
+                  >
+                    <X className="w-3 h-3" /> {t('common.cancel') || 'Cancel'}
+                  </button>
+                </div>
+              </div>
+            );
+          }
           return (
             <MessageBubble
               key={item.id}

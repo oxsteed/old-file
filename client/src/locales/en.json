@@ -3899,5 +3899,17 @@
       "thisMonth": "Updated this month",
       "older": "Older listing"
     }
+  },
+  "financialAdvisor": {
+    "title": "💰 Financial Advisor",
+    "buttonLabel": "Financial Advice",
+    "disclaimerTitle": "AI Disclaimer — Not Financial Advice",
+    "disclaimerBody": "This AI can make mistakes and does not constitute professional financial advice. Always consult a licensed financial advisor before making financial decisions. Responses are based on your account data and may be inaccurate.",
+    "emptyPrompt": "Ask me anything about your finances — income, expenses, goals, or planned needs.",
+    "notAdviceTag": "⚠️ Not professional financial advice",
+    "inputPlaceholder": "Ask about your finances…",
+    "windowLabel": "Analysis window",
+    "authRequired": "Please sign in to use the financial advisor.",
+    "error": "AI service temporarily unavailable. Please try again."
   }
 }

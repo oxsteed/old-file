@@ -8,6 +8,7 @@ const permCtrl        = require('../controllers/adminPermissionController');
 const bizModCtrl      = require('../controllers/businessModerationController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
+const adminMsgCtrl    = require('../controllers/adminMessageController');
 
 // ══════════════════════════════════════════════════════════════
 // REGULAR ADMIN — both admin and super_admin can access
@@ -150,8 +151,13 @@ router.post('/super/users', requireSuperAdmin, superCtrl.createUser);
 // ADMIN → USER LIVE MESSAGING (super-admin only)
 // ══════════════════════════════════════════════════════════════
 
-// Admin→user messaging — delegatable via message_users grant
+// Legacy single-send endpoint (kept for UserDetail.jsx compatibility)
 router.post('/super/users/:userId/message', requireAdmin, requirePermission('message_users'), superCtrl.sendAdminMessage);
+
+// Full messaging inbox (all admins with message_users permission, super bypasses)
+router.get('/messages/conversations',             requireAdmin, requirePermission('message_users'), adminMsgCtrl.listConversations);
+router.get('/messages/conversations/:userId',     requireAdmin, requirePermission('message_users'), adminMsgCtrl.getThread);
+router.post('/messages/conversations/:userId/send', requireAdmin, requirePermission('message_users'), adminMsgCtrl.send);
 
 // ══════════════════════════════════════════════════════════════
 // SKILLS & CATEGORIES LOOKUP MANAGEMENT (admin + super_admin)
