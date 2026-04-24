@@ -2,16 +2,16 @@
 -- Supports removal of licenses, insurance with audit trail
 
 CREATE TABLE helper_credential_removals (
-  id BIGSERIAL PRIMARY KEY,
-  helper_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id SERIAL PRIMARY KEY,
+  helper_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   credential_type VARCHAR(50) NOT NULL CHECK (credential_type IN ('license', 'insurance')),
   removal_reason VARCHAR(255) NOT NULL CHECK (removal_reason IN (
     'unverified', 'expired', 'false_claim', 'user_report', 'other'
   )),
   notes TEXT,
-  removed_by_admin_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  removed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  removed_by_admin_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  removed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_helper_credential_removals_helper ON helper_credential_removals(helper_id);
