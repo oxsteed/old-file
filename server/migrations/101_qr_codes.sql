@@ -5,7 +5,7 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS qr_codes (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   url TEXT NOT NULL,
   logo_url TEXT,                    -- URL to embedded logo image
@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_qr_codes_user_title
 CREATE TABLE IF NOT EXISTS qr_code_downloads (
   id BIGSERIAL PRIMARY KEY,
   qr_code_id BIGINT NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   download_format VARCHAR(10) NOT NULL, -- png or svg
   ip_hash VARCHAR(64),
   user_agent_hash VARCHAR(64),
