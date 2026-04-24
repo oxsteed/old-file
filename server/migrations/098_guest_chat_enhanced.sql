@@ -4,42 +4,36 @@
 BEGIN;
 
 -- Add columns to guest_profile_chat_inbound
-ALTER TABLE guest_profile_chat_inbound ADD COLUMN (
-  session_status VARCHAR(50) NOT NULL DEFAULT 'waiting_for_helper'
-    CHECK (session_status IN (
-      'waiting_for_helper',
-      'ai_fallback_pending',
-      'ai_support_active',
-      'helper_takeover_requested',
-      'helper_assigned',
-      'resolved',
-      'abandoned'
-    )),
+ALTER TABLE guest_profile_chat_inbound
+ADD COLUMN session_status VARCHAR(50) NOT NULL DEFAULT 'waiting_for_helper'
+  CHECK (session_status IN (
+    'waiting_for_helper',
+    'ai_fallback_pending',
+    'ai_support_active',
+    'helper_takeover_requested',
+    'helper_assigned',
+    'resolved',
+    'abandoned'
+  ));
 
-  helper_invitation_sent_at TIMESTAMPTZ,
-  helper_response_deadline TIMESTAMPTZ,
-  ai_fallback_triggered_at TIMESTAMPTZ,
-  helper_claimed_from_ai_at TIMESTAMPTZ,
-  last_guest_message_at TIMESTAMPTZ,
-  last_helper_message_at TIMESTAMPTZ,
-  last_activity_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  guest_abandoned_at TIMESTAMPTZ,
-
-  -- Privacy & consent
-  guest_consent_monitoring BOOLEAN DEFAULT FALSE,
-  consent_requested_at TIMESTAMPTZ,
-  consent_accepted_at TIMESTAMPTZ,
-
-  -- Metrics
-  ai_messages_count INTEGER DEFAULT 0,
-  helper_messages_count INTEGER DEFAULT 0,
-  guest_messages_count INTEGER DEFAULT 0,
-  total_resolution_time_seconds INTEGER,
-
-  -- Helper context (populated when helper takes over)
-  ai_summary TEXT,
-  suggested_next_step TEXT
-);
+ALTER TABLE guest_profile_chat_inbound
+ADD COLUMN helper_invitation_sent_at TIMESTAMPTZ,
+ADD COLUMN helper_response_deadline TIMESTAMPTZ,
+ADD COLUMN ai_fallback_triggered_at TIMESTAMPTZ,
+ADD COLUMN helper_claimed_from_ai_at TIMESTAMPTZ,
+ADD COLUMN last_guest_message_at TIMESTAMPTZ,
+ADD COLUMN last_helper_message_at TIMESTAMPTZ,
+ADD COLUMN last_activity_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN guest_abandoned_at TIMESTAMPTZ,
+ADD COLUMN guest_consent_monitoring BOOLEAN DEFAULT FALSE,
+ADD COLUMN consent_requested_at TIMESTAMPTZ,
+ADD COLUMN consent_accepted_at TIMESTAMPTZ,
+ADD COLUMN ai_messages_count INTEGER DEFAULT 0,
+ADD COLUMN helper_messages_count INTEGER DEFAULT 0,
+ADD COLUMN guest_messages_count INTEGER DEFAULT 0,
+ADD COLUMN total_resolution_time_seconds INTEGER,
+ADD COLUMN ai_summary TEXT,
+ADD COLUMN suggested_next_step TEXT;
 
 -- Create indexes for common queries
 CREATE INDEX idx_guest_chat_status ON guest_profile_chat_inbound(session_status)
