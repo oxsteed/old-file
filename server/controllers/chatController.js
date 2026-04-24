@@ -295,6 +295,9 @@ exports.financialAdvisor = async (req, res) => {
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
     }
+    if (messages.length > 50) {
+      return res.status(400).json({ error: 'Too many messages in history (max 50)' });
+    }
 
     // Fetch user's financial context
     const financialContext = await getUserFinancialContext(userId, window);
@@ -360,7 +363,7 @@ ${getLanguageInstruction(language)}`;
       return res.status(502).json({ error: 'AI service temporarily unavailable' });
     }
 
-    res.json({ reply: ai.reply, window, context: financialContext });
+    res.json({ reply: ai.reply, window });
   } catch (err) {
     logger.error('[FinancialAdvisor] Error', { message: err.message });
     res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });

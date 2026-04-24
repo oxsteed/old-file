@@ -251,6 +251,21 @@ const termsLimiter = rateLimit({
   },
 });
 
+// Attachment upload limiter: 20 uploads per 15 minutes per user
+// Prevents bulk S3 storage abuse and memory exhaustion from repeated 10 MB uploads
+const attachmentLimiter = rateLimit({
+  ...createStoreOption('rl:attachment:'),
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many file uploads. Please wait before uploading more.',
+    retryAfter: '15 minutes',
+  },
+});
+
 // Per-user chat rate limiter: 100 messages per 5 minutes per user (global across all conversations)
 // Prevents chat spam and abuse at the user level, complementing conversation-level limiter
 // Falls back to IP for unauthenticated requests
@@ -290,4 +305,5 @@ module.exports = {
   invoiceLimiter,
   reportLimiter,
   termsLimiter,
+  attachmentLimiter,
 };

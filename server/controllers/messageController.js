@@ -627,11 +627,28 @@ const sendMessage = async (req, res) => {
   }
 };
 
-// Delete a message (only the sender can delete)
+// Delete a message (only the sender can delete, and only while a participant)
 const deleteMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId, messageId } = req.params;
+
+    // Verify user is an active participant of this conversation
+    const convCheck = await pool.query(
+      `SELECT 1 FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (convCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     // Verify message exists and user is the sender
     const msgResult = await pool.query(
@@ -673,7 +690,7 @@ const deleteMessage = async (req, res) => {
   }
 };
 
-// Edit a message (only the sender can edit)
+// Edit a message (only the sender can edit, and only while a participant)
 const editMessage = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -685,6 +702,23 @@ const editMessage = async (req, res) => {
 
     // Sanitize message content to prevent XSS
     const content = sanitizeMessage(rawContent);
+
+    // Verify user is an active participant of this conversation
+    const convCheck = await pool.query(
+      `SELECT 1 FROM conversations c
+       WHERE c.id = $1 AND (
+         c.customer_id = $2
+         OR c.helper_id = $2
+         OR (c.business_id IS NOT NULL AND EXISTS(
+           SELECT 1 FROM business_members bm
+           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+         ))
+       )`,
+      [conversationId, userId]
+    );
+    if (convCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     // Verify message exists and user is the sender
     const msgResult = await pool.query(
