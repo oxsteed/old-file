@@ -141,7 +141,7 @@ function exportTranscript(messages) {
 }
 
 // ── 3. Escalation modal ───────────────────────────────────────────────────────
-function EscalationModal({ messages, onClose }) {
+function EscalationModal({ messages, onClose, adminsOnline, onLiveChat }) {
   const { t } = useTranslation();
   const [sent,         setSent]         = useState(false);
   const [ticketNumber, setTicketNumber] = useState(null);
@@ -157,17 +157,29 @@ function EscalationModal({ messages, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSending(true);
-    try {
-      const { data } = await api.post('/support/request', {
-        name,
-        email,
-        subject:  'Live support escalation from chat widget',
-        message:  `${desc || '(No additional description provided)'}\n\n${'─'.repeat(40)}\nAI Chat History:\n${transcript}`,
-        category: 'Chat Escalation',
-      });
-      if (data?.ticket_number) setTicketNumber(data.ticket_number);
-    } catch { /* still show success — user can email directly */ }
-    setSent(true);
+
+    if (adminsOnline) {
+      // Route to live chat
+      try {
+        onLiveChat(desc || 'I need help', name, email);
+        onClose();
+      } catch (err) {
+        alert('Failed to connect to support. Please try again.');
+      }
+    } else {
+      // Escalate to ticket
+      try {
+        const { data } = await api.post('/support/request', {
+          name,
+          email,
+          subject:  'Support request from chat widget',
+          message:  `${desc || '(No additional description provided)'}\n\n${'─'.repeat(40)}\nAI Chat History:\n${transcript}`,
+          category: 'Chat Escalation',
+        });
+        if (data?.ticket_number) setTicketNumber(data.ticket_number);
+      } catch { /* still show success — user can email directly */ }
+      setSent(true);
+    }
     setSending(false);
   };
 
@@ -201,8 +213,14 @@ function EscalationModal({ messages, onClose }) {
           <>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="text-white font-semibold text-sm">{t('support.escalateTitle')}</h3>
-                <p className="text-gray-500 text-xs mt-0.5">We'll reply to your email, usually within a few hours.</p>
+                <h3 className="text-white font-semibold text-sm">
+                  {adminsOnline ? 'Connect with Support Team' : t('support.escalateTitle')}
+                </h3>
+                <p className="text-gray-500 text-xs mt-0.5">
+                  {adminsOnline
+                    ? 'Our support team is online and ready to help!'
+                    : 'We\'ll reply to your email, usually within a few hours.'}
+                </p>
               </div>
               <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition" aria-label="Close">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -240,7 +258,11 @@ function EscalationModal({ messages, onClose }) {
                 disabled={sending}
                 className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm rounded-xl transition disabled:opacity-50"
               >
-                {sending ? t('common.sending') + '…' : t('support.submitTicket')}
+                {sending
+                  ? t('common.sending') + '…'
+                  : adminsOnline
+                  ? 'Connect to Support'
+                  : t('support.submitTicket')}
               </button>
             </form>
           </>
@@ -267,6 +289,11 @@ export default function SupportWidget() {
   const [unread,       setUnread]       = useState(0);
   const [showEscalate, setShowEscalate] = useState(false);
   const [isMobile,     setIsMobile]     = useState(false);
+  const [adminsOnline, setAdminsOnline] = useState(null);
+  const [liveChat,     setLiveChat]     = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [visitorEmail, setVisitorEmail] = useState('');
+  const [visitorName,  setVisitorName]  = useState('');
 
   const { t } = useTranslation();
 
@@ -350,6 +377,59 @@ export default function SupportWidget() {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
+
+  // Check if admins are online when widget opens
+  useEffect(() => {
+    if (!open) return;
+    const checkAdminStatus = async () => {
+      try {
+        const { data } = await api.get('/support-chat/admin-status');
+        setAdminsOnline(data.adminsOnline);
+      } catch (err) {
+        setAdminsOnline(false);
+      }
+    };
+    checkAdminStatus();
+    const interval = setInterval(checkAdminStatus, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, [open]);
+
+  const initiateLiveChat = useCallback(async (firstMessage) => {
+    if (!firstMessage.trim() || !visitorName.trim() || !visitorEmail.trim()) {
+      alert('Please fill in your name, email, and message');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data } = await api.post('/support-chat/initiate', {
+        message: firstMessage,
+        visitorName,
+        visitorEmail,
+      });
+
+      if (data.routedTo === 'live_admin') {
+        setLiveChat(true);
+        setConversationId(data.conversationId);
+        setMessages([{
+          role: 'assistant',
+          content: 'You\'re connected with our support team. They\'ll be with you shortly.',
+          ts: new Date().toISOString(),
+        }]);
+      } else if (data.routedTo === 'support_ticket') {
+        setMessages([{
+          role: 'assistant',
+          content: `No admins available right now, but we've created ticket #${data.ticketNumber} and will email you soon.`,
+          ts: new Date().toISOString(),
+        }]);
+      }
+      setInput('');
+    } catch (err) {
+      alert('Failed to initiate support chat. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [visitorName, visitorEmail]);
 
   const send = useCallback(async (text, isRetry = false) => {
     if (!text.trim() || loading) return;
@@ -762,7 +842,12 @@ export default function SupportWidget() {
 
       {/* 3. Escalation modal */}
       {showEscalate && (
-        <EscalationModal messages={messages} onClose={() => setShowEscalate(false)} />
+        <EscalationModal
+          messages={messages}
+          onClose={() => setShowEscalate(false)}
+          adminsOnline={adminsOnline}
+          onLiveChat={initiateLiveChat}
+        />
       )}
     </>
   );
