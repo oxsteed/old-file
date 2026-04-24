@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Send, Paperclip, Image, Smile, X, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Image, X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import type { ChatStatus } from '../../../types/helperProfile';
@@ -29,8 +29,6 @@ interface MessageComposerProps {
 
 const DISABLED_STATUSES: ChatStatus[] = ['offline'];
 
-const EMOJI_GRID = ['😀', '😂', '😍', '😮', '😢', '😡', '👍', '👎', '❤️', '🎉', '🔥', '💯', '😎', '🤔', '👏', '🙏', '💪', '🎯', '📱', '⭐', '🚀', '✅', '❌', '⚡'];
-
 const MessageComposer: React.FC<MessageComposerProps> = ({
   status,
   onSend,
@@ -43,12 +41,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 }) => {
   const { t } = useTranslation();
   const [text, setText] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<AttachmentMeta | null>(null);
   const [uploading, setUploading] = useState(false);
   const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = externalTextareaRef || internalTextareaRef;
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const isDisabled = disabledProp || DISABLED_STATUSES.includes(status);
@@ -109,27 +105,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     onSend(trimmed, pendingAttachment ?? undefined);
     setText('');
     setPendingAttachment(null);
-    setShowEmojiPicker(false);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
-
-  const addEmoji = (emoji: string) => {
-    setText(prev => prev + emoji);
-    setShowEmojiPicker(false);
-    textareaRef.current?.focus();
-  };
-
-  React.useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
-        setShowEmojiPicker(false);
-      }
-    };
-    if (showEmojiPicker) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showEmojiPicker]);
 
   const defaultPlaceholder =
     status === 'offline'
@@ -194,7 +171,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
       {/* Attachment row */}
       {!compact && (
-      <div className="flex items-center gap-1 mb-2 relative">
+      <div className="flex items-center gap-1 mb-2">
         <button
           className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-40"
           aria-label={t('messages.attachFile')}
@@ -215,30 +192,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         >
           <Image className="w-4 h-4" aria-hidden="true" />
         </button>
-        <div className="relative" ref={emojiPickerRef}>
-          <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
-            aria-label={t('messages.addEmoji')}
-            title={t('messages.addEmoji')}
-          >
-            <Smile className="w-4 h-4" aria-hidden="true" />
-          </button>
-          {showEmojiPicker && (
-            <div className="absolute bottom-full left-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg p-2 z-50 grid grid-cols-6 gap-1">
-              {EMOJI_GRID.map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={() => addEmoji(emoji)}
-                  className="text-lg hover:bg-gray-700 p-1.5 rounded hover:scale-110 transition-transform"
-                  aria-label={emoji}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
         <span className="text-xs text-gray-600 ml-auto hidden sm:block">{t('messages.shiftEnter')}</span>
       </div>
       )}

@@ -260,6 +260,15 @@ const HelperBusinessProfilePage: React.FC = () => {
               </section>
             )}
 
+            {/* CTA Section — moved from right sidebar */}
+            <CTASection
+              helper={helper}
+              onBookNow={handleBookNow}
+              onMessageHelper={handleMessageHelper}
+              onOpenChat={handleOpenChat}
+              hasServices={services.length > 0}
+            />
+
             {visibility?.services && (
               <ServicesSection
                 services={services}
@@ -306,21 +315,14 @@ const HelperBusinessProfilePage: React.FC = () => {
             <div className="h-32 lg:hidden" aria-hidden="true" />
           </div>
 
-          {/* ── Right column: CTA + Chat (desktop) ─────────── */}
+          {/* ── Right column: Chat (desktop) ─────────── */}
           <aside
-            className="hidden lg:flex lg:col-span-5 flex-col gap-5"
+            className="hidden lg:flex lg:col-span-5 flex-col"
             aria-label={t('businessProfile.bookAndChatAria')}
             ref={chatPanelRef}
           >
             {/* Sticky wrapper */}
-            <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
-              <CTASection
-                helper={helper}
-                onBookNow={handleBookNow}
-                onMessageHelper={handleMessageHelper}
-                onOpenChat={handleOpenChat}
-                hasServices={services.length > 0}
-              />
+            <div className="sticky top-16 max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
               <div
                 className="flex-1 min-h-0 flex flex-col overflow-hidden"
                 style={{ minHeight: '600px' }}
