@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router  = express.Router();
-const { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus } = require('../controllers/helpersController');
+const { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability } = require('../controllers/helpersController');
 const {
   listHelperInvoices, createHelperInvoice, updateHelperInvoice,
   markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
@@ -13,8 +13,10 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 
 // ── Authenticated helper-owner endpoints (must come before /:id wildcards) ──
-router.get('/me/listing',  authenticate, getMyListingStatus);
-router.put('/me/listing',  authenticate, toggleListing);
+router.get('/me/listing',       authenticate, getMyListingStatus);
+router.put('/me/listing',       authenticate, toggleListing);
+router.get('/me/availability',  authenticate, getMyAvailability);
+router.put('/me/availability',  authenticate, toggleAvailability);
 
 // ── Helper invoices (authenticated, helper-scoped) ─────────────────────────────
 router.get('/invoices',                        authenticate, listHelperInvoices);
