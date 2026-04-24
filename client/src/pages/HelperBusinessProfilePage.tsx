@@ -65,6 +65,9 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
+  const [chatDestination, setChatDestination] = useState<'helper' | 'oxsteed'>('oxsteed'); // default to helper
+  const chatPanelRef = React.useRef<HTMLDivElement>(null);
+  const messageInputRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Set scroll-padding-top so SectionNav anchor links don't hide under sticky bars
   useEffect(() => {
@@ -116,6 +119,36 @@ const HelperBusinessProfilePage: React.FC = () => {
     const params = new URLSearchParams({ helperId: id!, helperName: data?.helper.businessName || '' });
     navigate(`/post-job?${params.toString()}`);
   }, [id, data, navigate]);
+
+  const handleMessageHelper = useCallback(() => {
+    // Switch to helper destination and open chat
+    setChatDestination('helper');
+
+    if (!isMobile) {
+      // Desktop: scroll to chat panel and focus input
+      setTimeout(() => {
+        if (chatPanelRef.current) {
+          chatPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (messageInputRef.current) {
+          messageInputRef.current.focus();
+        }
+      }, 100);
+      return;
+    }
+
+    // Mobile: open chat drawer
+    if (user) {
+      setChatOpen(true);
+      return;
+    }
+    const allow = data?.helper?.allowGuestContact !== false;
+    if (allow) {
+      setChatOpen(true);
+    } else {
+      setGuestSignInModalOpen(true);
+    }
+  }, [isMobile, user, data?.helper?.allowGuestContact]);
 
   const handleOpenChat = useCallback(() => {
     // On desktop, scroll to chat panel in sidebar. On mobile, open drawer.
@@ -200,7 +233,7 @@ const HelperBusinessProfilePage: React.FC = () => {
       <BusinessHeader
         helper={helper}
         onBookNow={handleBookNow}
-        onOpenChat={handleOpenChat}
+        onOpenChat={handleMessageHelper}
       />
 
       {/* Sticky section nav */}
@@ -277,16 +310,21 @@ const HelperBusinessProfilePage: React.FC = () => {
           <aside
             className="hidden lg:flex lg:col-span-5 flex-col gap-5"
             aria-label={t('businessProfile.bookAndChatAria')}
+            ref={chatPanelRef}
           >
             {/* Sticky wrapper */}
             <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col">
               <CTASection
                 helper={helper}
                 onBookNow={handleBookNow}
+                onMessageHelper={handleMessageHelper}
                 onOpenChat={handleOpenChat}
                 hasServices={services.length > 0}
               />
-              <div className="flex-1 min-h-0" style={{ minHeight: '360px', maxHeight: 'min(80vh, calc(100vh - 200px))' }}>
+              <div
+                className="flex-1 min-h-0 overflow-hidden"
+                style={{ minHeight: '480px', maxHeight: 'min(85vh, calc(100vh - 150px))' }}
+              >
                 <ChatPanel
                   session={chatSession}
                   helperName={helper.businessName}
@@ -295,6 +333,9 @@ const HelperBusinessProfilePage: React.FC = () => {
                   allowLiveChat={helper.allowLiveChat}
                   variant="sidebar"
                   className="h-full"
+                  destination={chatDestination}
+                  onDestinationChange={setChatDestination}
+                  messageInputRef={messageInputRef}
                 />
               </div>
             </div>

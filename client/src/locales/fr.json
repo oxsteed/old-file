@@ -2967,6 +2967,21 @@
       "messageHelperAria": "Envoyer un message à ce prestataire",
       "trustSignalsAria": "Signaux de confiance"
     },
+    "trust": {
+      "trustSignalsAria": "Confiance et Fiabilité",
+      "backgroundCheck": "Antécédents vérifiés",
+      "verified": "Vérifié",
+      "notVerified": "Non vérifié",
+      "responseTime": "Temps de réponse",
+      "respondTime": "Généralement {{time}}",
+      "responseVaries": "Variable",
+      "notAvailable": "Non disponible",
+      "jobsCompleted": "Missions complétées",
+      "jobsCompletedCount": "{{count}} complétées",
+      "noJobsYet": "Aucune mission encore",
+      "oxsteedGuarantee": "Garantie OxSteed",
+      "guaranteeCovered": "Couverte"
+    },
     "gallery": {
       "title": "Photos & Exemples de Travaux",
       "photoCount_one": "{{count}} photo de missions récentes",

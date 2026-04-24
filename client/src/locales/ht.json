@@ -2966,6 +2966,21 @@
       "messageHelperAria": "Voye yon mesaj bay aidè sa a",
       "trustSignalsAria": "Siyal konfyans"
     },
+    "trust": {
+      "trustSignalsAria": "Konfyans ak Fyabilite",
+      "backgroundCheck": "Background verifye",
+      "verified": "Verifye",
+      "notVerified": "Pa verifye",
+      "responseTime": "Tan repons",
+      "respondTime": "Nòmalman {{time}}",
+      "responseVaries": "Varye",
+      "notAvailable": "Pa disponib",
+      "jobsCompleted": "Travay komple",
+      "jobsCompletedCount": "{{count}} komple",
+      "noJobsYet": "Pa gen travay ankò",
+      "oxsteedGuarantee": "Garanti OxSteed",
+      "guaranteeCovered": "Kouvè"
+    },
     "gallery": {
       "title": "Foto & Echantiyon Travay",
       "photoCount_one": "{{count}} foto de travay resan",
