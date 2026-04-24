@@ -118,9 +118,17 @@ const HelperBusinessProfilePage: React.FC = () => {
   }, [id, data, navigate]);
 
   const handleOpenChat = useCallback(() => {
-    // On mobile, open the chat drawer. On desktop, chat is always visible in sidebar.
-    if (!isMobile) return;
+    // On desktop, scroll to chat panel in sidebar. On mobile, open drawer.
+    if (!isMobile) {
+      // Desktop: scroll right sidebar into view
+      const chatAside = document.querySelector('aside[aria-label*="bookAndChat"]');
+      if (chatAside) {
+        chatAside.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
 
+    // Mobile: open chat drawer
     if (user) {
       setChatOpen(true);
       return;
