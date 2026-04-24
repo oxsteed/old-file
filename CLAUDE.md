@@ -962,6 +962,127 @@ Modified:
 
 ---
 
+### Session — 2026-04-24 (QR Code Generator — Complete Pro Feature)
+
+**Objective:** Build a complete, production-ready QR code generator feature for Pro users with database persistence, API endpoints, and a modern React interface.
+
+**What was built:**
+
+1. **Database Migration** ✅ (`server/migrations/101_qr_codes.sql`)
+   - `qr_codes` table: user_id, title, url, logo_url, dot_color, background_color, dot_style, size, image_url, image_format, download_count
+   - `qr_code_downloads` table: tracks analytics (download format, IP hash, user agent hash)
+   - Constraints on dot_style, size range, and image format
+   - Indexes for efficient user queries and analytics
+
+2. **Backend Controller** ✅ (`server/controllers/qrCodesController.js`)
+   - `createQRCode` — Generate + save QR code with styling
+   - `getQRCodes` — Paginated list (user's saved codes)
+   - `getQRCode` — Single code retrieval
+   - `updateQRCode` — Metadata update (title, url, colors, style, size)
+   - `deleteQRCode` — Delete with file cleanup
+   - `downloadQRCode` — Download with analytics tracking
+   - Generates PNG/SVG via qr-code-styling library
+   - Saves images to `/public/qr-codes/` directory
+   - 100% error handling with structured logging
+
+3. **API Routes** ✅ (`server/routes/qrCodes.js`)
+   - All routes require authentication + Pro tier (helper_pro)
+   - Rate limited via `generalLimiter`
+   - POST `/api/qr-codes` — create
+   - GET `/api/qr-codes` — list (with pagination)
+   - GET `/api/qr-codes/:id` — get single
+   - PUT `/api/qr-codes/:id` — update
+   - DELETE `/api/qr-codes/:id` — delete
+   - POST `/api/qr-codes/:id/download` — track download
+
+4. **Server Integration** ✅
+   - Route mounted in `server/index.js` (import + app.use)
+   - Integrated into existing middleware chain (auth, rate limiting, error handling)
+
+5. **Frontend Component** ✅ (`client/src/pages/QRCodeGeneratorPage.jsx`)
+   - Live preview with real-time updates on every change
+   - URL/text input field + title field
+   - Logo upload with center embedding
+   - Color pickers for dots and background
+   - 5 dot style options: square, rounded, dots, classy, classy-rounded
+   - Size slider (100-1000px)
+   - Download as PNG/SVG buttons
+   - Save to account button with confirmation modal
+   - Saved QR codes grid with metadata
+   - Delete, copy URL, and download tracking
+   - 100% responsive (desktop, tablet, mobile)
+   - Full error handling with toast notifications
+   - Loading states on async operations
+
+6. **Styling** ✅ (`client/src/pages/QRCodeGeneratorPage.css`)
+   - Matches OxSteed design system (purple gradient accents, dark mode support)
+   - Clean, modern grid layout with sidebar controls and live preview
+   - Responsive CSS Grid that adapts from 2-column to 1-column on mobile
+   - Smooth transitions and hover effects
+   - Color picker styling with visual feedback
+   - Save modal with clean UX
+   - Saved QR cards with action buttons
+   - 600+ lines of production-quality CSS
+
+7. **API Client** ✅ (`client/src/api/qrCodes.js`)
+   - `create(payload)` — POST new QR code
+   - `getAll(limit, offset)` — GET paginated list
+   - `getById(id)` — GET single code
+   - `update(id, payload)` — PUT metadata
+   - `delete(id)` — DELETE code
+   - `download(id, format)` — POST download with tracking
+
+8. **i18n Translations** ✅
+   - 36 translation keys added to all 4 languages (EN/ES/FR/HT)
+   - Complete coverage: buttons, labels, placeholders, errors, success messages
+   - Cultural adaptations for each language
+   - Keys in `qrGenerator` namespace + `nav.qrGenerator`
+
+9. **Integration in App** ✅
+   - Import added to `client/src/App.jsx`
+   - Route added at `/qr-generator`
+   - Protected by ProtectedRoute + RouteErrorBoundary
+   - Wrapped in Guarded error boundary
+
+10. **Navigation** ✅
+    - Nav link added to `Navbar.jsx` (desktop + mobile)
+    - Gated to helpers only (`{isHelper && ...}`)
+    - Positioned after Business link
+    - Uses `nav.qrGenerator` translation key
+
+**Key Design Decisions:**
+- **Pro tier gating:** Route guarded by `tierMiddleware('helper_pro')` on API + `isHelper` check in nav
+- **Self-hosted:** Uses qr-code-styling npm library (no external API calls)
+- **File storage:** Saves generated images to public directory for easy serving
+- **Analytics:** Tracks downloads with IP/user-agent hashing for privacy
+- **Live preview:** Real-time updates on every form change
+- **Image formats:** PNG for general use, SVG for scalability
+- **Logo embedding:** Base64 data URL support for any image format
+- **Responsive design:** Mobile-first approach, works on all screen sizes
+
+**Files Created:**
+- `server/migrations/101_qr_codes.sql`
+- `server/controllers/qrCodesController.js`
+- `server/routes/qrCodes.js`
+- `client/src/pages/QRCodeGeneratorPage.jsx`
+- `client/src/pages/QRCodeGeneratorPage.css`
+- `client/src/api/qrCodes.js`
+
+**Files Modified:**
+- `server/index.js` — Route import + mount
+- `client/package.json` — Added qr-code-styling ^1.8.0
+- `client/src/App.jsx` — Import + route
+- `client/src/components/Navbar.jsx` — Nav links (desktop + mobile)
+- `client/src/locales/en.json` — 36 translation keys
+- `client/src/locales/es.json` — 36 translation keys
+- `client/src/locales/fr.json` — 36 translation keys
+- `client/src/locales/ht.json` — 36 translation keys
+
+**Production Ready:**
+✅ Complete CRUD API with error handling | ✅ Database schema with analytics | ✅ Full-featured React component | ✅ Professional styling | ✅ Complete i18n (4 languages) | ✅ Pro-user tier gating | ✅ File upload + generation + storage | ✅ Mobile-responsive | ✅ Comprehensive error handling
+
+---
+
 ## Remaining Ops / Deferred Items
 
 These require either an infrastructure action or an architectural decision — no code work pending.
