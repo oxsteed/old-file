@@ -313,7 +313,7 @@ const HelperBusinessProfilePage: React.FC = () => {
             ref={chatPanelRef}
           >
             {/* Sticky wrapper */}
-            <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col">
+            <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
               <CTASection
                 helper={helper}
                 onBookNow={handleBookNow}
@@ -322,8 +322,8 @@ const HelperBusinessProfilePage: React.FC = () => {
                 hasServices={services.length > 0}
               />
               <div
-                className="flex-1 min-h-0 overflow-hidden"
-                style={{ minHeight: '480px', maxHeight: 'min(85vh, calc(100vh - 150px))' }}
+                className="flex-1 min-h-0 flex flex-col overflow-hidden"
+                style={{ minHeight: '600px' }}
               >
                 <ChatPanel
                   session={chatSession}
@@ -332,7 +332,7 @@ const HelperBusinessProfilePage: React.FC = () => {
                   isGuest={isGuestVisitor}
                   allowLiveChat={helper.allowLiveChat}
                   variant="sidebar"
-                  className="h-full"
+                  className="h-full overflow-hidden flex flex-col"
                   destination={chatDestination}
                   onDestinationChange={setChatDestination}
                   messageInputRef={messageInputRef}

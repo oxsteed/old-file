@@ -715,7 +715,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div
-      className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${className}`}
+      className={`flex flex-col bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-full ${className}`}
       aria-label={t('helperProfile.chat.chatPanel')}
       role="region"
     >
@@ -886,7 +886,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
       {/* ── Timeline / Search Results / Empty state ──────────── */}
       {searchQuery ? (
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-2 min-h-0">
           {searchLoading && (
             <p className="text-center text-sm text-gray-400">{t('helperProfile.chat.searchLoading')}</p>
           )}
@@ -923,7 +923,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           helperName={helperName}
         />
       ) : (
-        <div className="flex flex-col h-full">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {hasMoreMessages && (
             <div className="px-4 pt-3 pb-2 flex-shrink-0">
               <button
@@ -935,20 +935,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               </button>
             </div>
           )}
-          <ChatTimeline
-            items={displayTimeline}
-            helperName={helperName}
-            typing={sending ? session.typing : null}
-            currentUserId={user?.id}
-            onMessageDelete={handleMessageDelete}
-            onMessageEdit={handleMessageEdit}
-            onQuickReply={handleQuickReply}
-            editingMessageId={editingMessageId}
-            editingText={editingText}
-            onEditTextChange={setEditingText}
-            onEditSave={handleEditSave}
-            onEditCancel={handleEditCancel}
-          />
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+            <ChatTimeline
+              items={displayTimeline}
+              helperName={helperName}
+              typing={sending ? session.typing : null}
+              currentUserId={user?.id}
+              onMessageDelete={handleMessageDelete}
+              onMessageEdit={handleMessageEdit}
+              onQuickReply={handleQuickReply}
+              editingMessageId={editingMessageId}
+              editingText={editingText}
+              onEditTextChange={setEditingText}
+              onEditSave={handleEditSave}
+              onEditCancel={handleEditCancel}
+            />
+          </div>
         </div>
       )}
 
