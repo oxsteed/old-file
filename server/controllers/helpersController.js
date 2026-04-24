@@ -1082,4 +1082,91 @@ async function toggleAvailability(req, res) {
   }
 }
 
-module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability };
+// ── POST /api/admin/helpers/:id/remove-credential ─────────────────────────────
+// Admin removes a self-reported credential (license, insurance) with reason
+// Logs removal and triggers in-app notification to helper
+async function removeCredential(req, res) {
+  try {
+    const { id } = req.params;
+    const { credential_type, removal_reason, notes } = req.body;
+
+    // Validation
+    const validCredentials = ['license', 'insurance'];
+    const validReasons = ['unverified', 'expired', 'false_claim', 'user_report', 'other'];
+
+    if (!validCredentials.includes(credential_type)) {
+      return res.status(400).json({ error: 'Invalid credential_type' });
+    }
+
+    if (!validReasons.includes(removal_reason)) {
+      return res.status(400).json({ error: 'Invalid removal_reason' });
+    }
+
+    // Map credential type to column name
+    const columnMap = {
+      license: 'is_licensed',
+      insurance: 'is_insured',
+    };
+    const columnName = columnMap[credential_type];
+
+    // Check if credential is actually claimed
+    const checkRes = await pool.query(
+      `SELECT ${columnName} FROM helper_profiles WHERE user_id = $1`,
+      [id],
+    );
+
+    if (!checkRes.rows[0]) {
+      return res.status(404).json({ error: 'Helper not found' });
+    }
+
+    if (!checkRes.rows[0][columnName]) {
+      return res.status(409).json({ error: 'Credential not claimed by this helper' });
+    }
+
+    // Remove credential and log removal
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Update helper profile
+      await client.query(
+        `UPDATE helper_profiles SET ${columnName} = false WHERE user_id = $1`,
+        [id],
+      );
+
+      // Log removal in audit table
+      await client.query(
+        `INSERT INTO helper_credential_removals
+         (helper_id, credential_type, removal_reason, notes, removed_by_admin_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, credential_type, removal_reason, notes || null, req.user.id],
+      );
+
+      // Create in-app notification for helper
+      const notificationMessage = `Your ${credential_type} was removed because: ${removal_reason.replace(/_/g, ' ')}`;
+      await client.query(
+        `INSERT INTO notifications (user_id, type, title, body, related_entity_type, related_entity_id)
+         VALUES ($1, 'credential_removed', 'Credential Removed', $2, 'credential', $3)`,
+        [id, notificationMessage, credential_type],
+      );
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
+    return res.json({
+      message: `${credential_type} removed successfully`,
+      credential_type,
+      removal_reason,
+    });
+  } catch (err) {
+    logger.error('[removeCredential] error:', { err });
+    return res.status(500).json({ error: 'Failed to remove credential' });
+  }
+}
+
+module.exports = { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential };

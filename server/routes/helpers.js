@@ -4,13 +4,16 @@
 
 const express = require('express');
 const router  = express.Router();
-const { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability } = require('../controllers/helpersController');
+const { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential } = require('../controllers/helpersController');
 const {
   listHelperInvoices, createHelperInvoice, updateHelperInvoice,
   markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
 } = require('../controllers/businessInvoiceController');
 const { generalLimiter } = require('../middleware/rateLimiter');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireAdmin } = require('../middleware/auth');
+
+// ── Admin-only endpoints (must come before /:id wildcards) ────────────────────
+router.post('/:id/remove-credential', requireAdmin, removeCredential);
 
 // ── Authenticated helper-owner endpoints (must come before /:id wildcards) ──
 router.get('/me/listing',       authenticate, getMyListingStatus);
