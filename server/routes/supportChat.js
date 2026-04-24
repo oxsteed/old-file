@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, optionalAuth } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const { initiateSupportChat, sendSupportMessage, getAdminStatus } = require('../controllers/supportChatController');
 
 /**
@@ -19,6 +19,6 @@ router.post('/initiate', initiateSupportChat);
  * POST /api/support-chat/messages
  * Send a message in an active support chat (authenticated or as guest)
  */
-router.post('/messages', optionalAuth, sendSupportMessage);
+router.post('/messages', sendSupportMessage);
 
 module.exports = router;
