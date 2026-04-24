@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, Clock, Star, Award } from 'lucide-react';
+import { ShieldCheck, Clock, Star } from 'lucide-react';
 import type { HelperProfile } from '../../types/helperProfile';
 
 interface TrustSignalsProps {
@@ -20,7 +20,7 @@ const TrustSignals: React.FC<TrustSignalsProps> = ({ helper }) => {
     icon: React.ReactNode;
     label: string;
     value: string;
-    variant: 'verified' | 'response' | 'jobs' | 'guarantee';
+    variant: 'verified' | 'response' | 'jobs';
   }
 
   const signals: SignalItem[] = [];
@@ -61,19 +61,10 @@ const TrustSignals: React.FC<TrustSignalsProps> = ({ helper }) => {
     variant: 'jobs',
   });
 
-  // 4. OxSteed guarantee / trust
-  signals.push({
-    icon: <Award className="w-4 h-4 flex-shrink-0" aria-hidden="true" />,
-    label: t('helperProfile.trust.oxsteedGuarantee', { defaultValue: 'OxSteed guarantee' }),
-    value: t('helperProfile.trust.guaranteeCovered', { defaultValue: 'Covered' }),
-    variant: 'guarantee',
-  });
-
   const iconColorMap = {
     verified: 'text-emerald-400',
     response: 'text-sky-400',
     jobs: 'text-orange-400',
-    guarantee: 'text-violet-400',
   };
 
   return (
