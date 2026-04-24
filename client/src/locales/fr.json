@@ -17,7 +17,8 @@
     "joinAsCustomerHint": "Publiez des missions et embauchez de l'aide locale",
     "joinAsHelperHint": "Proposez des services et soyez sollicité",
     "closeMenu": "Fermer le menu",
-    "openMenu": "Ouvrir le menu"
+    "openMenu": "Ouvrir le menu",
+    "qrGenerator": "Générateur QR"
   },
   "hero": {
     "title": "Aide locale,\nQuand vous en avez besoin",
@@ -353,7 +354,9 @@
     "vortexSignInHint": "Vous devez être connecté à OxSteed pour utiliser un jeton d’équipe.",
     "vortexSignIn": "Se connecter",
     "vortexContinueToLogin": "Continuer pour vous connecter",
-    "vortexRedeemFailed": "Impossible d’utiliser ce jeton. Vérifiez qu’il est correct, inutilisé et non expiré."
+    "vortexRedeemFailed": "Impossible d’utiliser ce jeton. Vérifiez qu’il est correct, inutilisé et non expiré.",
+    "resource": "Ressources",
+    "qrGenerator": "Générateur QR"
   },
   "howItWorks": {
     "badge": "Présentation de la plateforme",
@@ -3947,5 +3950,45 @@
     "windowLabel": "Fenêtre d'analyse",
     "authRequired": "Connectez-vous pour utiliser le conseiller financier.",
     "error": "Service IA temporairement indisponible. Veuillez réessayer."
+  },
+  "qrGenerator": {
+    "pageTitle": "Générateur de Code QR | OxSteed",
+    "pageDescription": "Générez des codes QR personnalisés pour votre entreprise avec intégration de logo et options de style avancées.",
+    "title": "Générateur de Code QR",
+    "subtitle": "Créez des codes QR professionnels avec des couleurs personnalisées, des logos et des styles pour votre entreprise",
+    "urlAndTitle": "URL et Titre",
+    "titlePlaceholder": "p. ex., Mon Site Web Professionnel",
+    "url": "URL ou Texte",
+    "styling": "Options de Style",
+    "dotStyle": "Style des Points",
+    "styleSquare": "Carré",
+    "styleRounded": "Arrondi",
+    "styleDots": "Points",
+    "styleClassy": "Élégant",
+    "styleClassyRounded": "Élégant Arrondi",
+    "dotColor": "Couleur des Points",
+    "backgroundColor": "Couleur de Fond",
+    "size": "Taille",
+    "preview": "Aperçu",
+    "logo": "Logo (Optionnel)",
+    "uploadLogo": "Télécharger l'Image du Logo",
+    "save": "Enregistrer le Code QR",
+    "savedQRs": "Vos Codes QR Enregistrés",
+    "noImage": "Aucune image",
+    "downloads": "téléchargements",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce code QR?",
+    "deleteSuccess": "Code QR supprimé avec succès",
+    "deleteError": "Erreur lors de la suppression du code QR",
+    "confirmSave": "Enregistrer le Code QR",
+    "savingWith": "Votre code QR sera enregistré avec les paramètres suivants:",
+    "savedSuccess": "Code QR enregistré avec succès",
+    "saveError": "Erreur lors de l'enregistrement du code QR",
+    "titleRequired": "Veuillez entrer un titre pour votre code QR",
+    "downloadSuccess": "Code QR téléchargé avec succès",
+    "downloadError": "Erreur lors du téléchargement du code QR",
+    "downloadPNG": "Télécharger PNG",
+    "downloadSVG": "Télécharger SVG",
+    "errorGenerating": "Erreur lors de la génération du code QR",
+    "loadError": "Erreur lors du chargement de vos codes QR enregistrés"
   }
 }

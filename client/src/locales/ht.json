@@ -17,7 +17,8 @@
     "joinAsCustomerHint": "Poste travay e anboche èd lokal",
     "joinAsHelperHint": "Ofri sèvis epi jwenn travay",
     "closeMenu": "Fèmen meni",
-    "openMenu": "Louvri meni"
+    "openMenu": "Louvri meni",
+    "qrGenerator": "Jeneratè QR"
   },
   "hero": {
     "title": "Èd Lokal,\nLè Ou Bezwen Li",
@@ -420,7 +421,9 @@
     "vortexSignInHint": "Ou bezwen yon kont OxSteed konekte pou w itilize yon token ekip.",
     "vortexSignIn": "Konekte",
     "vortexContinueToLogin": "Kontinye pou konekte",
-    "vortexRedeemFailed": "Token sa a pa t ka itilize. Verifye li kòrèk, pa itilize, epi pa ekspire."
+    "vortexRedeemFailed": "Token sa a pa t ka itilize. Verifye li kòrèk, pa itilize, epi pa ekspire.",
+    "resource": "Resous",
+    "qrGenerator": "Jeneratè QR"
   },
   "howItWorks": {
     "badge": "Apèsi Platfòm",
@@ -3946,5 +3949,45 @@
     "windowLabel": "Fenèt analiz",
     "authRequired": "Konekte pou itilize konsèy finansye a.",
     "error": "Sèvis IA pa disponib pou kounye a. Tanpri eseye ankò."
+  },
+  "qrGenerator": {
+    "pageTitle": "Jeneratè Kòd QR | OxSteed",
+    "pageDescription": "Jenere kòd QR ki adaptable pou biznis ou avèk entegrasyon lojotipi ak opsyon stil avanse.",
+    "title": "Jeneratè Kòd QR",
+    "subtitle": "Kreye kòd QR pwofesyonèl avèk koulè ki adaptable, lojotipi ak stil pou biznis ou",
+    "urlAndTitle": "URL ak Tit",
+    "titlePlaceholder": "egz., Sit Wèb Biznis Mwen",
+    "url": "URL oswa Tèks",
+    "styling": "Opsyon Stil",
+    "dotStyle": "Stil Pwen",
+    "styleSquare": "Kare",
+    "styleRounded": "Awondi",
+    "styleDots": "Pwen",
+    "styleClassy": "Elegant",
+    "styleClassyRounded": "Elegant Awondi",
+    "dotColor": "Koulè Pwen",
+    "backgroundColor": "Koulè Fon",
+    "size": "Gwosè",
+    "preview": "Apèsi",
+    "logo": "Lojotipi (Opsyonèl)",
+    "uploadLogo": "Transfere Imaj Lojotipi",
+    "save": "Sove Kòd QR",
+    "savedQRs": "Kòd QR Sove Ou",
+    "noImage": "Poko gen imaj",
+    "downloads": "telechajman",
+    "confirmDelete": "Eske ou sèten ou vle efase kòd QR sa a?",
+    "deleteSuccess": "Kòd QR efase avèk siksè",
+    "deleteError": "Erè toujou ap efase kòd QR",
+    "confirmSave": "Sove Kòd QR",
+    "savingWith": "Kòd QR ou a ap sove avèk paramèt sa yo:",
+    "savedSuccess": "Kòd QR sove avèk siksè",
+    "saveError": "Erè toujou ap sove kòd QR",
+    "titleRequired": "Tanpri, fè antre yon tit pou kòd QR ou",
+    "downloadSuccess": "Kòd QR telechaje avèk siksè",
+    "downloadError": "Erè toujou ap telechaje kòd QR",
+    "downloadPNG": "Telechaje PNG",
+    "downloadSVG": "Telechaje SVG",
+    "errorGenerating": "Erè toujou ap jenere kòd QR",
+    "loadError": "Erè toujou ap chaje kòd QR sove ou"
   }
 }

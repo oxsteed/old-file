@@ -153,6 +153,7 @@ export default function Navbar() {
                 <Divider />
                 <NavLink to="/dashboard" active={isActive('/dashboard')}>{t('nav.dashboard')}</NavLink>
                 {isHelper && <NavLink to="/business-hub" active={isActive('/business-hub')}>{t('nav.business')}</NavLink>}
+                {isHelper && <NavLink to="/qr-generator" active={isActive('/qr-generator')}>{t('nav.qrGenerator')}</NavLink>}
                 <NavLink to="/settings" active={isActive('/settings')}>{t('nav.settings')}</NavLink>
                 <span className="ox-badge ox-badge-primary" style={{ textTransform: 'capitalize' }}>
                   {user?.role}
@@ -286,6 +287,7 @@ export default function Navbar() {
                   )}
                 </MobileNavLink>
                 {isHelper && <MobileNavLink to="/business-hub" onClick={() => setMobileOpen(false)}>{t('nav.business')}</MobileNavLink>}
+                {isHelper && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
                 <MobileNavLink to="/settings" onClick={() => setMobileOpen(false)}>{t('nav.settings')}</MobileNavLink>
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
