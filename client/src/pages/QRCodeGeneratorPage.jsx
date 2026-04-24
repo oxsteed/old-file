@@ -60,6 +60,15 @@ const QRCodeGeneratorPage = () => {
     if (!formData.url) return;
 
     try {
+      const imageConfig = formData.logoUrl
+        ? {
+            image: {
+              src: formData.logoUrl,
+              hideBackgroundDots: true,
+            },
+          }
+        : {};
+
       const qr = new QRCodeStyling({
         width: formData.size,
         height: formData.size,
@@ -72,6 +81,7 @@ const QRCodeGeneratorPage = () => {
           color: formData.backgroundColor,
         },
         margin: 10,
+        ...imageConfig,
       });
 
       setQRInstance(qr);

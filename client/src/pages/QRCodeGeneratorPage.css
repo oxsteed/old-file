@@ -16,15 +16,9 @@
   font-size: 3rem;
   font-weight: 800;
   margin: 0 0 16px 0;
-  background: linear-gradient(135deg, #a855f7, #6366f1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #FF6B35;
 }
 
-.dark .qrg-title {
-  color: #f0f0f0;
-}
 
 .qrg-subtitle {
   font-size: 1.125rem;
