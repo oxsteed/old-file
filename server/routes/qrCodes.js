@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { tierMiddleware } = require('../middleware/tierMiddleware');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const {
   createQRCode,
@@ -22,23 +23,9 @@ const {
   generateBatchQRCodes,
 } = require('../controllers/qrCodesController');
 
-// Simple middleware to check Pro tier (helper_pro role)
-const requireProTier = (req, res, next) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  if (req.user.role !== 'helper_pro' && req.user.role !== 'broker') {
-    return res.status(403).json({
-      error: 'Pro tier required',
-      message: 'This feature is only available for Pro helpers'
-    });
-  }
-  next();
-};
-
 // All QR code routes require authentication and Pro tier
 router.use(authenticate);
-router.use(requireProTier);
+router.use(tierMiddleware('helper_pro'));
 router.use(generalLimiter);
 
 // Generate QR code with embedded logo (server-side)
