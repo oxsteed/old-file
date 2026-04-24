@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarCheck, MessageCircle } from 'lucide-react';
+import { CalendarCheck, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import type { HelperProfile } from '../../types/helperProfile';
 import StarRating from './ui/StarRating';
 import TrustSignals from './TrustSignals';
@@ -21,33 +21,56 @@ const CTASection: React.FC<CTASectionProps> = ({
   hasServices = true,
 }) => {
   const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <aside
-      className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden"
+      className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden flex flex-col"
       aria-label={t('helperProfile.cta.bookNowAria')}
     >
-      {/* Price hint */}
-      <div className="px-5 pt-5 pb-4 border-b border-gray-800">
-        <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">
-          {t('helperProfile.cta.startingFrom')}
-        </p>
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-bold text-white">$45</span>
+      {/* Collapsible Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-5 py-3 flex items-center justify-between border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
+        aria-expanded={isExpanded}
+        aria-label={isExpanded ? t('helperProfile.cta.hideDetails') : t('helperProfile.cta.showDetails')}
+      >
+        <div className="flex items-baseline gap-1 text-left">
+          <span className="text-2xl font-bold text-white">$45</span>
           <span className="text-gray-400 text-sm">{t('helperProfile.cta.perHour')}</span>
         </div>
-        {helper.reviewCount > 0 ? (
-          <div className="flex items-center gap-2 mt-1.5">
-            <StarRating rating={helper.rating} size="sm" />
-            <span className="text-sm font-semibold text-white">{helper.rating.toFixed(1)}</span>
-            <span className="text-gray-500 text-sm">({helper.reviewCount})</span>
-          </div>
+        {isExpanded ? (
+          <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" aria-hidden="true" />
         ) : (
-          <p className="text-sm text-gray-500 mt-1.5">{t('helperProfile.cta.noReviews')}</p>
+          <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" aria-hidden="true" />
         )}
-      </div>
+      </button>
 
-      {/* CTAs */}
+      {/* Expanded Content: Price Details & Rating */}
+      {isExpanded && (
+        <div className="px-5 py-4 border-b border-gray-800 space-y-3">
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">
+              {t('helperProfile.cta.startingFrom')}
+            </p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-bold text-white">$45</span>
+              <span className="text-gray-400 text-sm">{t('helperProfile.cta.perHour')}</span>
+            </div>
+          </div>
+          {helper.reviewCount > 0 ? (
+            <div className="flex items-center gap-2">
+              <StarRating rating={helper.rating} size="sm" />
+              <span className="text-sm font-semibold text-white">{helper.rating.toFixed(1)}</span>
+              <span className="text-gray-500 text-sm">({helper.reviewCount})</span>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">{t('helperProfile.cta.noReviews')}</p>
+          )}
+        </div>
+      )}
+
+      {/* CTAs - Always Visible */}
       <div className="px-5 py-4 space-y-3">
         <button
           onClick={hasServices ? onBookNow : undefined}
@@ -73,15 +96,19 @@ const CTASection: React.FC<CTASectionProps> = ({
         </button>
       </div>
 
-      {/* Trust signals — rendered from real backend data */}
-      <TrustSignals helper={helper} />
+      {/* Trust signals — expanded only */}
+      {isExpanded && (
+        <>
+          <TrustSignals helper={helper} />
 
-      {/* Fine print */}
-      <div className="px-5 pb-4 border-t border-gray-800 pt-3">
-        <p className="text-xs text-gray-600 leading-relaxed text-center">
-          {t('helperProfile.cta.securePayments')}
-        </p>
-      </div>
+          {/* Fine print */}
+          <div className="px-5 pb-4 border-t border-gray-800 pt-3">
+            <p className="text-xs text-gray-600 leading-relaxed text-center">
+              {t('helperProfile.cta.securePayments')}
+            </p>
+          </div>
+        </>
+      )}
     </aside>
   );
 };

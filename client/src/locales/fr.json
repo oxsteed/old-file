@@ -2965,7 +2965,9 @@
       "bookNowAria": "Réserver ce prestataire maintenant",
       "bookingUnavailableAria": "Réservation indisponible — aucun service listé",
       "messageHelperAria": "Envoyer un message à ce prestataire",
-      "trustSignalsAria": "Signaux de confiance"
+      "trustSignalsAria": "Signaux de confiance",
+      "showDetails": "Afficher les détails",
+      "hideDetails": "Masquer les détails"
     },
     "trust": {
       "trustSignalsAria": "Confiance et Fiabilité",

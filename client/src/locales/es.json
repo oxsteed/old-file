@@ -2965,7 +2965,9 @@
       "bookNowAria": "Reservar este ayudante ahora",
       "bookingUnavailableAria": "Reserva no disponible — no hay servicios listados",
       "messageHelperAria": "Enviar un mensaje a este ayudante",
-      "trustSignalsAria": "Señales de confianza"
+      "trustSignalsAria": "Señales de confianza",
+      "showDetails": "Mostrar detalles",
+      "hideDetails": "Ocultar detalles"
     },
     "trust": {
       "trustSignalsAria": "Confianza y Fiabilidad",

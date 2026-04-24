@@ -2964,7 +2964,9 @@
       "bookNowAria": "Rezève aidè sa a kounye a",
       "bookingUnavailableAria": "Rezèvasyon pa disponib — pa gen sèvis liste",
       "messageHelperAria": "Voye yon mesaj bay aidè sa a",
-      "trustSignalsAria": "Siyal konfyans"
+      "trustSignalsAria": "Siyal konfyans",
+      "showDetails": "Afiche detay yo",
+      "hideDetails": "Kache detay yo"
     },
     "trust": {
       "trustSignalsAria": "Konfyans ak Fyabilite",

@@ -2965,7 +2965,9 @@
       "bookNowAria": "Book this helper now",
       "bookingUnavailableAria": "Booking unavailable — no services listed",
       "messageHelperAria": "Send a message to this helper",
-      "trustSignalsAria": "Trust signals"
+      "trustSignalsAria": "Trust signals",
+      "showDetails": "Show details",
+      "hideDetails": "Hide details"
     },
     "trust": {
       "trustSignalsAria": "Trust & Reliability",
