@@ -12,13 +12,14 @@
     "howItWorks": "Comment ça marche",
     "listSkills": "Proposer mes services",
     "joinOxsteed": "Rejoindre OxSteed",
-    "joinAsCustomer": "S'inscrire en tant que client",
-    "joinAsHelper": "S'inscrire en tant qu'intervenant",
-    "joinAsCustomerHint": "Publiez des missions et embauchez de l'aide locale",
+    "joinAsCustomer": "S’inscrire en tant que client",
+    "joinAsHelper": "S’inscrire en tant qu’intervenant",
+    "joinAsCustomerHint": "Publiez des missions et embauchez de l’aide locale",
     "joinAsHelperHint": "Proposez des services et soyez sollicité",
     "closeMenu": "Fermer le menu",
     "openMenu": "Ouvrir le menu",
-    "qrGenerator": "Générateur QR"
+    "qrGenerator": "Générateur QR",
+    "resources": "Ressources"
   },
   "hero": {
     "title": "Aide locale,\nQuand vous en avez besoin",

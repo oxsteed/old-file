@@ -18,7 +18,8 @@
     "joinAsHelperHint": "Ofrece servicios y consigue trabajo",
     "closeMenu": "Cerrar menú",
     "openMenu": "Abrir menú",
-    "qrGenerator": "Generador QR"
+    "qrGenerator": "Generador QR",
+    "resources": "Recursos"
   },
   "hero": {
     "title": "Ayuda Local,\nCuando la Necesitas",
