@@ -253,9 +253,9 @@ async function updateBusinessLaunchRequestStatus(req, res) {
     try {
       await client.query('BEGIN');
 
-      // Get current status
+      // Get current status and request details
       const currentResult = await client.query(
-        `SELECT status FROM consulting_requests WHERE id = $1`,
+        `SELECT * FROM consulting_requests WHERE id = $1`,
         [id]
       );
 
@@ -264,7 +264,8 @@ async function updateBusinessLaunchRequestStatus(req, res) {
         return res.status(404).json({ error: 'Request not found' });
       }
 
-      const oldStatus = currentResult.rows[0].status;
+      const request = currentResult.rows[0];
+      const oldStatus = request.status;
 
       // Update status
       const updateResult = await client.query(
@@ -289,6 +290,11 @@ async function updateBusinessLaunchRequestStatus(req, res) {
         oldStatus,
         newStatus: status,
         adminId: req.user?.id,
+      });
+
+      // Send notification email to customer (non-blocking)
+      sendStatusUpdateEmail(request, status).catch(err => {
+        logger.error('Failed to send status update email', { requestId: id, email: request.email, err });
       });
 
       return res.json({
@@ -386,6 +392,97 @@ async function sendClientConfirmationEmail(
     });
   } catch (err) {
     logger.error('Failed to send confirmation email', { email, err });
+    throw err;
+  }
+}
+
+/**
+ * Send status update email to customer
+ */
+async function sendStatusUpdateEmail(request, newStatus) {
+  const statusMessages = {
+    pending: {
+      subject: 'We received your Business Launch Program application',
+      message: 'We have received your intake form and are reviewing it. Our team will reach out within 24 hours.',
+    },
+    contacted: {
+      subject: 'Next steps for your Business Launch Program',
+      message: 'We have reviewed your submission and will be reaching out shortly with next steps and to schedule your kickoff call.',
+    },
+    kickoff_scheduled: {
+      subject: 'Your Business Launch Program kickoff is scheduled!',
+      message: 'Your kickoff call is now scheduled. Check your email for the calendar invite and preparation materials.',
+    },
+    in_progress: {
+      subject: 'Your Business Launch implementation has begun!',
+      message: 'We are now implementing your business setup. You will receive updates as each component is completed.',
+    },
+    completed: {
+      subject: 'Congratulations! Your Business Launch is complete',
+      message: 'Your business is now fully set up and ready to launch. We wish you success in your new venture!',
+    },
+    cancelled: {
+      subject: 'Your Business Launch Program request has been cancelled',
+      message: 'Your intake form request has been cancelled. If you have any questions, please contact support.',
+    },
+  };
+
+  const { subject, message } = statusMessages[newStatus] || {
+    subject: 'Business Launch Program Status Update',
+    message: 'Your request status has been updated.',
+  };
+
+  const html = `
+    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <div style="background: linear-gradient(135deg, #F97316 0%, #FB923C 100%); padding: 2rem; border-radius: 12px 12px 0 0; color: white; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 700;">OxSteed Business Launch</h1>
+        <p style="margin: 0.5rem 0 0; font-size: 16px; opacity: 0.95;">Program Update</p>
+      </div>
+
+      <div style="background: white; padding: 2rem; border: 1px solid #e5e7eb;">
+        <p style="margin-top: 0; font-size: 16px;">Hi ${request.first_name},</p>
+
+        <p style="color: #666; line-height: 1.6;">
+          ${message}
+        </p>
+
+        <div style="background: #f9fafb; padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0; border-left: 4px solid #F97316;">
+          <h3 style="margin: 0 0 0.5rem; color: #1f2937;">Current Status</h3>
+          <p style="margin: 0.5rem 0; font-size: 18px; font-weight: 600; color: #F97316;">${newStatus.replace('_', ' ').toUpperCase()}</p>
+        </div>
+
+        <h3 style="margin: 1.5rem 0 1rem; color: #1f2937; font-weight: 600;">Your Business Launch Details</h3>
+        <ul style="color: #666; line-height: 1.8; padding-left: 1.5rem;">
+          <li><strong>Package:</strong> ${request.package_selected}</li>
+          <li><strong>Business Focus:</strong> ${request.skill_description}</li>
+          <li><strong>Target Market:</strong> ${request.target_market}</li>
+          ${request.business_name ? `<li><strong>Business Name:</strong> ${request.business_name}</li>` : ''}
+        </ul>
+
+        <p style="color: #666; margin-top: 1.5rem; line-height: 1.6;">
+          Have any questions? Reach out to <strong>support@oxsteed.com</strong> anytime.
+        </p>
+
+        <p style="color: #999; font-size: 14px; margin-top: 2rem; border-top: 1px solid #e5e7eb; padding-top: 1rem;">
+          <strong>Manage Your Progress:</strong> <a href="${process.env.APP_URL || 'https://oxsteed.com'}/business-launch-status" style="color: #F97316; text-decoration: none;">View your application status</a>
+        </p>
+      </div>
+
+      <div style="background: #f3f4f6; padding: 1.5rem; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #666;">
+        <p style="margin: 0;">© ${new Date().getFullYear()} OxSteed. All rights reserved.</p>
+        <p style="margin: 0.5rem 0 0;">Made for people turning their skills into real businesses.</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await sendEmail({
+      to: request.email,
+      subject,
+      html,
+    });
+  } catch (err) {
+    logger.error('Failed to send status update email', { email: request.email, err });
     throw err;
   }
 }
