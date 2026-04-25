@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS conversion_metrics_snapshots (
 
 -- Create indexes for analytics queries
 CREATE INDEX idx_consultant_performance_avg_rating
-ON consulting_session_followups(consultant_assigned_id, feedback_rating)
+ON consulting_session_followups(session_scheduled_id, feedback_rating)
 WHERE feedback_rating IS NOT NULL;
 
 CREATE INDEX idx_service_tier_analytics
