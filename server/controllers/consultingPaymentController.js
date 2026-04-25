@@ -1,7 +1,6 @@
 const db = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
-const invoiceController = require('./invoiceController');
 
 // Get available consulting packages
 exports.getPackages = async (req, res) => {
@@ -34,7 +33,7 @@ exports.createPaymentIntent = async (req, res) => {
               cs.service_tier, css.id as scheduled_id
        FROM consulting_sessions cs
        LEFT JOIN consulting_sessions_scheduled css ON cs.id = css.session_id
-       WHERE css.id = $1`,
+       WHERE cs.id = $1`,
       [sessionId]
     );
 
@@ -91,6 +90,10 @@ exports.createPaymentIntent = async (req, res) => {
 // Confirm payment (called after Stripe completes)
 exports.confirmPayment = async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const { paymentId, stripePaymentIntentId } = req.body;
 
     if (!paymentId || !stripePaymentIntentId) {
@@ -115,29 +118,13 @@ exports.confirmPayment = async (req, res) => {
 
     const payment = rows[0];
 
-    // Generate invoice after successful payment
-    try {
-      const invoice = await invoiceController.generateInvoice(
-        paymentId,
-        payment.session_scheduled_id,
-        req.user.id
-      );
-
-      // Send invoice email to customer
-      await invoiceController.sendInvoiceEmail(invoice.id);
-
-      logger.info('Invoice generated and emailed after payment', {
-        paymentId,
-        invoiceId: invoice.id,
-      });
-    } catch (invoiceErr) {
-      logger.warn('Failed to generate invoice after payment', {
-        paymentId,
-        error: invoiceErr.message,
-      });
-      // Don't fail the payment just because invoice generation failed
-      // The invoice can be generated manually later
-    }
+    // TODO: Invoice generation for consulting payments
+    // This would be implemented once consulting invoice system is integrated
+    // For now, payments are confirmed without automatic invoice generation
+    logger.info('Consulting payment completed (invoice generation deferred)', {
+      paymentId,
+      sessionScheduledId: payment.session_scheduled_id,
+    });
 
     logger.info('Consulting payment completed', { paymentId, stripePaymentIntentId });
 
@@ -183,6 +170,10 @@ exports.getPaymentStatus = async (req, res) => {
 // Refund payment
 exports.refundPayment = async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const { paymentId, reason } = req.body;
 
     if (!paymentId) {

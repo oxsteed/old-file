@@ -33,7 +33,6 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
       setActionItems(response.data);
     } catch (err) {
       toast.error(t('common.errorLoading') || 'Failed to load action items');
-      console.error('Failed to load action items', err);
     } finally {
       setLoading(false);
     }
@@ -61,7 +60,6 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
       loadActionItems();
     } catch (err) {
       toast.error(t('common.errorUpdating') || 'Failed to create action item');
-      console.error('Failed to create action item', err);
     } finally {
       setLoading(false);
     }
@@ -84,7 +82,6 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
       loadActionItems();
     } catch (err) {
       toast.error(t('common.errorUpdating') || 'Failed to update action item');
-      console.error('Failed to update action item', err);
     } finally {
       setLoading(false);
     }
@@ -102,7 +99,6 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
       loadActionItems();
     } catch (err) {
       toast.error(t('common.errorUpdating') || 'Failed to delete action item');
-      console.error('Failed to delete action item', err);
     } finally {
       setLoading(false);
     }
@@ -116,7 +112,6 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
       loadActionItems();
     } catch (err) {
       toast.error(t('common.errorUpdating') || 'Failed to complete action item');
-      console.error('Failed to complete action item', err);
     } finally {
       setLoading(false);
     }
