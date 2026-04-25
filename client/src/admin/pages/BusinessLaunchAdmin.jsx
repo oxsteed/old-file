@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
+import BusinessLaunchRequestDetail from './BusinessLaunchRequestDetail';
 
 const STATUS_COLORS = {
   pending: '#FFA500',      // Orange
@@ -352,129 +353,11 @@ export default function BusinessLaunchAdmin() {
           zIndex: 1000,
           padding: '1rem',
         }}>
-          <div style={{
-            background: 'var(--color-surface)',
-            borderRadius: '8px',
-            padding: '2rem',
-            maxWidth: '700px',
-            width: '100%',
-            maxHeight: '85vh',
-            overflowY: 'auto',
-          }}>
-            <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.5rem', fontWeight: 600 }}>
-              {selectedRequest.first_name} {selectedRequest.last_name}
-            </h2>
-
-            {/* Contact Info */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Contact Information</h3>
-              <p><strong>Email:</strong> {selectedRequest.email}</p>
-              <p><strong>Phone:</strong> {selectedRequest.phone || '—'}</p>
-              <p><strong>Referral Source:</strong> {selectedRequest.referral_source || '—'}</p>
-            </div>
-
-            {/* Business Info */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Business Information</h3>
-              <p><strong>Skill Description:</strong> {selectedRequest.skill_description}</p>
-              <p><strong>Target Market:</strong> {selectedRequest.target_market}</p>
-              <p><strong>Has Revenue:</strong> {selectedRequest.has_revenue || '—'}</p>
-              <p><strong>Operating State:</strong> {selectedRequest.operating_state || '—'}</p>
-              {selectedRequest.business_name_decided && (
-                <p><strong>Business Name:</strong> {selectedRequest.business_name || '—'}</p>
-              )}
-            </div>
-
-            {/* Setup Items */}
-            {selectedRequest.setup_items_selected && selectedRequest.setup_items_selected.length > 0 && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Selected Setup Items ({selectedRequest.setup_items_selected.length})</h3>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                  gap: '0.5rem',
-                }}>
-                  {selectedRequest.setup_items_selected.map((item, idx) => (
-                    <span key={idx} style={badgeStyle('#0EA5E9')}>
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Current Phase */}
-            {selectedRequest.current_phase && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <p><strong>Current Business Phase:</strong> {selectedRequest.current_phase} / 25</p>
-              </div>
-            )}
-
-            {/* Package & Pricing */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Package Selection</h3>
-              <p><strong>Package:</strong> {selectedRequest.package_selected}</p>
-              <p><strong>Price:</strong> ${selectedRequest.package_price}</p>
-              <p><strong>Urgency:</strong> <span style={badgeStyle(URGENT_COLORS[selectedRequest.urgency])}>{selectedRequest.urgency}</span></p>
-            </div>
-
-            {/* Additional Notes */}
-            {selectedRequest.additional_notes && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Additional Notes</h3>
-                <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)' }}>
-                  {selectedRequest.additional_notes}
-                </p>
-              </div>
-            )}
-
-            {/* Status Update */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Update Status</h3>
-              <select
-                style={{ ...inputStyle, marginBottom: '1rem' }}
-                defaultValue={selectedRequest.status}
-                onChange={e => {
-                  if (e.target.value !== selectedRequest.status) {
-                    updateRequestStatus(selectedRequest.id, e.target.value);
-                  }
-                }}
-                disabled={updateLoading}
-              >
-                <option value="pending">Pending</option>
-                <option value="contacted">Contacted</option>
-                <option value="kickoff_scheduled">Kickoff Scheduled</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            {/* Timestamps */}
-            <div style={{
-              fontSize: '0.85rem',
-              color: 'var(--color-text-muted)',
-              marginBottom: '1.5rem',
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--color-border)',
-            }}>
-              <p>Submitted: {new Date(selectedRequest.created_at).toLocaleString()}</p>
-              {selectedRequest.updated_at && (
-                <p>Last Updated: {new Date(selectedRequest.updated_at).toLocaleString()}</p>
-              )}
-            </div>
-
-            {/* Close Button */}
-            <button
-              style={{
-                ...buttonStyle,
-                width: '100%',
-              }}
-              onClick={() => setSelectedRequest(null)}
-            >
-              Close
-            </button>
-          </div>
+          <BusinessLaunchRequestDetail
+            request={selectedRequest}
+            onClose={() => setSelectedRequest(null)}
+            onStatusUpdate={() => loadRequests()}
+          />
         </div>
       )}
     </div>
