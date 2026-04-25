@@ -1,9 +1,9 @@
 -- Core appointments table
-CREATE TABLE appointments (
+CREATE TABLE IF NOT EXISTS appointments (
   id BIGSERIAL PRIMARY KEY,
-  customer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  helper_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  job_id BIGINT REFERENCES jobs(id) ON DELETE SET NULL,
+  customer_id BIGINT NOT NULL,
+  helper_id BIGINT NOT NULL,
+  job_id BIGINT,
   service_description TEXT NOT NULL,
   scheduled_start_time TIMESTAMPTZ NOT NULL,
   scheduled_end_time TIMESTAMPTZ NOT NULL,
@@ -18,11 +18,30 @@ CREATE TABLE appointments (
   cancellation_reason TEXT,
   cancelled_by VARCHAR(20) CHECK (cancelled_by IN ('customer', 'helper', 'admin')),
   cancelled_at TIMESTAMPTZ,
-  rescheduled_from_id BIGINT REFERENCES appointments(id) ON DELETE SET NULL,
+  rescheduled_from_id BIGINT,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  created_by_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE SET NULL
+  created_by_user_id BIGINT NOT NULL
 );
+
+-- Add foreign key constraints after table exists
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'appointments' AND constraint_name = 'appointments_customer_id_fkey') THEN
+    ALTER TABLE appointments ADD CONSTRAINT appointments_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'appointments' AND constraint_name = 'appointments_helper_id_fkey') THEN
+    ALTER TABLE appointments ADD CONSTRAINT appointments_helper_id_fkey FOREIGN KEY (helper_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'appointments' AND constraint_name = 'appointments_job_id_fkey') THEN
+    ALTER TABLE appointments ADD CONSTRAINT appointments_job_id_fkey FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'appointments' AND constraint_name = 'appointments_rescheduled_from_id_fkey') THEN
+    ALTER TABLE appointments ADD CONSTRAINT appointments_rescheduled_from_id_fkey FOREIGN KEY (rescheduled_from_id) REFERENCES appointments(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'appointments' AND constraint_name = 'appointments_created_by_user_id_fkey') THEN
+    ALTER TABLE appointments ADD CONSTRAINT appointments_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 CREATE INDEX idx_appointments_customer_id ON appointments(customer_id);
 CREATE INDEX idx_appointments_helper_id ON appointments(helper_id);
@@ -33,13 +52,13 @@ CREATE INDEX idx_appointments_customer_status ON appointments(customer_id, statu
 CREATE INDEX idx_appointments_helper_status ON appointments(helper_id, status);
 
 -- Availability blocks for helpers
-CREATE TABLE availability_blocks (
+CREATE TABLE IF NOT EXISTS availability_blocks (
   id BIGSERIAL PRIMARY KEY,
-  helper_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  helper_id BIGINT NOT NULL,
   start_time TIMESTAMPTZ NOT NULL,
   end_time TIMESTAMPTZ NOT NULL,
   type VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (type IN ('available', 'unavailable', 'busy')),
-  recurring_rule VARCHAR(255), -- iCalendar RRULE format
+  recurring_rule VARCHAR(255),
   recurring_until TIMESTAMPTZ,
   title VARCHAR(255),
   notes TEXT,
@@ -47,16 +66,22 @@ CREATE TABLE availability_blocks (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_availability_blocks_helper_id ON availability_blocks(helper_id);
-CREATE INDEX idx_availability_blocks_start_time ON availability_blocks(start_time);
-CREATE INDEX idx_availability_blocks_end_time ON availability_blocks(end_time);
-CREATE INDEX idx_availability_blocks_helper_time ON availability_blocks(helper_id, start_time, end_time);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'availability_blocks' AND constraint_name = 'availability_blocks_helper_id_fkey') THEN
+    ALTER TABLE availability_blocks ADD CONSTRAINT availability_blocks_helper_id_fkey FOREIGN KEY (helper_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_availability_blocks_helper_id ON availability_blocks(helper_id);
+CREATE INDEX IF NOT EXISTS idx_availability_blocks_start_time ON availability_blocks(start_time);
+CREATE INDEX IF NOT EXISTS idx_availability_blocks_end_time ON availability_blocks(end_time);
+CREATE INDEX IF NOT EXISTS idx_availability_blocks_helper_time ON availability_blocks(helper_id, start_time, end_time);
 
 -- Calendar notifications
-CREATE TABLE calendar_notifications (
+CREATE TABLE IF NOT EXISTS calendar_notifications (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  appointment_id BIGINT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL,
+  appointment_id BIGINT NOT NULL,
   notification_type VARCHAR(30) NOT NULL CHECK (notification_type IN (
     'appointment_requested',
     'appointment_confirmed',
@@ -76,16 +101,25 @@ CREATE TABLE calendar_notifications (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_calendar_notifications_user_id ON calendar_notifications(user_id);
-CREATE INDEX idx_calendar_notifications_appointment_id ON calendar_notifications(appointment_id);
-CREATE INDEX idx_calendar_notifications_status ON calendar_notifications(status);
-CREATE INDEX idx_calendar_notifications_scheduled_send_at ON calendar_notifications(scheduled_send_at);
-CREATE INDEX idx_calendar_notifications_user_status ON calendar_notifications(user_id, status);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'calendar_notifications' AND constraint_name = 'calendar_notifications_user_id_fkey') THEN
+    ALTER TABLE calendar_notifications ADD CONSTRAINT calendar_notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'calendar_notifications' AND constraint_name = 'calendar_notifications_appointment_id_fkey') THEN
+    ALTER TABLE calendar_notifications ADD CONSTRAINT calendar_notifications_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_calendar_notifications_user_id ON calendar_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_notifications_appointment_id ON calendar_notifications(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_notifications_status ON calendar_notifications(status);
+CREATE INDEX IF NOT EXISTS idx_calendar_notifications_scheduled_send_at ON calendar_notifications(scheduled_send_at);
+CREATE INDEX IF NOT EXISTS idx_calendar_notifications_user_status ON calendar_notifications(user_id, status);
 
 -- Notification preferences per user
-CREATE TABLE notification_preferences (
+CREATE TABLE IF NOT EXISTS notification_preferences (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL UNIQUE,
   appointment_confirmed_channels TEXT[] DEFAULT ARRAY['in_app', 'email'],
   appointment_cancelled_channels TEXT[] DEFAULT ARRAY['in_app', 'email'],
   reminder_24h_channels TEXT[] DEFAULT ARRAY['in_app', 'email'],
@@ -98,13 +132,19 @@ CREATE TABLE notification_preferences (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_notification_preferences_user_id ON notification_preferences(user_id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'notification_preferences' AND constraint_name = 'notification_preferences_user_id_fkey') THEN
+    ALTER TABLE notification_preferences ADD CONSTRAINT notification_preferences_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_notification_preferences_user_id ON notification_preferences(user_id);
 
 -- Audit log for calendar actions
-CREATE TABLE calendar_audit_log (
+CREATE TABLE IF NOT EXISTS calendar_audit_log (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  appointment_id BIGINT REFERENCES appointments(id) ON DELETE SET NULL,
+  user_id BIGINT NOT NULL,
+  appointment_id BIGINT,
   action VARCHAR(50) NOT NULL,
   details JSONB,
   ip_hash VARCHAR(64),
@@ -112,6 +152,15 @@ CREATE TABLE calendar_audit_log (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_calendar_audit_log_user_id ON calendar_audit_log(user_id);
-CREATE INDEX idx_calendar_audit_log_appointment_id ON calendar_audit_log(appointment_id);
-CREATE INDEX idx_calendar_audit_log_created_at ON calendar_audit_log(created_at DESC);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'calendar_audit_log' AND constraint_name = 'calendar_audit_log_user_id_fkey') THEN
+    ALTER TABLE calendar_audit_log ADD CONSTRAINT calendar_audit_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'calendar_audit_log' AND constraint_name = 'calendar_audit_log_appointment_id_fkey') THEN
+    ALTER TABLE calendar_audit_log ADD CONSTRAINT calendar_audit_log_appointment_id_fkey FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_calendar_audit_log_user_id ON calendar_audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_audit_log_appointment_id ON calendar_audit_log(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_audit_log_created_at ON calendar_audit_log(created_at DESC);
