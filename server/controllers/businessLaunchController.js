@@ -18,6 +18,7 @@ async function submitBusinessLaunchRequest(req, res) {
     has_revenue,
     business_name_decided,
     business_name,
+    operating_country,
     operating_state,
     setup_items_selected,
     select_all_chosen,
@@ -33,8 +34,8 @@ async function submitBusinessLaunchRequest(req, res) {
     return res.status(400).json({ error: 'Name, email, and phone are required' });
   }
 
-  if (!skill_description || !target_market || !operating_state || !package_selected) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!skill_description || !target_market || !operating_country || !operating_state || !package_selected) {
+    return res.status(400).json({ error: 'Missing required fields (country and state/city required)' });
   }
 
   try {
@@ -48,12 +49,12 @@ async function submitBusinessLaunchRequest(req, res) {
         `INSERT INTO consulting_requests (
           user_id, email, first_name, last_name, phone, referral_source,
           skill_description, target_market, has_revenue, business_name_decided,
-          business_name, operating_state, setup_items_selected, select_all_chosen,
+          business_name, operating_country, operating_state, setup_items_selected, select_all_chosen,
           current_phase, additional_notes, urgency, package_selected, package_price,
           status
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15, $16, $17, $18, $19, 'pending'
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending'
         ) RETURNING id, created_at`,
         [
           req.user?.id || null,
@@ -67,6 +68,7 @@ async function submitBusinessLaunchRequest(req, res) {
           has_revenue,
           business_name_decided,
           business_name || null,
+          operating_country,
           operating_state,
           JSON.stringify(setup_items_selected || []),
           select_all_chosen || false,

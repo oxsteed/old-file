@@ -136,13 +136,76 @@ const PACKAGES = {
   },
 };
 
-const US_STATES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+// Countries with states/provinces
+const COUNTRIES_WITH_REGIONS = {
+  US: { name: 'United States', regions: ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'], regionLabel: 'State' },
+  CA: { name: 'Canada', regions: ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'], regionLabel: 'Province' },
+  AU: { name: 'Australia', regions: ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'], regionLabel: 'State' },
+  IN: { name: 'India', regions: ['AN', 'AP', 'AR', 'AS', 'BR', 'CG', 'CH', 'CT', 'DD', 'DL', 'DN', 'GA', 'GJ', 'HR', 'HP', 'JK', 'JH', 'KA', 'KL', 'LD', 'MP', 'MH', 'MN', 'ML', 'MZ', 'NL', 'OD', 'OR', 'PB', 'RJ', 'SK', 'TG', 'TR', 'TN', 'UP', 'UT', 'WB'], regionLabel: 'State' },
+  GB: { name: 'United Kingdom', regions: ['England', 'Scotland', 'Wales', 'Northern Ireland'], regionLabel: 'Region' },
+  DE: { name: 'Germany', regions: ['Baden-Württemberg', 'Bavaria', 'Berlin', 'Brandenburg', 'Bremen', 'Hamburg', 'Hesse', 'Lower Saxony', 'Mecklenburg-Vorpommern', 'North Rhine-Westphalia', 'Rhineland-Palatinate', 'Saarland', 'Saxony', 'Saxony-Anhalt', 'Schleswig-Holstein', 'Thuringia'], regionLabel: 'State' },
+  FR: { name: 'France', regions: ['Auvergne-Rhône-Alpes', 'Bourgogne-Franche-Comté', 'Brittany', 'Centre-Val de Loire', 'Corsica', 'Grand Est', 'Guadeloupe', 'Guiana', 'Hauts-de-France', 'Île-de-France', 'La Réunion', 'Martinique', 'Mayotte', 'Normandy', 'Nouvelle-Aquitaine', 'Occitanie', 'Pays de la Loire', 'Provence-Alpes-Côte d\'Azur'], regionLabel: 'Region' },
+};
+
+// Countries without regions (show city selector)
+const COUNTRIES_WITHOUT_REGIONS = [
+  'AR', 'AT', 'BE', 'BR', 'CH', 'CL', 'CO', 'CR', 'CZ', 'DK', 'DO', 'EC', 'EG', 'ES', 'FI', 'GR', 'HK', 'HU', 'ID', 'IE', 'IL', 'IT', 'JP', 'KR', 'MX', 'MY', 'NG', 'NZ', 'PA', 'PE', 'PH', 'PL', 'PT', 'RO', 'RU', 'SA', 'SE', 'SG', 'TH', 'TR', 'UA', 'VN', 'ZA',
 ];
+
+// All countries
+const ALL_COUNTRIES = {
+  // With regions (listed above)
+  ...Object.fromEntries(Object.entries(COUNTRIES_WITH_REGIONS).map(([code, data]) => [code, data.name])),
+  // Without regions
+  'AR': 'Argentina',
+  'AT': 'Austria',
+  'BE': 'Belgium',
+  'BR': 'Brazil',
+  'CH': 'Switzerland',
+  'CL': 'Chile',
+  'CO': 'Colombia',
+  'CR': 'Costa Rica',
+  'CZ': 'Czech Republic',
+  'DK': 'Denmark',
+  'DO': 'Dominican Republic',
+  'EC': 'Ecuador',
+  'EG': 'Egypt',
+  'ES': 'Spain',
+  'FI': 'Finland',
+  'GR': 'Greece',
+  'HK': 'Hong Kong',
+  'HU': 'Hungary',
+  'ID': 'Indonesia',
+  'IE': 'Ireland',
+  'IL': 'Israel',
+  'IT': 'Italy',
+  'JP': 'Japan',
+  'KR': 'South Korea',
+  'MX': 'Mexico',
+  'MY': 'Malaysia',
+  'NG': 'Nigeria',
+  'NZ': 'New Zealand',
+  'PA': 'Panama',
+  'PE': 'Peru',
+  'PH': 'Philippines',
+  'PL': 'Poland',
+  'PT': 'Portugal',
+  'RO': 'Romania',
+  'RU': 'Russia',
+  'SA': 'Saudi Arabia',
+  'SE': 'Sweden',
+  'SG': 'Singapore',
+  'TH': 'Thailand',
+  'TR': 'Turkey',
+  'UA': 'Ukraine',
+  'VN': 'Vietnam',
+  'ZA': 'South Africa',
+};
+
+// Sorted country codes
+const COUNTRY_CODES_SORTED = Object.keys(ALL_COUNTRIES).sort((a, b) =>
+  ALL_COUNTRIES[a].localeCompare(ALL_COUNTRIES[b])
+);
 
 export default function ConsultingIntakePage() {
   const navigate = useNavigate();
@@ -165,7 +228,8 @@ export default function ConsultingIntakePage() {
     has_revenue: '',
     business_name_decided: '',
     business_name: '',
-    operating_state: '',
+    operating_country: user?.country || '',
+    operating_state: user?.state || '',
 
     // Step 3
     setup_items_selected: [],
@@ -218,7 +282,7 @@ export default function ConsultingIntakePage() {
       }
       return true;
     } else if (step === 2) {
-      if (!form.skill_description || !form.target_market || !form.has_revenue || !form.business_name_decided || !form.operating_state) {
+      if (!form.skill_description || !form.target_market || !form.has_revenue || !form.business_name_decided || !form.operating_country || !form.operating_state) {
         toast.error('Please fill in all required fields');
         return false;
       }
@@ -267,6 +331,7 @@ export default function ConsultingIntakePage() {
         has_revenue: form.has_revenue,
         business_name_decided: form.business_name_decided === 'yes',
         business_name: form.business_name || null,
+        operating_country: form.operating_country,
         operating_state: form.operating_state,
         setup_items_selected: form.setup_items_selected,
         select_all_chosen: form.select_all_chosen,
@@ -597,20 +662,40 @@ function Step2SkillOffer({ form, handleInputChange }) {
       )}
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>What US state will this business operate in? *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Which country will this business operate in? *</label>
         <select
-          name="operating_state"
-          value={form.operating_state}
+          name="operating_country"
+          value={form.operating_country}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
           required
         >
-          <option value="">Select a state</option>
-          {US_STATES.map(state => (
-            <option key={state} value={state}>{state}</option>
+          <option value="">Select a country</option>
+          {COUNTRY_CODES_SORTED.map(code => (
+            <option key={code} value={code}>{ALL_COUNTRIES[code]}</option>
           ))}
         </select>
       </div>
+
+      {form.operating_country && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            {COUNTRIES_WITH_REGIONS[form.operating_country]?.regionLabel || 'City'} *
+          </label>
+          <select
+            name="operating_state"
+            value={form.operating_state}
+            onChange={handleInputChange}
+            style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
+            required
+          >
+            <option value="">Select {COUNTRIES_WITH_REGIONS[form.operating_country]?.regionLabel || 'city'}</option>
+            {COUNTRIES_WITH_REGIONS[form.operating_country]?.regions.map(region => (
+              <option key={region} value={region}>{region}</option>
+            ))}
+          </select>
+        </div>
+      )}
     </>
   );
 }
@@ -787,7 +872,8 @@ function Step5Confirmation({ form }) {
           <p style={{ marginTop: '1rem' }}><strong>Skill:</strong> {form.skill_description}</p>
           <p><strong>Target Market:</strong> {form.target_market}</p>
           <p><strong>Business Name:</strong> {form.business_name || 'Not yet decided'}</p>
-          <p><strong>State:</strong> {form.operating_state}</p>
+          <p><strong>Country:</strong> {ALL_COUNTRIES[form.operating_country] || form.operating_country}</p>
+          <p><strong>{COUNTRIES_WITH_REGIONS[form.operating_country]?.regionLabel || 'City'}:</strong> {form.operating_state}</p>
 
           <p style={{ marginTop: '1rem' }}><strong>Selected Package:</strong> {pkgName} (${pkgPrice})</p>
           <p><strong>Urgency:</strong> {form.urgency === 'exploring' && 'Just exploring'}{form.urgency === 'two_weeks' && 'Ready to start within 2 weeks'}{form.urgency === 'asap' && 'ASAP'}</p>
