@@ -4111,6 +4111,26 @@
       "stripeError": "Stripe no cargó",
       "intentCreated": "Intención de pago creada",
       "error": "Falló el procesamiento de pago"
+    },
+    "scheduler": {
+      "title": "Programar Sesiones de Asesoría",
+      "pendingSessions": "Sesiones Pendientes a Programar",
+      "scheduledSessions": "Sesiones Programadas",
+      "noPending": "Sin sesiones pendientes en este momento",
+      "noScheduled": "Sin sesiones programadas aún",
+      "schedule": "Programar Ahora",
+      "client": "Cliente",
+      "email": "Correo",
+      "scheduledDate": "Fecha y Hora Programada",
+      "meetingUrl": "URL de la Reunión",
+      "joinMeeting": "Unirse a Reunión",
+      "selectDate": "Selecciona Fecha",
+      "selectTime": "Selecciona Hora",
+      "selectAll": "Por favor selecciona fecha, hora y URL de reunión",
+      "scheduleFor": "Programar Sesión Para",
+      "confirm": "Confirmar Programación",
+      "scheduleSuccess": "Sesión programada exitosamente",
+      "scheduleError": "Error al programar sesión"
     }
   }
 }

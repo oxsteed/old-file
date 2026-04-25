@@ -4111,6 +4111,26 @@
       "stripeError": "Stripe non chargé",
       "intentCreated": "Intention de paiement créée",
       "error": "Échec du traitement du paiement"
+    },
+    "scheduler": {
+      "title": "Programmer les Sessions de Conseil",
+      "pendingSessions": "Sessions en Attente de Programmation",
+      "scheduledSessions": "Sessions Programmées",
+      "noPending": "Aucune session en attente en ce moment",
+      "noScheduled": "Aucune session programmée encore",
+      "schedule": "Programmer Maintenant",
+      "client": "Client",
+      "email": "E-mail",
+      "scheduledDate": "Date et Heure Programmées",
+      "meetingUrl": "URL de la Réunion",
+      "joinMeeting": "Rejoindre la Réunion",
+      "selectDate": "Sélectionner une Date",
+      "selectTime": "Sélectionner une Heure",
+      "selectAll": "Veuillez sélectionner la date, l'heure et l'URL de la réunion",
+      "scheduleFor": "Programmer la Session Pour",
+      "confirm": "Confirmer la Programmation",
+      "scheduleSuccess": "Session programmée avec succès",
+      "scheduleError": "Erreur lors de la programmation de la session"
     }
   }
 }

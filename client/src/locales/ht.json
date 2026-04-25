@@ -4110,6 +4110,26 @@
       "stripeError": "Stripe pa chaje",
       "intentCreated": "Intentyon peman kreye",
       "error": "Echèk nan trete peman"
+    },
+    "scheduler": {
+      "title": "Planifye Sesyon Konsèy",
+      "pendingSessions": "Sesyon Pandan yo Planifye",
+      "scheduledSessions": "Sesyon Planifye",
+      "noPending": "Poko gen sesyon pandan a mesans",
+      "noScheduled": "Poko gen sesyon planifye",
+      "schedule": "Planifye Kounye a",
+      "client": "Kliyent",
+      "email": "Imel",
+      "scheduledDate": "Dat ak Lè Planifye",
+      "meetingUrl": "URL Riyinyon",
+      "joinMeeting": "Rantre nan Riyinyon",
+      "selectDate": "Chwazi Dat",
+      "selectTime": "Chwazi Lè",
+      "selectAll": "Tanpri chwazi dat, lè, ak URL riyinyon",
+      "scheduleFor": "Planifye Sesyon Pou",
+      "confirm": "Konfime Planifikasyon",
+      "scheduleSuccess": "Sesyon planifye avèk siksè",
+      "scheduleError": "Erè nan planifikasyon sesyon"
     }
   }
 }

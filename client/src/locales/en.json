@@ -4111,6 +4111,26 @@
       "stripeError": "Stripe not loaded",
       "intentCreated": "Payment intent created",
       "error": "Payment processing failed"
+    },
+    "scheduler": {
+      "title": "Schedule Consulting Sessions",
+      "pendingSessions": "Pending Sessions to Schedule",
+      "scheduledSessions": "Scheduled Sessions",
+      "noPending": "No pending sessions at this time",
+      "noScheduled": "No scheduled sessions yet",
+      "schedule": "Schedule Now",
+      "client": "Client",
+      "email": "Email",
+      "scheduledDate": "Scheduled Date & Time",
+      "meetingUrl": "Meeting URL",
+      "joinMeeting": "Join Meeting",
+      "selectDate": "Select Date",
+      "selectTime": "Select Time",
+      "selectAll": "Please select date, time, and meeting URL",
+      "scheduleFor": "Schedule Session For",
+      "confirm": "Confirm Schedule",
+      "scheduleSuccess": "Session scheduled successfully",
+      "scheduleError": "Error scheduling session"
     }
   }
 }
