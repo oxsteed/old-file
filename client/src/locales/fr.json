@@ -4171,7 +4171,13 @@
     }
   },
   "businessLaunchAdmin": {
-    "statusUpdated": "Statut mis à jour avec succès"
+    "statusUpdated": "Statut mis à jour avec succès",
+    "enterNote": "Veuillez entrer une note",
+    "noteAdded": "Note ajoutée avec succès",
+    "deleteNoteConfirm": "Supprimer cette note ?",
+    "noteDeleted": "Note supprimée avec succès",
+    "fillMessage": "Veuillez remplir l'objet et le message",
+    "messageSent": "Message envoyé avec succès"
   },
   "businessLaunchStatus": {
     "enterEmail": "Veuillez entrer une adresse e-mail pour rechercher",

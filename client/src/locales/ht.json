@@ -4170,7 +4170,13 @@
     }
   },
   "businessLaunchAdmin": {
-    "statusUpdated": "Estati miz ajou avèk siksè"
+    "statusUpdated": "Estati miz ajou avèk siksè",
+    "enterNote": "Tanpri mete yon nòt",
+    "noteAdded": "Nòt ajoute avèk siksè",
+    "deleteNoteConfirm": "Efase nòt sa a?",
+    "noteDeleted": "Nòt efase avèk siksè",
+    "fillMessage": "Tanpri ranpli sijè ak mesaj la",
+    "messageSent": "Mesaj voye avèk siksè"
   },
   "businessLaunchStatus": {
     "enterEmail": "Tanpri mete yon adrès imel pou search",

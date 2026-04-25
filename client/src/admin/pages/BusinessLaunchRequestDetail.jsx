@@ -38,7 +38,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       const res = await axios.get(`/api/consulting/business-launch/requests/${request.id}/notes`);
       setNotes(res.data || []);
     } catch (err) {
-      console.error('Error loading notes', err);
+      toast.error(t('common.errorLoading'));
     }
   }
 
@@ -47,7 +47,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       const res = await axios.get(`/api/consulting/business-launch/requests/${request.id}/messages`);
       setMessages(res.data || []);
     } catch (err) {
-      console.error('Error loading messages', err);
+      toast.error(t('common.errorLoading'));
     }
   }
 
@@ -56,13 +56,13 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       const res = await axios.get(`/api/consulting/business-launch/message-templates`);
       setTemplates(res.data || []);
     } catch (err) {
-      console.error('Error loading templates', err);
+      toast.error(t('common.errorLoading'));
     }
   }
 
   async function addNote() {
     if (!newNote.trim()) {
-      toast.error('Please enter a note');
+      toast.error(t('businessLaunchAdmin.enterNote'));
       return;
     }
 
@@ -74,23 +74,23 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       });
       setNewNote('');
       loadNotes();
-      toast.success('Note added');
+      toast.success(t('businessLaunchAdmin.noteAdded'));
     } catch (err) {
-      toast.error('Failed to add note');
+      toast.error(t('common.errorUpdating'));
     } finally {
       setNoteLoading(false);
     }
   }
 
   async function deleteNote(noteId) {
-    if (!window.confirm('Delete this note?')) return;
+    if (!window.confirm(t('businessLaunchAdmin.deleteNoteConfirm'))) return;
 
     try {
       await axios.delete(`/api/consulting/business-launch/notes/${noteId}`);
       loadNotes();
-      toast.success('Note deleted');
+      toast.success(t('businessLaunchAdmin.noteDeleted'));
     } catch (err) {
-      toast.error('Failed to delete note');
+      toast.error(t('common.errorUpdating'));
     }
   }
 
@@ -100,7 +100,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       : customMessage;
 
     if (!message.subject || !message.message_html) {
-      toast.error('Please fill in subject and message');
+      toast.error(t('businessLaunchAdmin.fillMessage'));
       return;
     }
 
@@ -115,9 +115,9 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
       setSelectedTemplate('');
       setCustomMessage({ subject: '', message_html: '' });
       loadMessages();
-      toast.success('Message sent successfully');
+      toast.success(t('businessLaunchAdmin.messageSent'));
     } catch (err) {
-      toast.error('Failed to send message');
+      toast.error(t('common.errorUpdating'));
     } finally {
       setMessageLoading(false);
     }
