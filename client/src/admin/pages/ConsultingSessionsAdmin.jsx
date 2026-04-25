@@ -50,7 +50,7 @@ export default function ConsultingSessionsAdmin() {
         ...(filters.service_tier && { service_tier: filters.service_tier }),
       });
 
-      const res = await axios.get(`/api/consulting/admin/sessions?${params}`);
+      const res = await axios.get(`/consulting/admin/sessions?${params}`);
       setSessions(res.data.data || []);
       setPagination(res.data.pagination || {});
     } catch (err) {

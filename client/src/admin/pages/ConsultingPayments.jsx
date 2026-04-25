@@ -23,9 +23,9 @@ export default function ConsultingPayments() {
     try {
       setLoading(true);
       const [pkgRes, purchaseRes, invoiceRes] = await Promise.all([
-        axios.get('/api/consulting/packages'),
-        axios.get('/api/consulting/my-purchases'),
-        axios.get('/api/consulting/invoices'),
+        axios.get('/consulting/packages'),
+        axios.get('/consulting/my-purchases'),
+        axios.get('/consulting/invoices'),
       ]);
       setPackages(pkgRes.data || []);
       setPurchases(purchaseRes.data || []);
@@ -42,7 +42,7 @@ export default function ConsultingPayments() {
     try {
       setPaymentLoading(true);
       // Create payment intent
-      const intentRes = await axios.post('/api/consulting/payment-intent', { package_id: packageId });
+      const intentRes = await axios.post('/consulting/payment-intent', { package_id: packageId });
 
       // Initialize Stripe payment
       const stripe = window.Stripe || null;

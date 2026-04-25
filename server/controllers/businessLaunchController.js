@@ -573,14 +573,24 @@ async function getUserBusinessLaunchRequests(req, res) {
  * GET /api/consulting/business-launch/search?email=
  */
 async function searchBusinessLaunchRequests(req, res) {
-  const { email } = req.query;
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
 
+  const { email } = req.query;
   if (!email) {
     return res.status(400).json({ error: 'Email parameter required' });
   }
 
-  // Normalize email
   const normalizedEmail = email.toLowerCase().trim();
+
+  // Authorization: non-admins can only search their own email.
+  // Prevents enumeration of other users' business intake details.
+  const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+  const requesterEmail = (req.user.email || '').toLowerCase().trim();
+  if (!isAdmin && requesterEmail !== normalizedEmail) {
+    return res.status(403).json({ error: 'Can only search your own email' });
+  }
 
   try {
     const result = await db.query(
@@ -596,7 +606,7 @@ async function searchBusinessLaunchRequests(req, res) {
 
     return res.json(result.rows);
   } catch (err) {
-    logger.error('Error searching business launch requests', { email: normalizedEmail, err });
+    logger.error('Error searching business launch requests', { err: err.message });
     return res.status(500).json({ error: 'Failed to search requests' });
   }
 }

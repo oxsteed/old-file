@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' },
@@ -15,6 +16,8 @@ const DAYS_OF_WEEK = [
 
 export default function ConsultantAvailabilityPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const consultantId = user?.id;
   const [availability, setAvailability] = useState([]);
   const [blockedDates, setBlockedDates] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -30,40 +33,42 @@ export default function ConsultantAvailabilityPage() {
     reason: '',
   });
 
-  // Load availability on mount
+  // Load availability on mount (and when consultantId resolves from auth)
   useEffect(() => {
+    if (!consultantId) return;
     loadAvailability();
     loadBlockedDates();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consultantId]);
 
   const loadAvailability = async () => {
+    if (!consultantId) return;
     try {
       setLoading(true);
-      // Assuming consultant ID is from auth context or user ID
-      const response = await axios.get(`/api/scheduling/consultants/me/availability`);
+      const response = await axios.get(`/scheduling/consultants/${consultantId}/availability`);
       setAvailability(response.data);
     } catch (err) {
       toast.error(t('common.errorLoading') || 'Failed to load availability');
-      console.error('Failed to load availability', err);
     } finally {
       setLoading(false);
     }
   };
 
   const loadBlockedDates = async () => {
+    if (!consultantId) return;
     try {
-      const response = await axios.get(`/api/scheduling/consultants/me/blocked-dates`);
+      const response = await axios.get(`/scheduling/consultants/${consultantId}/blocked-dates`);
       setBlockedDates(response.data);
     } catch (err) {
       toast.error(t('common.errorLoading') || 'Failed to load blocked dates');
-      console.error('Failed to load blocked dates', err);
     }
   };
 
   const handleSaveAvailability = async () => {
+    if (!consultantId || loading) return;
     try {
       setLoading(true);
-      await axios.post(`/api/scheduling/consultants/me/availability`, newAvailability);
+      await axios.post(`/scheduling/consultants/${consultantId}/availability`, newAvailability);
       toast.success(t('scheduling.availabilitySaved') || 'Availability saved');
       setNewAvailability({
         dayOfWeek: 1,
@@ -75,13 +80,13 @@ export default function ConsultantAvailabilityPage() {
       loadAvailability();
     } catch (err) {
       toast.error(t('common.errorUpdating') || 'Failed to save availability');
-      console.error('Failed to save availability', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddBlockedDate = async () => {
+    if (!consultantId || loading) return;
     try {
       if (!newBlockedDate.blockedDate) {
         toast.error(t('scheduling.dateRequired') || 'Please select a date');
@@ -89,27 +94,26 @@ export default function ConsultantAvailabilityPage() {
       }
 
       setLoading(true);
-      await axios.post(`/api/scheduling/consultants/me/blocked-dates`, newBlockedDate);
+      await axios.post(`/scheduling/consultants/${consultantId}/blocked-dates`, newBlockedDate);
       toast.success(t('scheduling.blockedDateAdded') || 'Blocked date added');
       setNewBlockedDate({ blockedDate: '', reason: '' });
       loadBlockedDates();
     } catch (err) {
       toast.error(t('common.errorUpdating') || 'Failed to add blocked date');
-      console.error('Failed to add blocked date', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleRemoveBlockedDate = async (dateId) => {
+    if (!consultantId) return;
     try {
       setLoading(true);
-      await axios.delete(`/api/scheduling/consultants/me/blocked-dates/${dateId}`);
+      await axios.delete(`/scheduling/consultants/${consultantId}/blocked-dates/${dateId}`);
       toast.success(t('scheduling.blockedDateRemoved') || 'Blocked date removed');
       loadBlockedDates();
     } catch (err) {
       toast.error(t('common.errorUpdating') || 'Failed to remove blocked date');
-      console.error('Failed to remove blocked date', err);
     } finally {
       setLoading(false);
     }

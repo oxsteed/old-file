@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
-const { generalLimiter } = require('../middleware/rateLimiter');
+const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const {
   submitBusinessLaunchRequest,
   getBusinessLaunchRequests,
@@ -34,10 +34,13 @@ router.get(
   getUserBusinessLaunchRequests
 );
 
-// Public route: Search requests by email
+// Authenticated route: Search requests by email — leaks PII (skill_description,
+// target_market, urgency, package_price), so requires login + strict rate limit.
+// The controller additionally enforces that non-admins can only search their own email.
 router.get(
   '/search',
-  generalLimiter,
+  strictLimiter,
+  authenticate,
   searchBusinessLaunchRequests
 );
 

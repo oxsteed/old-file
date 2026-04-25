@@ -25,7 +25,7 @@ export default function ConsultingFeedbackPage() {
 
     try {
       setLoading(true);
-      await axios.post(`/api/consulting/feedback/${sessionId}`, {
+      await axios.post(`/consulting/feedback/${sessionId}`, {
         rating,
         feedbackText: feedback,
         name,

@@ -27,7 +27,7 @@ export default function ConsultingScheduler() {
   async function loadSessions() {
     try {
       setLoading(true);
-      const res = await axios.get('/api/consulting/admin/requests');
+      const res = await axios.get('/consulting/admin/requests');
       setSessions(res.data.requests || []);
     } catch (err) {
       toast.error(t('common.errorLoading') || 'Failed to load sessions');
@@ -47,7 +47,7 @@ export default function ConsultingScheduler() {
       const scheduledDateTime = new Date(`${selectedDate}T${selectedTime}`);
 
       await axios.patch(
-        `/api/consulting/admin/requests/${selectedSession.id}/status`,
+        `/consulting/admin/requests/${selectedSession.id}/status`,
         {
           status: 'scheduled',
           scheduled_at: scheduledDateTime.toISOString(),

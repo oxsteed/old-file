@@ -29,7 +29,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   async function fetchConsultants() {
     try {
       setConsultantsLoading(true);
-      const response = await axios.get('/api/consulting/admin/consultants');
+      const response = await axios.get('/consulting/admin/consultants');
       setConsultants(response.data);
     } catch (err) {
       toast.error('Failed to load consultants');
@@ -46,7 +46,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
 
     try {
       setAssigningConsultant(true);
-      await axios.patch(`/api/consulting/admin/sessions/${session.id}`, {
+      await axios.patch(`/consulting/admin/sessions/${session.id}`, {
         consultant_assigned_id: selectedConsultant,
       });
       toast.success('Consultant assigned successfully');
@@ -65,7 +65,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
 
     try {
       setUpdateLoading(true);
-      await axios.patch(`/api/consulting/admin/sessions/${session.id}/complete`);
+      await axios.patch(`/consulting/admin/sessions/${session.id}/complete`);
       toast.success('Session marked as completed. Follow-up email queued.');
       onStatusUpdate();
     } catch (err) {
@@ -82,7 +82,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
 
     try {
       setUpdateLoading(true);
-      await axios.patch(`/api/consulting/admin/sessions/${session.id}/no-show`);
+      await axios.patch(`/consulting/admin/sessions/${session.id}/no-show`);
       toast.success('Session marked as no-show. Follow-up email queued.');
       onStatusUpdate();
     } catch (err) {
@@ -95,7 +95,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   async function updateSessionStatus(sessionId, newStatus) {
     try {
       setUpdateLoading(true);
-      await axios.patch(`/api/consulting/admin/sessions/${sessionId}`, {
+      await axios.patch(`/consulting/admin/sessions/${sessionId}`, {
         status: newStatus,
       });
       toast.success('Status updated successfully');
@@ -116,7 +116,7 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
 
     try {
       setNotesLoading(true);
-      await axios.patch(`/api/consulting/admin/sessions/${session.id}`, {
+      await axios.patch(`/consulting/admin/sessions/${session.id}`, {
         notes: notes,
       });
       toast.success('Notes saved successfully');

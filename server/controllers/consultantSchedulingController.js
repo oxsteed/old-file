@@ -37,7 +37,12 @@ exports.setAvailability = async (req, res) => {
     }
 
     // Check if this consultant can be managed by requester
-    if (req.user.id !== parseInt(consultantId) && req.user.role !== 'super_admin') {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    // users.id is a UUID — compare as strings, not via parseInt.
+    if (req.user.id !== consultantId && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -95,7 +100,12 @@ exports.addBlockedDate = async (req, res) => {
     }
 
     // Authorization check
-    if (req.user.id !== parseInt(consultantId) && req.user.role !== 'super_admin') {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    // users.id is a UUID — compare as strings, not via parseInt.
+    if (req.user.id !== consultantId && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -131,7 +141,12 @@ exports.removeBlockedDate = async (req, res) => {
     }
 
     // Authorization check
-    if (req.user.id !== parseInt(consultantId) && req.user.role !== 'super_admin') {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+    // users.id is a UUID — compare as strings, not via parseInt.
+    if (req.user.id !== consultantId && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -171,7 +186,7 @@ exports.getAvailableSlots = async (req, res) => {
          WHERE consultant_assigned_id = $1
            AND scheduled_date = $2
            AND scheduled_time = $3
-           AND status IN ('scheduled', 'completed')`,
+           AND status IN ('confirmed', 'completed')`,
         [consultantId, date, slot.slot_start]
       );
 
@@ -191,15 +206,38 @@ exports.getAvailableSlots = async (req, res) => {
 exports.bookTimeSlot = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { consultantId, date, startTime, durationMinutes = 120, meetingLink, timezone } = req.body;
+    const { consultantId, date, startTime, meetingLink, timezone } = req.body;
+    const durationMinutes = parseInt(req.body.durationMinutes, 10) || 120;
 
-    if (!date || !startTime) {
-      return res.status(400).json({ error: 'Date and start time required' });
+    if (!date || !startTime || !consultantId) {
+      return res.status(400).json({ error: 'consultantId, date, and start time required' });
     }
 
-    // Get the session
+    // Validate duration
+    if (durationMinutes <= 0 || durationMinutes > 480) {
+      return res.status(400).json({ error: 'Duration must be between 1 and 480 minutes' });
+    }
+
+    // Validate date is not in the past and not too far in the future
+    const bookingDate = new Date(`${date}T${startTime}`);
+    if (Number.isNaN(bookingDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date or time format' });
+    }
+    const now = new Date();
+    const maxFuture = new Date(now.getTime() + 6 * 30 * 24 * 60 * 60 * 1000); // ~6 months
+    if (bookingDate < now) {
+      return res.status(400).json({ error: 'Cannot book sessions in the past' });
+    }
+    if (bookingDate > maxFuture) {
+      return res.status(400).json({ error: 'Cannot book more than 6 months in advance' });
+    }
+
+    // Resolve session + owner via JOIN — consulting_sessions_scheduled does not have customer_id
     const { rows: sessions } = await db.query(
-      `SELECT * FROM consulting_sessions_scheduled WHERE id = $1`,
+      `SELECT css.id, css.session_id, cs.user_id, cs.email, cs.first_name
+       FROM consulting_sessions_scheduled css
+       JOIN consulting_sessions cs ON css.session_id = cs.id
+       WHERE css.id = $1`,
       [sessionId]
     );
 
@@ -209,12 +247,18 @@ exports.bookTimeSlot = async (req, res) => {
 
     const session = sessions[0];
 
+    // Authorization: only the session owner or an admin can book on its behalf.
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
+    if (!isAdmin && (!req.user || session.user_id !== req.user.id)) {
+      return res.status(403).json({ error: 'Not authorized for this session' });
+    }
+
     // Calculate end time
     const startTimeObj = new Date(`2000-01-01T${startTime}`);
     const endTimeObj = new Date(startTimeObj.getTime() + durationMinutes * 60000);
     const endTime = endTimeObj.toTimeString().slice(0, 5);
 
-    // Verify slot is available
+    // Verify slot is on consultant's availability
     const { rows: availableSlots } = await db.query(
       `SELECT 1 FROM get_consultant_available_slots($1, $2, $3)
        WHERE slot_start = $4`,
@@ -225,57 +269,52 @@ exports.bookTimeSlot = async (req, res) => {
       return res.status(409).json({ error: 'Selected time slot is not available' });
     }
 
-    // Check for conflicts
-    const { rows: conflicts } = await db.query(
-      `SELECT 1 FROM consulting_sessions_scheduled
-       WHERE consultant_assigned_id = $1
-         AND scheduled_date = $2
-         AND scheduled_time < $4
-         AND (scheduled_time + (duration_minutes || ' minutes')::INTERVAL)::TIME > $3
-         AND status IN ('scheduled', 'completed')`,
-      [consultantId, date, startTime, endTime]
-    );
-
-    if (conflicts.length > 0) {
-      return res.status(409).json({ error: 'Time slot conflicts with another session' });
-    }
-
-    // Update session with booking details
+    // Atomic conflict-check + update via conditional WHERE to avoid double booking.
+    // Note: status valid values per migration 103 CHECK: pending_confirmation, confirmed, completed, no_show, cancelled.
     const { rows: updated } = await db.query(
-      `UPDATE consulting_sessions_scheduled
+      `UPDATE consulting_sessions_scheduled css_target
        SET scheduled_date = $1,
            scheduled_time = $2,
            duration_minutes = $3,
            meeting_link = $4,
            timezone = $5,
-           status = 'scheduled',
+           consultant_assigned_id = $6,
+           status = 'confirmed',
            updated_at = NOW()
-       WHERE id = $6
+       WHERE css_target.id = $7
+         AND NOT EXISTS (
+           SELECT 1 FROM consulting_sessions_scheduled other
+           WHERE other.consultant_assigned_id = $6
+             AND other.scheduled_date = $1
+             AND other.scheduled_time < $9
+             AND (other.scheduled_time + (other.duration_minutes || ' minutes')::INTERVAL)::TIME > $8
+             AND other.status IN ('confirmed', 'completed')
+             AND other.id <> $7
+         )
        RETURNING *`,
-      [date, startTime, durationMinutes, meetingLink || null, timezone || 'America/New_York', sessionId]
+      [date, startTime, durationMinutes, meetingLink || null,
+       timezone || 'America/New_York', consultantId, sessionId,
+       startTime, endTime]
     );
 
-    // Send confirmation email to customer
-    try {
-      const customer = await db.query(
-        `SELECT email, first_name FROM users WHERE id = $1`,
-        [session.customer_id]
-      );
+    if (updated.length === 0) {
+      return res.status(409).json({ error: 'Time slot conflicts with another session' });
+    }
 
-      const consultant = await db.query(
-        `SELECT first_name, last_name FROM users WHERE id = $1`,
-        [consultantId]
-      );
+    // Respond first, then send email asynchronously (do not block the response).
+    res.json(updated[0]);
 
-      if (customer.rows.length > 0) {
-        const formattedDate = new Date(`${date}T${startTime}`).toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZone: timezone || 'America/New_York'
+    setImmediate(async () => {
+      try {
+        const consultant = await db.query(
+          `SELECT first_name, last_name FROM users WHERE id = $1`,
+          [consultantId]
+        );
+
+        const formattedDate = new Date(`${date}T${startTime}`).toLocaleString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+          timeZone: timezone || 'America/New_York',
         });
 
         const consultantName = consultant.rows[0]
@@ -283,28 +322,27 @@ exports.bookTimeSlot = async (req, res) => {
           : 'Your Consultant';
 
         await sendEmail({
-          to: customer.rows[0].email,
+          to: session.email,
           subject: 'Your Consulting Session is Confirmed',
           html: `
-            <p>Hi ${customer.rows[0].first_name},</p>
+            <p>Hi ${session.first_name},</p>
             <p>Your consulting session has been scheduled!</p>
             <p><strong>Session Details:</strong></p>
             <ul>
               <li>Consultant: ${consultantName}</li>
-              <li>Date & Time: ${formattedDate}</li>
+              <li>Date &amp; Time: ${formattedDate}</li>
               <li>Duration: ${durationMinutes} minutes</li>
               ${meetingLink ? `<li><a href="${meetingLink}">Join Meeting</a></li>` : ''}
             </ul>
             <p>We look forward to helping you grow your business!</p>
             <p>Best regards,<br>The OxSteed Team</p>
-          `
+          `,
         });
+      } catch (emailErr) {
+        logger.warn('Failed to send session confirmation email', { error: emailErr.message, sessionId });
       }
-    } catch (emailErr) {
-      logger.warn('Failed to send session confirmation email', { error: emailErr.message });
-    }
-
-    res.json(updated[0]);
+    });
+    return;
   } catch (err) {
     logger.error('Failed to book time slot', { error: err.message });
     res.status(500).json({ error: 'Failed to book time slot' });
@@ -341,7 +379,7 @@ exports.getNextAvailableDates = async (req, res) => {
              WHERE consultant_assigned_id = $1
                AND scheduled_date = $2
                AND scheduled_time = $3
-               AND status IN ('scheduled', 'completed')`,
+               AND status IN ('confirmed', 'completed')`,
             [consultantId, dateStr, slot.slot_start]
           );
 

@@ -22,8 +22,8 @@ export default function ConsultingPortalPage() {
       setLoading(true);
       // Load user's consulting sessions and dashboard data
       const [sessionsRes, dashboardRes] = await Promise.all([
-        axios.get('/api/consulting/my-sessions').catch(() => ({ data: [] })),
-        axios.get('/api/consulting/portal/dashboard').catch(() => ({ data: {} })),
+        axios.get('/consulting/my-sessions').catch(() => ({ data: [] })),
+        axios.get('/consulting/portal/dashboard').catch(() => ({ data: {} })),
       ]);
 
       const sessionsList = sessionsRes.data || [];

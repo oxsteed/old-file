@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS consulting_request_notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id UUID NOT NULL REFERENCES consulting_requests(id) ON DELETE CASCADE,
-  admin_id BIGINT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
   note_text TEXT NOT NULL,
   is_internal BOOLEAN DEFAULT TRUE, -- internal notes not visible to client
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -19,7 +19,7 @@ CREATE INDEX idx_consulting_notes_created_at ON consulting_request_notes(created
 CREATE TABLE IF NOT EXISTS consulting_request_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id UUID NOT NULL REFERENCES consulting_requests(id) ON DELETE CASCADE,
-  admin_id BIGINT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
   recipient_email VARCHAR(255) NOT NULL,
   subject VARCHAR(255) NOT NULL,
   message_html TEXT NOT NULL,

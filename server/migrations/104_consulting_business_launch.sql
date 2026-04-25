@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS consulting_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
 
   -- Contact Information
   email VARCHAR(255) NOT NULL,
@@ -53,7 +53,7 @@ CREATE INDEX idx_consulting_requests_created_at ON consulting_requests(created_a
 CREATE TABLE IF NOT EXISTS consulting_request_audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id UUID NOT NULL REFERENCES consulting_requests(id) ON DELETE CASCADE,
-  admin_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
   old_status VARCHAR(50),
   new_status VARCHAR(50) NOT NULL,
   notes TEXT,

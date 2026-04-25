@@ -18,9 +18,9 @@ export default function ConsultingDashboard() {
   async function loadData() {
     try {
       const [reqRes, consRes, statsRes] = await Promise.all([
-        axios.get('/api/consulting/admin/requests'),
-        axios.get('/api/consulting/admin/consultants'),
-        axios.get('/api/consulting/admin/dashboard-stats'),
+        axios.get('/consulting/admin/requests'),
+        axios.get('/consulting/admin/consultants'),
+        axios.get('/consulting/admin/dashboard-stats'),
       ]);
       setRequests(reqRes.data.requests || []);
       setConsultants(consRes.data || []);
@@ -34,7 +34,7 @@ export default function ConsultingDashboard() {
 
   async function assignConsultant(sessionId, consultantId) {
     try {
-      await axios.post('/api/consulting/admin/assign', { session_id: sessionId, consultant_id: consultantId });
+      await axios.post('/consulting/admin/assign', { session_id: sessionId, consultant_id: consultantId });
       loadData();
       toast.success(t('consulting.admin.messages.assignmentSuccess'));
     } catch (err) {

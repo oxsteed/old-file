@@ -50,11 +50,11 @@ export default function BusinessLaunchStatusPage() {
       // For authenticated users, fetch their own requests
       // For unauthenticated users, they need to search by email
       if (user?.email === email || user?.id) {
-        const res = await api.get('/api/consulting/business-launch/my-requests');
+        const res = await api.get('/consulting/business-launch/my-requests');
         setRequests(res.data || []);
       } else {
         // Public search by email (if backend supports it)
-        const res = await api.get(`/api/consulting/business-launch/search?email=${encodeURIComponent(email)}`);
+        const res = await api.get(`/consulting/business-launch/search?email=${encodeURIComponent(email)}`);
         setRequests(res.data || []);
       }
 

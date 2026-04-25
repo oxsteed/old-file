@@ -50,7 +50,7 @@ export default function BusinessLaunchAdmin() {
         ...(filters.state && { state: filters.state }),
       });
 
-      const res = await axios.get(`/api/consulting/business-launch/requests?${params}`);
+      const res = await axios.get(`/consulting/business-launch/requests?${params}`);
       setRequests(res.data.data || []);
       setPagination(res.data.pagination || {});
     } catch (err) {
@@ -64,7 +64,7 @@ export default function BusinessLaunchAdmin() {
   async function updateRequestStatus(requestId, newStatus) {
     try {
       setUpdateLoading(true);
-      await axios.patch(`/api/consulting/business-launch/requests/${requestId}`, {
+      await axios.patch(`/consulting/business-launch/requests/${requestId}`, {
         status: newStatus,
       });
       toast.success(t('businessLaunchAdmin.statusUpdated'));

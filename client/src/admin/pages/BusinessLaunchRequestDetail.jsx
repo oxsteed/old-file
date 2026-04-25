@@ -35,7 +35,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
   async function loadNotes() {
     try {
-      const res = await axios.get(`/api/consulting/business-launch/requests/${request.id}/notes`);
+      const res = await axios.get(`/consulting/business-launch/requests/${request.id}/notes`);
       setNotes(res.data || []);
     } catch (err) {
       toast.error(t('common.errorLoading'));
@@ -44,7 +44,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
   async function loadMessages() {
     try {
-      const res = await axios.get(`/api/consulting/business-launch/requests/${request.id}/messages`);
+      const res = await axios.get(`/consulting/business-launch/requests/${request.id}/messages`);
       setMessages(res.data || []);
     } catch (err) {
       toast.error(t('common.errorLoading'));
@@ -53,7 +53,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
   async function loadTemplates() {
     try {
-      const res = await axios.get(`/api/consulting/business-launch/message-templates`);
+      const res = await axios.get(`/consulting/business-launch/message-templates`);
       setTemplates(res.data || []);
     } catch (err) {
       toast.error(t('common.errorLoading'));
@@ -68,7 +68,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
     try {
       setNoteLoading(true);
-      await axios.post(`/api/consulting/business-launch/requests/${request.id}/notes`, {
+      await axios.post(`/consulting/business-launch/requests/${request.id}/notes`, {
         note_text: newNote,
         is_internal: true,
       });
@@ -86,7 +86,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
     if (!window.confirm(t('businessLaunchAdmin.deleteNoteConfirm'))) return;
 
     try {
-      await axios.delete(`/api/consulting/business-launch/notes/${noteId}`);
+      await axios.delete(`/consulting/business-launch/notes/${noteId}`);
       loadNotes();
       toast.success(t('businessLaunchAdmin.noteDeleted'));
     } catch (err) {
@@ -106,7 +106,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
 
     try {
       setMessageLoading(true);
-      await axios.post(`/api/consulting/business-launch/requests/${request.id}/send-message`, {
+      await axios.post(`/consulting/business-launch/requests/${request.id}/send-message`, {
         subject: message.subject,
         message_html: message.message_html,
         message_plain: message.body || '',

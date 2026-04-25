@@ -2,14 +2,22 @@ const express = require('express');
 const router = express.Router();
 const feedbackController = require('../controllers/consultingFeedbackController');
 const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
+const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
-// Public endpoint - submit feedback (no auth required for anonymous feedback)
-router.post('/:sessionId', feedbackController.submitFeedback);
+// Public endpoint - submit feedback (anonymous allowed); rate-limited to deter spam.
+router.post('/:sessionId', strictLimiter, feedbackController.submitFeedback);
 
-// Get feedback for a specific session (public)
-router.get('/sessions/:sessionId', feedbackController.getSessionFeedback);
+// Get feedback for a specific session — requires auth (feedback may include PII).
+router.get('/sessions/:sessionId', authenticate, feedbackController.getSessionFeedback);
 
-// Get all feedback for a consultant (requires auth, admin only)
-router.get('/consultant/:consultantId', authenticate, feedbackController.getConsultantFeedback);
+// Get all feedback for a consultant — admin only (BI / consultant performance data).
+router.get(
+  '/consultant/:consultantId',
+  generalLimiter,
+  authenticate,
+  requireAdmin,
+  feedbackController.getConsultantFeedback,
+);
 
 module.exports = router;

@@ -72,7 +72,7 @@ ORDER BY week_start DESC;
 -- Table: Consultant monthly performance snapshots
 CREATE TABLE IF NOT EXISTS consultant_monthly_stats (
   id BIGSERIAL PRIMARY KEY,
-  consultant_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  consultant_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   year INT NOT NULL,
   month INT NOT NULL,
   sessions_count INT DEFAULT 0,

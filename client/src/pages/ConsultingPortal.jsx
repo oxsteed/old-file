@@ -21,7 +21,7 @@ export default function ConsultingPortal() {
   const loadUserSessions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/consulting/my-sessions');
+      const response = await axios.get('/consulting/my-sessions');
       setSessions(response.data);
     } catch (err) {
       toast.error(t('common.errorLoading') || 'Failed to load sessions');
