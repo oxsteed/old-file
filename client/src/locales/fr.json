@@ -69,6 +69,8 @@
     "or": "ou",
     "and": "et",
     "na": "N/A",
+    "notProvided": "Non fourni",
+    "notSpecified": "Non spécifié",
     "copyLink": "Copier le lien",
     "copied": "Copié !",
     "noResults": "Aucun résultat",
@@ -4055,6 +4057,40 @@
     "analytics": "Votre Analytique de Progression",
     "analyticsDescription": "Suivez votre avancement à travers les phases et métriques de succès.",
     "trackingProgress": "Votre progression est en cours de suivi.",
-    "optional": "(optionnel)"
+    "optional": "(optionnel)",
+    "admin": {
+      "title": "Tableau de Bord d'Administration du Conseil",
+      "stats": {
+        "pendingRequests": "Demandes en Attente",
+        "scheduledSessions": "Sessions Programmées",
+        "activeClients": "Clients Actifs",
+        "avgNps": "NPS Moyen"
+      },
+      "requestsTable": {
+        "title": "Demandes de Conseil",
+        "name": "Nom",
+        "email": "E-mail",
+        "serviceTier": "Niveau de Service",
+        "status": "Statut",
+        "consultant": "Consultant",
+        "action": "Action",
+        "assign": "Attribuer...",
+        "view": "Afficher",
+        "assigned": "Attribué"
+      },
+      "requestDetail": {
+        "title": "Détails de la Demande",
+        "phone": "Téléphone",
+        "business": "Entreprise",
+        "phase": "Phase",
+        "areas": "Domaines",
+        "description": "Description",
+        "close": "Fermer"
+      },
+      "messages": {
+        "assignmentSuccess": "Consultant assigné avec succès",
+        "assignmentError": "Erreur lors de l'assignation du consultant"
+      }
+    }
   }
 }

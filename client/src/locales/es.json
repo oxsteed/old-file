@@ -61,6 +61,8 @@
     "yes": "Sí",
     "no": "No",
     "na": "N/D",
+    "notProvided": "No proporcionado",
+    "notSpecified": "No especificado",
     "add": "Añadir",
     "remove": "Eliminar",
     "overdue": "Vencido",
@@ -4055,6 +4057,40 @@
     "analytics": "Tu Analítica de Progreso",
     "analyticsDescription": "Sigue tu avance a través de fases y métricas de éxito.",
     "trackingProgress": "Tu progreso se está rastreando.",
-    "optional": "(opcional)"
+    "optional": "(opcional)",
+    "admin": {
+      "title": "Panel de Administración de Asesoría",
+      "stats": {
+        "pendingRequests": "Solicitudes Pendientes",
+        "scheduledSessions": "Sesiones Programadas",
+        "activeClients": "Clientes Activos",
+        "avgNps": "NPS Promedio"
+      },
+      "requestsTable": {
+        "title": "Solicitudes de Asesoría",
+        "name": "Nombre",
+        "email": "Correo",
+        "serviceTier": "Nivel de Servicio",
+        "status": "Estado",
+        "consultant": "Asesor",
+        "action": "Acción",
+        "assign": "Asignar...",
+        "view": "Ver",
+        "assigned": "Asignado"
+      },
+      "requestDetail": {
+        "title": "Detalles de la Solicitud",
+        "phone": "Teléfono",
+        "business": "Negocio",
+        "phase": "Fase",
+        "areas": "Áreas",
+        "description": "Descripción",
+        "close": "Cerrar"
+      },
+      "messages": {
+        "assignmentSuccess": "Asesor asignado exitosamente",
+        "assignmentError": "Error al asignar asesor"
+      }
+    }
   }
 }

@@ -61,6 +61,8 @@
     "yes": "Wi",
     "no": "Non",
     "na": "N/A",
+    "notProvided": "Pa bay",
+    "notSpecified": "Pa espesifye",
     "copyLink": "Kopye Lyen",
     "copied": "Kopye!",
     "noResults": "Pa jwenn rezilta",
@@ -4054,6 +4056,40 @@
     "analytics": "Analitik Pwogresyon ou",
     "analyticsDescription": "Swiv avansman ou atravè faz ak metrik siksè.",
     "trackingProgress": "Pwogresyon ou ap tèn etat.",
-    "optional": "(opsyonèl)"
+    "optional": "(opsyonèl)",
+    "admin": {
+      "title": "Tablo Adminstrasyon Konsèy",
+      "stats": {
+        "pendingRequests": "Rekèt Pandan",
+        "scheduledSessions": "Sesyon Planifye",
+        "activeClients": "Kliyè Aktif",
+        "avgNps": "NPS Mwayen"
+      },
+      "requestsTable": {
+        "title": "Rekèt Konsèy",
+        "name": "Non",
+        "email": "Imel",
+        "serviceTier": "Nivo Sèvis",
+        "status": "Estatdi",
+        "consultant": "Konseyè",
+        "action": "Aksyon",
+        "assign": "Asiye...",
+        "view": "Wè",
+        "assigned": "Asiye"
+      },
+      "requestDetail": {
+        "title": "Detay Rekèt",
+        "phone": "Telefòn",
+        "business": "Biznis",
+        "phase": "Faz",
+        "areas": "Zòn",
+        "description": "Deskripsyon",
+        "close": "Fèmen"
+      },
+      "messages": {
+        "assignmentSuccess": "Konseyè asiye avèk siksè",
+        "assignmentError": "Erè pandan asiyeman konseyè"
+      }
+    }
   }
 }

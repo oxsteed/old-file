@@ -61,6 +61,8 @@
     "yes": "Yes",
     "no": "No",
     "na": "N/A",
+    "notProvided": "Not provided",
+    "notSpecified": "Not specified",
     "add": "Add",
     "remove": "Remove",
     "overdue": "Overdue",
@@ -4055,6 +4057,40 @@
     "analytics": "Your Progress Analytics",
     "analyticsDescription": "Track your advancement through phases and success metrics.",
     "trackingProgress": "Your progress is being tracked across all metrics.",
-    "optional": "(optional)"
+    "optional": "(optional)",
+    "admin": {
+      "title": "Consulting Administration Dashboard",
+      "stats": {
+        "pendingRequests": "Pending Requests",
+        "scheduledSessions": "Scheduled Sessions",
+        "activeClients": "Active Clients",
+        "avgNps": "Avg NPS"
+      },
+      "requestsTable": {
+        "title": "Consulting Requests",
+        "name": "Name",
+        "email": "Email",
+        "serviceTier": "Service Tier",
+        "status": "Status",
+        "consultant": "Consultant",
+        "action": "Action",
+        "assign": "Assign...",
+        "view": "View",
+        "assigned": "Assigned"
+      },
+      "requestDetail": {
+        "title": "Request Details",
+        "phone": "Phone",
+        "business": "Business",
+        "phase": "Phase",
+        "areas": "Areas",
+        "description": "Description",
+        "close": "Close"
+      },
+      "messages": {
+        "assignmentSuccess": "Consultant assigned successfully",
+        "assignmentError": "Error assigning consultant"
+      }
+    }
   }
 }

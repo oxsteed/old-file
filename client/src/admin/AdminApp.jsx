@@ -36,6 +36,7 @@ import ContentRemovals from './pages/ContentRemovals';
 import SupportTickets  from './pages/SupportTickets';
 import AdminSearch     from './pages/AdminSearch';
 import AdminMessages   from './pages/AdminMessages';
+import ConsultingDashboard from './pages/ConsultingDashboard';
 import AdminLogin      from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
@@ -95,6 +96,7 @@ export default function AdminApp() {
           <Route path="tool-rentals"        element={<ToolRentalModeration />} />
           <Route path="planned-needs"       element={<PlannedNeedsAdmin />} />
           <Route path="payments"            element={<PaymentsList />} />
+          <Route path="consulting"          element={<ConsultingDashboard />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={
