@@ -191,11 +191,18 @@ exports.addDeliverable = async (req, res) => {
 // PHASE 3: Add Action Item
 exports.addActionItem = async (req, res) => {
   const { session_id, title, description, assigned_to_type, due_date, priority } = req.body;
+
+  // Validate assigned_to_type
+  const validAssignedTypes = ['client', 'consultant'];
+  if (assigned_to_type && !validAssignedTypes.includes(assigned_to_type.toLowerCase())) {
+    return res.status(400).json({ error: 'Invalid assignment type' });
+  }
+
   try {
     const result = await db.query(
       `INSERT INTO consulting_action_items (session_id, title, description, assigned_to_type, due_date, priority)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [session_id, title, description, assigned_to_type, due_date, priority || 'medium']
+      [session_id, title, description, assigned_to_type?.toLowerCase() || 'client', due_date, priority?.toLowerCase() || 'medium']
     );
     res.json(result.rows[0]);
   } catch (err) {
