@@ -1,304 +1,318 @@
-const db = require('../db');
+// server/controllers/calendarNotificationController.js
+//
+// Three responsibilities:
+//   * HTTP endpoints: list / mark-read / stats for the current user.
+//   * Cron worker: processReminderNotifications() — fired by jobs/calendarReminders.
+//   * Helper: respect quiet-hours and notification_preferences.
+
+const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const emailService = require('../services/emailService');
-const smsService = require('../services/smsService');
+const { sendSMS } = require('../utils/sms');
 const { broadcastToUser } = require('../services/socketService');
+const { renderAppointmentEmail, renderAppointmentSms } = require('../utils/calendarEmails');
 
-// Fetch pending notifications
+const REMINDER_TYPES = new Set([
+  'appointment_requested',
+  'appointment_confirmed',
+  'appointment_cancelled',
+  'appointment_rescheduled',
+  'reminder_24h',
+  'reminder_2h',
+  'reminder_same_day',
+  'appointment_completed',
+]);
+
+const SUBJECT_BY_TYPE = {
+  appointment_requested:  'New appointment request',
+  appointment_confirmed:  'Your appointment is confirmed',
+  appointment_cancelled:  'Your appointment has been cancelled',
+  reminder_24h:           'Reminder: your appointment is tomorrow',
+  reminder_2h:            'Reminder: your appointment is in 2 hours',
+  reminder_same_day:      'Reminder: your appointment is today',
+  appointment_completed:  'Appointment completed',
+};
+
+// ─── HTTP: list pending + sent notifications ─────────────────
 exports.getPendingNotifications = async (req, res) => {
-  const user_id = req.user.id;
-
+  const userId = req.user.id;
   try {
-    const result = await db.query(
-      `SELECT cn.*, a.scheduled_start_time, a.service_description,
-        u.first_name, u.avatar_url
-       FROM calendar_notifications cn
-       JOIN appointments a ON cn.appointment_id = a.id
-       LEFT JOIN users u ON (CASE WHEN cn.user_id = a.customer_id THEN a.helper_id ELSE a.customer_id END) = u.id
-       WHERE cn.user_id = $1 AND cn.status IN ('pending', 'sent')
-       ORDER BY cn.created_at DESC
-       LIMIT 50`,
-      [user_id]
+    const result = await pool.query(
+      `SELECT cn.*,
+              a.scheduled_start_time,
+              a.service_description,
+              a.customer_id,
+              a.helper_id,
+              other.first_name        AS other_name,
+              other.profile_photo_url AS other_avatar
+         FROM calendar_notifications cn
+         JOIN appointments a ON cn.appointment_id = a.id
+         LEFT JOIN users other ON other.id = CASE
+              WHEN cn.user_id = a.customer_id THEN a.helper_id
+              ELSE a.customer_id
+            END
+        WHERE cn.user_id = $1
+          AND cn.status IN ('pending','sent')
+        ORDER BY cn.created_at DESC
+        LIMIT 50`,
+      [userId]
     );
-
     return sendSuccess(res, result.rows);
   } catch (err) {
-    logger.error('Failed to fetch notifications', { err, user_id });
+    logger.error('Failed to fetch notifications', { err: err.message, userId });
     return sendError(res, 500, 'Failed to fetch notifications', 'INTERNAL_ERROR');
   }
 };
 
-// Mark notification as read
+// ─── HTTP: mark as read ──────────────────────────────────────
 exports.markNotificationAsRead = async (req, res) => {
   const { id } = req.params;
-  const user_id = req.user.id;
+  const userId = req.user.id;
+
+  if (!/^\d+$/.test(String(id))) {
+    return sendError(res, 400, 'Invalid notification id', 'VALIDATION_ERROR');
+  }
 
   try {
-    const result = await db.query(
-      `UPDATE calendar_notifications SET opened_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND user_id = $2 RETURNING *`,
-      [id, user_id]
+    const r = await pool.query(
+      `UPDATE calendar_notifications
+          SET opened_at = COALESCE(opened_at, now())
+        WHERE id = $1 AND user_id = $2
+        RETURNING *`,
+      [id, userId]
     );
-
-    if (result.rows.length === 0) {
+    if (r.rows.length === 0) {
       return sendError(res, 404, 'Notification not found', 'NOT_FOUND');
     }
-
-    return sendSuccess(res, result.rows[0]);
+    return sendSuccess(res, r.rows[0]);
   } catch (err) {
-    logger.error('Failed to mark notification as read', { err, id, user_id });
+    logger.error('Failed to mark notification as read', { err: err.message, id, userId });
     return sendError(res, 500, 'Failed to mark notification as read', 'INTERNAL_ERROR');
   }
 };
 
-// Process reminder notifications (cron job)
-exports.processReminderNotifications = async () => {
+// ─── HTTP: stats (last 30 days) ──────────────────────────────
+exports.getNotificationStats = async (req, res) => {
+  const userId = req.user.id;
   try {
-    // Fetch pending notifications that are due
-    const pendingResult = await db.query(
-      `SELECT cn.*, a.customer_id, a.helper_id, a.service_description,
-        a.scheduled_start_time, a.location_address,
-        u_cust.email as customer_email, u_cust.first_name as customer_name,
-        u_helper.email as helper_email, u_helper.first_name as helper_name,
-        np.appointment_confirmed_channels, np.reminder_24h_channels,
-        np.reminder_2h_channels, np.reminder_same_day_channels, np.quiet_hours_start, np.quiet_hours_end
-       FROM calendar_notifications cn
-       JOIN appointments a ON cn.appointment_id = a.id
-       LEFT JOIN users u_cust ON a.customer_id = u_cust.id
-       LEFT JOIN users u_helper ON a.helper_id = u_helper.id
-       LEFT JOIN notification_preferences np ON cn.user_id = np.user_id
-       WHERE cn.status = 'pending'
-       AND cn.scheduled_send_at <= CURRENT_TIMESTAMP
-       AND a.status IN ('requested', 'confirmed', 'in_progress')
-       LIMIT 100`
+    const r = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'pending')::int                                 AS pending_count,
+         COUNT(*) FILTER (WHERE opened_at IS NULL AND status = 'sent')::int              AS unread_count,
+         COUNT(*)::int                                                                    AS total_count
+       FROM calendar_notifications
+       WHERE user_id = $1
+         AND created_at > now() - interval '30 days'`,
+      [userId]
     );
-
-    for (const notification of pendingResult.rows) {
-      try {
-        await sendNotification(notification);
-      } catch (err) {
-        logger.warn('Failed to send individual notification', {
-          notification_id: notification.id,
-          err
-        });
-      }
-    }
-
-    logger.info('Reminder notification processing complete', {
-      count: pendingResult.rows.length
-    });
+    return sendSuccess(res, r.rows[0]);
   } catch (err) {
-    logger.error('Failed to process reminder notifications', { err });
+    logger.error('Failed to fetch notification stats', { err: err.message, userId });
+    return sendError(res, 500, 'Failed to fetch notification stats', 'INTERNAL_ERROR');
   }
 };
 
-// Send a single notification
-async function sendNotification(notification) {
+// ─── CRON: dispatch due notifications ────────────────────────
+exports.processReminderNotifications = async () => {
+  let dueRows;
+  try {
+    const result = await pool.query(
+      `SELECT cn.id                AS notification_id,
+              cn.user_id,
+              cn.appointment_id,
+              cn.notification_type,
+              cn.channel,
+              a.customer_id, a.helper_id, a.service_description,
+              a.scheduled_start_time, a.location_address,
+              cust.email AS customer_email, cust.first_name AS customer_name, cust.phone AS customer_phone,
+              hlp.email  AS helper_email,   hlp.first_name  AS helper_name,   hlp.phone  AS helper_phone,
+              np.appointment_confirmed_channels,
+              np.appointment_cancelled_channels,
+              np.reminder_24h_channels,
+              np.reminder_2h_channels,
+              np.reminder_same_day_channels,
+              np.quiet_hours_start,
+              np.quiet_hours_end,
+              np.timezone
+         FROM calendar_notifications cn
+         JOIN appointments a   ON a.id = cn.appointment_id
+         LEFT JOIN users cust  ON cust.id = a.customer_id
+         LEFT JOIN users hlp   ON hlp.id  = a.helper_id
+         LEFT JOIN notification_preferences np ON np.user_id = cn.user_id
+        WHERE cn.status = 'pending'
+          AND cn.scheduled_send_at <= now()
+          AND a.status IN ('requested','confirmed','in_progress')
+        ORDER BY cn.scheduled_send_at
+        LIMIT 100`
+    );
+    dueRows = result.rows;
+  } catch (err) {
+    logger.error('processReminderNotifications: query failed', { err: err.message });
+    return;
+  }
+
+  for (const row of dueRows) {
+    try {
+      await dispatchNotification(row);
+    } catch (err) {
+      // dispatchNotification already updates cn.status = 'failed';
+      // this catch is the outer safety net.
+      logger.warn('Calendar notification dispatch threw', {
+        notification_id: row.notification_id,
+        err: err.message,
+      });
+    }
+  }
+
+  if (dueRows.length > 0) {
+    logger.info('Calendar reminders processed', { count: dueRows.length });
+  }
+};
+
+// ─── internal: dispatch one notification ─────────────────────
+async function dispatchNotification(row) {
   const {
-    id: notification_id,
+    notification_id,
     user_id,
     appointment_id,
     notification_type,
     channel,
     customer_id,
-    helper_id,
-    customer_email,
-    customer_name,
-    helper_email,
-    helper_name,
+    customer_email, customer_name, customer_phone,
+    helper_email,   helper_name,   helper_phone,
     service_description,
     scheduled_start_time,
     location_address,
     appointment_confirmed_channels,
+    appointment_cancelled_channels,
     reminder_24h_channels,
     reminder_2h_channels,
     reminder_same_day_channels,
-    quiet_hours_start,
-    quiet_hours_end
-  } = notification;
+    quiet_hours_start, quiet_hours_end, timezone,
+  } = row;
 
-  // Check quiet hours (respect user's timezone)
+  // Quiet hours — return without sending; we leave status as 'pending' so the
+  // notification fires on the next cron tick after the quiet window ends.
   if (quiet_hours_start && quiet_hours_end) {
-    try {
-      const userTimezone = notification_preferences?.timezone || 'UTC';
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: userTimezone
+    if (isInQuietHours(timezone || 'UTC', quiet_hours_start, quiet_hours_end)) {
+      logger.debug('Calendar notification deferred — quiet hours', {
+        notification_id, user_id, timezone,
       });
-      const now = new Date();
-      const timeStr = formatter.format(now);
-      const [hour, minute] = timeStr.split(':').map(Number);
-      const currentTime = hour * 60 + minute;
-
-      const [startHour, startMin] = quiet_hours_start.split(':').map(Number);
-      const [endHour, endMin] = quiet_hours_end.split(':').map(Number);
-      const quietStart = startHour * 60 + startMin;
-      const quietEnd = endHour * 60 + endMin;
-
-      // Handle case where quiet hours span midnight
-      const inQuietHours = quietStart <= quietEnd
-        ? currentTime >= quietStart && currentTime < quietEnd
-        : currentTime >= quietStart || currentTime < quietEnd;
-
-      if (inQuietHours) {
-        logger.debug('Notification skipped due to quiet hours', { notification_id, user_id, timezone: userTimezone });
-        return;
-      }
-    } catch (err) {
-      logger.warn('Error checking quiet hours', { notification_id, user_id, err });
-      // Continue anyway if there's an error
+      return;
     }
   }
 
   const isCustomer = user_id === customer_id;
   const recipientEmail = isCustomer ? customer_email : helper_email;
-  const recipientName = isCustomer ? customer_name : helper_name;
-  const otherName = isCustomer ? helper_name : customer_name;
+  const recipientName  = isCustomer ? customer_name  : helper_name;
+  const recipientPhone = isCustomer ? customer_phone : helper_phone;
+  const otherName      = isCustomer ? helper_name    : customer_name;
+
+  // Resolve channels:
+  //   * Each row has its own `channel` (we usually create rows with channel='in_app');
+  //   * For email/sms reminders we look at the user's preference array and broadcast
+  //     in-app + email + sms as appropriate. If no prefs row exists yet, fall back
+  //     to the row's `channel`.
+  const prefMap = {
+    appointment_confirmed: appointment_confirmed_channels,
+    appointment_cancelled: appointment_cancelled_channels,
+    reminder_24h:          reminder_24h_channels,
+    reminder_2h:           reminder_2h_channels,
+    reminder_same_day:     reminder_same_day_channels,
+  };
+  const channels = (prefMap[notification_type] && prefMap[notification_type].length)
+    ? prefMap[notification_type]
+    : [channel];
 
   let sent = false;
-  let error_message = null;
+  let lastError = null;
 
-  try {
-    // Determine channels based on notification type
-    let channels = [channel];
-    if (notification_type === 'appointment_confirmed' && appointment_confirmed_channels) {
-      channels = appointment_confirmed_channels;
-    } else if (notification_type === 'reminder_24h' && reminder_24h_channels) {
-      channels = reminder_24h_channels;
-    } else if (notification_type === 'reminder_2h' && reminder_2h_channels) {
-      channels = reminder_2h_channels;
-    } else if (notification_type === 'reminder_same_day' && reminder_same_day_channels) {
-      channels = reminder_same_day_channels;
+  // In-app via Socket.IO
+  if (channels.includes('in_app')) {
+    try {
+      broadcastToUser(user_id, 'calendar:notification', {
+        type: notification_type,
+        appointmentId: appointment_id,
+        otherName,
+        service: service_description,
+        startTime: scheduled_start_time,
+      });
+      sent = true;
+    } catch (err) {
+      lastError = err.message;
     }
+  }
 
-    // Send via email if in channels
-    if (channels.includes('email') && recipientEmail) {
-      const emailTemplate = getEmailTemplate(notification_type);
+  // Email
+  if (channels.includes('email') && recipientEmail) {
+    try {
+      const html = renderAppointmentEmail(notification_type, {
+        recipientName: recipientName || 'there',
+        otherName,
+        service: service_description,
+        when: scheduled_start_time,
+        location: location_address,
+      });
       await emailService.send({
         to: recipientEmail,
-        subject: getEmailSubject(notification_type, recipientName),
-        template: emailTemplate,
-        data: {
-          name: recipientName,
-          otherName,
-          serviceDescription: service_description,
-          date: new Date(scheduled_start_time).toLocaleDateString(),
-          time: new Date(scheduled_start_time).toLocaleTimeString(),
-          location: location_address,
-          appointmentId: appointment_id
-        }
-      }).catch(err => {
-        throw new Error(`Email send failed: ${err.message}`);
+        subject: SUBJECT_BY_TYPE[notification_type] || 'Appointment notification',
+        html,
       });
+      sent = true;
+    } catch (err) {
+      lastError = `email: ${err.message}`;
     }
-
-    // Send via SMS if in channels
-    if (channels.includes('sms') && user_id) {
-      const userResult = await db.query('SELECT phone FROM users WHERE id = $1', [user_id]);
-      if (userResult.rows[0]?.phone) {
-        await smsService.send({
-          to: userResult.rows[0].phone,
-          message: getSMSMessage(notification_type, recipientName, new Date(scheduled_start_time)),
-        }).catch(err => {
-          throw new Error(`SMS send failed: ${err.message}`);
-        });
-      }
-    }
-
-    sent = true;
-  } catch (err) {
-    error_message = err.message;
-    logger.warn('Failed to send notification', {
-      notification_id,
-      notification_type,
-      err
-    });
   }
 
-  // Update notification status
-  await db.query(
-    `UPDATE calendar_notifications SET
-      status = $1,
-      sent_at = CASE WHEN $2 THEN CURRENT_TIMESTAMP ELSE sent_at END,
-      error_message = $3
-     WHERE id = $4`,
-    [sent ? 'sent' : 'failed', sent, error_message, notification_id]
+  // SMS
+  if (channels.includes('sms') && recipientPhone) {
+    try {
+      const body = renderAppointmentSms(notification_type, {
+        recipientName: recipientName || '',
+        when: scheduled_start_time,
+      });
+      const result = await sendSMS(recipientPhone, body);
+      if (result && result.success) sent = true;
+      else lastError = `sms: ${result?.error || 'unknown'}`;
+    } catch (err) {
+      lastError = `sms: ${err.message}`;
+    }
+  }
+
+  await pool.query(
+    `UPDATE calendar_notifications
+        SET status        = $1,
+            sent_at       = CASE WHEN $1 = 'sent' THEN now() ELSE sent_at END,
+            error_message = $2
+      WHERE id = $3`,
+    [sent ? 'sent' : 'failed', lastError, notification_id]
   );
-
-  // Send in-app notification
-  if (channels.includes('in_app')) {
-    broadcastToUser(user_id, 'calendar:notification', {
-      type: notification_type,
-      appointment_id,
-      otherName,
-      service: service_description,
-      startTime: scheduled_start_time
-    });
-  }
-};
-
-function getEmailTemplate(notificationType) {
-  const templates = {
-    'appointment_requested': 'appointment_requested',
-    'appointment_confirmed': 'appointment_confirmed',
-    'appointment_cancelled': 'appointment_cancelled',
-    'reminder_24h': 'appointment_reminder_24h',
-    'reminder_2h': 'appointment_reminder_2h',
-    'reminder_same_day': 'appointment_reminder_same_day',
-    'appointment_completed': 'appointment_completed'
-  };
-  return templates[notificationType] || 'appointment_notification';
 }
 
-function getEmailSubject(notificationType, name) {
-  const subjects = {
-    'appointment_requested': 'New appointment request',
-    'appointment_confirmed': 'Your appointment has been confirmed',
-    'appointment_cancelled': 'Your appointment has been cancelled',
-    'reminder_24h': 'Reminder: Your appointment is coming up',
-    'reminder_2h': 'Your appointment is in 2 hours',
-    'reminder_same_day': 'Your appointment is today',
-    'appointment_completed': 'Appointment completed'
-  };
-  return subjects[notificationType] || 'Appointment notification';
-}
-
-function getSMSMessage(notificationType, name, date) {
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const dateStr = date.toLocaleDateString();
-
-  const messages = {
-    'reminder_24h': `Hi ${name}, reminder: your appointment is tomorrow at ${time}. Reply or call if you need to reschedule.`,
-    'reminder_2h': `Hi ${name}, your appointment is in 2 hours at ${time}.`,
-    'reminder_same_day': `Hi ${name}, your appointment is today at ${time}. See you soon!`,
-    'appointment_confirmed': `Your appointment has been confirmed for ${dateStr} at ${time}.`,
-    'appointment_cancelled': `Your appointment for ${dateStr} at ${time} has been cancelled.`
-  };
-
-  return messages[notificationType] || `Reminder: appointment on ${dateStr} at ${time}`;
-}
-
-// Get notification stats
-exports.getNotificationStats = async (req, res) => {
-  const user_id = req.user.id;
-
+// ─── internal: quiet-hours check ─────────────────────────────
+function isInQuietHours(timezone, startHHMM, endHHMM) {
   try {
-    const result = await db.query(
-      `SELECT
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN opened_at IS NULL AND status = 'sent' THEN 1 END) as unread_count,
-        COUNT(*) as total_count
-       FROM calendar_notifications
-       WHERE user_id = $1 AND created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'`,
-      [user_id]
-    );
+    const [sh, sm] = String(startHHMM).split(':').map(Number);
+    const [eh, em] = String(endHHMM).split(':').map(Number);
+    if ([sh, sm, eh, em].some(n => Number.isNaN(n))) return false;
 
-    return sendSuccess(res, result.rows[0]);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+    });
+    const parts = formatter.formatToParts(new Date());
+    const hr = Number(parts.find(p => p.type === 'hour')?.value || 0);
+    const mn = Number(parts.find(p => p.type === 'minute')?.value || 0);
+    const cur = hr * 60 + mn;
+    const start = sh * 60 + sm;
+    const end = eh * 60 + em;
+    return start <= end
+      ? (cur >= start && cur < end)
+      : (cur >= start || cur < end);
   } catch (err) {
-    logger.error('Failed to fetch notification stats', { err, user_id });
-    return sendError(res, 500, 'Failed to fetch notification stats', 'INTERNAL_ERROR');
+    logger.warn('Quiet-hours evaluation failed; treating as not-quiet', {
+      timezone, err: err.message,
+    });
+    return false;
   }
-};
+}

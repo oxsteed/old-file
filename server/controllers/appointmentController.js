@@ -1,445 +1,540 @@
-const db = require('../db');
+// server/controllers/appointmentController.js
+//
+// Calendar appointment lifecycle: create / list / fetch / confirm / cancel.
+//
+// Notes for future maintainers:
+//   * users.id and jobs.id are UUID — never parseInt them.
+//   * Conflict-checks must run inside the same transaction as the INSERT
+//     and lock the helper's existing rows; otherwise two simultaneous
+//     requests can both pass the check then both insert.
+//   * emailService.send only takes { to, subject, html, from }, so we
+//     render simple HTML strings inline rather than passing a template name.
+
+const pool = require('../db');
 const logger = require('../utils/logger');
-const { validateInput, rules } = require('../utils/validate');
+const { validate, rules } = require('../utils/validate');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const { withTransaction } = require('../utils/transaction');
 const emailService = require('../services/emailService');
 const { broadcastToUser } = require('../services/socketService');
+const { renderAppointmentEmail } = require('../utils/calendarEmails');
 
+const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 const APPOINTMENT_STATUSES = ['requested', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled'];
+const REMINDER_OFFSETS_MINUTES = {
+  reminder_24h: -24 * 60,
+  reminder_same_day: -6 * 60,
+  reminder_2h: -2 * 60,
+};
 
-// Create appointment request
+// ─── helpers ─────────────────────────────────────────────────
+function parseDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function clampInt(value, fallback, min, max) {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function isUuid(v) {
+  return typeof v === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+// Build "<name>" or fallback to email local-part
+function displayName(row) {
+  if (!row) return 'there';
+  if (row.first_name) return row.first_name;
+  if (row.email) return String(row.email).split('@')[0];
+  return 'there';
+}
+
+// ─── createAppointment ───────────────────────────────────────
 exports.createAppointment = async (req, res) => {
-  const { helper_id, job_id, service_description, scheduled_start_time, scheduled_end_time, location_address, location_lat, location_lng, estimated_duration_minutes, customer_notes } = req.body;
   const customer_id = req.user.id;
+  const {
+    helper_id,
+    job_id = null,
+    service_description,
+    scheduled_start_time,
+    scheduled_end_time,
+    location_address = null,
+    location_lat = null,
+    location_lng = null,
+    estimated_duration_minutes = 60,
+    customer_notes = null,
+  } = req.body || {};
 
-  const validation = validateInput(req.body, {
-    helper_id: [rules.required(), rules.isNumber()],
-    service_description: [rules.required(), rules.minLen(5), rules.maxLen(500)],
-    scheduled_start_time: [rules.required()],
-    scheduled_end_time: [rules.required()],
-    estimated_duration_minutes: [rules.required(), rules.isNumber(), rules.min(15), rules.max(480)],
+  const errors = validate(req.body || {}, {
+    helper_id:           [rules.required],
+    service_description: [rules.required, rules.minLen(5), rules.maxLen(2000), rules.noScript],
+    scheduled_start_time:[rules.required],
+    scheduled_end_time:  [rules.required],
+    estimated_duration_minutes: [rules.integer],
+    customer_notes:      [rules.maxLen(2000), rules.noScript],
+    location_address:    [rules.maxLen(500), rules.noScript],
   });
+  if (errors) return sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', { fields: errors });
 
-  if (!validation.valid) return sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', validation.errors);
+  if (!isUuid(helper_id)) {
+    return sendError(res, 400, 'helper_id must be a valid UUID', 'VALIDATION_ERROR');
+  }
+  if (helper_id === customer_id) {
+    return sendError(res, 400, 'Cannot request an appointment with yourself', 'INVALID_PARTY');
+  }
+  if (job_id !== null && !isUuid(job_id)) {
+    return sendError(res, 400, 'job_id must be a valid UUID or null', 'VALIDATION_ERROR');
+  }
 
-  const start = new Date(scheduled_start_time);
-  const end = new Date(scheduled_end_time);
-
+  const start = parseDate(scheduled_start_time);
+  const end = parseDate(scheduled_end_time);
+  if (!start || !end) {
+    return sendError(res, 400, 'Invalid scheduled_start_time or scheduled_end_time', 'INVALID_TIME');
+  }
   if (end <= start) {
     return sendError(res, 400, 'End time must be after start time', 'INVALID_TIME_RANGE');
   }
-
-  const minAdvanceMinutes = 15;
-  const minTime = new Date(Date.now() + minAdvanceMinutes * 60000);
-  if (start < minTime) {
-    return sendError(res, 400, `Appointments must be scheduled at least ${minAdvanceMinutes} minutes in advance`, 'INSUFFICIENT_ADVANCE_TIME');
+  const minAdvanceMs = 15 * 60 * 1000;
+  if (start.getTime() - Date.now() < minAdvanceMs) {
+    return sendError(res, 400, 'Appointments must be scheduled at least 15 minutes in advance', 'INSUFFICIENT_ADVANCE_TIME');
   }
+  // Cap duration safety net (DB also enforces 15..480)
+  const duration = clampInt(estimated_duration_minutes, 60, 15, 480);
 
   try {
-    // Verify helper exists and is active
-    const helperResult = await db.query(
-      `SELECT id, role, is_active FROM users WHERE id = $1 AND is_active = TRUE`,
+    // 1. Verify helper is a real, active helper-role user (cheap, no lock)
+    const helperPre = await pool.query(
+      `SELECT id, role, is_active, deleted_at
+         FROM users
+        WHERE id = $1`,
       [helper_id]
     );
-
-    if (helperResult.rows.length === 0) {
+    if (helperPre.rows.length === 0 || !helperPre.rows[0].is_active || helperPre.rows[0].deleted_at) {
       return sendError(res, 404, 'Helper not found or inactive', 'HELPER_NOT_FOUND');
     }
-
-    const helper = helperResult.rows[0];
-    if (!['helper', 'helper_pro', 'broker'].includes(helper.role)) {
+    if (!HELPER_ROLES.includes(helperPre.rows[0].role)) {
       return sendError(res, 400, 'User is not a helper', 'NOT_A_HELPER');
     }
 
-    // Check for conflicts with existing appointments (including pending requests)
-    const conflictResult = await db.query(
-      `SELECT id FROM appointments
-       WHERE helper_id = $1
-       AND status IN ('requested', 'confirmed', 'in_progress')
-       AND scheduled_start_time < $3
-       AND scheduled_end_time > $2
-       LIMIT 1`,
-      [helper_id, start, end]
-    );
+    // 2. Atomic: re-check conflict + insert in one transaction.
+    //    We use an advisory lock keyed off the helper UUID so two concurrent
+    //    requests serialize at the helper level (not at the whole table level).
+    const advisoryKey = `appointments:${helper_id}`;
+    const created = await withTransaction(pool, async (client) => {
+      // Hash the key into a bigint for pg_advisory_xact_lock
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [advisoryKey]);
 
-    if (conflictResult.rows.length > 0) {
-      return sendError(res, 409, 'Helper has conflicting appointment', 'SCHEDULING_CONFLICT');
-    }
+      const conflict = await client.query(
+        `SELECT 1
+           FROM appointments
+          WHERE helper_id = $1
+            AND status IN ('requested','confirmed','in_progress')
+            AND scheduled_start_time < $3
+            AND scheduled_end_time   > $2
+          LIMIT 1`,
+        [helper_id, start, end]
+      );
+      if (conflict.rows.length > 0) {
+        const e = new Error('SCHEDULING_CONFLICT');
+        e.code = 'SCHEDULING_CONFLICT';
+        throw e;
+      }
 
-    // Check availability blocks (unavailable or busy)
-    const unavailableResult = await db.query(
-      `SELECT id FROM availability_blocks
-       WHERE helper_id = $1
-       AND type IN ('unavailable', 'busy')
-       AND start_time < $3
-       AND end_time > $2
-       LIMIT 1`,
-      [helper_id, start, end]
-    );
+      const blockedBy = await client.query(
+        `SELECT 1
+           FROM availability_blocks
+          WHERE helper_id = $1
+            AND type IN ('unavailable','busy')
+            AND start_time < $3
+            AND end_time   > $2
+          LIMIT 1`,
+        [helper_id, start, end]
+      );
+      if (blockedBy.rows.length > 0) {
+        const e = new Error('HELPER_UNAVAILABLE');
+        e.code = 'HELPER_UNAVAILABLE';
+        throw e;
+      }
 
-    if (unavailableResult.rows.length > 0) {
-      return sendError(res, 409, 'Helper is unavailable during requested time', 'HELPER_UNAVAILABLE');
-    }
-
-    // Create appointment
-    const result = await withTransaction(async (client) => {
-      const appointmentResult = await client.query(
+      const apptInsert = await client.query(
         `INSERT INTO appointments (
-          customer_id, helper_id, job_id, service_description,
-          scheduled_start_time, scheduled_end_time, estimated_duration_minutes,
-          location_address, location_lat, location_lng, customer_notes, status, created_by_user_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'requested', $12)
-        RETURNING *`,
+            customer_id, helper_id, job_id, service_description,
+            scheduled_start_time, scheduled_end_time, estimated_duration_minutes,
+            location_address, location_lat, location_lng,
+            customer_notes, status, created_by_user_id
+         ) VALUES (
+            $1, $2, $3, $4,
+            $5, $6, $7,
+            $8, $9, $10,
+            $11, 'requested', $1
+         )
+         RETURNING *`,
         [
           customer_id, helper_id, job_id, service_description,
-          start, end, estimated_duration_minutes,
+          start, end, duration,
           location_address, location_lat, location_lng,
-          customer_notes, customer_id
+          customer_notes,
         ]
       );
+      const appointment = apptInsert.rows[0];
 
-      const appointment = appointmentResult.rows[0];
-
-      // Create immediate notification for helper (non-reminder)
+      // In-app notification for the helper (immediate)
       await client.query(
         `INSERT INTO calendar_notifications
-        (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
-        VALUES ($1, $2, 'appointment_requested', 'in_app', CURRENT_TIMESTAMP, 'pending')`,
+           (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+         VALUES ($1, $2, 'appointment_requested', 'in_app', now(), 'pending')`,
         [helper_id, appointment.id]
       );
 
-      // Log audit
       await client.query(
         `INSERT INTO calendar_audit_log (user_id, appointment_id, action, details)
-        VALUES ($1, $2, 'appointment_created', $3)`,
+         VALUES ($1, $2, 'appointment_created', $3::jsonb)`,
         [customer_id, appointment.id, JSON.stringify({ service: service_description })]
       );
 
       return appointment;
-    });
+    }, 'appointment_create');
 
-    // Send notification email
-    const [customerResult, helperResult] = await Promise.all([
-      db.query('SELECT email, first_name FROM users WHERE id = $1', [customer_id]),
-      db.query('SELECT email, first_name FROM users WHERE id = $1', [helper_id]),
-    ]);
-
-    const customer = customerResult.rows[0];
-    const helperEmail = helperResult.rows[0];
-
-    await emailService.send({
-      to: helperEmail.email,
-      subject: `New appointment request from ${customer.first_name}`,
-      template: 'appointment_requested',
-      data: {
-        helperName: helperEmail.first_name,
-        customerName: customer.first_name,
-        date: start.toLocaleDateString(),
-        time: start.toLocaleTimeString(),
+    // Best-effort email + websocket notify (non-fatal)
+    Promise.all([
+      pool.query('SELECT email, first_name FROM users WHERE id = $1', [customer_id]),
+      pool.query('SELECT email, first_name FROM users WHERE id = $1', [helper_id]),
+    ]).then(([custRes, helpRes]) => {
+      const customer = custRes.rows[0];
+      const helper = helpRes.rows[0];
+      if (!helper?.email) return;
+      const html = renderAppointmentEmail('appointment_requested', {
+        recipientName: displayName(helper),
+        otherName: displayName(customer),
         service: service_description,
-        appointmentId: result.id,
-      }
-    }).catch(err => logger.warn('Appointment email send failed', { err }));
+        when: start,
+      });
+      return emailService.send({
+        to: helper.email,
+        subject: `New appointment request from ${displayName(customer)}`,
+        html,
+      });
+    }).catch(err => logger.warn('Appointment request email failed', { err: err?.message }));
 
-    // Broadcast to helper
-    broadcastToUser(helper_id, 'appointment:requested', {
-      appointment: result,
-      customerName: customer.first_name,
-    });
+    try {
+      broadcastToUser(helper_id, 'appointment:requested', {
+        appointment: created,
+      });
+    } catch (e) { /* socket layer should never fail the request */ }
 
-    return sendSuccess(res, result, 201);
+    return sendSuccess(res, created, 201);
   } catch (err) {
-    logger.error('Failed to create appointment', { err, customer_id, helper_id });
+    if (err.code === 'SCHEDULING_CONFLICT') {
+      return sendError(res, 409, 'Helper has a conflicting appointment', 'SCHEDULING_CONFLICT');
+    }
+    if (err.code === 'HELPER_UNAVAILABLE') {
+      return sendError(res, 409, 'Helper is unavailable during the requested time', 'HELPER_UNAVAILABLE');
+    }
+    logger.error('Failed to create appointment', { err: err.message, customer_id, helper_id });
     return sendError(res, 500, 'Failed to create appointment', 'INTERNAL_ERROR');
   }
 };
 
-// Get appointments for user
+// ─── getAppointments ─────────────────────────────────────────
 exports.getAppointments = async (req, res) => {
-  const user_id = req.user.id;
-  const { status, role, from_date, to_date, limit = 50, offset = 0 } = req.query;
+  const userId = req.user.id;
+  const { status, role, from_date, to_date } = req.query;
+  const limit = clampInt(req.query.limit, 50, 1, 100);
+  const offset = clampInt(req.query.offset, 0, 0, 100000);
 
-  const limit_int = Math.min(parseInt(limit) || 50, 100);
-  const offset_int = Math.max(0, parseInt(offset) || 0);
+  const conditions = [];
+  const params = [];
+
+  if (role === 'helper') {
+    params.push(userId);
+    conditions.push(`a.helper_id = $${params.length}`);
+  } else {
+    params.push(userId);
+    conditions.push(`a.customer_id = $${params.length}`);
+  }
+
+  if (status && APPOINTMENT_STATUSES.includes(status)) {
+    params.push(status);
+    conditions.push(`a.status = $${params.length}`);
+  }
+
+  const fromDate = parseDate(from_date);
+  if (fromDate) {
+    params.push(fromDate);
+    conditions.push(`a.scheduled_end_time   >= $${params.length}`);
+  }
+  const toDate = parseDate(to_date);
+  if (toDate) {
+    params.push(toDate);
+    conditions.push(`a.scheduled_start_time <= $${params.length}`);
+  }
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   try {
-    let query = `SELECT a.*,
-      u_customer.first_name as customer_name, u_customer.avatar_url as customer_avatar,
-      u_helper.first_name as helper_name, u_helper.avatar_url as helper_avatar
-      FROM appointments a
-      LEFT JOIN users u_customer ON a.customer_id = u_customer.id
-      LEFT JOIN users u_helper ON a.helper_id = u_helper.id
-      WHERE 1=1`;
-    const params = [];
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM appointments a ${whereClause}`,
+      params
+    );
+    const total = countResult.rows[0]?.count || 0;
 
-    // Role-based filtering
-    if (role === 'helper') {
-      query += ` AND a.helper_id = $${params.length + 1}`;
-      params.push(user_id);
-    } else {
-      query += ` AND a.customer_id = $${params.length + 1}`;
-      params.push(user_id);
-    }
-
-    // Status filter
-    if (status && APPOINTMENT_STATUSES.includes(status)) {
-      query += ` AND a.status = $${params.length + 1}`;
-      params.push(status);
-    }
-
-    // Date range filter
-    if (from_date) {
-      query += ` AND a.scheduled_start_time >= $${params.length + 1}`;
-      params.push(new Date(from_date));
-    }
-
-    if (to_date) {
-      query += ` AND a.scheduled_end_time <= $${params.length + 1}`;
-      params.push(new Date(to_date));
-    }
-
-    // Get total count with same filters
-    let countQuery = `SELECT COUNT(*) as count FROM appointments a LEFT JOIN users u_customer ON a.customer_id = u_customer.id LEFT JOIN users u_helper ON a.helper_id = u_helper.id WHERE 1=1`;
-    const countParams = [];
-
-    if (role === 'helper') {
-      countQuery += ` AND a.helper_id = $${countParams.length + 1}`;
-      countParams.push(user_id);
-    } else {
-      countQuery += ` AND a.customer_id = $${countParams.length + 1}`;
-      countParams.push(user_id);
-    }
-
-    if (status && APPOINTMENT_STATUSES.includes(status)) {
-      countQuery += ` AND a.status = $${countParams.length + 1}`;
-      countParams.push(status);
-    }
-
-    if (from_date) {
-      countQuery += ` AND a.scheduled_start_time >= $${countParams.length + 1}`;
-      countParams.push(new Date(from_date));
-    }
-
-    if (to_date) {
-      countQuery += ` AND a.scheduled_end_time <= $${countParams.length + 1}`;
-      countParams.push(new Date(to_date));
-    }
-
-    const countResult = await db.query(countQuery, countParams);
-    const total = parseInt(countResult.rows[0].count);
-
-    query += ` ORDER BY a.scheduled_start_time DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit_int, offset_int);
-
-    const result = await db.query(query, params);
+    const dataParams = params.slice();
+    dataParams.push(limit);
+    dataParams.push(offset);
+    const rowsResult = await pool.query(
+      `SELECT a.*,
+              c.first_name AS customer_name,  c.profile_photo_url AS customer_avatar,
+              h.first_name AS helper_name,    h.profile_photo_url AS helper_avatar
+         FROM appointments a
+         LEFT JOIN users c ON c.id = a.customer_id
+         LEFT JOIN users h ON h.id = a.helper_id
+         ${whereClause}
+         ORDER BY a.scheduled_start_time DESC
+         LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
+      dataParams
+    );
 
     return sendSuccess(res, {
-      appointments: result.rows,
+      appointments: rowsResult.rows,
       total,
-      limit: limit_int,
-      offset: offset_int,
-      hasMore: offset_int + limit_int < total
+      limit,
+      offset,
+      hasMore: offset + limit < total,
     });
   } catch (err) {
-    logger.error('Failed to fetch appointments', { err, user_id });
+    logger.error('Failed to fetch appointments', { err: err.message, userId });
     return sendError(res, 500, 'Failed to fetch appointments', 'INTERNAL_ERROR');
   }
 };
 
-// Get single appointment
+// ─── getAppointment (single) ─────────────────────────────────
 exports.getAppointment = async (req, res) => {
   const { id } = req.params;
-  const user_id = req.user.id;
+  const userId = req.user.id;
+
+  if (!/^\d+$/.test(String(id))) {
+    return sendError(res, 400, 'Invalid appointment id', 'VALIDATION_ERROR');
+  }
 
   try {
-    const result = await db.query(
+    const result = await pool.query(
       `SELECT a.*,
-        u_customer.first_name as customer_name, u_customer.avatar_url as customer_avatar,
-        u_helper.first_name as helper_name, u_helper.avatar_url as helper_avatar
-       FROM appointments a
-       LEFT JOIN users u_customer ON a.customer_id = u_customer.id
-       LEFT JOIN users u_helper ON a.helper_id = u_helper.id
-       WHERE a.id = $1 AND (a.customer_id = $2 OR a.helper_id = $2)`,
-      [id, user_id]
+              c.first_name AS customer_name, c.profile_photo_url AS customer_avatar,
+              h.first_name AS helper_name,   h.profile_photo_url AS helper_avatar
+         FROM appointments a
+         LEFT JOIN users c ON c.id = a.customer_id
+         LEFT JOIN users h ON h.id = a.helper_id
+         WHERE a.id = $1
+           AND (a.customer_id = $2 OR a.helper_id = $2)`,
+      [id, userId]
     );
-
     if (result.rows.length === 0) {
       return sendError(res, 404, 'Appointment not found', 'NOT_FOUND');
     }
-
     return sendSuccess(res, result.rows[0]);
   } catch (err) {
-    logger.error('Failed to fetch appointment', { err, id, user_id });
+    logger.error('Failed to fetch appointment', { err: err.message, id, userId });
     return sendError(res, 500, 'Failed to fetch appointment', 'INTERNAL_ERROR');
   }
 };
 
-// Confirm appointment (helper only)
+// ─── confirmAppointment (helper-only) ────────────────────────
 exports.confirmAppointment = async (req, res) => {
   const { id } = req.params;
-  const helper_id = req.user.id;
+  const helperId = req.user.id;
+
+  if (!/^\d+$/.test(String(id))) {
+    return sendError(res, 400, 'Invalid appointment id', 'VALIDATION_ERROR');
+  }
 
   try {
-    const result = await withTransaction(async (client) => {
-      // Fetch appointment
-      const appointmentResult = await client.query(
-        `SELECT * FROM appointments WHERE id = $1 AND helper_id = $2 AND status = 'requested'`,
-        [id, helper_id]
+    const updated = await withTransaction(pool, async (client) => {
+      const cur = await client.query(
+        `SELECT * FROM appointments
+          WHERE id = $1 AND helper_id = $2 AND status = 'requested'
+          FOR UPDATE`,
+        [id, helperId]
       );
-
-      if (appointmentResult.rows.length === 0) {
-        throw new Error('APPOINTMENT_NOT_FOUND');
+      if (cur.rows.length === 0) {
+        const e = new Error('APPOINTMENT_NOT_FOUND');
+        e.code = 'APPOINTMENT_NOT_FOUND';
+        throw e;
       }
+      const appt = cur.rows[0];
 
-      const appointment = appointmentResult.rows[0];
-
-      // Update status
-      const updateResult = await client.query(
-        `UPDATE appointments SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1 RETURNING *`,
+      const upd = await client.query(
+        `UPDATE appointments
+            SET status = 'confirmed',
+                updated_at = now()
+          WHERE id = $1
+          RETURNING *`,
         [id]
       );
 
-      // Log audit
       await client.query(
         `INSERT INTO calendar_audit_log (user_id, appointment_id, action, details)
-        VALUES ($1, $2, 'appointment_confirmed', $3)`,
-        [helper_id, id, JSON.stringify({ confirmed_at: new Date().toISOString() })]
+         VALUES ($1, $2, 'appointment_confirmed', $3::jsonb)`,
+        [helperId, id, JSON.stringify({ confirmed_at: new Date().toISOString() })]
       );
 
-      const updatedAppointment = updateResult.rows[0];
-      const appointmentStart = new Date(updatedAppointment.scheduled_start_time);
-
-      // Create confirmation notification for customer
+      // In-app notification to customer
       await client.query(
         `INSERT INTO calendar_notifications
-        (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
-        VALUES ($1, $2, 'appointment_confirmed', 'in_app', CURRENT_TIMESTAMP, 'pending')`,
-        [appointment.customer_id, id]
+           (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+         VALUES ($1, $2, 'appointment_confirmed', 'in_app', now(), 'pending')`,
+        [appt.customer_id, id]
       );
 
-      // Create reminder notifications (for both customer and helper)
-      const reminderTimes = [
-        { type: 'reminder_24h', offset: -24 * 60, user_id: appointment.customer_id },
-        { type: 'reminder_24h', offset: -24 * 60, user_id: helper_id },
-        { type: 'reminder_2h', offset: -2 * 60, user_id: appointment.customer_id },
-        { type: 'reminder_2h', offset: -2 * 60, user_id: helper_id },
-        { type: 'reminder_same_day', offset: -6 * 60, user_id: appointment.customer_id },
-        { type: 'reminder_same_day', offset: -6 * 60, user_id: helper_id },
+      // Reminder notifications for both parties (only those still in the future)
+      const apptStart = new Date(appt.scheduled_start_time);
+      const reminders = [
+        ['reminder_24h', appt.customer_id],
+        ['reminder_24h', appt.helper_id],
+        ['reminder_same_day', appt.customer_id],
+        ['reminder_same_day', appt.helper_id],
+        ['reminder_2h', appt.customer_id],
+        ['reminder_2h', appt.helper_id],
       ];
-
-      for (const reminder of reminderTimes) {
-        const sendAt = new Date(appointmentStart.getTime() + reminder.offset * 60000);
+      for (const [type, uid] of reminders) {
+        const offset = REMINDER_OFFSETS_MINUTES[type];
+        const sendAt = new Date(apptStart.getTime() + offset * 60_000);
         if (sendAt > new Date()) {
           await client.query(
             `INSERT INTO calendar_notifications
-            (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
-            VALUES ($1, $2, $3, 'in_app', $4, 'pending')`,
-            [reminder.user_id, id, reminder.type, sendAt.toISOString()]
+               (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+             VALUES ($1, $2, $3, 'in_app', $4, 'pending')`,
+            [uid, id, type, sendAt]
           );
         }
       }
 
-      return updatedAppointment;
-    });
+      return upd.rows[0];
+    }, 'appointment_confirm');
 
-    // Fetch customer and send email
-    const customerResult = await db.query('SELECT email, first_name FROM users WHERE id = $1', [result.customer_id]);
-    const customer = customerResult.rows[0];
+    // Best-effort customer email + websocket
+    pool.query('SELECT email, first_name FROM users WHERE id = $1', [updated.customer_id])
+      .then(r => {
+        const customer = r.rows[0];
+        if (!customer?.email) return;
+        const html = renderAppointmentEmail('appointment_confirmed', {
+          recipientName: displayName(customer),
+          when: new Date(updated.scheduled_start_time),
+        });
+        return emailService.send({
+          to: customer.email,
+          subject: 'Your appointment has been confirmed',
+          html,
+        });
+      })
+      .catch(err => logger.warn('Confirmation email failed', { err: err?.message }));
 
-    await emailService.send({
-      to: customer.email,
-      subject: 'Your appointment has been confirmed',
-      template: 'appointment_confirmed',
-      data: {
-        customerName: customer.first_name,
-        date: new Date(result.scheduled_start_time).toLocaleDateString(),
-        time: new Date(result.scheduled_start_time).toLocaleTimeString(),
-      }
-    }).catch(err => logger.warn('Appointment confirmation email failed', { err }));
+    try {
+      broadcastToUser(updated.customer_id, 'appointment:confirmed', { appointment: updated });
+    } catch (e) { /* ignore */ }
 
-    // Broadcast to customer
-    broadcastToUser(result.customer_id, 'appointment:confirmed', { appointment: result });
-
-    return sendSuccess(res, result);
+    return sendSuccess(res, updated);
   } catch (err) {
-    if (err.message === 'APPOINTMENT_NOT_FOUND') {
+    if (err.code === 'APPOINTMENT_NOT_FOUND') {
       return sendError(res, 404, 'Appointment not found or cannot be confirmed', 'NOT_FOUND');
     }
-    logger.error('Failed to confirm appointment', { err, id, helper_id });
+    logger.error('Failed to confirm appointment', { err: err.message, id, helperId });
     return sendError(res, 500, 'Failed to confirm appointment', 'INTERNAL_ERROR');
   }
 };
 
-// Cancel appointment
+// ─── cancelAppointment ───────────────────────────────────────
 exports.cancelAppointment = async (req, res) => {
   const { id } = req.params;
-  const { cancellation_reason } = req.body;
-  const user_id = req.user.id;
+  const userId = req.user.id;
+  const { cancellation_reason = null } = req.body || {};
+
+  if (!/^\d+$/.test(String(id))) {
+    return sendError(res, 400, 'Invalid appointment id', 'VALIDATION_ERROR');
+  }
+
+  if (cancellation_reason && String(cancellation_reason).length > 2000) {
+    return sendError(res, 400, 'cancellation_reason is too long', 'VALIDATION_ERROR');
+  }
 
   try {
-    const result = await withTransaction(async (client) => {
-      // Fetch appointment
-      const appointmentResult = await client.query(
-        `SELECT * FROM appointments WHERE id = $1 AND (customer_id = $2 OR helper_id = $2)`,
-        [id, user_id]
+    const result = await withTransaction(pool, async (client) => {
+      const cur = await client.query(
+        `SELECT * FROM appointments
+          WHERE id = $1 AND (customer_id = $2 OR helper_id = $2)
+          FOR UPDATE`,
+        [id, userId]
       );
-
-      if (appointmentResult.rows.length === 0) {
-        throw new Error('APPOINTMENT_NOT_FOUND');
+      if (cur.rows.length === 0) {
+        const e = new Error('APPOINTMENT_NOT_FOUND');
+        e.code = 'APPOINTMENT_NOT_FOUND';
+        throw e;
+      }
+      const appt = cur.rows[0];
+      if (appt.status === 'cancelled' || appt.status === 'completed') {
+        const e = new Error('APPOINTMENT_NOT_CANCELLABLE');
+        e.code = 'APPOINTMENT_NOT_CANCELLABLE';
+        throw e;
       }
 
-      const appointment = appointmentResult.rows[0];
+      const cancelledBy = appt.customer_id === userId ? 'customer' : 'helper';
 
-      // Determine who cancelled
-      const cancelled_by = appointment.customer_id === user_id ? 'customer' : 'helper';
-
-      // Update appointment
-      const updateResult = await client.query(
-        `UPDATE appointments SET status = 'cancelled', cancelled_by = $1,
-         cancellation_reason = $2, cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3 RETURNING *`,
-        [cancelled_by, cancellation_reason, id]
+      const upd = await client.query(
+        `UPDATE appointments
+            SET status = 'cancelled',
+                cancelled_by = $1,
+                cancellation_reason = $2,
+                cancelled_at = now(),
+                updated_at  = now()
+          WHERE id = $3
+          RETURNING *`,
+        [cancelledBy, cancellation_reason, id]
       );
 
-      // Cancel pending notifications
       await client.query(
-        `UPDATE calendar_notifications SET status = 'cancelled'
-         WHERE appointment_id = $1 AND status = 'pending'`,
+        `UPDATE calendar_notifications
+            SET status = 'cancelled'
+          WHERE appointment_id = $1 AND status = 'pending'`,
         [id]
       );
 
-      // Log audit
       await client.query(
         `INSERT INTO calendar_audit_log (user_id, appointment_id, action, details)
-        VALUES ($1, $2, 'appointment_cancelled', $3)`,
-        [user_id, id, JSON.stringify({ cancelled_by, reason: cancellation_reason })]
+         VALUES ($1, $2, 'appointment_cancelled', $3::jsonb)`,
+        [userId, id, JSON.stringify({ cancelled_by: cancelledBy, reason: cancellation_reason })]
       );
 
-      return updateResult.rows[0];
-    });
+      // In-app notification to the *other* party
+      const otherUserId = appt.customer_id === userId ? appt.helper_id : appt.customer_id;
+      await client.query(
+        `INSERT INTO calendar_notifications
+           (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+         VALUES ($1, $2, 'appointment_cancelled', 'in_app', now(), 'pending')`,
+        [otherUserId, id]
+      );
 
-    // Notify both parties
-    const otherUserId = result.customer_id === user_id ? result.helper_id : result.customer_id;
-    await db.query(
-      `INSERT INTO calendar_notifications
-      (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
-      VALUES ($1, $2, 'appointment_cancelled', 'in_app', CURRENT_TIMESTAMP, 'pending')`,
-      [otherUserId, id]
-    );
+      return { appointment: upd.rows[0], otherUserId };
+    }, 'appointment_cancel');
 
-    broadcastToUser(otherUserId, 'appointment:cancelled', {
-      appointment: result,
-      reason: cancellation_reason
-    });
+    try {
+      broadcastToUser(result.otherUserId, 'appointment:cancelled', {
+        appointment: result.appointment,
+        reason: cancellation_reason,
+      });
+    } catch (e) { /* ignore */ }
 
-    return sendSuccess(res, result);
+    return sendSuccess(res, result.appointment);
   } catch (err) {
-    if (err.message === 'APPOINTMENT_NOT_FOUND') {
+    if (err.code === 'APPOINTMENT_NOT_FOUND') {
       return sendError(res, 404, 'Appointment not found', 'NOT_FOUND');
     }
-    logger.error('Failed to cancel appointment', { err, id, user_id });
+    if (err.code === 'APPOINTMENT_NOT_CANCELLABLE') {
+      return sendError(res, 409, 'Appointment cannot be cancelled in its current state', 'NOT_CANCELLABLE');
+    }
+    logger.error('Failed to cancel appointment', { err: err.message, id, userId });
     return sendError(res, 500, 'Failed to cancel appointment', 'INTERNAL_ERROR');
   }
 };

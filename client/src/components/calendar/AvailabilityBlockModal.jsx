@@ -132,7 +132,7 @@ export default function AvailabilityBlockModal({ initialDate, initialHour, onClo
           </div>
 
           <div className="abm-form-group">
-            <label>{t('calendar.title')}</label>
+            <label>{t('calendar.blockTitleLabel')}</label>
             <input
               type="text"
               name="title"

@@ -1,305 +1,369 @@
-const db = require('../db');
+// server/controllers/availabilityController.js
+//
+// Availability blocks: helper opt-in time windows (and unavailability blocks).
+// Notification preference CRUD lives here too — it's the only thing that
+// touches the same notification_preferences table.
+
+const pool = require('../db');
 const logger = require('../utils/logger');
-const { validateInput, rules } = require('../utils/validate');
+const { validate, rules } = require('../utils/validate');
 const { sendError, sendSuccess } = require('../utils/apiError');
 
 const AVAILABILITY_TYPES = ['available', 'unavailable', 'busy'];
+const VALID_CHANNELS = ['in_app', 'email', 'sms', 'push'];
 
-// Create availability block
+function parseDate(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function clampInt(value, fallback, min, max) {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function isUuid(v) {
+  return typeof v === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+
+function sanitizeChannelArray(value) {
+  if (!Array.isArray(value)) return null;
+  const cleaned = value
+    .map(s => String(s).toLowerCase())
+    .filter(s => VALID_CHANNELS.includes(s));
+  // Keep only the first occurrence of each channel
+  return Array.from(new Set(cleaned));
+}
+
+// ─── createAvailabilityBlock ─────────────────────────────────
 exports.createAvailabilityBlock = async (req, res) => {
-  const { start_time, end_time, type = 'available', title, notes, recurring_rule, recurring_until } = req.body;
-  const helper_id = req.user.id;
+  const helperId = req.user.id;
+  const {
+    start_time, end_time,
+    type = 'available',
+    title = null, notes = null,
+    recurring_rule = null, recurring_until = null,
+  } = req.body || {};
 
-  const validation = validateInput(req.body, {
-    start_time: [rules.required()],
-    end_time: [rules.required()],
-    type: [rules.required()],
+  const errors = validate(req.body || {}, {
+    start_time: [rules.required],
+    end_time:   [rules.required],
+    type:       [rules.required],
+    title:      [rules.maxLen(255), rules.noScript],
+    notes:      [rules.maxLen(2000), rules.noScript],
+    recurring_rule: [rules.maxLen(255)],
   });
-
-  if (!validation.valid) return sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', validation.errors);
+  if (errors) return sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', { fields: errors });
 
   if (!AVAILABILITY_TYPES.includes(type)) {
     return sendError(res, 400, 'Invalid availability type', 'INVALID_TYPE');
   }
 
-  const start = new Date(start_time);
-  const end = new Date(end_time);
-
+  const start = parseDate(start_time);
+  const end = parseDate(end_time);
+  if (!start || !end) {
+    return sendError(res, 400, 'start_time / end_time must be valid timestamps', 'INVALID_TIME');
+  }
   if (end <= start) {
     return sendError(res, 400, 'End time must be after start time', 'INVALID_TIME_RANGE');
   }
+  const recurringUntil = parseDate(recurring_until);
 
   try {
-    const result = await db.query(
-      `INSERT INTO availability_blocks (
-        helper_id, start_time, end_time, type, title, notes, recurring_rule, recurring_until
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *`,
-      [helper_id, start, end, type, title, notes, recurring_rule, recurring_until]
+    const r = await pool.query(
+      `INSERT INTO availability_blocks
+         (helper_id, start_time, end_time, type, title, notes, recurring_rule, recurring_until)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [helperId, start, end, type, title, notes, recurring_rule, recurringUntil]
     );
 
     logger.info('Availability block created', {
-      helper_id,
-      block_id: result.rows[0].id,
-      type,
-      start_time: start.toISOString(),
+      helperId, blockId: r.rows[0].id, type,
     });
-
-    return sendSuccess(res, result.rows[0], 201);
+    return sendSuccess(res, r.rows[0], 201);
   } catch (err) {
-    logger.error('Failed to create availability block', { err, helper_id });
+    logger.error('Failed to create availability block', { err: err.message, helperId });
     return sendError(res, 500, 'Failed to create availability block', 'INTERNAL_ERROR');
   }
 };
 
-// Get availability blocks for helper
+// ─── getAvailabilityBlocks (any helper, public-ish) ──────────
 exports.getAvailabilityBlocks = async (req, res) => {
   const { helper_id } = req.params;
-  const { from_date, to_date, type, limit = 100, offset = 0 } = req.query;
+  if (!isUuid(helper_id)) {
+    return sendError(res, 400, 'helper_id must be a valid UUID', 'VALIDATION_ERROR');
+  }
+  return queryAvailabilityBlocks(res, helper_id, req.query);
+};
 
-  const limit_int = Math.min(parseInt(limit) || 100, 500);
-  const offset_int = Math.max(0, parseInt(offset) || 0);
+// ─── getMyAvailabilityBlocks ─────────────────────────────────
+exports.getMyAvailabilityBlocks = async (req, res) => {
+  return queryAvailabilityBlocks(res, req.user.id, req.query);
+};
+
+async function queryAvailabilityBlocks(res, helperId, query) {
+  const { type } = query;
+  const fromDate = parseDate(query.from_date);
+  const toDate = parseDate(query.to_date);
+  const limit = clampInt(query.limit, 100, 1, 500);
+  const offset = clampInt(query.offset, 0, 0, 100000);
+
+  const conditions = ['helper_id = $1'];
+  const params = [helperId];
+
+  if (fromDate) {
+    params.push(fromDate);
+    conditions.push(`end_time   >= $${params.length}`);
+  }
+  if (toDate) {
+    params.push(toDate);
+    conditions.push(`start_time <= $${params.length}`);
+  }
+  if (type && AVAILABILITY_TYPES.includes(type)) {
+    params.push(type);
+    conditions.push(`type = $${params.length}`);
+  }
+
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
   try {
-    let query = `SELECT * FROM availability_blocks WHERE helper_id = $1`;
-    const params = [helper_id];
-
-    if (from_date) {
-      query += ` AND start_time >= $${params.length + 1}`;
-      params.push(new Date(from_date));
-    }
-
-    if (to_date) {
-      query += ` AND end_time <= $${params.length + 1}`;
-      params.push(new Date(to_date));
-    }
-
-    if (type && AVAILABILITY_TYPES.includes(type)) {
-      query += ` AND type = $${params.length + 1}`;
-      params.push(type);
-    }
-
-    // Get count
-    const countResult = await db.query(
-      `SELECT COUNT(*) as count FROM availability_blocks WHERE helper_id = $1 ${from_date ? 'AND start_time >= $2' : ''} ${to_date ? (from_date ? 'AND end_time <= $3' : 'AND end_time <= $2') : ''}`,
-      params.slice(0, from_date && to_date ? 3 : from_date || to_date ? 2 : 1)
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM availability_blocks ${whereClause}`,
+      params
     );
+    const total = countRes.rows[0]?.count || 0;
 
-    const total = parseInt(countResult.rows[0].count);
-
-    query += ` ORDER BY start_time ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(limit_int, offset_int);
-
-    const result = await db.query(query, params);
+    const dataParams = params.slice();
+    dataParams.push(limit);
+    dataParams.push(offset);
+    const rowsRes = await pool.query(
+      `SELECT * FROM availability_blocks
+       ${whereClause}
+       ORDER BY start_time ASC
+       LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
+      dataParams
+    );
 
     return sendSuccess(res, {
-      blocks: result.rows,
+      blocks: rowsRes.rows,
       total,
-      limit: limit_int,
-      offset: offset_int,
-      hasMore: offset_int + limit_int < total
+      limit,
+      offset,
+      hasMore: offset + limit < total,
     });
   } catch (err) {
-    logger.error('Failed to fetch availability blocks', { err, helper_id });
+    logger.error('Failed to fetch availability blocks', { err: err.message, helperId });
     return sendError(res, 500, 'Failed to fetch availability blocks', 'INTERNAL_ERROR');
   }
-};
+}
 
-// Get my availability blocks (authenticated helper)
-exports.getMyAvailabilityBlocks = async (req, res) => {
-  const helper_id = req.user.id;
-  const { from_date, to_date, type, limit = 100, offset = 0 } = req.query;
-
-  return exports.getAvailabilityBlocks(
-    { params: { helper_id }, query: { from_date, to_date, type, limit, offset } },
-    res
-  );
-};
-
-// Update availability block
+// ─── updateAvailabilityBlock ─────────────────────────────────
 exports.updateAvailabilityBlock = async (req, res) => {
   const { id } = req.params;
-  const { start_time, end_time, type, title, notes, recurring_rule, recurring_until } = req.body;
-  const helper_id = req.user.id;
+  const helperId = req.user.id;
+  const {
+    start_time, end_time, type,
+    title, notes,
+    recurring_rule, recurring_until,
+  } = req.body || {};
+
+  if (!/^\d+$/.test(String(id))) {
+    return sendError(res, 400, 'Invalid block id', 'VALIDATION_ERROR');
+  }
+  if (type !== undefined && !AVAILABILITY_TYPES.includes(type)) {
+    return sendError(res, 400, 'Invalid availability type', 'INVALID_TYPE');
+  }
+  if (start_time !== undefined && !parseDate(start_time)) {
+    return sendError(res, 400, 'Invalid start_time', 'INVALID_TIME');
+  }
+  if (end_time !== undefined && !parseDate(end_time)) {
+    return sendError(res, 400, 'Invalid end_time', 'INVALID_TIME');
+  }
+  if (start_time && end_time) {
+    const s = parseDate(start_time);
+    const e = parseDate(end_time);
+    if (e <= s) {
+      return sendError(res, 400, 'End time must be after start time', 'INVALID_TIME_RANGE');
+    }
+  }
 
   try {
-    // Verify ownership
-    const blockResult = await db.query(
-      `SELECT * FROM availability_blocks WHERE id = $1 AND helper_id = $2`,
-      [id, helper_id]
+    const owned = await pool.query(
+      'SELECT 1 FROM availability_blocks WHERE id = $1 AND helper_id = $2',
+      [id, helperId]
     );
-
-    if (blockResult.rows.length === 0) {
+    if (owned.rows.length === 0) {
       return sendError(res, 404, 'Availability block not found', 'NOT_FOUND');
     }
 
-    const block = blockResult.rows[0];
-
-    // Validate type if provided
-    if (type && !AVAILABILITY_TYPES.includes(type)) {
-      return sendError(res, 400, 'Invalid availability type', 'INVALID_TYPE');
-    }
-
-    // Validate times if provided
-    if (start_time && end_time) {
-      const start = new Date(start_time);
-      const end = new Date(end_time);
-      if (end <= start) {
-        return sendError(res, 400, 'End time must be after start time', 'INVALID_TIME_RANGE');
-      }
-    }
-
-    const result = await db.query(
-      `UPDATE availability_blocks SET
-        start_time = COALESCE($1, start_time),
-        end_time = COALESCE($2, end_time),
-        type = COALESCE($3, type),
-        title = COALESCE($4, title),
-        notes = COALESCE($5, notes),
-        recurring_rule = COALESCE($6, recurring_rule),
-        recurring_until = COALESCE($7, recurring_until),
-        updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8 RETURNING *`,
-      [start_time, end_time, type, title, notes, recurring_rule, recurring_until, id]
+    const r = await pool.query(
+      `UPDATE availability_blocks
+          SET start_time      = COALESCE($1::timestamptz, start_time),
+              end_time        = COALESCE($2::timestamptz, end_time),
+              type            = COALESCE($3, type),
+              title           = COALESCE($4, title),
+              notes           = COALESCE($5, notes),
+              recurring_rule  = COALESCE($6, recurring_rule),
+              recurring_until = COALESCE($7::timestamptz, recurring_until),
+              updated_at      = now()
+        WHERE id = $8 AND helper_id = $9
+        RETURNING *`,
+      [
+        start_time      ?? null,
+        end_time        ?? null,
+        type            ?? null,
+        title           ?? null,
+        notes           ?? null,
+        recurring_rule  ?? null,
+        recurring_until ?? null,
+        id, helperId,
+      ]
     );
 
-    logger.info('Availability block updated', {
-      helper_id,
-      block_id: id,
-      changes: { start_time, end_time, type }
-    });
-
-    return sendSuccess(res, result.rows[0]);
+    return sendSuccess(res, r.rows[0]);
   } catch (err) {
-    logger.error('Failed to update availability block', { err, id, helper_id });
+    logger.error('Failed to update availability block', { err: err.message, id, helperId });
     return sendError(res, 500, 'Failed to update availability block', 'INTERNAL_ERROR');
   }
 };
 
-// Delete availability block
+// ─── deleteAvailabilityBlock ─────────────────────────────────
 exports.deleteAvailabilityBlock = async (req, res) => {
   const { id } = req.params;
-  const helper_id = req.user.id;
+  const helperId = req.user.id;
+
+  if (!/^\d+$/.test(String(id))) {
+    return sendError(res, 400, 'Invalid block id', 'VALIDATION_ERROR');
+  }
 
   try {
-    const result = await db.query(
-      `DELETE FROM availability_blocks WHERE id = $1 AND helper_id = $2 RETURNING id`,
-      [id, helper_id]
+    const r = await pool.query(
+      'DELETE FROM availability_blocks WHERE id = $1 AND helper_id = $2 RETURNING id',
+      [id, helperId]
     );
-
-    if (result.rows.length === 0) {
+    if (r.rows.length === 0) {
       return sendError(res, 404, 'Availability block not found', 'NOT_FOUND');
     }
-
-    logger.info('Availability block deleted', { helper_id, block_id: id });
-
     return sendSuccess(res, { message: 'Availability block deleted' });
   } catch (err) {
-    logger.error('Failed to delete availability block', { err, id, helper_id });
+    logger.error('Failed to delete availability block', { err: err.message, id, helperId });
     return sendError(res, 500, 'Failed to delete availability block', 'INTERNAL_ERROR');
   }
 };
 
-// Get notification preferences
+// ─── getNotificationPreferences ──────────────────────────────
 exports.getNotificationPreferences = async (req, res) => {
-  const user_id = req.user.id;
-
+  const userId = req.user.id;
   try {
-    let result = await db.query(
-      `SELECT * FROM notification_preferences WHERE user_id = $1`,
-      [user_id]
+    let r = await pool.query(
+      'SELECT * FROM notification_preferences WHERE user_id = $1',
+      [userId]
     );
-
-    if (result.rows.length === 0) {
-      // Create default preferences
-      const defaultPrefs = {
-        user_id,
-        appointment_confirmed_channels: ['in_app', 'email'],
-        appointment_cancelled_channels: ['in_app', 'email'],
-        reminder_24h_channels: ['in_app', 'email'],
-        reminder_2h_channels: ['in_app'],
-        reminder_same_day_channels: ['in_app', 'sms'],
-        timezone: 'UTC'
-      };
-
-      result = await db.query(
-        `INSERT INTO notification_preferences
-        (user_id, appointment_confirmed_channels, appointment_cancelled_channels,
-         reminder_24h_channels, reminder_2h_channels, reminder_same_day_channels, timezone)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *`,
-        [
-          user_id,
-          defaultPrefs.appointment_confirmed_channels,
-          defaultPrefs.appointment_cancelled_channels,
-          defaultPrefs.reminder_24h_channels,
-          defaultPrefs.reminder_2h_channels,
-          defaultPrefs.reminder_same_day_channels,
-          defaultPrefs.timezone
-        ]
+    if (r.rows.length === 0) {
+      // Create default row using DB-level defaults — let Postgres fill them
+      r = await pool.query(
+        `INSERT INTO notification_preferences (user_id)
+         VALUES ($1)
+         ON CONFLICT (user_id) DO NOTHING
+         RETURNING *`,
+        [userId]
       );
+      // ON CONFLICT DO NOTHING returns 0 rows when a parallel request inserted first
+      if (r.rows.length === 0) {
+        r = await pool.query(
+          'SELECT * FROM notification_preferences WHERE user_id = $1',
+          [userId]
+        );
+      }
     }
-
-    return sendSuccess(res, result.rows[0]);
+    return sendSuccess(res, r.rows[0]);
   } catch (err) {
-    logger.error('Failed to fetch notification preferences', { err, user_id });
+    logger.error('Failed to fetch notification preferences', { err: err.message, userId });
     return sendError(res, 500, 'Failed to fetch notification preferences', 'INTERNAL_ERROR');
   }
 };
 
-// Update notification preferences
+// ─── updateNotificationPreferences ───────────────────────────
 exports.updateNotificationPreferences = async (req, res) => {
-  const user_id = req.user.id;
+  const userId = req.user.id;
   const {
     appointment_confirmed_channels,
     appointment_cancelled_channels,
     reminder_24h_channels,
     reminder_2h_channels,
     reminder_same_day_channels,
-    quiet_hours_start,
-    quiet_hours_end,
-    timezone
-  } = req.body;
+    quiet_hours_start = null,
+    quiet_hours_end = null,
+    timezone = null,
+  } = req.body || {};
+
+  // Sanitize each channel array (TEXT[] in DB — pg accepts JS arrays directly)
+  const confirmed = sanitizeChannelArray(appointment_confirmed_channels);
+  const cancelled = sanitizeChannelArray(appointment_cancelled_channels);
+  const r24 = sanitizeChannelArray(reminder_24h_channels);
+  const r2  = sanitizeChannelArray(reminder_2h_channels);
+  const rsd = sanitizeChannelArray(reminder_same_day_channels);
+
+  // Reject obviously bad timezone strings
+  if (timezone && (typeof timezone !== 'string' || timezone.length > 50)) {
+    return sendError(res, 400, 'Invalid timezone', 'VALIDATION_ERROR');
+  }
+  if (timezone) {
+    try {
+      // Throws if timezone is unknown
+      // eslint-disable-next-line no-new
+      new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+    } catch {
+      return sendError(res, 400, 'Unknown timezone identifier', 'VALIDATION_ERROR');
+    }
+  }
+
+  // Reject obviously bad TIME strings (HH:MM or HH:MM:SS)
+  const HHMM = /^\d{1,2}:\d{2}(:\d{2})?$/;
+  if (quiet_hours_start && !HHMM.test(String(quiet_hours_start))) {
+    return sendError(res, 400, 'Invalid quiet_hours_start (HH:MM)', 'VALIDATION_ERROR');
+  }
+  if (quiet_hours_end && !HHMM.test(String(quiet_hours_end))) {
+    return sendError(res, 400, 'Invalid quiet_hours_end (HH:MM)', 'VALIDATION_ERROR');
+  }
 
   try {
-    // Ensure preferences exist
-    await db.query(
+    // Make sure a row exists (DB defaults fill everything)
+    await pool.query(
       `INSERT INTO notification_preferences (user_id)
-       VALUES ($1)
-       ON CONFLICT (user_id) DO NOTHING`,
-      [user_id]
+         VALUES ($1)
+         ON CONFLICT (user_id) DO NOTHING`,
+      [userId]
     );
 
-    const result = await db.query(
-      `UPDATE notification_preferences SET
-        appointment_confirmed_channels = COALESCE($1, appointment_confirmed_channels),
-        appointment_cancelled_channels = COALESCE($2, appointment_cancelled_channels),
-        reminder_24h_channels = COALESCE($3, reminder_24h_channels),
-        reminder_2h_channels = COALESCE($4, reminder_2h_channels),
-        reminder_same_day_channels = COALESCE($5, reminder_same_day_channels),
-        quiet_hours_start = COALESCE($6, quiet_hours_start),
-        quiet_hours_end = COALESCE($7, quiet_hours_end),
-        timezone = COALESCE($8, timezone),
-        updated_at = CURRENT_TIMESTAMP
-       WHERE user_id = $9 RETURNING *`,
+    const r = await pool.query(
+      `UPDATE notification_preferences
+          SET appointment_confirmed_channels = COALESCE($1::text[], appointment_confirmed_channels),
+              appointment_cancelled_channels = COALESCE($2::text[], appointment_cancelled_channels),
+              reminder_24h_channels          = COALESCE($3::text[], reminder_24h_channels),
+              reminder_2h_channels           = COALESCE($4::text[], reminder_2h_channels),
+              reminder_same_day_channels     = COALESCE($5::text[], reminder_same_day_channels),
+              quiet_hours_start              = COALESCE($6::time,    quiet_hours_start),
+              quiet_hours_end                = COALESCE($7::time,    quiet_hours_end),
+              timezone                       = COALESCE($8,          timezone),
+              updated_at                     = now()
+        WHERE user_id = $9
+        RETURNING *`,
       [
-        appointment_confirmed_channels ? JSON.stringify(appointment_confirmed_channels) : null,
-        appointment_cancelled_channels ? JSON.stringify(appointment_cancelled_channels) : null,
-        reminder_24h_channels ? JSON.stringify(reminder_24h_channels) : null,
-        reminder_2h_channels ? JSON.stringify(reminder_2h_channels) : null,
-        reminder_same_day_channels ? JSON.stringify(reminder_same_day_channels) : null,
-        quiet_hours_start,
-        quiet_hours_end,
-        timezone,
-        user_id
+        confirmed, cancelled, r24, r2, rsd,
+        quiet_hours_start, quiet_hours_end, timezone,
+        userId,
       ]
     );
 
-    logger.info('Notification preferences updated', { user_id });
-
-    return sendSuccess(res, result.rows[0]);
+    logger.info('Notification preferences updated', { userId });
+    return sendSuccess(res, r.rows[0]);
   } catch (err) {
-    logger.error('Failed to update notification preferences', { err, user_id });
+    logger.error('Failed to update notification preferences', { err: err.message, userId });
     return sendError(res, 500, 'Failed to update notification preferences', 'INTERNAL_ERROR');
   }
 };

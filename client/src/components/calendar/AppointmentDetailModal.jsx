@@ -72,24 +72,24 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
             <h3>{t('calendar.appointmentInfo')}</h3>
             <div className="adm-detail">
               <label>{t('calendar.date')}</label>
-              <value>{startTime.toLocaleDateString()}</value>
+              <div className="adm-value">{startTime.toLocaleDateString()}</div>
             </div>
             <div className="adm-detail">
               <label>{t('calendar.time')}</label>
-              <value>
+              <div className="adm-value">
                 {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
                 {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </value>
+              </div>
             </div>
             <div className="adm-detail">
               <label>{t('calendar.duration')}</label>
-              <value>{Math.round((endTime - startTime) / (1000 * 60))} {t('calendar.minutes')}</value>
+              <div className="adm-value">{Math.round((endTime - startTime) / (1000 * 60))} {t('calendar.minutes')}</div>
             </div>
             <div className="adm-detail">
               <label>{t('calendar.status')}</label>
-              <value className={`adm-status adm-status-${appointment.status}`}>
+              <div className={`adm-value adm-status adm-status-${appointment.status}`}>
                 {t(`calendar.status${appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}`)}
-              </value>
+              </div>
             </div>
           </div>
 
@@ -97,7 +97,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
             <h3>{isCustomer ? t('calendar.helperInfo') : t('calendar.customerInfo')}</h3>
             <div className="adm-detail">
               <label>{t('calendar.name')}</label>
-              <value className="adm-person">
+              <div className="adm-value adm-person">
                 {isCustomer ? (
                   <>
                     {appointment.helper_avatar && <img src={appointment.helper_avatar} alt="" />}
@@ -109,7 +109,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
                     {appointment.customer_name}
                   </>
                 )}
-              </value>
+              </div>
             </div>
           </div>
 
@@ -117,24 +117,24 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
             <h3>{t('calendar.serviceDetails')}</h3>
             <div className="adm-detail">
               <label>{t('calendar.service')}</label>
-              <value>{appointment.service_description}</value>
+              <div className="adm-value">{appointment.service_description}</div>
             </div>
             {appointment.location_address && (
               <div className="adm-detail">
                 <label>{t('calendar.location')}</label>
-                <value>{appointment.location_address}</value>
+                <div className="adm-value">{appointment.location_address}</div>
               </div>
             )}
             {appointment.customer_notes && (
               <div className="adm-detail">
                 <label>{t('calendar.customerNotes')}</label>
-                <value>{appointment.customer_notes}</value>
+                <div className="adm-value">{appointment.customer_notes}</div>
               </div>
             )}
             {appointment.helper_notes && (
               <div className="adm-detail">
                 <label>{t('calendar.helperNotes')}</label>
-                <value>{appointment.helper_notes}</value>
+                <div className="adm-value">{appointment.helper_notes}</div>
               </div>
             )}
           </div>

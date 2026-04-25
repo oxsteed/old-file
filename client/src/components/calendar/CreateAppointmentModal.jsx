@@ -31,7 +31,7 @@ export default function CreateAppointmentModal({ onClose, onCreated }) {
     try {
       setSearchingHelpers(true);
       const res = await api.get('/helpers/list', {
-        params: { search: query, limit: 10 }
+        params: { query, limit: 10 }
       });
       setHelpers(res.data.helpers || []);
     } catch (err) {
@@ -49,7 +49,7 @@ export default function CreateAppointmentModal({ onClose, onCreated }) {
 
   const handleSelectHelper = (helper) => {
     setForm((prev) => ({ ...prev, helper_id: helper.id }));
-    setSearchHelpers(helper.first_name + ' ' + helper.last_name);
+    setSearchHelpers(helper.ownerName || helper.businessName || '');
     setHelpers([]);
   };
 
@@ -77,12 +77,13 @@ export default function CreateAppointmentModal({ onClose, onCreated }) {
     try {
       setLoading(true);
       await api.post('/calendar/appointments', {
-        helper_id: parseInt(form.helper_id),
+        // helper_id is a UUID string — never parseInt it
+        helper_id: form.helper_id,
         service_description: form.service_description,
         scheduled_start_time: startTime.toISOString(),
         scheduled_end_time: endTime.toISOString(),
         location_address: form.location_address || null,
-        estimated_duration_minutes: parseInt(form.estimated_duration_minutes),
+        estimated_duration_minutes: parseInt(form.estimated_duration_minutes, 10) || 60,
         customer_notes: form.customer_notes || null
       });
 
@@ -122,10 +123,14 @@ export default function CreateAppointmentModal({ onClose, onCreated }) {
                 <ul className="cam-helper-list">
                   {helpers.map((helper) => (
                     <li key={helper.id} onClick={() => handleSelectHelper(helper)}>
-                      {helper.avatar_url && <img src={helper.avatar_url} alt="" />}
+                      {helper.avatar && <img src={helper.avatar} alt="" />}
                       <div>
-                        <div className="cam-helper-name">{helper.first_name} {helper.last_name}</div>
-                        <div className="cam-helper-category">{helper.category_name}</div>
+                        <div className="cam-helper-name">{helper.ownerName || helper.businessName}</div>
+                        <div className="cam-helper-category">
+                          {Array.isArray(helper.categories) && helper.categories.length > 0
+                            ? helper.categories.slice(0, 2).join(', ')
+                            : ''}
+                        </div>
                       </div>
                     </li>
                   ))}
