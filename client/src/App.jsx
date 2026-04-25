@@ -52,6 +52,7 @@ import DiscoverPage from './pages/DiscoverPage';
 import MyBookingsPage from './pages/MyBookingsPage';
 import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
 import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
+import ConsultingFullPortal from './pages/ConsultingFullPortal';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -150,6 +151,9 @@ export default function App() {
 
                     {/* Pro feature: QR Code Generator */}
                     <Route path="/qr-generator"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* Consulting Portal (All Phases) */}
+                    <Route path="/consulting/portal" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingFullPortal /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
