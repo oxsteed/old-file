@@ -682,18 +682,33 @@ function Step2SkillOffer({ form, handleInputChange }) {
           <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>
             {COUNTRIES_WITH_REGIONS[form.operating_country]?.regionLabel || 'City'} *
           </label>
-          <select
-            name="operating_state"
-            value={form.operating_state}
-            onChange={handleInputChange}
-            style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
-            required
-          >
-            <option value="">Select {COUNTRIES_WITH_REGIONS[form.operating_country]?.regionLabel || 'city'}</option>
-            {COUNTRIES_WITH_REGIONS[form.operating_country]?.regions.map(region => (
-              <option key={region} value={region}>{region}</option>
-            ))}
-          </select>
+
+          {COUNTRIES_WITH_REGIONS[form.operating_country] ? (
+            // Countries WITH predefined regions/states
+            <select
+              name="operating_state"
+              value={form.operating_state}
+              onChange={handleInputChange}
+              style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
+              required
+            >
+              <option value="">Select {COUNTRIES_WITH_REGIONS[form.operating_country].regionLabel}</option>
+              {COUNTRIES_WITH_REGIONS[form.operating_country].regions.map(region => (
+                <option key={region} value={region}>{region}</option>
+              ))}
+            </select>
+          ) : (
+            // Countries WITHOUT predefined regions (show text input for city)
+            <input
+              type="text"
+              name="operating_state"
+              value={form.operating_state}
+              onChange={handleInputChange}
+              placeholder={`e.g. Port-au-Prince, Cap-Haïtien, Les Cayes`}
+              style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
+              required
+            />
+          )}
         </div>
       )}
     </>
