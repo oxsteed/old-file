@@ -149,7 +149,7 @@ const COUNTRIES_WITH_REGIONS = {
 
 // Countries without regions (show city selector)
 const COUNTRIES_WITHOUT_REGIONS = [
-  'AR', 'AT', 'BE', 'BR', 'CH', 'CL', 'CO', 'CR', 'CZ', 'DK', 'DO', 'EC', 'EG', 'ES', 'FI', 'GR', 'HK', 'HU', 'ID', 'IE', 'IL', 'IT', 'JP', 'KR', 'MX', 'MY', 'NG', 'NZ', 'PA', 'PE', 'PH', 'PL', 'PT', 'RO', 'RU', 'SA', 'SE', 'SG', 'TH', 'TR', 'UA', 'VN', 'ZA',
+  'AR', 'AT', 'BE', 'BR', 'CH', 'CL', 'CO', 'CR', 'CZ', 'DK', 'DO', 'EC', 'EG', 'ES', 'FI', 'GR', 'HK', 'HT', 'HU', 'ID', 'IE', 'IL', 'IT', 'JP', 'KR', 'MX', 'MY', 'NG', 'NZ', 'PA', 'PE', 'PH', 'PL', 'PT', 'RO', 'RU', 'SA', 'SE', 'SG', 'TH', 'TR', 'UA', 'VN', 'ZA',
 ];
 
 // All countries
@@ -174,6 +174,7 @@ const ALL_COUNTRIES = {
   'FI': 'Finland',
   'GR': 'Greece',
   'HK': 'Hong Kong',
+  'HT': 'Haiti',
   'HU': 'Hungary',
   'ID': 'Indonesia',
   'IE': 'Ireland',
