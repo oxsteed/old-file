@@ -444,11 +444,13 @@ const { startPlannedNeedsScheduler }    = require('./jobs/plannedNeedsScheduler'
 const { startDiscoverDigestJob }        = require('./jobs/discoverDigest');
 const { startConversationRetentionCleanup } = require('./jobs/conversationRetentionCleanup');
 const { startGuestChatSessionTimeoutJob } = require('./jobs/guestChatSessionTimeout');
+const { startConsultingSessionReminders } = require('./jobs/consultingSessionReminders');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
 startConversationRetentionCleanup();
 startGuestChatSessionTimeoutJob();
+startConsultingSessionReminders();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
