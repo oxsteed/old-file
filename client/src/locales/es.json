@@ -4168,5 +4168,8 @@
       "download": "Descargar",
       "noDeliverables": "Sin entregables aún. ¡Vuelve pronto!"
     }
+  },
+  "businessLaunchAdmin": {
+    "statusUpdated": "Estado actualizado correctamente"
   }
 }

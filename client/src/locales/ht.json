@@ -4167,5 +4167,8 @@
       "download": "Telechaje",
       "noDeliverables": "Poko gen delivrab. Vin ankò!"
     }
+  },
+  "businessLaunchAdmin": {
+    "statusUpdated": "Estati miz ajou avèk siksè"
   }
 }

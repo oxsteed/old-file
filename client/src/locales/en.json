@@ -4168,5 +4168,8 @@
       "download": "Download",
       "noDeliverables": "No deliverables available yet. Check back soon!"
     }
+  },
+  "businessLaunchAdmin": {
+    "statusUpdated": "Status updated successfully"
   }
 }
