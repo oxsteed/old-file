@@ -275,7 +275,6 @@ export default function ConsultingIntakePage() {
 
   // Get all setup items as flat array
   const allSetupItems = Object.values(SETUP_ITEMS_GROUPED).flatMap(group => group);
-  const selectedCount = form.setup_items_selected.length;
 
   return (
     <PageShell>
@@ -755,6 +754,7 @@ function Step4PackageSelection({ form, setForm }) {
 function Step5Confirmation({ form }) {
   const pkgName = form.package_selected && PACKAGES[form.package_selected]?.name;
   const pkgPrice = form.package_selected && PACKAGES[form.package_selected]?.price;
+  const selectedCount = form.setup_items_selected.length;
   const selectedLabels = Object.values(SETUP_ITEMS_GROUPED)
     .flatMap(group => group)
     .filter(item => form.setup_items_selected.includes(item.id))
