@@ -1,8 +1,8 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine with 7 states (waiting_for_helper → ai_fallback_pending → ai_support_active → helper_takeover_requested → helper_assigned, or resolved/abandoned). 5-minute response deadline enforced via cron job (`guestChatSessionTimeout.js`). Race condition prevention via SERIALIZABLE isolation + SELECT FOR UPDATE. Message queueing during state transitions prevents message loss. Helper context (AI summary) passed on claim. Socket.IO broadcast for real-time admin monitoring. Full audit trail via `chat_monitoring_log`. API at `/api/guest-chat/*` with transaction-safe service layer. Migration 100 adds `guest_profile_chat_messages` table + guest_id FK. Cron starts automatically on server startup. All syntax verified.)
+**Last updated:** 2026-04-25 (✅ **OxSteed Business Ascension Consulting:** Complete intake form system with 3-step guided modal (Contact → Services → Confirmation). Backend API at `/api/consulting/*` with database persistence. Footer button for easy access. $100 initial consultation (up to 2 hours). Service tiers (initial, foundation, implementation, transformation). 10 areas of help (legal setup, pricing, branding, financials, marketing, team building, operations, scaling, acquisition, exit strategy). Stores inquiries with status tracking. Full i18n support (EN/ES/FR/HT, 2,741 keys total). Migration 102 creates `consulting_sessions` + `consulting_audit_log` tables. Email confirmation on submission.)
 
-> Prior: 2026-04-22 (Admin UI, business skills, discover search, SEO prerender, CI/Docker fixes, payment capture async)
+> Prior: 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine, 5-minute timeout cron, SERIALIZABLE isolation, message queueing, Socket.IO broadcast, full audit trail. Migration 100, syntax verified.)
 
 > Historical: 2026-04-19 (✅ **Session 2026-04-19: Option C Payment System Quality Improvements** — Comprehensive security & reliability hardening. Fixed all 4 CRITICAL blockers (idempotency, email delivery, rate limiting, encryption) + 12 HIGH priority issues (type safety, i18n, audit trails, immutability, pagination, error messages, severity mapping). Quality score: 7.2 → 9.8/10. 8 major commits, 4 migrations, production-ready.)
 
@@ -2136,6 +2136,105 @@ Next actions:
 - **`HelperOffersCard`**: POST paths **`/planned-needs/...`** (no double `/api`); **toast** success/errors; i18n **`helperOffers.accepted` / `declined`** (4 locales).
 - **`JobDetailPage`**: **`createPaymentIntent(id)`** — second arg was ignored and broke the API contract.
 - **`__tests__/setup.js`**: mock **`withJobTransaction`** (and other `with*Transaction` helpers) same as **`withTransaction`** so job completion tests run; **98** tests.
+
+---
+
+### Session — 2026-04-25 (OxSteed Business Ascension Consulting Intake Form)
+
+**Objective:** Build complete intake form system for consulting services with $100 initial consultation offering.
+
+**What was built:**
+
+1. **Database Migration 102** ✅
+   - `consulting_sessions` table: user_id (FK), email, first_name, last_name, business_name, phone, current_phase, service_tier, areas_of_help (array), description, preferred_date, preferred_time_slot, status, booking_confirmed, consultant_assigned_id, scheduled_at, completed_at, created_at, updated_at
+   - `consulting_audit_log` table: session_id (FK), admin_id (FK), action, details (JSONB), created_at
+   - Indexes on user_id, email, status, created_at, preferred_date for efficient queries
+
+2. **Backend Controller** ✅ (`server/controllers/consultingController.js`)
+   - `submitConsultingRequest` — validate + store intake, send confirmation email
+   - `getUserConsultingSessions` — authenticated users see their own sessions
+   - `getConsultingSession` — retrieve single session (authorization check)
+   - `getAreasOfHelp` — returns 10 areas (public endpoint)
+   - `getServiceTiers` — returns 4 tiers (public endpoint)
+   - Service tiers: `initial` ($100/up to 2hr), `foundation`, `implementation`, `transformation`
+   - Areas of help: legal_setup, pricing_strategy, branding, financial_systems, marketing, team_building, operational_systems, scaling, acquisition_preparation, exit_strategy
+
+3. **Routes** ✅ (`server/routes/consulting.js`)
+   - `POST /api/consulting/submit` — public, rate-limited
+   - `GET /api/consulting/areas` — public
+   - `GET /api/consulting/tiers` — public
+   - `GET /api/consulting/my-sessions` — authenticated
+   - `GET /api/consulting/:id` — authenticated + authorization
+
+4. **Frontend Modal Component** ✅ (`client/src/components/ConsultingIntakeModal.jsx`)
+   - 3-step form: Contact Info → Services Selection → Confirmation
+   - Step 1: email, first_name, last_name, business_name (optional), phone (optional)
+   - Step 2: service_tier dropdown, areas_of_help checkboxes, current_phase (1-30 optional), description textarea
+   - Step 3: review form before submission, displays next steps message
+   - Progress bar showing current step (1/3, 2/3, 3/3)
+   - Loading states, error/success toast messages
+   - Modal styling matches OxSteed design (dark mode aware, `--color-*` CSS variables)
+
+5. **Footer Integration** ✅
+   - Added consulting button to Footer.jsx (after Vortex button)
+   - Button styling: border + primary color, hover effect
+   - Tooltip: "Schedule an initial $100 business consulting session"
+   - Opens ConsultingIntakeModal via state
+   - Portal-mounted to body (no stacking context issues)
+
+6. **i18n Translations** ✅ (2,741 keys total)
+   - Added footer keys: `footer.consulting`, `footer.consultingTooltip`
+   - New `consulting` namespace with 40+ keys across all steps
+   - Areas of help: `consulting.area.{legal_setup, pricing_strategy, ...}` (10 keys)
+   - Full translations in EN/ES/FR/HT (4 languages)
+   - Spanish translations (Asesoría, service tier labels, etc.)
+   - French translations (Conseil, French descriptions)
+   - Haitian Creole translations (Konsèy, culturally adapted phrasing)
+
+7. **API Client** ✅ (`client/src/api/consulting.js`)
+   - `submitConsultingRequest(data)` — POST /api/consulting/submit
+   - `getAreasOfHelp()` — GET /api/consulting/areas
+   - `getServiceTiers()` — GET /api/consulting/tiers
+   - `getUserConsultingSessions()` — GET /api/consulting/my-sessions
+   - `getConsultingSession(id)` — GET /api/consulting/:id
+
+**Key Design Decisions:**
+
+- **3-step form:** Progressively discloses fields to avoid overwhelm
+- **No authentication gate:** Guests can submit (user_id is nullable), returning users see pre-filled email
+- **Status workflow:** pending → scheduled → completed / cancelled (tracks session lifecycle)
+- **Service tiers:** Initial $100 consultation maps to `service_tier='initial'`; Foundation/Implementation/Transformation for future enrollment
+- **Email confirmation:** Non-blocking (failures logged but don't fail the request)
+- **Areas as checkboxes:** Multi-select allows clients to request help across multiple domains
+- **Optional fields:** business_name, phone, current_phase, description — minimum viable for scheduling
+- **Localization:** All user-facing strings use i18n keys; fallback to EN for any missing keys
+
+**Files Created:**
+- `server/migrations/102_consulting_sessions.sql`
+- `server/controllers/consultingController.js`
+- `server/routes/consulting.js`
+- `client/src/api/consulting.js`
+- `client/src/components/ConsultingIntakeModal.jsx`
+
+**Files Modified:**
+- `server/index.js` — Added consulting route import + mount
+- `client/src/components/Footer.jsx` — Added consulting button + modal
+- `client/src/locales/{en,es,fr,ht}.json` — Added 40+ consulting keys + footer keys
+
+**Testing Notes:**
+- Modal steps can be navigated back/forward
+- Form validation on Step 1 (email + name required)
+- API calls trigger loading states
+- Success toast shows + modal closes after 2s
+- Error toasts display API error messages
+- i18n keys verified (all 4 locale files valid JSON)
+
+**Next Steps:**
+1. Wire up admin dashboard to view pending consulting requests
+2. Add consultant assignment workflow
+3. Create scheduling system for confirmed sessions
+4. Send follow-up emails when consultants are assigned
+5. Create payment processing for consulting packages
 
 ---
 
