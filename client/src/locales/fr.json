@@ -1921,7 +1921,20 @@
     "jobLiveMessage": "Votre annonce est en direct. Les travailleurs qualifiés dans {{city}} peuvent maintenant la voir et soumettre des offres.",
     "yourArea": "votre région",
     "viewMyJobs": "Voir mes annonces",
-    "postAnotherJob": "Publier une autre annonce"
+    "postAnotherJob": "Publier une autre annonce",
+    "termsPrefix": "J'accepte les",
+    "termsOfService": "Conditions d'utilisation",
+    "termsAnd": "et",
+    "privacyPolicy": "Politique de confidentialité",
+    "termsConfirm": "Je confirme que les informations fournies sont exactes et que j'suis autorisé à publier cette annonce.",
+    "editRequiredSkills": "Modifier les compétences requises",
+    "editRequirements": "Modifier les exigences du travail",
+    "editBudget": "Modifier le budget",
+    "editUrgency": "Modifier l'urgence",
+    "editNotes": "Modifier les notes",
+    "editMedia": "Modifier les médias",
+    "viewMyJobsAriaLabel": "Accéder au tableau de bord pour voir vos annonces publiées",
+    "postAnotherJobAriaLabel": "Effacer le formulaire pour publier une autre annonce"
   },
   "jobDetail": {
     "bidNow": "Faire une offre",

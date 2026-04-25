@@ -1988,7 +1988,20 @@
     "jobLiveMessage": "Travay ou a viv. Travayè kalifye nan {{city}} ka wè li epi soumèt òf.",
     "yourArea": "zòn ou",
     "viewMyJobs": "Gade Travay Mwen",
-    "postAnotherJob": "Poste Yon Lòt Travay"
+    "postAnotherJob": "Poste Yon Lòt Travay",
+    "termsPrefix": "Mwen dakò ak",
+    "termsOfService": "Tèm Sèvis yo",
+    "termsAnd": "ak",
+    "privacyPolicy": "Politk Priva yo",
+    "termsConfirm": "Mwen konfime ke enfòmasyon yo bay yo egzak epi mwen otorize pou poste travay sa a.",
+    "editRequiredSkills": "Modifye konpetans ki nesesè",
+    "editRequirements": "Modifye kondisyon travay",
+    "editBudget": "Modifye bidjè",
+    "editUrgency": "Modifye ijans",
+    "editNotes": "Modifye nòt",
+    "editMedia": "Modifye medya",
+    "viewMyJobsAriaLabel": "Ale nan tablo bò pou gade travay ou poste",
+    "postAnotherJobAriaLabel": "Efase fòm pou poste yon lòt travay"
   },
   "jobDetail": {
     "bidNow": "Fè Òf sou Travay sa",
