@@ -97,6 +97,39 @@ exports.scheduleSession = async (req, res) => {
     const meetingUrl = `https://zoom.us/j/session${session_id}`;
     await db.query('UPDATE consulting_sessions_scheduled SET meeting_url=$1 WHERE id=$2', [meetingUrl, scheduled.id]);
 
+    // Fetch customer details and send scheduling confirmation email
+    const sessionData = await db.query(
+      'SELECT email, first_name FROM consulting_sessions WHERE id = $1',
+      [session_id]
+    );
+
+    if (sessionData.rows.length > 0) {
+      const { email, first_name } = sessionData.rows[0];
+      const dateObj = new Date(`${scheduled_date}T${scheduled_time}`);
+      const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const formattedTime = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+      // Send confirmation email to customer
+      sendEmail({
+        to: email,
+        subject: 'Your OxSteed Consulting Session is Scheduled',
+        html: `
+          <p>Hi ${first_name},</p>
+          <p>Your consulting session with OxSteed has been scheduled!</p>
+          <p><strong>Session Details:</strong></p>
+          <ul>
+            <li><strong>Date:</strong> ${formattedDate}</li>
+            <li><strong>Time:</strong> ${formattedTime} (${duration_minutes || 120} minutes)</li>
+            <li><strong>Type:</strong> ${meeting_type || 'zoom'}</li>
+            <li><strong>Meeting Link:</strong> <a href="${meetingUrl}">${meetingUrl}</a></li>
+          </ul>
+          <p>Please click the link above or copy and paste it into your browser 5 minutes before the scheduled time.</p>
+          <p>If you need to reschedule or have any questions, please contact our team.</p>
+          <p>Best regards,<br>The OxSteed Consulting Team</p>
+        `,
+      }).catch(err => logger.warn('Failed to send scheduling confirmation email', { error: err.message, session_id, email }));
+    }
+
     logger.info('Session scheduled', { session_id, scheduled_date });
     res.json({ ...scheduled, meeting_url: meetingUrl });
   } catch (err) {
@@ -158,11 +191,18 @@ exports.addDeliverable = async (req, res) => {
 // PHASE 3: Add Action Item
 exports.addActionItem = async (req, res) => {
   const { session_id, title, description, assigned_to_type, due_date, priority } = req.body;
+
+  // Validate assigned_to_type
+  const validAssignedTypes = ['client', 'consultant'];
+  if (assigned_to_type && !validAssignedTypes.includes(assigned_to_type.toLowerCase())) {
+    return res.status(400).json({ error: 'Invalid assignment type' });
+  }
+
   try {
     const result = await db.query(
       `INSERT INTO consulting_action_items (session_id, title, description, assigned_to_type, due_date, priority)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [session_id, title, description, assigned_to_type, due_date, priority || 'medium']
+      [session_id, title, description, assigned_to_type?.toLowerCase() || 'client', due_date, priority?.toLowerCase() || 'medium']
     );
     res.json(result.rows[0]);
   } catch (err) {

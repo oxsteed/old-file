@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-25 (✅ **OxSteed Business Ascension Consulting:** Complete intake form system with 3-step guided modal (Contact → Services → Confirmation). Backend API at `/api/consulting/*` with database persistence. Footer button for easy access. $100 initial consultation (up to 2 hours). Service tiers (initial, foundation, implementation, transformation). 10 areas of help (legal setup, pricing, branding, financials, marketing, team building, operations, scaling, acquisition, exit strategy). Stores inquiries with status tracking. Full i18n support (EN/ES/FR/HT, 2,741 keys total). Migration 102 creates `consulting_sessions` + `consulting_audit_log` tables. Email confirmation on submission.)
+**Last updated:** 2026-04-25 (✅ **Comprehensive Code Quality & Critical Bug Fixes:** Fixed 3 CRITICAL errors (duplicate migration 103→104, missing invoiceController functions, incorrect SQL query WHERE clause), 2 HIGH priority issues (missing auth checks in payment endpoints, 12 console.error statements removed). Database schema now consistent, payment flow safe from authorization bypass, code complies with logging standards. All fixes committed and pushed. Branch ready for staging testing. Earlier: Admin Tabbed Interface Accessibility Hardening (W3C WAI-ARIA compliance, WCAG 2.1 Level AA). Full feature set: Advanced Scheduling + Analytics Dashboard + Action Items Admin UI (accessible + type-safe) + Customer Portal + Payment Processing + Invoice Management + Admin Sessions Dashboard + Admin Notes & Messaging.)
 
 > Prior: 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine, 5-minute timeout cron, SERIALIZABLE isolation, message queueing, Socket.IO broadcast, full audit trail. Migration 100, syntax verified.)
 
@@ -2235,6 +2235,170 @@ Next actions:
 3. Create scheduling system for confirmed sessions
 4. Send follow-up emails when consultants are assigned
 5. Create payment processing for consulting packages
+
+### Session — 2026-04-25 (Business Launch Admin Notes & Messaging System)
+
+**Objective:** Build comprehensive admin request management interface with internal notes and client messaging capabilities.
+
+**What was built:**
+
+1. **Database Migration 104** ✅
+   - `consulting_request_notes` table: id (UUID), request_id (FK), admin_id (FK), note_text, is_internal, created_at, updated_at
+   - `consulting_request_messages` table: id (UUID), request_id (FK), admin_id (FK), recipient_email, subject, message_html, message_plain, status (pending/sent/failed), sent_at, error_message, created_at
+   - Proper indexing on request_id, admin_id, status, created_at for efficient queries
+   - CASCADE delete on request ensures data cleanup
+
+2. **Backend Controller** ✅ (`server/controllers/businessLaunchNotesController.js`)
+   - `addNote()` — create internal admin note with is_internal=true flag
+   - `getNotes()` — retrieve notes for request with admin names (LEFT JOIN users)
+   - `deleteNote()` — creator or super_admin only authorization check
+   - `sendCustomMessage()` — queue message to client with tracking
+   - `getMessages()` — retrieve message history with delivery status
+   - `getMessageTemplates()` — 4 pre-configured templates:
+     * Kickoff Preparation
+     * Post-Kickoff Follow-up
+     * Setup Component Complete
+     * Pre-Launch Checklist
+   - `sendEmailWithTracking()` — non-blocking async email delivery with status updates
+
+3. **Backend Routes** ✅ (`server/routes/businessLaunch.js`)
+   - POST `/requests/:id/notes` — add note (authenticate, requireAdmin)
+   - GET `/requests/:id/notes` — fetch notes (authenticate, requireAdmin)
+   - DELETE `/notes/:noteId` — delete note (authenticate, requireAdmin)
+   - POST `/requests/:id/send-message` — send message to client (authenticate, requireAdmin)
+   - GET `/requests/:id/messages` — fetch message history (authenticate, requireAdmin)
+   - GET `/message-templates` — fetch templates (authenticate, requireAdmin)
+
+4. **Frontend Component** ✅ (`client/src/admin/pages/BusinessLaunchRequestDetail.jsx`)
+   - Tabbed interface with 3 tabs: Overview / Internal Notes / Messages
+   - **Overview tab:** Contact info, business details, setup items, phase, package, pricing, status
+   - **Notes tab:** 
+     * Add new note textarea with placeholder explaining admin-only visibility
+     * List of existing notes with creator name and timestamp
+     * Delete button (with confirmation) for each note
+     * Real-time feedback with loading states
+   - **Messages tab:**
+     * Template selector dropdown
+     * Custom message form (subject + HTML message) for non-template path
+     * Send button with loading state
+     * Message history showing all sent messages
+     * Delivery status indicators (sent/failed) with error messages
+   - Header shows request name, status badge, package, and price
+   - Close button to dismiss modal
+
+5. **Admin Dashboard Integration** ✅
+   - Replaced inline detail modal in `BusinessLaunchAdmin.jsx` with `BusinessLaunchRequestDetail` component
+   - Maintains existing request table and filters
+   - Clicking request row opens new tabbed detail view instead of simple modal
+   - `onStatusUpdate` callback refreshes request list when status changes
+
+6. **i18n Translations** ✅
+   - Added 6 new keys to businessLaunchAdmin namespace:
+     * `enterNote` — "Please enter a note"
+     * `noteAdded` — "Note added successfully"
+     * `deleteNoteConfirm` — "Delete this note?"
+     * `noteDeleted` — "Note deleted successfully"
+     * `fillMessage` — "Please fill in subject and message"
+     * `messageSent` — "Message sent successfully"
+   - Full translations for EN/ES/FR/HT (4 languages)
+   - Error toasts use generic `common.errorLoading` and `common.errorUpdating` keys
+
+**Key Design Decisions:**
+
+- **Tabbed interface:** Organizes three distinct concerns (request info, notes, messages) into manageable sections
+- **Non-blocking email:** Message sending queues to background (uses `sendEmailWithTracking`)
+- **Admin-only visibility:** Notes have `is_internal=true` flag so clients never see them
+- **Message templates:** Pre-configured common responses save admin time; custom HTML option for edge cases
+- **Status tracking:** Message status (pending/sent/failed) + error_message field enables debugging
+- **Creator attribution:** All notes show who created them and when (automatic via `req.user`)
+- **Confirmation dialogs:** Delete actions require confirmation to prevent accidents
+
+**Files Created:**
+- `server/migrations/104_business_launch_notes_messages.sql`
+- `server/controllers/businessLaunchNotesController.js`
+- `client/src/admin/pages/BusinessLaunchRequestDetail.jsx`
+
+**Files Modified:**
+- `server/routes/businessLaunch.js` — Added 6 new endpoints
+- `client/src/admin/pages/BusinessLaunchAdmin.jsx` — Integrated detail component
+- `client/src/locales/{en,es,fr,ht}.json` — Added 6 i18n keys per language
+
+**Testing Notes:**
+- All JSON locale files validated (✓ valid JSON syntax)
+- All controller and route files validated (✓ correct syntax)
+- API endpoints follow existing patterns (authenticate + requireAdmin guards)
+- Error handling consistent with application style (toast messages)
+
+**Status:** ✅ COMPLETE — Ready for testing and integration
+
+### Session — 2026-04-25 (Admin Dashboard for Consulting Sessions)
+
+**Objective:** Implement admin interface to manage consulting intake sessions - first step in the Business Launch consulting pipeline.
+
+**What was built:**
+
+1. **Admin Console Pages** ✅
+   - `ConsultingSessionsAdmin.jsx` — Main dashboard for listing all consulting sessions
+     * Filterable by status (pending, scheduled, completed, cancelled)
+     * Filterable by service tier (initial, foundation, implementation, transformation)
+     * Paginated table showing 20 sessions per page
+     * Action buttons to view session details
+   - `ConsultingSessionDetail.jsx` — Detail view for individual session
+     * Contact information (email, phone, business name)
+     * Consultation details (service tier, current phase, description)
+     * Areas of help selected (displayed as badges)
+     * Scheduling preferences (date, time slot, booking status)
+     * Status update dropdown
+     * Timestamps for created/updated dates
+
+2. **Backend API Endpoints** ✅
+   - Modified `consultingAdminController.js` to add 3 new functions:
+     * `listSessions()` — GET `/api/consulting/admin/sessions` with filtering and pagination
+     * `getSessionDetail()` — GET `/api/consulting/admin/sessions/:id` for single session
+     * `updateSessionDetails()` — PATCH `/api/consulting/admin/sessions/:id` to update status
+   - Modified `consultingAdmin.js` routes:
+     * Added `requireAdmin` middleware to all existing routes
+     * Added 3 new routes for consulting sessions management
+     * All routes now properly protected with authentication + authorization
+
+3. **Admin UI Integration** ✅
+   - `AdminApp.jsx` — Added new route `/admin/consulting/sessions`
+   - `AdminLayout.jsx` — Added navigation link "Consulting Sessions"
+   - Follows existing admin UI patterns and styling
+   - Consistent with BusinessLaunchAdmin design
+
+**Key Design Decisions:**
+
+- **Status workflow:** pending → scheduled → completed / cancelled (matches business logic)
+- **Service tiers:** Reflects pricing structure (initial=$100, others custom)
+- **Areas of help:** Display as badges, truncated at 3 with +N indicator for more
+- **Pagination:** 20 sessions per page (same as Business Launch admin)
+- **Status colors:** Consistent with existing admin color scheme (orange=pending, cyan=scheduled, green=completed, red=cancelled)
+
+**Files Created:**
+- `client/src/admin/pages/ConsultingSessionsAdmin.jsx` — Main admin dashboard
+- `client/src/admin/pages/ConsultingSessionDetail.jsx` — Session detail view
+- `server/controllers/consultingAdminController.js` — Moved from consultingAdminController (enhanced)
+
+**Files Modified:**
+- `server/routes/consultingAdmin.js` — Added 3 new routes + requireAdmin middleware
+- `client/src/admin/AdminApp.jsx` — Added import + route
+- `client/src/admin/layouts/AdminLayout.jsx` — Added nav item
+
+**Testing Notes:**
+- List endpoint supports filtering and pagination (tested syntax)
+- Status update properly validates session exists before updating
+- Detail view shows all session information with proper formatting
+- Area of help badges truncate cleanly with indicator for overflow
+
+**Next Steps in Consulting Pipeline:**
+1. ✅ Admin dashboard to view consulting sessions (COMPLETE)
+2. Add consultant assignment workflow (assign consultants to sessions)
+3. Create scheduling system (confirm dates/times with customers)
+4. Send follow-up emails when status changes
+5. Create payment processing for consulting packages
+
+**Status:** ✅ COMPLETE — Admin can now view and manage all consulting intake sessions
 
 ---
 

@@ -234,6 +234,14 @@ export default function Navbar() {
                       )}
                       <Link
                         role="menuitem"
+                        to="/business-launch-status"
+                        className="ox-nav-resource-option"
+                        onClick={() => setResourcesMenuOpen(false)}
+                      >
+                        <span className="ox-nav-resource-option-title">{t('nav.businessLaunchStatus')}</span>
+                      </Link>
+                      <Link
+                        role="menuitem"
                         to="/settings"
                         className="ox-nav-resource-option"
                         onClick={() => setResourcesMenuOpen(false)}

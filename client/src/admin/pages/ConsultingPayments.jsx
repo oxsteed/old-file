@@ -23,16 +23,15 @@ export default function ConsultingPayments() {
     try {
       setLoading(true);
       const [pkgRes, purchaseRes, invoiceRes] = await Promise.all([
-        axios.get('/api/consulting/packages'),
-        axios.get('/api/consulting/my-purchases'),
-        axios.get('/api/consulting/invoices'),
+        axios.get('/consulting/packages'),
+        axios.get('/consulting/my-purchases'),
+        axios.get('/consulting/invoices'),
       ]);
       setPackages(pkgRes.data || []);
       setPurchases(purchaseRes.data || []);
       setInvoices(invoiceRes.data || []);
     } catch (err) {
-      console.error('Error loading consulting payment data', err);
-      toast.error(t('common.errorLoading'));
+      toast.error(t('common.errorLoading') || 'Failed to load payment data');
     } finally {
       setLoading(false);
     }
@@ -43,7 +42,7 @@ export default function ConsultingPayments() {
     try {
       setPaymentLoading(true);
       // Create payment intent
-      const intentRes = await axios.post('/api/consulting/payment-intent', { package_id: packageId });
+      const intentRes = await axios.post('/consulting/payment-intent', { package_id: packageId });
 
       // Initialize Stripe payment
       const stripe = window.Stripe || null;
@@ -60,8 +59,7 @@ export default function ConsultingPayments() {
       toast.success(t('consulting.payment.intentCreated'));
       loadData();
     } catch (err) {
-      console.error('Payment error', err);
-      toast.error(t('consulting.payment.error'));
+      toast.error(t('consulting.payment.error') || 'Payment failed');
       setPaymentLoading(false);
     }
   }
