@@ -4131,6 +4131,28 @@
       "confirm": "Confirmer la Programmation",
       "scheduleSuccess": "Session programmée avec succès",
       "scheduleError": "Erreur lors de la programmation de la session"
+    },
+    "portal": {
+      "title": "Mon Portail de Conseil",
+      "subtitle": "Suivez votre progression à travers 30 phases de développement commercial",
+      "overview": "Aperçu",
+      "phases": "Phases",
+      "deliverables": "Livrables",
+      "activeSessions": "Sessions de Conseil Actives",
+      "sessionWith": "Session avec",
+      "tier": "Niveau de Service",
+      "progress": "Progression",
+      "phase": "Phase",
+      "nextSession": "Prochaine Session",
+      "joinMeeting": "Rejoindre la Réunion",
+      "noSessions": "Aucune session active pour le moment",
+      "businessPhases": "30 Phases de Développement Commercial",
+      "phasesDescription": "Votre parcours de conseil est structuré en 30 phases, chacune s'appuyant sur la précédente pour guider votre entreprise de la planification à la stratégie de sortie.",
+      "currentPhase": "Phase Actuelle",
+      "phaseDetails": "Détails de la phase et prochaines étapes",
+      "progressUpdate": "est votre phase actuelle dans le parcours de développement commercial",
+      "download": "Télécharger",
+      "noDeliverables": "Pas de livrables disponibles pour le moment. Revenez bientôt!"
     }
   }
 }

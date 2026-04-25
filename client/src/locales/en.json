@@ -4131,6 +4131,28 @@
       "confirm": "Confirm Schedule",
       "scheduleSuccess": "Session scheduled successfully",
       "scheduleError": "Error scheduling session"
+    },
+    "portal": {
+      "title": "My Consulting Portal",
+      "subtitle": "Track your progress through 30 phases of business development",
+      "overview": "Overview",
+      "phases": "Phases",
+      "deliverables": "Deliverables",
+      "activeSessions": "Active Consulting Sessions",
+      "sessionWith": "Session with",
+      "tier": "Service Tier",
+      "progress": "Progress",
+      "phase": "Phase",
+      "nextSession": "Next Session",
+      "joinMeeting": "Join Meeting",
+      "noSessions": "No active consulting sessions yet",
+      "businessPhases": "30 Business Development Phases",
+      "phasesDescription": "Your consulting journey is structured into 30 phases, each building upon the previous to guide your business from planning through exit strategy.",
+      "currentPhase": "Current Phase",
+      "phaseDetails": "Phase details and next steps",
+      "progressUpdate": "is your current phase in the business development journey",
+      "download": "Download",
+      "noDeliverables": "No deliverables available yet. Check back soon!"
     }
   }
 }

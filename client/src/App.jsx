@@ -53,6 +53,7 @@ import MyBookingsPage from './pages/MyBookingsPage';
 import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
 import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
 import ConsultingFullPortal from './pages/ConsultingFullPortal';
+import ConsultingPortalPage from './pages/ConsultingPortalPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -154,6 +155,9 @@ export default function App() {
 
                     {/* Consulting Portal (All Phases) */}
                     <Route path="/consulting/portal" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingFullPortal /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* Client Consulting Portal - Track Progress */}
+                    <Route path="/consulting" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingPortalPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>

@@ -4130,6 +4130,28 @@
       "confirm": "Konfime Planifikasyon",
       "scheduleSuccess": "Sesyon planifye avèk siksè",
       "scheduleError": "Erè nan planifikasyon sesyon"
+    },
+    "portal": {
+      "title": "Pòtal Konsèy Mwen",
+      "subtitle": "Swiv pwogresyon ou atravè 30 faz developman biznis",
+      "overview": "Apèsi",
+      "phases": "Faz",
+      "deliverables": "Delivrab",
+      "activeSessions": "Sesyon Konsèy Aktif",
+      "sessionWith": "Sesyon avèk",
+      "tier": "Nivo Sèvis",
+      "progress": "Pwogresyon",
+      "phase": "Faz",
+      "nextSession": "Prochenn Sesyon",
+      "joinMeeting": "Rantre nan Riyinyon",
+      "noSessions": "Poko gen sesyon aktif",
+      "businessPhases": "30 Faz Developman Biznis",
+      "phasesDescription": "Vwayaj konsèy ou an estrikti an 30 faz, chak vini apre lòt pou gide biznis ou soti nan planifikasyon a stratèji fini.",
+      "currentPhase": "Faz Aktyèl",
+      "phaseDetails": "Detay faz ak prochenn etap",
+      "progressUpdate": "se faz aktyèl ou nan vwayaj developman biznis",
+      "download": "Telechaje",
+      "noDeliverables": "Poko gen delivrab. Vin ankò!"
     }
   }
 }

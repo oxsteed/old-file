@@ -4131,6 +4131,28 @@
       "confirm": "Confirmar Programación",
       "scheduleSuccess": "Sesión programada exitosamente",
       "scheduleError": "Error al programar sesión"
+    },
+    "portal": {
+      "title": "Mi Portal de Asesoría",
+      "subtitle": "Sigue tu progreso a través de 30 fases de desarrollo empresarial",
+      "overview": "Descripción General",
+      "phases": "Fases",
+      "deliverables": "Entregables",
+      "activeSessions": "Sesiones de Asesoría Activas",
+      "sessionWith": "Sesión con",
+      "tier": "Nivel de Servicio",
+      "progress": "Progreso",
+      "phase": "Fase",
+      "nextSession": "Próxima Sesión",
+      "joinMeeting": "Unirse a Reunión",
+      "noSessions": "Sin sesiones activas aún",
+      "businessPhases": "30 Fases de Desarrollo Empresarial",
+      "phasesDescription": "Tu viaje de asesoría se estructura en 30 fases, cada una basada en la anterior para guiar tu negocio desde la planificación hasta la estrategia de salida.",
+      "currentPhase": "Fase Actual",
+      "phaseDetails": "Detalles de la fase y próximos pasos",
+      "progressUpdate": "es tu fase actual en el viaje de desarrollo empresarial",
+      "download": "Descargar",
+      "noDeliverables": "Sin entregables aún. ¡Vuelve pronto!"
     }
   }
 }
