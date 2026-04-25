@@ -1,7 +1,7 @@
 -- PHASE 1: Consultant Management
 CREATE TABLE consultants (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   role VARCHAR(50) NOT NULL CHECK (role IN ('phase_guide', 'strategist', 'advisor', 'specialist')),
   bio TEXT,
   expertise_areas TEXT[] DEFAULT '{}',
@@ -67,7 +67,7 @@ CREATE TABLE consulting_session_notes (
   note_type VARCHAR(50) CHECK (note_type IN ('phase_assessment', 'deliverable', 'action_items', 'general')),
   content TEXT NOT NULL,
   is_internal BOOLEAN DEFAULT false,
-  created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -114,7 +114,7 @@ CREATE TABLE consulting_action_items (
   title VARCHAR(255) NOT NULL,
   description TEXT,
   assigned_to_type VARCHAR(20) CHECK (assigned_to_type IN ('consultant', 'client')),
-  assigned_to_user_id BIGINT,
+  assigned_to_user_id UUID,
   due_date DATE,
   status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'overdue')),
   priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
@@ -145,7 +145,7 @@ CREATE INDEX idx_consulting_packages_tier_active ON consulting_packages(tier, is
 
 CREATE TABLE consulting_purchases (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   package_id BIGINT NOT NULL REFERENCES consulting_packages(id),
   purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   payment_intent_id VARCHAR(255),
@@ -165,7 +165,7 @@ CREATE INDEX idx_consulting_purchases_status ON consulting_purchases(status);
 CREATE TABLE consulting_invoices (
   id BIGSERIAL PRIMARY KEY,
   purchase_id BIGINT REFERENCES consulting_purchases(id) ON DELETE SET NULL,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   invoice_number VARCHAR(50) UNIQUE NOT NULL,
   amount_cents INT NOT NULL,
   issued_date DATE NOT NULL,
@@ -196,7 +196,7 @@ CREATE TABLE consulting_resources (
 CREATE INDEX idx_consulting_resources_package ON consulting_resources(package_id);
 
 CREATE TABLE consulting_client_preferences (
-  user_id BIGINT PRIMARY KEY UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID PRIMARY KEY UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   preferred_contact_method VARCHAR(50) DEFAULT 'email',
   timezone VARCHAR(50) DEFAULT 'UTC',
   communication_frequency VARCHAR(50) DEFAULT 'weekly',
@@ -224,7 +224,7 @@ CREATE INDEX idx_consulting_metrics_purchase ON consulting_metrics(consulting_pu
 CREATE TABLE consulting_session_feedback (
   id BIGSERIAL PRIMARY KEY,
   session_id BIGINT NOT NULL REFERENCES consulting_sessions(id) ON DELETE CASCADE,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   nps_score INT CHECK (nps_score >= 0 AND nps_score <= 10),
   feedback_text TEXT,
   session_quality_rating INT CHECK (session_quality_rating >= 1 AND session_quality_rating <= 5),
@@ -238,8 +238,8 @@ CREATE INDEX idx_consulting_session_feedback_session ON consulting_session_feedb
 -- PHASE 7: Marketing & Onboarding
 CREATE TABLE consulting_referrals (
   id BIGSERIAL PRIMARY KEY,
-  referrer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  referred_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  referrer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  referred_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'expired')),
   referral_credit_amount_cents INT DEFAULT 0,
   credited_at TIMESTAMP,
@@ -251,7 +251,7 @@ CREATE INDEX idx_consulting_referrals_referrer ON consulting_referrals(referrer_
 
 CREATE TABLE consulting_prompts (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   prompt_type VARCHAR(100) CHECK (prompt_type IN ('skill_monetizer', 'early_operator', 'growth_builder', 'strategic_owner')),
   activity_metric VARCHAR(100),
   activity_threshold INT,
