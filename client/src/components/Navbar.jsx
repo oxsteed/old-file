@@ -36,7 +36,9 @@ export default function Navbar() {
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [joinMenuOpen, setJoinMenuOpen] = useState(false);
+  const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
   const joinMenuRef = useRef(null);
+  const resourcesMenuRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -81,6 +83,23 @@ export default function Navbar() {
       document.removeEventListener('keydown', onKey);
     };
   }, [joinMenuOpen]);
+
+  // Desktop: close "Resources" menu on outside click / Escape
+  useEffect(() => {
+    if (!resourcesMenuOpen) return;
+    const onDoc = (e) => {
+      if (resourcesMenuRef.current && !resourcesMenuRef.current.contains(e.target)) setResourcesMenuOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setResourcesMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [resourcesMenuOpen]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -131,7 +150,6 @@ export default function Navbar() {
             {user ? (
               <>
                 <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
-                <NavLink to="/tool-rentals" active={isActive('/tool-rentals')}>{t('toolRentals.browsePage')}</NavLink>
                 <NavLink to="/post-job" active={isActive('/post-job')}>{t('nav.postJob')}</NavLink>
                 <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
                   {t('nav.messages')}
@@ -152,9 +170,80 @@ export default function Navbar() {
                 </NavLink>
                 <Divider />
                 <NavLink to="/dashboard" active={isActive('/dashboard')}>{t('nav.dashboard')}</NavLink>
-                {isHelper && <NavLink to="/business-hub" active={isActive('/business-hub')}>{t('nav.business')}</NavLink>}
-                {isHelper && <NavLink to="/qr-generator" active={isActive('/qr-generator')}>{t('nav.qrGenerator')}</NavLink>}
-                <NavLink to="/settings" active={isActive('/settings')}>{t('nav.settings')}</NavLink>
+
+                {/* Resources Dropdown */}
+                <div ref={resourcesMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
+                  <button
+                    type="button"
+                    className="ox-btn ox-btn-ghost ox-btn-sm"
+                    aria-haspopup="menu"
+                    aria-expanded={resourcesMenuOpen}
+                    aria-controls="nav-resources-menu"
+                    onClick={() => setResourcesMenuOpen((o) => !o)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: resourcesMenuOpen ? 'var(--color-primary)' : 'var(--color-nav-link)' }}
+                  >
+                    {t('nav.resources')}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                  {resourcesMenuOpen && (
+                    <div
+                      id="nav-resources-menu"
+                      role="menu"
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 'calc(100% + 0.35rem)',
+                        minWidth: 'min(18rem, calc(100vw - 2rem))',
+                        padding: '0.35rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface)',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.18)',
+                        zIndex: 60,
+                      }}
+                    >
+                      <Link
+                        role="menuitem"
+                        to="/tool-rentals"
+                        className="ox-nav-resource-option"
+                        onClick={() => setResourcesMenuOpen(false)}
+                      >
+                        <span className="ox-nav-resource-option-title">{t('toolRentals.browsePage')}</span>
+                      </Link>
+                      {isHelper && (
+                        <>
+                          <Link
+                            role="menuitem"
+                            to="/business-hub"
+                            className="ox-nav-resource-option"
+                            onClick={() => setResourcesMenuOpen(false)}
+                          >
+                            <span className="ox-nav-resource-option-title">{t('nav.business')}</span>
+                          </Link>
+                          <Link
+                            role="menuitem"
+                            to="/qr-generator"
+                            className="ox-nav-resource-option"
+                            onClick={() => setResourcesMenuOpen(false)}
+                          >
+                            <span className="ox-nav-resource-option-title">{t('nav.qrGenerator')}</span>
+                          </Link>
+                        </>
+                      )}
+                      <Link
+                        role="menuitem"
+                        to="/settings"
+                        className="ox-nav-resource-option"
+                        onClick={() => setResourcesMenuOpen(false)}
+                      >
+                        <span className="ox-nav-resource-option-title">{t('nav.settings')}</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
                 <span className="ox-badge ox-badge-primary" style={{ textTransform: 'capitalize' }}>
                   {user?.role}
                 </span>
@@ -375,6 +464,24 @@ export default function Navbar() {
           font-size: 0.75rem;
           color: var(--color-text-muted);
           line-height: 1.35;
+        }
+        .ox-nav-resource-option {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.15rem;
+          padding: 0.65rem 0.75rem;
+          border-radius: var(--radius-sm);
+          text-decoration: none;
+          color: var(--color-text);
+          transition: background var(--transition-fast);
+        }
+        .ox-nav-resource-option:hover {
+          background: var(--color-surface-2);
+        }
+        .ox-nav-resource-option-title {
+          font-size: var(--text-sm);
+          font-weight: 500;
         }
       `}</style>
     </nav>
