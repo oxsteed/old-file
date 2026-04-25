@@ -19,7 +19,8 @@
     "closeMenu": "Close menu",
     "openMenu": "Open menu",
     "qrGenerator": "QR Generator",
-    "resources": "Resources"
+    "resources": "Resources",
+    "businessLaunchStatus": "My Business Launch"
   },
   "hero": {
     "title": "Local Help,\nWhen You Need It",

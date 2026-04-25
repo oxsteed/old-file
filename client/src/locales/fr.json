@@ -19,7 +19,8 @@
     "closeMenu": "Fermer le menu",
     "openMenu": "Ouvrir le menu",
     "qrGenerator": "Générateur QR",
-    "resources": "Ressources"
+    "resources": "Ressources",
+    "businessLaunchStatus": "Mon Lancement Commercial"
   },
   "hero": {
     "title": "Aide locale,\nQuand vous en avez besoin",
