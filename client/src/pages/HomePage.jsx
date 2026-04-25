@@ -571,7 +571,12 @@ export default function HomePage() {
       {/* -- Business Ascension Consulting Section -- */}
       <section className="hp-section hp-consulting-section">
         <div className="hp-container">
-          <h2 className="hp-consulting-title">{t('homePage.consulting.title')}</h2>
+          <div className="hp-consulting-intro">
+            <h2 className="hp-consulting-title">{t('homePage.consulting.heading')}</h2>
+            <p className="hp-consulting-subcopy">
+              {t('homePage.consulting.subcopy')}
+            </p>
+          </div>
           <div className="hp-consulting-grid">
             <div className="hp-consulting-block">
               <h3 className="hp-consulting-subtitle">{t('homePage.consulting.subtitle1')}</h3>
@@ -591,22 +596,6 @@ export default function HomePage() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             <p className="hp-consulting-subtext">{t('homePage.consulting.ctaSubtext')}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* -- Mission/Trust Section -- */}
-      <section className="hp-section hp-mission-section">
-        <div className="hp-container">
-          <div className="hp-mission-grid">
-            <div className="hp-mission-block">
-              <h3 className="hp-mission-title">{t('homePage.mission.invisibleTitle')}</h3>
-              <p className="hp-mission-text">{t('homePage.mission.invisibleDesc')}</p>
-            </div>
-            <div className="hp-mission-block">
-              <h3 className="hp-mission-title">{t('homePage.mission.ownershipTitle')}</h3>
-              <p className="hp-mission-text">{t('homePage.mission.ownershipDesc')}</p>
-            </div>
           </div>
         </div>
       </section>
