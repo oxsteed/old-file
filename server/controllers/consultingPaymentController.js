@@ -1,135 +1,191 @@
-// Consulting payment controller - integrates with existing Stripe
-const logger = require('../utils/logger');
 const db = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const logger = require('../utils/logger');
 
-exports.createPaymentIntent = async (req, res) => {
-  const { package_id } = req.body;
+// Get available consulting packages
+exports.getPackages = async (req, res) => {
   try {
-    const pkg = await db.query('SELECT * FROM consulting_packages WHERE id = $1 AND is_active = true', [package_id]);
-    if (!pkg.rows.length) return res.status(404).json({ error: 'Package not found' });
+    const { rows } = await db.query(
+      `SELECT id, service_tier, package_name, description, base_price, duration_hours, includes_deliverables, max_revisions
+       FROM consulting_packages
+       ORDER BY base_price ASC`
+    );
 
-    const packageData = pkg.rows[0];
+    res.json(rows);
+  } catch (err) {
+    logger.error('Failed to get packages', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch packages' });
+  }
+};
+
+// Create payment intent for consulting session
+exports.createPaymentIntent = async (req, res) => {
+  try {
+    const { sessionId, packageId } = req.body;
+
+    if (!sessionId || !packageId) {
+      return res.status(400).json({ error: 'Session and package ID required' });
+    }
+
+    // Get session details
+    const { rows: sessionRows } = await db.query(
+      `SELECT cs.id, cs.customer_id, cs.email, cs.first_name, cs.last_name,
+              cs.service_tier, css.id as scheduled_id
+       FROM consulting_sessions cs
+       LEFT JOIN consulting_sessions_scheduled css ON cs.id = css.session_id
+       WHERE css.id = $1`,
+      [sessionId]
+    );
+
+    if (sessionRows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const session = sessionRows[0];
+
+    // Get package details
+    const { rows: packageRows } = await db.query(
+      `SELECT id, service_tier, package_name, base_price
+       FROM consulting_packages
+       WHERE id = $1`,
+      [packageId]
+    );
+
+    if (packageRows.length === 0) {
+      return res.status(404).json({ error: 'Package not found' });
+    }
+
+    const pkg = packageRows[0];
 
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: packageData.price_cents,
+      amount: pkg.base_price,
       currency: 'usd',
-      description: `OxSteed Consulting - ${packageData.name}`,
       metadata: {
-        package_id: packageData.id,
-        user_id: req.user.id,
+        sessionId: session.id,
+        sessionScheduledId: session.scheduled_id,
+        packageId: pkg.id,
       },
     });
 
-    logger.info('Payment intent created', { package_id, user_id: req.user.id });
+    // Store payment in DB
+    const { rows: paymentRows } = await db.query(
+      `INSERT INTO consulting_payments (session_scheduled_id, amount_cents, service_tier, status, stripe_payment_intent_id)
+       VALUES ($1, $2, $3, 'processing', $4)
+       RETURNING *`,
+      [session.scheduled_id, pkg.base_price, pkg.service_tier, paymentIntent.id]
+    );
+
     res.json({
       clientSecret: paymentIntent.client_secret,
-      amount: packageData.price_cents,
-      packageName: packageData.name,
+      payment: paymentRows[0],
+      package: pkg,
     });
   } catch (err) {
-    logger.error('Error creating payment intent', { error: err.message });
+    logger.error('Failed to create payment intent', { error: err.message });
     res.status(500).json({ error: 'Failed to create payment intent' });
   }
 };
 
-exports.confirmPurchase = async (req, res) => {
-  const { payment_intent_id, package_id } = req.body;
+// Confirm payment (called after Stripe completes)
+exports.confirmPayment = async (req, res) => {
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    const { paymentId, stripePaymentIntentId } = req.body;
+
+    if (!paymentId || !stripePaymentIntentId) {
+      return res.status(400).json({ error: 'Payment ID and Stripe PI ID required' });
+    }
+
+    // Verify with Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
 
     if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ error: 'Payment not completed' });
     }
 
-    const pkg = await db.query('SELECT * FROM consulting_packages WHERE id = $1', [package_id]);
-    if (!pkg.rows.length) return res.status(404).json({ error: 'Package not found' });
-
-    const packageData = pkg.rows[0];
-
-    // Insert purchase record
-    const result = await db.query(
-      `INSERT INTO consulting_purchases (user_id, package_id, total_cost_cents, sessions_remaining, payment_intent_id, status)
-       VALUES ($1, $2, $3, $4, $5, 'completed')
+    // Update payment status
+    const { rows } = await db.query(
+      `UPDATE consulting_payments
+       SET status = 'completed', updated_at = NOW()
+       WHERE id = $1
        RETURNING *`,
-      [req.user.id, package_id, packageData.price_cents, packageData.session_count, payment_intent_id]
+      [paymentId]
     );
 
-    logger.info('Purchase confirmed', { user_id: req.user.id, package_id });
+    logger.info('Consulting payment completed', { paymentId, stripePaymentIntentId });
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('Failed to confirm payment', { error: err.message });
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  }
+};
 
-    // Generate invoice
-    const invoiceNumber = `CONS-${Date.now()}`;
-    await db.query(
-      `INSERT INTO consulting_invoices (purchase_id, user_id, invoice_number, amount_cents, issued_date, due_date, status)
-       VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'sent')`,
-      [result.rows[0].id, req.user.id, invoiceNumber, packageData.price_cents]
+// Get payment status
+exports.getPaymentStatus = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+
+    const { rows } = await db.query(
+      `SELECT id, session_scheduled_id, amount_cents, service_tier, status, created_at
+       FROM consulting_payments
+       WHERE id = $1`,
+      [paymentId]
     );
 
-    res.json({
-      purchase: result.rows[0],
-      message: 'Purchase completed successfully',
-      sessions_remaining: packageData.session_count,
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    logger.error('Failed to get payment status', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch payment' });
+  }
+};
+
+// Refund payment
+exports.refundPayment = async (req, res) => {
+  try {
+    const { paymentId, reason } = req.body;
+
+    if (!paymentId) {
+      return res.status(400).json({ error: 'Payment ID required' });
+    }
+
+    const { rows: paymentRows } = await db.query(
+      `SELECT * FROM consulting_payments WHERE id = $1`,
+      [paymentId]
+    );
+
+    if (paymentRows.length === 0) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    const payment = paymentRows[0];
+
+    if (!payment.stripe_payment_intent_id) {
+      return res.status(400).json({ error: 'No Stripe payment to refund' });
+    }
+
+    // Create refund via Stripe
+    await stripe.refunds.create({
+      payment_intent: payment.stripe_payment_intent_id,
+      reason: reason || 'requested_by_customer',
     });
-  } catch (err) {
-    logger.error('Error confirming purchase', { error: err.message });
-    res.status(500).json({ error: 'Failed to confirm purchase' });
-  }
-};
 
-exports.listUserPurchases = async (req, res) => {
-  try {
-    const result = await db.query(
-      `SELECT cp.*, pkg.name, pkg.tier, pkg.session_count
-       FROM consulting_purchases cp
-       JOIN consulting_packages pkg ON cp.package_id = pkg.id
-       WHERE cp.user_id = $1 AND cp.status = 'completed'
-       ORDER BY cp.purchase_date DESC`,
-      [req.user.id]
+    // Update payment status
+    const { rows } = await db.query(
+      `UPDATE consulting_payments
+       SET status = 'refunded', refund_reason = $1, refunded_at = NOW(), updated_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [reason || null, paymentId]
     );
 
-    res.json(result.rows);
+    logger.info('Consulting payment refunded', { paymentId, reason });
+    res.json(rows[0]);
   } catch (err) {
-    logger.error('Error fetching user purchases', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch purchases' });
-  }
-};
-
-exports.getInvoices = async (req, res) => {
-  const { status } = req.query;
-  try {
-    let query = `SELECT * FROM consulting_invoices WHERE user_id = $1`;
-    const params = [req.user.id];
-
-    if (status) {
-      query += ` AND status = $2`;
-      params.push(status);
-    }
-
-    query += ` ORDER BY issued_date DESC`;
-
-    const result = await db.query(query, params);
-    res.json(result.rows);
-  } catch (err) {
-    logger.error('Error fetching invoices', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch invoices' });
-  }
-};
-
-exports.handlePaymentWebhook = async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  try {
-    const event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
-
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object;
-      logger.info('Payment succeeded via webhook', { payment_intent_id: paymentIntent.id });
-      // Additional logic if needed
-    }
-
-    res.json({ received: true });
-  } catch (err) {
-    logger.error('Webhook error', { error: err.message });
-    res.status(400).send(`Webhook Error: ${err.message}`);
+    logger.error('Failed to refund payment', { error: err.message });
+    res.status(500).json({ error: 'Failed to refund payment' });
   }
 };

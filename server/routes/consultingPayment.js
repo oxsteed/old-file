@@ -1,13 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const paymentController = require('../controllers/consultingPaymentController');
+const consultingPaymentController = require('../controllers/consultingPaymentController');
 const { authenticate } = require('../middleware/auth');
-const { generalLimiter } = require('../middleware/rateLimiter');
 
-router.post('/payment-intent', authenticate, generalLimiter, paymentController.createPaymentIntent);
-router.post('/confirm-purchase', authenticate, paymentController.confirmPurchase);
-router.get('/my-purchases', authenticate, paymentController.listUserPurchases);
-router.get('/invoices', authenticate, paymentController.getInvoices);
-router.post('/webhook', express.raw({ type: 'application/json' }), paymentController.handlePaymentWebhook);
+// Get available packages (public)
+router.get('/packages', consultingPaymentController.getPackages);
+
+// Authenticated endpoints
+router.post('/payment-intent', authenticate, consultingPaymentController.createPaymentIntent);
+router.post('/confirm-payment', authenticate, consultingPaymentController.confirmPayment);
+router.get('/payment/:paymentId/status', authenticate, consultingPaymentController.getPaymentStatus);
+router.post('/refund', authenticate, consultingPaymentController.refundPayment);
 
 module.exports = router;
