@@ -3302,6 +3302,15 @@
       "ownershipTitle": "Creemos que la propiedad empresarial debe ser accesible",
       "ownershipDesc": "No todos comienzan con capital, conexiones o capacitación empresarial. Pero muchas personas ya tienen algo valioso: una habilidad que resuelve problemas reales. OxSteed existe para ayudar a las personas a comenzar desde ahí. La misión es simple: darle a la gente común la oportunidad de pasar de saber cómo hacer algo a poseer su propio negocio a largo plazo."
     },
+    "consulting": {
+      "title": "Asesoría de Ascenso Empresarial",
+      "subtitle1": "Demasiadas personas con habilidades permanecen invisibles",
+      "desc1": "Millones de personas saben cómo limpiar, reparar, mover, instalar, organizar, enseñar, conducir, cocinar y resolver problemas. Pero saber cómo hacer algo y saber cómo convertirlo en un negocio no es lo mismo.",
+      "subtitle2": "Creemos que la propiedad empresarial debe ser accesible",
+      "desc2": "No todos comienzan con capital, conexiones o capacitación empresarial. Pero muchas personas ya tienen algo valioso: una habilidad que resuelve problemas reales. OxSteed existe para ayudar a las personas a comenzar desde ahí. La misión es simple: darle a la gente común la oportunidad de pasar de saber cómo hacer algo a poseer su propio negocio a largo plazo.",
+      "ctaButton": "Programar Sesión de Asesoría",
+      "ctaSubtext": "Consulta inicial de $100 (hasta 2 horas)"
+    },
     "cta": {
       "title": "¿Listo para empezar?",
       "titleEm": "empezar",

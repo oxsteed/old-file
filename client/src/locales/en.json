@@ -3302,6 +3302,15 @@
       "ownershipTitle": "We believe ownership should be reachable",
       "ownershipDesc": "Not everyone starts with capital, connections, or business training. But many people already have something valuable: a skill that solves real problems. OxSteed exists to help people start there. The mission is simple: give regular people the opportunity to go from knowing how to do something to owning their own business in the long term."
     },
+    "consulting": {
+      "title": "Business Ascension Consulting",
+      "subtitle1": "Too many skilled people stay invisible",
+      "desc1": "Millions of people know how to clean, repair, move, install, organize, teach, drive, cook, and solve problems. But knowing how to do something and knowing how to turn it into a business are not the same.",
+      "subtitle2": "We believe ownership should be reachable",
+      "desc2": "Not everyone starts with capital, connections, or business training. But many people already have something valuable: a skill that solves real problems. OxSteed exists to help people start there. The mission is simple: give regular people the opportunity to go from knowing how to do something to owning their own business in the long term.",
+      "ctaButton": "Schedule Consulting Session",
+      "ctaSubtext": "$100 initial consultation (up to 2 hours)"
+    },
     "cta": {
       "title": "Post your skills.",
       "titleEm": "Run your own business.",
