@@ -4208,7 +4208,10 @@
     "actionItemsCompleted": "Éléments d'action complétés",
     "nextSession": "Prochaine session programmée",
     "noUpcomingSessions": "Aucune session à venir",
-    "noProgress": "Commencez une session pour suivre votre progression"
+    "noProgress": "Commencez une session pour suivre votre progression",
+    "selectSessionAndPackage": "Sélectionnez une session et choisissez un forfait pour commencer.",
+    "chooseSession": "Sélectionnez votre session",
+    "scheduleSessionFirst": "Planifiez d'abord une session pour acheter un forfait."
   },
   "actionItems": {
     "actionItems": "Éléments d'action",
@@ -4307,5 +4310,19 @@
     "blockedDateAdded": "Date bloquée ajoutée",
     "blockedDateRemoved": "Date bloquée supprimée",
     "dateRequired": "Veuillez sélectionner une date"
+  },
+  "payment": {
+    "purchaseConsulting": "Acheter un forfait de consultation",
+    "selectPackage": "Sélectionner un forfait",
+    "hours": "heures",
+    "includesDeliverables": "Inclut les livrables",
+    "revisions": "révisions",
+    "cardDetails": "Détails de la carte",
+    "pay": "Payer",
+    "processing": "Traitement en cours...",
+    "loadPackagesFailed": "Impossible de charger les forfaits",
+    "paymentSuccessful": "Paiement réussi !",
+    "paymentFailed": "Le paiement a échoué",
+    "paymentError": "Une erreur de paiement s'est produite"
   }
 }

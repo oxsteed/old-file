@@ -4208,7 +4208,10 @@
     "actionItemsCompleted": "Action Items Completed",
     "nextSession": "Next Scheduled Session",
     "noUpcomingSessions": "No upcoming sessions",
-    "noProgress": "Start a session to track your progress"
+    "noProgress": "Start a session to track your progress",
+    "selectSessionAndPackage": "Select a session and choose a package to get started.",
+    "chooseSession": "Select Your Session",
+    "scheduleSessionFirst": "Schedule a session first to purchase a package."
   },
   "actionItems": {
     "actionItems": "Action Items",
@@ -4307,5 +4310,19 @@
     "blockedDateAdded": "Blocked date added",
     "blockedDateRemoved": "Blocked date removed",
     "dateRequired": "Please select a date"
+  },
+  "payment": {
+    "purchaseConsulting": "Purchase Consulting Package",
+    "selectPackage": "Select Package",
+    "hours": "hours",
+    "includesDeliverables": "Includes deliverables",
+    "revisions": "revisions",
+    "cardDetails": "Card Details",
+    "pay": "Pay",
+    "processing": "Processing...",
+    "loadPackagesFailed": "Failed to load packages",
+    "paymentSuccessful": "Payment successful!",
+    "paymentFailed": "Payment failed",
+    "paymentError": "Payment error occurred"
   }
 }

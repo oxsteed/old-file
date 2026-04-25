@@ -4208,7 +4208,10 @@
     "actionItemsCompleted": "Elementos de Acción Completados",
     "nextSession": "Próxima Sesión Programada",
     "noUpcomingSessions": "No hay sesiones próximas",
-    "noProgress": "Inicia una sesión para seguir tu progreso"
+    "noProgress": "Inicia una sesión para seguir tu progreso",
+    "selectSessionAndPackage": "Selecciona una sesión y elige un paquete para comenzar.",
+    "chooseSession": "Selecciona Tu Sesión",
+    "scheduleSessionFirst": "Primero programa una sesión para comprar un paquete."
   },
   "actionItems": {
     "actionItems": "Elementos de Acción",
@@ -4307,5 +4310,19 @@
     "blockedDateAdded": "Fecha bloqueada agregada",
     "blockedDateRemoved": "Fecha bloqueada eliminada",
     "dateRequired": "Por favor selecciona una fecha"
+  },
+  "payment": {
+    "purchaseConsulting": "Comprar Paquete de Consultoría",
+    "selectPackage": "Seleccionar Paquete",
+    "hours": "horas",
+    "includesDeliverables": "Incluye entregables",
+    "revisions": "revisiones",
+    "cardDetails": "Detalles de la Tarjeta",
+    "pay": "Pagar",
+    "processing": "Procesando...",
+    "loadPackagesFailed": "No se pudieron cargar los paquetes",
+    "paymentSuccessful": "¡Pago exitoso!",
+    "paymentFailed": "El pago falló",
+    "paymentError": "Ocurrió un error en el pago"
   }
 }

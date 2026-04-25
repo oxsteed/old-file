@@ -4207,7 +4207,10 @@
     "actionItemsCompleted": "Atik Aksyon Fini",
     "nextSession": "Prochèn Sesyon Orè",
     "noUpcomingSessions": "Poko gen sesyon k ap vini",
-    "noProgress": "Komanse yon sesyon pou swiv pwogrè ou"
+    "noProgress": "Komanse yon sesyon pou swiv pwogrè ou",
+    "selectSessionAndPackage": "Chwazi yon sesyon epi chwazi yon pakèt pou komanse.",
+    "chooseSession": "Chwazi Sesyon Ou",
+    "scheduleSessionFirst": "Orè yon sesyon anvan pou achte yon pakèt."
   },
   "actionItems": {
     "actionItems": "Atik Aksyon",
@@ -4306,5 +4309,19 @@
     "blockedDateAdded": "Dat bloke ajoute",
     "blockedDateRemoved": "Dat bloke enleve",
     "dateRequired": "Tanpri chwazi yon dat"
+  },
+  "payment": {
+    "purchaseConsulting": "Achte Pakèt Konsiltasyon",
+    "selectPackage": "Chwazi Pakèt",
+    "hours": "èd",
+    "includesDeliverables": "Enkli delivrab",
+    "revisions": "revisyon",
+    "cardDetails": "Detay Kad",
+    "pay": "Peye",
+    "processing": "Trete...",
+    "loadPackagesFailed": "Echèk chaje pakèt",
+    "paymentSuccessful": "Pèman siksè!",
+    "paymentFailed": "Pèman echwe",
+    "paymentError": "Erè pèman"
   }
 }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import axios from '../api/axios';
+import ConsultingPaymentModal from '../components/ConsultingPaymentModal';
 
 export default function ConsultingPortal() {
   const { t } = useTranslation();
@@ -10,6 +11,8 @@ export default function ConsultingPortal() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('sessions');
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
 
   useEffect(() => {
     loadUserSessions();
@@ -183,6 +186,9 @@ export default function ConsultingPortal() {
         </div>
         <div style={tabStyle(activeTab === 'progress')} onClick={() => setActiveTab('progress')}>
           {t('portal.progress') || 'Progress'}
+        </div>
+        <div style={tabStyle(activeTab === 'packages')} onClick={() => setActiveTab('packages')}>
+          {t('payment.purchaseConsulting') || 'Purchase Package'}
         </div>
       </div>
 
@@ -396,6 +402,101 @@ export default function ConsultingPortal() {
           )}
         </>
       )}
+
+      {/* PACKAGES TAB */}
+      {activeTab === 'packages' && (
+        <>
+          {sessions.length > 0 ? (
+            <div>
+              <h3 style={sectionTitleStyle}>{t('payment.purchaseConsulting') || 'Purchase Consulting Package'}</h3>
+              <p style={{ marginBottom: '1.5rem', color: 'var(--color-text-muted)' }}>
+                {t('portal.selectSessionAndPackage') || 'Select a session and choose a package to get started.'}
+              </p>
+
+              <div style={sessionCardStyle}>
+                <h4 style={{ marginBottom: '1rem', fontWeight: '600', color: 'var(--color-text)' }}>
+                  {t('portal.chooseSession') || 'Select Your Session'}
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
+                  {sessions.map((session) => (
+                    <div
+                      key={session.id}
+                      style={{
+                        padding: '1rem',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        background: selectedSessionId === session.id ? 'var(--color-primary)' : 'var(--color-bg)',
+                        color: selectedSessionId === session.id ? 'white' : 'var(--color-text)',
+                      }}
+                      onClick={() => setSelectedSessionId(session.id)}
+                      onMouseEnter={(e) => {
+                        if (selectedSessionId !== session.id) {
+                          e.currentTarget.style.borderColor = 'var(--color-primary)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedSessionId !== session.id) {
+                          e.currentTarget.style.borderColor = 'var(--color-border)';
+                        }
+                      }}
+                    >
+                      <div style={{ fontWeight: '600' }}>
+                        {session.consultant_first_name} {session.consultant_last_name}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', marginTop: '0.25rem', opacity: 0.8 }}>
+                        {t('portal.serviceTier') || 'Service Tier'}: {session.service_tier}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selectedSessionId && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button
+                    onClick={() => setPaymentModalOpen(true)}
+                    style={{
+                      padding: '0.75rem 2rem',
+                      background: 'var(--color-primary)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'opacity 0.2s',
+                    }}
+                    onMouseEnter={(e) => (e.target.style.opacity = '0.8')}
+                    onMouseLeave={(e) => (e.target.style.opacity = '1')}
+                  >
+                    {t('payment.pay') || 'Select Package & Pay'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={emptyStateStyle}>
+              <p>{t('portal.noSessions') || 'You have no consulting sessions yet'}</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                {t('portal.scheduleSessionFirst') || 'Schedule a session first to purchase a package.'}
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Payment Modal */}
+      <ConsultingPaymentModal
+        sessionId={selectedSessionId}
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        onSuccess={() => {
+          setPaymentModalOpen(false);
+          setSelectedSessionId(null);
+          loadUserSessions();
+        }}
+      />
     </div>
   );
 }
