@@ -16,7 +16,7 @@ exports.createAvailabilityBlock = async (req, res) => {
     type: [rules.required()],
   });
 
-  if (!validation.valid) return sendValidationError(res, validation);
+  if (!validation.valid) return sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', validation.errors);
 
   if (!AVAILABILITY_TYPES.includes(type)) {
     return sendError(res, 400, 'Invalid availability type', 'INVALID_TYPE');

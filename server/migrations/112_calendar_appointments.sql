@@ -8,10 +8,10 @@ CREATE TABLE appointments (
   scheduled_start_time TIMESTAMPTZ NOT NULL,
   scheduled_end_time TIMESTAMPTZ NOT NULL,
   estimated_duration_minutes INT DEFAULT 60,
-  location_address TEXT,
-  location_lat DECIMAL(10, 8),
-  location_lng DECIMAL(11, 8),
-  status VARCHAR(20) NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled')),
+  location_address VARCHAR(500),
+  location_lat DECIMAL(10, 8) CHECK (location_lat IS NULL OR (location_lat >= -90 AND location_lat <= 90)),
+  location_lng DECIMAL(11, 8) CHECK (location_lng IS NULL OR (location_lng >= -180 AND location_lng <= 180)),
+  status VARCHAR(20) NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'confirmed', 'in_progress', 'completed', 'cancelled')),
   notes TEXT,
   customer_notes TEXT,
   helper_notes TEXT,
@@ -103,7 +103,7 @@ CREATE INDEX idx_notification_preferences_user_id ON notification_preferences(us
 -- Audit log for calendar actions
 CREATE TABLE calendar_audit_log (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   appointment_id BIGINT REFERENCES appointments(id) ON DELETE SET NULL,
   action VARCHAR(50) NOT NULL,
   details JSONB,

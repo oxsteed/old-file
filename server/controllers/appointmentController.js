@@ -21,7 +21,7 @@ exports.createAppointment = async (req, res) => {
     estimated_duration_minutes: [rules.required(), rules.isNumber(), rules.min(15), rules.max(480)],
   });
 
-  if (!validation.valid) return sendValidationError(res, validation);
+  if (!validation.valid) return sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', validation.errors);
 
   const start = new Date(scheduled_start_time);
   const end = new Date(scheduled_end_time);
@@ -30,8 +30,10 @@ exports.createAppointment = async (req, res) => {
     return sendError(res, 400, 'End time must be after start time', 'INVALID_TIME_RANGE');
   }
 
-  if (start < new Date()) {
-    return sendError(res, 400, 'Cannot schedule appointments in the past', 'PAST_APPOINTMENT');
+  const minAdvanceMinutes = 15;
+  const minTime = new Date(Date.now() + minAdvanceMinutes * 60000);
+  if (start < minTime) {
+    return sendError(res, 400, `Appointments must be scheduled at least ${minAdvanceMinutes} minutes in advance`, 'INSUFFICIENT_ADVANCE_TIME');
   }
 
   try {
@@ -50,11 +52,11 @@ exports.createAppointment = async (req, res) => {
       return sendError(res, 400, 'User is not a helper', 'NOT_A_HELPER');
     }
 
-    // Check for conflicts with existing appointments and availability blocks
+    // Check for conflicts with existing appointments (including pending requests)
     const conflictResult = await db.query(
       `SELECT id FROM appointments
        WHERE helper_id = $1
-       AND status IN ('confirmed', 'in_progress')
+       AND status IN ('requested', 'confirmed', 'in_progress')
        AND scheduled_start_time < $3
        AND scheduled_end_time > $2
        LIMIT 1`,
@@ -99,24 +101,13 @@ exports.createAppointment = async (req, res) => {
 
       const appointment = appointmentResult.rows[0];
 
-      // Create notifications
-      const reminderTimes = [
-        { type: 'appointment_requested', offset: 0 },
-        { type: 'reminder_24h', offset: -24 * 60 },
-        { type: 'reminder_2h', offset: -2 * 60 },
-      ];
-
-      for (const reminder of reminderTimes) {
-        const sendAt = new Date(start.getTime() + reminder.offset * 60000);
-        if (sendAt > new Date()) {
-          await client.query(
-            `INSERT INTO calendar_notifications
-            (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
-            VALUES ($1, $2, $3, $4, $5, 'pending')`,
-            [helper_id, appointment.id, reminder.type, 'in_app']
-          );
-        }
-      }
+      // Create immediate notification for helper (non-reminder)
+      await client.query(
+        `INSERT INTO calendar_notifications
+        (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+        VALUES ($1, $2, 'appointment_requested', 'in_app', CURRENT_TIMESTAMP, 'pending')`,
+        [helper_id, appointment.id]
+      );
 
       // Log audit
       await client.query(
@@ -208,12 +199,34 @@ exports.getAppointments = async (req, res) => {
       params.push(new Date(to_date));
     }
 
-    // Get total count
-    const countResult = await db.query(
-      query.replace('SELECT a.*, u_customer.first_name', 'SELECT COUNT(*) as count FROM appointments a LEFT JOIN users u_customer ON a.customer_id = u_customer.id LEFT JOIN users u_helper ON a.helper_id = u_helper.id WHERE 1=1').split('ORDER BY')[0],
-      params
-    );
+    // Get total count with same filters
+    let countQuery = `SELECT COUNT(*) as count FROM appointments a LEFT JOIN users u_customer ON a.customer_id = u_customer.id LEFT JOIN users u_helper ON a.helper_id = u_helper.id WHERE 1=1`;
+    const countParams = [];
 
+    if (role === 'helper') {
+      countQuery += ` AND a.helper_id = $${countParams.length + 1}`;
+      countParams.push(user_id);
+    } else {
+      countQuery += ` AND a.customer_id = $${countParams.length + 1}`;
+      countParams.push(user_id);
+    }
+
+    if (status && APPOINTMENT_STATUSES.includes(status)) {
+      countQuery += ` AND a.status = $${countParams.length + 1}`;
+      countParams.push(status);
+    }
+
+    if (from_date) {
+      countQuery += ` AND a.scheduled_start_time >= $${countParams.length + 1}`;
+      countParams.push(new Date(from_date));
+    }
+
+    if (to_date) {
+      countQuery += ` AND a.scheduled_end_time <= $${countParams.length + 1}`;
+      countParams.push(new Date(to_date));
+    }
+
+    const countResult = await db.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
 
     query += ` ORDER BY a.scheduled_start_time DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
@@ -295,7 +308,10 @@ exports.confirmAppointment = async (req, res) => {
         [helper_id, id, JSON.stringify({ confirmed_at: new Date().toISOString() })]
       );
 
-      // Create notification for customer
+      const updatedAppointment = updateResult.rows[0];
+      const appointmentStart = new Date(updatedAppointment.scheduled_start_time);
+
+      // Create confirmation notification for customer
       await client.query(
         `INSERT INTO calendar_notifications
         (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
@@ -303,7 +319,29 @@ exports.confirmAppointment = async (req, res) => {
         [appointment.customer_id, id]
       );
 
-      return updateResult.rows[0];
+      // Create reminder notifications (for both customer and helper)
+      const reminderTimes = [
+        { type: 'reminder_24h', offset: -24 * 60, user_id: appointment.customer_id },
+        { type: 'reminder_24h', offset: -24 * 60, user_id: helper_id },
+        { type: 'reminder_2h', offset: -2 * 60, user_id: appointment.customer_id },
+        { type: 'reminder_2h', offset: -2 * 60, user_id: helper_id },
+        { type: 'reminder_same_day', offset: -6 * 60, user_id: appointment.customer_id },
+        { type: 'reminder_same_day', offset: -6 * 60, user_id: helper_id },
+      ];
+
+      for (const reminder of reminderTimes) {
+        const sendAt = new Date(appointmentStart.getTime() + reminder.offset * 60000);
+        if (sendAt > new Date()) {
+          await client.query(
+            `INSERT INTO calendar_notifications
+            (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+            VALUES ($1, $2, $3, 'in_app', $4, 'pending')`,
+            [reminder.user_id, id, reminder.type, sendAt.toISOString()]
+          );
+        }
+      }
+
+      return updatedAppointment;
     });
 
     // Fetch customer and send email
@@ -316,8 +354,8 @@ exports.confirmAppointment = async (req, res) => {
       template: 'appointment_confirmed',
       data: {
         customerName: customer.first_name,
-        date: result.scheduled_start_time.toLocaleDateString(),
-        time: result.scheduled_start_time.toLocaleTimeString(),
+        date: new Date(result.scheduled_start_time).toLocaleDateString(),
+        time: new Date(result.scheduled_start_time).toLocaleTimeString(),
       }
     }).catch(err => logger.warn('Appointment confirmation email failed', { err }));
 

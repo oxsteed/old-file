@@ -70,7 +70,7 @@ exports.processReminderNotifications = async () => {
        LEFT JOIN notification_preferences np ON cn.user_id = np.user_id
        WHERE cn.status = 'pending'
        AND cn.scheduled_send_at <= CURRENT_TIMESTAMP
-       AND a.status IN ('requested', 'confirmed')
+       AND a.status IN ('requested', 'confirmed', 'in_progress')
        LIMIT 100`
     );
 
@@ -118,18 +118,38 @@ async function sendNotification(notification) {
     quiet_hours_end
   } = notification;
 
-  // Check quiet hours
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
+  // Check quiet hours (respect user's timezone)
   if (quiet_hours_start && quiet_hours_end) {
-    const [startHour, startMin] = quiet_hours_start.split(':').map(Number);
-    const [endHour, endMin] = quiet_hours_end.split(':').map(Number);
-    const quietStart = startHour * 60 + startMin;
-    const quietEnd = endHour * 60 + endMin;
+    try {
+      const userTimezone = notification_preferences?.timezone || 'UTC';
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: userTimezone
+      });
+      const now = new Date();
+      const timeStr = formatter.format(now);
+      const [hour, minute] = timeStr.split(':').map(Number);
+      const currentTime = hour * 60 + minute;
 
-    if (currentTime >= quietStart && currentTime < quietEnd) {
-      logger.debug('Notification skipped due to quiet hours', { notification_id, user_id });
-      return;
+      const [startHour, startMin] = quiet_hours_start.split(':').map(Number);
+      const [endHour, endMin] = quiet_hours_end.split(':').map(Number);
+      const quietStart = startHour * 60 + startMin;
+      const quietEnd = endHour * 60 + endMin;
+
+      // Handle case where quiet hours span midnight
+      const inQuietHours = quietStart <= quietEnd
+        ? currentTime >= quietStart && currentTime < quietEnd
+        : currentTime >= quietStart || currentTime < quietEnd;
+
+      if (inQuietHours) {
+        logger.debug('Notification skipped due to quiet hours', { notification_id, user_id, timezone: userTimezone });
+        return;
+      }
+    } catch (err) {
+      logger.warn('Error checking quiet hours', { notification_id, user_id, err });
+      // Continue anyway if there's an error
     }
   }
 
