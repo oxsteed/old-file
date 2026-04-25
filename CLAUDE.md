@@ -2331,5 +2331,74 @@ Next actions:
 
 **Status:** ✅ COMPLETE — Ready for testing and integration
 
+### Session — 2026-04-25 (Admin Dashboard for Consulting Sessions)
+
+**Objective:** Implement admin interface to manage consulting intake sessions - first step in the Business Launch consulting pipeline.
+
+**What was built:**
+
+1. **Admin Console Pages** ✅
+   - `ConsultingSessionsAdmin.jsx` — Main dashboard for listing all consulting sessions
+     * Filterable by status (pending, scheduled, completed, cancelled)
+     * Filterable by service tier (initial, foundation, implementation, transformation)
+     * Paginated table showing 20 sessions per page
+     * Action buttons to view session details
+   - `ConsultingSessionDetail.jsx` — Detail view for individual session
+     * Contact information (email, phone, business name)
+     * Consultation details (service tier, current phase, description)
+     * Areas of help selected (displayed as badges)
+     * Scheduling preferences (date, time slot, booking status)
+     * Status update dropdown
+     * Timestamps for created/updated dates
+
+2. **Backend API Endpoints** ✅
+   - Modified `consultingAdminController.js` to add 3 new functions:
+     * `listSessions()` — GET `/api/consulting/admin/sessions` with filtering and pagination
+     * `getSessionDetail()` — GET `/api/consulting/admin/sessions/:id` for single session
+     * `updateSessionDetails()` — PATCH `/api/consulting/admin/sessions/:id` to update status
+   - Modified `consultingAdmin.js` routes:
+     * Added `requireAdmin` middleware to all existing routes
+     * Added 3 new routes for consulting sessions management
+     * All routes now properly protected with authentication + authorization
+
+3. **Admin UI Integration** ✅
+   - `AdminApp.jsx` — Added new route `/admin/consulting/sessions`
+   - `AdminLayout.jsx` — Added navigation link "Consulting Sessions"
+   - Follows existing admin UI patterns and styling
+   - Consistent with BusinessLaunchAdmin design
+
+**Key Design Decisions:**
+
+- **Status workflow:** pending → scheduled → completed / cancelled (matches business logic)
+- **Service tiers:** Reflects pricing structure (initial=$100, others custom)
+- **Areas of help:** Display as badges, truncated at 3 with +N indicator for more
+- **Pagination:** 20 sessions per page (same as Business Launch admin)
+- **Status colors:** Consistent with existing admin color scheme (orange=pending, cyan=scheduled, green=completed, red=cancelled)
+
+**Files Created:**
+- `client/src/admin/pages/ConsultingSessionsAdmin.jsx` — Main admin dashboard
+- `client/src/admin/pages/ConsultingSessionDetail.jsx` — Session detail view
+- `server/controllers/consultingAdminController.js` — Moved from consultingAdminController (enhanced)
+
+**Files Modified:**
+- `server/routes/consultingAdmin.js` — Added 3 new routes + requireAdmin middleware
+- `client/src/admin/AdminApp.jsx` — Added import + route
+- `client/src/admin/layouts/AdminLayout.jsx` — Added nav item
+
+**Testing Notes:**
+- List endpoint supports filtering and pagination (tested syntax)
+- Status update properly validates session exists before updating
+- Detail view shows all session information with proper formatting
+- Area of help badges truncate cleanly with indicator for overflow
+
+**Next Steps in Consulting Pipeline:**
+1. ✅ Admin dashboard to view consulting sessions (COMPLETE)
+2. Add consultant assignment workflow (assign consultants to sessions)
+3. Create scheduling system (confirm dates/times with customers)
+4. Send follow-up emails when status changes
+5. Create payment processing for consulting packages
+
+**Status:** ✅ COMPLETE — Admin can now view and manage all consulting intake sessions
+
 ---
 
