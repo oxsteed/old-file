@@ -13,7 +13,7 @@ SELECT
   COUNT(DISTINCT csf.id) as feedback_count,
   COUNT(DISTINCT CASE WHEN csf.feedback_rating >= 4 THEN csf.id END) as positive_feedback_count,
   MIN(css.created_at) as first_session_date,
-  MAX(css.completed_at) as last_completed_date,
+  MAX(CASE WHEN css.status = 'completed' THEN css.updated_at END) as last_completed_date,
   ROUND(100.0 * COUNT(DISTINCT CASE WHEN css.status = 'completed' THEN css.id END) /
         NULLIF(COUNT(DISTINCT css.id), 0), 1) as completion_rate
 FROM users u
@@ -34,7 +34,7 @@ SELECT
         NULLIF(COUNT(DISTINCT css.id), 0), 1) as completion_rate,
   ROUND(AVG(CASE WHEN csf.feedback_rating IS NOT NULL THEN csf.feedback_rating END)::numeric, 2) as avg_rating,
   MIN(css.created_at) as earliest_request,
-  MAX(css.completed_at) as latest_completion
+  MAX(CASE WHEN css.status = 'completed' THEN css.updated_at END) as latest_completion
 FROM consulting_sessions cs
 LEFT JOIN consulting_sessions_scheduled css ON cs.id = css.session_id
 LEFT JOIN consulting_session_followups csf ON css.id = csf.session_scheduled_id
