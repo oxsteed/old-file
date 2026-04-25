@@ -1982,7 +1982,13 @@
     "skills": "Konpetans ki nesesè",
     "skillsDesc": "Chwazi konpetans espesifik ou bezwen",
     "addSkill": "Ajoute konpetans",
-    "skillsAdded": "{{count}} konpetans ajoute"
+    "skillsAdded": "{{count}} konpetans ajoute",
+    "budget": "Bidjè",
+    "jobPostedSuccess": "Travay Poste!",
+    "jobLiveMessage": "Travay ou a viv. Travayè kalifye nan {{city}} ka wè li epi soumèt òf.",
+    "yourArea": "zòn ou",
+    "viewMyJobs": "Gade Travay Mwen",
+    "postAnotherJob": "Poste Yon Lòt Travay"
   },
   "jobDetail": {
     "bidNow": "Fè Òf sou Travay sa",

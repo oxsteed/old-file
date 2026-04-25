@@ -1540,18 +1540,33 @@ export default function PostJobPage() {
                   <span className="pjw-review-label">{t('postJob.requirements')}</span>
                   <div className="pjw-review-value">
                     {activeReqs.length === 0
-                      ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>None selected</span>
+                      ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>{t('postJob.notSelected')}</span>
                       : <div className="pjw-req-badges">{activeReqs.map(k => <span key={k} className="pjw-req-badge">{REQ_META[k].label}</span>)}</div>
                     }
                   </div>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:2 })}>Edit</button>
                 </div>
 
+                {/* Required Skills review */}
+                {form.requiredSkills.length > 0 && (
+                  <div className="pjw-review-row">
+                    <span className="pjw-review-label">{t('postJob.skills')}</span>
+                    <div className="pjw-review-value">
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {form.requiredSkills.map((skill) => (
+                          <span key={skill.id} className="pjw-req-badge">{skill.name}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <button className="pjw-edit-btn" type="button" onClick={() => set({ step:2 })}>Edit</button>
+                  </div>
+                )}
+
                 <div className="pjw-hr" />
 
                 {/* Budget review */}
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Budget</span>
+                  <span className="pjw-review-label">{t('postJob.budget')}</span>
                   <span className="pjw-review-value">{formatBudgetDisplay(form)}</span>
                   <button className="pjw-edit-btn" type="button" onClick={() => set({ step:3 })}>Edit</button>
                 </div>
@@ -1609,7 +1624,7 @@ export default function PostJobPage() {
               <div className="pjw-form-actions-right">
                 <button type="button" className="pjw-btn pjw-btn-ghost"
                   onClick={() => api.put('/jobs/draft', { wizard_step: form.step, payload: form }).then(() => navigate('/dashboard'))}>
-                  Save Draft
+                  {t('postJob.saveDraft')}
                 </button>
                 {form.step < 4
                   ? <button type="button" className="pjw-btn pjw-btn-primary" onClick={nextStep}>
@@ -1701,9 +1716,9 @@ export default function PostJobPage() {
             <div className="pjw-success-icon" aria-hidden="true">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h2 className="pjw-success-title" id="pjw-success-title">Job Posted!</h2>
+            <h2 className="pjw-success-title" id="pjw-success-title">{t('postJob.jobPostedSuccess')}</h2>
             <p className="pjw-success-sub">
-              Your job is live. Qualified helpers in {form.locationCity || 'your area'} can now see it and submit bids.
+              {t('postJob.jobLiveMessage', { city: form.locationCity || t('postJob.yourArea') })}
             </p>
             <div className="pjw-job-id">
               JOB-{String(form.submittedJob.id || '').toUpperCase().slice(0, 8)}
@@ -1711,11 +1726,11 @@ export default function PostJobPage() {
             <div className="pjw-success-actions">
               <button type="button" className="pjw-btn pjw-btn-primary pjw-btn-full"
                 onClick={() => navigate(`/dashboard`)}>
-                View My Jobs
+                {t('postJob.viewMyJobs')}
               </button>
               <button type="button" className="pjw-btn pjw-btn-secondary pjw-btn-full"
                 onClick={() => { setForm(INIT); setErrors({}); }}>
-                Post Another Job
+                {t('postJob.postAnotherJob')}
               </button>
             </div>
           </div>

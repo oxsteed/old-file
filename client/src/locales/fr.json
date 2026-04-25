@@ -1915,7 +1915,13 @@
     "skills": "Compétences requises",
     "skillsDesc": "Sélectionnez les compétences spécifiques dont vous avez besoin",
     "addSkill": "Ajouter une compétence",
-    "skillsAdded": "{{count}} compétence(s) ajoutée(s)"
+    "skillsAdded": "{{count}} compétence(s) ajoutée(s)",
+    "budget": "Budget",
+    "jobPostedSuccess": "Annonce publiée !",
+    "jobLiveMessage": "Votre annonce est en direct. Les travailleurs qualifiés dans {{city}} peuvent maintenant la voir et soumettre des offres.",
+    "yourArea": "votre région",
+    "viewMyJobs": "Voir mes annonces",
+    "postAnotherJob": "Publier une autre annonce"
   },
   "jobDetail": {
     "bidNow": "Faire une offre",

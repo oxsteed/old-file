@@ -1915,7 +1915,13 @@
     "skills": "Required Skills",
     "skillsDesc": "Select the specific skills you need",
     "addSkill": "Add Skill",
-    "skillsAdded": "{{count}} skill(s) added"
+    "skillsAdded": "{{count}} skill(s) added",
+    "budget": "Budget",
+    "jobPostedSuccess": "Job Posted!",
+    "jobLiveMessage": "Your job is live. Qualified helpers in {{city}} can now see it and submit bids.",
+    "yourArea": "your area",
+    "viewMyJobs": "View My Jobs",
+    "postAnotherJob": "Post Another Job"
   },
   "jobDetail": {
     "bidNow": "Bid on This Job",

@@ -1915,7 +1915,13 @@
     "skills": "Habilidades requeridas",
     "skillsDesc": "Selecciona las habilidades específicas que necesitas",
     "addSkill": "Agregar habilidad",
-    "skillsAdded": "{{count}} habilidad(es) agregada(s)"
+    "skillsAdded": "{{count}} habilidad(es) agregada(s)",
+    "budget": "Presupuesto",
+    "jobPostedSuccess": "¡Trabajo publicado!",
+    "jobLiveMessage": "Tu trabajo está en vivo. Los ayudantes calificados en {{city}} ahora pueden verlo y enviar ofertas.",
+    "yourArea": "tu área",
+    "viewMyJobs": "Ver mis trabajos",
+    "postAnotherJob": "Publicar otro trabajo"
   },
   "jobDetail": {
     "bidNow": "Hacer oferta",
