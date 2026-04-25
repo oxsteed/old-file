@@ -34,7 +34,7 @@ exports.createActionItem = async (req, res) => {
 
     // Validate priority and assigned_to_type
     const validPriorities = ['low', 'medium', 'high', 'critical'];
-    const validAssignedTypes = ['customer', 'consultant', 'both'];
+    const validAssignedTypes = ['client', 'consultant'];
 
     if (priority && !validPriorities.includes(priority.toLowerCase())) {
       return res.status(400).json({ error: 'Invalid priority level' });
@@ -54,7 +54,7 @@ exports.createActionItem = async (req, res) => {
         description || null,
         dueDate || null,
         priority?.toLowerCase() || 'medium',
-        assignedToType?.toLowerCase() || 'both',
+        assignedToType?.toLowerCase() || 'client',
         clientVisible !== false
       ]
     );
@@ -114,7 +114,7 @@ exports.updateActionItem = async (req, res) => {
 
     if (assignedToType !== undefined) {
       updates.push(`assigned_to_type = $${paramNum}`);
-      values.push(assignedToType?.toLowerCase() || 'both');
+      values.push(assignedToType?.toLowerCase() || 'client');
       paramNum++;
     }
 

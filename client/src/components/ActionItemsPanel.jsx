@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import consultingActionItemsApi from '../api/consultingActionItems';
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
-const ASSIGNED_TO_TYPES = ['customer', 'consultant', 'both'];
+const ASSIGNED_TO_TYPES = ['client', 'consultant'];
 
 export default function ActionItemsPanel({ sessionId, isEditable = false }) {
   const { t } = useTranslation();
@@ -17,7 +17,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
     description: '',
     dueDate: '',
     priority: 'medium',
-    assignedToType: 'both',
+    assignedToType: 'client',
     clientVisible: true,
   });
 
@@ -54,7 +54,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
         description: '',
         dueDate: '',
         priority: 'medium',
-        assignedToType: 'both',
+        assignedToType: 'client',
         clientVisible: true,
       });
       setShowAddForm(false);
@@ -78,7 +78,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
         description: '',
         dueDate: '',
         priority: 'medium',
-        assignedToType: 'both',
+        assignedToType: 'client',
         clientVisible: true,
       });
       loadActionItems();
@@ -129,7 +129,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
       description: item.description || '',
       dueDate: item.due_date ? item.due_date.split('T')[0] : '',
       priority: item.priority || 'medium',
-      assignedToType: item.assigned_to_type || 'both',
+      assignedToType: item.assigned_to_type || 'client',
       clientVisible: item.client_visible !== false,
     });
   };
@@ -382,7 +382,7 @@ export default function ActionItemsPanel({ sessionId, isEditable = false }) {
                   description: '',
                   dueDate: '',
                   priority: 'medium',
-                  assignedToType: 'both',
+                  assignedToType: 'client',
                   clientVisible: true,
                 });
               }}
