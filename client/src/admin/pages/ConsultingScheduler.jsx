@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
+import toast from 'react-hot-toast';
 
 export default function ConsultingScheduler() {
   const { t } = useTranslation();
@@ -37,7 +38,7 @@ export default function ConsultingScheduler() {
 
   async function scheduleSession() {
     if (!selectedSession || !selectedDate || !selectedTime) {
-      alert(t('consulting.scheduler.selectAll'));
+      toast.error(t('consulting.scheduler.selectAll'));
       return;
     }
 
@@ -54,7 +55,7 @@ export default function ConsultingScheduler() {
         }
       );
 
-      alert(t('consulting.scheduler.scheduleSuccess'));
+      toast.success(t('consulting.scheduler.scheduleSuccess'));
       setShowScheduler(false);
       setSelectedSession(null);
       setSelectedDate(null);
@@ -63,7 +64,7 @@ export default function ConsultingScheduler() {
       loadSessions();
     } catch (err) {
       console.error('Scheduling error', err);
-      alert(t('consulting.scheduler.scheduleError'));
+      toast.error(t('consulting.scheduler.scheduleError'));
     } finally {
       setSaving(false);
     }

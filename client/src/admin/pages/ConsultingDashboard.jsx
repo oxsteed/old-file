@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
-import adminApi from '../../api/admin';
+import toast from 'react-hot-toast';
 
 export default function ConsultingDashboard() {
   const { t } = useTranslation();
@@ -36,11 +36,9 @@ export default function ConsultingDashboard() {
     try {
       await axios.post('/api/consulting/admin/assign', { session_id: sessionId, consultant_id: consultantId });
       loadData();
-      // Toast would go here - for now using alert
-      alert(t('consulting.admin.messages.assignmentSuccess'));
+      toast.success(t('consulting.admin.messages.assignmentSuccess'));
     } catch (err) {
-      // Toast would go here - for now using alert
-      alert(t('consulting.admin.messages.assignmentError'));
+      toast.error(t('consulting.admin.messages.assignmentError'));
     }
   }
 

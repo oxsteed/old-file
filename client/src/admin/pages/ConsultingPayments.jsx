@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import adminApi from '../../api/admin';
+import axios from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
+import toast from 'react-hot-toast';
 
 export default function ConsultingPayments() {
   const { t } = useTranslation();
@@ -22,15 +23,16 @@ export default function ConsultingPayments() {
     try {
       setLoading(true);
       const [pkgRes, purchaseRes, invoiceRes] = await Promise.all([
-        adminApi.get('/api/consulting/packages'),
-        adminApi.get('/api/consulting/my-purchases'),
-        adminApi.get('/api/consulting/invoices'),
+        axios.get('/api/consulting/packages'),
+        axios.get('/api/consulting/my-purchases'),
+        axios.get('/api/consulting/invoices'),
       ]);
       setPackages(pkgRes.data || []);
       setPurchases(purchaseRes.data || []);
       setInvoices(invoiceRes.data || []);
     } catch (err) {
       console.error('Error loading consulting payment data', err);
+      toast.error(t('common.errorLoading'));
     } finally {
       setLoading(false);
     }
@@ -41,12 +43,13 @@ export default function ConsultingPayments() {
     try {
       setPaymentLoading(true);
       // Create payment intent
-      const intentRes = await adminApi.post('/api/consulting/payment-intent', { package_id: packageId });
+      const intentRes = await axios.post('/api/consulting/payment-intent', { package_id: packageId });
 
       // Initialize Stripe payment
       const stripe = window.Stripe || null;
       if (!stripe) {
-        alert(t('consulting.payment.stripeError'));
+        toast.error(t('consulting.payment.stripeError'));
+        setPaymentLoading(false);
         return;
       }
 
@@ -54,11 +57,11 @@ export default function ConsultingPayments() {
       // Full Stripe integration would happen here
       setSelectedPackage(null);
       setPaymentLoading(false);
-      alert(t('consulting.payment.intentCreated'));
+      toast.success(t('consulting.payment.intentCreated'));
       loadData();
     } catch (err) {
       console.error('Payment error', err);
-      alert(t('consulting.payment.error'));
+      toast.error(t('consulting.payment.error'));
       setPaymentLoading(false);
     }
   }

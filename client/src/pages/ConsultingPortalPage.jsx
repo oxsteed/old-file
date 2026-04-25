@@ -20,11 +20,11 @@ export default function ConsultingPortalPage() {
   async function loadData() {
     try {
       setLoading(true);
-      const [sessionsRes, phasesRes, deliverablesRes] = await Promise.all([
-        axios.get('/api/consulting/my-sessions'),
-        axios.get('/api/consulting/phases'),
-        axios.get('/api/consulting/deliverables'),
-      ]).catch(() => [{ data: [] }, { data: [] }, { data: [] }]);
+      // Load user's consulting sessions and dashboard data
+      const [sessionsRes, dashboardRes] = await Promise.all([
+        axios.get('/api/consulting/my-sessions').catch(() => ({ data: [] })),
+        axios.get('/api/consulting/portal/dashboard').catch(() => ({ data: {} })),
+      ]);
 
       const sessionsList = sessionsRes.data || [];
       setSessions(sessionsList);
@@ -32,10 +32,13 @@ export default function ConsultingPortalPage() {
         setSelectedSession(sessionsList[0]);
       }
 
-      setPhases(phasesRes.data || []);
-      setDeliverables(deliverablesRes.data || []);
+      const dashboardData = dashboardRes.data || {};
+      // Extract phases (1-30) and deliverables from dashboard or set defaults
+      setPhases(dashboardData.phases || Array.from({ length: 30 }, (_, i) => ({ number: i + 1 })));
+      setDeliverables(dashboardData.deliverables || []);
     } catch (err) {
       console.error('Error loading consulting portal data', err);
+      // Silent fail with empty state - data will load on retry
     } finally {
       setLoading(false);
     }
