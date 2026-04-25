@@ -1,4 +1,4 @@
--- Migration 107: Consulting analytics and performance tracking
+-- Migration 108: Consulting analytics and performance tracking
 
 -- View: Consultant performance metrics
 CREATE OR REPLACE VIEW consultant_performance AS
@@ -109,4 +109,4 @@ CREATE INDEX idx_conversion_funnel_created
 ON consulting_sessions(created_at DESC);
 
 CREATE INDEX idx_feedback_trends_week
-ON consulting_session_followups(DATE_TRUNC('week', created_at)::DATE DESC);
+ON consulting_session_followups ((DATE_TRUNC('week', created_at)::DATE));
