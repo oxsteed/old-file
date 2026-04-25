@@ -1,9 +1,16 @@
 // Admin dashboard controller for managing consulting requests
-const logger = require('../../utils/logger');
-const db = require('../../db');
+const logger = require('../utils/logger');
+const db = require('../db');
+
+const VALID_STATUSES = ['pending', 'scheduled', 'completed', 'cancelled'];
 
 exports.getConsultingRequests = async (req, res) => {
   const { status, limit = 50, offset = 0 } = req.query;
+
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status filter' });
+  }
+
   try {
     let query = `SELECT cs.*, c.current_phase, c.progress_pct FROM consulting_sessions cs
                  LEFT JOIN consulting_session_phases c ON cs.id = c.session_id`;
@@ -14,17 +21,19 @@ exports.getConsultingRequests = async (req, res) => {
       params.push(status);
     }
 
+    const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 100);
+    const safeOffset = Math.max(parseInt(offset) || 0, 0);
     query += ` ORDER BY cs.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(safeLimit, safeOffset);
 
     const result = await db.query(query, params);
-    const countResult = await db.query('SELECT COUNT(*) FROM consulting_sessions' + (status ? ` WHERE status = $1` : ''), status ? [status] : []);
+    const countResult = await db.query('SELECT COUNT(*) FROM consulting_sessions' + (status ? ' WHERE status = $1' : ''), status ? [status] : []);
 
     res.json({
       requests: result.rows,
       total: parseInt(countResult.rows[0].count),
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: safeLimit,
+      offset: safeOffset,
     });
   } catch (err) {
     logger.error('Error fetching consulting requests', { error: err.message });
@@ -58,6 +67,9 @@ exports.assignConsultantToRequest = async (req, res) => {
 
 exports.updateRequestStatus = async (req, res) => {
   const { session_id, status } = req.body;
+  if (!VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+  }
   try {
     const result = await db.query(
       `UPDATE consulting_sessions SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,

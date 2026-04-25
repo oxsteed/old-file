@@ -1,15 +1,23 @@
-const logger = require('../../utils/logger');
-const { sendEmail } = require('../../utils/email');
-const db = require('../../db');
+const logger = require('../utils/logger');
+const { sendEmail } = require('../utils/email');
+const db = require('../db');
+
+const VALID_CONSULTANT_ROLES = ['phase_guide', 'strategist', 'advisor', 'specialist'];
 
 // PHASE 1: Consultant Management
 exports.createConsultant = async (req, res) => {
   const { user_id, role, bio, expertise_areas, rate_per_hour, client_limit } = req.body;
+  if (!user_id || !role) {
+    return res.status(400).json({ error: 'user_id and role are required' });
+  }
+  if (!VALID_CONSULTANT_ROLES.includes(role)) {
+    return res.status(400).json({ error: `Invalid role. Must be one of: ${VALID_CONSULTANT_ROLES.join(', ')}` });
+  }
   try {
     const result = await db.query(
       `INSERT INTO consultants (user_id, role, bio, expertise_areas, rate_per_hour, client_limit)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [user_id, role, bio, expertise_areas || [], rate_per_hour || 0, client_limit || 10]
+      [user_id, role, bio || null, expertise_areas || [], rate_per_hour || 0, client_limit || 10]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -50,19 +58,28 @@ exports.updateConsultant = async (req, res) => {
 // PHASE 1: Consultant Availability
 exports.setConsultantAvailability = async (req, res) => {
   const { consultant_id, schedule } = req.body;
+  if (!consultant_id || !Array.isArray(schedule)) {
+    return res.status(400).json({ error: 'consultant_id and schedule array are required' });
+  }
+  const client = await db.connect();
   try {
-    await db.query('DELETE FROM consultant_availability WHERE consultant_id = $1', [consultant_id]);
+    await client.query('BEGIN');
+    await client.query('DELETE FROM consultant_availability WHERE consultant_id = $1', [consultant_id]);
     for (const slot of schedule) {
-      await db.query(
+      await client.query(
         `INSERT INTO consultant_availability (consultant_id, day_of_week, start_time, end_time, timezone)
          VALUES ($1, $2, $3, $4, $5)`,
         [consultant_id, slot.day_of_week, slot.start_time, slot.end_time, slot.timezone || 'UTC']
       );
     }
+    await client.query('COMMIT');
     res.json({ message: 'Availability updated' });
   } catch (err) {
+    await client.query('ROLLBACK');
     logger.error('Error setting availability', { error: err.message });
     res.status(500).json({ error: 'Failed to set availability' });
+  } finally {
+    client.release();
   }
 };
 
@@ -84,21 +101,18 @@ exports.assignConsultant = async (req, res) => {
 
 // PHASE 2: Schedule Session
 exports.scheduleSession = async (req, res) => {
-  const { session_id, scheduled_date, scheduled_time, duration_minutes, meeting_type } = req.body;
+  const { session_id, scheduled_date, scheduled_time, duration_minutes, meeting_type, meeting_url } = req.body;
+  if (!session_id || !scheduled_date || !scheduled_time) {
+    return res.status(400).json({ error: 'session_id, scheduled_date, and scheduled_time are required' });
+  }
   try {
     const result = await db.query(
-      `INSERT INTO consulting_sessions_scheduled (session_id, scheduled_date, scheduled_time, duration_minutes, meeting_type, status)
-       VALUES ($1, $2, $3, $4, $5, 'confirmed') RETURNING *`,
-      [session_id, scheduled_date, scheduled_time, duration_minutes || 120, meeting_type || 'zoom']
+      `INSERT INTO consulting_sessions_scheduled (session_id, scheduled_date, scheduled_time, duration_minutes, meeting_type, meeting_url, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'confirmed') RETURNING *`,
+      [session_id, scheduled_date, scheduled_time, duration_minutes || 120, meeting_type || 'zoom', meeting_url || null]
     );
-    const scheduled = result.rows[0];
-
-    // Generate meeting URL placeholder
-    const meetingUrl = `https://zoom.us/j/session${session_id}`;
-    await db.query('UPDATE consulting_sessions_scheduled SET meeting_url=$1 WHERE id=$2', [meetingUrl, scheduled.id]);
-
     logger.info('Session scheduled', { session_id, scheduled_date });
-    res.json({ ...scheduled, meeting_url: meetingUrl });
+    res.json(result.rows[0]);
   } catch (err) {
     logger.error('Error scheduling session', { error: err.message });
     res.status(500).json({ error: 'Failed to schedule session' });
@@ -182,27 +196,6 @@ exports.getPackages = async (req, res) => {
   }
 };
 
-exports.purchasePackage = async (req, res) => {
-  const { package_id } = req.body;
-  try {
-    const pkgResult = await db.query('SELECT * FROM consulting_packages WHERE id=$1', [package_id]);
-    if (!pkgResult.rows.length) return res.status(404).json({ error: 'Package not found' });
-
-    const pkg = pkgResult.rows[0];
-    const result = await db.query(
-      `INSERT INTO consulting_purchases (user_id, package_id, total_cost_cents, sessions_remaining, status)
-       VALUES ($1, $2, $3, $4, 'completed') RETURNING *`,
-      [req.user.id, package_id, pkg.price_cents, pkg.session_count]
-    );
-
-    logger.info('Package purchased', { user_id: req.user.id, package_id });
-    res.json(result.rows[0]);
-  } catch (err) {
-    logger.error('Error purchasing package', { error: err.message });
-    res.status(500).json({ error: 'Failed to purchase package' });
-  }
-};
-
 // PHASE 5: Client Portal
 exports.getPortalDashboard = async (req, res) => {
   try {
@@ -233,6 +226,15 @@ exports.getPortalDashboard = async (req, res) => {
 exports.submitSessionFeedback = async (req, res) => {
   const { session_id, nps_score, feedback_text, session_quality_rating } = req.body;
   try {
+    // Verify the session belongs to the requesting user
+    const sessionCheck = await db.query(
+      'SELECT id FROM consulting_sessions WHERE id = $1 AND user_id = $2',
+      [session_id, req.user.id]
+    );
+    if (!sessionCheck.rows.length) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
     const result = await db.query(
       `INSERT INTO consulting_session_feedback (session_id, user_id, nps_score, feedback_text, session_quality_rating)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,

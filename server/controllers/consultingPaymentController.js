@@ -36,11 +36,28 @@ exports.createPaymentIntent = async (req, res) => {
 
 exports.confirmPurchase = async (req, res) => {
   const { payment_intent_id, package_id } = req.body;
+  if (!payment_intent_id || !package_id) {
+    return res.status(400).json({ error: 'payment_intent_id and package_id are required' });
+  }
   try {
+    // Idempotency: return existing purchase if this payment_intent was already processed
+    const existing = await db.query(
+      'SELECT * FROM consulting_purchases WHERE payment_intent_id = $1',
+      [payment_intent_id]
+    );
+    if (existing.rows.length) {
+      return res.json({ purchase: existing.rows[0], message: 'Purchase already recorded' });
+    }
+
     const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
 
     if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ error: 'Payment not completed' });
+    }
+
+    // Verify the payment intent belongs to this user
+    if (paymentIntent.metadata?.user_id && paymentIntent.metadata.user_id !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
     const pkg = await db.query('SELECT * FROM consulting_packages WHERE id = $1', [package_id]);
