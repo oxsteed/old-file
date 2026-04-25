@@ -87,6 +87,7 @@ const consultingFeedbackRoutes = require('./routes/consultingFeedback');
 const consultantSchedulingRoutes = require('./routes/consultantScheduling');
 const consultingAnalyticsRoutes = require('./routes/consultingAnalytics');
 const consultingActionItemsRoutes = require('./routes/consultingActionItems');
+const calendarRoutes = require('./routes/calendar');
 // roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -409,6 +410,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // ── INLINE ROUTES ──────────────────────────────────────
 const { getPublicProfile } = require('./controllers/authController');
+app.use('/api/calendar', calendarRoutes);
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
@@ -457,6 +459,7 @@ const { startGuestChatSessionTimeoutJob } = require('./jobs/guestChatSessionTime
 const { startConsultingSessionReminders } = require('./jobs/consultingSessionReminders');
 const { startConsultingPostSessionFollowup } = require('./jobs/consultingPostSessionFollowup');
 const { startConsultingNoShowFollowup } = require('./jobs/consultingNoShowFollowup');
+const { startCalendarReminderJob } = require('./jobs/calendarReminders');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
@@ -465,6 +468,7 @@ startGuestChatSessionTimeoutJob();
 startConsultingSessionReminders();
 startConsultingPostSessionFollowup();
 startConsultingNoShowFollowup();
+startCalendarReminderJob();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {

@@ -59,6 +59,7 @@ import ConsultingFullPortal from './pages/ConsultingFullPortal';
 import ConsultingPortalPage from './pages/ConsultingPortalPage';
 import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
 import InvoicesPage from './pages/InvoicesPage';
+import CalendarPage from './pages/CalendarPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -157,6 +158,9 @@ export default function App() {
 
                     {/* Critical: Business analytics dashboard with multiple tabs */}
                     <Route path="/business-hub"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* Role-aware appointment + availability calendar system */}
+                    <Route path="/calendar" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CalendarPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Pro feature: QR Code Generator */}
                     <Route path="/qr-generator"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
