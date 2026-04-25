@@ -1,6 +1,6 @@
 // Consulting payment controller - integrates with existing Stripe
-const logger = require('../../utils/logger');
-const db = require('../../db');
+const logger = require('../utils/logger');
+const db = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 exports.createPaymentIntent = async (req, res) => {

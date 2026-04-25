@@ -1,6 +1,6 @@
-const logger = require('../../utils/logger');
-const { sendEmail } = require('../../utils/email');
-const db = require('../../db');
+const logger = require('../utils/logger');
+const { sendEmail } = require('../utils/email');
+const db = require('../db');
 
 // PHASE 1: Consultant Management
 exports.createConsultant = async (req, res) => {
