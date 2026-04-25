@@ -26,7 +26,7 @@ export default function ConsultingDashboard() {
       setConsultants(consRes.data || []);
       setStats(statsRes.data);
     } catch (err) {
-      console.error('Error loading consulting dashboard', err);
+      toast.error(t('common.errorLoading') || 'Failed to load dashboard');
     } finally {
       setLoading(false);
     }

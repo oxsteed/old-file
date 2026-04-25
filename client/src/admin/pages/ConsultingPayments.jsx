@@ -31,8 +31,7 @@ export default function ConsultingPayments() {
       setPurchases(purchaseRes.data || []);
       setInvoices(invoiceRes.data || []);
     } catch (err) {
-      console.error('Error loading consulting payment data', err);
-      toast.error(t('common.errorLoading'));
+      toast.error(t('common.errorLoading') || 'Failed to load payment data');
     } finally {
       setLoading(false);
     }
@@ -60,8 +59,7 @@ export default function ConsultingPayments() {
       toast.success(t('consulting.payment.intentCreated'));
       loadData();
     } catch (err) {
-      console.error('Payment error', err);
-      toast.error(t('consulting.payment.error'));
+      toast.error(t('consulting.payment.error') || 'Payment failed');
       setPaymentLoading(false);
     }
   }

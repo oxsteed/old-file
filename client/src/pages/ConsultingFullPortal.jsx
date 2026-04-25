@@ -38,7 +38,7 @@ export default function ConsultingFullPortal() {
         packages: packagesResponse.data || [],
       }));
     } catch (err) {
-      console.error('Error loading portal data', err);
+      // Error loading data - will show in empty state
     } finally {
       setLoading(false);
     }

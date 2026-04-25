@@ -25,7 +25,6 @@ export default function ConsultingPortal() {
       setSessions(response.data);
     } catch (err) {
       toast.error(t('common.errorLoading') || 'Failed to load sessions');
-      console.error('Failed to load sessions', err);
     } finally {
       setLoading(false);
     }

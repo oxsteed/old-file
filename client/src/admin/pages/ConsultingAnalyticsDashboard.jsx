@@ -33,7 +33,6 @@ export default function ConsultingAnalyticsDashboard() {
       setFeedbackTrends(trends.data);
     } catch (err) {
       toast.error(t('common.errorLoading') || 'Failed to load analytics');
-      console.error('Failed to load analytics', err);
     } finally {
       setLoading(false);
     }

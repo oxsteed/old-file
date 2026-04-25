@@ -30,7 +30,7 @@ export default function ConsultingScheduler() {
       const res = await axios.get('/api/consulting/admin/requests');
       setSessions(res.data.requests || []);
     } catch (err) {
-      console.error('Error loading sessions', err);
+      toast.error(t('common.errorLoading') || 'Failed to load sessions');
     } finally {
       setLoading(false);
     }
@@ -63,8 +63,7 @@ export default function ConsultingScheduler() {
       setMeetingUrl('');
       loadSessions();
     } catch (err) {
-      console.error('Scheduling error', err);
-      toast.error(t('consulting.scheduler.scheduleError'));
+      toast.error(t('consulting.scheduler.scheduleError') || 'Failed to schedule session');
     } finally {
       setSaving(false);
     }

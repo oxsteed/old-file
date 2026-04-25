@@ -37,7 +37,6 @@ export default function ConsultingPortalPage() {
       setPhases(dashboardData.phases || Array.from({ length: 30 }, (_, i) => ({ number: i + 1 })));
       setDeliverables(dashboardData.deliverables || []);
     } catch (err) {
-      console.error('Error loading consulting portal data', err);
       // Silent fail with empty state - data will load on retry
     } finally {
       setLoading(false);
