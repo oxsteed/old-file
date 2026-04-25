@@ -1,7 +1,7 @@
 -- Consulting sessions and bookings
 CREATE TABLE consulting_sessions (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT,
+  user_id UUID,
   email VARCHAR(255) NOT NULL,
   first_name VARCHAR(255) NOT NULL,
   last_name VARCHAR(255) NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE consulting_sessions (
   preferred_time_slot VARCHAR(50) CHECK (preferred_time_slot IN ('morning', 'afternoon', 'evening', 'flexible')),
   status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'scheduled', 'completed', 'cancelled')),
   booking_confirmed BOOLEAN DEFAULT FALSE,
-  consultant_assigned_id BIGINT,
+  consultant_assigned_id UUID,
   scheduled_at TIMESTAMP,
   completed_at TIMESTAMP,
   notes TEXT,
@@ -33,7 +33,7 @@ CREATE INDEX idx_consulting_sessions_preferred_date ON consulting_sessions(prefe
 CREATE TABLE consulting_audit_log (
   id BIGSERIAL PRIMARY KEY,
   session_id BIGINT,
-  admin_id BIGINT,
+  admin_id UUID,
   action VARCHAR(100) NOT NULL,
   details JSONB,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
