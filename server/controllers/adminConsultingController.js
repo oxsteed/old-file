@@ -1,6 +1,6 @@
 // Admin dashboard controller for managing consulting requests
-const logger = require('../../utils/logger');
-const db = require('../../db');
+const logger = require('../utils/logger');
+const db = require('../db');
 
 exports.getConsultingRequests = async (req, res) => {
   const { status, limit = 50, offset = 0 } = req.query;

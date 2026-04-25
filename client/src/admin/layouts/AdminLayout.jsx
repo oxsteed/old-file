@@ -9,7 +9,7 @@ import {
   ScrollText, Wrench, Trash2, UserCog,
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
-  HandshakeIcon, Calendar,
+  Handshake, Calendar,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
