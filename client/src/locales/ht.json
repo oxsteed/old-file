@@ -4008,6 +4008,8 @@
   },
   "consulting": {
     "title": "Konsèy Asansyon Biznis",
+    "intakePageTitle": "Fòm Asepsyon - Konsèy Asansyon Biznis",
+    "intakePageDesc": "Planje konsiltasyon inisyal $100 ou pou jwenn konsèy ekspè sou kwasans biznis ou.",
     "subtitle": "Jwenn konsèy ekspè pou fè biznis ou pi gwo. Konsiltasyon inisyal: $100 pou jiska 2 èdonn.",
     "stepContact": "Kontakt",
     "stepServices": "Sèvis",
@@ -4038,6 +4040,7 @@
       "exit_strategy": "Estrateji soti ak planifikasyon siksesyon"
     },
     "currentPhase": "Faz aktyèl biznis ou (1-30)",
+    "currentPhasePlaceholder": "Chwazi faz aktyèl ou (1-30)",
     "additionalInfo": "Di nou pi plis",
     "additionalInfoPlaceholder": "Dekri biznis ou, defi aktyèl, ak sa ou espere akonpli...",
     "confirmSummary": "Enfòmasyon ou",

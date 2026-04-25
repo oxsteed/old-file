@@ -362,16 +362,19 @@ export default function ConsultingIntakeModal({ isOpen, onClose }) {
 
             <div style={formGroupStyle}>
               <label style={labelStyle}>{t('consulting.currentPhase')} ({t('common.optional')})</label>
-              <input
-                type="number"
+              <select
                 name="current_phase"
                 value={form.current_phase}
                 onChange={handleInputChange}
                 style={inputStyle}
-                min="1"
-                max="30"
-                placeholder="1-30"
-              />
+              >
+                <option value="">{t('consulting.currentPhasePlaceholder')}</option>
+                {Array.from({ length: 30 }, (_, i) => i + 1).map(phase => (
+                  <option key={phase} value={phase}>
+                    Phase {phase}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div style={formGroupStyle}>
