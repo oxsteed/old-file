@@ -740,6 +740,7 @@ export default function PostJobPage() {
   const videoInputRef       = useRef(null);
   const audioInputRef       = useRef(null);
   const draftTimer          = useRef(null);
+  const successModalRef     = useRef(null);
 
   const [liveCapture, setLiveCapture] = useState(null); // 'photo' | 'video' | 'audio' | null
 
@@ -772,6 +773,26 @@ export default function PostJobPage() {
   }, [form.title, form.categoryId, form.description, form.locationInput,
       form.requirements, form.budgetType, form.budgetAmount, form.budgetAmountHourly,
       form.urgency, form.notes, form.step]);
+
+  // ── Success modal focus management & cleanup ────────────────────────────────
+  useEffect(() => {
+    if (form.submitted && form.submittedJob && successModalRef.current) {
+      // Auto-focus first button in success modal for accessibility
+      const firstButton = successModalRef.current.querySelector('button');
+      if (firstButton) {
+        setTimeout(() => firstButton.focus(), 0);
+      }
+    }
+  }, [form.submitted, form.submittedJob]);
+
+  // ── Clear submitted state on unmount to prevent stale state ────────────────
+  useEffect(() => {
+    return () => {
+      if (form.submitted) {
+        set({ submitted: false, submittedJob: null });
+      }
+    };
+  }, []);
 
   // ── Category selection & suggestions ─────────────────────────────────────
   function handleCategoryChange(id, name) {
@@ -1540,31 +1561,84 @@ export default function PostJobPage() {
                   <span className="pjw-review-label">{t('postJob.requirements')}</span>
                   <div className="pjw-review-value">
                     {activeReqs.length === 0
-                      ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>None selected</span>
+                      ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>{t('postJob.notSelected')}</span>
                       : <div className="pjw-req-badges">{activeReqs.map(k => <span key={k} className="pjw-req-badge">{REQ_META[k].label}</span>)}</div>
                     }
                   </div>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:2 })}>Edit</button>
+                  <button
+                    className="pjw-edit-btn"
+                    type="button"
+                    onClick={() => set({ step:2 })}
+                    aria-label={t('postJob.editRequirements')}
+                  >
+                    Edit
+                  </button>
+                </div>
+
+                {/* Required Skills review - always visible for consistency */}
+                <div className="pjw-review-row">
+                  <span className="pjw-review-label">{t('postJob.skills')}</span>
+                  <div className="pjw-review-value">
+                    {form.requiredSkills.length === 0
+                      ? <span style={{color:'var(--pjw-text-faint)',fontStyle:'italic'}}>{t('postJob.notSelected')}</span>
+                      : <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          {form.requiredSkills.map((skill) => (
+                            <span key={skill.id} className="pjw-req-badge" aria-label={`${skill.name}, read-only`}>
+                              {skill.name}
+                            </span>
+                          ))}
+                        </div>
+                    }
+                  </div>
+                  <button
+                    className="pjw-edit-btn"
+                    type="button"
+                    onClick={() => set({ step:2 })}
+                    aria-label={t('postJob.editRequiredSkills')}
+                  >
+                    Edit
+                  </button>
                 </div>
 
                 <div className="pjw-hr" />
 
                 {/* Budget review */}
                 <div className="pjw-review-row">
-                  <span className="pjw-review-label">Budget</span>
+                  <span className="pjw-review-label">{t('postJob.budget')}</span>
                   <span className="pjw-review-value">{formatBudgetDisplay(form)}</span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:3 })}>Edit</button>
+                  <button
+                    className="pjw-edit-btn"
+                    type="button"
+                    onClick={() => set({ step:3 })}
+                    aria-label={t('postJob.editBudget')}
+                  >
+                    Edit
+                  </button>
                 </div>
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.urgency')}</span>
                   <span className="pjw-review-value">{{ asap: t('postJob.urgencyASAP'), this_week: t('postJob.urgencyThisWeek'), next_week: t('postJob.urgencyNextWeek'), flexible: t('postJob.urgencyFlexible') }[form.urgency]}</span>
-                  <button className="pjw-edit-btn" type="button" onClick={() => set({ step:3 })}>Edit</button>
+                  <button
+                    className="pjw-edit-btn"
+                    type="button"
+                    onClick={() => set({ step:3 })}
+                    aria-label={t('postJob.editUrgency')}
+                  >
+                    Edit
+                  </button>
                 </div>
                 {form.notes && (
                   <div className="pjw-review-row">
                     <span className="pjw-review-label">{t('postJob.notes')}</span>
                     <span className="pjw-review-value" style={{ maxWidth:'360px' }}>{form.notes}</span>
-                    <button className="pjw-edit-btn" type="button" onClick={() => set({ step:3 })}>Edit</button>
+                    <button
+                      className="pjw-edit-btn"
+                      type="button"
+                      onClick={() => set({ step:3 })}
+                      aria-label={t('postJob.editNotes')}
+                    >
+                      Edit
+                    </button>
                   </div>
                 )}
 
@@ -1583,7 +1657,14 @@ export default function PostJobPage() {
                         ))}
                       </div>
                     </div>
-                    <button className="pjw-edit-btn" type="button" onClick={() => set({ step:1 })}>Edit</button>
+                    <button
+                      className="pjw-edit-btn"
+                      type="button"
+                      onClick={() => set({ step:1 })}
+                      aria-label={t('postJob.editMedia')}
+                    >
+                      Edit
+                    </button>
                   </div>
                 )}
 
@@ -1591,7 +1672,7 @@ export default function PostJobPage() {
                 <div className="pjw-terms-row">
                   <input type="checkbox" id="pjw-terms" checked={form.termsAccepted} onChange={e => set({ termsAccepted: e.target.checked })} />
                   <label className="pjw-terms-label" htmlFor="pjw-terms">
-                    I agree to OxSteed's <Link to="/terms">Terms of Service</Link> and <Link to="/privacy">Privacy Policy</Link>. I confirm that the information provided is accurate and I am authorised to post this job.
+                    {t('postJob.termsPrefix')} <Link to="/terms">{t('postJob.termsOfService')}</Link> {t('postJob.termsAnd')} <Link to="/privacy">{t('postJob.privacyPolicy')}</Link>. {t('postJob.termsConfirm')}
                   </label>
                 </div>
                 {errors.terms  && <div className="pjw-field-error" style={{ marginTop:'.5rem' }}>{errors.terms}</div>}
@@ -1609,7 +1690,7 @@ export default function PostJobPage() {
               <div className="pjw-form-actions-right">
                 <button type="button" className="pjw-btn pjw-btn-ghost"
                   onClick={() => api.put('/jobs/draft', { wizard_step: form.step, payload: form }).then(() => navigate('/dashboard'))}>
-                  Save Draft
+                  {t('postJob.saveDraft')}
                 </button>
                 {form.step < 4
                   ? <button type="button" className="pjw-btn pjw-btn-primary" onClick={nextStep}>
@@ -1696,26 +1777,40 @@ export default function PostJobPage() {
 
       {/* ── Success Overlay ──────────────────────────────────────────────── */}
       {form.submitted && form.submittedJob && (
-        <div className="pjw-overlay" role="dialog" aria-modal="true" aria-labelledby="pjw-success-title">
+        <div
+          ref={successModalRef}
+          className="pjw-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pjw-success-title"
+        >
           <div className="pjw-success-card">
             <div className="pjw-success-icon" aria-hidden="true">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h2 className="pjw-success-title" id="pjw-success-title">Job Posted!</h2>
+            <h2 className="pjw-success-title" id="pjw-success-title">{t('postJob.jobPostedSuccess')}</h2>
             <p className="pjw-success-sub">
-              Your job is live. Qualified helpers in {form.locationCity || 'your area'} can now see it and submit bids.
+              {t('postJob.jobLiveMessage', { city: form.locationCity?.trim() || t('postJob.yourArea') })}
             </p>
             <div className="pjw-job-id">
               JOB-{String(form.submittedJob.id || '').toUpperCase().slice(0, 8)}
             </div>
             <div className="pjw-success-actions">
-              <button type="button" className="pjw-btn pjw-btn-primary pjw-btn-full"
-                onClick={() => navigate(`/dashboard`)}>
-                View My Jobs
+              <button
+                type="button"
+                className="pjw-btn pjw-btn-primary pjw-btn-full"
+                onClick={() => navigate('/dashboard')}
+                aria-label={t('postJob.viewMyJobsAriaLabel')}
+              >
+                {t('postJob.viewMyJobs')}
               </button>
-              <button type="button" className="pjw-btn pjw-btn-secondary pjw-btn-full"
-                onClick={() => { setForm(INIT); setErrors({}); }}>
-                Post Another Job
+              <button
+                type="button"
+                className="pjw-btn pjw-btn-secondary pjw-btn-full"
+                onClick={() => { setForm(INIT); setErrors({}); }}
+                aria-label={t('postJob.postAnotherJobAriaLabel')}
+              >
+                {t('postJob.postAnotherJob')}
               </button>
             </div>
           </div>
