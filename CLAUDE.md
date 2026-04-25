@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-25 (✅ **Invoice Generation & Management Complete:** Auto-generate invoices on successful payment. Customer sees invoices at /invoices page. Email sent automatically with invoice details. Admin can resend emails and update status. Features: InvoiceController with CRUD ops, invoices REST API, InvoicesPage with list + detail modal, invoice email service, full i18n (18 keys, 4 languages). Invoice integrated into payment confirmation flow. Full feature set: Advanced Scheduling + Analytics Dashboard + Action Items Admin UI + Customer Portal + Payment Processing + Invoice Management.)
+**Last updated:** 2026-04-25 (✅ **Admin Tabbed Interface for Consulting Sessions:** Added Overview and Action Items tabs to ConsultingSessionDetail. ActionItemsPanel now integrated in editable mode on Action Items tab. Admins can manage session details and action items from single view. Full feature set: Advanced Scheduling + Analytics Dashboard + Action Items Admin UI (with tabbed interface) + Customer Portal + Payment Processing + Invoice Management + Admin Sessions Dashboard + Admin Notes & Messaging.)
 
 > Prior: 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine, 5-minute timeout cron, SERIALIZABLE isolation, message queueing, Socket.IO broadcast, full audit trail. Migration 100, syntax verified.)
 
