@@ -72,6 +72,19 @@ const SETUP_ITEMS_GROUPED = {
 };
 
 const PACKAGES = {
+  initial: {
+    name: 'Initial Consultation',
+    price: 100,
+    timeline: 'Up to 2 hours',
+    forWho: 'People who want to explore whether a consulting program is right for them',
+    features: [
+      'Strategy deep-dive call (up to 2 hours)',
+      'Business assessment & opportunity audit',
+      'Implementation roadmap & timeline',
+      'Custom recommendation for next steps',
+      'Q&A on your specific situation',
+    ],
+  },
   foundation: {
     name: 'Business Foundation',
     price: 750,
