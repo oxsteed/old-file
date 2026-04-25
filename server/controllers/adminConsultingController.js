@@ -379,3 +379,48 @@ exports.completeSession = async (req, res) => {
     return res.status(500).json({ error: 'Failed to complete session' });
   }
 };
+
+/**
+ * Mark a scheduled consulting session as no-show
+ * PATCH /api/consulting/admin/sessions/:sessionId/no-show
+ */
+exports.markNoShow = async (req, res) => {
+  const { sessionId } = req.params;
+
+  try {
+    // Find the scheduled session record
+    const scheduledResult = await db.query(
+      'SELECT id FROM consulting_sessions_scheduled WHERE session_id = $1',
+      [sessionId]
+    );
+
+    if (scheduledResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Scheduled session not found' });
+    }
+
+    const scheduledId = scheduledResult.rows[0].id;
+
+    // Mark session as no-show
+    const result = await db.query(
+      `UPDATE consulting_sessions_scheduled
+       SET status = 'no_show', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [scheduledId]
+    );
+
+    logger.info('Consulting session marked as no-show', {
+      adminId: req.user?.id,
+      sessionId,
+      scheduledId,
+    });
+
+    return res.json({
+      message: 'Session marked as no-show. Follow-up email will be sent to customer.',
+      session: result.rows[0],
+    });
+  } catch (err) {
+    logger.error('Error marking consulting session as no-show', { sessionId, err });
+    return res.status(500).json({ error: 'Failed to mark session as no-show' });
+  }
+};

@@ -74,6 +74,23 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
     }
   }
 
+  async function markSessionNoShow() {
+    if (!window.confirm('Mark this session as a no-show? A follow-up email will be sent to the customer offering to reschedule.')) {
+      return;
+    }
+
+    try {
+      setUpdateLoading(true);
+      await axios.patch(`/api/consulting/admin/sessions/${session.id}/no-show`);
+      toast.success('Session marked as no-show. Follow-up email queued.');
+      onStatusUpdate();
+    } catch (err) {
+      toast.error('Failed to mark session as no-show');
+    } finally {
+      setUpdateLoading(false);
+    }
+  }
+
   async function updateSessionStatus(sessionId, newStatus) {
     try {
       setUpdateLoading(true);
@@ -325,20 +342,38 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       {session.status === 'scheduled' && (
         <div style={sectionStyle}>
           <div style={sectionTitleStyle}>Session Actions</div>
-          <button
-            style={{
-              ...buttonStyle,
-              backgroundColor: '#10B981',
-              opacity: updateLoading ? 0.6 : 1,
-              cursor: updateLoading ? 'not-allowed' : 'pointer',
-            }}
-            onClick={markSessionComplete}
-            disabled={updateLoading}
-          >
-            {updateLoading ? 'Processing...' : '✓ Mark Session as Completed'}
-          </button>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              style={{
+                ...buttonStyle,
+                backgroundColor: '#10B981',
+                opacity: updateLoading ? 0.6 : 1,
+                cursor: updateLoading ? 'not-allowed' : 'pointer',
+                flex: 1,
+                minWidth: '200px',
+              }}
+              onClick={markSessionComplete}
+              disabled={updateLoading}
+            >
+              {updateLoading ? 'Processing...' : '✓ Mark Completed'}
+            </button>
+            <button
+              style={{
+                ...buttonStyle,
+                backgroundColor: '#EF4444',
+                opacity: updateLoading ? 0.6 : 1,
+                cursor: updateLoading ? 'not-allowed' : 'pointer',
+                flex: 1,
+                minWidth: '200px',
+              }}
+              onClick={markSessionNoShow}
+              disabled={updateLoading}
+            >
+              {updateLoading ? 'Processing...' : '✗ Mark No-Show'}
+            </button>
+          </div>
           <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-            Click to mark this session as completed. A follow-up email with action items will be sent to the customer.
+            Mark completed if session happened. Mark no-show if customer didn't attend.
           </p>
         </div>
       )}

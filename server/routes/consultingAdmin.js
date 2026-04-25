@@ -17,5 +17,6 @@ router.get('/sessions', authenticate, requireAdmin, adminConsultingController.li
 router.get('/sessions/:id', authenticate, requireAdmin, adminConsultingController.getSessionDetail);
 router.patch('/sessions/:id', authenticate, requireAdmin, adminConsultingController.updateSessionDetails);
 router.patch('/sessions/:sessionId/complete', authenticate, requireAdmin, adminConsultingController.completeSession);
+router.patch('/sessions/:sessionId/no-show', authenticate, requireAdmin, adminConsultingController.markNoShow);
 
 module.exports = router;
