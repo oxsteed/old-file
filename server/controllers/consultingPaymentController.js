@@ -1,6 +1,7 @@
 const db = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
+const invoiceController = require('./invoiceController');
 
 // Get available consulting packages
 exports.getPackages = async (req, res) => {
@@ -108,12 +109,48 @@ exports.confirmPayment = async (req, res) => {
       `UPDATE consulting_payments
        SET status = 'completed', updated_at = NOW()
        WHERE id = $1
-       RETURNING *`,
+       RETURNING session_scheduled_id`,
       [paymentId]
     );
 
+    const payment = rows[0];
+
+    // Generate invoice after successful payment
+    try {
+      const invoice = await invoiceController.generateInvoice(
+        paymentId,
+        payment.session_scheduled_id,
+        req.user.id
+      );
+
+      // Send invoice email to customer
+      await invoiceController.sendInvoiceEmail(invoice.id);
+
+      logger.info('Invoice generated and emailed after payment', {
+        paymentId,
+        invoiceId: invoice.id,
+      });
+    } catch (invoiceErr) {
+      logger.warn('Failed to generate invoice after payment', {
+        paymentId,
+        error: invoiceErr.message,
+      });
+      // Don't fail the payment just because invoice generation failed
+      // The invoice can be generated manually later
+    }
+
     logger.info('Consulting payment completed', { paymentId, stripePaymentIntentId });
-    res.json(rows[0]);
+
+    // Fetch updated payment with invoice info
+    const { rows: updatedRows } = await db.query(
+      `SELECT cp.*, ci.id as invoice_id, ci.invoice_number
+       FROM consulting_payments cp
+       LEFT JOIN consulting_invoices ci ON cp.id = ci.consulting_payment_id
+       WHERE cp.id = $1`,
+      [paymentId]
+    );
+
+    res.json(updatedRows[0]);
   } catch (err) {
     logger.error('Failed to confirm payment', { error: err.message });
     res.status(500).json({ error: 'Failed to confirm payment' });

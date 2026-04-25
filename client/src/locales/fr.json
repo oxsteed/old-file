@@ -4324,5 +4324,25 @@
     "paymentSuccessful": "Paiement réussi !",
     "paymentFailed": "Le paiement a échoué",
     "paymentError": "Une erreur de paiement s'est produite"
+  },
+  "invoices": {
+    "title": "Mes Factures",
+    "number": "Facture #",
+    "date": "Date",
+    "amount": "Montant",
+    "status": "Statut",
+    "dueDate": "Date d'échéance",
+    "actions": "Actions",
+    "view": "Afficher",
+    "resendEmail": "Renvoyer Email",
+    "noInvoices": "Pas encore de factures",
+    "emptyMessage": "Vos factures apparaîtront ici après l'achat de sessions de consultation.",
+    "loadError": "Impossible de charger les factures",
+    "emailResent": "Email de facture envoyé avec succès",
+    "emailError": "Erreur lors de l'envoi de l'email de facture",
+    "issuedDate": "Émise",
+    "paidDate": "Payée",
+    "customerName": "Client",
+    "consultant": "Consultant"
   }
 }

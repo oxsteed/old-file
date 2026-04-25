@@ -58,6 +58,7 @@ import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
 import ConsultingFullPortal from './pages/ConsultingFullPortal';
 import ConsultingPortalPage from './pages/ConsultingPortalPage';
 import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
+import InvoicesPage from './pages/InvoicesPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -168,6 +169,9 @@ export default function App() {
 
                     {/* Consultant Availability Management */}
                     <Route path="/consultant/availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* Invoices */}
+                    <Route path="/invoices" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvoicesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>

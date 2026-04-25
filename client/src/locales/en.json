@@ -4324,5 +4324,25 @@
     "paymentSuccessful": "Payment successful!",
     "paymentFailed": "Payment failed",
     "paymentError": "Payment error occurred"
+  },
+  "invoices": {
+    "title": "My Invoices",
+    "number": "Invoice #",
+    "date": "Date",
+    "amount": "Amount",
+    "status": "Status",
+    "dueDate": "Due Date",
+    "actions": "Actions",
+    "view": "View",
+    "resendEmail": "Resend Email",
+    "noInvoices": "No invoices yet",
+    "emptyMessage": "Your invoices will appear here after purchasing consulting sessions.",
+    "loadError": "Failed to load invoices",
+    "emailResent": "Invoice email sent successfully",
+    "emailError": "Failed to send invoice email",
+    "issuedDate": "Issued",
+    "paidDate": "Paid",
+    "customerName": "Customer",
+    "consultant": "Consultant"
   }
 }

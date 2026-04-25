@@ -4324,5 +4324,25 @@
     "paymentSuccessful": "¡Pago exitoso!",
     "paymentFailed": "El pago falló",
     "paymentError": "Ocurrió un error en el pago"
+  },
+  "invoices": {
+    "title": "Mis Facturas",
+    "number": "Factura #",
+    "date": "Fecha",
+    "amount": "Monto",
+    "status": "Estado",
+    "dueDate": "Fecha Límite",
+    "actions": "Acciones",
+    "view": "Ver",
+    "resendEmail": "Reenviar Email",
+    "noInvoices": "Sin facturas aún",
+    "emptyMessage": "Tus facturas aparecerán aquí después de comprar sesiones de consultoría.",
+    "loadError": "Error al cargar las facturas",
+    "emailResent": "Email de factura enviado exitosamente",
+    "emailError": "Error al enviar el email de la factura",
+    "issuedDate": "Emitida",
+    "paidDate": "Pagada",
+    "customerName": "Cliente",
+    "consultant": "Consultor"
   }
 }
