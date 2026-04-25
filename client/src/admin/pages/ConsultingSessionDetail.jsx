@@ -232,16 +232,32 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       </div>
 
       {/* Tabs */}
-      <div style={tabsStyle}>
+      <div style={tabsStyle} role="tablist">
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'overview'}
+          aria-controls="overview-panel"
           style={tabStyle(activeTab === 'overview')}
           onClick={() => setActiveTab('overview')}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight') setActiveTab('action-items');
+            if (e.key === 'ArrowLeft') setActiveTab('overview');
+          }}
         >
           Overview
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'action-items'}
+          aria-controls="action-items-panel"
           style={tabStyle(activeTab === 'action-items')}
           onClick={() => setActiveTab('action-items')}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight') setActiveTab('overview');
+            if (e.key === 'ArrowLeft') setActiveTab('overview');
+          }}
         >
           Action Items
         </button>
@@ -249,192 +265,192 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
-        <>
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>Contact Information</div>
-        <p><strong>Email:</strong> {session.email}</p>
-        <p><strong>Phone:</strong> {session.phone || '—'}</p>
-        <p><strong>Business Name:</strong> {session.business_name || '—'}</p>
-      </div>
+        <div id="overview-panel">
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Contact Information</div>
+            <p><strong>Email:</strong> {session.email}</p>
+            <p><strong>Phone:</strong> {session.phone || '—'}</p>
+            <p><strong>Business Name:</strong> {session.business_name || '—'}</p>
+          </div>
 
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>Consultation Details</div>
-        <p><strong>Service Tier:</strong> {session.service_tier}</p>
-        <p><strong>Current Phase:</strong> {session.current_phase || 'Not specified'} / 25</p>
-        <p><strong>Description:</strong></p>
-        <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
-          {session.description || 'No description provided'}
-        </p>
-      </div>
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Consultation Details</div>
+            <p><strong>Service Tier:</strong> {session.service_tier}</p>
+            <p><strong>Current Phase:</strong> {session.current_phase || 'Not specified'} / 25</p>
+            <p><strong>Description:</strong></p>
+            <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
+              {session.description || 'No description provided'}
+            </p>
+          </div>
 
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>Areas of Help</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {session.areas_of_help && session.areas_of_help.length > 0 ? (
-            session.areas_of_help.map((area, idx) => (
-              <span key={idx} style={badgeStyle('var(--color-primary)')}>
-                {area.split('_').join(' ')}
-              </span>
-            ))
-          ) : (
-            <p style={{ color: 'var(--color-text-muted)' }}>No areas selected</p>
-          )}
-        </div>
-      </div>
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Areas of Help</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {session.areas_of_help && session.areas_of_help.length > 0 ? (
+                session.areas_of_help.map((area, idx) => (
+                  <span key={idx} style={badgeStyle('var(--color-primary)')}>
+                    {area.split('_').join(' ')}
+                  </span>
+                ))
+              ) : (
+                <p style={{ color: 'var(--color-text-muted)' }}>No areas selected</p>
+              )}
+            </div>
+          </div>
 
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>Scheduling Preference</div>
-        <p><strong>Preferred Date:</strong> {session.preferred_date ? new Date(session.preferred_date).toLocaleDateString() : 'Not specified'}</p>
-        <p><strong>Preferred Time:</strong> {session.preferred_time_slot || 'Not specified'}</p>
-        <p><strong>Booking Confirmed:</strong> {session.booking_confirmed ? 'Yes' : 'No'}</p>
-      </div>
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Scheduling Preference</div>
+            <p><strong>Preferred Date:</strong> {session.preferred_date ? new Date(session.preferred_date).toLocaleDateString() : 'Not specified'}</p>
+            <p><strong>Preferred Time:</strong> {session.preferred_time_slot || 'Not specified'}</p>
+            <p><strong>Booking Confirmed:</strong> {session.booking_confirmed ? 'Yes' : 'No'}</p>
+          </div>
 
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>Update Status</div>
-        <select
-          style={inputStyle}
-          defaultValue={session.status}
-          onChange={e => {
-            if (e.target.value !== session.status) {
-              updateSessionStatus(session.id, e.target.value);
-            }
-          }}
-          disabled={updateLoading}
-        >
-          <option value="pending">Pending</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
-
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>Internal Notes</div>
-        <textarea
-          style={{
-            ...inputStyle,
-            minHeight: '120px',
-            fontFamily: 'monospace',
-            fontSize: '0.9rem',
-          }}
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          placeholder="Add internal notes about this consultation request..."
-          disabled={notesLoading}
-        />
-        <button
-          style={{
-            ...buttonStyle,
-            opacity: notesLoading ? 0.6 : 1,
-            cursor: notesLoading ? 'not-allowed' : 'pointer',
-          }}
-          onClick={saveNotes}
-          disabled={notesLoading}
-        >
-          {notesLoading ? 'Saving...' : 'Save Notes'}
-        </button>
-      </div>
-
-      <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>Assign Consultant</div>
-        {consultantsLoading ? (
-          <p style={{ color: 'var(--color-text-muted)' }}>Loading consultants...</p>
-        ) : (
-          <>
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Update Status</div>
             <select
               style={inputStyle}
-              value={selectedConsultant}
-              onChange={e => setSelectedConsultant(e.target.value)}
-              disabled={assigningConsultant}
+              defaultValue={session.status}
+              onChange={e => {
+                if (e.target.value !== session.status) {
+                  updateSessionStatus(session.id, e.target.value);
+                }
+              }}
+              disabled={updateLoading}
             >
-              <option value="">Select a consultant...</option>
-              {consultants.map(consultant => (
-                <option key={consultant.id} value={consultant.id}>
-                  {consultant.first_name} {consultant.last_name} ({consultant.role}) - {consultant.active_sessions} active
-                </option>
-              ))}
+              <option value="pending">Pending</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
-            <button
-              style={{
-                ...buttonStyle,
-                marginTop: '0.5rem',
-                opacity: assigningConsultant || !selectedConsultant ? 0.6 : 1,
-                cursor: assigningConsultant || !selectedConsultant ? 'not-allowed' : 'pointer',
-              }}
-              onClick={assignConsultant}
-              disabled={assigningConsultant || !selectedConsultant}
-            >
-              {assigningConsultant ? 'Assigning...' : 'Assign Consultant'}
-            </button>
-            {session.consultant_assigned_id && consultants.length > 0 && (
-              <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-                Currently assigned to: {consultants.find(c => c.id === session.consultant_assigned_id)?.first_name || 'Unknown'}
-              </p>
-            )}
-          </>
-        )}
-      </div>
+          </div>
 
-      {session.status === 'scheduled' && (
-        <div style={sectionStyle}>
-          <div style={sectionTitleStyle}>Session Actions</div>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Internal Notes</div>
+            <textarea
+              style={{
+                ...inputStyle,
+                minHeight: '120px',
+                fontFamily: 'monospace',
+                fontSize: '0.9rem',
+              }}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Add internal notes about this consultation request..."
+              disabled={notesLoading}
+            />
             <button
               style={{
                 ...buttonStyle,
-                backgroundColor: '#10B981',
-                opacity: updateLoading ? 0.6 : 1,
-                cursor: updateLoading ? 'not-allowed' : 'pointer',
-                flex: 1,
-                minWidth: '200px',
+                opacity: notesLoading ? 0.6 : 1,
+                cursor: notesLoading ? 'not-allowed' : 'pointer',
               }}
-              onClick={markSessionComplete}
-              disabled={updateLoading}
+              onClick={saveNotes}
+              disabled={notesLoading}
             >
-              {updateLoading ? 'Processing...' : '✓ Mark Completed'}
-            </button>
-            <button
-              style={{
-                ...buttonStyle,
-                backgroundColor: '#EF4444',
-                opacity: updateLoading ? 0.6 : 1,
-                cursor: updateLoading ? 'not-allowed' : 'pointer',
-                flex: 1,
-                minWidth: '200px',
-              }}
-              onClick={markSessionNoShow}
-              disabled={updateLoading}
-            >
-              {updateLoading ? 'Processing...' : '✗ Mark No-Show'}
+              {notesLoading ? 'Saving...' : 'Save Notes'}
             </button>
           </div>
-          <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-            Mark completed if session happened. Mark no-show if customer didn't attend.
-          </p>
-        </div>
-      )}
 
-      {/* Timestamps */}
-      <div style={{
-        fontSize: '0.85rem',
-        color: 'var(--color-text-muted)',
-        marginBottom: '1.5rem',
-        paddingTop: '1rem',
-        borderTop: '1px solid var(--color-border)',
-      }}>
-        <p>Submitted: {new Date(session.created_at).toLocaleString()}</p>
-        {session.updated_at && (
-          <p>Last Updated: {new Date(session.updated_at).toLocaleString()}</p>
-        )}
-      </div>
-        </>
+          <div style={sectionStyle}>
+            <div style={sectionTitleStyle}>Assign Consultant</div>
+            {consultantsLoading ? (
+              <p style={{ color: 'var(--color-text-muted)' }}>Loading consultants...</p>
+            ) : (
+              <>
+                <select
+                  style={inputStyle}
+                  value={selectedConsultant}
+                  onChange={e => setSelectedConsultant(e.target.value)}
+                  disabled={assigningConsultant}
+                >
+                  <option value="">Select a consultant...</option>
+                  {consultants.map(consultant => (
+                    <option key={consultant.id} value={consultant.id}>
+                      {consultant.first_name} {consultant.last_name} ({consultant.role}) - {consultant.active_sessions} active
+                    </option>
+                  ))}
+                </select>
+                <button
+                  style={{
+                    ...buttonStyle,
+                    marginTop: '0.5rem',
+                    opacity: assigningConsultant || !selectedConsultant ? 0.6 : 1,
+                    cursor: assigningConsultant || !selectedConsultant ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={assignConsultant}
+                  disabled={assigningConsultant || !selectedConsultant}
+                >
+                  {assigningConsultant ? 'Assigning...' : 'Assign Consultant'}
+                </button>
+                {session.consultant_assigned_id && consultants.length > 0 && (
+                  <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                    Currently assigned to: {consultants.find(c => c.id === session.consultant_assigned_id)?.first_name || 'Unknown'}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {session.status === 'scheduled' && (
+            <div style={sectionStyle}>
+              <div style={sectionTitleStyle}>Session Actions</div>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                <button
+                  style={{
+                    ...buttonStyle,
+                    backgroundColor: '#10B981',
+                    opacity: updateLoading ? 0.6 : 1,
+                    cursor: updateLoading ? 'not-allowed' : 'pointer',
+                    flex: 1,
+                    minWidth: '200px',
+                  }}
+                  onClick={markSessionComplete}
+                  disabled={updateLoading}
+                >
+                  {updateLoading ? 'Processing...' : '✓ Mark Completed'}
+                </button>
+                <button
+                  style={{
+                    ...buttonStyle,
+                    backgroundColor: '#EF4444',
+                    opacity: updateLoading ? 0.6 : 1,
+                    cursor: updateLoading ? 'not-allowed' : 'pointer',
+                    flex: 1,
+                    minWidth: '200px',
+                  }}
+                  onClick={markSessionNoShow}
+                  disabled={updateLoading}
+                >
+                  {updateLoading ? 'Processing...' : '✗ Mark No-Show'}
+                </button>
+              </div>
+              <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                Mark completed if session happened. Mark no-show if customer didn't attend.
+              </p>
+            </div>
+          )}
+
+          {/* Timestamps */}
+          <div style={{
+            fontSize: '0.85rem',
+            color: 'var(--color-text-muted)',
+            marginBottom: '1.5rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--color-border)',
+          }}>
+            <p>Submitted: {new Date(session.created_at).toLocaleString()}</p>
+            {session.updated_at && (
+              <p>Last Updated: {new Date(session.updated_at).toLocaleString()}</p>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Action Items Tab */}
       {activeTab === 'action-items' && (
-        <>
-          <ActionItemsPanel sessionId={session.id} isEditable={true} />
-        </>
+        <div id="action-items-panel">
+          {session?.id && <ActionItemsPanel sessionId={session.id} isEditable={true} />}
+        </div>
       )}
 
       {/* Close Button */}
