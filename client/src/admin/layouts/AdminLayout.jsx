@@ -30,6 +30,7 @@ const REGULAR_NAV = [
   { to: '/admin/consulting',           icon: HeartHandshake,     label: 'Consulting'       },
   { to: '/admin/consulting/payments',  icon: CreditCard,         label: 'Consulting Pay'   },
   { to: '/admin/consulting/scheduler', icon: Calendar,           label: 'Scheduling'       },
+  { to: '/admin/consulting/business-launch', icon: Briefcase,    label: 'Business Launch'  },
 ];
 
 const SUPER_NAV = [
