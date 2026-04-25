@@ -16,6 +16,46 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   const [updateLoading, setUpdateLoading] = useState(false);
   const [notes, setNotes] = useState(session.notes || '');
   const [notesLoading, setNotesLoading] = useState(false);
+  const [consultants, setConsultants] = useState([]);
+  const [consultantsLoading, setConsultantsLoading] = useState(false);
+  const [selectedConsultant, setSelectedConsultant] = useState(session.consultant_assigned_id || '');
+  const [assigningConsultant, setAssigningConsultant] = useState(false);
+
+  useEffect(() => {
+    fetchConsultants();
+  }, []);
+
+  async function fetchConsultants() {
+    try {
+      setConsultantsLoading(true);
+      const response = await axios.get('/api/consulting/admin/consultants');
+      setConsultants(response.data);
+    } catch (err) {
+      toast.error('Failed to load consultants');
+    } finally {
+      setConsultantsLoading(false);
+    }
+  }
+
+  async function assignConsultant() {
+    if (!selectedConsultant) {
+      toast.error('Please select a consultant');
+      return;
+    }
+
+    try {
+      setAssigningConsultant(true);
+      await axios.patch(`/api/consulting/admin/sessions/${session.id}`, {
+        consultant_assigned_id: selectedConsultant,
+      });
+      toast.success('Consultant assigned successfully');
+      onStatusUpdate();
+    } catch (err) {
+      toast.error('Failed to assign consultant');
+    } finally {
+      setAssigningConsultant(false);
+    }
+  }
 
   async function updateSessionStatus(sessionId, newStatus) {
     try {
@@ -223,6 +263,46 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
         >
           {notesLoading ? 'Saving...' : 'Save Notes'}
         </button>
+      </div>
+
+      <div style={sectionStyle}>
+        <div style={sectionTitleStyle}>Assign Consultant</div>
+        {consultantsLoading ? (
+          <p style={{ color: 'var(--color-text-muted)' }}>Loading consultants...</p>
+        ) : (
+          <>
+            <select
+              style={inputStyle}
+              value={selectedConsultant}
+              onChange={e => setSelectedConsultant(e.target.value)}
+              disabled={assigningConsultant}
+            >
+              <option value="">Select a consultant...</option>
+              {consultants.map(consultant => (
+                <option key={consultant.id} value={consultant.id}>
+                  {consultant.first_name} {consultant.last_name} ({consultant.role}) - {consultant.active_sessions} active
+                </option>
+              ))}
+            </select>
+            <button
+              style={{
+                ...buttonStyle,
+                marginTop: '0.5rem',
+                opacity: assigningConsultant || !selectedConsultant ? 0.6 : 1,
+                cursor: assigningConsultant || !selectedConsultant ? 'not-allowed' : 'pointer',
+              }}
+              onClick={assignConsultant}
+              disabled={assigningConsultant || !selectedConsultant}
+            >
+              {assigningConsultant ? 'Assigning...' : 'Assign Consultant'}
+            </button>
+            {session.consultant_assigned_id && consultants.length > 0 && (
+              <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                Currently assigned to: {consultants.find(c => c.id === session.consultant_assigned_id)?.first_name || 'Unknown'}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Timestamps */}

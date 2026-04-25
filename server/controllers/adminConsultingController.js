@@ -1,6 +1,7 @@
 // Admin dashboard controller for managing consulting requests
 const logger = require('../utils/logger');
 const db = require('../db');
+const { sendEmail } = require('../utils/email');
 
 exports.getConsultingRequests = async (req, res) => {
   const { status, limit = 50, offset = 0 } = req.query;
@@ -279,6 +280,23 @@ exports.updateSessionDetails = async (req, res) => {
       updates.push(`consultant_assigned_id = $${paramIndex}`);
       values.push(consultant_assigned_id);
       paramIndex++;
+
+      // Fetch consultant user data for email
+      if (consultant_assigned_id) {
+        const consultantUser = await db.query(
+          'SELECT u.email, u.first_name FROM users u WHERE u.id = $1',
+          [consultant_assigned_id]
+        );
+        if (consultantUser.rows.length) {
+          const consultant = consultantUser.rows[0];
+          // Email sending is non-blocking - failures are logged but don't fail the request
+          sendEmail({
+            to: consultant.email,
+            subject: 'New Consulting Session Assigned',
+            html: `<p>Hi ${consultant.first_name},</p><p>You have been assigned a new consulting session. Please log in to the admin dashboard to view details and get started.</p><p>Session ID: ${id}</p>`,
+          }).catch(err => logger.warn('Failed to send consultant assignment email', { error: err.message, consultant_id: consultant_assigned_id }));
+        }
+      }
     }
 
     if (scheduled_at) {
