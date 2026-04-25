@@ -8,7 +8,6 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Hero from '../components/Hero';
 import LiveHelpersHeroCard from '../components/LiveHelpersHeroCard';
-import ConsultingIntakeModal from '../components/ConsultingIntakeModal';
 
 const SKILL_SLUGS = [
   { slug: 'electrical',   icon: '⚡' },
@@ -464,7 +463,6 @@ export default function HomePage() {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const [skillsExpanded, setSkillsExpanded] = useState(false);
-  const [consultingModalOpen, setConsultingModalOpen] = useState(false);
   const skillsOverflowRef = useRef(null);
 
   const SKILL_TILES = SKILL_SLUGS.map(s => ({
@@ -588,13 +586,14 @@ export default function HomePage() {
             </div>
           </div>
           <div className="hp-consulting-cta">
-            <button
-              onClick={() => setConsultingModalOpen(true)}
+            <Link
+              to="/consulting-intake"
               className="hp-btn hp-btn-primary hp-btn-lg hp-consulting-btn"
+              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
             >
               {t('homePage.consulting.ctaButton')}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
+            </Link>
             <p className="hp-consulting-subtext">{t('homePage.consulting.ctaSubtext')}</p>
           </div>
         </div>
@@ -632,11 +631,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Consulting Intake Modal */}
-      <ConsultingIntakeModal
-        isOpen={consultingModalOpen}
-        onClose={() => setConsultingModalOpen(false)}
-      />
     </div>
     </PageShell>
   );
