@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { submitConsultingRequest, getAreasOfHelp, getServiceTiers } from '../api/consulting';
 import { useTranslation } from 'react-i18next';
-import Toast from './Toast';
+import toast from 'react-hot-toast';
 
 export default function ConsultingIntakeModal({ isOpen, onClose }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1: Contact, 2: Services, 3: Confirmation
-  const [toast, setToast] = useState(null);
   const [areasOfHelp, setAreasOfHelp] = useState([]);
   const [serviceTiers, setServiceTiers] = useState([]);
 
@@ -73,7 +72,7 @@ export default function ConsultingIntakeModal({ isOpen, onClose }) {
     if (step === 1) {
       // Validate contact info
       if (!form.email || !form.first_name || !form.last_name) {
-        setToast({ type: 'error', message: t('consulting.errorMissingInfo') });
+        toast.error(t('consulting.errorMissingInfo'));
         return;
       }
       setStep(2);
@@ -88,7 +87,7 @@ export default function ConsultingIntakeModal({ isOpen, onClose }) {
     setLoading(true);
     try {
       await submitConsultingRequest(form);
-      setToast({ type: 'success', message: t('consulting.successSubmitted') });
+      toast.success(t('consulting.successSubmitted'));
       setTimeout(() => {
         onClose();
         setStep(1);
@@ -107,7 +106,7 @@ export default function ConsultingIntakeModal({ isOpen, onClose }) {
         });
       }, 2000);
     } catch (err) {
-      setToast({ type: 'error', message: err.response?.data?.error || t('consulting.errorSubmit') });
+      toast.error(err.response?.data?.error || t('consulting.errorSubmit'));
     } finally {
       setLoading(false);
     }
