@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-25 (✅ **Admin Tabbed Interface for Consulting Sessions:** Added Overview and Action Items tabs to ConsultingSessionDetail. ActionItemsPanel now integrated in editable mode on Action Items tab. Admins can manage session details and action items from single view. Full feature set: Advanced Scheduling + Analytics Dashboard + Action Items Admin UI (with tabbed interface) + Customer Portal + Payment Processing + Invoice Management + Admin Sessions Dashboard + Admin Notes & Messaging.)
+**Last updated:** 2026-04-25 (✅ **Critical Type/Schema Fixes for Action Items:** Fixed assigned_to_type values mismatch between frontend, backend, and database. Frontend was sending invalid values ('customer', 'both') that database wouldn't accept. Updated all validation lists and defaults to match DB constraint. Added validation to legacy controller for consistency. Tests all type consistency. Full feature set: Advanced Scheduling + Analytics Dashboard + Action Items Admin UI (with tabbed interface + type fixes) + Customer Portal + Payment Processing + Invoice Management + Admin Sessions Dashboard + Admin Notes & Messaging.)
 
 > Prior: 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine, 5-minute timeout cron, SERIALIZABLE isolation, message queueing, Socket.IO broadcast, full audit trail. Migration 100, syntax verified.)
 
