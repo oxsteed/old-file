@@ -14,6 +14,8 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('overview');
   const [updateLoading, setUpdateLoading] = useState(false);
+  const [notes, setNotes] = useState(session.notes || '');
+  const [notesLoading, setNotesLoading] = useState(false);
 
   async function updateSessionStatus(sessionId, newStatus) {
     try {
@@ -28,6 +30,26 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
       toast.error('Failed to update status');
     } finally {
       setUpdateLoading(false);
+    }
+  }
+
+  async function saveNotes() {
+    if (!notes.trim()) {
+      toast.error('Please enter a note');
+      return;
+    }
+
+    try {
+      setNotesLoading(true);
+      await axios.patch(`/api/consulting/admin/sessions/${session.id}`, {
+        notes: notes,
+      });
+      toast.success('Notes saved successfully');
+      onStatusUpdate();
+    } catch (err) {
+      toast.error('Failed to save notes');
+    } finally {
+      setNotesLoading(false);
     }
   }
 
@@ -174,6 +196,33 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </select>
+      </div>
+
+      <div style={sectionStyle}>
+        <div style={sectionTitleStyle}>Internal Notes</div>
+        <textarea
+          style={{
+            ...inputStyle,
+            minHeight: '120px',
+            fontFamily: 'monospace',
+            fontSize: '0.9rem',
+          }}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Add internal notes about this consultation request..."
+          disabled={notesLoading}
+        />
+        <button
+          style={{
+            ...buttonStyle,
+            opacity: notesLoading ? 0.6 : 1,
+            cursor: notesLoading ? 'not-allowed' : 'pointer',
+          }}
+          onClick={saveNotes}
+          disabled={notesLoading}
+        >
+          {notesLoading ? 'Saving...' : 'Save Notes'}
+        </button>
       </div>
 
       {/* Timestamps */}
