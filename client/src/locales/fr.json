@@ -4171,5 +4171,12 @@
   },
   "businessLaunchAdmin": {
     "statusUpdated": "Statut mis à jour avec succès"
+  },
+  "businessLaunchStatus": {
+    "enterEmail": "Veuillez entrer une adresse e-mail pour rechercher",
+    "noRequests": "Aucun formulaire d'admission trouvé pour cet e-mail",
+    "searchError": "Erreur lors de la recherche de formulaires d'admission. Veuillez réessayer.",
+    "trackYourBusiness": "Suivez votre lancement commercial",
+    "checkStatus": "Vérifiez l'état de votre formulaire d'admission et les prochaines étapes importantes"
   }
 }

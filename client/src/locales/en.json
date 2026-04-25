@@ -4171,5 +4171,12 @@
   },
   "businessLaunchAdmin": {
     "statusUpdated": "Status updated successfully"
+  },
+  "businessLaunchStatus": {
+    "enterEmail": "Please enter an email address to search",
+    "noRequests": "No intake forms found for this email",
+    "searchError": "Error searching for intake forms. Please try again.",
+    "trackYourBusiness": "Track Your Business Launch",
+    "checkStatus": "Check the status of your intake form and upcoming milestones"
   }
 }

@@ -8,6 +8,8 @@ const {
   getBusinessLaunchRequests,
   getBusinessLaunchRequest,
   updateBusinessLaunchRequestStatus,
+  getUserBusinessLaunchRequests,
+  searchBusinessLaunchRequests,
 } = require('../controllers/businessLaunchController');
 
 // Public route: Submit a new Business Launch request
@@ -15,6 +17,20 @@ router.post(
   '/submit',
   generalLimiter,
   submitBusinessLaunchRequest
+);
+
+// User routes: View own requests
+router.get(
+  '/my-requests',
+  authenticate,
+  getUserBusinessLaunchRequests
+);
+
+// Public route: Search requests by email
+router.get(
+  '/search',
+  generalLimiter,
+  searchBusinessLaunchRequests
 );
 
 // Admin routes: View and manage requests

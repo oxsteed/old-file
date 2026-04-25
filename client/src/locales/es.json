@@ -4171,5 +4171,12 @@
   },
   "businessLaunchAdmin": {
     "statusUpdated": "Estado actualizado correctamente"
+  },
+  "businessLaunchStatus": {
+    "enterEmail": "Por favor ingresa una dirección de correo electrónico para buscar",
+    "noRequests": "No se encontraron formularios de solicitud para este correo electrónico",
+    "searchError": "Error al buscar formularios de solicitud. Por favor intenta de nuevo.",
+    "trackYourBusiness": "Seguimiento de tu Lanzamiento Empresarial",
+    "checkStatus": "Verifica el estado de tu formulario de solicitud e hitos próximos"
   }
 }

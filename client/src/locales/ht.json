@@ -4170,5 +4170,12 @@
   },
   "businessLaunchAdmin": {
     "statusUpdated": "Estati miz ajou avèk siksè"
+  },
+  "businessLaunchStatus": {
+    "enterEmail": "Tanpri mete yon adrès imel pou search",
+    "noRequests": "Poko jwenn fòm pou email sa a",
+    "searchError": "Erè nan search pou fòm. Tanpri eseye ankò.",
+    "trackYourBusiness": "Swiv Lansman Biznis ou",
+    "checkStatus": "Verifye estati fòm ou ak moman k ap vini yo"
   }
 }
