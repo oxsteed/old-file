@@ -148,8 +148,9 @@ const COUNTRIES_WITH_REGIONS = {
 };
 
 // Countries without regions (show city selector)
+// Excludes countries under US sanctions (Russia, Ukraine, etc.)
 const COUNTRIES_WITHOUT_REGIONS = [
-  'AR', 'AT', 'BE', 'BR', 'CH', 'CL', 'CO', 'CR', 'CZ', 'DK', 'DO', 'EC', 'EG', 'ES', 'FI', 'GR', 'HK', 'HT', 'HU', 'ID', 'IE', 'IL', 'IT', 'JP', 'KR', 'MX', 'MY', 'NG', 'NZ', 'PA', 'PE', 'PH', 'PL', 'PT', 'RO', 'RU', 'SA', 'SE', 'SG', 'TH', 'TR', 'UA', 'VN', 'ZA',
+  'AR', 'AT', 'BE', 'BR', 'CH', 'CL', 'CO', 'CR', 'CZ', 'DK', 'DO', 'EC', 'EG', 'ES', 'FI', 'GR', 'HK', 'HT', 'HU', 'ID', 'IE', 'IL', 'IT', 'JP', 'KR', 'MX', 'MY', 'NG', 'NZ', 'PA', 'PE', 'PH', 'PL', 'PT', 'RO', 'SA', 'SE', 'SG', 'TH', 'TR', 'VN', 'ZA',
 ];
 
 // All countries
@@ -192,13 +193,11 @@ const ALL_COUNTRIES = {
   'PL': 'Poland',
   'PT': 'Portugal',
   'RO': 'Romania',
-  'RU': 'Russia',
   'SA': 'Saudi Arabia',
   'SE': 'Sweden',
   'SG': 'Singapore',
   'TH': 'Thailand',
   'TR': 'Turkey',
-  'UA': 'Ukraine',
   'VN': 'Vietnam',
   'ZA': 'South Africa',
 };
