@@ -4009,6 +4009,8 @@
   },
   "consulting": {
     "title": "Asesoría Empresarial de Ascenso",
+    "intakePageTitle": "Formulario de Admisión - Asesoría Empresarial de Ascenso",
+    "intakePageDesc": "Programa tu consulta inicial de $100 para obtener orientación de expertos en el crecimiento de tu negocio.",
     "subtitle": "Obtén orientación experta para hacer crecer tu negocio. Consulta inicial: $100 por hasta 2 horas.",
     "stepContact": "Contacto",
     "stepServices": "Servicios",
@@ -4039,6 +4041,7 @@
       "exit_strategy": "Estrategia de Salida y Planificación de Sucesión"
     },
     "currentPhase": "Fase Actual de tu Negocio (1-30)",
+    "currentPhasePlaceholder": "Selecciona tu fase actual (1-30)",
     "additionalInfo": "Cuéntanos más",
     "additionalInfoPlaceholder": "Describe tu negocio, desafíos actuales y lo que esperas lograr...",
     "confirmSummary": "Tu Información",

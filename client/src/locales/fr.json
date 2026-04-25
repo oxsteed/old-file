@@ -4009,6 +4009,8 @@
   },
   "consulting": {
     "title": "Conseil en Ascension Commerciale",
+    "intakePageTitle": "Formulaire d'Admission - Conseil en Ascension Commerciale",
+    "intakePageDesc": "Programmez votre consultation initiale de $100 pour obtenir des conseils d'experts sur la croissance de votre entreprise.",
     "subtitle": "Obtenez des conseils d'experts pour développer votre entreprise. Consultation initiale : $100 jusqu'à 2 heures.",
     "stepContact": "Contact",
     "stepServices": "Services",
@@ -4039,6 +4041,7 @@
       "exit_strategy": "Stratégie de sortie et planification de succession"
     },
     "currentPhase": "Phase actuelle de votre entreprise (1-30)",
+    "currentPhasePlaceholder": "Sélectionnez votre phase actuelle (1-30)",
     "additionalInfo": "Parlez-nous davantage",
     "additionalInfoPlaceholder": "Décrivez votre entreprise, vos défis actuels et ce que vous espérez réaliser...",
     "confirmSummary": "Vos informations",

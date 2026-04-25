@@ -4009,6 +4009,8 @@
   },
   "consulting": {
     "title": "Business Ascension Consulting",
+    "intakePageTitle": "Business Ascension Consulting Intake",
+    "intakePageDesc": "Schedule your $100 initial consultation to get expert guidance for growing your business.",
     "subtitle": "Get expert guidance to grow your business. Initial consultation: $100 for up to 2 hours.",
     "stepContact": "Contact",
     "stepServices": "Services",
@@ -4039,6 +4041,7 @@
       "exit_strategy": "Exit Strategy & Succession Planning"
     },
     "currentPhase": "Current Business Phase (1-30)",
+    "currentPhasePlaceholder": "Select your current phase (1-30)",
     "additionalInfo": "Tell Us More",
     "additionalInfoPlaceholder": "Describe your business, current challenges, and what you hope to achieve...",
     "confirmSummary": "Your Information",

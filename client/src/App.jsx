@@ -12,6 +12,7 @@ import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import CustomerRegister from './pages/CustomerRegister';
 import HelperRegister from './pages/HelperRegister';
+import ConsultingIntakePage from './pages/ConsultingIntakePage';
 import SmartDashboard from './pages/SmartDashboard';
 import UpgradePage from './pages/UpgradePage';
 import JobListPage from './pages/JobListPage';
@@ -103,6 +104,7 @@ export default function App() {
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
+                    <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
