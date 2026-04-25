@@ -57,6 +57,7 @@ import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
 import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
 import ConsultingFullPortal from './pages/ConsultingFullPortal';
 import ConsultingPortalPage from './pages/ConsultingPortalPage';
+import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -164,6 +165,9 @@ export default function App() {
 
                     {/* Client Consulting Portal - Track Progress */}
                     <Route path="/consulting" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingPortalPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* Consultant Availability Management */}
+                    <Route path="/consultant/availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
