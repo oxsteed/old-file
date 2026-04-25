@@ -31,6 +31,7 @@ const REGULAR_NAV = [
   { to: '/admin/consulting/payments',  icon: CreditCard,         label: 'Consulting Pay'   },
   { to: '/admin/consulting/scheduler', icon: Calendar,           label: 'Scheduling'       },
   { to: '/admin/consulting/business-launch', icon: Briefcase,    label: 'Business Launch'  },
+  { to: '/admin/consulting/sessions',  icon: Calendar,           label: 'Consulting Sessions' },
 ];
 
 const SUPER_NAV = [
