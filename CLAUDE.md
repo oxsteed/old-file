@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-25 (✅ **OxSteed Business Ascension Consulting:** Complete intake form system with 3-step guided modal (Contact → Services → Confirmation). Backend API at `/api/consulting/*` with database persistence. Footer button for easy access. $100 initial consultation (up to 2 hours). Service tiers (initial, foundation, implementation, transformation). 10 areas of help (legal setup, pricing, branding, financials, marketing, team building, operations, scaling, acquisition, exit strategy). Stores inquiries with status tracking. Full i18n support (EN/ES/FR/HT, 2,741 keys total). Migration 102 creates `consulting_sessions` + `consulting_audit_log` tables. Email confirmation on submission.)
+**Last updated:** 2026-04-25 (✅ **Business Launch Admin Notes & Messaging System:** Complete tabbed interface (Overview/Notes/Messages) for admin request management. Admins can add internal notes with timestamps and creator attribution, send custom messages to clients using pre-made templates or HTML, track message delivery status (sent/failed), and maintain full audit trail. Non-blocking async email delivery with status updates. 4 message templates (Kickoff Prep, Post-Kickoff, Component Complete, Final Checklist). Migration 104 creates `consulting_request_notes` + `consulting_request_messages` tables. Full i18n support for all user-facing messages (enterNote, noteAdded, fillMessage, messageSent, etc.). Integrated into BusinessLaunchAdmin dashboard.)
 
 > Prior: 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine, 5-minute timeout cron, SERIALIZABLE isolation, message queueing, Socket.IO broadcast, full audit trail. Migration 100, syntax verified.)
 
@@ -2235,6 +2235,101 @@ Next actions:
 3. Create scheduling system for confirmed sessions
 4. Send follow-up emails when consultants are assigned
 5. Create payment processing for consulting packages
+
+### Session — 2026-04-25 (Business Launch Admin Notes & Messaging System)
+
+**Objective:** Build comprehensive admin request management interface with internal notes and client messaging capabilities.
+
+**What was built:**
+
+1. **Database Migration 104** ✅
+   - `consulting_request_notes` table: id (UUID), request_id (FK), admin_id (FK), note_text, is_internal, created_at, updated_at
+   - `consulting_request_messages` table: id (UUID), request_id (FK), admin_id (FK), recipient_email, subject, message_html, message_plain, status (pending/sent/failed), sent_at, error_message, created_at
+   - Proper indexing on request_id, admin_id, status, created_at for efficient queries
+   - CASCADE delete on request ensures data cleanup
+
+2. **Backend Controller** ✅ (`server/controllers/businessLaunchNotesController.js`)
+   - `addNote()` — create internal admin note with is_internal=true flag
+   - `getNotes()` — retrieve notes for request with admin names (LEFT JOIN users)
+   - `deleteNote()` — creator or super_admin only authorization check
+   - `sendCustomMessage()` — queue message to client with tracking
+   - `getMessages()` — retrieve message history with delivery status
+   - `getMessageTemplates()` — 4 pre-configured templates:
+     * Kickoff Preparation
+     * Post-Kickoff Follow-up
+     * Setup Component Complete
+     * Pre-Launch Checklist
+   - `sendEmailWithTracking()` — non-blocking async email delivery with status updates
+
+3. **Backend Routes** ✅ (`server/routes/businessLaunch.js`)
+   - POST `/requests/:id/notes` — add note (authenticate, requireAdmin)
+   - GET `/requests/:id/notes` — fetch notes (authenticate, requireAdmin)
+   - DELETE `/notes/:noteId` — delete note (authenticate, requireAdmin)
+   - POST `/requests/:id/send-message` — send message to client (authenticate, requireAdmin)
+   - GET `/requests/:id/messages` — fetch message history (authenticate, requireAdmin)
+   - GET `/message-templates` — fetch templates (authenticate, requireAdmin)
+
+4. **Frontend Component** ✅ (`client/src/admin/pages/BusinessLaunchRequestDetail.jsx`)
+   - Tabbed interface with 3 tabs: Overview / Internal Notes / Messages
+   - **Overview tab:** Contact info, business details, setup items, phase, package, pricing, status
+   - **Notes tab:** 
+     * Add new note textarea with placeholder explaining admin-only visibility
+     * List of existing notes with creator name and timestamp
+     * Delete button (with confirmation) for each note
+     * Real-time feedback with loading states
+   - **Messages tab:**
+     * Template selector dropdown
+     * Custom message form (subject + HTML message) for non-template path
+     * Send button with loading state
+     * Message history showing all sent messages
+     * Delivery status indicators (sent/failed) with error messages
+   - Header shows request name, status badge, package, and price
+   - Close button to dismiss modal
+
+5. **Admin Dashboard Integration** ✅
+   - Replaced inline detail modal in `BusinessLaunchAdmin.jsx` with `BusinessLaunchRequestDetail` component
+   - Maintains existing request table and filters
+   - Clicking request row opens new tabbed detail view instead of simple modal
+   - `onStatusUpdate` callback refreshes request list when status changes
+
+6. **i18n Translations** ✅
+   - Added 6 new keys to businessLaunchAdmin namespace:
+     * `enterNote` — "Please enter a note"
+     * `noteAdded` — "Note added successfully"
+     * `deleteNoteConfirm` — "Delete this note?"
+     * `noteDeleted` — "Note deleted successfully"
+     * `fillMessage` — "Please fill in subject and message"
+     * `messageSent` — "Message sent successfully"
+   - Full translations for EN/ES/FR/HT (4 languages)
+   - Error toasts use generic `common.errorLoading` and `common.errorUpdating` keys
+
+**Key Design Decisions:**
+
+- **Tabbed interface:** Organizes three distinct concerns (request info, notes, messages) into manageable sections
+- **Non-blocking email:** Message sending queues to background (uses `sendEmailWithTracking`)
+- **Admin-only visibility:** Notes have `is_internal=true` flag so clients never see them
+- **Message templates:** Pre-configured common responses save admin time; custom HTML option for edge cases
+- **Status tracking:** Message status (pending/sent/failed) + error_message field enables debugging
+- **Creator attribution:** All notes show who created them and when (automatic via `req.user`)
+- **Confirmation dialogs:** Delete actions require confirmation to prevent accidents
+
+**Files Created:**
+- `server/migrations/104_business_launch_notes_messages.sql`
+- `server/controllers/businessLaunchNotesController.js`
+- `client/src/admin/pages/BusinessLaunchRequestDetail.jsx`
+
+**Files Modified:**
+- `server/routes/businessLaunch.js` — Added 6 new endpoints
+- `client/src/admin/pages/BusinessLaunchAdmin.jsx` — Integrated detail component
+- `client/src/locales/{en,es,fr,ht}.json` — Added 6 i18n keys per language
+
+**Testing Notes:**
+- All JSON locale files validated (✓ valid JSON syntax)
+- All controller and route files validated (✓ correct syntax)
+- API endpoints follow existing patterns (authenticate + requireAdmin guards)
+- Error handling consistent with application style (toast messages)
+
+**Status:** ✅ COMPLETE — Ready for testing and integration
 
 ---
 
