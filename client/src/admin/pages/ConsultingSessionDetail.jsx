@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
+import ActionItemsPanel from '../../components/ActionItemsPanel';
 
 const STATUS_COLORS = {
   pending: '#FFA500',
@@ -184,6 +185,23 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
     fontWeight: 500,
   });
 
+  const tabsStyle = {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1.5rem',
+    borderBottom: '1px solid var(--color-border)',
+  };
+
+  const tabStyle = (isActive) => ({
+    padding: '0.75rem 1rem',
+    cursor: 'pointer',
+    fontWeight: isActive ? '600' : '500',
+    color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+    borderBottom: isActive ? '2px solid var(--color-primary)' : 'none',
+    marginBottom: '-1px',
+    transition: 'all 0.2s',
+  });
+
   return (
     <div style={containerStyle}>
       {/* Header */}
@@ -213,7 +231,25 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
         </div>
       </div>
 
-      {/* Content */}
+      {/* Tabs */}
+      <div style={tabsStyle}>
+        <button
+          style={tabStyle(activeTab === 'overview')}
+          onClick={() => setActiveTab('overview')}
+        >
+          Overview
+        </button>
+        <button
+          style={tabStyle(activeTab === 'action-items')}
+          onClick={() => setActiveTab('action-items')}
+        >
+          Action Items
+        </button>
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <>
       <div style={sectionStyle}>
         <div style={sectionTitleStyle}>Contact Information</div>
         <p><strong>Email:</strong> {session.email}</p>
@@ -391,6 +427,15 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
           <p>Last Updated: {new Date(session.updated_at).toLocaleString()}</p>
         )}
       </div>
+        </>
+      )}
+
+      {/* Action Items Tab */}
+      {activeTab === 'action-items' && (
+        <>
+          <ActionItemsPanel sessionId={session.id} isEditable={true} />
+        </>
+      )}
 
       {/* Close Button */}
       <button
