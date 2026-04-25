@@ -82,6 +82,7 @@ const consultingAllPhasesRoutes = require('./routes/consultingAllPhases');
 const consultingAdminRoutes = require('./routes/consultingAdmin');
 const consultingPaymentRoutes = require('./routes/consultingPayment');
 const businessLaunchRoutes = require('./routes/businessLaunch');
+const consultingFeedbackRoutes = require('./routes/consultingFeedback');
 // roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -387,6 +388,7 @@ app.use('/api/consulting',   consultingRoutes);
 app.use('/api/consulting',   consultingAllPhasesRoutes);
 app.use('/api/consulting/admin', consultingAdminRoutes);
 app.use('/api/consulting',   consultingPaymentRoutes);
+app.use('/api/consulting/feedback', consultingFeedbackRoutes);
 app.use('/api/consulting/business-launch', businessLaunchRoutes);
 // NOTE: /api/role-toggle intentionally removed — see comment near top of file
 

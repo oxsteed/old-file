@@ -88,7 +88,7 @@ const startConsultingPostSessionFollowup = () => {
                 <li>Reach out if you have any questions or need clarification</li>
                 <li>Schedule your next session when you're ready for the next phase</li>
               </ul>
-              <p>We'd love to hear about your experience! <a href="https://oxsteed.com/consulting/feedback/${session.session_id}">Please provide feedback here</a>.</p>
+              <p>We'd love to hear about your experience! <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/consulting/feedback/${session.session_id}">Please provide your feedback here</a> (takes less than 2 minutes).</p>
               <p>Best regards,<br>The OxSteed Consulting Team</p>
             `,
           });

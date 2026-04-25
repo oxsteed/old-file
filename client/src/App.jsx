@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import CustomerRegister from './pages/CustomerRegister';
 import HelperRegister from './pages/HelperRegister';
 import ConsultingIntakePage from './pages/ConsultingIntakePage';
+import ConsultingFeedbackPage from './pages/ConsultingFeedbackPage';
 import BusinessLaunchStatusPage from './pages/BusinessLaunchStatusPage';
 import SmartDashboard from './pages/SmartDashboard';
 import UpgradePage from './pages/UpgradePage';
@@ -106,6 +107,7 @@ export default function App() {
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
                     <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
+                    <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
                     <Route path="/business-launch-status"  element={<Guarded><BusinessLaunchStatusPage /></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
