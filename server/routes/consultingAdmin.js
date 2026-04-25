@@ -16,5 +16,6 @@ router.get('/dashboard-stats', authenticate, requireAdmin, adminConsultingContro
 router.get('/sessions', authenticate, requireAdmin, adminConsultingController.listSessions);
 router.get('/sessions/:id', authenticate, requireAdmin, adminConsultingController.getSessionDetail);
 router.patch('/sessions/:id', authenticate, requireAdmin, adminConsultingController.updateSessionDetails);
+router.patch('/sessions/:sessionId/complete', authenticate, requireAdmin, adminConsultingController.completeSession);
 
 module.exports = router;

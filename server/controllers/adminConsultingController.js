@@ -334,3 +334,48 @@ exports.updateSessionDetails = async (req, res) => {
     return res.status(500).json({ error: 'Failed to update session' });
   }
 };
+
+/**
+ * Mark a scheduled consulting session as completed
+ * PATCH /api/consulting/admin/sessions/:sessionId/complete
+ */
+exports.completeSession = async (req, res) => {
+  const { sessionId } = req.params;
+
+  try {
+    // Find the scheduled session record
+    const scheduledResult = await db.query(
+      'SELECT id FROM consulting_sessions_scheduled WHERE session_id = $1',
+      [sessionId]
+    );
+
+    if (scheduledResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Scheduled session not found' });
+    }
+
+    const scheduledId = scheduledResult.rows[0].id;
+
+    // Mark session as completed
+    const result = await db.query(
+      `UPDATE consulting_sessions_scheduled
+       SET status = 'completed', updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [scheduledId]
+    );
+
+    logger.info('Consulting session marked as completed', {
+      adminId: req.user?.id,
+      sessionId,
+      scheduledId,
+    });
+
+    return res.json({
+      message: 'Session marked as completed. Post-session follow-up email will be sent automatically.',
+      session: result.rows[0],
+    });
+  } catch (err) {
+    logger.error('Error completing consulting session', { sessionId, err });
+    return res.status(500).json({ error: 'Failed to complete session' });
+  }
+};

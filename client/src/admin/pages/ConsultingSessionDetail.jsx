@@ -57,6 +57,23 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
     }
   }
 
+  async function markSessionComplete() {
+    if (!window.confirm('Mark this session as completed? A follow-up email will be sent to the customer with action items.')) {
+      return;
+    }
+
+    try {
+      setUpdateLoading(true);
+      await axios.patch(`/api/consulting/admin/sessions/${session.id}/complete`);
+      toast.success('Session marked as completed. Follow-up email queued.');
+      onStatusUpdate();
+    } catch (err) {
+      toast.error('Failed to mark session as completed');
+    } finally {
+      setUpdateLoading(false);
+    }
+  }
+
   async function updateSessionStatus(sessionId, newStatus) {
     try {
       setUpdateLoading(true);
@@ -304,6 +321,27 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
           </>
         )}
       </div>
+
+      {session.status === 'scheduled' && (
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Session Actions</div>
+          <button
+            style={{
+              ...buttonStyle,
+              backgroundColor: '#10B981',
+              opacity: updateLoading ? 0.6 : 1,
+              cursor: updateLoading ? 'not-allowed' : 'pointer',
+            }}
+            onClick={markSessionComplete}
+            disabled={updateLoading}
+          >
+            {updateLoading ? 'Processing...' : '✓ Mark Session as Completed'}
+          </button>
+          <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+            Click to mark this session as completed. A follow-up email with action items will be sent to the customer.
+          </p>
+        </div>
+      )}
 
       {/* Timestamps */}
       <div style={{

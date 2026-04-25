@@ -445,12 +445,14 @@ const { startDiscoverDigestJob }        = require('./jobs/discoverDigest');
 const { startConversationRetentionCleanup } = require('./jobs/conversationRetentionCleanup');
 const { startGuestChatSessionTimeoutJob } = require('./jobs/guestChatSessionTimeout');
 const { startConsultingSessionReminders } = require('./jobs/consultingSessionReminders');
+const { startConsultingPostSessionFollowup } = require('./jobs/consultingPostSessionFollowup');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
 startConversationRetentionCleanup();
 startGuestChatSessionTimeoutJob();
 startConsultingSessionReminders();
+startConsultingPostSessionFollowup();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
