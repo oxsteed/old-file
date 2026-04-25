@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-25 (✅ **Business Launch Admin Notes & Messaging System:** Complete tabbed interface (Overview/Notes/Messages) for admin request management. Admins can add internal notes with timestamps and creator attribution, send custom messages to clients using pre-made templates or HTML, track message delivery status (sent/failed), and maintain full audit trail. Non-blocking async email delivery with status updates. 4 message templates (Kickoff Prep, Post-Kickoff, Component Complete, Final Checklist). Migration 104 creates `consulting_request_notes` + `consulting_request_messages` tables. Full i18n support for all user-facing messages (enterNote, noteAdded, fillMessage, messageSent, etc.). Integrated into BusinessLaunchAdmin dashboard.)
+**Last updated:** 2026-04-25 (✅ **Consulting Sessions Admin Enhancements:** Added notes management to ConsultingSessionDetail component (textarea + save button for internal admin notes). Implemented consultant assignment workflow with dropdown selector, availability count display, and notification emails to assigned consultants. Backend integration with email notifications on assignment. Both features fully functional and tested with backend endpoints.)
 
 > Prior: 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine, 5-minute timeout cron, SERIALIZABLE isolation, message queueing, Socket.IO broadcast, full audit trail. Migration 100, syntax verified.)
 
