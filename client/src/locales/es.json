@@ -4091,6 +4091,26 @@
         "assignmentSuccess": "Asesor asignado exitosamente",
         "assignmentError": "Error al asignar asesor"
       }
+    },
+    "payment": {
+      "title": "Paquetes de Asesoría",
+      "availablePackages": "Paquetes Disponibles",
+      "myPurchases": "Mis Compras",
+      "invoices": "Facturas",
+      "packageName": "Nombre del Paquete",
+      "amount": "Monto",
+      "sessionsRemaining": "Sesiones Restantes",
+      "purchaseDate": "Fecha de Compra",
+      "noPurchases": "Sin compras aún",
+      "invoiceNumber": "Factura #",
+      "status": "Estado",
+      "dueDate": "Fecha de Vencimiento",
+      "noInvoices": "Sin facturas aún",
+      "sessions": "sesiones",
+      "purchaseNow": "Comprar Ahora",
+      "stripeError": "Stripe no cargó",
+      "intentCreated": "Intención de pago creada",
+      "error": "Falló el procesamiento de pago"
     }
   }
 }

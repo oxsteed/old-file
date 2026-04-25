@@ -25,9 +25,10 @@ const REGULAR_NAV = [
   { to: '/admin/search',           icon: Search,          label: 'Search'           },
   { to: '/admin/businesses',       icon: Building2,       label: 'Businesses'       },
   { to: '/admin/tool-rentals',     icon: Wrench,          label: 'Tool Rentals'     },
-  { to: '/admin/planned-needs',    icon: ClipboardList,   label: 'Planned Needs'    },
-  { to: '/admin/payments',         icon: CreditCard,      label: 'Payments'         },
-  { to: '/admin/consulting',       icon: HandshakeIcon,   label: 'Consulting'       },
+  { to: '/admin/planned-needs',        icon: ClipboardList,   label: 'Planned Needs'    },
+  { to: '/admin/payments',             icon: CreditCard,      label: 'Payments'         },
+  { to: '/admin/consulting',           icon: HandshakeIcon,   label: 'Consulting'       },
+  { to: '/admin/consulting/payments',  icon: CreditCard,      label: 'Consulting Pay'   },
 ];
 
 const SUPER_NAV = [

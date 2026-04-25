@@ -4091,6 +4091,26 @@
         "assignmentSuccess": "Consultant assigné avec succès",
         "assignmentError": "Erreur lors de l'assignation du consultant"
       }
+    },
+    "payment": {
+      "title": "Forfaits de Conseil",
+      "availablePackages": "Forfaits Disponibles",
+      "myPurchases": "Mes Achats",
+      "invoices": "Factures",
+      "packageName": "Nom du Forfait",
+      "amount": "Montant",
+      "sessionsRemaining": "Sessions Restantes",
+      "purchaseDate": "Date d'Achat",
+      "noPurchases": "Pas d'achats encore",
+      "invoiceNumber": "Facture #",
+      "status": "Statut",
+      "dueDate": "Date d'Échéance",
+      "noInvoices": "Pas de factures encore",
+      "sessions": "sessions",
+      "purchaseNow": "Acheter Maintenant",
+      "stripeError": "Stripe non chargé",
+      "intentCreated": "Intention de paiement créée",
+      "error": "Échec du traitement du paiement"
     }
   }
 }

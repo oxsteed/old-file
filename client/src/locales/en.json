@@ -4091,6 +4091,26 @@
         "assignmentSuccess": "Consultant assigned successfully",
         "assignmentError": "Error assigning consultant"
       }
+    },
+    "payment": {
+      "title": "Consulting Packages",
+      "availablePackages": "Available Packages",
+      "myPurchases": "My Purchases",
+      "invoices": "Invoices",
+      "packageName": "Package Name",
+      "amount": "Amount",
+      "sessionsRemaining": "Sessions Remaining",
+      "purchaseDate": "Purchase Date",
+      "noPurchases": "No purchases yet",
+      "invoiceNumber": "Invoice #",
+      "status": "Status",
+      "dueDate": "Due Date",
+      "noInvoices": "No invoices yet",
+      "sessions": "sessions",
+      "purchaseNow": "Purchase Now",
+      "stripeError": "Stripe not loaded",
+      "intentCreated": "Payment intent created",
+      "error": "Payment processing failed"
     }
   }
 }

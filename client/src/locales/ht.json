@@ -4090,6 +4090,26 @@
         "assignmentSuccess": "Konseyè asiye avèk siksè",
         "assignmentError": "Erè pandan asiyeman konseyè"
       }
+    },
+    "payment": {
+      "title": "Pakèt Konsèy",
+      "availablePackages": "Pakèt Disponib",
+      "myPurchases": "Achats Mwen",
+      "invoices": "Fakti",
+      "packageName": "Non Pakèt",
+      "amount": "Montant",
+      "sessionsRemaining": "Sesyon Restan",
+      "purchaseDate": "Dat Achèt",
+      "noPurchases": "Poko gen achèt",
+      "invoiceNumber": "Fakti #",
+      "status": "Estatdi",
+      "dueDate": "Dat Limit",
+      "noInvoices": "Poko gen fakti",
+      "sessions": "sesyon",
+      "purchaseNow": "Achte Kounye a",
+      "stripeError": "Stripe pa chaje",
+      "intentCreated": "Intentyon peman kreye",
+      "error": "Echèk nan trete peman"
     }
   }
 }
