@@ -424,7 +424,9 @@
     "vortexContinueToLogin": "Kontinye pou konekte",
     "vortexRedeemFailed": "Token sa a pa t ka itilize. Verifye li kòrèk, pa itilize, epi pa ekspire.",
     "resource": "Resous",
-    "qrGenerator": "Jeneratè QR"
+    "qrGenerator": "Jeneratè QR",
+    "consulting": "Konsèy",
+    "consultingTooltip": "Planifye yon seyans konsèy biznis inisyal $100"
   },
   "howItWorks": {
     "badge": "Apèsi Platfòm",
@@ -3990,5 +3992,46 @@
     "downloadSVG": "Telechaje SVG",
     "errorGenerating": "Erè toujou ap jenere kòd QR",
     "loadError": "Erè toujou ap chaje kòd QR sove ou"
+  },
+  "consulting": {
+    "title": "Konsèy Asansyon Biznis",
+    "subtitle": "Jwenn konsèy ekspè pou fè biznis ou pi gwo. Konsiltasyon inisyal: $100 pou jiska 2 èdonn.",
+    "stepContact": "Kontakt",
+    "stepServices": "Sèvis",
+    "stepConfirm": "Konfime",
+    "servicesTitle": "Ki moun ki bezwen èd?",
+    "servicesSubtitle": "Di nou sou biznis ou epi chwazi zòn kote ou vle sipò konsèy.",
+    "confirmTitle": "Revize soumisyon ou",
+    "confirmSubtitle": "Tanpri revize enfòmasyon ou anvan w soumèt demann konsèy ou.",
+    "email": "Imel",
+    "firstName": "Premye non",
+    "lastName": "Non fanmi",
+    "businessName": "Non biznis",
+    "businessNamePlaceholder": "Fè antre non biznis ou",
+    "phone": "Nimewo telefòn",
+    "serviceTier": "Nivo sèvis",
+    "initialConsultation": "Konsiltasyon inisyal $100",
+    "areasOfHelp": "Zòn kote ou bezwen èd",
+    "area": {
+      "legal_setup": "Etablisman legal ak enjistreman",
+      "pricing_strategy": "Estrateji pri",
+      "branding": "Mak ak maketing",
+      "financial_systems": "Sistèm finansye ak komtabilite",
+      "marketing": "Maketing ak kwasans",
+      "team_building": "Ankadrement ak konstwuksyon ekip",
+      "operational_systems": "Sistèm operasyonèl ak otomatizasyon",
+      "scaling": "Agrandi biznis ou",
+      "acquisition_preparation": "Preparasyon akizisyon",
+      "exit_strategy": "Estrateji soti ak planifikasyon siksesyon"
+    },
+    "currentPhase": "Faz aktyèl biznis ou (1-30)",
+    "additionalInfo": "Di nou pi plis",
+    "additionalInfoPlaceholder": "Dekri biznis ou, defi aktyèl, ak sa ou espere akonpli...",
+    "confirmSummary": "Enfòmasyon ou",
+    "nextSteps": "Yon espesyalis konsèy ap revize demann ou epi pral kontak ou nan 24 èdonn biznis pou planifye konsiltasyon inisyal ou.",
+    "name": "Non",
+    "errorMissingInfo": "Tanpri ranpli non ou epi adrès imel ou",
+    "errorSubmit": "Pa t ka soumèt demann konsèy. Tanpri eseye ankò.",
+    "successSubmitted": "Demann konsèy soumèt avèk siksè! Verifye imel ou pou konfimason."
   }
 }

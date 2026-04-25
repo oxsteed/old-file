@@ -357,7 +357,9 @@
     "vortexContinueToLogin": "Continuar para iniciar sesión",
     "vortexRedeemFailed": "No se pudo canjear este token. Verifica que sea correcto, no usado y no haya caducado.",
     "resource": "Recursos",
-    "qrGenerator": "Generador QR"
+    "qrGenerator": "Generador QR",
+    "consulting": "Asesoría",
+    "consultingTooltip": "Programa una sesión de asesoría empresarial inicial de $100"
   },
   "howItWorks": {
     "badge": "Descripción de la plataforma",
@@ -3991,5 +3993,46 @@
     "downloadSVG": "Descargar SVG",
     "errorGenerating": "Error al generar el código QR",
     "loadError": "Error al cargar tus códigos QR guardados"
+  },
+  "consulting": {
+    "title": "Asesoría Empresarial de Ascenso",
+    "subtitle": "Obtén orientación experta para hacer crecer tu negocio. Consulta inicial: $100 por hasta 2 horas.",
+    "stepContact": "Contacto",
+    "stepServices": "Servicios",
+    "stepConfirm": "Confirmar",
+    "servicesTitle": "¿Con qué necesitas ayuda?",
+    "servicesSubtitle": "Cuéntanos sobre tu negocio y selecciona las áreas en las que deseas apoyo de asesoría.",
+    "confirmTitle": "Revisa tu solicitud",
+    "confirmSubtitle": "Por favor revisa tu información antes de enviar tu solicitud de asesoría.",
+    "email": "Correo electrónico",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "businessName": "Nombre del Negocio",
+    "businessNamePlaceholder": "Ingresa el nombre de tu negocio",
+    "phone": "Número de Teléfono",
+    "serviceTier": "Nivel de Servicio",
+    "initialConsultation": "Consulta Inicial de $100",
+    "areasOfHelp": "Áreas en las que necesitas ayuda",
+    "area": {
+      "legal_setup": "Configuración Legal y Registro",
+      "pricing_strategy": "Estrategia de Precios",
+      "branding": "Marca y Marketing",
+      "financial_systems": "Sistemas Financieros y Contabilidad",
+      "marketing": "Marketing y Crecimiento",
+      "team_building": "Contratación y Construcción de Equipo",
+      "operational_systems": "Sistemas Operacionales y Automatización",
+      "scaling": "Escalabilidad de tu Negocio",
+      "acquisition_preparation": "Preparación para Adquisición",
+      "exit_strategy": "Estrategia de Salida y Planificación de Sucesión"
+    },
+    "currentPhase": "Fase Actual de tu Negocio (1-30)",
+    "additionalInfo": "Cuéntanos más",
+    "additionalInfoPlaceholder": "Describe tu negocio, desafíos actuales y lo que esperas lograr...",
+    "confirmSummary": "Tu Información",
+    "nextSteps": "Un especialista en asesoría revisará tu solicitud y se pondrá en contacto contigo dentro de 24 horas hábiles para programar tu consulta inicial.",
+    "name": "Nombre",
+    "errorMissingInfo": "Por favor completa tu nombre y correo electrónico",
+    "errorSubmit": "Falló al enviar la solicitud de asesoría. Por favor intenta de nuevo.",
+    "successSubmitted": "¡Solicitud de asesoría enviada exitosamente! Revisa tu correo para la confirmación."
   }
 }

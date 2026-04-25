@@ -357,7 +357,9 @@
     "vortexContinueToLogin": "Continue to sign in",
     "vortexRedeemFailed": "Could not redeem this token. Check it is correct, unused, and not expired.",
     "resource": "Resources",
-    "qrGenerator": "QR Generator"
+    "qrGenerator": "QR Generator",
+    "consulting": "Consulting",
+    "consultingTooltip": "Schedule an initial $100 business consulting session"
   },
   "howItWorks": {
     "badge": "Platform Overview",
@@ -3991,5 +3993,46 @@
     "downloadSVG": "Download SVG",
     "errorGenerating": "Failed to generate QR code",
     "loadError": "Failed to load your saved QR codes"
+  },
+  "consulting": {
+    "title": "Business Ascension Consulting",
+    "subtitle": "Get expert guidance to grow your business. Initial consultation: $100 for up to 2 hours.",
+    "stepContact": "Contact",
+    "stepServices": "Services",
+    "stepConfirm": "Confirm",
+    "servicesTitle": "What Do You Need Help With?",
+    "servicesSubtitle": "Tell us about your business and select the areas where you'd like consulting support.",
+    "confirmTitle": "Review Your Submission",
+    "confirmSubtitle": "Please review your information before submitting your consulting request.",
+    "email": "Email",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "businessName": "Business Name",
+    "businessNamePlaceholder": "Enter your business name",
+    "phone": "Phone Number",
+    "serviceTier": "Service Level",
+    "initialConsultation": "100 Initial Consultation",
+    "areasOfHelp": "Areas You Need Help With",
+    "area": {
+      "legal_setup": "Legal Setup & Registration",
+      "pricing_strategy": "Pricing Strategy",
+      "branding": "Branding & Marketing",
+      "financial_systems": "Financial Systems & Bookkeeping",
+      "marketing": "Marketing & Growth",
+      "team_building": "Hiring & Team Building",
+      "operational_systems": "Operational Systems & Automation",
+      "scaling": "Scaling Your Business",
+      "acquisition_preparation": "Acquisition Preparation",
+      "exit_strategy": "Exit Strategy & Succession Planning"
+    },
+    "currentPhase": "Current Business Phase (1-30)",
+    "additionalInfo": "Tell Us More",
+    "additionalInfoPlaceholder": "Describe your business, current challenges, and what you hope to achieve...",
+    "confirmSummary": "Your Information",
+    "nextSteps": "A consulting specialist will review your request and contact you within 24 business hours to schedule your initial consultation.",
+    "name": "Name",
+    "errorMissingInfo": "Please fill in your name and email address",
+    "errorSubmit": "Failed to submit consulting request. Please try again.",
+    "successSubmitted": "Consulting request submitted successfully! Check your email for confirmation."
   }
 }

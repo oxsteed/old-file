@@ -357,7 +357,9 @@
     "vortexContinueToLogin": "Continuer pour vous connecter",
     "vortexRedeemFailed": "Impossible d’utiliser ce jeton. Vérifiez qu’il est correct, inutilisé et non expiré.",
     "resource": "Ressources",
-    "qrGenerator": "Générateur QR"
+    "qrGenerator": "Générateur QR",
+    "consulting": "Conseil",
+    "consultingTooltip": "Programmer une session de conseil commercial initiale de $100"
   },
   "howItWorks": {
     "badge": "Présentation de la plateforme",
@@ -3991,5 +3993,46 @@
     "downloadSVG": "Télécharger SVG",
     "errorGenerating": "Erreur lors de la génération du code QR",
     "loadError": "Erreur lors du chargement de vos codes QR enregistrés"
+  },
+  "consulting": {
+    "title": "Conseil en Ascension Commerciale",
+    "subtitle": "Obtenez des conseils d'experts pour développer votre entreprise. Consultation initiale : $100 jusqu'à 2 heures.",
+    "stepContact": "Contact",
+    "stepServices": "Services",
+    "stepConfirm": "Confirmer",
+    "servicesTitle": "Avec quoi avez-vous besoin d'aide?",
+    "servicesSubtitle": "Parlez-nous de votre entreprise et sélectionnez les domaines où vous souhaitez un soutien en conseil.",
+    "confirmTitle": "Vérifiez votre soumission",
+    "confirmSubtitle": "Veuillez vérifier vos informations avant de soumettre votre demande de conseil.",
+    "email": "Email",
+    "firstName": "Prénom",
+    "lastName": "Nom de famille",
+    "businessName": "Nom de l'entreprise",
+    "businessNamePlaceholder": "Entrez le nom de votre entreprise",
+    "phone": "Numéro de téléphone",
+    "serviceTier": "Niveau de service",
+    "initialConsultation": "Consultation initiale de $100",
+    "areasOfHelp": "Domaines dans lesquels vous avez besoin d'aide",
+    "area": {
+      "legal_setup": "Configuration légale et enregistrement",
+      "pricing_strategy": "Stratégie de tarification",
+      "branding": "Marque et marketing",
+      "financial_systems": "Systèmes financiers et comptabilité",
+      "marketing": "Marketing et croissance",
+      "team_building": "Embauche et constitution d'équipe",
+      "operational_systems": "Systèmes opérationnels et automatisation",
+      "scaling": "Agrandissement de votre entreprise",
+      "acquisition_preparation": "Préparation à l'acquisition",
+      "exit_strategy": "Stratégie de sortie et planification de succession"
+    },
+    "currentPhase": "Phase actuelle de votre entreprise (1-30)",
+    "additionalInfo": "Parlez-nous davantage",
+    "additionalInfoPlaceholder": "Décrivez votre entreprise, vos défis actuels et ce que vous espérez réaliser...",
+    "confirmSummary": "Vos informations",
+    "nextSteps": "Un spécialiste en conseil examinera votre demande et vous contactera dans les 24 heures ouvrables pour programmer votre consultation initiale.",
+    "name": "Nom",
+    "errorMissingInfo": "Veuillez remplir votre nom et adresse e-mail",
+    "errorSubmit": "Échec de la soumission de la demande de conseil. Veuillez réessayer.",
+    "successSubmitted": "Demande de conseil soumise avec succès ! Vérifiez votre email pour la confirmation."
   }
 }

@@ -77,6 +77,7 @@ const translateRoutes      = require('./routes/translate');
 const settingsRoutes       = require('./routes/settings');
 const discoverRoutes       = require('./routes/discover');
 const qrCodesRoutes        = require('./routes/qrCodes');
+const consultingRoutes     = require('./routes/consulting');
 // roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -378,6 +379,7 @@ app.use('/api/translate',      translateRoutes);
 app.use('/api/settings',     settingsRoutes);
 app.use('/api/discover',     discoverRoutes);
 app.use('/api/qr-codes',     qrCodesRoutes);
+app.use('/api/consulting',   consultingRoutes);
 // NOTE: /api/role-toggle intentionally removed — see comment near top of file
 
 // Sentry wizard "Verify" route — development/staging only (omit in production)
