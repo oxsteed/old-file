@@ -138,7 +138,7 @@ export default function UpgradePage() {
                 {t('upgrade.activeLabel')}
               </div>
               <p className="text-gray-400 text-sm mb-6">
-                {t('upgrade.renewsOn', { date: new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) })}
+                {t('upgrade.renewsOn', { date: subscription?.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Soon' })}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button onClick={openPortal}

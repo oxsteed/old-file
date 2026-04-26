@@ -88,7 +88,7 @@ const ToolReviewsList: React.FC<ToolReviewsListProps> = ({ toolId, avgRating = 0
                       {review.first_name?.[0]}{review.last_name?.[0]}
                     </div>
                   )}
-                  <span className="tool-review-name">{review.first_name} {review.last_name}</span>
+                  <span className="tool-review-name">{review.first_name || 'Anonymous'} {review.last_name || ''}</span>
                 </div>
                 <div className="tool-review-rating-stars">
                   {Array.from({ length: 5 }).map((_, i) => (
