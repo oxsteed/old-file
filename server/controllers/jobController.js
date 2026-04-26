@@ -182,7 +182,7 @@ exports.getJobs = async (req, res) => {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const offset = (page - 1) * limit;
-    let conditions = [`u.is_active = true`];
+    let conditions = [`u.is_active = true`, `j.deleted_at IS NULL`];
     let params = [];
     let paramIdx = 1;
 
@@ -281,7 +281,7 @@ exports.getJob = async (req, res) => {
       FROM jobs j
       JOIN users u ON j.client_id = u.id
       LEFT JOIN users h ON j.assigned_helper_id = h.id
-      WHERE j.id = $1
+      WHERE j.id = $1 AND j.deleted_at IS NULL
     `, [id]);
 
     if (rows.length === 0) {
