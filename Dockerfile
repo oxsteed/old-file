@@ -1,35 +1,43 @@
-FROM node:22-slim
+# Multi-stage production build for OxSteed (Node.js + React SPA)
+# Stage 1: Build client (React)
+FROM node:20-alpine AS client-build
+WORKDIR /app/client
+COPY client/package*.json ./
+RUN npm ci --omit=dev
+COPY client/ .
+RUN npm run build
+
+# Stage 2: Build and run server + client
+FROM node:20-alpine
+LABEL maintainer="OxSteed Team"
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
 
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Copy server dependencies
+COPY server/package*.json server/
+WORKDIR /app/server
+RUN npm ci --omit=dev
 
-# Install client dependencies and build
-COPY client/package*.json ./client/
-RUN cd client && npm ci
+# Copy server code
+COPY server/ .
 
-COPY client/ ./client/
-RUN cd client && npm run build
-
-# Install server dependencies (lockfile must match package.json for reproducible builds)
-COPY server/package*.json ./server/
-RUN cd server && npm ci --omit=dev
-
-COPY server/ ./server/
+# Copy built client to be served as static assets
+COPY --from=client-build /app/client/dist /app/server/public/dist
 
 WORKDIR /app/server
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 5000) + '/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["/sbin/dumb-init", "--"]
+
+# Start server (runs migrations automatically via npm start)
+CMD ["npm", "start"]
+
+# Port
 EXPOSE 5000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:5000/api/health || exit 1
-
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 --ingroup nodejs nodeuser && \
-    mkdir -p /app/public && \
-    chown -R nodeuser:nodejs /app/public
-USER nodeuser
-
-# Run migrations then start the server
-CMD ["sh", "-c", "node migrate.js && node index.js"]
