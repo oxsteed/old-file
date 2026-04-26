@@ -109,6 +109,20 @@ exports.createPaymentIntent = async (req, res) => {
     const jobValueCents = Math.round(job.rows[0].job_value * 100);
     const fees = calculateTier3Fees(jobValueCents);
 
+    // Check for existing payment to prevent duplicates (idempotency)
+    const existingPayment = await pool.query(
+      'SELECT id, stripe_payment_intent_id FROM payments WHERE job_id = $1 AND status IN ($2, $3)',
+      [job_id, 'authorized', 'pending']
+    );
+    if (existingPayment.rows[0]) {
+      // Return existing payment intent instead of creating a duplicate
+      return res.json({
+        client_secret: existingPayment.rows[0].stripe_payment_intent_id,
+        payment_intent_id: existingPayment.rows[0].stripe_payment_intent_id,
+        message: 'Existing payment intent returned'
+      });
+    }
+
     // Direct charge on helper's connected account
     const paymentIntent = await stripe.paymentIntents.create(
       {
@@ -128,11 +142,12 @@ exports.createPaymentIntent = async (req, res) => {
       { stripeAccount: connect.rows[0].stripe_account_id }
     );
 
-    await pool.query(
+    const { rows: insertRows } = await pool.query(
       `INSERT INTO payments
         (job_id, payer_id, payee_id, stripe_payment_intent_id,
          amount, platform_fee, status, payment_hold_status, stripe_account_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7)
+       RETURNING id`,
       [
         job_id,
         req.user.id,
@@ -143,6 +158,10 @@ exports.createPaymentIntent = async (req, res) => {
         connect.rows[0].stripe_account_id,
       ]
     );
+
+    if (insertRows.length === 0) {
+      return res.status(500).json({ error: 'Failed to save payment intent' });
+    }
 
     res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
   } catch (err) {
@@ -273,12 +292,15 @@ exports.refundPayment = async (req, res) => {
 
     // ── Database update (ATOMIC TRANSACTION) ─────────────────────────────
     await withPaymentTransaction(pool, async (client) => {
-      await client.query(
+      const { rows: updateRows } = await client.query(
         `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
          refunded_at = NOW(), refund_amount = $1, refund_reason = $2, stripe_refund_id = $3,
-         updated_at = NOW() WHERE id = $4`,
+         updated_at = NOW() WHERE id = $4 AND status IN ('authorized', 'captured') RETURNING id`,
         [refundAmount, reason, refundId, payment_id]
       );
+      if (updateRows.length === 0) {
+        throw new Error('Payment status changed during refund processing');
+      }
 
       // Audit log for refund (admin action)
       await client.query(
