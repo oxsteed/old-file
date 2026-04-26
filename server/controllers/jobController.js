@@ -3,7 +3,7 @@ const { scoreAndMatch } = require('../services/matchService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
-const { withJobTransaction } = require('../utils/transaction');
+const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
 
 function isTier3EscrowJob(jobRow) {
@@ -365,27 +365,94 @@ exports.cancelJob = async (req, res) => {
   }
 };
 
-// Assign a helper to a job
+// Assign a helper to a job by accepting a specific bid
 exports.assignHelper = async (req, res) => {
   try {
-    const { job_id, helper_id } = req.body;
+    const { bid_id } = req.body;
 
-    const { rows } = await pool.query(`
-      UPDATE jobs SET
-        assigned_helper_id = $1,
-        status = 'accepted',
-        updated_at = now()
-      WHERE id = $2 AND client_id = $3
-      AND status IN ('published','matched','negotiating')
-      RETURNING *
-    `, [helper_id, job_id, req.user.id]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be assigned' });
+    if (!bid_id) {
+      return res.status(400).json({ error: 'bid_id is required' });
     }
 
-    res.json({ message: 'Helper assigned', job: rows[0] });
+    const result = await withTransaction(pool, async (client) => {
+      // 1. Look up the bid and verify it belongs to a job owned by the requester
+      const bidLookup = await client.query(
+        `SELECT b.id, b.job_id, b.helper_id, b.status, j.client_id, j.status AS job_status
+         FROM bids b
+         JOIN jobs j ON j.id = b.job_id
+         WHERE b.id = $1`,
+        [bid_id]
+      );
+
+      if (bidLookup.rows.length === 0) {
+        const err = new Error('Bid not found');
+        err.status = 404;
+        throw err;
+      }
+
+      const bid = bidLookup.rows[0];
+
+      if (bid.client_id !== req.user.id) {
+        const err = new Error('Not authorized to accept bids on this job');
+        err.status = 403;
+        throw err;
+      }
+
+      if (!['published', 'matched', 'negotiating'].includes(bid.job_status)) {
+        const err = new Error('Job is not in a state that allows bid acceptance');
+        err.status = 409;
+        throw err;
+      }
+
+      // 2. Accept the bid atomically — only succeeds if it is still pending
+      const acceptResult = await client.query(
+        `UPDATE bids SET status = 'accepted', updated_at = NOW()
+         WHERE id = $1 AND status = 'pending'
+         RETURNING *`,
+        [bid_id]
+      );
+
+      if (acceptResult.rows.length === 0) {
+        const err = new Error('Bid is no longer pending — it may have been withdrawn or already accepted');
+        err.status = 409;
+        throw err;
+      }
+
+      const acceptedBid = acceptResult.rows[0];
+
+      // 3. Reject all other pending bids for this job
+      await client.query(
+        `UPDATE bids SET status = 'rejected', updated_at = NOW()
+         WHERE job_id = $1 AND id != $2 AND status = 'pending'`,
+        [bid.job_id, bid_id]
+      );
+
+      // 4. Update the job: assign the helper and move to accepted status
+      const jobResult = await client.query(
+        `UPDATE jobs SET
+           assigned_helper_id = $1,
+           status = 'accepted',
+           updated_at = NOW()
+         WHERE id = $2 AND client_id = $3
+         AND status IN ('published', 'matched', 'negotiating')
+         RETURNING *`,
+        [bid.helper_id, bid.job_id, req.user.id]
+      );
+
+      if (jobResult.rows.length === 0) {
+        const err = new Error('Job not found or cannot be assigned');
+        err.status = 409;
+        throw err;
+      }
+
+      return { job: jobResult.rows[0], bid: acceptedBid };
+    }, 'assign_helper');
+
+    res.json({ message: 'Bid accepted', job: result.job, bid: result.bid });
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message });
+    }
     logger.error('Assign helper error', { err });
     res.status(500).json({ error: 'Failed to assign helper' });
   }

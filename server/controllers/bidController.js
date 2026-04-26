@@ -7,20 +7,36 @@ exports.createBid = async (req, res) => {
   try {
     const { job_id, amount, message, estimated_hours } = req.body;
 
+    // Input validation
+    if (!job_id) return res.status(400).json({ error: 'job_id is required' });
+    if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) <= 0)) {
+      return res.status(400).json({ error: 'amount must be a positive number' });
+    }
+    if (message !== undefined && typeof message === 'string' && message.trim().length === 0) {
+      return res.status(400).json({ error: 'message cannot be empty' });
+    }
+
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
     if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });
     if (job.rows[0].client_id === req.user.id) return res.status(400).json({ error: 'Cannot bid on your own job' });
     if (!['published', 'matched'].includes(job.rows[0].status)) return res.status(400).json({ error: 'Job is not accepting bids' });
 
-    // Check for existing bid
-    const existing = await pool.query('SELECT * FROM bids WHERE job_id = $1 AND helper_id = $2', [job_id, req.user.id]);
-    if (existing.rows[0]) return res.status(400).json({ error: 'You already placed a bid on this job' });
-
-    // Create bid and update job status atomically
+    // Create bid and update job status atomically (duplicate check inside transaction to prevent race condition)
     const result = await withTransaction(pool, async (client) => {
+      // Check for existing bid inside the transaction to avoid race window
+      const existing = await client.query(
+        'SELECT id FROM bids WHERE job_id = $1 AND helper_id = $2 FOR UPDATE',
+        [job_id, req.user.id]
+      );
+      if (existing.rows.length > 0) {
+        const err = new Error('You already placed a bid on this job');
+        err.status = 409;
+        throw err;
+      }
+
       const bidResult = await client.query(
         'INSERT INTO bids (job_id, helper_id, amount, message, eta_hours) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [job_id, req.user.id, amount, message, estimated_hours]
+        [job_id, req.user.id, amount, message !== undefined ? message.trim() : message, estimated_hours]
       );
 
       // Update job status to matched if first bid
@@ -31,6 +47,9 @@ exports.createBid = async (req, res) => {
 
     res.status(201).json(result);
   } catch (err) {
+    if (err.status === 409) {
+      return res.status(409).json({ error: err.message });
+    }
     logger.error('Create bid error', { err });
     res.status(500).json({ error: 'Failed to create bid' });
   }
@@ -100,16 +119,28 @@ exports.getMyBids = async (req, res) => {
 // Update bid
 exports.updateBid = async (req, res) => {
   try {
-    const bid = await pool.query('SELECT * FROM bids WHERE id = $1', [req.params.id]);
-    if (!bid.rows[0]) return res.status(404).json({ error: 'Bid not found' });
-    if (bid.rows[0].helper_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-    if (bid.rows[0].status !== 'pending') return res.status(400).json({ error: 'Can only update pending bids' });
-
     const { amount, message, eta_hours } = req.body;
+
+    // Atomic update — only succeeds if bid is still pending and belongs to this helper
     const result = await pool.query(
-      'UPDATE bids SET amount = COALESCE($1, amount), message = COALESCE($2, message), eta_hours = COALESCE($3, eta_hours), updated_at = NOW() WHERE id = $4 RETURNING *',
-      [amount, message, eta_hours, req.params.id]
+      `UPDATE bids
+       SET amount = COALESCE($1, amount),
+           message = COALESCE($2, message),
+           eta_hours = COALESCE($3, eta_hours),
+           updated_at = NOW()
+       WHERE id = $4 AND helper_id = $5 AND status = 'pending'
+       RETURNING *`,
+      [amount, message, eta_hours, req.params.id, req.user.id]
     );
+
+    if (result.rows.length === 0) {
+      // Distinguish "not found / not yours" from "already actioned"
+      const check = await pool.query('SELECT id, helper_id, status FROM bids WHERE id = $1', [req.params.id]);
+      if (!check.rows[0]) return res.status(404).json({ error: 'Bid not found' });
+      if (check.rows[0].helper_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+      return res.status(409).json({ error: 'Can only update pending bids' });
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     logger.error('Update bid error', { err });
@@ -120,15 +151,21 @@ exports.updateBid = async (req, res) => {
 // Withdraw bid
 exports.withdrawBid = async (req, res) => {
   try {
-    const bid = await pool.query('SELECT * FROM bids WHERE id = $1', [req.params.id]);
-    if (!bid.rows[0]) return res.status(404).json({ error: 'Bid not found' });
-    if (bid.rows[0].helper_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-    if (bid.rows[0].status !== 'pending') return res.status(400).json({ error: 'Can only withdraw pending bids' });
-
+    // Atomic update — only succeeds if bid is still pending and belongs to this helper
     const result = await pool.query(
-      `UPDATE bids SET status = 'withdrawn', withdrawn_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`,
-      [req.params.id]
+      `UPDATE bids SET status = 'withdrawn', withdrawn_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND helper_id = $2 AND status = 'pending'
+       RETURNING *`,
+      [req.params.id, req.user.id]
     );
+
+    if (result.rows.length === 0) {
+      const check = await pool.query('SELECT id, helper_id, status FROM bids WHERE id = $1', [req.params.id]);
+      if (!check.rows[0]) return res.status(404).json({ error: 'Bid not found' });
+      if (check.rows[0].helper_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+      return res.status(409).json({ error: 'Can only withdraw pending bids' });
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     logger.error('Withdraw bid error', { err });
