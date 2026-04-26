@@ -235,6 +235,14 @@ exports.refundPayment = async (req, res) => {
     const paymentData = payment.rows[0];
     const refundAmount = amount || paymentData.amount;
 
+    // ── VALIDATE PAYMENT STATUS ──────────────────────────────────────────
+    // Only authorized and captured payments can be refunded
+    if (!['authorized', 'captured'].includes(paymentData.status)) {
+      return res.status(400).json({
+        error: `Payment cannot be refunded in '${paymentData.status}' status. Only authorized and captured payments can be refunded.`
+      });
+    }
+
     // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
     // Refunds can only happen after disputes are resolved
     const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [paymentData.job_id, 'open', 'in_progress']);
