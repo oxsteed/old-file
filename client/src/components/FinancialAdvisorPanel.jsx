@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DollarSign, X, Send, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import { getFinancialAdvice } from '../api/chat';
 
 /**
  * Floating financial-advisor chat panel.
@@ -45,6 +44,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
 
     try {
       const lang = localStorage.getItem('oxs:language') || 'en';
+      const { getFinancialAdvice } = await import('../api/chat');
       const data = await getFinancialAdvice(
         nextHistory.map(m => ({ role: m.role, content: m.content })),
         window_,
