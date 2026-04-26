@@ -1,6 +1,8 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-25 (✅ **Calendar System Migration Deployment Fix:** Rewrote migration 112_calendar_appointments.sql to use exception-based FK idempotency (BEGIN/EXCEPTION WHEN duplicate_object blocks) instead of inline FK constraints. Resolves repeated deployment failures on production database. All CREATE TABLE statements use IF NOT EXISTS; all CREATE INDEX use IF NOT EXISTS. Migration now fully idempotent and compatible with standard migration runners. Committed and pushed to main. Earlier: Comprehensive Code Quality & Critical Bug Fixes (3 CRITICAL errors, 2 HIGH priority issues). Full feature set: Advanced Scheduling + Analytics Dashboard + Admin UI + Customer Portal + Payment Processing + Invoice Management + Admin Sessions Dashboard + Admin Notes & Messaging.)
+**Last updated:** 2026-04-26 (✅ **Self-hosted Web Push notification system:** End-to-end Web Push API + VAPID stack — migration 113, `webPushService` (fan-out + dead-subscription cleanup on 410/404), `/api/notifications/webpush/{public-key,subscribe,unsubscribe,devices,test}` routes, service worker push + notificationclick + pushsubscriptionchange handlers, `useWebPush` React hook, opt-in panel in `NotificationPreferences`, `web_push_enabled` master pref, fixed phantom `is_push_sent`/`is_email_sent` columns, i18n in 4 languages, VAPID generator script. Wires into existing `notificationService.sendNotification` so every existing event auto-fans-out.)
+
+> Prior: 2026-04-25 (✅ **Calendar System Migration Deployment Fix:** Rewrote migration 112_calendar_appointments.sql to use exception-based FK idempotency (BEGIN/EXCEPTION WHEN duplicate_object blocks) instead of inline FK constraints. Resolves repeated deployment failures on production database. All CREATE TABLE statements use IF NOT EXISTS; all CREATE INDEX use IF NOT EXISTS. Migration now fully idempotent and compatible with standard migration runners. Committed and pushed to main. Earlier: Comprehensive Code Quality & Critical Bug Fixes (3 CRITICAL errors, 2 HIGH priority issues). Full feature set: Advanced Scheduling + Analytics Dashboard + Admin UI + Customer Portal + Payment Processing + Invoice Management + Admin Sessions Dashboard + Admin Notes & Messaging.)
 
 > Prior: 2026-04-24 (✅ **Guest-to-helper chat system:** Transaction-safe state machine, 5-minute timeout cron, SERIALIZABLE isolation, message queueing, Socket.IO broadcast, full audit trail. Migration 100, syntax verified.)
 
@@ -2399,6 +2401,84 @@ Next actions:
 5. Create payment processing for consulting packages
 
 **Status:** ✅ COMPLETE — Admin can now view and manage all consulting intake sessions
+
+---
+
+### Session — 2026-04-26 (Self-hosted Web Push notification system)
+
+**Objective:** Add browser push notifications (Web Push API + VAPID) alongside the existing Socket.IO live channel and Expo native-mobile channel — fully self-hosted, no third-party push provider.
+
+**What was built:**
+
+1. **Migration `113_web_push_extensions.sql`** (idempotent)
+   - Extends `push_subscriptions` (already existed from 001/025) with `expiration_time BIGINT`, `device_label TEXT`, `failure_count INTEGER`, `last_failure_at TIMESTAMPTZ`.
+   - Adds the long-referenced phantom columns `is_push_sent BOOLEAN` and `is_email_sent BOOLEAN` (and `action_url TEXT`) to `notifications` — `notificationService.js` was writing to columns that didn't exist.
+   - Adds `web_push_enabled BOOLEAN` master toggle to `notification_preferences` (defaults TRUE).
+   - Adds `idx_push_subs_endpoint` and a partial `idx_push_subs_active_user` index.
+
+2. **`server/services/webPushService.js`** (new)
+   - Lazy VAPID config from `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` (graceful no-op when unset).
+   - `sendToUser(userId, payload)` — fans out in parallel to up to 50 active subs, refreshes `last_used_at` on success, hard-disables on HTTP 404/410 (subscription gone), increments `failure_count` for transient errors.
+   - `isConfigured()` / `getPublicKey()` for the client handshake endpoint.
+
+3. **`server/controllers/webPushController.js` + routes on `/api/notifications/webpush/*`**
+   - `GET /public-key` — public (no auth) so the browser can call `pushManager.subscribe()`.
+   - `POST /subscribe` — auth, upserts on `endpoint`, accepts `{ endpoint, keys: { p256dh, auth }, expirationTime?, deviceLabel? }`.
+   - `DELETE /subscribe` — soft-disables a subscription (keeps the row for audit).
+   - `GET /devices` — lists the caller's active subs; **never returns full endpoints** (those are bearer-equivalent), only the last 24 chars + UA + label.
+   - `POST /test` — sends a test push to all of the caller's active subs (powers the "Send a test notification" button).
+
+4. **`server/services/notificationService.js`** — wired Web Push into the master `sendNotification()`. After in-app save + Expo push, it now also calls `webPushService.sendToUser()` gated on (`push_<type>` pref AND `web_push_enabled` master AND VAPID configured). Failures are warned but never thrown — notifications must not block business logic.
+
+5. **`server/scripts/generateVapidKeys.js`** — one-shot CLI: `node server/scripts/generateVapidKeys.js` prints the env block to paste into Coolify secrets.
+
+6. **`client/public/sw.js`** — extended (`CACHE_VERSION` bumped to `v2-webpush` so existing clients re-install):
+   - `push` handler — parses payload, shows notification with `tag` + `renotify` so duplicate events replace each other.
+   - `notificationclick` handler — focuses an existing same-origin tab (and navigates if possible), otherwise opens a new one to `action_url`.
+   - `pushsubscriptionchange` handler — broadcasts `webpush:resubscribe` to open clients so the React hook re-syncs when the browser rotates the endpoint.
+
+7. **`client/src/hooks/useWebPush.ts`** — owns the lifecycle:
+   - feature detection → SW ready → `getSubscription()` → `Notification.requestPermission()` → `pushManager.subscribe(applicationServerKey)` → POST `/notifications/webpush/subscribe`.
+   - Exposes `{ isSupported, ready, permission, isSubscribed, serverEnabled, loading, error, subscribe(), unsubscribe(), sendTest() }`.
+   - Listens for SW `webpush:resubscribe` postMessage to silently re-sync.
+
+8. **`client/src/components/NotificationPreferences.jsx`** — new `BrowserPushPanel` rendered above the existing in-app/push/email sections. Master toggle, status line (off / on / blocked / unsupported / server off), "Send a test notification" button when subscribed, helpful message when permission was denied.
+
+9. **i18n** — `notifications.webPush.*` (15 keys × 4 locales: EN/ES/FR/HT). All four files re-validated as parseable JSON.
+
+10. **`server/.env.example`** — added `VAPID_SUBJECT` and a comment pointing at the generator script.
+
+**Production setup (one-time per environment):**
+```bash
+node server/scripts/generateVapidKeys.js   # paste output into Coolify secrets
+```
+
+**Test plan:**
+- **Unit (manual)** — start server with VAPID unset → `GET /api/notifications/webpush/public-key` returns `{ publicKey: null, enabled: false }`; subscribe panel shows "not available". Set VAPID, restart → returns the key, panel becomes interactive.
+- **Browser end-to-end** — Sign in → Settings → Notifications → flip "Enable browser push" toggle → grant permission → click "Send a test notification". Confirm OS notification appears. Click it → tab focuses and navigates to `/settings/notifications`.
+- **Real-event delivery** — Trigger any existing event (e.g. send a chat message to yourself from a second device, accept a bid). Verify both the in-app socket toast AND the OS notification fire.
+- **Subscription cleanup** — Manually expire a subscription endpoint (or wait for browser revocation), trigger an event → verify `push_subscriptions.active` flips to FALSE on next send (server logs show 410, row marked inactive).
+- **Multi-device** — Subscribe from two browsers, verify `GET /api/notifications/webpush/devices` lists both, unsubscribing one leaves the other intact.
+- **Permission denied** — Block notifications at the browser level, reload settings → panel shows the "Blocked by browser" status with the recovery message.
+- **Master toggle** — Set `web_push_enabled = FALSE` in DB, trigger event → in-app notification appears but no browser push (confirms gating).
+
+**Files created:**
+- `server/migrations/113_web_push_extensions.sql`
+- `server/scripts/generateVapidKeys.js`
+- `server/services/webPushService.js`
+- `server/controllers/webPushController.js`
+- `client/src/hooks/useWebPush.ts`
+
+**Files modified:**
+- `server/routes/notifications.js` — five new routes under `/webpush/*`.
+- `server/services/notificationService.js` — added Web Push fan-out step.
+- `server/.env.example` — `VAPID_SUBJECT` + generator-script comment.
+- `client/public/sw.js` — push handlers, cache version bump.
+- `client/src/components/NotificationPreferences.jsx` — `BrowserPushPanel` component + import.
+- `client/src/locales/{en,es,fr,ht}.json` — `notifications.webPush.*` (15 keys × 4 locales).
+- `CLAUDE.md` — this entry.
+
+**Verified:** All five new/modified server JS files pass `node --check`. All four locale files pass `JSON.parse`. No existing migration was modified.
 
 ---
 

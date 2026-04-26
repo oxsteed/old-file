@@ -2620,6 +2620,22 @@
     "prefSaved": "Preference saved",
     "failedSave": "Failed to save preference",
     "failedLoad": "Failed to load notification preferences",
+    "webPush": {
+      "title": "Browser Push Notifications",
+      "subtitle": "Get alerts in this browser even when OxSteed isn't open.",
+      "toggleLabel": "Enable browser push",
+      "sendTest": "Send a test notification",
+      "statusOff": "Off — turn on to receive push notifications in this browser.",
+      "statusOn": "On — this browser will receive push notifications.",
+      "statusDenied": "Blocked by browser. Allow notifications in your browser settings to enable.",
+      "statusUnsupported": "Your browser doesn't support push notifications.",
+      "statusServerOff": "Push notifications aren't available right now.",
+      "deniedHelp": "Notifications are blocked. Open your browser's site settings for OxSteed and switch notifications to Allow, then reload.",
+      "enabledToast": "Browser push notifications enabled",
+      "disabledToast": "Browser push notifications disabled",
+      "testSentToast": "Test notification sent — watch for it!",
+      "deniedToast": "Permission denied. Allow notifications in your browser settings."
+    },
     "groups": {
       "in_app": {
         "label": "In-App Notifications",
