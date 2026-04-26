@@ -402,7 +402,9 @@ exports.deletePlannedNeed = async (req, res) => {
       return res.status(400).json({ error: 'Only planned or funding needs can be deleted. Use cancel instead.' });
     }
 
-    await db.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2', [id, userId]);
+    // Delete with RETURNING to verify deletion
+    const delResult = await db.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+    if (!delResult.rows.length) return res.status(500).json({ error: 'Delete failed unexpectedly' });
     res.json({ message: 'Planned need deleted.' });
   } catch (err) {
     logger.error('deletePlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });

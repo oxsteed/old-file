@@ -270,14 +270,18 @@ async function setPrimary(req, res) {
 async function deleteBusiness(req, res) {
   try {
     const { id } = req.params;
-    const { rowCount } = await pool.query(
-      'DELETE FROM businesses WHERE id = $1 AND user_id = $2',
+    // Soft-delete: set is_active = FALSE instead of hard DELETE (preserves audit trail)
+    const result = await pool.query(
+      `UPDATE businesses SET is_active = FALSE, updated_at = NOW()
+       WHERE id = $1 AND user_id = $2 AND is_active = TRUE RETURNING id`,
       [id, req.user.id]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Business not found' });
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Business not found or already deleted' });
+    }
     return res.json({ ok: true });
   } catch (err) {
-    logger.error('deleteBusiness error', { err: err.message });
+    logger.error('deleteBusiness error', { userId: req.user?.id, businessId: req.params?.id, err: err.message });
     return res.status(500).json({ error: 'Failed to delete business' });
   }
 }
@@ -621,14 +625,14 @@ async function deleteGoal(req, res) {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
-    const { rowCount } = await pool.query(
-      'DELETE FROM business_goals WHERE id = $1 AND business_id = $2 AND user_id = $3',
+    const result = await pool.query(
+      'DELETE FROM business_goals WHERE id = $1 AND business_id = $2 AND user_id = $3 RETURNING id',
       [req.params.goalId, access.id, access.owner_id]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Goal not found' });
+    if (!result.rows.length) return res.status(404).json({ error: 'Goal not found' });
     return res.json({ ok: true });
   } catch (err) {
-    logger.error('deleteGoal error', { err: err.message });
+    logger.error('deleteGoal error', { userId: req.user?.id, businessId: access?.id, goalId: req.params?.goalId, err: err.message });
     return res.status(500).json({ error: 'Failed to delete goal' });
   }
 }

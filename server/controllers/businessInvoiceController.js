@@ -248,14 +248,26 @@ async function deleteInvoice(req, res) {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
     if (!access) return res.status(404).json({ error: 'Business not found' });
 
-    const { rowCount } = await pool.query(
-      'DELETE FROM business_invoices WHERE id = $1 AND business_id = $2 AND user_id = $3',
+    // Verify invoice exists and is in a deletable state (draft or cancelled only)
+    const inv = await pool.query(
+      'SELECT id, status FROM business_invoices WHERE id = $1 AND business_id = $2 AND user_id = $3',
       [req.params.invoiceId, access.id, access.owner_id]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Invoice not found' });
+    if (!inv.rows[0]) return res.status(404).json({ error: 'Invoice not found' });
+
+    if (!['draft', 'cancelled'].includes(inv.rows[0].status)) {
+      return res.status(400).json({ error: `Cannot delete invoice in '${inv.rows[0].status}' status. Only draft and cancelled invoices can be deleted.` });
+    }
+
+    // Soft-delete or hard-delete (status check is sufficient authorization)
+    const result = await pool.query(
+      'DELETE FROM business_invoices WHERE id = $1 AND business_id = $2 AND user_id = $3 RETURNING id',
+      [req.params.invoiceId, access.id, access.owner_id]
+    );
+    if (!result.rows.length) return res.status(500).json({ error: 'Delete failed unexpectedly' });
     return res.json({ ok: true });
   } catch (err) {
-    logger.error('deleteInvoice error', { err: err.message });
+    logger.error('deleteInvoice error', { userId: req.user?.id, businessId: req.params?.id, invoiceId: req.params?.invoiceId, err: err.message });
     return res.status(500).json({ error: 'Failed to delete invoice' });
   }
 }
@@ -579,14 +591,25 @@ async function deleteHelperInvoice(req, res) {
     const userId = req.user.id;
     const invoiceId = req.params.invoiceId;
 
-    const { rowCount } = await pool.query(
-      'DELETE FROM business_invoices WHERE id = $1 AND user_id = $2 AND business_id IS NULL',
+    // Verify invoice exists and is in a deletable state
+    const inv = await pool.query(
+      'SELECT id, status FROM business_invoices WHERE id = $1 AND user_id = $2 AND business_id IS NULL',
       [invoiceId, userId]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Invoice not found' });
+    if (!inv.rows[0]) return res.status(404).json({ error: 'Invoice not found' });
+
+    if (!['draft', 'cancelled'].includes(inv.rows[0].status)) {
+      return res.status(400).json({ error: `Cannot delete invoice in '${inv.rows[0].status}' status. Only draft and cancelled invoices can be deleted.` });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM business_invoices WHERE id = $1 AND user_id = $2 AND business_id IS NULL RETURNING id',
+      [invoiceId, userId]
+    );
+    if (!result.rows.length) return res.status(500).json({ error: 'Delete failed unexpectedly' });
     return res.json({ ok: true });
   } catch (err) {
-    logger.error('deleteHelperInvoice error', { err: err.message });
+    logger.error('deleteHelperInvoice error', { userId: req.user?.id, invoiceId: req.params?.invoiceId, err: err.message });
     return res.status(500).json({ error: 'Failed to delete invoice' });
   }
 }

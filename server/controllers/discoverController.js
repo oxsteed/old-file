@@ -766,14 +766,14 @@ exports.createDiscoverAlert = async (req, res) => {
 
 exports.deleteDiscoverAlert = async (req, res) => {
   try {
-    const { rowCount } = await pool.query(
-      'DELETE FROM discover_search_alerts WHERE id = $1 AND user_id = $2',
+    const result = await pool.query(
+      'DELETE FROM discover_search_alerts WHERE id = $1 AND user_id = $2 RETURNING id',
       [req.params.id, req.user.id],
     );
-    if (!rowCount) return res.status(404).json({ error: 'Alert not found' });
+    if (!result.rows.length) return res.status(404).json({ error: 'Alert not found' });
     return res.json({ ok: true });
   } catch (err) {
-    logger.error('[discover] delete alert', { err: err.message });
+    logger.error('[discover] delete alert', { userId: req.user?.id, alertId: req.params?.id, err: err.message });
     return res.status(500).json({ error: 'Failed to delete alert' });
   }
 };

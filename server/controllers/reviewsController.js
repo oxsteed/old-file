@@ -299,11 +299,15 @@ exports.deleteReview = async (req, res) => {
       return sendError(res, 403, 'You do not have permission to delete this review');
     }
 
-    // Delete the review
-    await pool.query(
-      `DELETE FROM business_reviews WHERE id = $1`,
-      [reviewId]
+    // Delete the review with authorization safeguard and RETURNING
+    const delResult = await pool.query(
+      `DELETE FROM business_reviews WHERE id = $1 AND (customer_id = $2 OR business_id IN (SELECT id FROM businesses WHERE user_id = $2)) RETURNING id`,
+      [reviewId, userId]
     );
+
+    if (!delResult.rows.length) {
+      return sendError(res, 403, 'Delete authorization check failed');
+    }
 
     sendSuccess(res, null, 'Review deleted successfully');
   } catch (err) {

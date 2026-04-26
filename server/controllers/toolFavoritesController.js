@@ -31,11 +31,12 @@ const toggleFavorite = async (req, res) => {
     );
 
     if (existing.rows.length > 0) {
-      // Remove favorite
-      await client.query(
-        'DELETE FROM user_tool_favorites WHERE user_id = $1 AND tool_id = $2',
+      // Remove favorite with RETURNING to verify deletion
+      const delResult = await client.query(
+        'DELETE FROM user_tool_favorites WHERE user_id = $1 AND tool_id = $2 RETURNING id',
         [userId, toolId]
       );
+      if (!delResult.rows.length) throw new Error('Delete verification failed');
       res.json({ favorited: false });
     } else {
       // Add favorite
