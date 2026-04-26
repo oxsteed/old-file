@@ -603,13 +603,18 @@ async function updateContact(req, res) {
 
     if (!phone || !zip) return res.status(400).json({ error: 'Phone and zip required' });
 
-    await pool.query(`
+    const { rows } = await pool.query(`
       UPDATE users SET
         phone             = $1,
         zip_code          = $2,
         contact_completed = true
       WHERE id = $3 AND role = 'helper'
+      RETURNING id
     `, [phone, zip, userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Helper account not found' });
+    }
 
     res.json({ message: 'Contact updated' });
   } catch (err) {
@@ -660,6 +665,7 @@ async function uploadProfilePhoto(req, res) {
 // ── 12. Save selected tier ──────────────────────────────
 // POST /api/helper-registration/tier
 async function saveTier(req, res) {
+  let client;
   try {
     const userId = req.user.id;
     const { tier } = req.body;
@@ -668,39 +674,60 @@ async function saveTier(req, res) {
       return res.status(400).json({ error: 'Invalid tier selection' });
     }
 
+    // Normalize to canonical tier values: 'tier1' (free) or 'tier2' (paid)
+    const normalized = (tier === 'pro' || tier === 'basic' || tier === 'tier2') ? 'tier2' : 'tier1';
+
     // ── SECURITY: Prevent tier upgrade bypass ────────────────────────────
     // Users must complete identity verification before upgrading to paid tier.
-    // This prevents unverified accounts from accessing paid features.
-    const normalized = (tier === 'pro' || tier === 'basic' || tier === 'tier2') ? 'tier2' : 'tier1';
+    // Fetch fresh DB state (not stale JWT) to prevent race conditions.
     if (normalized === 'tier2') {
-      // For paid tier, require identity verification
-      if (!req.user.id_verified || req.user.onboarding_status !== 'id_verified') {
+      client = await pool.connect();
+      const { rows } = await client.query(
+        'SELECT id_verified FROM users WHERE id = $1 AND role = $2 FOR UPDATE',
+        [userId, 'helper']
+      );
+      if (!rows.length) {
+        client.release();
+        return res.status(404).json({ error: 'Helper account not found' });
+      }
+      if (!rows[0].id_verified) {
+        client.release();
         return res.status(403).json({
           error: 'Onboarding incomplete',
           message: 'Complete identity verification before upgrading to paid tier',
           required_step: 'id_verified'
         });
       }
+      client.release();
+      client = null;
     }
 
-    await pool.query(
+    // Update with canonical tier representation in both tables
+    const { rows: updateRows } = await pool.query(
       `UPDATE users
        SET tier_selected   = TRUE,
            membership_tier = $1,
            updated_at      = NOW()
-       WHERE id = $2 AND role = 'helper'`,
+       WHERE id = $2 AND role = 'helper'
+       RETURNING id`,
       [normalized, userId]
     );
+    if (updateRows.length === 0) {
+      return res.status(404).json({ error: 'Helper account not found' });
+    }
 
     await pool.query(
       `INSERT INTO helper_profiles (user_id, tier)
        VALUES ($1, $2)
        ON CONFLICT (user_id) DO UPDATE SET tier = $2, updated_at = NOW()`,
-      [userId, normalized === 'tier2' ? 'pro' : 'free']
+      [userId, normalized]
     );
 
     return res.json({ message: 'Tier saved', membership_tier: normalized });
   } catch (err) {
+    if (client) {
+      try { client.release(); } catch (_) { /* ignore */ }
+    }
     logger.error('saveTier error:', { err });
     return res.status(500).json({ error: 'Failed to save tier' });
   }
@@ -748,8 +775,6 @@ async function saveW9(req, res) {
       [maskTIN(sanitizedTIN).slice(-4), userId]
     );
 
-    hashTIN(sanitizedTIN);
-
     return res.json({ message: 'W9 saved successfully' });
   } catch (err) {
     logger.error('saveW9 error:', { err });
@@ -763,7 +788,7 @@ async function acceptTerms(req, res) {
   try {
     const userId = req.user.id;
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
-    await pool.query(
+    const { rows } = await pool.query(
       `UPDATE users
        SET terms_accepted      = TRUE,
            terms_accepted_at   = NOW(),
@@ -771,7 +796,8 @@ async function acceptTerms(req, res) {
            terms_acceptance_ip = $2,
            terms_acceptance_ua = $3,
            updated_at          = NOW()
-       WHERE id = $4`,
+       WHERE id = $4 AND role = 'helper'
+       RETURNING id`,
       [
         termsVersion,
         hashIP(req.ip || 'unknown')?.slice(0, TERMS_IP_HASH_MAX_LEN) || null,
@@ -779,6 +805,9 @@ async function acceptTerms(req, res) {
         userId
       ]
     );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Helper account not found' });
+    }
     return res.json({ message: 'Terms accepted' });
   } catch (err) {
     logger.error('acceptTerms helper error:', { err });

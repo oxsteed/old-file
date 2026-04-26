@@ -105,7 +105,7 @@ exports.listPlannedNeeds = async (req, res) => {
 
     res.json({ planned_needs: needs });
   } catch (err) {
-    logger.error('listPlannedNeeds error', { message: err.message });
+    logger.error('listPlannedNeeds error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch planned needs.' });
   }
 };
@@ -171,7 +171,7 @@ exports.createPlannedNeed = async (req, res) => {
 
     res.status(201).json(rows[0]);
   } catch (err) {
-    logger.error('createPlannedNeed error', { message: err.message });
+    logger.error('createPlannedNeed error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create planned need.' });
   }
 };
@@ -263,7 +263,7 @@ exports.updatePlannedNeed = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('updatePlannedNeed error', { message: err.message });
+    logger.error('updatePlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to update planned need.' });
   }
 };
@@ -298,7 +298,7 @@ exports.cancelPlannedNeed = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('cancelPlannedNeed error', { message: err.message });
+    logger.error('cancelPlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to cancel planned need.' });
   }
 };
@@ -324,18 +324,8 @@ exports.completePlannedNeed = async (req, res) => {
       return res.status(400).json({ error: `Cannot complete a ${need.status} need.` });
     }
 
-    // Mark complete
-    const { rows } = await db.query(`
-      UPDATE planned_needs
-      SET status = 'completed',
-          actual_cost = COALESCE($3, actual_cost),
-          completed_at = NOW(),
-          updated_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING *
-    `, [id, userId, actual_cost || null]);
-
-    const completed = rows[0];
+    // Determine final status (regenerated if recurring, else completed)
+    let finalStatus = 'completed';
     let nextNeed = null;
 
     // Auto-regenerate if recurring
@@ -368,17 +358,25 @@ exports.completePlannedNeed = async (req, res) => {
         need.recurrence_type, need.recurrence_interval_days, need.notes, need.id,
       ]);
       nextNeed = nextRows[0];
-
-      // Mark original as 'regenerated' for clarity
-      await db.query(
-        "UPDATE planned_needs SET status = 'regenerated', updated_at = NOW() WHERE id = $1",
-        [id]
-      );
+      finalStatus = 'regenerated';
     }
+
+    // Mark complete with final status
+    const { rows } = await db.query(`
+      UPDATE planned_needs
+      SET status = $3,
+          actual_cost = COALESCE($4, actual_cost),
+          completed_at = NOW(),
+          updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+      RETURNING *
+    `, [id, userId, finalStatus, actual_cost || null]);
+
+    const completed = rows[0];
 
     res.json({ completed, next_need: nextNeed });
   } catch (err) {
-    logger.error('completePlannedNeed error', { message: err.message });
+    logger.error('completePlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to complete planned need.' });
   }
 };
@@ -402,10 +400,12 @@ exports.deletePlannedNeed = async (req, res) => {
       return res.status(400).json({ error: 'Only planned or funding needs can be deleted. Use cancel instead.' });
     }
 
-    await db.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2', [id, userId]);
+    // Delete with RETURNING to verify deletion
+    const delResult = await db.query('DELETE FROM planned_needs WHERE id = $1 AND user_id = $2 RETURNING id', [id, userId]);
+    if (!delResult.rows.length) return res.status(500).json({ error: 'Delete failed unexpectedly' });
     res.json({ message: 'Planned need deleted.' });
   } catch (err) {
-    logger.error('deletePlannedNeed error', { message: err.message });
+    logger.error('deletePlannedNeed error', { needId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to delete planned need.' });
   }
 };

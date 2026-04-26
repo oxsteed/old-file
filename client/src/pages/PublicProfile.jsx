@@ -56,7 +56,7 @@ export default function PublicProfile() {
                 {(profile.city && profile.state)
                   ? `${profile.city}, ${profile.state}`
                   : (profile.zip_code || profile.zipcode || t('publicProfile.locationUnavailable'))}
-                {' '}&middot; {t('publicProfile.memberSince', { year: new Date(profile.created_at).getFullYear() })}
+                {' '}&middot; {t('publicProfile.memberSince', { year: profile.created_at ? new Date(profile.created_at).getFullYear() : new Date().getFullYear() })}
               </p>
               <div className="flex gap-2 mt-3 flex-wrap">
                 {badges.map((b, i) => (

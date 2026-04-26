@@ -41,9 +41,9 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
           setTimeout(() => onVerified(), 1000);
         } else if (data.status === 'failed') {
           setStatus('failed');
-        } else if (data.status === 'duplicate') {
+        } else if (data?.status === 'duplicate') {
           setStatus('duplicate');
-          setDuplicateHint(data.existing_email_hint || '');
+          setDuplicateHint(data?.existing_email_hint ?? '');
         } else if (data.status === 'pending' && data.hasSession) {
           setStatus('pending');
           startPolling();
@@ -106,10 +106,10 @@ export default function DiditPanel({ onVerified, onBack }: Props) {
         } else if (data.status === 'failed') {
           clearInterval(pollRef.current!);
           setStatus('failed');
-        } else if (data.status === 'duplicate') {
+        } else if (data?.status === 'duplicate') {
           clearInterval(pollRef.current!);
           setStatus('duplicate');
-          setDuplicateHint(data.existing_email_hint || '');
+          setDuplicateHint(data?.existing_email_hint ?? '');
         }
       } catch {
         // Network hiccup - keep polling

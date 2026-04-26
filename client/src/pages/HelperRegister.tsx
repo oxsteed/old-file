@@ -20,9 +20,9 @@ export default function HelperRegister() {
   // If the user is already registered + email-verified, skip step 1.
   useEffect(() => {
     if (!user?.email_verified) return;
-    if (['verified', 'skipped'].includes(user.didit_status ?? '')) {
+    if (user && ['verified', 'skipped'].includes(user?.didit_status ?? '')) {
       navigate('/helper-dashboard', { replace: true });
-    } else {
+    } else if (user) {
       navigate('/verify-identity', { replace: true });
     }
   }, [user, navigate]);

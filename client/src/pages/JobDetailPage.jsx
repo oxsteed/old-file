@@ -114,7 +114,7 @@ export default function JobDetailPage() {
   useEffect(() => {
     fetchJob(id);
     loadBids();
-  }, [id]);
+  }, [id, fetchJob, loadBids]);
 
   useEffect(() => {
     if (!job || !user) return;
@@ -123,12 +123,17 @@ export default function JobDetailPage() {
     if (done && involved) {
       api.get(`/reviews/jobs/${id}/eligibility`)
         .then(r => setReviewEligible(r.data.eligible))
-        .catch(() => {});
+        .catch(() => setReviewEligible(false));
     }
-  }, [job?.status, user?.id]);
+  }, [job?.status, user?.id, id]);
 
   async function loadBids() {
-    try { setBids((await getJobBids(id)) || []); } catch {}
+    try {
+      const data = await getJobBids(id);
+      setBids(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setBids([]);
+    }
   }
 
   async function handleBidSubmit(e) {
@@ -177,7 +182,7 @@ export default function JobDetailPage() {
   }
 
   async function handlePayment() {
-    const acceptedBid = bids.find(b => b.status === 'accepted');
+    const acceptedBid = (Array.isArray(bids) ? bids : []).find(b => b.status === 'accepted');
     if (!acceptedBid) return toast.error(t('jobDetail.noBidFound'));
     setActionLoading(true);
     try {
@@ -213,16 +218,24 @@ export default function JobDetailPage() {
   const isOwner      = user?.id === job.client_id;
   const isHelper     = ['helper', 'helper_pro', 'broker'].includes(user?.role);
   const isAssignedHelper = user?.id === job.assigned_helper_id;
-  const hasAlreadyBid = bids.some(b => b.helper_id === user?.id);
-  const acceptedBid   = bids.find(b => b.status === 'accepted');
+  const hasAlreadyBid = Array.isArray(bids) && bids.some(b => b.helper_id === user?.id);
+  const acceptedBid   = (Array.isArray(bids) ? bids : []).find(b => b.status === 'accepted');
 
   const requirements = parseRequirements(job.requirements);
-  const requiredSkills = Array.isArray(job.required_skills)
-    ? job.required_skills
-    : (typeof job.required_skills === 'string' ? JSON.parse(job.required_skills || '[]') : []);
-  const mediaUrls    = Array.isArray(job.media_urls)
-    ? job.media_urls
-    : (typeof job.media_urls === 'string' ? JSON.parse(job.media_urls || '[]') : []);
+  const requiredSkills = (() => {
+    try {
+      if (Array.isArray(job.required_skills)) return job.required_skills;
+      if (typeof job.required_skills === 'string') return JSON.parse(job.required_skills || '[]');
+      return [];
+    } catch { return []; }
+  })();
+  const mediaUrls = (() => {
+    try {
+      if (Array.isArray(job.media_urls)) return job.media_urls;
+      if (typeof job.media_urls === 'string') return JSON.parse(job.media_urls || '[]');
+      return [];
+    } catch { return []; }
+  })();
 
   const urgencyMeta = URGENCY_MAP[job.urgency] || URGENCY_MAP.flexible;
   const statusMeta  = STATUS_MAP[job.status]   || STATUS_MAP.published;
@@ -494,16 +507,16 @@ export default function JobDetailPage() {
             <div className="jdp-card">
               <h2 className="jdp-section-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                Bids ({bids.length})
+                Bids ({(Array.isArray(bids) ? bids : []).length})
               </h2>
-              {bids.length === 0 ? (
+              {(Array.isArray(bids) ? bids : []).length === 0 ? (
                 <div className="jdp-empty-bids">
                   <div className="jdp-empty-bids-icon">📭</div>
                   <p>No bids yet. Qualified helpers will start bidding soon.</p>
                 </div>
               ) : (
                 <div className="jdp-bids-list">
-                  {bids.map(bid => (
+                  {(Array.isArray(bids) ? bids : []).map(bid => (
                     <div key={bid.id} className={`jdp-bid-card ${bid.status}`}>
                       <div className="jdp-bid-helper">
                         {bid.helper_avatar

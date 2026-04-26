@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import useWebPush from '../hooks/useWebPush';
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -21,6 +22,97 @@ function Toggle({ checked, onChange, disabled }) {
         }`}
       />
     </button>
+  );
+}
+
+function BrowserPushPanel() {
+  const { t } = useTranslation();
+  const wp = useWebPush();
+
+  if (!wp.ready) return null;
+
+  const handleToggle = async (next) => {
+    if (next) {
+      const ok = await wp.subscribe();
+      if (ok) toast.success(t('notifications.webPush.enabledToast'));
+      else if (wp.permission === 'denied') toast.error(t('notifications.webPush.deniedToast'));
+      else toast.error(wp.error || t('notifications.failedSave'));
+    } else {
+      const ok = await wp.unsubscribe();
+      if (ok) toast.success(t('notifications.webPush.disabledToast'));
+      else toast.error(wp.error || t('notifications.failedSave'));
+    }
+  };
+
+  const handleTest = async () => {
+    const ok = await wp.sendTest();
+    if (ok) toast.success(t('notifications.webPush.testSentToast'));
+    else toast.error(wp.error || t('notifications.failedSave'));
+  };
+
+  let statusText = t('notifications.webPush.statusOff');
+  if (!wp.isSupported)        statusText = t('notifications.webPush.statusUnsupported');
+  else if (!wp.serverEnabled) statusText = t('notifications.webPush.statusServerOff');
+  else if (wp.permission === 'denied') statusText = t('notifications.webPush.statusDenied');
+  else if (wp.isSubscribed)   statusText = t('notifications.webPush.statusOn');
+
+  const disabled =
+    !wp.isSupported || !wp.serverEnabled || wp.loading || wp.permission === 'denied';
+
+  return (
+    <div className="mb-8">
+      <div className="mb-3">
+        <h3 className="text-base font-medium" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+          {t('notifications.webPush.title')}
+        </h3>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+          {t('notifications.webPush.subtitle')}
+        </p>
+      </div>
+      <div
+        className="rounded-xl px-4 py-3"
+        style={{ border: '1px solid var(--border-color,rgba(255,255,255,.08))' }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <div className="text-sm" style={{ color: 'var(--app-text,#f1f5f9)' }}>
+              {t('notifications.webPush.toggleLabel')}
+            </div>
+            <div className="text-xs mt-0.5" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+              {statusText}
+            </div>
+          </div>
+          <Toggle
+            checked={wp.isSubscribed}
+            onChange={handleToggle}
+            disabled={disabled}
+          />
+        </div>
+
+        {wp.isSubscribed && (
+          <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border-color,rgba(255,255,255,.08))' }}>
+            <button
+              type="button"
+              onClick={handleTest}
+              disabled={wp.loading}
+              className="text-xs font-medium px-3 py-1.5 rounded-md disabled:opacity-50"
+              style={{ background: 'rgba(249,115,22,.12)', color: '#f97316' }}
+            >
+              {t('notifications.webPush.sendTest')}
+            </button>
+          </div>
+        )}
+
+        {wp.permission === 'denied' && (
+          <div
+            className="mt-3 text-xs px-3 py-2 rounded-md"
+            style={{ background: 'rgba(239,68,68,.08)', color: '#fca5a5' }}
+          >
+            {t('notifications.webPush.deniedHelp')}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -160,6 +252,8 @@ export default function NotificationPreferences() {
         )}
       </div>
       <p className="sp-card-subtitle">{t('notifications.subtitle')}</p>
+
+      <BrowserPushPanel />
 
       <div className="space-y-8">
         {SECTIONS.map((section, sIdx) => (

@@ -15,8 +15,8 @@ export default function useJobs() {
     try {
       const params = new URLSearchParams(filters).toString();
       const { data } = await api.get(`/jobs?${params}`);
-      setJobs(data.jobs);
-      setPagination({ total: data.total, page: data.page, limit: data.limit });
+      setJobs(data.jobs || []);
+      setPagination({ total: data.total ?? 0, page: data.page ?? 1, limit: data.limit ?? 20 });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch jobs');
     } finally {

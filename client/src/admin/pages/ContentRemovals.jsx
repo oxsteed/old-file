@@ -40,18 +40,18 @@ function RemoveModal({ item, type, onConfirm, onClose }) {
 
         {type === 'bids' && (
           <div className="bg-gray-800 rounded-lg p-3 mb-4 text-sm text-gray-300">
-            <p><span className="text-gray-500">Helper:</span> {item.helper_name} ({item.helper_email})</p>
-            <p><span className="text-gray-500">Amount:</span> ${Number(item.amount).toFixed(2)}</p>
-            {item.message && <p className="mt-1 italic text-gray-400">"{item.message}"</p>}
+            <p><span className="text-gray-500">Helper:</span> {item?.helper_name} ({item?.helper_email})</p>
+            <p><span className="text-gray-500">Amount:</span> ${Number(item?.amount ?? 0).toFixed(2)}</p>
+            {item?.message && <p className="mt-1 italic text-gray-400">"{item.message}"</p>}
           </div>
         )}
 
         {type === 'reviews' && (
           <div className="bg-gray-800 rounded-lg p-3 mb-4 text-sm text-gray-300">
-            <p><span className="text-gray-500">Reviewer:</span> {item.reviewer_name}</p>
-            <p><span className="text-gray-500">Reviewee:</span> {item.reviewee_name}</p>
-            <p><span className="text-gray-500">Rating:</span> {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</p>
-            {item.comment && <p className="mt-1 italic text-gray-400">"{item.comment}"</p>}
+            <p><span className="text-gray-500">Reviewer:</span> {item?.reviewer_name}</p>
+            <p><span className="text-gray-500">Reviewee:</span> {item?.reviewee_name}</p>
+            <p><span className="text-gray-500">Rating:</span> {'★'.repeat(item?.rating ?? 0)}{'☆'.repeat(Math.max(0, 5 - (item?.rating ?? 0)))}</p>
+            {item?.comment && <p className="mt-1 italic text-gray-400">"{item.comment}"</p>}
           </div>
         )}
 

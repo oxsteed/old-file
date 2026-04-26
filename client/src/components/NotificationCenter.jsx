@@ -71,7 +71,7 @@ export default function NotificationCenter() {
                 {getNotificationIcon(notification.type)}
               </span>
               <div className="notification-content">
-                <p className="notification-message">{notification.message}</p>
+                <p className="notification-message">{notification.message || 'New notification'}</p>
                 <span className="notification-time">{formatTime(notification.created_at)}</span>
               </div>
               {!notification.read_at && <span className="unread-dot" />}

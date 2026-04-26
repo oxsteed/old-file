@@ -4,6 +4,7 @@ const { broadcastToUser } = require('./socketService');
 const { sendEmail }     = require('../utils/email');  // Resend — single email system
 const { Expo }          = require('expo-server-sdk');
 const escapeHtml        = require('../utils/escapeHtml');
+const webPushService    = require('./webPushService');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
@@ -55,7 +56,7 @@ exports.sendNotification = async ({
       });
     }
 
-    // ── 3. Push notification (Expo) ───────────────────────────
+    // ── 3. Push notification (Expo — native mobile) ───────────
     const pushKey     = `push_${type.replace(':', '_')}`;
     const pushEnabled = prefs[pushKey] !== false;
     if (token && pushEnabled && Expo.isExpoPushToken(token)) {
@@ -65,6 +66,32 @@ exports.sendNotification = async ({
           `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
           [notifId]
         );
+      }
+    }
+
+    // ── 3b. Web Push (browser, VAPID) ─────────────────────────
+    // Master toggle (web_push_enabled) + per-event `push_*` pref.
+    const webPushEnabled = prefs.web_push_enabled !== false;
+    if (pushEnabled && webPushEnabled && webPushService.isConfigured()) {
+      try {
+        const result = await webPushService.sendToUser(userId, {
+          id: notifId,
+          type,
+          title,
+          body,
+          data,
+          action_url,
+        });
+        if (result.sent > 0 && notifId) {
+          await db.query(
+            `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
+            [notifId]
+          );
+        }
+      } catch (err) {
+        logger.warn('[Notification] Web push fan-out failed', {
+          userId, type, error: err.message
+        });
       }
     }
 

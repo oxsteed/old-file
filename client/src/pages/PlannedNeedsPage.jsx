@@ -114,7 +114,7 @@ export default function PlannedNeedsPage() {
       title: need.title || '',
       description: need.description || '',
       category: need.category || 'other',
-      due_date: need.due_date ? need.due_date.split('T')[0] : '',
+      due_date: need.due_date ? String(need.due_date).split('T')[0] : '',
       estimated_cost: need.estimated_cost || '',
       lead_time_days: need.lead_time_days ?? 7,
       recurrence_type: need.recurrence_type || 'none',
@@ -257,12 +257,12 @@ export default function PlannedNeedsPage() {
                   </div>
                 );
 
-                const score = projection.pulse_score;
+                const score = projection?.pulse_score ?? 0;
                 const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
-                const bd      = projection.score_breakdown || {};
-                const sources = projection.sources || {};
-                const activeCount = projection.settings ? Object.values(projection.settings).filter(Boolean).length : null;
-                const totalCount  = projection.settings ? Object.keys(projection.settings).length : null;
+                const bd      = projection?.score_breakdown ?? {};
+                const sources = projection?.sources ?? {};
+                const activeCount = projection?.settings ? Object.values(projection.settings).filter(Boolean).length : null;
+                const totalCount  = projection?.settings ? Object.keys(projection.settings).length : null;
 
                 const SRC_LIST = [
                   { key:'manual_income_90d',         label: t('plannedNeeds.srcManualIncome'),       dir:'+' },
@@ -357,36 +357,36 @@ export default function PlannedNeedsPage() {
               <div className="pn-projection-grid">
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.projectedIncome')}</div>
-                  <div className="value positive">{fmt$(projection.projected_income)}</div>
+                  <div className="value positive">{fmt$(projection?.projected_income ?? 0)}</div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.fixedExpenses')}</div>
-                  <div className="value negative">{fmt$(projection.projected_fixed_expenses)}</div>
+                  <div className="value negative">{fmt$(projection?.projected_fixed_expenses ?? 0)}</div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.sinkingFunds')}</div>
-                  <div className="value warn">{fmt$(projection.sinking_fund_for_window)}</div>
+                  <div className="value warn">{fmt$(projection?.sinking_fund_for_window ?? 0)}</div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.netAvailable')}</div>
-                  <div className={`value ${projection.net_available >= 0 ? 'positive' : 'negative'}`}>
-                    {fmt$(projection.net_available)}
+                  <div className={`value ${(projection?.net_available ?? 0) >= 0 ? 'positive' : 'negative'}`}>
+                    {fmt$(projection?.net_available ?? 0)}
                   </div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.coverageRatio')}</div>
                   <div className={`value ${
-                    projection.coverage_ratio === null ? 'neutral'
+                    projection?.coverage_ratio == null ? 'neutral'
                     : projection.coverage_ratio >= 1.2  ? 'positive'
                     : projection.coverage_ratio >= 0.9  ? 'warn'
                     : 'negative'}`}>
-                    {projection.coverage_ratio !== null ? `${projection.coverage_ratio}x` : '—'}
+                    {projection?.coverage_ratio != null ? `${projection.coverage_ratio}x` : '—'}
                   </div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.autoPublishing')}</div>
-                  <div className={`value ${projection.auto_publishing_in_window > 0 ? 'warn' : 'neutral'}`}>
-                    {t('plannedNeeds.autoPublishCount', { count: projection.auto_publishing_in_window })}
+                  <div className={`value ${(projection?.auto_publishing_in_window ?? 0) > 0 ? 'warn' : 'neutral'}`}>
+                    {t('plannedNeeds.autoPublishCount', { count: projection?.auto_publishing_in_window ?? 0 })}
                   </div>
                 </div>
               </div>
@@ -656,12 +656,12 @@ export default function PlannedNeedsPage() {
 // ── NeedCard ───────────────────────────────────────────────────────────────
 function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
   const { t } = useTranslation();
-  const cost     = parseFloat(need.estimated_cost || 0);
-  const reserved = parseFloat(need.reserved_amount || 0);
+  const cost     = parseFloat(need?.estimated_cost ?? 0);
+  const reserved = parseFloat(need?.reserved_amount ?? 0);
   const fundPct  = cost > 0 ? Math.min(100, Math.round((reserved / cost) * 100)) : 0;
-  const monthly  = parseFloat(need.sinking_fund_per_month || 0);
-  const daysLeft = parseInt(need.days_until_due || 0);
-  const isActive = ['planned','funding','activating_soon'].includes(need.status);
+  const monthly  = parseFloat(need?.sinking_fund_per_month ?? 0);
+  const daysLeft = parseInt(need?.days_until_due ?? 0) || 0;
+  const isActive = ['planned','funding','activating_soon'].includes(need?.status);
   const helperName = helperDisplayName(need);
 
   const CATEGORY_LABELS = {

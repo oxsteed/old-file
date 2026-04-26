@@ -1267,8 +1267,8 @@ export default function HelperDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader icon={IcoDollar} title={t('dashboard.money.recentTransactions')}/>
-              {life.expenses.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noTransactions')}</p>
-              :(<div className="space-y-1 max-h-80 overflow-y-auto">{life.expenses.slice(0,15).map(e=>(
+              {(life.expenses || []).length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noTransactions')}</p>
+              :(<div className="space-y-1 max-h-80 overflow-y-auto">{(life.expenses || []).slice(0,15).map(e=>(
                 <div key={e.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/30 transition group">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-white truncate">{e.description||e.category}</p>
@@ -1288,8 +1288,8 @@ export default function HelperDashboard() {
             </Card>
             <Card>
               <CardHeader icon={IcoTarget} title={t('dashboard.money.budgets')} right={<Btn variant="secondary" onClick={()=>setShowBudgetModal(true)}>{t('dashboard.money.addBudget')}</Btn>}/>
-              {life.budgets.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noBudgets')}</p>
-              :(<div className="space-y-4">{life.budgets.map(b=>{const spent=parseFloat(b.spent||0);const lim=parseFloat(b.monthly_limit);const pct=lim>0?(spent/lim)*100:0;const periodLabel=b.period&&b.period!=='monthly'?` /mo (${b.period.replace('_','-')})`:'/mo';return(<div key={b.id}><div className="flex justify-between text-sm mb-1"><span className="font-medium text-white">{b.category}</span><span className="text-gray-500">${spent.toFixed(0)} / ${lim.toFixed(0)}{periodLabel}</span></div><ProgressBar pct={pct} color={pct>90?'bg-red-500':pct>70?'bg-yellow-500':'bg-emerald-500'}/></div>);})}</div>)}
+              {(life.budgets || []).length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noBudgets')}</p>
+              :(<div className="space-y-4">{(life.budgets || []).map(b=>{const spent=parseFloat(b.spent||0);const lim=parseFloat(b.monthly_limit);const pct=lim>0?(spent/lim)*100:0;const periodLabel=b.period&&b.period!=='monthly'?` /mo (${b.period.replace('_','-')})`:'/mo';return(<div key={b.id}><div className="flex justify-between text-sm mb-1"><span className="font-medium text-white">{b.category}</span><span className="text-gray-500">${spent.toFixed(0)} / ${lim.toFixed(0)}{periodLabel}</span></div><ProgressBar pct={pct} color={pct>90?'bg-red-500':pct>70?'bg-yellow-500':'bg-emerald-500'}/></div>);})}</div>)}
             </Card>
           </div>
         </>)}
@@ -1334,7 +1334,7 @@ export default function HelperDashboard() {
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noTransactions')}</p>
               ):(
                 <div className="space-y-1 max-h-80 overflow-y-auto">
-                  {life.expenses.slice(0,15).map(e=>(
+                  {(life.expenses || []).slice(0,15).map(e=>(
                     <div key={e.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/30 transition group">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-white truncate">{e.description||e.category}</p>
@@ -1358,11 +1358,11 @@ export default function HelperDashboard() {
             {/* Budgets */}
             <Card>
               <CardHeader icon={IcoTarget} title={t('dashboard.money.budgets')} right={<Btn variant="secondary" onClick={()=>setShowBudgetModal(true)}>{t('dashboard.money.addBudget')}</Btn>}/>
-              {life.budgets.length===0?(
+              {(life.budgets || []).length===0?(
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noBudgets')}</p>
               ):(
                 <div className="space-y-4">
-                  {life.budgets.map(b=>{
+                  {(life.budgets || []).map(b=>{
                     const spent=parseFloat(b.spent||0);
                     const limit=parseFloat(b.monthly_limit);
                     const pct=limit>0?(spent/limit)*100:0;
@@ -1528,11 +1528,11 @@ export default function HelperDashboard() {
             {/* Home maintenance tasks */}
             <Card>
               <CardHeader icon={IcoHome} title={t('dashboard.home.maintenance')} right={<Btn onClick={()=>setShowHomeTaskModal(true)}>{t('dashboard.home.addTask')}</Btn>}/>
-              {life.homeTasks.length===0?(
+              {(life.homeTasks || []).length===0?(
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.home.noTasks')}</p>
               ):(
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {life.homeTasks.map(task=>{
+                  {(life.homeTasks || []).map(task=>{
                     const overdue=task.due_date&&new Date(task.due_date)<new Date()&&!task.is_completed;
                     return(
                       <div key={task.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${task.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
@@ -1560,11 +1560,11 @@ export default function HelperDashboard() {
             {/* Saved helpers */}
             <Card>
               <CardHeader icon={IcoUsers} title={t('dashboard.home.savedHelpers')} right={<Link to="/helpers" className="text-xs text-orange-400 font-medium">{t('helperDashboard.browseCTA')}</Link>}/>
-              {life.savedHelpers.length===0?(
+              {(life.savedHelpers || []).length===0?(
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.home.noSavedHelpers')}</p>
               ):(
                 <div className="space-y-2">
-                  {life.savedHelpers.map(h=>(
+                  {(life.savedHelpers || []).map(h=>(
                     <div key={h.id} className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-xl group">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-purple-500/30 flex items-center justify-center font-bold text-sm flex-shrink-0">{(h.first_name||'?')[0]}</div>
                       <div className="flex-1 min-w-0">
@@ -1588,8 +1588,8 @@ export default function HelperDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader icon={IcoTarget} title={t('dashboard.goals.title')} right={<Btn onClick={()=>setShowGoalModal(true)}>{t('dashboard.goals.newGoal')}</Btn>}/>
-              {life.goals.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noGoals')}</p>
-              :(<div className="space-y-4 max-h-96 overflow-y-auto">{life.goals.map(g=>{const pct=g.target_value>0?Math.min((parseFloat(g.current_value)/parseFloat(g.target_value))*100,100):0;return(
+              {(life.goals || []).length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noGoals')}</p>
+              :(<div className="space-y-4 max-h-96 overflow-y-auto">{(life.goals || []).map(g=>{const pct=g.target_value>0?Math.min((parseFloat(g.current_value)/parseFloat(g.target_value))*100,100):0;return(
                 <div key={g.id} className={`p-4 border rounded-xl ${g.is_completed?'border-emerald-500/30 bg-emerald-500/5 opacity-60':'border-gray-800'}`}>
                   <div className="flex items-center gap-2 mb-2"><span className="text-lg">{g.icon||'🎯'}</span><span className="font-semibold text-sm text-white flex-1">{g.title}</span>{g.is_completed?<Tag text="Done" color="green"/>:<span className="text-sm font-bold text-orange-400">{Math.round(pct)}%</span>}</div>
                   {g.target_value>0&&!g.is_completed&&(<><ProgressBar pct={pct} color="bg-orange-500"/><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-500">${parseFloat(g.current_value).toLocaleString()} of ${parseFloat(g.target_value).toLocaleString()}</span>
@@ -1601,9 +1601,9 @@ export default function HelperDashboard() {
             </Card>
             <Card>
               <CardHeader icon={IcoCheck} title={t('dashboard.goals.checklist')} right={<Btn onClick={()=>setShowChecklistModal(true)}>{t('common.add')}</Btn>}/>
-              <p className="text-xs text-gray-600 mb-3">{t('dashboard.goals.completedOf', { completed: life.checklist.filter(i=>i.is_completed).length, total: life.checklist.length })}</p>
-              {life.checklist.length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noChecklist')}</p>
-              :(<div className="space-y-1.5 max-h-96 overflow-y-auto">{life.checklist.map(item=>(
+              <p className="text-xs text-gray-600 mb-3">{t('dashboard.goals.completedOf', { completed: (life.checklist || []).filter(i=>i.is_completed).length, total: (life.checklist || []).length })}</p>
+              {(life.checklist || []).length===0?<p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noChecklist')}</p>
+              :(<div className="space-y-1.5 max-h-96 overflow-y-auto">{(life.checklist || []).map(item=>(
                 <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800/30 transition group">
                   <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>{item.is_completed&&<IcoCheck size={12} cls="text-gray-950"/>}</button>
                   <div className="flex-1 min-w-0"><p className={`text-sm ${item.is_completed?'line-through text-gray-600':'text-white'}`}>{item.title}</p>{item.due_date&&<p className={`text-xs mt-0.5 ${new Date(item.due_date)<new Date()&&!item.is_completed?'text-red-400':'text-gray-600'}`}>{new Date(item.due_date).toLocaleDateString()}</p>}</div>

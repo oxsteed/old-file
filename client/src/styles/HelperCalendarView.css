@@ -1,0 +1,357 @@
+.hcv-container {
+  width: 100%;
+}
+
+.hcv-loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted-text);
+}
+
+.hcv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+.hcv-date {
+  font-size: 1.5rem;
+  margin: 0;
+  color: var(--app-text);
+}
+
+.hcv-nav-btn {
+  padding: 0.5rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  color: var(--app-text);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.hcv-nav-btn:hover {
+  background: var(--app-bg);
+  border-color: var(--primary-color);
+}
+
+/* Week View */
+.hcv-week-view {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--card-bg);
+}
+
+.hcv-week-header {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border-color);
+  padding: 1px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.hcv-time-label {
+  background: var(--app-bg);
+}
+
+.hcv-day-header {
+  background: var(--app-bg);
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+}
+
+.hcv-day-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  text-transform: uppercase;
+}
+
+.hcv-day-date {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--app-text);
+  margin-top: 0.25rem;
+}
+
+.hcv-week-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border-color);
+  padding: 1px;
+}
+
+.hcv-times {
+  background: var(--app-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.hcv-time-slot {
+  flex: 1;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted-text);
+  border-bottom: 1px solid var(--border-color);
+  text-align: center;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hcv-day-column {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+}
+
+.hcv-slot {
+  flex: 1;
+  padding: 0.25rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s ease;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hcv-slot:hover {
+  background: var(--app-bg);
+}
+
+.hcv-block {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  color: white;
+  font-weight: 600;
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hcv-block-available {
+  background: #10b981;
+  opacity: 0.7;
+}
+
+.hcv-block-unavailable {
+  background: #ef4444;
+  opacity: 0.7;
+}
+
+.hcv-block-busy {
+  background: #f59e0b;
+  opacity: 0.7;
+}
+
+.hcv-appointment {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hcv-apt-requested {
+  background: #3b82f6;
+  color: white;
+}
+
+.hcv-apt-confirmed {
+  background: #10b981;
+  color: white;
+}
+
+.hcv-apt-completed {
+  background: #6b7280;
+  color: white;
+}
+
+.hcv-apt-cancelled {
+  background: #9ca3af;
+  color: white;
+  text-decoration: line-through;
+}
+
+.hcv-appointment:hover {
+  opacity: 0.85;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Day View */
+.hcv-day-view {
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.hcv-day-title {
+  padding: 1rem;
+  background: var(--app-bg);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.hcv-day-grid {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+}
+
+.hcv-day-events {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+}
+
+/* Month View */
+.hcv-month-view {
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--card-bg);
+}
+
+.hcv-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: var(--app-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.hcv-month-header h3 {
+  margin: 0;
+  color: var(--app-text);
+}
+
+.hcv-month-header button {
+  padding: 0.5rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  color: var(--app-text);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.hcv-month-header button:hover {
+  border-color: var(--primary-color);
+}
+
+.hcv-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border-color);
+  padding: 1px;
+}
+
+.hcv-month-day-name {
+  padding: 0.75rem;
+  background: var(--app-bg);
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  text-transform: uppercase;
+}
+
+.hcv-month-day {
+  padding: 0.75rem;
+  background: var(--card-bg);
+  min-height: 100px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hcv-month-day.empty {
+  background: var(--app-bg);
+  cursor: default;
+}
+
+.hcv-month-day:hover:not(.empty) {
+  background: var(--app-bg);
+}
+
+.hcv-month-day-number {
+  font-weight: 700;
+  color: var(--app-text);
+  font-size: 1rem;
+}
+
+.hcv-month-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+  max-height: 50px;
+  flex: 1;
+}
+
+.hcv-month-event {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hcv-month-event.hcv-apt-requested {
+  background: #3b82f6;
+}
+
+.hcv-month-event.hcv-apt-confirmed {
+  background: #10b981;
+}
+
+.hcv-month-event.hcv-apt-completed {
+  background: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .hcv-week-view,
+  .hcv-day-view {
+    font-size: 0.85rem;
+  }
+
+  .hcv-time-slot {
+    min-height: 40px;
+  }
+
+  .hcv-slot {
+    min-height: 40px;
+  }
+
+  .hcv-month-day {
+    min-height: 80px;
+    padding: 0.5rem;
+  }
+
+  .hcv-month-day-number {
+    font-size: 0.9rem;
+  }
+}

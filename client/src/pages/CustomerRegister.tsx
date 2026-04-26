@@ -22,9 +22,9 @@ export default function CustomerRegister() {
   //   account form again for a user who's already in the DB).
   useEffect(() => {
     if (!user?.email_verified) return;
-    if (['verified', 'skipped'].includes(user.didit_status ?? '')) {
+    if (user && ['verified', 'skipped'].includes(user?.didit_status ?? '')) {
       navigate('/dashboard', { replace: true });
-    } else {
+    } else if (user) {
       navigate('/verify-identity', { replace: true });
     }
   }, [user, navigate]);

@@ -228,7 +228,7 @@ exports.setUserDiditEnforcement = async (req, res) => {
       return res.status(403).json({ error: 'Cannot change Didit policy for admin accounts.' });
     }
 
-    await db.query(
+    const { rows: updateRows } = await db.query(
       `UPDATE users SET
          didit_enforcement_required = $2,
          didit_status = CASE
@@ -236,9 +236,12 @@ exports.setUserDiditEnforcement = async (req, res) => {
            ELSE didit_status
          END,
          updated_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1 AND didit_enforcement_required IS DISTINCT FROM $2 RETURNING id`,
       [userId, required]
     );
+    if (updateRows.length === 0) {
+      return res.status(409).json({ error: 'Didit enforcement status unchanged — operation may have been concurrent.' });
+    }
 
     if (required) {
       try {
@@ -281,7 +284,10 @@ exports.toggleUserBan = async (req, res) => {
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin','super_admin'].includes(before[0].role)) return res.status(403).json({ error: 'Cannot ban admin accounts.' });
     const newStatus = !before[0].is_active;
-    await db.query('UPDATE users SET is_active = $1 WHERE id = $2', [newStatus, userId]);
+    const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, userId, before[0].is_active]);
+    if (updateRows.length === 0) {
+      return res.status(409).json({ error: 'User status changed during ban operation — concurrent modification detected.' });
+    }
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
     // Kick any live WebSocket session immediately so the user can't keep browsing
@@ -315,7 +321,7 @@ exports.verifyUser = async (req, res) => {
     const isHelperRole = ['helper', 'helper_pro', 'broker'].includes(targets[0].role);
 
     if (field === 'is_identity_verified') {
-      await db.query(
+      const { rows: idVerifyRows } = await db.query(
         `UPDATE users SET
            didit_status = 'verified',
            identity_verified = TRUE,
@@ -323,9 +329,12 @@ exports.verifyUser = async (req, res) => {
            didit_verified_at = COALESCE(didit_verified_at, NOW()),
            didit_enforcement_required = FALSE,
            updated_at = NOW()
-         WHERE id = $1`,
+         WHERE id = $1 RETURNING id`,
         [userId]
       );
+      if (idVerifyRows.length === 0) {
+        return res.status(409).json({ error: 'User state changed during verification — operation may have been concurrent.' });
+      }
       if (isHelperRole && (await tableExists('helper_profiles'))) {
         await db.query(
           `INSERT INTO helper_profiles (user_id, is_identity_verified, tier, is_listed, created_at, updated_at)
@@ -337,16 +346,19 @@ exports.verifyUser = async (req, res) => {
         );
       }
     } else if (field === 'is_background_checked') {
-      await db.query(
+      const { rows: bgCheckRows } = await db.query(
         `UPDATE users SET
            background_check_status = 'passed',
            background_check_passed = TRUE,
            background_check_passed_at = COALESCE(background_check_passed_at, NOW()),
            background_check_expiry = COALESCE(background_check_expiry, NOW() + INTERVAL '1 year'),
            updated_at = NOW()
-         WHERE id = $1`,
+         WHERE id = $1 RETURNING id`,
         [userId]
       );
+      if (bgCheckRows.length === 0) {
+        return res.status(409).json({ error: 'User state changed during verification — operation may have been concurrent.' });
+      }
       if (isHelperRole && (await tableExists('helper_profiles'))) {
         await db.query(
           `INSERT INTO helper_profiles (user_id, is_background_checked, tier, is_listed, created_at, updated_at)
@@ -386,8 +398,12 @@ exports.updateUserRole = async (req, res) => {
     if (!allowed.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
     if (role === 'admin' && !req.isSuper) return res.status(403).json({ error: 'Super Admin required.' });
     const { rows: before } = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
-    await db.query('UPDATE users SET role = $1 WHERE id = $2', [role, userId]);
-    try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0]?.role }, after: { role }, req }); } catch(e) {}
+    if (!before.length) return res.status(404).json({ error: 'User not found.' });
+    const { rows: updateRows } = await db.query('UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND role = $3 RETURNING id', [role, userId, before[0].role]);
+    if (updateRows.length === 0) {
+      return res.status(409).json({ error: 'User role changed during update — concurrent modification detected.' });
+    }
+    try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0].role }, after: { role }, req }); } catch(e) {}
     res.json({ message: `User role updated to ${role}.` });
   } catch (err) { logger.error('updateUserRole error', { err }); res.status(500).json({ error: 'Failed to update role.' }); }
 };
@@ -403,7 +419,10 @@ exports.updateUserName = async (req, res) => {
     if (!trimFirst || !trimLast) return res.status(400).json({ error: 'First name and last name cannot be blank.' });
     const { rows: before } = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
-    await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3', [trimFirst, trimLast, userId]);
+    const { rows: updateRows } = await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id', [trimFirst, trimLast, userId]);
+    if (updateRows.length === 0) {
+      return res.status(409).json({ error: 'User not found during update — concurrent deletion detected.' });
+    }
     try { await logAdminAction({ adminId, action: 'user_name_changed', targetType: 'user', targetId: userId, before: { first_name: before[0].first_name, last_name: before[0].last_name }, after: { first_name: trimFirst, last_name: trimLast }, req }); } catch(e) {}
     res.json({ message: 'User name updated successfully.' });
   } catch (err) { logger.error('updateUserName error', { err }); res.status(500).json({ error: 'Failed to update name.' }); }
@@ -434,11 +453,36 @@ exports.forceJobAction = async (req, res) => {
     const adminId = req.user.id;
     const allowed = ['cancel','remove','flag','unflag'];
     if (!allowed.includes(action)) return res.status(400).json({ error: 'Invalid action.' });
-    const { rows: jobRows } = await db.query('SELECT * FROM jobs WHERE id = $1', [jobId]);
+    const { rows: jobRows } = await db.query('SELECT status, metadata FROM jobs WHERE id = $1', [jobId]);
     if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
-    if (action === 'cancel' || action === 'remove') await db.query(`UPDATE jobs SET status = 'cancelled', updated_at = now() WHERE id = $1`, [jobId]);
-    if (action === 'flag')   await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1`, [jobId]);
-    if (action === 'unflag') await db.query(`UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1`, [jobId]);
+
+    if (action === 'cancel' || action === 'remove') {
+      const { rows: updateRows } = await db.query(
+        `UPDATE jobs SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status != 'cancelled' RETURNING id`,
+        [jobId]
+      );
+      if (updateRows.length === 0) {
+        return res.status(409).json({ error: 'Job is already cancelled or was cancelled during this operation.' });
+      }
+    }
+    if (action === 'flag') {
+      const { rows: flagRows } = await db.query(
+        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'true',  true), updated_at = now() WHERE id = $1 AND NOT (COALESCE(metadata,'{}')->>'admin_flagged') = 'true' RETURNING id`,
+        [jobId]
+      );
+      if (flagRows.length === 0) {
+        return res.status(409).json({ error: 'Job is already flagged or flag state changed during operation.' });
+      }
+    }
+    if (action === 'unflag') {
+      const { rows: unflagRows } = await db.query(
+        `UPDATE jobs SET metadata = jsonb_set(COALESCE(metadata,'{}'), '{admin_flagged}', 'false', true), updated_at = now() WHERE id = $1 AND (COALESCE(metadata,'{}')->>'admin_flagged') = 'true' RETURNING id`,
+        [jobId]
+      );
+      if (unflagRows.length === 0) {
+        return res.status(409).json({ error: 'Job is not flagged or flag state changed during operation.' });
+      }
+    }
     try { await logAdminAction({ adminId, action: `job_${action}`, targetType: 'job', targetId: jobId, description: reason || null, req }); } catch(e) {}
     res.json({ message: `Job ${action} successful.` });
   } catch (err) { logger.error('forceJobAction error', { err }); res.status(500).json({ error: 'Failed to perform job action.' }); }
@@ -450,10 +494,18 @@ exports.deleteJob = async (req, res) => {
     const { jobId } = req.params;
     const { reason } = req.body;
     if (!reason || !reason.trim()) return res.status(400).json({ error: 'A reason is required to delete a job.' });
-    const { rows } = await db.query('SELECT id, title, client_id FROM jobs WHERE id = $1', [jobId]);
+    const { rows } = await db.query('SELECT id, title, client_id, status FROM jobs WHERE id = $1', [jobId]);
     if (!rows.length) return res.status(404).json({ error: 'Job not found.' });
+    // Only allow deletion of jobs not in in_progress or completed states to prevent data loss
+    const deletableStatuses = ['published', 'cancelled', 'closed'];
+    if (!deletableStatuses.includes(rows[0].status)) {
+      return res.status(400).json({ error: `Cannot delete job in '${rows[0].status}' status. Only jobs in ${deletableStatuses.join(', ')} status can be deleted.` });
+    }
     // Hard delete — cascades to bids, payments if FK'd with ON DELETE CASCADE; otherwise clean up first
-    await db.query('DELETE FROM jobs WHERE id = $1', [jobId]);
+    const { rows: deleteRows } = await db.query('DELETE FROM jobs WHERE id = $1 AND status IN ($2, $3, $4) RETURNING id', [jobId, 'published', 'cancelled', 'closed']);
+    if (deleteRows.length === 0) {
+      return res.status(409).json({ error: 'Job status changed during deletion — concurrent modification detected.' });
+    }
     try {
       await logAdminAction({
         adminId: req.user.id,
@@ -812,7 +864,10 @@ exports.updateSetting = async (req, res) => {
     const { key } = req.params;
     const { value } = req.body;
     const adminId = req.user.id;
-    await db.query('UPDATE platform_settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = $3', [String(value), adminId, key]);
+    const { rows: updateRows } = await db.query('UPDATE platform_settings SET value = $1, updated_by = $2, updated_at = now() WHERE key = $3 RETURNING key', [String(value), adminId, key]);
+    if (updateRows.length === 0) {
+      return res.status(404).json({ error: `Setting "${key}" not found.` });
+    }
     res.json({ message: `Setting "${key}" updated.` });
   } catch (err) { logger.error('updateSetting error', { err }); res.status(500).json({ error: 'Failed to update setting.' }); }
 };
@@ -822,7 +877,10 @@ exports.updateFeatureFlag = async (req, res) => {
     const { key } = req.params;
     const { enabled } = req.body;
     const adminId = req.user.id;
-    await db.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3', [Boolean(enabled), adminId, key]);
+    const { rows: updateRows } = await db.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3 RETURNING key', [Boolean(enabled), adminId, key]);
+    if (updateRows.length === 0) {
+      return res.status(404).json({ error: `Feature flag "${key}" not found.` });
+    }
     res.json({ message: `Feature flag "${key}" set to ${enabled}.` });
   } catch (err) { logger.error('updateFeatureFlag error', { err }); res.status(500).json({ error: 'Failed to update feature flag.' }); }
 };
@@ -1058,7 +1116,10 @@ exports.toggleAdminAccountStatus = async (req, res) => {
       return res.status(403).json({ error: 'Cannot change status of a super_admin account.' });
     }
     const newStatus = !rows[0].is_active;
-    await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2', [newStatus, id]);
+    const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, id, rows[0].is_active]);
+    if (updateRows.length === 0) {
+      return res.status(409).json({ error: 'Admin status changed during update — concurrent modification detected.' });
+    }
     // Invalidate all sessions for this admin and kick any live WebSocket connection
     await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [id]);
     if (!newStatus) socketService.broadcastToUser(id, 'force_logout', { reason: 'account_disabled' });

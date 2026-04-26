@@ -25,10 +25,12 @@ export default function useLifeDashboard() {
   const fetchFinancialPulse = useCallback(async (window = '1m') => {
     try {
       const { data } = await api.get(`/life/pulse?window=${window}`);
-      setFinancialPulse(data);
-      return data;
+      setFinancialPulse(data ?? null);
+      return data ?? {};
     } catch (err) {
       console.error('fetchFinancialPulse error:', err);
+      setFinancialPulse(null);
+      return null;
     }
   }, []);
 
@@ -78,11 +80,12 @@ export default function useLifeDashboard() {
     try {
       const qs = new URLSearchParams(params).toString();
       const { data } = await api.get(`/life/expenses?${qs}`);
-      setExpenses(data.expenses || []);
-      setExpenseSummary(data.summary || null);
+      setExpenses(data?.expenses ?? []);
+      setExpenseSummary(data?.summary ?? null);
       return data;
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch expenses');
+      setExpenses([]);
+      setError(err?.response?.data?.error || 'Failed to fetch expenses');
     } finally {
       setLoading(false);
     }

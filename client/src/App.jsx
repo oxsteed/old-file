@@ -12,6 +12,9 @@ import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import CustomerRegister from './pages/CustomerRegister';
 import HelperRegister from './pages/HelperRegister';
+import ConsultingIntakePage from './pages/ConsultingIntakePage';
+import ConsultingFeedbackPage from './pages/ConsultingFeedbackPage';
+import BusinessLaunchStatusPage from './pages/BusinessLaunchStatusPage';
 import SmartDashboard from './pages/SmartDashboard';
 import UpgradePage from './pages/UpgradePage';
 import JobListPage from './pages/JobListPage';
@@ -46,6 +49,7 @@ import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
 import BusinessHubPage from './pages/BusinessHubPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import PublicInvoiceView from './pages/PublicInvoiceView';
 import ToolRentalsBrowse from './pages/ToolRentalsBrowse';
 import DiscoverPage from './pages/DiscoverPage';
@@ -54,6 +58,9 @@ import ToolRentalsAnalytics from './pages/ToolRentalsAnalytics';
 import QRCodeGeneratorPage from './pages/QRCodeGeneratorPage';
 import ConsultingFullPortal from './pages/ConsultingFullPortal';
 import ConsultingPortalPage from './pages/ConsultingPortalPage';
+import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
+import InvoicesPage from './pages/InvoicesPage';
+import CalendarPage from './pages/CalendarPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -103,6 +110,9 @@ export default function App() {
                     <Route path="/profile/:id"             element={<Guarded><PublicProfile /></Guarded>} />
                     <Route path="/helpers"                 element={<Guarded><HelpersDirectoryPage /></Guarded>} />
                     <Route path="/discover"                element={<Guarded><DiscoverPage /></Guarded>} />
+                    <Route path="/consulting-intake"       element={<Guarded><ConsultingIntakePage /></Guarded>} />
+                    <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
+                    <Route path="/business-launch-status"  element={<Guarded><BusinessLaunchStatusPage /></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
@@ -119,6 +129,8 @@ export default function App() {
                     <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
 
                     {/* ── Authenticated routes ────────────────────────────── */}
+                    {/* verify-email is exempt from email verification gate in ProtectedRoute (see EMAIL_VERIFICATION_EXEMPT_PATHS) */}
+                    <Route path="/verify-email" element={<Guarded><ProtectedRoute><VerifyEmailPage /></ProtectedRoute></Guarded>} />
                     {/* verify-identity is exempt from the Didit gate in ProtectedRoute (see DIDIT_EXEMPT_PATHS) */}
                     <Route path="/verify-identity" element={<Guarded><ProtectedRoute><VerifyIdentityPage /></ProtectedRoute></Guarded>} />
 
@@ -150,6 +162,9 @@ export default function App() {
                     {/* Critical: Business analytics dashboard with multiple tabs */}
                     <Route path="/business-hub"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
+                    {/* Role-aware appointment + availability calendar system */}
+                    <Route path="/calendar" element={<Guarded><ProtectedRoute><RouteErrorBoundary><CalendarPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
                     {/* Pro feature: QR Code Generator */}
                     <Route path="/qr-generator"  element={<Guarded><ProtectedRoute><RouteErrorBoundary><QRCodeGeneratorPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
@@ -158,6 +173,12 @@ export default function App() {
 
                     {/* Client Consulting Portal - Track Progress */}
                     <Route path="/consulting" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultingPortalPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* Consultant Availability Management */}
+                    <Route path="/consultant/availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+
+                    {/* Invoices */}
+                    <Route path="/invoices" element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvoicesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>

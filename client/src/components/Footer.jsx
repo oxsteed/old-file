@@ -5,14 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { redeemVortexToken } from '../api/businesses';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
-import ConsultingIntakeModal from './ConsultingIntakeModal';
 
 export default function Footer() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const year = new Date().getFullYear();
   const [vortexOpen, setVortexOpen] = useState(false);
   const [vortexPrefill, setVortexPrefill] = useState('');
-  const [consultingOpen, setConsultingOpen] = useState(false);
 
   // After login, reopen Vortex with a token saved before sign-in.
   useEffect(() => {
@@ -177,7 +176,7 @@ export default function Footer() {
           {/* Consulting button */}
           <button
             type="button"
-            onClick={() => setConsultingOpen(true)}
+            onClick={() => navigate('/consulting-intake')}
             style={{
               background: 'none',
               border: '1px solid var(--color-primary)',
@@ -233,14 +232,6 @@ export default function Footer() {
           setVortexOpen(false);
           setVortexPrefill('');
         }}
-      />,
-      document.body
-    )}
-    {/* Consulting intake modal */}
-    {consultingOpen && createPortal(
-      <ConsultingIntakeModal
-        isOpen={consultingOpen}
-        onClose={() => setConsultingOpen(false)}
       />,
       document.body
     )}

@@ -165,9 +165,9 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
     </div>
   );
 
-  const { ticket, messages } = data;
-  const isMine = ticket.assigned_to === currentUserId;
-  const isClosed = ['resolved', 'closed'].includes(ticket.status);
+  const { ticket, messages } = data ?? {};
+  const isMine = ticket?.assigned_to === currentUserId;
+  const isClosed = ticket && ['resolved', 'closed'].includes(ticket?.status);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

@@ -39,6 +39,9 @@ import AdminMessages   from './pages/AdminMessages';
 import ConsultingDashboard from './pages/ConsultingDashboard';
 import ConsultingPayments from './pages/ConsultingPayments';
 import ConsultingScheduler from './pages/ConsultingScheduler';
+import ConsultingAnalyticsDashboard from './pages/ConsultingAnalyticsDashboard';
+import BusinessLaunchAdmin from './pages/BusinessLaunchAdmin';
+import ConsultingSessionsAdmin from './pages/ConsultingSessionsAdmin';
 import AdminLogin      from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
@@ -101,6 +104,9 @@ export default function AdminApp() {
           <Route path="consulting"          element={<ConsultingDashboard />} />
           <Route path="consulting/payments" element={<ConsultingPayments />} />
           <Route path="consulting/scheduler" element={<ConsultingScheduler />} />
+          <Route path="consulting/analytics" element={<ConsultingAnalyticsDashboard />} />
+          <Route path="consulting/business-launch" element={<BusinessLaunchAdmin />} />
+          <Route path="consulting/sessions" element={<ConsultingSessionsAdmin />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={

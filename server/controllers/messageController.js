@@ -654,11 +654,15 @@ const deleteMessage = async (req, res) => {
       return res.status(400).json({ error: 'Message is already deleted' });
     }
 
-    // Soft delete the message (set deleted_at timestamp)
-    await pool.query(
-      'UPDATE messages SET deleted_at = NOW() WHERE id = $1',
-      [messageId]
+    // Soft delete the message (set deleted_at timestamp) — safeguard sender_id
+    const delResult = await pool.query(
+      'UPDATE messages SET deleted_at = NOW() WHERE id = $1 AND sender_id = $2 RETURNING id',
+      [messageId, userId]
     );
+
+    if (delResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Message ownership changed during deletion' });
+    }
 
     // Broadcast delete event to the conversation room
     socketService.broadcastToConversation(conversationId, 'message:deleted', {
@@ -707,11 +711,15 @@ const editMessage = async (req, res) => {
       return res.status(400).json({ error: 'Cannot edit a deleted message' });
     }
 
-    // Update the message with edited_at timestamp
+    // Update the message with edited_at timestamp — safeguard sender_id
     const result = await pool.query(
-      `UPDATE messages SET content = $1, edited_at = NOW() WHERE id = $2 RETURNING *`,
-      [content, messageId]
+      `UPDATE messages SET content = $1, edited_at = NOW() WHERE id = $2 AND sender_id = $3 AND deleted_at IS NULL RETURNING *`,
+      [content, messageId, userId]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'Cannot edit this message' });
+    }
 
     const updatedMessage = result.rows[0];
 

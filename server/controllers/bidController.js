@@ -51,6 +51,7 @@ exports.createBid = async (req, res) => {
       return res.status(409).json({ error: err.message });
     }
     logger.error('Create bid error', { err });
+    logger.error('Create bid error', { userId: req.user?.id, jobId: req.body?.job_id, error: err.message });
     res.status(500).json({ error: 'Failed to create bid' });
   }
 };
@@ -94,7 +95,7 @@ exports.getJobBids = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get job bids error', { err });
+    logger.error('Get job bids error', { jobId: req.params?.jobId, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -111,7 +112,7 @@ exports.getMyBids = async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get my bids error', { err });
+    logger.error('Get my bids error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -142,8 +143,66 @@ exports.updateBid = async (req, res) => {
     }
 
     res.json(result.rows[0]);
+    const bidId = req.params.id;
+    const userId = req.user.id;
+    const { amount, message, eta_hours } = req.body;
+
+    // Pre-check: bid must exist and belong to requester (outside transaction)
+    const { rows: bidRows } = await pool.query(
+      'SELECT id, helper_id, status FROM bids WHERE id = $1',
+      [bidId]
+    );
+
+    if (!bidRows[0]) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+
+    const bid = bidRows[0];
+
+    if (bid.helper_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to update this bid' });
+    }
+
+    if (bid.status !== 'pending') {
+      return res.status(400).json({
+        error: `Bid cannot be updated in '${bid.status}' state. Only pending bids can be updated.`
+      });
+    }
+
+    // Atomic: update bid with status safeguard to prevent race conditions
+    const result = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE bids
+         SET
+           amount = COALESCE($1, amount),
+           message = COALESCE($2, message),
+           eta_hours = COALESCE($3, eta_hours),
+           updated_at = NOW()
+         WHERE id = $4 AND status = 'pending'
+         RETURNING *`,
+        [amount, message, eta_hours, bidId]
+      );
+
+      if (!rows.length) {
+        throw new Error('Bid state changed during update — status is no longer pending');
+      }
+
+      return rows[0];
+    }, 'update_bid');
+
+    logger.info('Bid updated', {
+      bidId,
+      userId,
+      fieldsUpdated: [
+        amount !== undefined && 'amount',
+        message !== undefined && 'message',
+        eta_hours !== undefined && 'eta_hours'
+      ].filter(Boolean)
+    });
+
+    res.json(result);
   } catch (err) {
-    logger.error('Update bid error', { err });
+    logger.error('Update bid error', { bidId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to update bid' });
   }
 };
@@ -167,8 +226,57 @@ exports.withdrawBid = async (req, res) => {
     }
 
     res.json(result.rows[0]);
+    const bidId = req.params.id;
+    const userId = req.user.id;
+
+    // Pre-check: bid must exist and belong to requester (outside transaction)
+    const { rows: bidRows } = await pool.query(
+      'SELECT id, job_id, helper_id, status FROM bids WHERE id = $1',
+      [bidId]
+    );
+
+    if (!bidRows[0]) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+
+    const bid = bidRows[0];
+
+    if (bid.helper_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to withdraw this bid' });
+    }
+
+    if (bid.status !== 'pending') {
+      return res.status(400).json({
+        error: `Bid cannot be withdrawn in '${bid.status}' state. Only pending bids can be withdrawn.`
+      });
+    }
+
+    // Atomic: withdraw bid with status safeguard to prevent race conditions
+    const result = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE bids
+         SET status = 'withdrawn', withdrawn_at = NOW(), updated_at = NOW()
+         WHERE id = $1 AND status = 'pending'
+         RETURNING *`,
+        [bidId]
+      );
+
+      if (!rows.length) {
+        throw new Error('Bid state changed during withdrawal — status is no longer pending');
+      }
+
+      return rows[0];
+    }, 'withdraw_bid');
+
+    logger.info('Bid withdrawn', {
+      bidId,
+      userId,
+      jobId: bid.job_id
+    });
+
+    res.json(result);
   } catch (err) {
-    logger.error('Withdraw bid error', { err });
+    logger.error('Withdraw bid error', { bidId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to withdraw bid' });
   }
 };
@@ -191,7 +299,7 @@ exports.getRecentBids = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get recent bids error', { err });
+    logger.error('Get recent bids error', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch recent bids' });
   }
 };

@@ -86,13 +86,12 @@ export function useHelpersInfiniteScroll({
           },
         });
 
-        setHelpers(response.data.helpers);
+        setHelpers(response.data.helpers || []);
         setBusinesses(response.data.businesses || []);
-        setTotalCount(response.data.total);
+        setTotalCount(response.data.total || 0);
         setPage(1);
         setHasMore((response.data.helpers?.length || 0) >= limit);
       } catch (err) {
-        console.error('Failed to fetch helpers:', err);
         setIsError(true);
       } finally {
         setIsLoading(false);

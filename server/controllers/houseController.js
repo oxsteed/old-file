@@ -319,14 +319,14 @@ exports.updateHome = async (req, res) => {
  */
 exports.deleteHome = async (req, res) => {
   try {
-    const { rowCount } = await db.query(
-      'DELETE FROM user_homes WHERE id=$1 AND user_id=$2',
+    const result = await db.query(
+      'DELETE FROM user_homes WHERE id=$1 AND user_id=$2 RETURNING id',
       [parseInt(req.params.id), req.user.id]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Home not found' });
+    if (!result.rows.length) return res.status(404).json({ error: 'Home not found' });
     return res.json({ success: true });
   } catch (err) {
-    logger.error('deleteHome error', { message: err.message });
+    logger.error('deleteHome error', { userId: req.user?.id, homeId: req.params?.id, message: err.message });
     return res.status(500).json({ error: 'Failed to delete home' });
   }
 };

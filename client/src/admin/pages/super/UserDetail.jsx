@@ -37,10 +37,10 @@ export default function UserDetail() {
     setError(null);
     try {
       const { data: res } = await adminApi.get(`/admin/users/${userId}`);
-      setData(res);
-      setNameForm({ first_name: res.user?.first_name || '', last_name: res.user?.last_name || '' });
+      setData(res ?? null);
+      setNameForm({ first_name: res?.user?.first_name ?? '', last_name: res?.user?.last_name ?? '' });
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Failed to load user.';
+      const msg = err?.response?.data?.error || err?.message || 'Failed to load user.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -159,7 +159,7 @@ export default function UserDetail() {
     if (!window.confirm(t('admin.deleteUserConfirm'))) return;
     const typed = window.prompt(t('admin.deleteUserTypeEmail'), '');
     if (typed === null) return;
-    if (typed.trim().toLowerCase() !== (data?.user?.email || '').toLowerCase()) {
+    if (typed.trim().toLowerCase() !== (data?.user?.email ?? '').toLowerCase()) {
       setMessage({ type: 'error', text: t('admin.deleteUserEmailMismatch') });
       return;
     }

@@ -882,14 +882,14 @@ export default function Dashboard() {
               );
             }
 
-            const score = fp.pulse_score;
+            const score = fp?.pulse_score ?? 0;
             const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
-            const breakdown = fp.score_breakdown || {};
-            const sources   = fp.sources || {};
-            const activeCount = fp.settings
+            const breakdown = fp?.score_breakdown ?? {};
+            const sources   = fp?.sources ?? {};
+            const activeCount = fp?.settings
               ? Object.values(fp.settings).filter(Boolean).length
               : null;
-            const totalCount = fp.settings ? Object.keys(fp.settings).length : null;
+            const totalCount = fp?.settings ? Object.keys(fp.settings).length : null;
 
             const SOURCE_LABELS = [
               { key: 'manual_income_90d',         label: t('plannedNeeds.srcManualIncome'),       dir: '+' },
@@ -1169,10 +1169,13 @@ export default function Dashboard() {
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.expenses')}</p><p className="text-xl font-bold text-red-400">${(life.expenseSummary?.total_expenses||0).toFixed(2)}</p></div>
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.net')}</p><p className={`text-xl font-bold ${(life.expenseSummary?.net||0)>=0?'text-emerald-400':'text-red-400'}`}>${(life.expenseSummary?.net||0).toFixed(2)}</p></div>
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
-                {(life.expenseSummary?.total_income||0) > 0
-                  ? <p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
-                  : <p className="text-xl font-bold text-gray-600">—</p>
-                }
+                {(() => {
+                  const income = life.expenseSummary?.total_income ?? 0;
+                  const net = life.expenseSummary?.net ?? 0;
+                  if (income <= 0) return <p className="text-xl font-bold text-gray-600">—</p>;
+                  const rate = (net / income) * 100;
+                  return <p className={`text-xl font-bold ${rate >= 20 ? 'text-emerald-400' : rate >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>{Math.round(rate)}%</p>;
+                })()}
               </div>
             </div>
           </Card>
@@ -1185,7 +1188,7 @@ export default function Dashboard() {
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noTransactions')}</p>
               ) : (
                 <div className="space-y-1 max-h-80 overflow-y-auto">
-                  {life.expenses.slice(0,15).map(e=>(
+                  {(life.expenses ?? []).slice(0,15).map(e=>(
                     <div key={e.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800/30 transition group">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-white truncate">{e.description||e.category}</p>
@@ -1215,10 +1218,10 @@ export default function Dashboard() {
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.money.noBudgets')}</p>
               ) : (
                 <div className="space-y-4">
-                  {life.budgets.map(b=>{
-                    const spent = parseFloat(b.spent||0);
-                    const limit = parseFloat(b.monthly_limit);
-                    const pct = limit>0?(spent/limit)*100:0;
+                  {(life.budgets ?? []).map(b=>{
+                    const spent = parseFloat(b?.spent ?? 0);
+                    const limit = parseFloat(b?.monthly_limit ?? 0);
+                    const pct = limit > 0 ? (spent / limit) * 100 : 0;
                     const periodLabel = b.period && b.period !== 'monthly' ? ` /mo (${b.period.replace('_','-')})` : '/mo';
                     return (
                       <div key={b.id}>
@@ -1247,11 +1250,11 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {moneyPlannedNeeds.slice(0,5).map(pn => {
-                  const cost = parseFloat(pn.estimated_cost || 0);
-                  const saved = parseFloat(pn.reserved_amount || 0);
+                {(moneyPlannedNeeds ?? []).slice(0,5).map(pn => {
+                  const cost = parseFloat(pn?.estimated_cost ?? 0);
+                  const saved = parseFloat(pn?.reserved_amount ?? 0);
                   const pct = cost > 0 ? Math.min(100, (saved / cost) * 100) : 0;
-                  const perMonth = parseFloat(pn.sinking_fund_per_month || 0);
+                  const perMonth = parseFloat(pn?.sinking_fund_per_month ?? 0);
                   return (
                     <div key={pn.id}>
                       <div className="flex justify-between items-center text-sm mb-1">
@@ -1389,8 +1392,8 @@ export default function Dashboard() {
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.home.noTasks')}</p>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {life.homeTasks.map(homeTask=>{
-                    const overdue = homeTask.due_date && new Date(homeTask.due_date) < new Date() && !homeTask.is_completed;
+                  {(life.homeTasks ?? []).map(homeTask=>{
+                    const overdue = homeTask?.due_date && new Date(homeTask.due_date) < new Date() && !homeTask?.is_completed;
                     return (
                       <div key={homeTask.id} className={`flex items-center gap-3 p-3 rounded-xl border transition ${homeTask.is_completed?'opacity-40 border-gray-800':overdue?'border-red-500/30 bg-red-500/5':'border-gray-800 hover:border-gray-700'}`}>
                         <button onClick={()=>toggleHomeTask(homeTask)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${homeTask.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
@@ -1487,12 +1490,12 @@ export default function Dashboard() {
             {/* Checklist */}
             <Card>
               <CardHeader icon={IcoCheck} title={t('dashboard.goals.checklist')} right={<Btn onClick={()=>setShowChecklistModal(true)}>{t('common.add')}</Btn>}/>
-              <p className="text-xs text-gray-600 mb-3">{t('dashboard.goals.completedOf', { completed: life.checklist.filter(i=>i.is_completed).length, total: life.checklist.length })}</p>
-              {life.checklist.length===0 ? (
+              <p className="text-xs text-gray-600 mb-3">{t('dashboard.goals.completedOf', { completed: (life.checklist || []).filter(i=>i.is_completed).length, total: (life.checklist || []).length })}</p>
+              {(life.checklist || []).length===0 ? (
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noChecklist')}</p>
               ) : (
                 <div className="space-y-1.5 max-h-96 overflow-y-auto">
-                  {life.checklist.map(item=>(
+                  {(life.checklist || []).map(item=>(
                     <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800/30 transition group">
                       <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
                         {item.is_completed && <IcoCheck size={12} cls="text-gray-950"/>}

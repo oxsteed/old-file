@@ -95,16 +95,22 @@ exports.resolveDispute = async (req, res) => {
 
     const dispute = disputeRows[0];
 
-    // Update dispute
-    await db.query(`
+    // Update dispute (with status check to prevent double-resolution race condition)
+    const { rowCount } = await db.query(`
       UPDATE disputes
       SET status = 'resolved',
           resolution = $1,
           admin_notes = $2,
           resolved_by = $3,
           resolved_at = NOW()
-      WHERE id = $4
+      WHERE id = $4 AND status != 'resolved'
     `, [resolution, notes, adminId, disputeId]);
+
+    if (rowCount === 0) {
+      return res.status(409).json({
+        error: 'Dispute has already been resolved by another admin.'
+      });
+    }
 
     // RELEASE ESCROW HOLD if dispute resolved in favor of helper
     try {

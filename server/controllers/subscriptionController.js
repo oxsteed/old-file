@@ -41,7 +41,7 @@ exports.getPlans = async (req, res) => {
       }))
     });
   } catch (err) {
-    logger.error('Get plans error:', { err: err });
+    logger.error('Get plans error', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch plans.' });
   }
 };
@@ -118,7 +118,7 @@ exports.createCheckout = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    logger.error('Create checkout error:', { err: err });
+    logger.error('Create checkout error', { userId: req.user?.id, planSlug: req.body?.planSlug, error: err.message });
     res.status(500).json({ error: 'Failed to create checkout session.' });
   }
 };
@@ -136,7 +136,7 @@ exports.getSubscription = async (req, res) => {
     );
     res.json({ subscription: rows[0] || null });
   } catch (err) {
-    logger.error('Get subscription error:', { err: err });
+    logger.error('Get subscription error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch subscription.' });
   }
 };
@@ -174,18 +174,23 @@ exports.cancelSubscription = async (req, res) => {
 
     // Status stays 'active' — access continues until period_end.
     // The webhook customer.subscription.deleted will flip it to 'cancelled' when Stripe actually ends it.
-    await db.query(
+    // Safeguard: ensure subscription is still active and not already being cancelled
+    const updateResult = await db.query(
       `UPDATE subscriptions
        SET cancel_at_period_end = TRUE,
            current_period_end   = TO_TIMESTAMP($2),
            updated_at           = NOW()
-       WHERE stripe_subscription_id = $1`,
+       WHERE stripe_subscription_id = $1 AND cancel_at_period_end = FALSE RETURNING id`,
       [rows[0].stripe_subscription_id, stripeSub.current_period_end]
     );
 
+    if (!updateResult.rows.length) {
+      return res.status(409).json({ error: 'Subscription cancellation already in progress. Please try again.' });
+    }
+
     res.json({ message: 'Subscription cancellation scheduled successfully.', cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString() });
   } catch (err) {
-    logger.error('Cancel subscription error:', { err: err });
+    logger.error('Cancel subscription error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to cancel subscription.' });
   }
 };
@@ -214,7 +219,7 @@ exports.createPortalSession = async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    logger.error('Portal session error:', { err: err });
+    logger.error('Portal session error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create portal session.' });
   }
 };

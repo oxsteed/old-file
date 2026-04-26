@@ -1,0 +1,186 @@
+.abm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.abm-modal {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.abm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.abm-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--app-text);
+}
+
+.abm-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--muted-text);
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.abm-close:hover {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.abm-form {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.abm-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.abm-form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--app-text);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.abm-form-group input,
+.abm-form-group select,
+.abm-form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.abm-form-group input:focus,
+.abm-form-group select:focus,
+.abm-form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.abm-form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.abm-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--app-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.abm-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.abm-footer {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.abm-btn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.abm-btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.abm-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.abm-btn-secondary {
+  background: var(--app-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.abm-btn-secondary:hover:not(:disabled) {
+  border-color: var(--primary-color);
+}
+
+.abm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .abm-modal {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .abm-header {
+    padding: 1rem;
+  }
+
+  .abm-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .abm-form {
+    padding: 1rem;
+  }
+
+  .abm-footer {
+    padding: 1rem;
+  }
+}

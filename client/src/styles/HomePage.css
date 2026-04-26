@@ -630,6 +630,22 @@
 @media (max-width: 640px) {
   .hp-consulting-btn { width: 100%; max-width: 320px; }
 }
+.hp-consulting-intro {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+.hp-consulting-subcopy {
+  font-size: clamp(1rem, 0.9rem + 1vw, 1.25rem);
+  color: var(--hp-text-muted);
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 1rem auto 0;
+  letter-spacing: -.005em;
+}
+@media (max-width: 640px) {
+  .hp-consulting-intro { margin-bottom: 2rem; }
+  .hp-consulting-subcopy { font-size: 1rem; }
+}
 
 /* ── Mission / Trust Section ─────────────────────────────── */
 .hp-mission-section { background: var(--hp-surface-2); }
