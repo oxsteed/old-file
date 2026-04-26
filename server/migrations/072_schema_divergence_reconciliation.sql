@@ -91,6 +91,10 @@ CREATE INDEX IF NOT EXISTS idx_feature_flags_key ON feature_flags(key);
 --
 -- STRATEGY: Recreate table to match migration 050 schema, drop attachments column
 
+-- BACKFILL: add sender_role to old table so the backup SELECT can read it
+ALTER TABLE IF EXISTS dispute_messages
+  ADD COLUMN IF NOT EXISTS sender_role VARCHAR(20);
+
 -- Create a temporary table to preserve data if the table exists
 CREATE TEMP TABLE dispute_messages_backup AS
 SELECT
