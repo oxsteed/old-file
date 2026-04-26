@@ -16,7 +16,7 @@ export default function VerifyIdentityPage() {
 
   // After Didit webhook fires and status is 'verified', or after a skip, go to the
   // appropriate dashboard.
-  const destination = ['helper', 'helper_pro', 'broker'].includes(user?.role ?? '')
+  const destination = user && ['helper', 'helper_pro', 'broker'].includes(user?.role ?? '')
     ? '/helper-dashboard'
     : '/dashboard';
 

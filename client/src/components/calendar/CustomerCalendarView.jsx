@@ -35,10 +35,10 @@ export default function CustomerCalendarView({ viewMode, selectedDate, onDateCha
         }
       });
 
-      setAppointments(res.data.appointments);
+      setAppointments(Array.isArray(res.data.appointments) ? res.data.appointments : []);
     } catch (err) {
       toast.error(t('calendar.errorLoading'));
-      console.error(err);
+      setAppointments([]);
     } finally {
       setLoading(false);
     }
@@ -74,13 +74,25 @@ export default function CustomerCalendarView({ viewMode, selectedDate, onDateCha
     return { start, end };
   };
 
-  const upcomingAppointments = appointments.filter(
-    (apt) => new Date(apt.scheduled_start_time) >= new Date()
-  );
+  const upcomingAppointments = appointments.filter((apt) => {
+    if (!apt?.scheduled_start_time) return false;
+    try {
+      const aptDate = new Date(apt.scheduled_start_time);
+      return !isNaN(aptDate) && aptDate >= new Date();
+    } catch {
+      return false;
+    }
+  });
 
-  const pastAppointments = appointments.filter(
-    (apt) => new Date(apt.scheduled_start_time) < new Date()
-  );
+  const pastAppointments = appointments.filter((apt) => {
+    if (!apt?.scheduled_start_time) return false;
+    try {
+      const aptDate = new Date(apt.scheduled_start_time);
+      return !isNaN(aptDate) && aptDate < new Date();
+    } catch {
+      return false;
+    }
+  });
 
   if (loading) {
     return <div className="ccv-loading">{t('common.loading')}</div>;
@@ -391,8 +403,8 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
                     })
                     .slice(0, 2)
                     .map((apt) => (
-                      <div key={apt.id} className={`ccv-month-event ccv-apt-${apt.status}`}>
-                        {apt.helper_name.split(' ')[0]}
+                      <div key={apt.id} className={`ccv-month-event ccv-apt-${apt.status || 'pending'}`}>
+                        {(apt.helper_name || 'Unknown').split(' ')[0]}
                       </div>
                     ))}
                 </div>

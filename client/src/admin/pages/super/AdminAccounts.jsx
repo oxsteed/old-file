@@ -22,7 +22,7 @@ function CreateAdminModal({ onCreated, onClose }) {
     setSaving(true); setErr('');
     try {
       const { data } = await adminApi.post('/admin/super/admin-accounts', form);
-      setCreated(data.admin);
+      setCreated(data?.admin ?? null);
       onCreated();
     } catch (e) {
       setErr(e?.response?.data?.error || 'Failed to create account.');

@@ -43,10 +43,10 @@ function applyFilters(helpers: HelperCardData[], f: DirectoryFilters): HelperCar
         h.businessName,
         h.ownerName,
         h.shortBio,
-        ...h.categories,
-        ...h.skills,
-        ...h.licenses,
-        ...h.topServices.map((s) => s.name),
+        ...(h.categories || []),
+        ...(h.skills || []),
+        ...(h.licenses || []),
+        ...(Array.isArray(h.topServices) ? h.topServices.map((s) => s.name) : []),
       ]
         .join(' ')
         .toLowerCase();
@@ -55,22 +55,22 @@ function applyFilters(helpers: HelperCardData[], f: DirectoryFilters): HelperCar
 
     // Category (any-of)
     if (f.categories.length > 0) {
-      if (!f.categories.some((cat) => h.categories.includes(cat))) return false;
+      if (!f.categories.some((cat) => (h.categories || []).includes(cat))) return false;
     }
 
     // Skills (all-of — every selected skill must exist on helper)
     if (f.skills.length > 0) {
-      if (!f.skills.every((sk) => h.skills.includes(sk))) return false;
+      if (!f.skills.every((sk) => (h.skills || []).includes(sk))) return false;
     }
 
     // Licenses (any-of)
     if (f.licenses.length > 0) {
-      if (!f.licenses.some((lic) => h.licenses.includes(lic as any))) return false;
+      if (!f.licenses.some((lic) => (h.licenses || []).includes(lic as any))) return false;
     }
 
     // Insurance (any-of)
     if (f.insurance.length > 0) {
-      if (!f.insurance.some((ins) => h.insurance.includes(ins as any))) return false;
+      if (!f.insurance.some((ins) => (h.insurance || []).includes(ins as any))) return false;
     }
 
     // Rating

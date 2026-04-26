@@ -45,11 +45,12 @@ export default function HelperCalendarView({ viewMode, selectedDate, onDateChang
         })
       ]);
 
-      setAppointments(apptsRes.data.appointments);
-      setAvailabilityBlocks(availRes.data.blocks);
+      setAppointments(Array.isArray(apptsRes.data.appointments) ? apptsRes.data.appointments : []);
+      setAvailabilityBlocks(Array.isArray(availRes.data.blocks) ? availRes.data.blocks : []);
     } catch (err) {
       toast.error(t('calendar.errorLoading'));
-      console.error(err);
+      setAppointments([]);
+      setAvailabilityBlocks([]);
     } finally {
       setLoading(false);
     }
@@ -218,15 +219,25 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
               slotEnd.setHours(hour + 1, 0, 0, 0);
 
               const dayAppointments = appointments.filter((apt) => {
-                const aptStart = new Date(apt.scheduled_start_time);
-                const aptEnd = new Date(apt.scheduled_end_time);
-                return aptStart < slotEnd && aptEnd > slotStart;
+                if (!apt?.scheduled_start_time || !apt?.scheduled_end_time) return false;
+                try {
+                  const aptStart = new Date(apt.scheduled_start_time);
+                  const aptEnd = new Date(apt.scheduled_end_time);
+                  return !isNaN(aptStart) && !isNaN(aptEnd) && aptStart < slotEnd && aptEnd > slotStart;
+                } catch {
+                  return false;
+                }
               });
 
               const dayBlocks = availabilityBlocks.filter((block) => {
-                const blockStart = new Date(block.start_time);
-                const blockEnd = new Date(block.end_time);
-                return blockStart < slotEnd && blockEnd > slotStart;
+                if (!block?.start_time || !block?.end_time) return false;
+                try {
+                  const blockStart = new Date(block.start_time);
+                  const blockEnd = new Date(block.end_time);
+                  return !isNaN(blockStart) && !isNaN(blockEnd) && blockStart < slotEnd && blockEnd > slotStart;
+                } catch {
+                  return false;
+                }
               });
 
               return (
@@ -399,8 +410,8 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
                     })
                     .slice(0, 2)
                     .map((apt) => (
-                      <div key={apt.id} className={`hcv-month-event hcv-apt-${apt.status}`}>
-                        {apt.customer_name.split(' ')[0]}
+                      <div key={apt.id} className={`hcv-month-event hcv-apt-${apt.status || 'pending'}`}>
+                        {(apt.customer_name || 'Unknown').split(' ')[0]}
                       </div>
                     ))}
                 </div>

@@ -14,6 +14,7 @@ export default function EditProfileTab() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [section, setSection] = useState('core');
 
   const [visibility, setVisibility] = useState({
@@ -33,6 +34,7 @@ export default function EditProfileTab() {
   const [faqs,      setFaqs]      = useState([]);
   const [policies,  setPolicies]  = useState([]);
   const [gallery,   setGallery]   = useState([]);
+  const [failedImages, setFailedImages] = useState({});
 
   const [newSvc, setNewSvc] = useState({ name:'', description:'', price:'', price_unit:'flat', duration:'', category:'General', popular:false });
   const [newFaq, setNewFaq] = useState({ question:'', answer:'' });
@@ -131,12 +133,14 @@ export default function EditProfileTab() {
   // ── Gallery ─────────────────────────────────────────────────────────────────
   const addImage = async (e) => {
     e.preventDefault();
+    setUploadingImage(true);
     try {
       const r = await api.post('/helper-profile/gallery', newImg);
       setGallery(p => [...p, r.data]);
       setNewImg({ url:'', caption:'' });
       toast.success(t('helperDashboard.photoAdded'));
     } catch { toast.error(t('helperDashboard.failedAddPhoto')); }
+    finally { setUploadingImage(false); }
   };
   const deleteImage = async (id) => {
     try { await api.delete(`/helper-profile/gallery/${id}`); setGallery(p => p.filter(g => g.id !== id)); }
@@ -483,11 +487,17 @@ export default function EditProfileTab() {
           {gallery.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noPhotos')}</p>}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
             {gallery.map(g => (
-              <div key={g.id} className="relative group rounded-xl overflow-hidden bg-gray-800 border border-gray-700 aspect-square">
-                <img src={g.url} alt={g.caption || 'Work photo'} className="w-full h-full object-cover"
-                  onError={e => { e.target.style.display = 'none'; }} />
+              <div key={g.id} className="relative group rounded-xl overflow-hidden bg-gray-800 border border-gray-700 aspect-square flex items-center justify-center">
+                {!failedImages[g.id] ? (
+                  <img src={g.url} alt={g.caption || 'Work photo'} className="w-full h-full object-cover"
+                    onError={() => setFailedImages(p => ({ ...p, [g.id]: true }))} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-700 text-gray-400 text-xs text-center p-2">
+                    <span>{t('helperDashboard.imageLoadError') || 'Image failed to load'}</span>
+                  </div>
+                )}
                 <button onClick={() => deleteImage(g.id)}
-                  className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold z-10">
                   ×
                 </button>
                 {g.caption && (
@@ -500,11 +510,11 @@ export default function EditProfileTab() {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('helperDashboard.addPhotoHeader')}</p>
             <Input label={t('helperDashboard.imageUrl')} type="url" value={newImg.url}
               onChange={e => setNewImg({ ...newImg, url: e.target.value })}
-              placeholder={t('helperDashboard.imageUrlPlaceholder')} required />
+              placeholder={t('helperDashboard.imageUrlPlaceholder')} required disabled={uploadingImage} />
             <Input label={t('helperDashboard.captionLabel')} value={newImg.caption}
               onChange={e => setNewImg({ ...newImg, caption: e.target.value })}
-              placeholder={t('helperDashboard.captionPlaceholder')} />
-            <Btn type="submit">{t('helperDashboard.addPhotoBtn')}</Btn>
+              placeholder={t('helperDashboard.captionPlaceholder')} disabled={uploadingImage} />
+            <Btn type="submit" disabled={uploadingImage}>{uploadingImage ? t('helperDashboard.uploading') || 'Uploading...' : t('helperDashboard.addPhotoBtn')}</Btn>
           </form>
         </Card>
       )}

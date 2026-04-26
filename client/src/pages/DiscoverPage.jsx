@@ -179,7 +179,10 @@ export default function DiscoverPage() {
       }
     } catch (e) {
       setError(t('discover.loadError'));
-      if (!append) setResults([]);
+      if (!append) {
+        setResults([]);
+        setExpandedTerms([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -450,6 +453,7 @@ export default function DiscoverPage() {
               {results.map((r) => {
                 const Icon = TYPE_ICONS[r.type] || Search;
                 const actionKey = ACTION_KEYS[r.primaryAction] || ACTION_KEYS.view;
+                const freshness = freshnessLabel(r);
                 return (
                   <li key={`${r.type}-${r.id}-${r.title}`}>
                     <Link
@@ -489,7 +493,7 @@ export default function DiscoverPage() {
                               {highlightTerms.length ? highlightText(r.subtitle, highlightTerms) : r.subtitle}
                             </p>
                           ) : null}
-                          {r.matchReasons && r.matchReasons.length > 0 && (
+                          {Array.isArray(r.matchReasons) && r.matchReasons.length > 0 && (
                             <p className="text-[11px] text-gray-500 mt-1">
                               {t('discover.matches')}{' '}
                               {r.matchReasons.map((m) => t(REASON_KEYS[m] || 'discover.match.other')).join(' · ')}
@@ -507,14 +511,14 @@ export default function DiscoverPage() {
                               <span>{t('discover.distanceAway', { miles: Math.round(r.distanceMiles * 10) / 10 })}</span>
                             )}
                             {r.priceHint && <span>{r.priceHint}</span>}
-                            {freshnessLabel(r) && <span>{freshnessLabel(r)}</span>}
+                            {freshness && <span>{freshness}</span>}
                           </div>
                           <div className="mt-2">
                             <span className="inline-flex items-center text-xs font-medium text-orange-400">
                               {t(actionKey)} <ChevronRight className="w-3.5 h-3.5 ml-0.5" aria-hidden />
                             </span>
                           </div>
-                          {r.related && r.related.length > 0 && (
+                          {Array.isArray(r.related) && r.related.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-gray-800">
                               <p className="text-[11px] font-medium text-violet-300 mb-1">{t('discover.relatedHelpers')}</p>
                               <div className="flex flex-wrap gap-2">
@@ -547,7 +551,6 @@ export default function DiscoverPage() {
                 {t('discover.loadMore')}
               </button>
             )}
-            {!hasMore && total > results.length ? null : null}
             {q.trim() && results.length > 0 && radius < 150 && (
               <button
                 type="button"
