@@ -179,7 +179,10 @@ export default function DiscoverPage() {
       }
     } catch (e) {
       setError(t('discover.loadError'));
-      if (!append) setResults([]);
+      if (!append) {
+        setResults([]);
+        setExpandedTerms([]);
+      }
     } finally {
       setLoading(false);
     }

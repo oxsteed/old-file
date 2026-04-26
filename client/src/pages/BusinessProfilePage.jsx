@@ -581,7 +581,7 @@ export default function BusinessProfilePage() {
                 {t('auth.signIn')}
               </Link>
               <Link
-                to="/register"
+                to="/register/customer"
                 className="flex-1 text-center py-2.5 rounded-xl border border-gray-600 text-gray-200 font-semibold text-sm hover:bg-gray-800 transition-colors"
               >
                 {t('nav.register')}
