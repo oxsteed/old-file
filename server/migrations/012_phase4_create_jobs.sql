@@ -49,6 +49,27 @@ CREATE TABLE IF NOT EXISTS jobs (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Backfill missing columns for tables created by earlier partial runs
+ALTER TABLE jobs
+    ADD COLUMN IF NOT EXISTS category VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS category_name VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS subcategory VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS job_type VARCHAR(50) DEFAULT 'standard',
+    ADD COLUMN IF NOT EXISTS job_value NUMERIC(10, 2),
+    ADD COLUMN IF NOT EXISTS dispute_status VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal',
+    ADD COLUMN IF NOT EXISTS scheduled_time_start TIME,
+    ADD COLUMN IF NOT EXISTS scheduled_time_end TIME,
+    ADD COLUMN IF NOT EXISTS estimated_duration_hours NUMERIC(5, 2),
+    ADD COLUMN IF NOT EXISTS actual_duration_hours NUMERIC(5, 2),
+    ADD COLUMN IF NOT EXISTS bid_count INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS cancellation_reason TEXT,
+    ADD COLUMN IF NOT EXISTS poster_confirmed BOOLEAN DEFAULT false,
+    ADD COLUMN IF NOT EXISTS helper_confirmed BOOLEAN DEFAULT false;
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_jobs_client_id ON jobs(client_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_assigned_helper_id ON jobs(assigned_helper_id);
