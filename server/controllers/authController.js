@@ -512,7 +512,7 @@ async function checkZip(req, res) {
   try {
     const { zip } = req.body;
     if (!zip) return res.status(400).json({ error: 'Zip code required' });
-    if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code format' });
+    if (!/^\d{5}(-\d{4})?$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code format' });
     res.json({ inMarket: true });
   } catch (err) {
     logger.error('Check zip error', { err });
@@ -579,7 +579,7 @@ async function startRegistration(req, res) {
       return res.status(400).json({ error: 'Invalid phone number' });
     }
     const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
-    if (!/^\d{5}$/.test(normalized.zip)) return res.status(400).json({ error: 'Invalid zip code' });
+    if (!/^\d{5}(-\d{4})?$/.test(normalized.zip)) return res.status(400).json({ error: 'Invalid zip code' });
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
