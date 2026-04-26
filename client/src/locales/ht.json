@@ -132,6 +132,22 @@
     "prefSaved": "Preferans sove",
     "failedLoad": "Echèk chajman preferans",
     "failedSave": "Echèk sove preferans",
+    "webPush": {
+      "title": "Notifikasyon Navigatè",
+      "subtitle": "Resevwa alèt nan navigatè sa a menm lè OxSteed pa louvri.",
+      "toggleLabel": "Aktive notifikasyon navigatè",
+      "sendTest": "Voye yon notifikasyon tès",
+      "statusOff": "Etenn — aktive l pou resevwa notifikasyon nan navigatè sa a.",
+      "statusOn": "Aktive — navigatè sa a ap resevwa notifikasyon push.",
+      "statusDenied": "Bloke pa navigatè a. Otorize notifikasyon nan paramèt navigatè a pou aktive.",
+      "statusUnsupported": "Navigatè ou pa sipòte notifikasyon push.",
+      "statusServerOff": "Notifikasyon push pa disponib kounye a.",
+      "deniedHelp": "Notifikasyon yo bloke. Louvri paramèt sit la nan navigatè ou pou OxSteed epi chanje notifikasyon yo nan Otorize, apre rechaje.",
+      "enabledToast": "Notifikasyon navigatè aktive",
+      "disabledToast": "Notifikasyon navigatè dezaktive",
+      "testSentToast": "Notifikasyon tès voye — gade pou li !",
+      "deniedToast": "Pèmisyon refize. Otorize notifikasyon nan paramèt navigatè a."
+    },
     "groups": {
       "in_app": {
         "label": "Notifikasyon nan Aplikasyon",

@@ -2619,6 +2619,22 @@
     "prefSaved": "Préférence enregistrée",
     "failedLoad": "Impossible de charger les préférences",
     "failedSave": "Impossible d'enregistrer la préférence",
+    "webPush": {
+      "title": "Notifications du navigateur",
+      "subtitle": "Recevez des alertes dans ce navigateur même quand OxSteed n'est pas ouvert.",
+      "toggleLabel": "Activer les notifications du navigateur",
+      "sendTest": "Envoyer une notification de test",
+      "statusOff": "Désactivé — activez-le pour recevoir des notifications push dans ce navigateur.",
+      "statusOn": "Activé — ce navigateur recevra des notifications push.",
+      "statusDenied": "Bloqué par le navigateur. Autorisez les notifications dans les paramètres du navigateur pour activer.",
+      "statusUnsupported": "Votre navigateur ne prend pas en charge les notifications push.",
+      "statusServerOff": "Les notifications push ne sont pas disponibles pour le moment.",
+      "deniedHelp": "Les notifications sont bloquées. Ouvrez les paramètres du site dans votre navigateur pour OxSteed et changez les notifications sur Autoriser, puis rechargez.",
+      "enabledToast": "Notifications du navigateur activées",
+      "disabledToast": "Notifications du navigateur désactivées",
+      "testSentToast": "Notification de test envoyée — surveillez-la !",
+      "deniedToast": "Permission refusée. Autorisez les notifications dans les paramètres du navigateur."
+    },
     "groups": {
       "in_app": {
         "label": "Notifications dans l'Application",
