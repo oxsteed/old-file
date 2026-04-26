@@ -603,13 +603,18 @@ async function updateContact(req, res) {
 
     if (!phone || !zip) return res.status(400).json({ error: 'Phone and zip required' });
 
-    await pool.query(`
+    const { rows } = await pool.query(`
       UPDATE users SET
         phone             = $1,
         zip_code          = $2,
         contact_completed = true
       WHERE id = $3 AND role = 'helper'
+      RETURNING id
     `, [phone, zip, userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Helper account not found' });
+    }
 
     res.json({ message: 'Contact updated' });
   } catch (err) {
@@ -698,14 +703,18 @@ async function saveTier(req, res) {
     }
 
     // Update with canonical tier representation in both tables
-    await pool.query(
+    const { rows: updateRows } = await pool.query(
       `UPDATE users
        SET tier_selected   = TRUE,
            membership_tier = $1,
            updated_at      = NOW()
-       WHERE id = $2 AND role = 'helper'`,
+       WHERE id = $2 AND role = 'helper'
+       RETURNING id`,
       [normalized, userId]
     );
+    if (updateRows.length === 0) {
+      return res.status(404).json({ error: 'Helper account not found' });
+    }
 
     await pool.query(
       `INSERT INTO helper_profiles (user_id, tier)
@@ -779,7 +788,7 @@ async function acceptTerms(req, res) {
   try {
     const userId = req.user.id;
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
-    await pool.query(
+    const { rows } = await pool.query(
       `UPDATE users
        SET terms_accepted      = TRUE,
            terms_accepted_at   = NOW(),
@@ -787,7 +796,8 @@ async function acceptTerms(req, res) {
            terms_acceptance_ip = $2,
            terms_acceptance_ua = $3,
            updated_at          = NOW()
-       WHERE id = $4`,
+       WHERE id = $4 AND role = 'helper'
+       RETURNING id`,
       [
         termsVersion,
         hashIP(req.ip || 'unknown')?.slice(0, TERMS_IP_HASH_MAX_LEN) || null,
@@ -795,6 +805,9 @@ async function acceptTerms(req, res) {
         userId
       ]
     );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Helper account not found' });
+    }
     return res.json({ message: 'Terms accepted' });
   } catch (err) {
     logger.error('acceptTerms helper error:', { err });
