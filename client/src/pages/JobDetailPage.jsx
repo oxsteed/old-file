@@ -155,21 +155,21 @@ export default function JobDetailPage() {
   async function handleAssign(bidId) {
     setActionLoading(true);
     try { await assignHelper(bidId); fetchJob(id); loadBids(); }
-    catch (err) { alert(err.response?.data?.error || 'Failed to assign helper'); }
+    catch (err) { toast.error(err.response?.data?.error || 'Failed to assign helper'); }
     finally { setActionLoading(false); }
   }
 
   async function handleStart() {
     setActionLoading(true);
     try { await startJob(id); fetchJob(id); }
-    catch (err) { alert(err.response?.data?.error || 'Failed to start job'); }
+    catch (err) { toast.error(err.response?.data?.error || 'Failed to start job'); }
     finally { setActionLoading(false); }
   }
 
   async function handleComplete() {
     setActionLoading(true);
     try { await completeJob(id); fetchJob(id); }
-    catch (err) { alert(err.response?.data?.error || 'Failed to complete job'); }
+    catch (err) { toast.error(err.response?.data?.error || 'Failed to complete job'); }
     finally { setActionLoading(false); }
   }
 
@@ -177,7 +177,7 @@ export default function JobDetailPage() {
     if (!cancelReason.trim()) return;
     setActionLoading(true);
     try { await cancelJob(id, cancelReason); fetchJob(id); setShowCancelModal(false); }
-    catch (err) { alert(err.response?.data?.error || 'Failed to cancel job'); }
+    catch (err) { toast.error(err.response?.data?.error || 'Failed to cancel job'); }
     finally { setActionLoading(false); }
   }
 
