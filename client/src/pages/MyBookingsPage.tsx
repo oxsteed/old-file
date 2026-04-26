@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
+import { useAuth } from '../hooks/useAuth';
 import { toolRentalsApi } from '../api/toolRentals';
 import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';

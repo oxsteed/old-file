@@ -1487,12 +1487,12 @@ export default function Dashboard() {
             {/* Checklist */}
             <Card>
               <CardHeader icon={IcoCheck} title={t('dashboard.goals.checklist')} right={<Btn onClick={()=>setShowChecklistModal(true)}>{t('common.add')}</Btn>}/>
-              <p className="text-xs text-gray-600 mb-3">{t('dashboard.goals.completedOf', { completed: life.checklist.filter(i=>i.is_completed).length, total: life.checklist.length })}</p>
-              {life.checklist.length===0 ? (
+              <p className="text-xs text-gray-600 mb-3">{t('dashboard.goals.completedOf', { completed: (life.checklist || []).filter(i=>i.is_completed).length, total: (life.checklist || []).length })}</p>
+              {(life.checklist || []).length===0 ? (
                 <p className="text-gray-600 text-sm text-center py-8">{t('dashboard.goals.noChecklist')}</p>
               ) : (
                 <div className="space-y-1.5 max-h-96 overflow-y-auto">
-                  {life.checklist.map(item=>(
+                  {(life.checklist || []).map(item=>(
                     <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800/30 transition group">
                       <button onClick={()=>toggleChecklist(item)} className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border transition ${item.is_completed?'bg-emerald-500 border-emerald-500':'border-gray-600 hover:border-orange-500'}`}>
                         {item.is_completed && <IcoCheck size={12} cls="text-gray-950"/>}

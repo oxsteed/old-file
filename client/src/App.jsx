@@ -49,6 +49,7 @@ import PlannedNeedsPage from './pages/PlannedNeedsPage';
 import CarCarePage from './pages/CarCarePage';
 import BusinessHubPage from './pages/BusinessHubPage';
 import VerifyIdentityPage from './pages/VerifyIdentityPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import PublicInvoiceView from './pages/PublicInvoiceView';
 import ToolRentalsBrowse from './pages/ToolRentalsBrowse';
 import DiscoverPage from './pages/DiscoverPage';
@@ -128,6 +129,8 @@ export default function App() {
                     <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
 
                     {/* ── Authenticated routes ────────────────────────────── */}
+                    {/* verify-email is exempt from email verification gate in ProtectedRoute (see EMAIL_VERIFICATION_EXEMPT_PATHS) */}
+                    <Route path="/verify-email" element={<Guarded><ProtectedRoute><VerifyEmailPage /></ProtectedRoute></Guarded>} />
                     {/* verify-identity is exempt from the Didit gate in ProtectedRoute (see DIDIT_EXEMPT_PATHS) */}
                     <Route path="/verify-identity" element={<Guarded><ProtectedRoute><VerifyIdentityPage /></ProtectedRoute></Guarded>} />
 
