@@ -31,7 +31,7 @@ exports.createBid = async (req, res) => {
 
     res.status(201).json(result);
   } catch (err) {
-    logger.error('Create bid error', { err });
+    logger.error('Create bid error', { userId: req.user?.id, jobId: req.body?.job_id, error: err.message });
     res.status(500).json({ error: 'Failed to create bid' });
   }
 };
@@ -75,7 +75,7 @@ exports.getJobBids = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get job bids error', { err });
+    logger.error('Get job bids error', { jobId: req.params?.jobId, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -92,7 +92,7 @@ exports.getMyBids = async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get my bids error', { err });
+    logger.error('Get my bids error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch bids' });
   }
 };
@@ -112,7 +112,7 @@ exports.updateBid = async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    logger.error('Update bid error', { err });
+    logger.error('Update bid error', { bidId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to update bid' });
   }
 };
@@ -131,7 +131,7 @@ exports.withdrawBid = async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    logger.error('Withdraw bid error', { err });
+    logger.error('Withdraw bid error', { bidId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to withdraw bid' });
   }
 };
@@ -154,7 +154,7 @@ exports.getRecentBids = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get recent bids error', { err });
+    logger.error('Get recent bids error', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch recent bids' });
   }
 };

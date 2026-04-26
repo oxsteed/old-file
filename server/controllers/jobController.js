@@ -149,7 +149,7 @@ exports.createJob = async (req, res) => {
       matchResult = await scoreAndMatch(rows[0]);
     } catch (matchErr) {
       // Never fail the publish because of match scoring
-      logger.error('Match scoring error (non-fatal)', { err: matchErr });
+      logger.error('Match scoring error (non-fatal)', { jobId: rows[0]?.id, error: matchErr.message });
     }
 
     // ── Clear the user's draft ──────────────────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ exports.createJob = async (req, res) => {
       notify_count: matchResult.notified || 0,
     });
   } catch (err) {
-    logger.error('Create job error', { err });
+    logger.error('Create job error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create job' });
   }
 };
@@ -257,7 +257,7 @@ exports.getJobs = async (req, res) => {
       limit: parseInt(limit)
     });
   } catch (err) {
-    logger.error('Get jobs error', { err });
+    logger.error('Get jobs error', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
 };
@@ -290,7 +290,7 @@ exports.getJob = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('Get job error', { err });
+    logger.error('Get job error', { jobId: req.params?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch job' });
   }
 };
@@ -337,7 +337,7 @@ exports.updateJob = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('Update job error', { err });
+    logger.error('Update job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to update job' });
   }
 };
@@ -360,7 +360,7 @@ exports.cancelJob = async (req, res) => {
 
     res.json({ message: 'Job cancelled', job: rows[0] });
   } catch (err) {
-    logger.error('Cancel job error', { err });
+    logger.error('Cancel job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to cancel job' });
   }
 };
@@ -386,7 +386,7 @@ exports.assignHelper = async (req, res) => {
 
     res.json({ message: 'Helper assigned', job: rows[0] });
   } catch (err) {
-    logger.error('Assign helper error', { err });
+    logger.error('Assign helper error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to assign helper' });
   }
 };
@@ -412,7 +412,7 @@ exports.startJob = async (req, res) => {
 
     res.json({ message: 'Job started', job: rows[0] });
   } catch (err) {
-    logger.error('Start job error', { err });
+    logger.error('Start job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to start job' });
   }
 };
@@ -479,7 +479,7 @@ exports.completeJob = async (req, res) => {
         error: 'Cannot complete job while a payment dispute is open. Resolve the dispute first.',
       });
     }
-    logger.error('Complete job error', { err });
+    logger.error('Complete job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to complete job' });
   }
 };
@@ -512,7 +512,7 @@ exports.closeJob = async (req, res) => {
 
     res.json({ message: 'Job closed', job: result });
   } catch (err) {
-    logger.error('Close job error', { err });
+    logger.error('Close job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to close job' });
   }
 };
@@ -541,7 +541,7 @@ exports.getMyJobs = async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    logger.error('Get my jobs error', { err });
+    logger.error('Get my jobs error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch your jobs' });
   }
 };

@@ -116,7 +116,7 @@ exports.submitReview = async (req, res) => {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'You have already reviewed this job.' });
     }
-    logger.error('submitReview error', { message: err.message });
+    logger.error('submitReview error', { userId: req.user?.id, jobId: req.params?.jobId, error: err.message });
     res.status(500).json({ error: 'Failed to submit review.' });
   } finally {
     if (dbClient) dbClient.release();
@@ -168,7 +168,7 @@ exports.getUserReviews = async (req, res) => {
       limit:   parseInt(limit)
     });
   } catch (err) {
-    logger.error('getUserReviews error', { message: err.message });
+    logger.error('getUserReviews error', { userId: req.params?.userId, error: err.message });
     res.status(500).json({ error: 'Failed to fetch reviews.' });
   }
 };
@@ -203,7 +203,7 @@ exports.getReviewEligibility = async (req, res) => {
 
     res.json({ eligible, already_reviewed, job_status: status });
   } catch (err) {
-    logger.error('getReviewEligibility error', { message: err.message });
+    logger.error('getReviewEligibility error', { jobId: req.params?.jobId, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to check eligibility.' });
   }
 };
@@ -262,7 +262,7 @@ exports.adminHideReview = async (req, res) => {
 
     res.json({ message: 'Review hidden successfully.' });
   } catch (err) {
-    logger.error('adminHideReview error', { message: err.message });
+    logger.error('adminHideReview error', { reviewId: req.params?.id, adminId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to hide review.' });
   }
 };
@@ -298,7 +298,7 @@ exports.respondToReview = async (req, res) => {
 
     res.json({ review: rows[0] });
   } catch (err) {
-    logger.error('respondToReview error', { message: err.message });
+    logger.error('respondToReview error', { reviewId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to respond to review.' });
   }
 };

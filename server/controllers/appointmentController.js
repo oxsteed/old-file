@@ -218,7 +218,7 @@ exports.createAppointment = async (req, res) => {
         subject: `New appointment request from ${displayName(customer)}`,
         html,
       });
-    }).catch(err => logger.warn('Appointment request email failed', { err: err?.message }));
+    }).catch(err => logger.warn('Appointment request email failed', { error: err?.message }));
 
     try {
       broadcastToUser(helper_id, 'appointment:requested', {
@@ -234,7 +234,7 @@ exports.createAppointment = async (req, res) => {
     if (err.code === 'HELPER_UNAVAILABLE') {
       return sendError(res, 409, 'Helper is unavailable during the requested time', 'HELPER_UNAVAILABLE');
     }
-    logger.error('Failed to create appointment', { err: err.message, customer_id, helper_id });
+    logger.error('Failed to create appointment', { customerId: customer_id, helperId: helper_id, error: err.message });
     return sendError(res, 500, 'Failed to create appointment', 'INTERNAL_ERROR');
   }
 };
@@ -306,7 +306,7 @@ exports.getAppointments = async (req, res) => {
       hasMore: offset + limit < total,
     });
   } catch (err) {
-    logger.error('Failed to fetch appointments', { err: err.message, userId });
+    logger.error('Failed to fetch appointments', { userId, error: err.message });
     return sendError(res, 500, 'Failed to fetch appointments', 'INTERNAL_ERROR');
   }
 };
@@ -337,7 +337,7 @@ exports.getAppointment = async (req, res) => {
     }
     return sendSuccess(res, result.rows[0]);
   } catch (err) {
-    logger.error('Failed to fetch appointment', { err: err.message, id, userId });
+    logger.error('Failed to fetch appointment', { appointmentId: id, userId, error: err.message });
     return sendError(res, 500, 'Failed to fetch appointment', 'INTERNAL_ERROR');
   }
 };
@@ -430,7 +430,7 @@ exports.confirmAppointment = async (req, res) => {
           html,
         });
       })
-      .catch(err => logger.warn('Confirmation email failed', { err: err?.message }));
+      .catch(err => logger.warn('Confirmation email failed', { error: err?.message }));
 
     try {
       broadcastToUser(updated.customer_id, 'appointment:confirmed', { appointment: updated });
@@ -441,7 +441,7 @@ exports.confirmAppointment = async (req, res) => {
     if (err.code === 'APPOINTMENT_NOT_FOUND') {
       return sendError(res, 404, 'Appointment not found or cannot be confirmed', 'NOT_FOUND');
     }
-    logger.error('Failed to confirm appointment', { err: err.message, id, helperId });
+    logger.error('Failed to confirm appointment', { appointmentId: id, helperId, error: err.message });
     return sendError(res, 500, 'Failed to confirm appointment', 'INTERNAL_ERROR');
   }
 };
@@ -534,7 +534,7 @@ exports.cancelAppointment = async (req, res) => {
     if (err.code === 'APPOINTMENT_NOT_CANCELLABLE') {
       return sendError(res, 409, 'Appointment cannot be cancelled in its current state', 'NOT_CANCELLABLE');
     }
-    logger.error('Failed to cancel appointment', { err: err.message, id, userId });
+    logger.error('Failed to cancel appointment', { appointmentId: id, userId, error: err.message });
     return sendError(res, 500, 'Failed to cancel appointment', 'INTERNAL_ERROR');
   }
 };
