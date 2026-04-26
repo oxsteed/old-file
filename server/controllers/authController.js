@@ -142,9 +142,10 @@ async function register(req, res) {
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
     }
     const tokens = generateTokens(user);
+    const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, tokens.refreshToken]
+      [user.id, hashedRefresh]
     );
    const { rows: fullRows } = await pool.query(
   `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
