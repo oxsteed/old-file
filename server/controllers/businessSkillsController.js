@@ -202,11 +202,15 @@ exports.removeBusinessSkill = async (req, res) => {
       return sendError(res, 404, 'Skill assignment not found');
     }
 
-    // Delete
-    await pool.query(
-      'DELETE FROM business_skills WHERE business_id = $1 AND skill_id = $2',
+    // Delete with RETURNING to verify deletion
+    const delResult = await pool.query(
+      'DELETE FROM business_skills WHERE business_id = $1 AND skill_id = $2 RETURNING id',
       [businessId, skillId]
     );
+
+    if (!delResult.rows.length) {
+      return sendError(res, 500, 'Delete failed unexpectedly');
+    }
 
     sendSuccess(res, null, 'Skill removed from business');
   } catch (err) {

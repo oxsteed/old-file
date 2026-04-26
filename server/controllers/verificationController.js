@@ -68,7 +68,7 @@ exports.initiateBackgroundCheck = async (req, res) => {
     await db.query(
       `INSERT INTO background_checks (user_id, checkr_candidate_id, checkr_invitation_id, status)
        VALUES ($1, $2, $3, 'invited')`,
-      [userId, candidateRes.id, inviteRes.id]
+      [userId, candidateRes.data.id, inviteRes.data.id]
     );
 
     await db.query(
@@ -173,6 +173,7 @@ exports.getBackgroundCheckStatus = async (req, res) => {
     );
     res.json({ backgroundCheck: rows[0] || null });
   } catch (err) {
+    logger.error('Failed to fetch background check status', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch background check status.' });
   }
 };
@@ -277,6 +278,7 @@ exports.getIdentityStatus = async (req, res) => {
     );
     res.json({ identity: rows[0] || null });
   } catch (err) {
+    logger.error('Failed to fetch identity verification status', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch identity status.' });
   }
 };

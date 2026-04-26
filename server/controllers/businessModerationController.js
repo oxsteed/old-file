@@ -53,7 +53,18 @@ exports.toggleBusiness = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
     const newActive = !rows[0].is_active;
-    await db.query('UPDATE businesses SET is_active = $1, updated_at = NOW() WHERE id = $2', [newActive, id]);
+    const oldActive = rows[0].is_active;
+
+    // Update with safeguard to prevent race conditions — only update if current state matches
+    const updateResult = await db.query(
+      'UPDATE businesses SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id',
+      [newActive, id, oldActive]
+    );
+
+    if (!updateResult.rows.length) {
+      return res.status(409).json({ error: 'Business state changed during update. Please try again.' });
+    }
+
     try {
       await logAdminAction({
         adminId: req.user.id,
@@ -65,7 +76,7 @@ exports.toggleBusiness = async (req, res) => {
     } catch (e) {}
     res.json({ message: `Business ${newActive ? 'reactivated' : 'deactivated'}.`, is_active: newActive });
   } catch (err) {
-    logger.error('toggleBusiness error', { err });
+    logger.error('toggleBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
     res.status(500).json({ error: 'Failed to update business.' });
   }
 };
@@ -118,7 +129,18 @@ exports.toggleToolRental = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Tool rental not found.' });
     const newAvailable = !rows[0].is_available;
-    await db.query('UPDATE tool_rentals SET is_available = $1, updated_at = NOW() WHERE id = $2', [newAvailable, id]);
+    const oldAvailable = rows[0].is_available;
+
+    // Update with safeguard to prevent race conditions
+    const updateResult = await db.query(
+      'UPDATE tool_rentals SET is_available = $1, updated_at = NOW() WHERE id = $2 AND is_available = $3 RETURNING id',
+      [newAvailable, id, oldAvailable]
+    );
+
+    if (!updateResult.rows.length) {
+      return res.status(409).json({ error: 'Tool rental state changed during update. Please try again.' });
+    }
+
     try {
       await logAdminAction({
         adminId: req.user.id,
@@ -130,7 +152,7 @@ exports.toggleToolRental = async (req, res) => {
     } catch (e) {}
     res.json({ message: `Tool rental ${newAvailable ? 'enabled' : 'hidden'}.`, is_available: newAvailable });
   } catch (err) {
-    logger.error('toggleToolRental error', { err });
+    logger.error('toggleToolRental error', { err, toolId: req.params?.id, adminId: req.user?.id });
     res.status(500).json({ error: 'Failed to update tool rental.' });
   }
 };
@@ -183,7 +205,17 @@ exports.cancelAutopublish = async (req, res) => {
     if (rows[0].status !== 'activating_soon') {
       return res.status(409).json({ error: `Cannot cancel auto-publish: status is '${rows[0].status}', must be 'activating_soon'.` });
     }
-    await db.query("UPDATE planned_needs SET status = 'planned', updated_at = NOW() WHERE id = $1", [id]);
+
+    // Update with safeguard to prevent race conditions
+    const updateResult = await db.query(
+      "UPDATE planned_needs SET status = 'planned', updated_at = NOW() WHERE id = $1 AND status = 'activating_soon' RETURNING id",
+      [id]
+    );
+
+    if (!updateResult.rows.length) {
+      return res.status(409).json({ error: 'Planned need status changed during update. Please try again.' });
+    }
+
     try {
       await logAdminAction({
         adminId: req.user.id, action: 'planned_need_autopublish_cancelled',
@@ -194,7 +226,7 @@ exports.cancelAutopublish = async (req, res) => {
     } catch (e) {}
     res.json({ message: 'Auto-publish cancelled. Need reset to planned.' });
   } catch (err) {
-    logger.error('cancelAutopublish error', { err });
+    logger.error('cancelAutopublish error', { err, needId: req.params?.id, adminId: req.user?.id });
     res.status(500).json({ error: 'Failed to cancel auto-publish.' });
   }
 };
@@ -212,9 +244,16 @@ exports.forceCancel = async (req, res) => {
     if (TERMINAL.includes(rows[0].status)) {
       return res.status(409).json({ error: `Cannot cancel: already '${rows[0].status}'.` });
     }
-    await db.query(
-      "UPDATE planned_needs SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = $1", [id]
+
+    // Update with safeguard to prevent race conditions
+    const updateResult = await db.query(
+      "UPDATE planned_needs SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = $1 AND status NOT IN ('cancelled', 'completed', 'regenerated') RETURNING id",
+      [id]
     );
+
+    if (!updateResult.rows.length) {
+      return res.status(409).json({ error: 'Planned need status changed during update. Please try again.' });
+    }
     try {
       await logAdminAction({
         adminId: req.user.id, action: 'planned_need_force_cancelled',

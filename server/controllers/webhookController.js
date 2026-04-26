@@ -20,7 +20,7 @@ exports.stripeWebhook = async (req, res) => {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    logger.error('Webhook signature verification failed', { err });
+    logger.error('Webhook signature verification failed', { error: err.message });
     return res.status(400).json({ error: 'Invalid signature.' });
   }
 
@@ -260,7 +260,7 @@ exports.stripeWebhook = async (req, res) => {
     }
     res.json({ received: true });
   } catch (err) {
-    logger.error('Webhook handler error', { err });
+    logger.error('Stripe webhook handler error', { error: err.message });
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };
@@ -549,7 +549,7 @@ exports.diditWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (err) {
-    logger.error('[Didit] Webhook handler error', { err });
+    logger.error('Didit webhook handler error', { error: err.message });
     res.status(500).json({ error: 'Webhook processing failed.' });
   }
 };

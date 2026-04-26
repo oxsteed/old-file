@@ -442,23 +442,57 @@ exports.removeBid = async (req, res) => {
     const { bidId } = req.params;
     const { reason } = req.body;
     if (!reason?.trim()) return res.status(400).json({ error: 'Removal reason is required.' });
+
+    // Fetch bid details outside transaction for validation
     const { rows: before } = await db.query('SELECT b.*, j.title AS job_title FROM bids b JOIN jobs j ON b.job_id = j.id WHERE b.id = $1', [bidId]);
     if (!before.length) return res.status(404).json({ error: 'Bid not found.' });
     if (before[0].status === 'removed') return res.status(400).json({ error: 'Bid already removed.' });
-    await db.query(`UPDATE bids SET status = 'removed', updated_at = NOW() WHERE id = $1`, [bidId]);
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'bid_removed',
-      targetType: 'bid',
-      targetId: bidId,
-      description: reason.trim(),
-      before: { status: before[0].status, job_title: before[0].job_title },
-      after:  { status: 'removed' },
-      req,
-    });
-    res.json({ message: 'Bid removed successfully.' });
+
+    // Update bid and log admin action atomically
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Update bid with status check to prevent race conditions
+      const { rows: updateRows } = await client.query(
+        `UPDATE bids SET status = 'removed', updated_at = NOW() WHERE id = $1 AND status != 'removed' RETURNING *`,
+        [bidId]
+      );
+
+      if (!updateRows.length) {
+        throw new Error('Bid status changed during removal — already removed by another admin');
+      }
+
+      // Log admin action
+      await client.query(`
+        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at)
+        VALUES ($1, 'bid_removed', 'bid', $2, $3, NOW())
+      `, [req.user.id, bidId, JSON.stringify({
+        reason: reason.trim(),
+        before_status: before[0].status,
+        job_title: before[0].job_title,
+        helper_id: before[0].helper_id
+      })]);
+
+      await client.query('COMMIT');
+
+      logger.info('Bid removed by admin', {
+        bidId,
+        adminId: req.user.id,
+        reason: reason.trim(),
+        beforeStatus: before[0].status,
+        jobTitle: before[0].job_title
+      });
+
+      res.json({ message: 'Bid removed successfully.' });
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
   } catch (err) {
-    logger.error('removeBid error', { err });
+    logger.error('Remove bid error', { bidId: req.params?.bidId, adminId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to remove bid.' });
   }
 };
@@ -470,23 +504,57 @@ exports.removeReview = async (req, res) => {
     const { reviewId } = req.params;
     const { reason } = req.body;
     if (!reason?.trim()) return res.status(400).json({ error: 'Removal reason is required.' });
+
+    // Fetch review details outside transaction for validation
     const { rows: before } = await db.query('SELECT r.*, j.title AS job_title FROM reviews r JOIN jobs j ON r.job_id = j.id WHERE r.id = $1', [reviewId]);
     if (!before.length) return res.status(404).json({ error: 'Review not found.' });
     if (!before[0].is_public) return res.status(400).json({ error: 'Review is already hidden.' });
-    await db.query(`UPDATE reviews SET is_public = false, updated_at = NOW() WHERE id = $1`, [reviewId]);
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'review_removed',
-      targetType: 'review',
-      targetId: reviewId,
-      description: reason.trim(),
-      before: { is_public: true, rating: before[0].rating, job_title: before[0].job_title },
-      after:  { is_public: false },
-      req,
-    });
-    res.json({ message: 'Review hidden successfully.' });
+
+    // Update review and log admin action atomically
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Update review with is_public check to prevent race conditions
+      const { rows: updateRows } = await client.query(
+        `UPDATE reviews SET is_public = false, updated_at = NOW() WHERE id = $1 AND is_public = true RETURNING *`,
+        [reviewId]
+      );
+
+      if (!updateRows.length) {
+        throw new Error('Review visibility status changed during removal — already hidden by another admin');
+      }
+
+      // Log admin action
+      await client.query(`
+        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at)
+        VALUES ($1, 'review_hidden', 'review', $2, $3, NOW())
+      `, [req.user.id, reviewId, JSON.stringify({
+        reason: reason.trim(),
+        rating: before[0].rating,
+        job_title: before[0].job_title,
+        reviewer_id: before[0].reviewer_id
+      })]);
+
+      await client.query('COMMIT');
+
+      logger.info('Review hidden by admin', {
+        reviewId,
+        adminId: req.user.id,
+        reason: reason.trim(),
+        rating: before[0].rating,
+        jobTitle: before[0].job_title
+      });
+
+      res.json({ message: 'Review hidden successfully.' });
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
   } catch (err) {
-    logger.error('removeReview error', { err });
+    logger.error('Remove review error', { reviewId: req.params?.reviewId, adminId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to hide review.' });
   }
 };
@@ -496,20 +564,53 @@ exports.restoreReview = async (req, res) => {
   try {
     if (!(await tableExists('reviews'))) return res.status(400).json({ error: 'Reviews table not available.' });
     const { reviewId } = req.params;
-    const { rows } = await db.query('SELECT id, is_public FROM reviews WHERE id = $1', [reviewId]);
-    if (!rows.length) return res.status(404).json({ error: 'Review not found.' });
-    if (rows[0].is_public) return res.status(400).json({ error: 'Review is already visible.' });
-    await db.query(`UPDATE reviews SET is_public = true, updated_at = NOW() WHERE id = $1`, [reviewId]);
-    await logAdminAction({
-      adminId: req.user.id,
-      action: 'review_restored',
-      targetType: 'review',
-      targetId: reviewId,
-      req,
-    });
-    res.json({ message: 'Review restored.' });
+
+    // Fetch review details outside transaction for validation
+    const { rows: before } = await db.query('SELECT id, is_public, rating, reviewer_id FROM reviews WHERE id = $1', [reviewId]);
+    if (!before.length) return res.status(404).json({ error: 'Review not found.' });
+    if (before[0].is_public) return res.status(400).json({ error: 'Review is already visible.' });
+
+    // Update review and log admin action atomically
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Update review with is_public check to prevent race conditions
+      const { rows: updateRows } = await client.query(
+        `UPDATE reviews SET is_public = true, updated_at = NOW() WHERE id = $1 AND is_public = false RETURNING *`,
+        [reviewId]
+      );
+
+      if (!updateRows.length) {
+        throw new Error('Review visibility status changed during restoration — already restored by another admin');
+      }
+
+      // Log admin action
+      await client.query(`
+        INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details, created_at)
+        VALUES ($1, 'review_restored', 'review', $2, $3, NOW())
+      `, [req.user.id, reviewId, JSON.stringify({
+        rating: before[0].rating,
+        reviewer_id: before[0].reviewer_id
+      })]);
+
+      await client.query('COMMIT');
+
+      logger.info('Review restored by admin', {
+        reviewId,
+        adminId: req.user.id,
+        rating: before[0].rating
+      });
+
+      res.json({ message: 'Review restored.' });
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
   } catch (err) {
-    logger.error('restoreReview error', { err });
+    logger.error('Restore review error', { reviewId: req.params?.reviewId, adminId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to restore review.' });
   }
 };

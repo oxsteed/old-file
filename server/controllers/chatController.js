@@ -332,7 +332,7 @@ exports.chatMessage = async (req, res) => {
 
     res.json({ reply: ai.reply });
   } catch (err) {
-    logger.error('[Chat] Error', { message: err.message });
+    logger.error('[Chat] Error', { error: err.message });
     res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
   }
 };
@@ -422,7 +422,7 @@ ${getLanguageInstruction(language)}`;
 
     res.json({ reply: ai.reply, window, context: financialContext });
   } catch (err) {
-    logger.error('[FinancialAdvisor] Error', { message: err.message });
+    logger.error('[FinancialAdvisor] Error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
   }
 };
@@ -676,7 +676,7 @@ exports.profileChatMessage = async (req, res) => {
       authorType:  destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
     });
   } catch (err) {
-    logger.error('[ProfileChat] Error', { message: err.message });
+    logger.error('[ProfileChat] Error', { error: err.message });
     res.status(500).json({ error: 'Chat service temporarily unavailable.' });
   }
 };
@@ -772,7 +772,7 @@ exports.guestProfileChatSession = async (req, res) => {
         );
         repsRes.rows.forEach((r) => notifyTargets.add(String(r.member_id)));
       } catch (e) {
-        logger.warn('[GuestProfileChat] rep notify list failed', { message: e.message });
+        logger.warn('[GuestProfileChat] rep notify list failed', { error: e.message });
       }
     }
     notifyTargets.forEach((uid) => {
@@ -822,7 +822,7 @@ exports.guestProfileChatSession = async (req, res) => {
         });
       }
     } catch (mailErr) {
-      logger.warn('[GuestProfileChat] Email notify failed', { message: mailErr.message });
+      logger.warn('[GuestProfileChat] Email notify failed', { error: mailErr.message });
     }
 
     // Generate guest token so they can return to check for replies
@@ -875,7 +875,7 @@ exports.guestProfileChatSession = async (req, res) => {
 <p><em>This link will work for 30 days.</em></p>`,
       });
     } catch (mailErr) {
-      logger.warn('[GuestProfileChat] Confirmation email failed', { message: mailErr.message });
+      logger.warn('[GuestProfileChat] Confirmation email failed', { error: mailErr.message });
       // Non-fatal: guest inquiry was saved, just email failed
     }
 
@@ -886,7 +886,7 @@ exports.guestProfileChatSession = async (req, res) => {
       message: 'Your message was sent. A confirmation email has been sent to your inbox.',
     });
   } catch (err) {
-    logger.error('[GuestProfileChat]', { message: err.message });
+    logger.error('[GuestProfileChat]', { error: err.message });
     return res.status(500).json({ error: 'Failed to send message' });
   }
 };

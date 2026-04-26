@@ -11,6 +11,7 @@
  */
 
 const db = require('../db');
+const logger = require('../utils/logger');
 
 const MAX_RADIUS_MILES   = 50;
 const MAX_RADIUS_METERS  = MAX_RADIUS_MILES * 1609.34;
@@ -23,10 +24,11 @@ const TOP_N_NOTIFY       = 20;   // notify this many via push (future)
  * @returns {number} count of matches generated
  */
 async function scoreAndMatch(job) {
-  if (!job.location_point && !job.location_lat) {
-    // No location — cannot geo-match; skip silently
-    return 0;
-  }
+  try {
+    if (!job.location_point && !job.location_lat) {
+      // No location — cannot geo-match; skip silently
+      return 0;
+    }
 
   // ── 1. Fetch eligible helper pool within radius ─────────────────────────
   // We deliberately do NOT hard-filter on credential columns here —
@@ -193,9 +195,16 @@ async function scoreAndMatch(job) {
   // ── 5. Mark top NOTIFY helpers for push (future hook) ─────────────────────
   // In a full implementation this would enqueue push notifications.
   // We return the notify count so the API response can surface it.
-  const notifyCount = Math.min(safeTop.length, TOP_N_NOTIFY);
+    const notifyCount = Math.min(safeTop.length, TOP_N_NOTIFY);
 
-  return { total: safeTop.length, notified: notifyCount };
+    return { total: safeTop.length, notified: notifyCount };
+  } catch (err) {
+    logger.error('Job matching failed', {
+      jobId: job?.id,
+      error: err.message,
+    });
+    return { total: 0, notified: 0 };
+  }
 }
 
 module.exports = { scoreAndMatch };

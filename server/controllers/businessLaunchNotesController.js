@@ -99,7 +99,15 @@ async function deleteNote(req, res) {
       return res.status(403).json({ error: 'Not authorized to delete this note' });
     }
 
-    await db.query('DELETE FROM consulting_request_notes WHERE id = $1', [noteId]);
+    // Delete with authorization safeguard and RETURNING
+    const delResult = await db.query(
+      'DELETE FROM consulting_request_notes WHERE id = $1 AND (admin_id = $2 OR admin_id IN (SELECT id FROM users WHERE role = $3)) RETURNING id',
+      [noteId, admin_id, 'super_admin']
+    );
+
+    if (!delResult.rows.length) {
+      return res.status(403).json({ error: 'Delete authorization check failed' });
+    }
 
     logger.info('Business launch note deleted', { noteId, adminId: admin_id });
 

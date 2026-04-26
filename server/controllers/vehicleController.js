@@ -201,14 +201,14 @@ exports.updateVehicle = async (req, res) => {
  */
 exports.deleteVehicle = async (req, res) => {
   try {
-    const { rowCount } = await db.query(
-      'DELETE FROM user_vehicles WHERE id = $1 AND user_id = $2',
+    const result = await db.query(
+      'DELETE FROM user_vehicles WHERE id = $1 AND user_id = $2 RETURNING id',
       [parseInt(req.params.id, 10), req.user.id]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Vehicle not found' });
+    if (!result.rows.length) return res.status(404).json({ error: 'Vehicle not found' });
     return res.json({ success: true });
   } catch (err) {
-    logger.error('deleteVehicle error', { message: err.message });
+    logger.error('deleteVehicle error', { userId: req.user?.id, vehicleId: req.params?.id, message: err.message });
     return res.status(500).json({ error: 'Failed to delete vehicle' });
   }
 };

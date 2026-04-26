@@ -149,7 +149,7 @@ exports.createJob = async (req, res) => {
       matchResult = await scoreAndMatch(rows[0]);
     } catch (matchErr) {
       // Never fail the publish because of match scoring
-      logger.error('Match scoring error (non-fatal)', { err: matchErr });
+      logger.error('Match scoring error (non-fatal)', { jobId: rows[0]?.id, error: matchErr.message });
     }
 
     // ── Clear the user's draft ──────────────────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ exports.createJob = async (req, res) => {
       notify_count: matchResult.notified || 0,
     });
   } catch (err) {
-    logger.error('Create job error', { err });
+    logger.error('Create job error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create job' });
   }
 };
@@ -182,7 +182,7 @@ exports.getJobs = async (req, res) => {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const offset = (page - 1) * limit;
-    let conditions = [`u.is_active = true`];
+    let conditions = [`u.is_active = true`, `j.deleted_at IS NULL`];
     let params = [];
     let paramIdx = 1;
 
@@ -257,7 +257,7 @@ exports.getJobs = async (req, res) => {
       limit: parseInt(limit)
     });
   } catch (err) {
-    logger.error('Get jobs error', { err });
+    logger.error('Get jobs error', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
 };
@@ -281,7 +281,7 @@ exports.getJob = async (req, res) => {
       FROM jobs j
       JOIN users u ON j.client_id = u.id
       LEFT JOIN users h ON j.assigned_helper_id = h.id
-      WHERE j.id = $1
+      WHERE j.id = $1 AND j.deleted_at IS NULL
     `, [id]);
 
     if (rows.length === 0) {
@@ -290,7 +290,7 @@ exports.getJob = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('Get job error', { err });
+    logger.error('Get job error', { jobId: req.params?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch job' });
   }
 };
@@ -337,7 +337,7 @@ exports.updateJob = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('Update job error', { err });
+    logger.error('Update job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to update job' });
   }
 };
@@ -347,20 +347,84 @@ exports.cancelJob = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows } = await pool.query(`
-      UPDATE jobs SET status = 'cancelled', deleted_at = now(), updated_at = now()
-      WHERE id = $1 AND client_id = $2
-      AND status IN ('draft','published','matched','negotiating')
-      RETURNING *
-    `, [id, req.user.id]);
+    // Step 1: Verify job exists and belongs to requester (outside transaction)
+    const { rows: jobRows } = await pool.query(
+      `SELECT id, client_id, status FROM jobs WHERE id = $1 AND client_id = $2`,
+      [id, req.user.id]
+    );
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be cancelled' });
+    if (!jobRows[0]) {
+      return res.status(404).json({ error: 'Job not found or you are not authorized' });
     }
 
-    res.json({ message: 'Job cancelled', job: rows[0] });
+    const job = jobRows[0];
+
+    // Step 2: Verify job is in a cancellable state
+    if (!['draft', 'published', 'matched', 'negotiating'].includes(job.status)) {
+      return res.status(400).json({
+        error: `Job cannot be cancelled in '${job.status}' state. Only draft, published, matched, and negotiating jobs can be cancelled.`
+      });
+    }
+
+    // Step 3: Check for pending/authorized payments (escrow holds)
+    const { rows: paymentRows } = await pool.query(`
+      SELECT id FROM payments
+      WHERE job_id = $1 AND status IN ('authorized', 'captured')
+      AND escrow_status IN ('authorized', 'held', 'disputed')
+    `, [id]);
+
+    if (paymentRows.length > 0) {
+      return res.status(409).json({
+        error: 'Cannot cancel job with pending payments',
+        message: 'This job has pending or authorized payments. Cancel or refund the payments before cancelling the job.'
+      });
+    }
+
+    // Step 4: Atomically cancel job and reject all active bids (transactional)
+    const result = await withJobTransaction(pool, async (client) => {
+      // Cancel the job with status check to prevent race conditions
+      const { rows: updateRows } = await client.query(`
+        UPDATE jobs
+        SET status = 'cancelled', deleted_at = now(), updated_at = now()
+        WHERE id = $1
+        AND status IN ('draft','published','matched','negotiating')
+        RETURNING *
+      `, [id]);
+
+      if (!updateRows.length) {
+        throw new Error('Job state changed during cancellation — status is no longer cancellable');
+      }
+
+      // Reject all pending/accepted bids
+      const { rows: bidRows } = await client.query(`
+        UPDATE bids
+        SET status = 'rejected', updated_at = now()
+        WHERE job_id = $1 AND status IN ('pending', 'accepted')
+        RETURNING id, helper_id
+      `, [id]);
+
+      return { job: updateRows[0], rejectedBids: bidRows };
+    }, 'cancel_job');
+
+    // Step 5: Log the cancellation and rejected bids (outside transaction)
+    if (result.rejectedBids.length > 0) {
+      logger.info('Job cancelled with bid rejections', {
+        jobId: id,
+        userId: req.user.id,
+        rejectedBidCount: result.rejectedBids.length,
+        rejectedHelperIds: result.rejectedBids.map(b => b.helper_id)
+      });
+    } else {
+      logger.info('Job cancelled', { jobId: id, userId: req.user.id });
+    }
+
+    res.json({
+      message: 'Job cancelled',
+      job: result.job,
+      rejected_bids: result.rejectedBids.length
+    });
   } catch (err) {
-    logger.error('Cancel job error', { err });
+    logger.error('Cancel job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to cancel job' });
   }
 };
@@ -370,23 +434,61 @@ exports.assignHelper = async (req, res) => {
   try {
     const { job_id, helper_id } = req.body;
 
-    const { rows } = await pool.query(`
-      UPDATE jobs SET
-        assigned_helper_id = $1,
-        status = 'accepted',
-        updated_at = now()
-      WHERE id = $2 AND client_id = $3
-      AND status IN ('published','matched','negotiating')
-      RETURNING *
-    `, [helper_id, job_id, req.user.id]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be assigned' });
+    // Validate helper exists and is active (outside transaction for early validation)
+    const helperCheck = await pool.query(
+      `SELECT id, role, onboarding_completed, deleted_at FROM users WHERE id = $1`,
+      [helper_id]
+    );
+    if (!helperCheck.rows[0] || helperCheck.rows[0].deleted_at) {
+      return res.status(404).json({ error: 'Helper not found or inactive' });
+    }
+    if (!helperCheck.rows[0].onboarding_completed) {
+      return res.status(400).json({ error: 'Helper has not completed onboarding' });
+    }
+    if (!['helper_free', 'helper_pro', 'helper', 'broker'].includes(helperCheck.rows[0].role)) {
+      return res.status(400).json({ error: 'User is not a helper' });
     }
 
-    res.json({ message: 'Helper assigned', job: rows[0] });
+    // Check job exists and belongs to requester (outside transaction)
+    const jobCheck = await pool.query(
+      `SELECT id, client_id, status, assigned_helper_id FROM jobs WHERE id = $1`,
+      [job_id]
+    );
+    if (!jobCheck.rows[0]) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    if (jobCheck.rows[0].client_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to assign helpers to this job' });
+    }
+    if (!['published', 'matched', 'negotiating'].includes(jobCheck.rows[0].status)) {
+      return res.status(400).json({ error: 'Job cannot be assigned in its current state' });
+    }
+    if (jobCheck.rows[0].assigned_helper_id && jobCheck.rows[0].assigned_helper_id !== helper_id) {
+      return res.status(400).json({ error: 'Job already has a helper assigned' });
+    }
+
+    // Wrap assignment in transaction for atomicity
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(`
+        UPDATE jobs SET
+          assigned_helper_id = $1,
+          status = 'accepted',
+          updated_at = now()
+        WHERE id = $2 AND client_id = $3
+        AND status IN ('published','matched','negotiating')
+        AND (assigned_helper_id IS NULL OR assigned_helper_id = $1)
+        RETURNING *
+      `, [helper_id, job_id, req.user.id]);
+
+      if (!rows.length) {
+        throw new Error('Job assignment failed — state changed during processing');
+      }
+      return rows[0];
+    }, 'assign_helper');
+
+    res.json({ message: 'Helper assigned', job: result });
   } catch (err) {
-    logger.error('Assign helper error', { err });
+    logger.error('Assign helper error', { jobId: req.body?.job_id, helperId: req.body?.helper_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to assign helper' });
   }
 };
@@ -396,23 +498,53 @@ exports.startJob = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows } = await pool.query(`
-      UPDATE jobs SET
-        status = 'in_progress',
-        started_at = now(),
-        updated_at = now()
+    // Pre-check: job must exist, have a helper assigned, be in accepted state
+    const { rows: jobRows } = await pool.query(`
+      SELECT id, client_id, assigned_helper_id, status, expires_at
+      FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
-      AND status = 'accepted'
-      RETURNING *
     `, [id, req.user.id]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be started' });
+    if (!jobRows[0]) {
+      return res.status(404).json({ error: 'Job not found or you are not authorized' });
     }
 
-    res.json({ message: 'Job started', job: rows[0] });
+    const job = jobRows[0];
+
+    if (job.status !== 'accepted') {
+      return res.status(400).json({ error: `Job cannot be started in '${job.status}' state. Job must be in 'accepted' state.` });
+    }
+
+    if (!job.assigned_helper_id) {
+      return res.status(400).json({ error: 'Job cannot be started without an assigned helper' });
+    }
+
+    if (job.expires_at && new Date(job.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Job has expired and cannot be started' });
+    }
+
+    // Wrap state transition in transaction for atomicity
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(`
+        UPDATE jobs SET
+          status = 'in_progress',
+          started_at = now(),
+          updated_at = now()
+        WHERE id = $1
+        AND status = 'accepted'
+        AND assigned_helper_id IS NOT NULL
+        RETURNING *
+      `, [id]);
+
+      if (!rows.length) {
+        throw new Error('Job start failed — state changed during processing');
+      }
+      return rows[0];
+    }, 'start_job');
+
+    res.json({ message: 'Job started', job: result });
   } catch (err) {
-    logger.error('Start job error', { err });
+    logger.error('Start job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to start job' });
   }
 };
@@ -465,9 +597,13 @@ exports.completeJob = async (req, res) => {
           status = 'completed',
           completed_at = now(),
           updated_at = now()
-        WHERE id = $1
+        WHERE id = $1 AND status = 'in_progress'
         RETURNING *
       `, [id]);
+
+      if (!rows.length) {
+        throw new Error('Job state changed during completion — job is no longer in_progress');
+      }
 
       return rows[0];
     }, 'complete_job');
@@ -479,7 +615,7 @@ exports.completeJob = async (req, res) => {
         error: 'Cannot complete job while a payment dispute is open. Resolve the dispute first.',
       });
     }
-    logger.error('Complete job error', { err });
+    logger.error('Complete job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to complete job' });
   }
 };
@@ -500,19 +636,46 @@ exports.closeJob = async (req, res) => {
       return res.status(404).json({ error: 'Job not found or cannot be closed' });
     }
 
+    // Check for open/in_progress disputes
+    const { rows: disputeRows } = await pool.query(`
+      SELECT id FROM disputes
+      WHERE job_id = $1 AND status IN ('open', 'in_progress')
+    `, [id]);
+
+    if (disputeRows.length > 0) {
+      return res.status(409).json({
+        error: 'Cannot close job while a payment dispute is open. Resolve the dispute first.',
+      });
+    }
+
+    // Check payment status for tier-3 jobs (must be captured/released)
+    const { rows: paymentRows } = await pool.query(`
+      SELECT id, status FROM payments
+      WHERE job_id = $1 AND status NOT IN ('captured', 'released', 'refunded')
+    `, [id]);
+
+    if (paymentRows.length > 0) {
+      return res.status(409).json({
+        error: 'Cannot close job with pending payments. Please ensure all payments are processed.',
+      });
+    }
+
     // Wrap state change in a transaction for atomicity
     const result = await withJobTransaction(pool, async (client) => {
       const { rows } = await client.query(`
         UPDATE jobs SET status = 'closed', updated_at = now()
-        WHERE id = $1
+        WHERE id = $1 AND status = 'completed'
         RETURNING *
       `, [id]);
+      if (!rows.length) {
+        throw new Error('Job state changed during closing — job is no longer completed');
+      }
       return rows[0];
     }, 'close_job');
 
     res.json({ message: 'Job closed', job: result });
   } catch (err) {
-    logger.error('Close job error', { err });
+    logger.error('Close job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to close job' });
   }
 };
@@ -541,7 +704,7 @@ exports.getMyJobs = async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    logger.error('Get my jobs error', { err });
+    logger.error('Get my jobs error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch your jobs' });
   }
 };

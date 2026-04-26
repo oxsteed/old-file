@@ -58,7 +58,7 @@ exports.createConnectAccount = async (req, res) => {
     });
     res.json({ url: link.url, account_id: account.id });
   } catch (err) {
-    logger.error('Create connect account error', { err });
+    logger.error('Create connect account error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create payment account' });
   }
 };
@@ -73,7 +73,7 @@ exports.getConnectStatus = async (req, res) => {
     if (!result.rows[0]) return res.json({ connected: false });
     res.json({ connected: true, ...result.rows[0] });
   } catch (err) {
-    logger.error('Get connect status error', { err });
+    logger.error('Get connect status error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to get account status' });
   }
 };
@@ -109,6 +109,20 @@ exports.createPaymentIntent = async (req, res) => {
     const jobValueCents = Math.round(job.rows[0].job_value * 100);
     const fees = calculateTier3Fees(jobValueCents);
 
+    // Check for existing payment to prevent duplicates (idempotency)
+    const existingPayment = await pool.query(
+      'SELECT id, stripe_payment_intent_id FROM payments WHERE job_id = $1 AND status IN ($2, $3)',
+      [job_id, 'authorized', 'pending']
+    );
+    if (existingPayment.rows[0]) {
+      // Return existing payment intent instead of creating a duplicate
+      return res.json({
+        client_secret: existingPayment.rows[0].stripe_payment_intent_id,
+        payment_intent_id: existingPayment.rows[0].stripe_payment_intent_id,
+        message: 'Existing payment intent returned'
+      });
+    }
+
     // Direct charge on helper's connected account
     const paymentIntent = await stripe.paymentIntents.create(
       {
@@ -128,11 +142,12 @@ exports.createPaymentIntent = async (req, res) => {
       { stripeAccount: connect.rows[0].stripe_account_id }
     );
 
-    await pool.query(
+    const { rows: insertRows } = await pool.query(
       `INSERT INTO payments
         (job_id, payer_id, payee_id, stripe_payment_intent_id,
          amount, platform_fee, status, payment_hold_status, stripe_account_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, 'authorized', 'held', $7)
+       RETURNING id`,
       [
         job_id,
         req.user.id,
@@ -144,9 +159,13 @@ exports.createPaymentIntent = async (req, res) => {
       ]
     );
 
+    if (insertRows.length === 0) {
+      return res.status(500).json({ error: 'Failed to save payment intent' });
+    }
+
     res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
   } catch (err) {
-    logger.error('Create payment intent error', { err });
+    logger.error('Create payment intent error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create payment' });
   }
 };
@@ -213,7 +232,7 @@ exports.capturePayment = async (req, res) => {
       });
     }
   } catch (err) {
-    logger.error('Capture payment error', { err });
+    logger.error('Capture payment error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to capture payment' });
   }
 };
@@ -234,6 +253,14 @@ exports.refundPayment = async (req, res) => {
 
     const paymentData = payment.rows[0];
     const refundAmount = amount || paymentData.amount;
+
+    // ── VALIDATE PAYMENT STATUS ──────────────────────────────────────────
+    // Only authorized and captured payments can be refunded
+    if (!['authorized', 'captured'].includes(paymentData.status)) {
+      return res.status(400).json({
+        error: `Payment cannot be refunded in '${paymentData.status}' status. Only authorized and captured payments can be refunded.`
+      });
+    }
 
     // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
     // Refunds can only happen after disputes are resolved
@@ -265,12 +292,15 @@ exports.refundPayment = async (req, res) => {
 
     // ── Database update (ATOMIC TRANSACTION) ─────────────────────────────
     await withPaymentTransaction(pool, async (client) => {
-      await client.query(
+      const { rows: updateRows } = await client.query(
         `UPDATE payments SET status = 'refunded', payment_hold_status = 'refunded',
          refunded_at = NOW(), refund_amount = $1, refund_reason = $2, stripe_refund_id = $3,
-         updated_at = NOW() WHERE id = $4`,
+         updated_at = NOW() WHERE id = $4 AND status IN ('authorized', 'captured') RETURNING id`,
         [refundAmount, reason, refundId, payment_id]
       );
+      if (updateRows.length === 0) {
+        throw new Error('Payment status changed during refund processing');
+      }
 
       // Audit log for refund (admin action)
       await client.query(
@@ -301,7 +331,7 @@ exports.refundPayment = async (req, res) => {
 
     res.json({ message: 'Refund processed', refund_id: refundId });
   } catch (err) {
-    logger.error('Refund payment error', { err });
+    logger.error('Refund payment error', { paymentId: req.body?.payment_id, adminId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to process refund' });
   }
 };
@@ -317,7 +347,7 @@ exports.getJobPayment = async (req, res) => {
     }
     res.json(p);
   } catch (err) {
-    logger.error('Get job payment error', { err });
+    logger.error('Get job payment error', { jobId: req.params?.job_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch payment' });
   }
 };
@@ -340,7 +370,7 @@ exports.getMyPayments = async (req, res) => {
     }
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get my payments error', { err });
+    logger.error('Get my payments error', { userId: req.user?.id, role: req.query?.role, error: err.message });
     res.status(500).json({ error: 'Failed to fetch payments' });
   }
 };

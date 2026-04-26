@@ -268,18 +268,21 @@ async function loginWith2FA(req, res) {
     if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
     let verified = false;
     if (isBackupCode) {
-      let matchedIndex = -1;
       const codes = user.backup_codes || [];
+      let matchedCode = null;
       for (let i = 0; i < codes.length; i++) {
         if (await bcrypt.compare(token.toLowerCase().trim(), codes[i])) {
-          matchedIndex = i;
+          matchedCode = codes[i];
           break;
         }
       }
-      if (matchedIndex !== -1) {
-        codes.splice(matchedIndex, 1);
-        await pool.query('UPDATE users SET backup_codes = $1 WHERE id = $2', [codes, userId]);
-        verified = true;
+      if (matchedCode) {
+        const updatedCodes = codes.filter(code => code !== matchedCode);
+        const { rows: updateRows } = await pool.query(
+          'UPDATE users SET backup_codes = $1 WHERE id = $2 AND $3 = ANY(backup_codes) RETURNING id',
+          [updatedCodes, userId, matchedCode]
+        );
+        verified = updateRows.length > 0;
       }
     } else {
       const decryptedSecret = decrypt(user.totp_secret);
@@ -387,10 +390,13 @@ async function verifyOTP(req, res) {
       await pool.query('UPDATE users SET otp_attempts = $1 WHERE id = $2', [newAttempts, user.id]);
       return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
-    await pool.query(
-      'UPDATE users SET email_verified = true, otp_code = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = NULL WHERE id = $1',
-      [user.id]
+    const { rows: verifyRows } = await pool.query(
+      'UPDATE users SET email_verified = true, otp_code = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = NULL WHERE id = $1 AND otp_code = $2 RETURNING id',
+      [user.id, user.otp_code]
     );
+    if (verifyRows.length === 0) {
+      return res.status(400).json({ error: 'OTP verification failed. Please try again.' });
+    }
     res.json({ message: 'Email verified' });
   } catch (err) {
     logger.error('Verify OTP error', { err });
@@ -408,7 +414,11 @@ async function refreshToken(req, res) {
       [hashedToken]
     );
     if (!sessionRows[0]) return res.status(401).json({ error: 'Invalid refresh token' });
-    await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [hashedToken]);
+    const { rows: invalidateRows } = await pool.query(
+      'UPDATE sessions SET is_valid = false WHERE refresh_token = $1 RETURNING id',
+      [hashedToken]
+    );
+    if (invalidateRows.length === 0) return res.status(401).json({ error: 'Session invalidation failed' });
     const { rows: userRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role,
               email_verified, is_verified,
@@ -450,13 +460,16 @@ async function logout(req, res) {
 
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-      await pool.query('UPDATE sessions SET is_valid = false WHERE refresh_token = $1', [hashedToken]);
-
-      // Revoke the refresh token immediately
-      const tokenId = crypto.createHash('sha256').update(token).digest('hex');
-      await tokenRevocationService.revokeRefreshToken(tokenId);
-
-      didInvalidateSession = true;
+      const { rows: invalidateRows } = await pool.query(
+        'UPDATE sessions SET is_valid = false WHERE refresh_token = $1 RETURNING id',
+        [hashedToken]
+      );
+      if (invalidateRows.length > 0) {
+        didInvalidateSession = true;
+        // Revoke the refresh token immediately
+        const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+        await tokenRevocationService.revokeRefreshToken(tokenId);
+      }
     }
 
     const authHeader = req.headers.authorization || '';
@@ -466,13 +479,16 @@ async function logout(req, res) {
         const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'secret');
         if (decoded?.id) {
           userId = decoded.id;
-          await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [decoded.id]);
-
-          // Revoke the access token immediately
-          const tokenId = crypto.createHash('sha256').update(accessToken).digest('hex');
-          await tokenRevocationService.revokeAccessToken(tokenId);
-
-          didInvalidateSession = true;
+          const { rows: invalidateRows } = await pool.query(
+            'UPDATE sessions SET is_valid = false WHERE user_id = $1 RETURNING id',
+            [decoded.id]
+          );
+          if (invalidateRows.length > 0) {
+            didInvalidateSession = true;
+            // Revoke the access token immediately
+            const tokenId = crypto.createHash('sha256').update(accessToken).digest('hex');
+            await tokenRevocationService.revokeAccessToken(tokenId);
+          }
         }
       } catch (err) {
         // Ignore invalid or expired access tokens here; refresh-token logout should still work.
@@ -585,19 +601,26 @@ async function startRegistration(req, res) {
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
-    await pool.query('DELETE FROM pending_registrations WHERE email = $1 AND (role = $2 OR role IS NULL)', [normalized.email, 'customer']);
-    await pool.query(
+    const { rows: insertRows } = await pool.query(
       `INSERT INTO pending_registrations (
          token, email, password_hash, first_name, last_name, phone, zip_code,
          address_line1, city, state,
          age_confirmed, role, referral_ref
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (email) DO UPDATE SET
+         token = $1, password_hash = $3, first_name = $4, last_name = $5, phone = $6, zip_code = $7,
+         address_line1 = $8, city = $9, state = $10,
+         age_confirmed = $11, referral_ref = $13, updated_at = NOW()
+       RETURNING id`,
       [
         token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalized.zip,
         normalized.addressLine1, normalized.city, normalized.state,
         normalized.ageConfirmed, 'customer', normalized.ref,
       ],
     );
+    if (insertRows.length === 0) {
+      return res.status(500).json({ error: 'Failed to save registration' });
+    }
     res.json({ token, message: 'Basic info validated' });
   } catch (err) {
     if (err?.code === '22001') {
@@ -653,13 +676,21 @@ async function verifyRegistrationOTP(req, res) {
     if (pending.otp_code !== hashedOTP || new Date(pending.otp_expires_at) < new Date()) {
       const newAttempts = pending.otp_attempts + 1;
       if (newAttempts >= 3) {
-        await pool.query(
-          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1",
+        const { rows: lockRows } = await pool.query(
+          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1 RETURNING id",
           [token, newAttempts]
         );
-        return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
+        if (lockRows.length > 0) {
+          return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
+        }
       }
-      await pool.query('UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1', [token, newAttempts]);
+      const { rows: updateRows } = await pool.query(
+        'UPDATE pending_registrations SET otp_attempts = $2 WHERE token = $1 RETURNING id',
+        [token, newAttempts]
+      );
+      if (updateRows.length === 0) {
+        return res.status(404).json({ error: 'Registration token expired' });
+      }
       return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
     const referralCode = crypto.randomBytes(6).toString('hex');
@@ -703,7 +734,10 @@ async function verifyRegistrationOTP(req, res) {
       ]
     );
     const user = userResult.rows[0];
-    await pool.query('DELETE FROM pending_registrations WHERE token = $1', [token]);
+    const { rows: delRows } = await pool.query('DELETE FROM pending_registrations WHERE token = $1 RETURNING id', [token]);
+    if (delRows.length === 0) {
+      logger.warn('Pending registration cleanup failed', { token, userId: user.id });
+    }
 
     // Increment referrer count (non-fatal)
     if (referrerId) {
@@ -805,18 +839,19 @@ async function resetPassword(req, res) {
     if (pwErrs) return res.status(400).json({ error: 'validation_failed', fields: pwErrs });
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    const { rowCount } = await pool.query(
+    const { rows } = await pool.query(
       `UPDATE users
        SET password_hash = $1,
            reset_token = NULL,
            reset_token_expires = NULL,
            updated_at = NOW()
        WHERE reset_token = $2
-         AND reset_token_expires > NOW()`,
+         AND reset_token_expires > NOW()
+       RETURNING id`,
       [passwordHash, token]
     );
 
-    if (!rowCount) {
+    if (rows.length === 0) {
       return res.status(400).json({ error: 'Reset link is invalid or expired.' });
     }
 
@@ -964,21 +999,28 @@ async function switchRole(req, res) {
          ON CONFLICT (user_id) DO NOTHING`,
         [userId],
       );
-      await pool.query(
+      const { rows: updateRows } = await pool.query(
         `UPDATE users
          SET role = 'helper',
              onboarding_completed = TRUE,
              membership_tier = COALESCE(membership_tier, 'tier1'),
              updated_at = NOW()
-         WHERE id = $1`,
-        [userId],
+         WHERE id = $1 AND role = $2
+         RETURNING id`,
+        [userId, currentRole],
       );
+      if (updateRows.length === 0) {
+        return res.status(409).json({ error: 'Role changed during switch. Please try again.' });
+      }
     } else {
       // Switching back to customer — preserve the helper_profiles row.
-      await pool.query(
-        `UPDATE users SET role = 'customer', updated_at = NOW() WHERE id = $1`,
-        [userId],
+      const { rows: updateRows } = await pool.query(
+        `UPDATE users SET role = 'customer', updated_at = NOW() WHERE id = $1 AND role = $2 RETURNING id`,
+        [userId, currentRole],
       );
+      if (updateRows.length === 0) {
+        return res.status(409).json({ error: 'Role changed during switch. Please try again.' });
+      }
     }
 
     // Re-fetch the updated user row (with helper profile for is_listed).

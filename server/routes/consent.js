@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const { TERMS_CONFIG, REQUIRED_CONSENTS } = require('../constants/termsConfig');
 const User = require('../models/userModel');
+const logger = require('../utils/logger');
 
 const hashIP = (ip) => ip
   ? crypto.createHash('sha256').update(ip).digest('hex')
@@ -53,7 +54,7 @@ router.get('/status', authenticate, async (req, res) => {
       ),
     });
   } catch (err) {
-    console.error('GET /consent/status error:', err);
+    logger.error('GET /consent/status error', { error: err.message });
     res.status(500).json({ error: 'Failed to check consent status' });
   }
 });
@@ -91,7 +92,7 @@ router.post('/accept', authenticate, async (req, res) => {
       })),
     });
   } catch (err) {
-    console.error('POST /consent/accept error:', err);
+    logger.error('POST /consent/accept error', { error: err.message, userId: req.user?.id });
     res.status(500).json({ error: 'Failed to record consent' });
   }
 });

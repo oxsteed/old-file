@@ -3,9 +3,16 @@ const logger = require('../utils/logger');
 const db = require('../db');
 const { sendEmail } = require('../utils/email');
 
+const VALID_CONSULTING_STATUSES = ['pending', 'scheduled', 'completed', 'cancelled'];
+
 exports.getConsultingRequests = async (req, res) => {
   const { status, limit = 50, offset = 0 } = req.query;
   try {
+    // Validate status parameter if provided
+    if (status && !VALID_CONSULTING_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
     let query = `SELECT cs.*, c.current_phase, c.progress_pct FROM consulting_sessions cs
                  LEFT JOIN consulting_session_phases c ON cs.id = c.session_id`;
     const params = [];
