@@ -150,7 +150,21 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.action_url) || '/';
+  // Validate action_url is same-origin or a simple path — never javascript: or data: URIs.
+  const rawTarget = (event.notification.data && event.notification.data.action_url) || '/';
+  let target = '/';
+  try {
+    const parsed = new URL(rawTarget, self.location.origin);
+    if (parsed.origin === self.location.origin) {
+      target = parsed.pathname + parsed.search + parsed.hash;
+    }
+  } catch {
+    // rawTarget was already a relative path (URL constructor threw) — use it directly
+    // only if it looks safe (starts with /).
+    if (typeof rawTarget === 'string' && rawTarget.startsWith('/')) {
+      target = rawTarget;
+    }
+  }
 
   event.waitUntil((async () => {
     const allClients = await self.clients.matchAll({

@@ -152,7 +152,9 @@ export function useWebPush(): UseWebPushResult {
       const payload = subscriptionToJSON(sub);
       await api.post('/notifications/webpush/subscribe', {
         ...payload,
-        deviceLabel: deviceLabel || (typeof navigator !== 'undefined' ? navigator.platform : null),
+        deviceLabel: deviceLabel || (typeof navigator !== 'undefined'
+          ? (navigator.userAgentData?.platform || navigator.userAgent.slice(0, 120) || null)
+          : null),
       });
 
       setIsSubscribed(true);

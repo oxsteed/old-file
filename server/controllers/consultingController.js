@@ -25,11 +25,39 @@ exports.submitConsultingRequest = async (req, res) => {
       return res.status(400).json({ error: 'Name and email are required' });
     }
 
+    if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Valid email address is required' });
+    }
+    if (typeof first_name !== 'string' || first_name.trim().length > 100) {
+      return res.status(400).json({ error: 'First name must be 100 characters or fewer' });
+    }
+    if (typeof last_name !== 'string' || last_name.trim().length > 100) {
+      return res.status(400).json({ error: 'Last name must be 100 characters or fewer' });
+    }
+    if (business_name && typeof business_name === 'string' && business_name.trim().length > 200) {
+      return res.status(400).json({ error: 'Business name must be 200 characters or fewer' });
+    }
+    if (phone && typeof phone === 'string' && phone.trim().length > 30) {
+      return res.status(400).json({ error: 'Phone number must be 30 characters or fewer' });
+    }
+    if (description && typeof description === 'string' && description.trim().length > 5000) {
+      return res.status(400).json({ error: 'Description must be 5000 characters or fewer' });
+    }
+    if (current_phase !== undefined && current_phase !== null) {
+      const phase = parseInt(current_phase, 10);
+      if (isNaN(phase) || phase < 1 || phase > 30) {
+        return res.status(400).json({ error: 'Current phase must be a number between 1 and 30' });
+      }
+    }
+
     if (service_tier && !SERVICE_TIERS.includes(service_tier)) {
       return res.status(400).json({ error: 'Invalid service tier' });
     }
 
     if (areas_of_help && Array.isArray(areas_of_help)) {
+      if (areas_of_help.length > AREAS_OF_HELP.length) {
+        return res.status(400).json({ error: 'Too many areas of help selected' });
+      }
       for (const area of areas_of_help) {
         if (!AREAS_OF_HELP.includes(area)) {
           return res.status(400).json({ error: `Invalid area of help: ${area}` });
