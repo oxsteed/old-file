@@ -370,23 +370,61 @@ exports.assignHelper = async (req, res) => {
   try {
     const { job_id, helper_id } = req.body;
 
-    const { rows } = await pool.query(`
-      UPDATE jobs SET
-        assigned_helper_id = $1,
-        status = 'accepted',
-        updated_at = now()
-      WHERE id = $2 AND client_id = $3
-      AND status IN ('published','matched','negotiating')
-      RETURNING *
-    `, [helper_id, job_id, req.user.id]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be assigned' });
+    // Validate helper exists and is active (outside transaction for early validation)
+    const helperCheck = await pool.query(
+      `SELECT id, role, onboarding_completed, deleted_at FROM users WHERE id = $1`,
+      [helper_id]
+    );
+    if (!helperCheck.rows[0] || helperCheck.rows[0].deleted_at) {
+      return res.status(404).json({ error: 'Helper not found or inactive' });
+    }
+    if (!helperCheck.rows[0].onboarding_completed) {
+      return res.status(400).json({ error: 'Helper has not completed onboarding' });
+    }
+    if (!['helper_free', 'helper_pro', 'helper', 'broker'].includes(helperCheck.rows[0].role)) {
+      return res.status(400).json({ error: 'User is not a helper' });
     }
 
-    res.json({ message: 'Helper assigned', job: rows[0] });
+    // Check job exists and belongs to requester (outside transaction)
+    const jobCheck = await pool.query(
+      `SELECT id, client_id, status, assigned_helper_id FROM jobs WHERE id = $1`,
+      [job_id]
+    );
+    if (!jobCheck.rows[0]) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    if (jobCheck.rows[0].client_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to assign helpers to this job' });
+    }
+    if (!['published', 'matched', 'negotiating'].includes(jobCheck.rows[0].status)) {
+      return res.status(400).json({ error: 'Job cannot be assigned in its current state' });
+    }
+    if (jobCheck.rows[0].assigned_helper_id && jobCheck.rows[0].assigned_helper_id !== helper_id) {
+      return res.status(400).json({ error: 'Job already has a helper assigned' });
+    }
+
+    // Wrap assignment in transaction for atomicity
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(`
+        UPDATE jobs SET
+          assigned_helper_id = $1,
+          status = 'accepted',
+          updated_at = now()
+        WHERE id = $2 AND client_id = $3
+        AND status IN ('published','matched','negotiating')
+        AND (assigned_helper_id IS NULL OR assigned_helper_id = $1)
+        RETURNING *
+      `, [helper_id, job_id, req.user.id]);
+
+      if (!rows.length) {
+        throw new Error('Job assignment failed — state changed during processing');
+      }
+      return rows[0];
+    }, 'assign_helper');
+
+    res.json({ message: 'Helper assigned', job: result });
   } catch (err) {
-    logger.error('Assign helper error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
+    logger.error('Assign helper error', { jobId: req.body?.job_id, helperId: req.body?.helper_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to assign helper' });
   }
 };
@@ -396,21 +434,51 @@ exports.startJob = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { rows } = await pool.query(`
-      UPDATE jobs SET
-        status = 'in_progress',
-        started_at = now(),
-        updated_at = now()
+    // Pre-check: job must exist, have a helper assigned, be in accepted state
+    const { rows: jobRows } = await pool.query(`
+      SELECT id, client_id, assigned_helper_id, status, expires_at
+      FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
-      AND status = 'accepted'
-      RETURNING *
     `, [id, req.user.id]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be started' });
+    if (!jobRows[0]) {
+      return res.status(404).json({ error: 'Job not found or you are not authorized' });
     }
 
-    res.json({ message: 'Job started', job: rows[0] });
+    const job = jobRows[0];
+
+    if (job.status !== 'accepted') {
+      return res.status(400).json({ error: `Job cannot be started in '${job.status}' state. Job must be in 'accepted' state.` });
+    }
+
+    if (!job.assigned_helper_id) {
+      return res.status(400).json({ error: 'Job cannot be started without an assigned helper' });
+    }
+
+    if (job.expires_at && new Date(job.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Job has expired and cannot be started' });
+    }
+
+    // Wrap state transition in transaction for atomicity
+    const result = await withJobTransaction(pool, async (client) => {
+      const { rows } = await client.query(`
+        UPDATE jobs SET
+          status = 'in_progress',
+          started_at = now(),
+          updated_at = now()
+        WHERE id = $1
+        AND status = 'accepted'
+        AND assigned_helper_id IS NOT NULL
+        RETURNING *
+      `, [id]);
+
+      if (!rows.length) {
+        throw new Error('Job start failed — state changed during processing');
+      }
+      return rows[0];
+    }, 'start_job');
+
+    res.json({ message: 'Job started', job: result });
   } catch (err) {
     logger.error('Start job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to start job' });
@@ -498,6 +566,30 @@ exports.closeJob = async (req, res) => {
 
     if (jobRows.length === 0) {
       return res.status(404).json({ error: 'Job not found or cannot be closed' });
+    }
+
+    // Check for open/in_progress disputes
+    const { rows: disputeRows } = await pool.query(`
+      SELECT id FROM disputes
+      WHERE job_id = $1 AND status IN ('open', 'in_progress')
+    `, [id]);
+
+    if (disputeRows.length > 0) {
+      return res.status(409).json({
+        error: 'Cannot close job while a payment dispute is open. Resolve the dispute first.',
+      });
+    }
+
+    // Check payment status for tier-3 jobs (must be captured/released)
+    const { rows: paymentRows } = await pool.query(`
+      SELECT id, status FROM payments
+      WHERE job_id = $1 AND status NOT IN ('captured', 'released', 'refunded')
+    `, [id]);
+
+    if (paymentRows.length > 0) {
+      return res.status(409).json({
+        error: 'Cannot close job with pending payments. Please ensure all payments are processed.',
+      });
     }
 
     // Wrap state change in a transaction for atomicity
