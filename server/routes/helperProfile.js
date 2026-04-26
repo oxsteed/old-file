@@ -157,6 +157,13 @@ router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
       ],
     );
 
+    // Invalidate cache on visibility change
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.json({ ok: true });
   } catch (err) {
     logger.error('[helperProfile] PUT /visibility error', { err: err.message });
@@ -192,6 +199,13 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
         [profile_photo_url, uid],
       );
     }
+
+    // Invalidate cache on photo change
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
 
     res.json({ ok: true });
   } catch (err) {
@@ -230,6 +244,14 @@ router.post('/services', helperOnly, generalLimiter, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [uid, name, description||null, parseFloat(price)||0, unit, duration||null, !!popular, category||'General', sort_order||0],
     );
+
+    // Invalidate cache on service creation
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.status(201).json(svc);
   } catch (err) {
     logger.error('[helperProfile] POST /services', { err: err.message });
@@ -266,6 +288,14 @@ router.put('/services/:id', helperOnly, generalLimiter, async (req, res) => {
        duration||null, popular!=null?!!popular:null, category||null,
        sort_order!=null?parseInt(sort_order):null, is_active!=null?!!is_active:null, id, uid],
     );
+
+    // Invalidate cache on service update
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.json(svc);
   } catch (err) {
     logger.error('[helperProfile] PUT /services/:id', { err: err.message });
@@ -275,10 +305,19 @@ router.put('/services/:id', helperOnly, generalLimiter, async (req, res) => {
 
 router.delete('/services/:id', helperOnly, async (req, res) => {
   try {
+    const uid = req.user.id;
     const { rows: [r] } = await pool.query(
-      'DELETE FROM helper_services WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]
+      'DELETE FROM helper_services WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, uid]
     );
     if (!r) return res.status(404).json({ error: 'Not found' });
+
+    // Invalidate cache on service deletion
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(res => invalidateHelperContext(uid, res.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.json({ ok: true });
   } catch (err) {
     logger.error('[helperProfile] DELETE /services/:id', { err: err.message });
@@ -302,12 +341,21 @@ router.get('/faqs', helperOnly, async (req, res) => {
 
 router.post('/faqs', helperOnly, generalLimiter, async (req, res) => {
   try {
+    const uid = req.user.id;
     const { question, answer, sort_order } = req.body;
     if (!question || !answer) return res.status(400).json({ error: 'question and answer required' });
     const { rows: [faq] } = await pool.query(
       'INSERT INTO helper_faqs (user_id, question, answer, sort_order) VALUES ($1,$2,$3,$4) RETURNING *',
-      [req.user.id, question, answer, sort_order||0],
+      [uid, question, answer, sort_order||0],
     );
+
+    // Invalidate cache on FAQ creation
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.status(201).json(faq);
   } catch (err) {
     logger.error('[helperProfile] POST /faqs', { err: err.message });
@@ -317,6 +365,7 @@ router.post('/faqs', helperOnly, generalLimiter, async (req, res) => {
 
 router.put('/faqs/:id', helperOnly, generalLimiter, async (req, res) => {
   try {
+    const uid = req.user.id;
     const { question, answer, sort_order } = req.body;
     const { rows: [f] } = await pool.query(
       `UPDATE helper_faqs SET
@@ -325,9 +374,17 @@ router.put('/faqs/:id', helperOnly, generalLimiter, async (req, res) => {
          sort_order = COALESCE($3, sort_order),
          updated_at = NOW()
        WHERE id=$4 AND user_id=$5 RETURNING *`,
-      [question||null, answer||null, sort_order!=null?parseInt(sort_order):null, req.params.id, req.user.id],
+      [question||null, answer||null, sort_order!=null?parseInt(sort_order):null, req.params.id, uid],
     );
     if (!f) return res.status(404).json({ error: 'Not found' });
+
+    // Invalidate cache on FAQ update
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.json(f);
   } catch (err) {
     logger.error('[helperProfile] PUT /faqs/:id', { err: err.message });
@@ -337,8 +394,17 @@ router.put('/faqs/:id', helperOnly, generalLimiter, async (req, res) => {
 
 router.delete('/faqs/:id', helperOnly, async (req, res) => {
   try {
-    const { rows: [r] } = await pool.query('DELETE FROM helper_faqs WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
+    const uid = req.user.id;
+    const { rows: [r] } = await pool.query('DELETE FROM helper_faqs WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, uid]);
     if (!r) return res.status(404).json({ error: 'Not found' });
+
+    // Invalidate cache on FAQ deletion
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.json({ ok: true });
   } catch (err) {
     logger.error('[helperProfile] DELETE /faqs/:id', { err: err.message });
@@ -362,12 +428,21 @@ router.get('/policies', helperOnly, async (req, res) => {
 
 router.post('/policies', helperOnly, generalLimiter, async (req, res) => {
   try {
+    const uid = req.user.id;
     const { title, content, icon, sort_order } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title and content required' });
     const { rows: [pol] } = await pool.query(
       'INSERT INTO helper_policies (user_id, title, content, icon, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [req.user.id, title, content, icon||'file-text', sort_order||0],
+      [uid, title, content, icon||'file-text', sort_order||0],
     );
+
+    // Invalidate cache on policy creation
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.status(201).json(pol);
   } catch (err) {
     logger.error('[helperProfile] POST /policies', { err: err.message });
@@ -377,6 +452,7 @@ router.post('/policies', helperOnly, generalLimiter, async (req, res) => {
 
 router.put('/policies/:id', helperOnly, generalLimiter, async (req, res) => {
   try {
+    const uid = req.user.id;
     const { title, content, icon, sort_order } = req.body;
     const { rows: [p] } = await pool.query(
       `UPDATE helper_policies SET
@@ -386,9 +462,17 @@ router.put('/policies/:id', helperOnly, generalLimiter, async (req, res) => {
          sort_order = COALESCE($4, sort_order),
          updated_at = NOW()
        WHERE id=$5 AND user_id=$6 RETURNING *`,
-      [title||null, content||null, icon||null, sort_order!=null?parseInt(sort_order):null, req.params.id, req.user.id],
+      [title||null, content||null, icon||null, sort_order!=null?parseInt(sort_order):null, req.params.id, uid],
     );
     if (!p) return res.status(404).json({ error: 'Not found' });
+
+    // Invalidate cache on policy update
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.json(p);
   } catch (err) {
     logger.error('[helperProfile] PUT /policies/:id', { err: err.message });
@@ -398,8 +482,17 @@ router.put('/policies/:id', helperOnly, generalLimiter, async (req, res) => {
 
 router.delete('/policies/:id', helperOnly, async (req, res) => {
   try {
-    const { rows: [r] } = await pool.query('DELETE FROM helper_policies WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, req.user.id]);
+    const uid = req.user.id;
+    const { rows: [r] } = await pool.query('DELETE FROM helper_policies WHERE id=$1 AND user_id=$2 RETURNING id', [req.params.id, uid]);
     if (!r) return res.status(404).json({ error: 'Not found' });
+
+    // Invalidate cache on policy deletion
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [uid]
+    ).then(r => invalidateHelperContext(uid, r.rows[0]?.id))
+     .catch(() => invalidateHelperContext(uid));
+
     res.json({ ok: true });
   } catch (err) {
     logger.error('[helperProfile] DELETE /policies/:id', { err: err.message });
