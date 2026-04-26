@@ -174,14 +174,19 @@ exports.cancelSubscription = async (req, res) => {
 
     // Status stays 'active' — access continues until period_end.
     // The webhook customer.subscription.deleted will flip it to 'cancelled' when Stripe actually ends it.
-    await db.query(
+    // Safeguard: ensure subscription is still active and not already being cancelled
+    const updateResult = await db.query(
       `UPDATE subscriptions
        SET cancel_at_period_end = TRUE,
            current_period_end   = TO_TIMESTAMP($2),
            updated_at           = NOW()
-       WHERE stripe_subscription_id = $1`,
+       WHERE stripe_subscription_id = $1 AND cancel_at_period_end = FALSE RETURNING id`,
       [rows[0].stripe_subscription_id, stripeSub.current_period_end]
     );
+
+    if (!updateResult.rows.length) {
+      return res.status(409).json({ error: 'Subscription cancellation already in progress. Please try again.' });
+    }
 
     res.json({ message: 'Subscription cancellation scheduled successfully.', cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString() });
   } catch (err) {
