@@ -808,3 +808,4 @@ COMMIT;
 -- END OF MIGRATION 001
 -- Next: Run migrations/002_auth_and_profiles.sql
 -- ═══════════════════════════════════════════════════════════════
+
