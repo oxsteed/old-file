@@ -95,10 +95,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   showQuickReplies,
 }) => {
   const { t } = useTranslation();
-  const config = AUTHOR_CONFIG[message.authorType];
+  const config = AUTHOR_CONFIG[message.authorType] || AUTHOR_CONFIG.user;
   const isUser = message.authorType === 'user';
-  const isAI = message.authorType.includes('ai');
-  const Icon = config.icon;
+  const isAI = message.authorType?.includes('ai');
+  const Icon = config?.icon;
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
