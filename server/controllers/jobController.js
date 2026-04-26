@@ -597,9 +597,13 @@ exports.completeJob = async (req, res) => {
           status = 'completed',
           completed_at = now(),
           updated_at = now()
-        WHERE id = $1
+        WHERE id = $1 AND status = 'in_progress'
         RETURNING *
       `, [id]);
+
+      if (!rows.length) {
+        throw new Error('Job state changed during completion — job is no longer in_progress');
+      }
 
       return rows[0];
     }, 'complete_job');
@@ -660,9 +664,12 @@ exports.closeJob = async (req, res) => {
     const result = await withJobTransaction(pool, async (client) => {
       const { rows } = await client.query(`
         UPDATE jobs SET status = 'closed', updated_at = now()
-        WHERE id = $1
+        WHERE id = $1 AND status = 'completed'
         RETURNING *
       `, [id]);
+      if (!rows.length) {
+        throw new Error('Job state changed during closing — job is no longer completed');
+      }
       return rows[0];
     }, 'close_job');
 
