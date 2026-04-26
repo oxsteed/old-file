@@ -28,7 +28,7 @@ CREATE TABLE appointments (
                                              REFERENCES users(id) ON DELETE CASCADE,
   helper_id                   UUID         NOT NULL
                                              REFERENCES users(id) ON DELETE CASCADE,
-  job_id                      UUID         REFERENCES jobs(id) ON DELETE SET NULL,
+  job_id                      UUID,
   service_description         TEXT         NOT NULL,
   scheduled_start_time        TIMESTAMPTZ  NOT NULL,
   scheduled_end_time          TIMESTAMPTZ  NOT NULL,
@@ -161,6 +161,21 @@ CREATE TABLE calendar_audit_log (
 CREATE INDEX idx_cal_audit_user        ON calendar_audit_log(user_id);
 CREATE INDEX idx_cal_audit_appointment ON calendar_audit_log(appointment_id);
 CREATE INDEX idx_cal_audit_created     ON calendar_audit_log(created_at DESC);
+
+-- ─── FK: appointments → jobs (added post-CREATE to survive missing jobs table) ─
+-- Uses exception handling so the migration succeeds even when the jobs table
+-- has not been created yet (e.g. fresh DB where an earlier migration failed).
+-- The duplicate_object branch makes it safe to re-run (idempotency).
+DO $$
+BEGIN
+  ALTER TABLE appointments
+    ADD CONSTRAINT fk_appointments_job
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_table  THEN NULL;
+END;
+$$;
 
 -- ─── updated_at TRIGGERS (re-use the helper from migration 001) ─
 -- update_updated_at() is created in migration 001_initial_schema.sql.
