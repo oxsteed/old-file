@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
-import { api } from '../api/axios';
+import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Mail, CheckCircle } from 'lucide-react';
 import Footer from '../components/Footer';
