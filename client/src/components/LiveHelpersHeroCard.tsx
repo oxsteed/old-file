@@ -251,7 +251,7 @@ export default function LiveHelpersHeroCard() {
                       height: '32px',
                       borderRadius: '50%',
                       background: helper.avatar
-                        ? `url(${helper.avatar}) center/cover`
+                        ? `url('${helper.avatar.replace(/'/g, "\\'")}') center/cover`
                         : 'var(--hp-primary-bg)',
                       color: 'var(--hp-primary)',
                       display: 'flex',
