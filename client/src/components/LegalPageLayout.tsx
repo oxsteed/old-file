@@ -100,9 +100,11 @@ export default function LegalPageLayout({ title, effectiveDate, children }: Lega
             }}>
               <time dateTime={effectiveDate}>
                 {t('legalPage.effectiveDate', {
-                  date: new Date(effectiveDate).toLocaleDateString(undefined, {
-                    year: 'numeric', month: 'long', day: 'numeric',
-                  }),
+                  date: effectiveDate && !isNaN(new Date(effectiveDate).getTime())
+                    ? new Date(effectiveDate).toLocaleDateString(undefined, {
+                        year: 'numeric', month: 'long', day: 'numeric',
+                      })
+                    : effectiveDate,
                 })}
               </time>
             </p>

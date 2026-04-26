@@ -85,7 +85,7 @@ export function AuthProvider({ children }) {
 
     try {
       const fullUser = await fetchMe();
-      return { ...data, user: fullUser };
+      return { ...(data ?? {}), user: fullUser };
     } catch (err) {
       clearAuthState();
       throw err;
@@ -97,7 +97,7 @@ export function AuthProvider({ children }) {
 
     try {
       const fullUser = await fetchMe();
-      return { ...data, user: fullUser };
+      return { ...(data ?? {}), user: fullUser };
     } catch (err) {
       clearAuthState();
       throw err;
