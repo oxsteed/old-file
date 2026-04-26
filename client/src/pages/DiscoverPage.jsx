@@ -79,7 +79,7 @@ function highlightText(text, terms) {
   const safe = terms.filter(Boolean).slice(0, 8).map((x) => escapeReg(String(x).toLowerCase()));
   if (!safe.length) return t;
   const re = new RegExp(`(${safe.join('|')})`, 'gi');
-  const parts = t.split(re);
+  const parts = t.split(re).slice(0, 100).filter(p => p);
   return parts.map((part, i) => {
     const low = part.toLowerCase();
     if (terms.some((term) => term && low === term.toLowerCase())) {
