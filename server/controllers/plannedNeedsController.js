@@ -324,18 +324,8 @@ exports.completePlannedNeed = async (req, res) => {
       return res.status(400).json({ error: `Cannot complete a ${need.status} need.` });
     }
 
-    // Mark complete
-    const { rows } = await db.query(`
-      UPDATE planned_needs
-      SET status = 'completed',
-          actual_cost = COALESCE($3, actual_cost),
-          completed_at = NOW(),
-          updated_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING *
-    `, [id, userId, actual_cost || null]);
-
-    const completed = rows[0];
+    // Determine final status (regenerated if recurring, else completed)
+    let finalStatus = 'completed';
     let nextNeed = null;
 
     // Auto-regenerate if recurring
@@ -368,13 +358,21 @@ exports.completePlannedNeed = async (req, res) => {
         need.recurrence_type, need.recurrence_interval_days, need.notes, need.id,
       ]);
       nextNeed = nextRows[0];
-
-      // Mark original as 'regenerated' for clarity
-      await db.query(
-        "UPDATE planned_needs SET status = 'regenerated', updated_at = NOW() WHERE id = $1",
-        [id]
-      );
+      finalStatus = 'regenerated';
     }
+
+    // Mark complete with final status
+    const { rows } = await db.query(`
+      UPDATE planned_needs
+      SET status = $3,
+          actual_cost = COALESCE($4, actual_cost),
+          completed_at = NOW(),
+          updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+      RETURNING *
+    `, [id, userId, finalStatus, actual_cost || null]);
+
+    const completed = rows[0];
 
     res.json({ completed, next_need: nextNeed });
   } catch (err) {

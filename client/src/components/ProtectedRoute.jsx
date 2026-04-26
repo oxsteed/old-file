@@ -73,7 +73,7 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
   // unless they're already on an allowed path.
   if (
     requireOnboarded &&
-    user.role === 'helper' &&
+    ['helper', 'helper_pro', 'broker'].includes(user.role) &&
     !isOnboardingComplete &&
     !ONBOARDING_ALLOWED_PATHS.includes(location.pathname)
   ) {
