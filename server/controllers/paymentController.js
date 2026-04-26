@@ -58,7 +58,7 @@ exports.createConnectAccount = async (req, res) => {
     });
     res.json({ url: link.url, account_id: account.id });
   } catch (err) {
-    logger.error('Create connect account error', { err });
+    logger.error('Create connect account error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create payment account' });
   }
 };
@@ -73,7 +73,7 @@ exports.getConnectStatus = async (req, res) => {
     if (!result.rows[0]) return res.json({ connected: false });
     res.json({ connected: true, ...result.rows[0] });
   } catch (err) {
-    logger.error('Get connect status error', { err });
+    logger.error('Get connect status error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to get account status' });
   }
 };
@@ -146,7 +146,7 @@ exports.createPaymentIntent = async (req, res) => {
 
     res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
   } catch (err) {
-    logger.error('Create payment intent error', { err });
+    logger.error('Create payment intent error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create payment' });
   }
 };
@@ -213,7 +213,7 @@ exports.capturePayment = async (req, res) => {
       });
     }
   } catch (err) {
-    logger.error('Capture payment error', { err });
+    logger.error('Capture payment error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to capture payment' });
   }
 };
@@ -301,7 +301,7 @@ exports.refundPayment = async (req, res) => {
 
     res.json({ message: 'Refund processed', refund_id: refundId });
   } catch (err) {
-    logger.error('Refund payment error', { err });
+    logger.error('Refund payment error', { paymentId: req.body?.payment_id, adminId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to process refund' });
   }
 };
@@ -317,7 +317,7 @@ exports.getJobPayment = async (req, res) => {
     }
     res.json(p);
   } catch (err) {
-    logger.error('Get job payment error', { err });
+    logger.error('Get job payment error', { jobId: req.params?.job_id, userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch payment' });
   }
 };
@@ -340,7 +340,7 @@ exports.getMyPayments = async (req, res) => {
     }
     res.json(result.rows);
   } catch (err) {
-    logger.error('Get my payments error', { err });
+    logger.error('Get my payments error', { userId: req.user?.id, role: req.query?.role, error: err.message });
     res.status(500).json({ error: 'Failed to fetch payments' });
   }
 };

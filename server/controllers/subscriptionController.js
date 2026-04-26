@@ -41,7 +41,7 @@ exports.getPlans = async (req, res) => {
       }))
     });
   } catch (err) {
-    logger.error('Get plans error:', { err: err });
+    logger.error('Get plans error', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch plans.' });
   }
 };
@@ -118,7 +118,7 @@ exports.createCheckout = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    logger.error('Create checkout error:', { err: err });
+    logger.error('Create checkout error', { userId: req.user?.id, planSlug: req.body?.planSlug, error: err.message });
     res.status(500).json({ error: 'Failed to create checkout session.' });
   }
 };
@@ -136,7 +136,7 @@ exports.getSubscription = async (req, res) => {
     );
     res.json({ subscription: rows[0] || null });
   } catch (err) {
-    logger.error('Get subscription error:', { err: err });
+    logger.error('Get subscription error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to fetch subscription.' });
   }
 };
@@ -185,7 +185,7 @@ exports.cancelSubscription = async (req, res) => {
 
     res.json({ message: 'Subscription cancellation scheduled successfully.', cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString() });
   } catch (err) {
-    logger.error('Cancel subscription error:', { err: err });
+    logger.error('Cancel subscription error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to cancel subscription.' });
   }
 };
@@ -214,7 +214,7 @@ exports.createPortalSession = async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    logger.error('Portal session error:', { err: err });
+    logger.error('Portal session error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to create portal session.' });
   }
 };
