@@ -103,7 +103,9 @@
     },
     "failed": "Erè",
     "sortBy": "Triye pa",
-    "reset": "Reinisyalize"
+    "reset": "Reinisyalize",
+    "contactSupport": "Kontakte sipò",
+    "verifying": "N ap verifye…"
   },
   "trial": {
     "active": "Esè aktif",
@@ -227,7 +229,10 @@
     "forgotPassword": "Ou bliye modpas ou?",
     "resetPassword": "Reyinisyalize modpas",
     "signUp": "Enskri",
-    "welcomeBack": "Byenvini tounen"
+    "welcomeBack": "Byenvini tounen",
+    "otpSent": "Kòd verifikasyon voye. Tcheke bwat resepsyon ou.",
+    "emailVerified": "Imèl verifye.",
+    "otpCode": "Kòd verifikasyon"
   },
   "errors": {
     "generic": "Yon erè te pase",
@@ -236,7 +241,11 @@
     "sessionExpired": "Sesyon ekspire",
     "loginFailed": "Koneksyon echwe",
     "invalidCode": "Kòd pa valab",
-    "resetLinkInvalid": "Lyen reyinisyalizasyon an pa valab oswa li ekspire."
+    "resetLinkInvalid": "Lyen reyinisyalizasyon an pa valab oswa li ekspire.",
+    "otpRequestFailed": "Nou pa t kapab voye kòd verifikasyon ou. Tanpri eseye ankò nan yon ti moman.",
+    "emailNotFound": "Nou pa jwenn yon imèl nan kont ou. Eseye dekonekte epi rekonekte.",
+    "enterOtp": "Tanpri antre kòd verifikasyon an.",
+    "invalidOtp": "Kòd la pa valab oswa li ekspire. Tanpri eseye ankò."
   },
   "login": {
     "title": "Byenvini tounen",
@@ -4480,5 +4489,14 @@
     "provideTimes": "Bay lè kòmansman ak lè fini",
     "provideCancelReason": "Tanpri bay yon rezon pou anilasyon",
     "notes": "Nòt"
+  },
+  "verifyEmail": {
+    "title": "Verifye imèl ou",
+    "description": "Nou bezwen konfime imèl ou anvan nou kontinye.",
+    "sentTo": "N ap voye yon kòd 6 chif nan {{email}}.",
+    "sendOtp": "Voye kòd verifikasyon",
+    "didntReceive": "Ou pa resevwa li?",
+    "verify": "Verifye imèl",
+    "help": "Ou bezwen èd?"
   }
 }

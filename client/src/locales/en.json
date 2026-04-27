@@ -104,7 +104,9 @@
     },
     "failed": "Failed",
     "sortBy": "Sort by",
-    "reset": "Reset"
+    "reset": "Reset",
+    "contactSupport": "Contact support",
+    "verifying": "Verifying…"
   },
   "jobs": {
     "title": "Job Details",
@@ -145,7 +147,10 @@
     "forgotPassword": "Forgot password?",
     "resetPassword": "Reset password",
     "signUp": "Sign up",
-    "welcomeBack": "Welcome back"
+    "welcomeBack": "Welcome back",
+    "otpSent": "Verification code sent. Check your inbox.",
+    "emailVerified": "Email verified.",
+    "otpCode": "Verification code"
   },
   "errors": {
     "generic": "Something went wrong",
@@ -154,7 +159,11 @@
     "sessionExpired": "Session expired",
     "loginFailed": "Login failed",
     "invalidCode": "Invalid code",
-    "resetLinkInvalid": "Reset link is invalid or expired."
+    "resetLinkInvalid": "Reset link is invalid or expired.",
+    "otpRequestFailed": "We couldn't send your verification code. Please try again in a moment.",
+    "emailNotFound": "We couldn't find an email on your account. Try logging out and back in.",
+    "enterOtp": "Please enter the verification code.",
+    "invalidOtp": "That code is invalid or expired. Please try again."
   },
   "login": {
     "title": "Welcome back",
@@ -4291,7 +4300,6 @@
     "sessions": "Sessions",
     "completedSessions": "Completed",
     "rating": "Rating",
-    "feedback": "Feedback",
     "completionRate": "Completion Rate",
     "conversionFunnel": "Conversion Funnel",
     "intakes": "Intakes",
@@ -4483,5 +4491,14 @@
     "errorCreatingBlock": "Failed to create availability block",
     "provideTimes": "Please provide start and end times",
     "provideCancelReason": "Please provide a reason for cancellation"
+  },
+  "verifyEmail": {
+    "title": "Verify your email",
+    "description": "We need to confirm your email before you can keep going.",
+    "sentTo": "We'll send a 6-digit code to {{email}}.",
+    "sendOtp": "Send verification code",
+    "didntReceive": "Didn't get it?",
+    "verify": "Verify email",
+    "help": "Need help?"
   }
 }

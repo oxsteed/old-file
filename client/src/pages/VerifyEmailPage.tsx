@@ -29,7 +29,7 @@ export default function VerifyEmailPage() {
 
     setLoading(true);
     try {
-      await api.post('/api/auth/request-otp', {
+      await api.post('/auth/otp/request', {
         email: user.email,
         type: 'email_verification'
       });
@@ -51,7 +51,7 @@ export default function VerifyEmailPage() {
 
     setLoading(true);
     try {
-      await api.post('/api/auth/verify-otp', {
+      await api.post('/auth/otp/verify', {
         email: user?.email,
         otp: otp.trim(),
         type: 'email_verification'

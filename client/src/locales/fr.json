@@ -103,7 +103,9 @@
     },
     "failed": "Erreur",
     "sortBy": "Trier par",
-    "reset": "Réinitialiser"
+    "reset": "Réinitialiser",
+    "contactSupport": "Contacter le support",
+    "verifying": "Vérification…"
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -144,7 +146,10 @@
     "forgotPassword": "Mot de passe oublié ?",
     "resetPassword": "Réinitialiser le mot de passe",
     "signUp": "S'inscrire",
-    "welcomeBack": "Bon retour parmi nous"
+    "welcomeBack": "Bon retour parmi nous",
+    "otpSent": "Code de vérification envoyé. Vérifiez votre boîte de réception.",
+    "emailVerified": "E-mail vérifié.",
+    "otpCode": "Code de vérification"
   },
   "errors": {
     "generic": "Une erreur s'est produite",
@@ -153,7 +158,11 @@
     "sessionExpired": "Session expirée",
     "loginFailed": "Échec de la connexion",
     "invalidCode": "Code invalide",
-    "resetLinkInvalid": "Le lien de réinitialisation est invalide ou a expiré."
+    "resetLinkInvalid": "Le lien de réinitialisation est invalide ou a expiré.",
+    "otpRequestFailed": "Impossible d'envoyer votre code de vérification. Veuillez réessayer dans un instant.",
+    "emailNotFound": "Aucune adresse e-mail trouvée sur votre compte. Déconnectez-vous puis reconnectez-vous.",
+    "enterOtp": "Veuillez saisir le code de vérification.",
+    "invalidOtp": "Code invalide ou expiré. Veuillez réessayer."
   },
   "login": {
     "title": "Bon retour",
@@ -4481,5 +4490,14 @@
     "provideTimes": "Indiquez les heures de début et de fin",
     "provideCancelReason": "Veuillez indiquer un motif d'annulation",
     "notes": "Notes"
+  },
+  "verifyEmail": {
+    "title": "Vérifiez votre e-mail",
+    "description": "Nous devons confirmer votre adresse e-mail avant de continuer.",
+    "sentTo": "Nous enverrons un code à 6 chiffres à {{email}}.",
+    "sendOtp": "Envoyer le code de vérification",
+    "didntReceive": "Pas reçu ?",
+    "verify": "Vérifier l'e-mail",
+    "help": "Besoin d'aide ?"
   }
 }
