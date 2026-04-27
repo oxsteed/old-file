@@ -16,6 +16,9 @@ import Payouts           from './pages/super/Payouts';
 import AdminAccounts     from './pages/super/AdminAccounts';
 import SearchLogs        from './pages/super/SearchLogs';
 import PermissionGrants  from './pages/super/PermissionGrants';
+import CreateUser        from './pages/super/CreateUser';
+import RegionsManager    from './pages/super/RegionsManager';
+import AuditLogUserActions from './pages/super/AuditLogUserActions';
 
 // Shared admin pages
 import UsersList            from './pages/UsersList';
@@ -144,6 +147,15 @@ export default function AdminApp() {
           } />
           <Route path="super/permissions" element={
             <AdminGuard superOnly><PermissionGrants /></AdminGuard>
+          } />
+          <Route path="super/users/create" element={
+            <AdminGuard superOnly><CreateUser /></AdminGuard>
+          } />
+          <Route path="super/regions" element={
+            <AdminGuard superOnly><RegionsManager /></AdminGuard>
+          } />
+          <Route path="super/audit-log/user-actions" element={
+            <AdminGuard superOnly><AuditLogUserActions /></AdminGuard>
           } />
         </Route>
 
