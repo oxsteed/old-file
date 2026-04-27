@@ -52,6 +52,8 @@ exports.listGrants = async (req, res) => {
         g.notes,
         g.created_at,
         g.revoked_at,
+        g.region_id,
+        r.name AS region_name,
         grantor.first_name || ' ' || grantor.last_name AS grantor_name,
         grantor.email AS grantor_email,
         grantee.id AS grantee_id,
@@ -61,6 +63,7 @@ exports.listGrants = async (req, res) => {
       FROM admin_permission_grants g
       JOIN users grantor ON grantor.id = g.grantor_id
       JOIN users grantee ON grantee.id = g.grantee_id
+      LEFT JOIN admin_regions r ON r.id = g.region_id
       ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
       ORDER BY g.created_at DESC
       LIMIT 200
@@ -78,7 +81,7 @@ exports.listGrants = async (req, res) => {
 exports.createGrant = async (req, res) => {
   try {
     const grantorId = req.user.id;
-    const { grantee_id, permissions, expires_at, notes } = req.body;
+    const { grantee_id, permissions, expires_at, notes, region_id = null } = req.body;
 
     if (!grantee_id)           return res.status(400).json({ error: 'grantee_id is required.' });
     if (!permissions?.length)  return res.status(400).json({ error: 'At least one permission is required.' });
@@ -115,11 +118,21 @@ exports.createGrant = async (req, res) => {
       return res.status(400).json({ error: 'Grants can only be issued to regular admins.' });
     }
 
+    // Optional region scoping
+    let regionRow = null;
+    if (region_id != null) {
+      const { rows: rr } = await db.query(
+        'SELECT id, name FROM admin_regions WHERE id = $1', [region_id]
+      );
+      if (!rr.length) return res.status(400).json({ error: 'region_id does not exist.' });
+      regionRow = rr[0];
+    }
+
     const { rows } = await db.query(`
-      INSERT INTO admin_permission_grants (grantor_id, grantee_id, permissions, expires_at, notes)
-      VALUES ($1, $2, $3::jsonb, $4, $5)
+      INSERT INTO admin_permission_grants (grantor_id, grantee_id, permissions, expires_at, notes, region_id)
+      VALUES ($1, $2, $3::jsonb, $4, $5, $6)
       RETURNING *
-    `, [grantorId, grantee_id, JSON.stringify(permissions), expiresAt, notes || null]);
+    `, [grantorId, grantee_id, JSON.stringify(permissions), expiresAt, notes || null, region_id]);
 
     // Audit log
     await logAdminAction({
@@ -127,8 +140,8 @@ exports.createGrant = async (req, res) => {
       action: 'permission_grant_create',
       targetType: 'admin_permission_grant',
       targetId: grantee_id,
-      description: `Granted [${permissions.join(', ')}] to ${granteeRows[0].email} until ${expiresAt.toISOString()}`,
-      after: { grant_id: rows[0].id, permissions, expires_at: expiresAt },
+      description: `Granted [${permissions.join(', ')}] to ${granteeRows[0].email}${regionRow ? ` for region "${regionRow.name}"` : ''} until ${expiresAt.toISOString()}`,
+      after: { grant_id: rows[0].id, permissions, expires_at: expiresAt, region_id: region_id || null },
       req,
     });
 

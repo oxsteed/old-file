@@ -1,6 +1,10 @@
 const router          = require('express').Router();
 const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
+const { loadAssignedRegions, requireRegionAccessForUser } = require('../middleware/regionAuth');
 const superCtrl       = require('../controllers/superAdminController');
+const superUserCtrl   = require('../controllers/superAdminUserController');
+const regionCtrl      = require('../controllers/adminRegionController');
+const auditCtrl       = require('../controllers/auditController');
 const adminCtrl       = require('../controllers/adminController');
 const supportCtrl     = require('../controllers/supportController');
 const searchCtrl      = require('../controllers/adminSearchController');
@@ -146,6 +150,57 @@ router.delete('/super/permission-grants/:id', requireSuperAdmin, permCtrl.revoke
 
 // Create regular user — super-admin, or admin with create_users grant
 router.post('/super/users', requireSuperAdmin, superCtrl.createUser);
+
+// ══════════════════════════════════════════════════════════════
+// SUPER-ADMIN / REGIONAL-ADMIN — FULL USER MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+// Full user create + edit, regional scoping, region CRUD, structured
+// per-field audit log. Regional admins are gated by `loadAssignedRegions`
+// + `requireRegionAccessForUser`. Super-admins always pass through.
+
+// Full account creation (super-admin only)
+router.post(
+  '/super/users/create-full',
+  requireSuperAdmin,
+  superUserCtrl.createUserFull
+);
+
+// Region-scoped users list (admin or super-admin)
+router.get(
+  '/super/users/in-region',
+  requireAdmin,
+  loadAssignedRegions,
+  superUserCtrl.getUsersInRegion
+);
+
+// Full account edit (super-admin or regional admin with region access)
+router.put(
+  '/super/users/:userId/edit-full',
+  requireAdmin,
+  loadAssignedRegions,
+  requireRegionAccessForUser('userId'),
+  superUserCtrl.editUserFull
+);
+
+// Region CRUD — super-admin only
+router.get(   '/super/regions',             requireSuperAdmin, regionCtrl.listRegions);
+router.post(  '/super/regions',             requireSuperAdmin, regionCtrl.createRegion);
+router.put(   '/super/regions/:regionId',   requireSuperAdmin, regionCtrl.updateRegion);
+router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.deleteRegion);
+
+// User-action audit log — super-admin or admins with view_audit_log grant
+router.get(
+  '/super/audit-log/user-actions',
+  requireAdmin,
+  requirePermission('view_audit_log'),
+  auditCtrl.listUserActions
+);
+router.get(
+  '/super/audit-log/user-actions/export',
+  requireAdmin,
+  requirePermission('view_audit_log'),
+  auditCtrl.exportUserActions
+);
 
 // ══════════════════════════════════════════════════════════════
 // ADMIN → USER LIVE MESSAGING (super-admin only)

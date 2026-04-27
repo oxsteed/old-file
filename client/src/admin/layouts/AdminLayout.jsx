@@ -9,7 +9,7 @@ import {
   ScrollText, Wrench, Trash2, UserCog,
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
-  HeartHandshake, Calendar,
+  HeartHandshake, Calendar, UserPlus, Map,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -42,9 +42,12 @@ const SUPER_NAV = [
   { to: '/admin/super/conversations',   icon: MessageSquare,  label: 'Conversations'    },
   { to: '/admin/super/admin-accounts',  icon: UserCog,        label: 'Admin Accounts'   },
   { to: '/admin/super/permissions',    icon: Key,           label: 'Permissions'      },
+  { to: '/admin/super/regions',        icon: Map,           label: 'Regions'          },
+  { to: '/admin/super/users/create',   icon: UserPlus,      label: 'Create User'      },
   { to: '/admin/super/search-logs',    icon: ClipboardList, label: 'Search Logs'      },
   { to: '/admin/super/settings',       icon: Settings,      label: 'Settings'         },
   { to: '/admin/super/audit-log',      icon: ScrollText,    label: 'Audit Log'        },
+  { to: '/admin/super/audit-log/user-actions', icon: ScrollText, label: 'User Action Log' },
 ];
 
 const navClass = ({ isActive }) =>
