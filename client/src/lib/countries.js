@@ -238,15 +238,15 @@ export function getCountryName(code) {
  * Best-effort browser-locale → ISO country code resolver.
  * Returns null if we cannot confidently identify a supported country.
  */
-export function detectCountryFromLocale() {
-  if (typeof navigator === 'undefined') return null;
+export function detectCountryFromLocale(fallback = 'US') {
+  if (typeof navigator === 'undefined') return fallback;
   const langs = [navigator.language, ...(navigator.languages || [])].filter(Boolean);
   for (const lang of langs) {
     const parts = lang.replace('_', '-').split('-');
     const region = parts[1]?.toUpperCase();
     if (region && region in ALL_COUNTRIES) return region;
   }
-  return null;
+  return fallback;
 }
 
 /**

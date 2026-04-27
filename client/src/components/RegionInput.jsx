@@ -29,6 +29,7 @@ export default function RegionInput({
   placeholder,
   required = false,
   disabled = false,
+  ...rest
 }) {
   const isCountrySelected = !!country;
   const regions           = isCountrySelected ? getRegionsFor(country) : null;
@@ -46,6 +47,7 @@ export default function RegionInput({
         disabled
         placeholder="Select a country first"
         className={className}
+        {...rest}
       />
     );
   }
@@ -61,6 +63,8 @@ export default function RegionInput({
         required={required}
         disabled={disabled}
         className={className}
+        autoComplete="address-level1"
+        {...rest}
       >
         <option value="">{placeholder || `Select ${label}`}</option>
         {regions.map(r => (
@@ -82,6 +86,8 @@ export default function RegionInput({
       required={required}
       disabled={disabled}
       className={className}
+      autoComplete="address-level1"
+      {...rest}
     />
   );
 }

@@ -55,6 +55,37 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS preferred_currency CHAR(3) NOT NULL DEFAULT 'USD',
   ADD COLUMN IF NOT EXISTS timezone           VARCHAR(64);
 
+-- ----------------------------------------------------------------
+-- pending_registrations: signup buffer needs to carry the same
+-- international fields, otherwise non-US signups get truncated.
+-- ----------------------------------------------------------------
+ALTER TABLE pending_registrations
+  ADD COLUMN IF NOT EXISTS country VARCHAR(2) NOT NULL DEFAULT 'US';
+
+-- Widen pending_registrations.state (CHAR(2) / VARCHAR(2) historically).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_name = 'pending_registrations' AND column_name = 'state'
+       AND character_maximum_length < 100
+  ) THEN
+    ALTER TABLE pending_registrations ALTER COLUMN state TYPE VARCHAR(100);
+  END IF;
+END $$;
+
+-- Widen pending_registrations.zip_code (VARCHAR(10) historically).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_name = 'pending_registrations' AND column_name = 'zip_code'
+       AND character_maximum_length < 20
+  ) THEN
+    ALTER TABLE pending_registrations ALTER COLUMN zip_code TYPE VARCHAR(20);
+  END IF;
+END $$;
+
 -- Document the new columns.
 COMMENT ON COLUMN users.country            IS 'ISO-3166 alpha-2 country code. Default ''US''.';
 COMMENT ON COLUMN users.preferred_currency IS 'ISO-4217 currency code (e.g. USD, EUR, GBP).';

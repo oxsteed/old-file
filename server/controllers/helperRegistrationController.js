@@ -10,6 +10,7 @@ const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults } = require('../utils/trial');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { validate, rules } = require('../utils/validate');
+const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const TERMS_IP_HASH_MAX_LEN = 45;
 
@@ -64,12 +65,16 @@ async function startRegistration(req, res) {
       address_line1,
       city,
       state,
+      country,
       ageConfirmed,
     } = req.body;
 
     const line1 = String(addressLine1 ?? address_line1 ?? '').trim();
     const cityTrim = String(city || '').trim();
-    const stateTrim = String(state || '').trim().toUpperCase();
+    const countryCode = countriesUtil.normalizeCountry(country, 'US');
+    const stateTrim = countriesUtil.hasRegions(countryCode)
+      ? String(state || '').trim().toUpperCase()
+      : String(state || '').trim();
 
     const normalized = {
       email: String(email || '').trim().toLowerCase(),
@@ -81,6 +86,7 @@ async function startRegistration(req, res) {
       addressLine1: line1,
       city: cityTrim,
       state: stateTrim,
+      country: countryCode,
       ageConfirmed,
     };
 
@@ -92,8 +98,11 @@ async function startRegistration(req, res) {
       phone:     [rules.required, rules.phone, rules.maxLen(20)],
       addressLine1: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
       city:      [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
-      state:     [rules.required, rules.usState],
-      zip:       [rules.required, rules.zip, rules.maxLen(10)],
+      country:   [rules.required, rules.country],
+      state:     [rules.required, rules.maxLen(100), rules.regionFor(countryCode), rules.noScript],
+      zip:       countriesUtil.hasPostalCode(countryCode)
+        ? [rules.required, rules.maxLen(20), rules.postalFor(countryCode)]
+        : [rules.maxLen(20)],
     });
     if (errs) {
       // Log which fields failed so WARN 400s in production are self-diagnosing
@@ -132,9 +141,9 @@ async function startRegistration(req, res) {
       ? await pool.query(`
           INSERT INTO pending_registrations
             (token, email, password_hash, first_name, last_name, phone, zip_code,
-             address_line1, city, state,
+             address_line1, city, state, country,
              role, otp_code, otp_expires_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'helper',$11,$12)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'helper',$12,$13)
           RETURNING token
         `, [
           token,
@@ -147,15 +156,16 @@ async function startRegistration(req, res) {
           normalized.addressLine1,
           normalized.city,
           normalized.state,
+          normalized.country,
           otpHash,
           otp_expires,
         ])
       : await pool.query(`
           INSERT INTO pending_registrations
             (token, email, password_hash, first_name, last_name, phone, zip_code,
-             address_line1, city, state,
+             address_line1, city, state, country,
              otp_code, otp_expires_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
           RETURNING token
         `, [
           token,
@@ -168,6 +178,7 @@ async function startRegistration(req, res) {
           normalized.addressLine1,
           normalized.city,
           normalized.state,
+          normalized.country,
           otpHash,
           otp_expires,
         ]);
@@ -253,21 +264,26 @@ async function verifyOTP(req, res) {
       const { trial_started_at, trial_ends_at } = trialDefaults();
       const addr1 = (reg.address_line1 || '').trim() || null;
       const cityU = (reg.city || '').trim() || null;
-      const stateU = (reg.state || '').trim().toUpperCase() || null;
+      const countryU = countriesUtil.normalizeCountry(reg.country, 'US');
+      const rawState = (reg.state || '').trim();
+      const stateU = rawState
+        ? (countriesUtil.hasRegions(countryU) ? rawState.toUpperCase() : rawState)
+        : null;
+      const preferredCurrency = countriesUtil.getDefaultCurrency(countryU);
 
       const userResult = await client.query(`
         INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code,
-                           city, state, address_line1,
+                           city, state, address_line1, country, preferred_currency,
                            role, email_verified, onboarding_status, onboarding_completed,
                            membership_tier, profile_completed, tier_selected, terms_accepted, contact_completed,
                            trial_started_at, trial_ends_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'helper', true, 'onboarding_complete', TRUE,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'helper', true, 'onboarding_complete', TRUE,
                 'tier1', TRUE, TRUE, TRUE, TRUE,
-                $10, $11)
+                $12, $13)
         RETURNING id
       `, [reg.email, reg.password_hash, reg.first_name, reg.last_name,
           reg.phone || null, reg.zip_code || null,
-          cityU, stateU, addr1,
+          cityU, stateU, addr1, countryU, preferredCurrency,
           trial_started_at, trial_ends_at]);
 
       userId = userResult.rows[0].id;

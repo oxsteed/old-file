@@ -35,6 +35,7 @@ export default function PostalCodeInput({
   required = false,
   showLabel = false,
   onValidityChange,
+  ...rest
 }) {
   const label    = getPostalLabel(country);
   const example  = getPostalExample(country);
@@ -58,6 +59,7 @@ export default function PostalCodeInput({
         disabled
         placeholder="Select a country first"
         className={className}
+        {...rest}
       />
     );
   }
@@ -78,7 +80,9 @@ export default function PostalCodeInput({
         placeholder={example || label}
         required={required && hasPostalCode(country)}
         className={className}
+        autoComplete="postal-code"
         aria-invalid={!valid}
+        {...rest}
       />
     </>
   );

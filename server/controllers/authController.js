@@ -14,6 +14,7 @@ const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = require('../utils/trial');
 const { validate, rules } = require('../utils/validate');
+const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const SALT_ROUNDS = 12;
@@ -557,12 +558,19 @@ async function startRegistration(req, res) {
   try {
     const {
       email, password, firstName, lastName, phone, zip,
-      addressLine1, address_line1, city, state,
+      addressLine1, address_line1, city, state, country,
       ageConfirmed, ref,
     } = req.body;
     const line1 = String(addressLine1 ?? address_line1 ?? '').trim();
     const cityTrim = String(city || '').trim();
-    const stateTrim = String(state || '').trim().toUpperCase();
+    // Country defaults to 'US' so existing US-only clients (helper signup,
+    // older builds) keep working without sending a country field.
+    const countryCode = countriesUtil.normalizeCountry(country, 'US');
+    // Region casing: known region-list countries (US, CA, AU, IN, GB, DE, FR)
+    // expect uppercase; for free-text regions we keep the user's casing.
+    const stateTrim = countriesUtil.hasRegions(countryCode)
+      ? String(state || '').trim().toUpperCase()
+      : String(state || '').trim();
     const normalized = {
       email: String(email || '').trim().toLowerCase(),
       password,
@@ -573,6 +581,7 @@ async function startRegistration(req, res) {
       addressLine1: line1,
       city: cityTrim,
       state: stateTrim,
+      country: countryCode,
       ageConfirmed,
       ref: ref ? String(ref).trim() : null,
     };
@@ -585,18 +594,37 @@ async function startRegistration(req, res) {
       phone: [rules.required, rules.phone, rules.maxLen(20)],
       addressLine1: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
       city: [rules.required, rules.minLen(1), rules.maxLen(100), rules.noScript],
-      state: [rules.required, rules.usState],
-      zip: [rules.required, rules.zip, rules.maxLen(10)],
+      country: [rules.required, rules.country],
+      state: [rules.required, rules.maxLen(100), rules.regionFor(countryCode), rules.noScript],
+      // For countries without a postal code (HK, HT) zip is allowed to be
+      // empty; for everyone else it must match the country's regex.
+      zip: countriesUtil.hasPostalCode(countryCode)
+        ? [rules.required, rules.maxLen(20), rules.postalFor(countryCode)]
+        : [rules.maxLen(20)],
     });
     if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
     if (!normalized.ageConfirmed) return res.status(400).json({ error: 'Age confirmation required' });
     const phoneClean = normalized.phone.replace(/\D/g, '');
-    if (phoneClean.length < 10 || phoneClean.length > 11) {
+    // International phone numbers can be 7–15 digits per E.164. Keep the old
+    // 10/11-digit US auto-prefix only when country is US.
+    if (phoneClean.length < 7 || phoneClean.length > 15) {
       return res.status(400).json({ error: 'Invalid phone number' });
     }
-    const formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
-    if (!/^\d{5}(-\d{4})?$/.test(normalized.zip)) return res.status(400).json({ error: 'Invalid zip code' });
+    let formattedPhone;
+    if (countryCode === 'US') {
+      if (phoneClean.length !== 10 && phoneClean.length !== 11) {
+        return res.status(400).json({ error: 'Invalid phone number' });
+      }
+      formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
+    } else {
+      // For non-US, accept whatever the user sent — prefix with the country's
+      // dial code if they didn't include one. Always store in E.164-ish form.
+      const dial = countriesUtil.getDialCode(countryCode);
+      formattedPhone = String(normalized.phone).startsWith('+')
+        ? '+' + phoneClean
+        : (dial ? `+${dial}${phoneClean}` : '+' + phoneClean);
+    }
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -604,17 +632,17 @@ async function startRegistration(req, res) {
     const { rows: insertRows } = await pool.query(
       `INSERT INTO pending_registrations (
          token, email, password_hash, first_name, last_name, phone, zip_code,
-         address_line1, city, state,
+         address_line1, city, state, country,
          age_confirmed, role, referral_ref
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        ON CONFLICT (email) DO UPDATE SET
          token = $1, password_hash = $3, first_name = $4, last_name = $5, phone = $6, zip_code = $7,
-         address_line1 = $8, city = $9, state = $10,
-         age_confirmed = $11, referral_ref = $13, updated_at = NOW()
+         address_line1 = $8, city = $9, state = $10, country = $11,
+         age_confirmed = $12, referral_ref = $14, updated_at = NOW()
        RETURNING id`,
       [
         token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalized.zip,
-        normalized.addressLine1, normalized.city, normalized.state,
+        normalized.addressLine1, normalized.city, normalized.state, normalized.country,
         normalized.ageConfirmed, 'customer', normalized.ref,
       ],
     );
@@ -707,11 +735,19 @@ async function verifyRegistrationOTP(req, res) {
 
     const addr1 = (pending.address_line1 || '').trim() || null;
     const cityU = (pending.city || '').trim() || null;
-    const stateU = (pending.state || '').trim().toUpperCase() || null;
+    const countryU = countriesUtil.normalizeCountry(pending.country, 'US');
+    // Re-apply the same casing rule used at signup, to be consistent across
+    // legacy rows that may have been written before migration 117 ran.
+    const rawState = (pending.state || '').trim();
+    const stateU = rawState
+      ? (countriesUtil.hasRegions(countryU) ? rawState.toUpperCase() : rawState)
+      : null;
+    const preferredCurrency = countriesUtil.getDefaultCurrency(countryU);
 
     const userResult = await pool.query(
       `INSERT INTO users (
          email, password_hash, first_name, last_name, phone, zip_code, city, state, address_line1,
+         country, preferred_currency,
          role, age_confirmed, email_verified,
          terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
          trial_started_at, trial_ends_at, referred_by,
@@ -719,15 +755,17 @@ async function verifyRegistrationOTP(req, res) {
          contact_completed, membership_tier
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,
-         'customer',$10,true,
-         $11,$12,$13,$14,$15,
-         $16,$17,$18,
+         $10,$11,
+         'customer',$12,true,
+         $13,$14,$15,$16,$17,
+         $18,$19,$20,
          'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
          TRUE, 'tier1'
        ) RETURNING *`,
       [
         pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
         cityU, stateU, addr1,
+        countryU, preferredCurrency,
         pending.age_confirmed,
         pending.terms_accepted_at, pending.terms_version, pending.terms_acceptance_ip, pending.terms_acceptance_ua, referralCode,
         trial_started_at, trial_ends_at, referrerId,
