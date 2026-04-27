@@ -4,8 +4,11 @@ import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
+import CountrySelect from '../components/CountrySelect';
+import RegionInput from '../components/RegionInput';
 import '../styles/JobListPage.css';
 import { useTranslation } from 'react-i18next';
+import { detectCountryFromLocale } from '../lib/countries';
 
 const CATEGORIES = [
   { name: 'Handyman' },
@@ -21,12 +24,7 @@ const CATEGORIES = [
   { name: 'Other' },
 ];
 
-const US_STATES = [
-  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
-  'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
-  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
-  'VA','WA','WV','WI','WY',
-];
+
 
 /** Defensive budget formatting — handles missing, partial, and malformed data */
 function formatBudget(min, max) {
@@ -67,11 +65,16 @@ export default function JobListPage() {
   const defaultState = user?.role === 'helper' && user?.state
     ? user.state
     : (localStorage.getItem('jlp_state_filter') || '');
+  // Country filter — prefer the user's record, then localStorage, then locale.
+  const defaultCountry = user?.country
+    || localStorage.getItem('jlp_country_filter')
+    || detectCountryFromLocale('US');
 
   const [filters, setFilters] = useState(() => ({
     q: searchParams.get('q') || '',
     category: '',
     city: '',
+    country: defaultCountry,
     state: defaultState,
     sort: 'newest',
     page: 1,
@@ -86,8 +89,16 @@ export default function JobListPage() {
   }, [filters, fetchJobs]);
 
   const handleFilter = (key, value) => {
-    if (key === 'state') localStorage.setItem('jlp_state_filter', value);
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    if (key === 'state')   localStorage.setItem('jlp_state_filter', value);
+    if (key === 'country') localStorage.setItem('jlp_country_filter', value);
+    setFilters(prev => {
+      // Changing the country invalidates the current state filter — they're
+      // country-specific.
+      if (key === 'country') {
+        return { ...prev, country: value, state: '', page: 1 };
+      }
+      return { ...prev, [key]: value, page: 1 };
+    });
   };
 
   const hasJobs = jobs && jobs.length > 0;
@@ -145,17 +156,22 @@ export default function JobListPage() {
               aria-label="Filter by city"
             />
 
-            <select
+            <CountrySelect
               className="ox-select"
+              value={filters.country}
+              onChange={(code) => handleFilter('country', code)}
+              includeBlank={false}
+              aria-label="Filter by country"
+            />
+
+            <RegionInput
+              className="ox-select"
+              country={filters.country}
               value={filters.state}
-              onChange={e => handleFilter('state', e.target.value)}
-              aria-label="Filter by state"
-            >
-              <option value="">{t('jobList.allStates')}</option>
-              {US_STATES.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+              onChange={(v) => handleFilter('state', v)}
+              aria-label="Filter by state or region"
+              placeholder={t('jobList.allStates')}
+            />
 
             <select
               className="ox-select"

@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import adminApi from '../lib/adminApi';
+import CountrySelect from './CountrySelect';
+import RegionInput from './RegionInput';
+import PostalCodeInput from './PostalCodeInput';
+import { detectCountryFromLocale } from '../lib/countries';
 
 /**
  * Full user creation form used by super-admins.
@@ -27,6 +31,7 @@ const INITIAL = {
   first_name: '',
   last_name: '',
   phone: '',
+  country: detectCountryFromLocale('US'),
   city: '',
   state: '',
   zip_code: '',
@@ -63,6 +68,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
        'city', 'state', 'zip_code'].forEach(k => {
         if (payload[k] === '') payload[k] = null;
       });
+      // country always sent (backend defaults to 'US' but be explicit)
 
       const { data } = await adminApi.post(
         '/admin/super/users/create-full', payload
@@ -188,6 +194,26 @@ export default function CreateUserForm({ onCreated, onCancel }) {
       {/* Location */}
       <section>
         <h3 className="text-sm font-semibold text-gray-200 mb-3">Location</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className={labelCls}>Country *</label>
+            <CountrySelect
+              className={inputCls}
+              value={form.country}
+              onChange={(code) => setForm(f => ({
+                ...f,
+                country: code,
+                // Reset state/zip when the country changes — they're
+                // country-specific.
+                state: '',
+                zip_code: '',
+              }))}
+              includeBlank={false}
+              required
+            />
+            {fieldErr('country')}
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={labelCls}>City</label>
@@ -199,24 +225,24 @@ export default function CreateUserForm({ onCreated, onCancel }) {
             />
           </div>
           <div>
-            <label className={labelCls}>State</label>
-            <input
-              type="text"
+            <label className={labelCls}>State / region</label>
+            <RegionInput
               className={inputCls}
+              country={form.country}
               value={form.state}
-              onChange={e => setField('state', e.target.value.toUpperCase())}
-              maxLength={2}
-              placeholder="CA"
+              onChange={(v) => setField('state', v)}
             />
+            {fieldErr('state')}
           </div>
           <div>
-            <label className={labelCls}>ZIP code</label>
-            <input
-              type="text"
+            <label className={labelCls}>Postal code</label>
+            <PostalCodeInput
               className={inputCls}
+              country={form.country}
               value={form.zip_code}
-              onChange={e => setField('zip_code', e.target.value)}
+              onChange={(v) => setField('zip_code', v)}
             />
+            {fieldErr('zip_code')}
           </div>
         </div>
       </section>

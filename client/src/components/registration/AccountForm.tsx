@@ -14,7 +14,10 @@ import { useAuth } from '../../context/AuthContext';
 import AvatarUpload from './AvatarUpload';
 import OTPInput from './OTPInput';
 import PasswordField, { scorePassword } from './PasswordField';
-import { US_STATE_CODES } from '../../constants/usStates';
+import CountrySelect from '../CountrySelect';
+import RegionInput from '../RegionInput';
+import PostalCodeInput from '../PostalCodeInput';
+import { detectCountryFromLocale, hasPostalCode, hasRegions, getRegionLabel } from '../../lib/countries';
 
 // ── Types ────────────────────────────────────────────────
 interface Props {
@@ -28,6 +31,7 @@ type FormState = {
   businessName: string;
   email: string;
   phone: string;
+  country: string;
   addressLine1: string;
   city: string;
   state: string;
@@ -40,7 +44,6 @@ type FormErrors = Partial<Record<keyof FormState | 'general', string>>;
 
 // ── Helpers ──────────────────────────────────────────────
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ZIP_RE = /^\d{5}(-\d{4})?$/;
 
 function FieldError({ id, msg }: { id?: string; msg?: string }) {
   if (!msg) return null;
@@ -66,6 +69,7 @@ export default function AccountForm({ role, onSuccess }: Props) {
     businessName: '',
     email: '',
     phone: '',
+    country: detectCountryFromLocale(),
     addressLine1: '',
     city: '',
     state: '',
@@ -116,15 +120,21 @@ export default function AccountForm({ role, onSuccess }: Props) {
   // ── Send OTP with real form values ─────────────────────
   const sendOtp = useCallback(async (formData: FormState): Promise<string | null> => {
     const endpoint = role === 'helper' ? '/helper-registration/start' : '/auth/register/start';
+    // For countries whose region is a free-text input we keep the raw casing;
+    // for known region-list countries (US, CA, AU, IN, GB, DE, FR) we normalize to uppercase.
+    const stateValue = hasRegions(formData.country)
+      ? formData.state.trim().toUpperCase()
+      : formData.state.trim();
     const res = await api.post(endpoint, {
       email: formData.email.trim().toLowerCase(),
       password: formData.password,
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       phone: formData.phone.trim(),
+      country: formData.country,
       addressLine1: formData.addressLine1.trim(),
       city: formData.city.trim(),
-      state: formData.state.trim().toUpperCase(),
+      state: stateValue,
       zip: formData.zipCode.trim(),
       ageConfirmed: true,
       ...(referralRef ? { ref: referralRef } : {}),
@@ -194,12 +204,15 @@ export default function AccountForm({ role, onSuccess }: Props) {
     if (emailAvailable === false) e.email = t('register.emailTaken');
     const phoneDigits = form.phone.replace(/\D/g, '');
     if (phoneDigits.length < 7) e.phone = t('register.errorPhone');
+    if (!form.country) e.country = t('register.errorCountry');
     if (!form.addressLine1.trim()) e.addressLine1 = t('register.errorStreet');
     if (!form.city.trim()) e.city = t('register.errorCity');
-    if (!form.state) e.state = t('register.errorState');
+    if (!form.state.trim()) e.state = t('register.errorState');
     const z = form.zipCode.trim();
-    if (!z) e.zipCode = t('register.errorZip');
-    else if (!ZIP_RE.test(z)) e.zipCode = t('register.errorZipInvalid');
+    if (hasPostalCode(form.country)) {
+      if (!z) e.zipCode = t('register.errorZip');
+      else if (!PostalCodeInput.isValid(form.country, z)) e.zipCode = t('register.errorZipInvalid');
+    }
     if (scorePassword(form.password) < 3) e.password = t('register.errorPassword');
     if (!form.termsAccepted) e.termsAccepted = t('register.errorTerms');
     setErrors(e);
@@ -410,11 +423,29 @@ export default function AccountForm({ role, onSuccess }: Props) {
             <FieldError id="err-phone" msg={errors.phone} />
           </div>
 
-          {/* ── Address (structured) ───────────────── */}
+          {/* ── Address (structured, country-aware) ───────────────── */}
           <div className="flex flex-col gap-3">
             <span className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
               {t('register.addressSection')}
             </span>
+            {/* Country selector first so downstream region/postal can adapt */}
+            <div className="flex flex-col gap-1">
+              <label htmlFor="country" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+                {t('register.country', 'Country')}
+              </label>
+              <CountrySelect
+                id="country"
+                value={form.country}
+                onChange={(c) => {
+                  // Reset state/zip when country changes to avoid stale cross-country values
+                  setForm((prev) => ({ ...prev, country: c, state: '', zipCode: '' }));
+                  setErrors((prev) => ({ ...prev, country: '', state: '', zipCode: '' }));
+                }}
+                className={`${inputBase} px-3 ${errors.country ? 'border-red-500 bg-red-900/20' : ''}`}
+                aria-invalid={!!errors.country}
+              />
+              <FieldError id="err-country" msg={errors.country} />
+            </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="addressLine1" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
                 {t('register.streetAddress')}
@@ -459,48 +490,39 @@ export default function AccountForm({ role, onSuccess }: Props) {
               </div>
               <div className="flex flex-col gap-1">
                 <label htmlFor="state" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-                  {t('register.state')}
+                  {getRegionLabel(form.country)}
                 </label>
-                <select
+                <RegionInput
                   id="state"
+                  country={form.country}
                   value={form.state}
-                  onChange={(e) => set('state', e.target.value)}
+                  onChange={(v) => set('state', v)}
                   className={`${inputBase} px-3 ${errors.state ? 'border-red-500 bg-red-900/20' : ''}`}
-                  autoComplete="address-level1"
                   required
                   aria-invalid={!!errors.state}
                   aria-describedby={errors.state ? 'err-state' : undefined}
-                >
-                  <option value="">{t('register.stateSelect')}</option>
-                  {US_STATE_CODES.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
-                    </option>
-                  ))}
-                </select>
+                />
                 <FieldError id="err-state" msg={errors.state} />
               </div>
             </div>
-            <div className="flex flex-col gap-1 max-w-[200px]">
-              <label htmlFor="zipCode" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
-                {t('register.zipCode')}
-              </label>
-              <input
-                id="zipCode"
-                type="text"
-                inputMode="numeric"
-                value={form.zipCode}
-                onChange={(e) => set('zipCode', e.target.value)}
-                className={`${inputBase} px-3 ${errors.zipCode ? 'border-red-500 bg-red-900/20' : ''}`}
-                placeholder={t('register.zipPlaceholder')}
-                autoComplete="postal-code"
-                required
-                maxLength={10}
-                aria-invalid={!!errors.zipCode}
-                aria-describedby={errors.zipCode ? 'err-zipCode' : undefined}
-              />
-              <FieldError id="err-zipCode" msg={errors.zipCode} />
-            </div>
+            {hasPostalCode(form.country) && (
+              <div className="flex flex-col gap-1 max-w-[240px]">
+                <label htmlFor="zipCode" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+                  {t('register.zipCode')}
+                </label>
+                <PostalCodeInput
+                  id="zipCode"
+                  country={form.country}
+                  value={form.zipCode}
+                  onChange={(v) => set('zipCode', v)}
+                  className={`${inputBase} px-3 ${errors.zipCode ? 'border-red-500 bg-red-900/20' : ''}`}
+                  required
+                  aria-invalid={!!errors.zipCode}
+                  aria-describedby={errors.zipCode ? 'err-zipCode' : undefined}
+                />
+                <FieldError id="err-zipCode" msg={errors.zipCode} />
+              </div>
+            )}
           </div>
 
           {/* ── Password ────────────────────────────── */}

@@ -6,6 +6,12 @@
 //   if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
 
 const { isUsStateCode } = require('./usStates');
+const {
+  isValidCountry,
+  isValidRegion,
+  isValidPostal,
+  hasPostalCode,
+} = require('./countries');
 
 const rules = {
   required: (v, field) =>
@@ -82,6 +88,36 @@ const rules = {
     const s = String(v).trim().toUpperCase();
     if (!/^[A-Z]{2}$/.test(s)) return 'Must be a 2-letter state code';
     return isUsStateCode(s) ? null : 'Must be a valid US state or territory';
+  },
+
+  /** ISO-3166 alpha-2 country code from the supported set. */
+  country: (v) => {
+    if (!v) return null;
+    return isValidCountry(v) ? null : 'Must be a supported country code';
+  },
+
+  /**
+   * Country-aware region validator. Pass the country code at schema build
+   * time: `rules.regionFor('CA')`.
+   *  - If the country has a preset region list, the value must be in it.
+   *  - Otherwise any non-empty trimmed string passes (free-text region).
+   */
+  regionFor: (country) => (v, field) => {
+    if (!v) return null;
+    return isValidRegion(country, v) ? null : `${field} is not valid for the selected country`;
+  },
+
+  /**
+   * Country-aware postal validator. Pass the country code at schema build
+   * time: `rules.postalFor('GB')`.
+   *  - If the country has no postal code requirement (HK, HT, unknown), this
+   *    is a no-op.
+   *  - Otherwise the value must match the country's postal regex.
+   */
+  postalFor: (country) => (v) => {
+    if (!v) return null;
+    if (!hasPostalCode(country)) return null;
+    return isValidPostal(country, v) ? null : 'Must be a valid postal code for the selected country';
   },
 };
 

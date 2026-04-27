@@ -3,20 +3,30 @@ import { useTranslation } from 'react-i18next';
 import { Flame, Clock, ChevronRight } from 'lucide-react';
 import type { Service, PriceUnit } from '../../types/helperProfile';
 import SectionCard from './ui/SectionCard';
+import { formatMoney } from '../../lib/format';
 
 interface ServicesSectionProps {
   services: Service[];
   onSelectService?: (service: Service) => void;
 }
 
-function formatPrice(price: number, unit: PriceUnit, t: (key: string, opts?: any) => string): string {
+function formatPrice(
+  price: number,
+  unit: PriceUnit,
+  t: (key: string, opts?: any) => string,
+  currency?: string,
+): string {
   if (unit === 'quote') return t('helperProfile.services.quote');
-  const formatted = price.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+  const formatted = formatMoney(price, {
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
   switch (unit) {
-    case 'hour':      return `${formatted}/hr`;
-    case 'flat':      return formatted;
+    case 'hour':       return `${formatted}/hr`;
+    case 'flat':       return formatted;
     case 'starting_at': return t('helperProfile.services.from', { price: formatted });
-    default:          return formatted;
+    default:           return formatted;
   }
 }
 

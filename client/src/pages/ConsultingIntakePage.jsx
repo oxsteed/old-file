@@ -6,6 +6,11 @@ import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 import api from '../api/axios';
+import {
+  ALL_COUNTRIES,
+  COUNTRIES_WITH_REGIONS,
+  COUNTRY_CODES_SORTED,
+} from '../lib/countries';
 
 // Phase data - 25 phases with names
 const BUSINESS_PHASES = [
@@ -137,75 +142,9 @@ const PACKAGES = {
 };
 
 // Countries with states/provinces
-const COUNTRIES_WITH_REGIONS = {
-  US: { name: 'United States', regions: ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'], regionLabel: 'State' },
-  CA: { name: 'Canada', regions: ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'], regionLabel: 'Province' },
-  AU: { name: 'Australia', regions: ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'], regionLabel: 'State' },
-  IN: { name: 'India', regions: ['AN', 'AP', 'AR', 'AS', 'BR', 'CG', 'CH', 'CT', 'DD', 'DL', 'DN', 'GA', 'GJ', 'HR', 'HP', 'JK', 'JH', 'KA', 'KL', 'LD', 'MP', 'MH', 'MN', 'ML', 'MZ', 'NL', 'OD', 'OR', 'PB', 'RJ', 'SK', 'TG', 'TR', 'TN', 'UP', 'UT', 'WB'], regionLabel: 'State' },
-  GB: { name: 'United Kingdom', regions: ['England', 'Scotland', 'Wales', 'Northern Ireland'], regionLabel: 'Region' },
-  DE: { name: 'Germany', regions: ['Baden-Württemberg', 'Bavaria', 'Berlin', 'Brandenburg', 'Bremen', 'Hamburg', 'Hesse', 'Lower Saxony', 'Mecklenburg-Vorpommern', 'North Rhine-Westphalia', 'Rhineland-Palatinate', 'Saarland', 'Saxony', 'Saxony-Anhalt', 'Schleswig-Holstein', 'Thuringia'], regionLabel: 'State' },
-  FR: { name: 'France', regions: ['Auvergne-Rhône-Alpes', 'Bourgogne-Franche-Comté', 'Brittany', 'Centre-Val de Loire', 'Corsica', 'Grand Est', 'Guadeloupe', 'Guiana', 'Hauts-de-France', 'Île-de-France', 'La Réunion', 'Martinique', 'Mayotte', 'Normandy', 'Nouvelle-Aquitaine', 'Occitanie', 'Pays de la Loire', 'Provence-Alpes-Côte d\'Azur'], regionLabel: 'Region' },
-};
-
-// Countries without regions (show city selector)
-// Excludes countries under US sanctions (Russia, Ukraine, etc.)
-const COUNTRIES_WITHOUT_REGIONS = [
-  'AR', 'AT', 'BE', 'BR', 'CH', 'CL', 'CO', 'CR', 'CZ', 'DK', 'DO', 'EC', 'EG', 'ES', 'FI', 'GR', 'HK', 'HT', 'HU', 'ID', 'IE', 'IL', 'IT', 'JP', 'KR', 'MX', 'MY', 'NG', 'NZ', 'PA', 'PE', 'PH', 'PL', 'PT', 'RO', 'SA', 'SE', 'SG', 'TH', 'TR', 'VN', 'ZA',
-];
-
-// All countries
-const ALL_COUNTRIES = {
-  // With regions (listed above)
-  ...Object.fromEntries(Object.entries(COUNTRIES_WITH_REGIONS).map(([code, data]) => [code, data.name])),
-  // Without regions
-  'AR': 'Argentina',
-  'AT': 'Austria',
-  'BE': 'Belgium',
-  'BR': 'Brazil',
-  'CH': 'Switzerland',
-  'CL': 'Chile',
-  'CO': 'Colombia',
-  'CR': 'Costa Rica',
-  'CZ': 'Czech Republic',
-  'DK': 'Denmark',
-  'DO': 'Dominican Republic',
-  'EC': 'Ecuador',
-  'EG': 'Egypt',
-  'ES': 'Spain',
-  'FI': 'Finland',
-  'GR': 'Greece',
-  'HK': 'Hong Kong',
-  'HT': 'Haiti',
-  'HU': 'Hungary',
-  'ID': 'Indonesia',
-  'IE': 'Ireland',
-  'IL': 'Israel',
-  'IT': 'Italy',
-  'JP': 'Japan',
-  'KR': 'South Korea',
-  'MX': 'Mexico',
-  'MY': 'Malaysia',
-  'NG': 'Nigeria',
-  'NZ': 'New Zealand',
-  'PA': 'Panama',
-  'PE': 'Peru',
-  'PH': 'Philippines',
-  'PL': 'Poland',
-  'PT': 'Portugal',
-  'RO': 'Romania',
-  'SA': 'Saudi Arabia',
-  'SE': 'Sweden',
-  'SG': 'Singapore',
-  'TH': 'Thailand',
-  'TR': 'Turkey',
-  'VN': 'Vietnam',
-  'ZA': 'South Africa',
-};
-
-// Sorted country codes
-const COUNTRY_CODES_SORTED = Object.keys(ALL_COUNTRIES).sort((a, b) =>
-  ALL_COUNTRIES[a].localeCompare(ALL_COUNTRIES[b])
-);
+// Country / region metadata is now sourced from `client/src/lib/countries.js`
+// (single source of truth across the app). The exported names here are kept
+// stable so that the rest of this file does not need to be touched.
 
 export default function ConsultingIntakePage() {
   const navigate = useNavigate();

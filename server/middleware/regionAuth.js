@@ -63,16 +63,43 @@ function isUserInGeoRadiusRegion(user, def) {
   return d <= parseFloat(def.radius_miles);
 }
 
+// `country_region`: list of {country, region} pairs. Match a user when both
+// fields agree (case-insensitive on country, exact on region for free-text
+// countries, uppercase-normalized for fixed-list countries).
+function isUserInCountryRegionRegion(user, def) {
+  const userCountry = (user.country || '').trim().toUpperCase();
+  const userState   = (user.state   || '').trim();
+  if (!userCountry) return false;
+  return (def.entries || []).some(entry => {
+    const entryCountry = (entry.country || '').trim().toUpperCase();
+    if (entryCountry !== userCountry) return false;
+    const entryRegion  = (entry.region  || '').trim();
+    if (!entryRegion) return false;
+    // Region equality: case-insensitive to absorb mixed casing on free-text
+    // regions (e.g. 'Île-de-France' vs 'île-de-france').
+    return entryRegion.toLowerCase() === userState.toLowerCase();
+  });
+}
+
+// `country_only`: territory is one or more whole countries.
+function isUserInCountryOnlyRegion(user, def) {
+  const userCountry = (user.country || '').trim().toUpperCase();
+  if (!userCountry) return false;
+  return (def.countries || []).some(c => String(c).trim().toUpperCase() === userCountry);
+}
+
 function isUserInRegion(user, region) {
   if (!region || !region.boundary_definition) return false;
   const def = typeof region.boundary_definition === 'string'
     ? JSON.parse(region.boundary_definition)
     : region.boundary_definition;
   switch (def.type) {
-    case 'zip_range':  return isUserInZipRangeRegion(user, def);
-    case 'city_state': return isUserInCityStateRegion(user, def);
-    case 'geo_radius': return isUserInGeoRadiusRegion(user, def);
-    default:           return false;
+    case 'zip_range':       return isUserInZipRangeRegion(user, def);
+    case 'city_state':      return isUserInCityStateRegion(user, def);
+    case 'geo_radius':      return isUserInGeoRadiusRegion(user, def);
+    case 'country_region':  return isUserInCountryRegionRegion(user, def);
+    case 'country_only':    return isUserInCountryOnlyRegion(user, def);
+    default:                return false;
   }
 }
 
@@ -143,7 +170,7 @@ function requireRegionAccessForUser(paramName = 'userId') {
       if (!targetId) return res.status(400).json({ error: 'Missing user id.' });
 
       const { rows } = await db.query(
-        `SELECT id, city, state, zip_code, latitude, longitude
+        `SELECT id, city, state, zip_code, country, latitude, longitude
            FROM users WHERE id = $1`,
         [targetId]
       );

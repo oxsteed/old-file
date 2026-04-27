@@ -12,6 +12,20 @@ function summarizeBoundary(def) {
       return `${def.entries?.length || 0} city/state`;
     case 'geo_radius':
       return `${def.radius_miles} mi around (${def.center?.lat?.toFixed(3)}, ${def.center?.lng?.toFixed(3)})`;
+    case 'country_region': {
+      const n = def.entries?.length || 0;
+      if (!n) return '0 country/region';
+      const first = def.entries[0];
+      const more = n > 1 ? ` +${n - 1}` : '';
+      return `${first?.country || '?'}/${first?.region || '?'}${more}`;
+    }
+    case 'country_only': {
+      const list = def.countries || [];
+      if (!list.length) return '0 countries';
+      const head = list.slice(0, 3).join(', ');
+      const more = list.length > 3 ? ` +${list.length - 3}` : '';
+      return `${head}${more}`;
+    }
     default:
       return def.type;
   }

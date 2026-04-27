@@ -4,6 +4,7 @@
 const pool   = require('../db');
 const logger = require('../utils/logger');
 const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../utils/businessOwnership');
+const countriesUtil = require('../utils/countries');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -36,7 +37,7 @@ async function listBusinesses(req, res) {
   try {
     const { rows } = await pool.query(
       `SELECT id, business_name, business_type, description, website, phone,
-              address_city, address_state, is_primary, is_active,
+              address_city, address_state, address_country, is_primary, is_active,
               tax_rate, logo_url, created_at
        FROM businesses
        WHERE user_id = $1
@@ -55,12 +56,20 @@ async function addBusiness(req, res) {
   try {
     const {
       business_name, business_type, ein, description, website, phone,
-      address_street, address_city, address_state, address_zip, tax_rate,
+      address_street, address_city, address_state, address_zip,
+      address_country, tax_rate,
     } = req.body;
 
     if (!business_name?.trim()) {
       return res.status(400).json({ error: 'Business name is required' });
     }
+
+    // Normalize country (ISO-2 upper, fallback US) and uppercase state for
+    // fixed-list countries to keep address matching consistent with users.
+    const country = countriesUtil.normalizeCountry(address_country) || 'US';
+    const normalizedState = (address_state && countriesUtil.hasRegions(country))
+      ? String(address_state).toUpperCase().trim()
+      : (address_state || null);
 
     const { rows: existing } = await pool.query(
       'SELECT COUNT(*) as count FROM businesses WHERE user_id = $1',
@@ -71,15 +80,15 @@ async function addBusiness(req, res) {
     const { rows: [biz] } = await pool.query(
       `INSERT INTO businesses
          (user_id, business_name, business_type, ein, description, website, phone,
-          address_street, address_city, address_state, address_zip,
+          address_street, address_city, address_state, address_zip, address_country,
           is_primary, tax_rate)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
         req.user.id, business_name.trim(), business_type || null, ein || null,
         description || null, website || null, phone || null,
-        address_street || null, address_city || null, address_state || null,
-        address_zip || null, isPrimary,
+        address_street || null, address_city || null, normalizedState,
+        address_zip || null, country, isPrimary,
         tax_rate != null ? parseFloat(tax_rate) : 25.00,
       ]
     );
@@ -105,6 +114,7 @@ async function updateBusiness(req, res) {
     const {
       business_name, business_type, ein, description, website, phone,
       address_street, address_city, address_state, address_zip,
+      address_country,
       is_active, tax_rate,
       // Public-profile fields
       logo_url, cover_photo_url,
@@ -112,6 +122,21 @@ async function updateBusiness(req, res) {
       // Helper-profile fields that surface on the public business page (belong to owner)
       profile_headline, service_radius_miles,
     } = req.body;
+
+    // Country normalization. We resolve the effective country first because
+    // state casing depends on it. If the request includes a new country use
+    // that, otherwise fall back to whatever the row already has.
+    let effectiveCountry = countriesUtil.normalizeCountry(address_country);
+    if (!effectiveCountry) {
+      const { rows: [existing] } = await pool.query(
+        'SELECT address_country FROM businesses WHERE id = $1',
+        [id]
+      );
+      effectiveCountry = (existing && existing.address_country) || 'US';
+    }
+    const normalizedState = (address_state && countriesUtil.hasRegions(effectiveCountry))
+      ? String(address_state).toUpperCase().trim()
+      : (address_state ?? undefined);
 
     const isOwner = req.user.id === ownerId;
     const logoExplicitNull = clear_logo_url === true;
@@ -133,6 +158,7 @@ async function updateBusiness(req, res) {
            address_city    = COALESCE($8,  address_city),
            address_state   = COALESCE($9,  address_state),
            address_zip     = COALESCE($10, address_zip),
+           address_country = COALESCE($19, address_country),
            is_active       = CASE WHEN $16::boolean THEN COALESCE($11, is_active) ELSE is_active END,
            tax_rate        = CASE WHEN $16::boolean THEN COALESCE($12, tax_rate) ELSE tax_rate END,
            logo_url        = CASE WHEN $17::boolean THEN NULL ELSE COALESCE($13, logo_url) END,
@@ -144,7 +170,9 @@ async function updateBusiness(req, res) {
         business_name, business_type,
         sensitiveEin !== undefined ? sensitiveEin : null,
         description, website, phone,
-        address_street, address_city, address_state, address_zip,
+        address_street, address_city,
+        normalizedState !== undefined ? normalizedState : null,
+        address_zip,
         sensitiveActive,
         sensitiveTax != null ? parseFloat(sensitiveTax) : null,
         logo_url        || null,
@@ -153,6 +181,8 @@ async function updateBusiness(req, res) {
         isOwner,
         logoExplicitNull,
         coverExplicitNull,
+        // $19 — only update country when the client sent a normalized value
+        countriesUtil.normalizeCountry(address_country) || null,
       ]
     );
 
@@ -663,7 +693,7 @@ async function getBusinessPublicProfile(req, res) {
          b.id, b.business_name, b.business_type, b.description,
          b.website, b.phone, b.logo_url,
          COALESCE(b.cover_photo_url, hp.cover_photo_url) AS cover_photo_url,
-         b.address_city, b.address_state,
+         b.address_city, b.address_state, b.address_country,
          b.is_primary, b.is_active, b.created_at,
          u.id           AS owner_id,
          u.first_name   AS owner_first_name,
@@ -752,8 +782,9 @@ async function getBusinessPublicProfile(req, res) {
         phone:          biz.phone,
         logo_url:       biz.logo_url,
         cover_photo_url: biz.cover_photo_url || null,
-        address_city:   biz.address_city    || biz.service_city,
-        address_state:  biz.address_state   || biz.service_state,
+        address_city:    biz.address_city    || biz.service_city,
+        address_state:   biz.address_state   || biz.service_state,
+        address_country: biz.address_country || 'US',
         service_radius_miles: biz.service_radius_miles,
         is_primary:     biz.is_primary,
         member_since:   biz.created_at,
@@ -808,6 +839,7 @@ async function getBusinessProfileForEditor(req, res) {
          b.address_city,
          b.address_state,
          b.address_zip,
+         b.address_country,
          b.logo_url,
          b.cover_photo_url,
          hp.profile_headline,

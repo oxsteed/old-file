@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, CheckCircle2, Save } from 'lucide-react';
 import adminApi from '../lib/adminApi';
+import CountrySelect from './CountrySelect';
+import RegionInput from './RegionInput';
+import PostalCodeInput from './PostalCodeInput';
 
 /**
  * Comprehensive editor for the standard editable fields on a user record.
@@ -16,13 +19,13 @@ const SUBSCRIPTION_STATUSES = [
   'none', 'trial', 'active', 'past_due', 'canceled',
 ];
 
+// Plain text fields rendered by the generic <input> loop. Country/state/zip
+// are rendered with country-aware components below.
 const TEXT_FIELDS = [
   { key: 'first_name',          label: 'First name'           },
   { key: 'last_name',           label: 'Last name'            },
   { key: 'phone',               label: 'Phone'                },
   { key: 'city',                label: 'City'                 },
-  { key: 'state',               label: 'State', maxLength: 2  },
-  { key: 'zip_code',            label: 'ZIP code'             },
   { key: 'membership_tier',     label: 'Membership tier'      },
 ];
 
@@ -37,6 +40,9 @@ function buildInitial(user) {
   const out = {};
   TEXT_FIELDS.forEach(f => { out[f.key] = user[f.key] ?? ''; });
   BOOLEAN_FIELDS.forEach(f => { out[f.key] = !!user[f.key]; });
+  out.country             = user.country || 'US';
+  out.state               = user.state ?? '';
+  out.zip_code            = user.zip_code ?? '';
   out.role                = user.role || 'customer';
   out.subscription_status = user.subscription_status || 'none';
   return out;
@@ -143,15 +149,48 @@ export default function UserEditForm({ user, onSaved }) {
                 type="text"
                 className={inputCls}
                 value={form[f.key] ?? ''}
-                maxLength={f.maxLength}
-                onChange={e => setField(
-                  f.key,
-                  f.key === 'state' ? e.target.value.toUpperCase() : e.target.value
-                )}
+                onChange={e => setField(f.key, e.target.value)}
               />
               {fieldErr(f.key)}
             </div>
           ))}
+          <div>
+            <label className={labelCls}>Country</label>
+            <CountrySelect
+              className={inputCls}
+              value={form.country}
+              onChange={(code) => setForm(f => ({
+                ...f,
+                country: code,
+                // Reset state/zip when the country changes — they're
+                // country-specific.
+                state: '',
+                zip_code: '',
+              }))}
+              includeBlank={false}
+            />
+            {fieldErr('country')}
+          </div>
+          <div>
+            <label className={labelCls}>State / region</label>
+            <RegionInput
+              className={inputCls}
+              country={form.country}
+              value={form.state}
+              onChange={(v) => setField('state', v)}
+            />
+            {fieldErr('state')}
+          </div>
+          <div>
+            <label className={labelCls}>Postal code</label>
+            <PostalCodeInput
+              className={inputCls}
+              country={form.country}
+              value={form.zip_code}
+              onChange={(v) => setField('zip_code', v)}
+            />
+            {fieldErr('zip_code')}
+          </div>
         </div>
       </section>
 
