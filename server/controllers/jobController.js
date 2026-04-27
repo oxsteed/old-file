@@ -555,24 +555,12 @@ exports.assignHelper = async (req, res) => {
 
       return { job: jobResult.rows[0], bid: acceptedBid };
     }, 'assign_helper');
-
-    res.json({ message: 'Bid accepted', job: result.job, bid: result.bid });
-  } catch (err) {
-    if (err.status) {
-      return res.status(err.status).json({ error: err.message });
+    } catch (err) {
+                                                logger.error('Assign helper error', { err });
+          res.status(500).json({ error: 'Failed to assign helper' });
     }
-    logger.error('Assign helper error', { err });
-      if (!rows.length) {
-        throw new Error('Job assignment failed — state changed during processing');
-      }
-      return rows[0];
-    }, 'assign_helper');
 
-    res.json({ message: 'Helper assigned', job: result });
-  } catch (err) {
-    logger.error('Assign helper error', { jobId: req.body?.job_id, helperId: req.body?.helper_id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to assign helper' });
-  }
+
 };
 
 // Start a job
