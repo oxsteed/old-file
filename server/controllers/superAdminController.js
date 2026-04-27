@@ -606,12 +606,12 @@ exports.createUser = async (req, res) => {
     const bcrypt = require('bcrypt');
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // For helper accounts, mark onboarding as complete so ProtectedRoute
-    // doesn't bounce them to /register/helper on first login.
-    // Helpers created via the admin dashboard skip the self-serve wizard.
+    // For accounts created via admin, mark onboarding as complete so ProtectedRoute
+    // doesn't bounce them to registration flows on first login.
+    // Both helpers and customers skip the self-serve wizard when created by admins.
     const isHelper = role === 'helper';
-    const onboardingCompleted = isHelper ? true : false;
-    const onboardingStatus    = isHelper ? 'onboarding_complete' : null;
+    const onboardingCompleted = true;  // Admin-created accounts are always marked complete
+    const onboardingStatus    = 'onboarding_complete';  // Valid for all roles
     const membershipTier      = isHelper ? 'tier1' : null;
 
     const { rows } = await db.query(`
