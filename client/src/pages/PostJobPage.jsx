@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
+import { formatMoney } from '../lib/format';
+import { getDefaultCurrency } from '../lib/countries';
 import api from '../api/axios';
 import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
@@ -605,10 +607,12 @@ function sliderPct(val, min, max) {
   return Math.round(((val - min) / (max - min)) * 100);
 }
 
-function formatBudgetDisplay(form) {
+function formatBudgetDisplay(form, currency = 'USD') {
   if (form.budgetType === 'open') return 'Open to bids';
-  if (form.budgetType === 'hourly') return `$${form.budgetAmountHourly}/hr`;
-  return `$${Number(form.budgetAmount).toLocaleString()} fixed`;
+  if (form.budgetType === 'hourly') {
+    return `${formatMoney(form.budgetAmountHourly, { currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })}/hr`;
+  }
+  return `${formatMoney(form.budgetAmount, { currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })} fixed`;
 }
 
 function activeRequirements(reqs) {
@@ -726,6 +730,9 @@ export default function PostJobPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user }  = useAuth();
+  const currency = user?.preferred_currency
+    || (user?.country ? getDefaultCurrency(user.country) : null)
+    || 'USD';
   const { createJob } = useJobs();
 
   // Pre-selected helper from "Book Now" on a helper profile page
@@ -1605,7 +1612,7 @@ export default function PostJobPage() {
                 {/* Budget review */}
                 <div className="pjw-review-row">
                   <span className="pjw-review-label">{t('postJob.budget')}</span>
-                  <span className="pjw-review-value">{formatBudgetDisplay(form)}</span>
+                  <span className="pjw-review-value">{formatBudgetDisplay(form, currency)}</span>
                   <button
                     className="pjw-edit-btn"
                     type="button"
@@ -1731,7 +1738,7 @@ export default function PostJobPage() {
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.budgetType')}</span>
-                  <span className="pjw-sum-value">{formatBudgetDisplay(form)}</span>
+                  <span className="pjw-sum-value">{formatBudgetDisplay(form, currency)}</span>
                 </div>
                 <div className="pjw-sum-row">
                   <span className="pjw-sum-label">{t('postJob.requirements')}</span>

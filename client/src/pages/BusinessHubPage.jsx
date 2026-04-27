@@ -31,9 +31,8 @@ const LS_KEY = 'oxs:bh:lastBusinessId';
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 
 // ── formatters ────────────────────────────────────────────────────────────────
-function fmt$(n) {
-  if (!n && n !== 0) return '—';
-  return '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmt$(n, currency = 'USD') {
+  return formatMoney(n, { currency });
 }
 function fmtDate(d) {
   if (!d) return '—';
@@ -60,6 +59,11 @@ const DEFAULT_GOAL_FORM  = { title: '', goal_type: 'revenue', period: 'monthly',
 export default function BusinessHubPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+
+  // The user's preferred currency drives every fmt$ call below.
+  const currency = user?.preferred_currency
+    || (user?.country ? getDefaultCurrency(user.country) : null)
+    || 'USD';
 
   // guard
   if (!user || !HELPER_ROLES.includes(user.role)) {
@@ -1129,9 +1133,9 @@ function BusinessHubInner() {
                 const { subtotal, taxAmt, total } = calcTotals(form.line_items, form.invoice_tax_rate);
                 return (
                   <div className="bh-totals">
-                    <div>{t('businessHub.subtotal')}: {fmt$(subtotal)}</div>
-                    {taxAmt > 0 && <div>{t('businessHub.taxLabel')} ({form.invoice_tax_rate || 0}%): {fmt$(taxAmt)}</div>}
-                    <div className="grand">{t('businessHub.total')}: {fmt$(total)}</div>
+                    <div>{t('businessHub.subtotal')}: {fmt$(subtotal, currency)}</div>
+                    {taxAmt > 0 && <div>{t('businessHub.taxLabel')} ({form.invoice_tax_rate || 0}%): {fmt$(taxAmt, currency)}</div>}
+                    <div className="grand">{t('businessHub.total')}: {fmt$(total, currency)}</div>
                   </div>
                 );
               })()}
@@ -1152,7 +1156,7 @@ function BusinessHubInner() {
             <div className="bh-modal">
               <h2>{t('businessHub.modalMarkInvoicePaid')}</h2>
               <p style={{ fontSize: '0.88rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
-                {t('businessHub.invoiceTotalLabel', { num: selected.invoice_number, total: fmt$(selected.total) })}
+                {t('businessHub.invoiceTotalLabel', { num: selected.invoice_number, total: fmt$(selected.total, currency) })}
               </p>
               <div className="bh-field"><label>{t('businessHub.fieldAmountReceived')}</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
@@ -1210,7 +1214,7 @@ function BusinessHubInner() {
             <div className="bh-modal">
               <h2>{t('businessHub.modalRecordTaxPayment')}</h2>
               <p style={{ fontSize: '0.88rem', color: 'var(--muted-text)', marginBottom: '1rem' }}>
-                {t('businessHub.taxQuarterLabel', { quarter: selected.quarter, year: selected.tax_year, amount: fmt$(selected.estimated_tax) })}
+                {t('businessHub.taxQuarterLabel', { quarter: selected.quarter, year: selected.tax_year, amount: fmt$(selected.estimated_tax, currency) })}
               </p>
               <div className="bh-field"><label>{t('businessHub.fieldAmountPaid')}</label><input type="number" name="amount" value={form.amount || ''} onChange={fc} min="0" step="0.01" /></div>
               {formErr && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.5rem' }}>{formErr}</p>}
@@ -1800,17 +1804,17 @@ function OverviewTab({ analytics }) {
     <>
       {/* KPI grid */}
       <div className="bh-kpi-grid">
-        <KPI label={t('businessHub.kpiMtdRevenue')}    value={fmt$(a?.mtd?.revenue)}    cls="positive" />
-        <KPI label={t('businessHub.kpiMtdProfit')}     value={fmt$(a?.mtd?.profit)}     cls={profitCls(a?.mtd?.profit)} />
-        <KPI label={t('businessHub.kpiLastMonthRevenue')} value={fmt$(a?.last_month?.revenue)} />
-        <KPI label={t('businessHub.kpiYtdRevenue')}    value={fmt$(a?.ytd?.revenue)}    cls="positive" />
-        <KPI label={t('businessHub.kpiYtdProfit')}     value={fmt$(a?.ytd?.profit)}     cls={profitCls(a?.ytd?.profit)} />
-        <KPI label={t('businessHub.kpiOutstanding')}    value={fmt$(a?.invoices?.outstanding_total)} cls="warn"
+        <KPI label={t('businessHub.kpiMtdRevenue')}    value={fmt$(a?.mtd?.revenue, currency)}    cls="positive" />
+        <KPI label={t('businessHub.kpiMtdProfit')}     value={fmt$(a?.mtd?.profit, currency)}     cls={profitCls(a?.mtd?.profit)} />
+        <KPI label={t('businessHub.kpiLastMonthRevenue')} value={fmt$(a?.last_month?.revenue, currency)} />
+        <KPI label={t('businessHub.kpiYtdRevenue')}    value={fmt$(a?.ytd?.revenue, currency)}    cls="positive" />
+        <KPI label={t('businessHub.kpiYtdProfit')}     value={fmt$(a?.ytd?.profit, currency)}     cls={profitCls(a?.ytd?.profit)} />
+        <KPI label={t('businessHub.kpiOutstanding')}    value={fmt$(a?.invoices?.outstanding_total, currency)} cls="warn"
           sub={t('businessHub.kpiInvoicesSent', { count: a?.invoices?.sent || 0 })} />
-        <KPI label={t('businessHub.kpiOverdue')}        value={fmt$(a?.invoices?.overdue_total)}     cls="negative"
+        <KPI label={t('businessHub.kpiOverdue')}        value={fmt$(a?.invoices?.overdue_total, currency)}     cls="negative"
           sub={t('businessHub.kpiInvoicesCount', { count: a?.invoices?.overdue_count || 0 })} />
         <KPI label={t('businessHub.kpiJobs6m')}      value={a?.jobs?.completed_6m ?? '—'} />
-        <KPI label={t('businessHub.kpiAvgJobValue')}  value={fmt$(a?.jobs?.avg_value)} />
+        <KPI label={t('businessHub.kpiAvgJobValue')}  value={fmt$(a?.jobs?.avg_value, currency)} />
       </div>
 
       {/* 6-month P&L bar chart */}
@@ -1828,9 +1832,9 @@ function OverviewTab({ analytics }) {
               return (
                 <div key={i} className="bh-chart-bar-group">
                   <div className="bh-chart-bars">
-                    <div className="bh-chart-bar revenue" style={{ height: pct(rev) }} title={t('businessHub.tooltipRevenue', { amount: fmt$(rev) })} />
-                    <div className="bh-chart-bar expense" style={{ height: pct(exp) }} title={t('businessHub.tooltipExpenses', { amount: fmt$(exp) })} />
-                    <div className="bh-chart-bar profit"  style={{ height: pct(pro) }} title={t('businessHub.tooltipProfit', { amount: fmt$(pro) })} />
+                    <div className="bh-chart-bar revenue" style={{ height: pct(rev) }} title={t('businessHub.tooltipRevenue', { amount: fmt$(rev, currency) })} />
+                    <div className="bh-chart-bar expense" style={{ height: pct(exp) }} title={t('businessHub.tooltipExpenses', { amount: fmt$(exp, currency) })} />
+                    <div className="bh-chart-bar profit"  style={{ height: pct(pro) }} title={t('businessHub.tooltipProfit', { amount: fmt$(pro, currency) })} />
                   </div>
                   <span className="bh-chart-month">{fmtMonth(m.month)}</span>
                 </div>
@@ -1890,7 +1894,7 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend }) {
         <KPI label={t('businessHub.invoiceStatusSent')}        value={summary.sent        || 0} />
         <KPI label={t('businessHub.invoiceStatusPaid')}        value={summary.paid        || 0} cls="positive" />
         <KPI label={t('businessHub.invoiceStatusOverdue')}     value={summary.overdue     || 0} cls="negative" />
-        <KPI label={t('businessHub.invoiceStatusOutstanding')} value={fmt$(summary.outstanding_total)} cls="warn" />
+        <KPI label={t('businessHub.invoiceStatusOutstanding')} value={fmt$(summary.outstanding_total, currency)} cls="warn" />
       </div>
 
       <div className="bh-card">
@@ -1920,8 +1924,8 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend }) {
                     </td>
                     <td><span className={`bh-status ${inv.status}`}>{statusLabel(inv.status)}</span></td>
                     <td style={{ whiteSpace: 'nowrap', color: inv.status === 'overdue' ? '#f87171' : undefined }}>{fmtDate(inv.due_date)}</td>
-                    <td className="num">{fmt$(inv.total)}</td>
-                    <td className="num">{fmt$(inv.amount_paid)}</td>
+                    <td className="num">{fmt$(inv.total, currency)}</td>
+                    <td className="num">{fmt$(inv.amount_paid, currency)}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
                       {inv.status === 'draft' && (
                         <button className="bh-btn sm" style={{ marginRight: '0.3rem' }} onClick={() => onSend(inv)}>{t('businessHub.btnSendInvoice')}</button>
@@ -1985,8 +1989,8 @@ function TaxTab({ data, onRefresh, onPay }) {
                   <td>{t('businessHub.quarterLabel', { q: est.quarter, year: est.tax_year })}</td>
                   <td style={{ whiteSpace: 'nowrap', color: est.status === 'overdue' ? '#f87171' : undefined }}>{fmtDate(est.due_date)}</td>
                   <td><span className={`bh-status ${est.status}`}>{taxStatusLabel(est.status)}</span></td>
-                  <td className="num">{fmt$(est.estimated_net_income)}</td>
-                  <td className="num">{fmt$(est.estimated_tax)}</td>
+                  <td className="num">{fmt$(est.estimated_net_income, currency)}</td>
+                  <td className="num">{fmt$(est.estimated_tax, currency)}</td>
                   <td>
                     {est.status !== 'paid' && (
                       <button className="bh-btn sm" onClick={() => onPay(est)}>{t('businessHub.btnMarkPaid')}</button>
@@ -2061,7 +2065,7 @@ function GoalsTab({ goals, analytics, onNew, onEdit, onDelete }) {
                 </div>
                 <div className="bh-goal-stats">
                   <span>{t('businessHub.goalPercentComplete', { pct })}</span>
-                  <span>{fmt$(current)} / <strong>{fmt$(target)}</strong></span>
+                  <span>{fmt$(current, currency)} / <strong>{fmt$(target, currency)}</strong></span>
                 </div>
               </div>
             );

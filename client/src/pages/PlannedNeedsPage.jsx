@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
+import { formatMoney } from '../lib/format';
+import { getDefaultCurrency } from '../lib/countries';
 import QuickAddTemplates from '../components/QuickAddTemplates';
 import PlannedNeedHoldStatus from '../components/PlannedNeedHoldStatus';
 import PulseScoreSettings from '../components/PulseScoreSettings';
@@ -23,9 +26,8 @@ const DEFAULT_FORM = {
 };
 
 // ── helpers ────────────────────────────────────────────────────────────────
-function fmt$(n) {
-  if (!n && n !== 0) return '—';
-  return '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmt$(n, currency = 'USD') {
+  return formatMoney(n, { currency });
 }
 function fmtDate(d) {
   if (!d) return '—';
@@ -50,6 +52,10 @@ function helperDisplayName(need) {
 // ── main component ─────────────────────────────────────────────────────────
 export default function PlannedNeedsPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const currency = user?.preferred_currency
+    || (user?.country ? getDefaultCurrency(user.country) : null)
+    || 'USD';
   const [needs, setNeeds] = useState([]);
   const [projection, setProjection] = useState(null);
   const [savedHelpers, setSavedHelpers] = useState([]);
@@ -357,20 +363,20 @@ export default function PlannedNeedsPage() {
               <div className="pn-projection-grid">
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.projectedIncome')}</div>
-                  <div className="value positive">{fmt$(projection?.projected_income ?? 0)}</div>
+                  <div className="value positive">{fmt$(projection?.projected_income ?? 0, currency)}</div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.fixedExpenses')}</div>
-                  <div className="value negative">{fmt$(projection?.projected_fixed_expenses ?? 0)}</div>
+                  <div className="value negative">{fmt$(projection?.projected_fixed_expenses ?? 0, currency)}</div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.sinkingFunds')}</div>
-                  <div className="value warn">{fmt$(projection?.sinking_fund_for_window ?? 0)}</div>
+                  <div className="value warn">{fmt$(projection?.sinking_fund_for_window ?? 0, currency)}</div>
                 </div>
                 <div className="pn-proj-stat">
                   <div className="label">{t('plannedNeeds.netAvailable')}</div>
                   <div className={`value ${(projection?.net_available ?? 0) >= 0 ? 'positive' : 'negative'}`}>
-                    {fmt$(projection?.net_available ?? 0)}
+                    {fmt$(projection?.net_available ?? 0, currency)}
                   </div>
                 </div>
                 <div className="pn-proj-stat">
@@ -435,7 +441,7 @@ export default function PlannedNeedsPage() {
             ) : (
               <div className="pn-cards">
                 {activeNeeds.map(need => (
-                  <NeedCard key={need.id} need={need}
+                  <NeedCard key={need.id} need={need} currency={currency}
                     onEdit={() => openEdit(need)}
                     onCancel={() => openCancel(need)}
                     onComplete={() => openComplete(need)} onUpdate={loadNeeds}
@@ -451,7 +457,7 @@ export default function PlannedNeedsPage() {
                 </p>
                 <div className="pn-cards">
                   {inactiveNeeds.map(need => (
-                    <NeedCard key={need.id} need={need}
+                    <NeedCard key={need.id} need={need} currency={currency}
                       onEdit={null} onCancel={null} onComplete={null}
                     />
                   ))}
@@ -654,7 +660,7 @@ export default function PlannedNeedsPage() {
 }
 
 // ── NeedCard ───────────────────────────────────────────────────────────────
-function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
+function NeedCard({ need, currency = 'USD', onEdit, onCancel, onComplete, onUpdate }) {
   const { t } = useTranslation();
   const cost     = parseFloat(need?.estimated_cost ?? 0);
   const reserved = parseFloat(need?.reserved_amount ?? 0);
@@ -701,8 +707,8 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
         <div className="pn-card-meta">
           <span>{t('plannedNeeds.due', { date: fmtDate(need.due_date) })}</span>
           {isActive && <span>{daysLabel(daysLeft, t)} {t('plannedNeeds.away')}</span>}
-          {cost > 0 && <span>{t('plannedNeeds.est', { amount: fmt$(cost) })}</span>}
-          {need.actual_cost && <span>{t('plannedNeeds.actual', { amount: fmt$(need.actual_cost) })}</span>}
+          {cost > 0 && <span>{t('plannedNeeds.est', { amount: fmt$(cost, currency) })}</span>}
+          {need.actual_cost && <span>{t('plannedNeeds.actual', { amount: fmt$(need.actual_cost, currency) })}</span>}
           {need.recurrence_type !== 'none' && (
             <span>{t('plannedNeeds.recurrenceEvery', { days: need.recurrence_interval_days, type: need.recurrence_type })}</span>
           )}
@@ -736,7 +742,7 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
         {cost > 0 && isActive && (
           <div className="pn-meter-wrap">
             <div className="pn-meter-labels">
-              <span>{t('plannedNeeds.reserved', { amount: fmt$(reserved) })}</span>
+              <span>{t('plannedNeeds.reserved', { amount: fmt$(reserved, currency) })}</span>
               <span>{t('plannedNeeds.funded', { pct: fundPct })}</span>
             </div>
             <div className="pn-meter-track">
@@ -747,7 +753,7 @@ function NeedCard({ need, onEdit, onCancel, onComplete, onUpdate }) {
 
         {monthly > 0 && isActive && (
           <div className="pn-sinking-fund">
-            {t('plannedNeeds.sinkingFundHint', { amount: fmt$(monthly) })}
+            {t('plannedNeeds.sinkingFundHint', { amount: fmt$(monthly, currency) })}
           </div>
         )}
 
