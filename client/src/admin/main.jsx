@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/react';
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import AdminApp from './AdminApp';
+import '../i18n'; // Initialize i18next before any component renders
 import '../index.css';
 
 function sentryAdminFallback({ error, resetError }) {
