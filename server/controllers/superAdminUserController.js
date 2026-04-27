@@ -19,6 +19,7 @@ const crypto = require('crypto');
 
 const db     = require('../db');
 const logger = require('../utils/logger');
+const countriesUtil = require('../utils/countries');
 const {
   logAdminAction,
   logUserAction,
@@ -43,6 +44,7 @@ const EDITABLE_FIELDS = [
   { key: 'city',                    column: 'city',                    type: 'string' },
   { key: 'state',                   column: 'state',                   type: 'string' },
   { key: 'zip_code',                column: 'zip_code',                type: 'string' },
+  { key: 'country',                 column: 'country',                 type: 'country' },
   { key: 'membership_tier',         column: 'membership_tier',         type: 'string' },
   { key: 'subscription_status',     column: 'subscription_status',     type: 'string' },
   { key: 'role',                    column: 'role',                    type: 'enum', enumValues: ALLOWED_ROLES.concat(['admin']) },
@@ -72,6 +74,7 @@ function normalizeValue(field, raw) {
     case 'string':  return String(raw).trim() === '' ? null : String(raw).trim();
     case 'boolean': return coerceBoolean(raw);
     case 'enum':    return String(raw).trim();
+    case 'country': return countriesUtil.normalizeCountry(raw);
     default:        return raw;
   }
 }
@@ -86,7 +89,7 @@ function safeDisplay(field, value) {
 async function getUserSnapshot(client, userId) {
   const { rows } = await client.query(
     `SELECT id, email, first_name, last_name, phone, role,
-            city, state, zip_code, latitude, longitude,
+            city, state, zip_code, country, latitude, longitude,
             membership_tier, subscription_status,
             email_verified, is_verified, background_check_passed,
             is_active
@@ -121,6 +124,7 @@ exports.createUserFull = async (req, res) => {
       email, password,
       first_name, last_name,
       phone, city, state, zip_code,
+      country: rawCountry = 'US',
       role = 'customer',
       membership_tier = null,
       subscription_status = 'none',
@@ -131,6 +135,8 @@ exports.createUserFull = async (req, res) => {
       notes = null,
     } = body;
 
+    const country = countriesUtil.normalizeCountry(rawCountry);
+
     // ── Validation ────────────────────────────────────────────────────────
     const errors = {};
     if (!isValidEmail(email))                errors.email     = 'Valid email is required.';
@@ -138,6 +144,13 @@ exports.createUserFull = async (req, res) => {
     if (!first_name?.toString().trim())      errors.first_name = 'first_name is required.';
     if (!last_name?.toString().trim())       errors.last_name  = 'last_name is required.';
     if (!ALLOWED_ROLES.includes(role))       errors.role       = `role must be one of: ${ALLOWED_ROLES.join(', ')}.`;
+    if (!countriesUtil.isValidCountry(country)) errors.country  = 'Invalid country code.';
+    if (state && !countriesUtil.isValidRegion(country, state)) {
+      errors.state = `Invalid state/region for ${country}.`;
+    }
+    if (zip_code && !countriesUtil.isValidPostal(country, zip_code)) {
+      errors.zip_code = `Invalid postal code for ${country}.`;
+    }
     if (Object.keys(errors).length) {
       return res.status(400).json({ error: 'Validation failed', fields: errors });
     }
@@ -157,11 +170,18 @@ exports.createUserFull = async (req, res) => {
     const isHelper = role === 'helper' || role === 'helper_pro';
     const tier     = membership_tier || (role === 'helper_pro' ? 'tier2' : (isHelper ? 'tier1' : null));
 
+    const preferredCurrency = countriesUtil.getDefaultCurrency(country) || 'USD';
+
+    // Normalize state casing for fixed-list countries (US, CA, AU, IN, GB, DE, FR).
+    const normalizedState = state
+      ? (countriesUtil.hasRegions(country) ? String(state).toUpperCase().trim() : String(state).trim())
+      : null;
+
     const result = await withTransaction(db, async (client) => {
       const { rows } = await client.query(`
         INSERT INTO users (
           first_name, last_name, email, password_hash,
-          phone, city, state, zip_code,
+          phone, city, state, zip_code, country, preferred_currency,
           role, membership_tier, subscription_status,
           email_verified, is_verified, background_check_passed,
           is_active,
@@ -170,9 +190,9 @@ exports.createUserFull = async (req, res) => {
           created_at, updated_at
         ) VALUES (
           $1, $2, $3, $4,
-          $5, $6, $7, $8,
-          $9, $10, $11,
-          $12, $13, $14,
+          $5, $6, $7, $8, $9, $10,
+          $11, $12, $13,
+          $14, $15, $16,
           TRUE,
           TRUE, 'onboarding_complete',
           TRUE, TRUE, TRUE,
@@ -180,10 +200,11 @@ exports.createUserFull = async (req, res) => {
         )
         RETURNING id, first_name, last_name, email, role,
                   membership_tier, subscription_status, is_active,
+                  country, preferred_currency,
                   created_at
       `, [
         first_name.trim(), last_name.trim(), normalizedEmail, passwordHash,
-        phone || null, city || null, state || null, zip_code || null,
+        phone || null, city || null, normalizedState, zip_code || null, country, preferredCurrency,
         role, tier, subscription_status,
         coerceBoolean(email_verified), coerceBoolean(is_verified), coerceBoolean(background_check_passed),
       ]);
@@ -268,6 +289,30 @@ exports.editUserFull = async (req, res) => {
       const fresh = await getUserSnapshot(client, userId);
       if (!fresh) throw new Error('User disappeared mid-edit');
 
+      // ── Country / state / zip cross-validation ──────────────────────────
+      // Country defaults to the user's current value when not in the body.
+      const effectiveCountry = Object.prototype.hasOwnProperty.call(body, 'country')
+        ? countriesUtil.normalizeCountry(body.country)
+        : (fresh.country || 'US');
+      if (Object.prototype.hasOwnProperty.call(body, 'country') &&
+          !countriesUtil.isValidCountry(effectiveCountry)) {
+        throw Object.assign(new Error('Invalid country code'), { httpStatus: 400 });
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'state') && body.state
+          && !countriesUtil.isValidRegion(effectiveCountry, body.state)) {
+        throw Object.assign(
+          new Error(`Invalid state/region for ${effectiveCountry}`),
+          { httpStatus: 400 }
+        );
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'zip_code') && body.zip_code
+          && !countriesUtil.isValidPostal(effectiveCountry, body.zip_code)) {
+        throw Object.assign(
+          new Error(`Invalid postal code for ${effectiveCountry}`),
+          { httpStatus: 400 }
+        );
+      }
+
       // ── Standard editable fields ────────────────────────────────────────
       for (const f of EDITABLE_FIELDS) {
         if (!Object.prototype.hasOwnProperty.call(body, f.key)) continue;
@@ -287,24 +332,39 @@ exports.editUserFull = async (req, res) => {
           throw Object.assign(new Error(`Invalid role: ${newVal}`), { httpStatus: 400 });
         }
 
+        // Re-uppercase state for fixed-list countries before storing.
+        let writeVal = newVal;
+        if (f.key === 'state' && newVal && countriesUtil.hasRegions(effectiveCountry)) {
+          writeVal = String(newVal).toUpperCase();
+        }
+
         // Compare with appropriate normalization
         const oldNorm = f.type === 'boolean' ? !!oldVal
                       : f.type === 'email'   ? (oldVal || '').toLowerCase()
                       :                        (oldVal == null ? null : String(oldVal));
-        const newNorm = f.type === 'boolean' ? !!newVal
-                      : f.type === 'email'   ? (newVal || '').toLowerCase()
-                      :                        (newVal == null ? null : String(newVal));
+        const newNorm = f.type === 'boolean' ? !!writeVal
+                      : f.type === 'email'   ? (writeVal || '').toLowerCase()
+                      :                        (writeVal == null ? null : String(writeVal));
 
         if (oldNorm === newNorm) continue;
 
         updates.push(`${f.column} = $${p++}`);
-        values.push(newVal);
+        values.push(writeVal);
         changes.push({
           field:     f.key,
           oldValue:  oldVal,
-          newValue:  newVal,
+          newValue:  writeVal,
           actionType: `edit_${f.key}`,
         });
+
+        // Auto-update preferred_currency when country changes (only if the
+        // admin didn't explicitly set it in the same request).
+        if (f.key === 'country' && writeVal
+            && !Object.prototype.hasOwnProperty.call(body, 'preferred_currency')) {
+          const newCcy = countriesUtil.getDefaultCurrency(writeVal) || 'USD';
+          updates.push(`preferred_currency = $${p++}`);
+          values.push(newCcy);
+        }
       }
 
       // ── Password (always treated specially) ─────────────────────────────
