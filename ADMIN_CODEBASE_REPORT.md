@@ -1,285 +1,468 @@
-# Comprehensive Admin Codebase Exploration Report
+# OxSteed — Caretaker's Guide to the Website
+
+> **Purpose of this document:** This is a plain-language explanation of the OxSteed website, written so that someone with little or no technical background can understand what the site is, how it works, and what to do if they need to keep it running in my absence. Read it top to bottom once. Then keep it bookmarked.
+>
+> **Last updated:** April 27, 2026
 
 ---
 
-## 1. `JobsList.jsx` — What It Shows
+## Table of Contents
 
-**Location:** `client/src/admin/pages/JobsList.jsx`
-
-**Display Columns:**
-- TITLE (with location city/state)
-- CLIENT (client name)
-- HELPER (helper name or "Unassigned")
-- BUDGET (budget range in dollars or "Open")
-- STATUS (colored badge: published, in_progress, completed, cancelled, disputed, accepted)
-- CREATED (creation date)
-- ACTIONS (View → link for all admins; Delete button for super_admin only)
-
-**Features:**
-- Search by title/ID
-- Filter by status (published, accepted, in_progress, completed, cancelled, disputed)
-- Pagination (25 items per page)
-- Export CSV functionality
-- Delete modal with reason requirement (super_admin only)
-- Job title links to `/admin/jobs/:id` detail page
-- Responsive dark-themed table
+1. [What OxSteed Is, in One Page](#1-what-oxsteed-is-in-one-page)
+2. [The Big Picture — How a Website Like This Works](#2-the-big-picture--how-a-website-like-this-works)
+3. [The Three Audiences and What They See](#3-the-three-audiences-and-what-they-see)
+4. [Where Everything Lives (the Code Repository)](#4-where-everything-lives-the-code-repository)
+5. [The Outside Services OxSteed Depends On](#5-the-outside-services-oxsteed-depends-on)
+6. [Money — How Payments Flow Through the Site](#6-money--how-payments-flow-through-the-site)
+7. [The Admin Panel — Your Control Room](#7-the-admin-panel--your-control-room)
+8. [How the Site Gets Updated and Deployed](#8-how-the-site-gets-updated-and-deployed)
+9. [If Something Goes Wrong — A Triage Playbook](#9-if-something-goes-wrong--a-triage-playbook)
+10. [Important Accounts, Logins, and Where the Keys Live](#10-important-accounts-logins-and-where-the-keys-live)
+11. [Hiring a Developer to Take Over](#11-hiring-a-developer-to-take-over)
+12. [Glossary of Terms](#12-glossary-of-terms)
 
 ---
 
-## 2. Routes in `server/routes/admin.js`
+## 1. What OxSteed Is, in One Page
 
-### Regular Admin (admin + super_admin access)
+**OxSteed is an online marketplace for local trades and services.** Think of it like a cross between Thumbtack, TaskRabbit, and Angi, focused on connecting customers with local helpers (handymen, contractors, consultants, tool renters, and small businesses).
 
-| Method | Path | Handler |
-|--------|------|---------|
-| GET | `/admin/dashboard` | `adminCtrl.getDashboardStats` |
-| GET | `/admin/reports` | `adminCtrl.getReports` |
-| PUT | `/admin/reports/:reportId` | `adminCtrl.reviewReport` |
-| GET | `/admin/moderation-queue` | `adminCtrl.getModerationQueue` |
-| GET | `/admin/jobs` | `superCtrl.getJobs` |
-| GET | `/admin/jobs/:jobId` | `superCtrl.getJobDetail` |
-| POST | `/admin/jobs/:jobId/action` | `superCtrl.forceJobAction` |
-| GET | `/admin/content` | `adminCtrl.getContent` |
-| POST | `/admin/bids/:bidId/remove` | `adminCtrl.removeBid` |
-| POST | `/admin/reviews/:reviewId/remove` | `adminCtrl.removeReview` |
-| POST | `/admin/reviews/:reviewId/restore` | `adminCtrl.restoreReview` |
-| GET | `/admin/users` | `superCtrl.getUsers` |
-| GET | `/admin/users/:userId` | `superCtrl.getUserDetail` |
-| PUT | `/admin/users/:userId/name` | `superCtrl.updateUserName` |
-| POST | `/admin/users/:userId/ban` | `superCtrl.toggleUserBan` |
-| GET | `/admin/markets` | `adminCtrl.getMarkets` |
-| POST | `/admin/markets/:marketId/zip-codes` | `adminCtrl.addZipCodes` |
-| DELETE | `/admin/markets/:marketId/zip-codes` | `adminCtrl.removeZipCodes` |
-| GET | `/admin/search` | `searchCtrl.search` |
-| GET | `/admin/permission-grants` | `permCtrl.listGrants` |
-| GET | `/admin/permission-scopes` | `permCtrl.getScopes` |
+The site does five main things:
 
-### Super Admin Only
+1. **Posts jobs.** A customer types in what they need done ("fix my fence", "tutor my child in math", "rent a pressure washer for the weekend"), and the site collects bids from helpers nearby.
+2. **Connects people.** Helpers send bids; customers and helpers chat through the site to agree on details.
+3. **Handles money.** When a job is accepted, the customer's payment is held safely (by Stripe, our payment processor) until the job is done, then released to the helper. OxSteed takes a small fee on top.
+4. **Verifies trust.** Helpers can get their identity verified, get a background check, and earn ratings and reviews.
+5. **Offers extra services.** There are also tool rentals, business profile pages, scheduled consulting sessions, planned-needs (recurring jobs), and a "business launch" service that helps people start a small business.
 
-| Method | Path | Handler / Notes |
-|--------|------|-----------------|
-| DELETE | `/admin/jobs/:jobId` | `superCtrl.deleteJob` |
-| GET | `/admin/super/dashboard` | `superCtrl.getDashboardStats` |
-| GET | `/admin/super/revenue-chart` | `superCtrl.getRevenueChart` |
-| POST | `/admin/users/:userId/verify` | `superCtrl.verifyUser` |
-| PUT | `/admin/users/:userId/role` | `superCtrl.updateUserRole` |
-| DELETE | `/admin/users/:userId` | `superCtrl.deleteUser` |
-| POST | `/admin/super/force-logout/:userId` | `superCtrl.forceLogout` |
-| POST | `/admin/super/users` | `superCtrl.createUser` — `requirePermission('create_users')` |
-| GET | `/admin/super/admin-accounts` | `superCtrl.getAdminAccounts` |
-| POST | `/admin/super/admin-accounts` | `superCtrl.createAdminAccount` |
-| PUT | `/admin/super/admin-accounts/:id/status` | `superCtrl.toggleAdminAccountStatus` |
-| GET | `/admin/super/admin-activity/:adminId` | `superCtrl.getAdminActivity` |
-| GET | `/admin/financials` | `superCtrl.getFinancials` |
-| GET | `/admin/payouts` | `superCtrl.getPayouts` |
-| GET | `/admin/super/revenue` | `superCtrl.getRevenueSummary` |
-| GET | `/admin/super/revenue/export` | `superCtrl.getRevenueExport` |
-| POST | `/admin/jobs/:jobId/refund` | `superCtrl.issueManualRefund` |
-| GET | `/admin/settings` | `superCtrl.getSettings` |
-| PUT | `/admin/settings/:key` | `superCtrl.updateSetting` |
-| PUT | `/admin/feature-flags/:key` | `superCtrl.updateFeatureFlag` |
-| GET | `/admin/audit-log` | `superCtrl.getAuditLog` |
-| GET | `/admin/export/:type` | `superCtrl.exportData` |
-| POST | `/admin/super/permission-grants` | `permCtrl.createGrant` |
-| DELETE | `/admin/super/permission-grants/:id` | `permCtrl.revokeGrant` |
-| POST | `/admin/super/users/:userId/message` | `superCtrl.sendAdminMessage` |
-
-### Support Tickets (admin + super_admin)
-
-| Method | Path | Handler |
-|--------|------|---------|
-| GET | `/admin/support/stats` | `supportCtrl.getStats` |
-| GET | `/admin/support/tickets` | `supportCtrl.listTickets` |
-| GET | `/admin/support/tickets/:ticketId` | `supportCtrl.getTicketAdmin` |
-| POST | `/admin/support/tickets/:ticketId/claim` | `supportCtrl.claimTicket` |
-| POST | `/admin/support/tickets/:ticketId/unclaim` | `supportCtrl.unclaimTicket` |
-| PUT | `/admin/support/tickets/:ticketId/status` | `supportCtrl.updateStatus` |
-| PUT | `/admin/support/tickets/:ticketId/priority` | `supportCtrl.updatePriority` |
-| POST | `/admin/support/tickets/:ticketId/reply` | `supportCtrl.adminReply` |
-
-### Search Logs (requirePermission — super bypasses)
-
-| Method | Path | Handler |
-|--------|------|---------|
-| GET | `/admin/super/search-logs` | `searchCtrl.getSearchLogs` |
-| GET | `/admin/super/search-stats` | `searchCtrl.getSearchStats` |
-
-### Skills Lookup (admin + super_admin)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | `/admin/skills-lookup` | Search/filter with `q`, `category`, `limit`, `offset` |
-| GET | `/admin/skills-lookup/categories` | Distinct category list |
-| POST | `/admin/skills-lookup` | Create or upsert skill |
-| PUT | `/admin/skills-lookup/:id` | Update skill |
-| DELETE | `/admin/skills-lookup/:id` | Soft delete (or hard with `?hard=true`) |
+It is one website that serves three kinds of people: **customers**, **helpers/businesses**, and **admins** (you and any staff).
 
 ---
 
-## 3. `adminController.js` — Job-Related Functions
+## 2. The Big Picture — How a Website Like This Works
 
-**No job functions in `adminController.js`.** Job-related functions (`getJobs`, `getJobDetail`, `forceJobAction`, `deleteJob`) are all in `superAdminController.js`.
+Any modern website like OxSteed has three parts that talk to each other:
 
-`adminController.js` contains:
-- `getDashboardStats` — Regular admin dashboard
-- `getReports` — Content reports list
-- `reviewReport` — Process report action
-- `getModerationQueue` — Jobs/content needing moderation (uses `metadata->>'admin_flagged'`)
-- `getMarkets` — Markets for zip code management
-- `addZipCodes` / `removeZipCodes` — Market zip code management
-- `getContent` — List bids/reviews for removal
-- `removeBid` / `removeReview` / `restoreReview` — Content moderation
+### Part A — The Frontend (what people see in their browser)
 
----
+This is the visual website itself: the homepage, the buttons, the forms, the photos. It runs inside the user's web browser (Chrome, Safari, etc.). It is built with a tool called **React**.
 
-## 4. `JobDetail.jsx` — Existence and Contents
+When someone types `oxsteed.com` into their browser, the frontend is what loads first. It's just files (HTML, JavaScript, CSS) being served from our server.
 
-**Location:** `client/src/admin/pages/JobDetail.jsx` *(created this session)*
+### Part B — The Backend (the brain on the server)
 
-**Route:** `/admin/jobs/:jobId` — accessible to all admins
+When someone clicks "Post a Job" or "Login", the frontend sends a message to the backend asking it to do something. The backend is the part that actually thinks, checks rules, and saves things. It's a program written in **Node.js + Express** that runs 24/7 on a server we rent.
 
-**Sections:**
-- **Header:** Job title, status badge, flagged/disputed indicators, admin action buttons
-- **Description panel**
-- **Bids list** — helper name/email (linked to user detail), bid amount, status badge, message preview, date
-- **Payment breakdown** — status, total amount, helper payout, platform fee, Stripe PI, date
-- **Sidebar — Details:** location, budget, category, job value, created/updated dates
-- **Sidebar — Client card:** name + email, links to `/admin/users/:id`
-- **Sidebar — Helper card:** name + email (if assigned), links to `/admin/users/:id`
+The backend does things like:
 
-**Admin actions (all admins):**
-- Cancel Job (with optional reason modal)
-- Flag / Unflag (reads `job.admin_flagged` from `metadata->>'admin_flagged'`)
+- "Is this person allowed to log in?"
+- "Save this new job to the database."
+- "Send a text message to the helper saying they got a new bid."
+- "Tell Stripe to charge this credit card."
 
-**Super-admin only actions:**
-- Refund (shown when `payment.status === 'captured'`)
-- Delete (hard delete with required reason, navigates back to list)
+### Part C — The Database (the filing cabinet)
 
-**Flag state storage:** `jobs.metadata->>'admin_flagged'` (JSONB). The backend `forceJobAction` uses `jsonb_set` to persist it; `getJobDetail` exposes it as `admin_flagged boolean`.
+This is where every piece of information is permanently stored: every user account, every job, every message, every payment. It's a **PostgreSQL** database. The backend reads from it and writes to it constantly.
 
----
+### How they fit together
 
-## 5. `UserDetail.jsx` — Sections Summary
-
-**Location:** `client/src/admin/pages/super/UserDetail.jsx`
-
-| Section | Contents |
-|---------|----------|
-| **Header** | Avatar, name, email, edit-name button, role badge, plan badge, active/banned status, ID-verified badge, background-check badge |
-| **Actions (super_admin)** | Ban/Unban, Verify ID, Send Message, Change Role dropdown |
-| **Stats grid** | Rating, Jobs Completed, Total Earnings, Completion Rate |
-| **Recent Jobs** | Title, date, final price, status — up to 10 |
-| **Billing History** | Invoice event type, period start, amount, status, external link |
-| **Recent Payouts** | Job title, completion date, net payout — only if payouts exist |
-| **Stripe Account (super_admin)** | Account ID, onboarding status, charges/payouts enabled, subscription ID/status |
-| **Direct Message modal (super_admin)** | Textarea, character counter; disabled for admin targets |
-
----
-
-## 6. Permission Scopes (`adminPermissionController.js`)
-
-12 scopes total after this session:
-
-| Scope | Description |
-|-------|-------------|
-| `view_financials` | View revenue, payouts, and financial data |
-| `export_data` | Export platform data (users, jobs, revenue) |
-| `manage_settings` | Update platform settings and feature flags |
-| `view_audit_log` | View the full admin audit log |
-| `issue_refunds` | Issue manual job refunds |
-| `verify_users` | Mark users as identity-verified |
-| `delete_users` | Hard-delete user accounts |
-| `delete_jobs` | Hard-delete job posts |
-| `view_search_logs` | View admin search audit log |
-| `manage_admin_accounts` | Create and enable/disable admin accounts |
-| `message_users` | Send direct admin-to-user messages |
-| `create_users` | Create new regular user accounts (customer/helper/broker) |
-
-Super-admins bypass all permission checks automatically. Regular admins must hold an active, non-expired, non-revoked grant from a super-admin via `POST /admin/super/permission-grants`.
-
----
-
-## 7. `superAdminController.js` — User Creation Functions
-
-### `createAdminAccount` (admin accounts only)
-
-| Field | Notes |
-|-------|-------|
-| `email` | Required |
-| `first_name` | Required |
-| `last_name` | Required |
-| `role` | Optional, defaults to `'admin'`; accepts `'admin'` or `'super_admin'` |
-| `temporary_password` | Required, min 12 chars, bcrypt-hashed |
-
-- Sets `email_verified = true` by default
-- Logs to `admin_audit_log`
-- **Does not** create regular user accounts
-
-### `createUser` *(new — this session)*
-
-| Field | Notes |
-|-------|-------|
-| `first_name` | Required |
-| `last_name` | Required |
-| `email` | Required, normalized to lowercase, must be unique |
-| `password` | Required, min 8 chars, bcrypt-hashed (cost 12) |
-| `role` | Optional, defaults to `'customer'`; accepts `'customer'`, `'helper'`, `'broker'` |
-
-- Sets `is_active = true`, `email_verified = true`
-- Logs `user_created` action to `admin_audit_log`
-- Route: `POST /admin/super/users` — guarded by `requirePermission('create_users')`
-
----
-
-## 8. `AdminAccounts.jsx` — Purpose
-
-**Location:** `client/src/admin/pages/super/AdminAccounts.jsx`
-
-**Scope:** Admin accounts **only** — not regular users.
-
-**Features:**
-- Lists only `admin` and `super_admin` role accounts
-- Create new admin modal (email, name, role, temporary password — min 12 chars)
-- Enable / Disable admin accounts (with optional reason prompt for disabling)
-- Force logout all sessions for an admin
-- Admin activity drawer showing audit log per admin
-- Actions-logged count and last-action timestamp per row
-
----
-
-## 9. `adminAuth.js` Middleware
-
-**Location:** `server/middleware/adminAuth.js`
-
-### `requireAdmin`
-- Verifies JWT, checks `is_active`, requires `role IN ('admin', 'super_admin')`
-- Sets `req.user` and `req.isSuper`
-
-### `requireSuperAdmin`
-- Verifies JWT, checks `is_active`, requires `role = 'super_admin'`
-- Sets `req.user`, `req.isSuper = true`
-
-### `requirePermission(scope)` — factory
-- Must be chained after `requireAdmin` (relies on `req.user` and `req.isSuper`)
-- Super-admins pass unconditionally
-- Regular admins: queries `admin_permission_grants` for an active non-expired non-revoked grant with `permissions ? $scope` (JSONB containment)
-- Sets `req.grantedPermission` for downstream use
-- Returns `403` with a "contact a super-admin" message on failure
-
-**Usage pattern:**
-```js
-router.get('/route', requireAdmin, requirePermission('view_financials'), ctrl.handler);
-// or for super-admin-only routes:
-router.post('/route', requireSuperAdmin, ctrl.handler);
-// or with delegable permission:
-router.post('/route', requireAdmin, requirePermission('create_users'), ctrl.handler);
+```
+[ Browser / Phone ]  ←→  [ Frontend (React) ]
+         ↓ (API calls over the internet)
+[ Backend (Node.js) ]
+         ↓
+[ Database (PostgreSQL) ]   [ Stripe, Twilio, AWS, etc. ]
 ```
 
+Everything you'll ever need to fix on this site lives in one of those three boxes.
+
 ---
 
-## Key Architecture Notes
+## 3. The Three Audiences and What They See
 
-- **Job flag state** is stored in `jobs.metadata->>'admin_flagged'` (JSONB), not a dedicated column. Use `jsonb_set` to write and cast to boolean when reading.
-- **Job functions** live in `superAdminController.js` even for regular-admin routes — the route file uses `requireAdmin` for read access and `requireSuperAdmin` only for destructive writes.
-- **Regular user creation** is accessible to super-admins and any admin granted `create_users`. Admin account creation (`createAdminAccount`) remains super-admin only with no delegation path.
-- **`AdminAccounts.jsx`** is scoped exclusively to admin/super_admin accounts. Regular user management is in `UsersList.jsx` + `UserDetail.jsx`.
+The website automatically shows different pages to different people depending on who is logged in.
+
+### Customers (the public)
+
+These are regular people looking to hire help. They see:
+
+- **Homepage**, About, How It Works, public Helper directory
+- **Sign up / Login**
+- **Post a Job** — a multi-step form to describe what they need
+- **My Jobs** — a dashboard showing their open and completed jobs
+- **Messages** — chat with helpers who have bid
+- **Discover** — browse helpers and tool rentals nearby
+- **Tool Rentals** — rent equipment from neighbors
+- **Planned Needs** — set up recurring jobs (e.g., monthly lawn care)
+- **Business Launch** intake — apply for our consulting program
+- **Settings** — profile, password, notifications, payment methods
+
+### Helpers and Businesses (paid members)
+
+These are the trades workers and small business owners. They see everything customers see, plus:
+
+- **Helper Dashboard** — incoming inquiries, active jobs, earnings
+- **Helper Inbox** — messages from prospective customers
+- **My Bookings** — scheduled tool-rental and consulting bookings
+- **Business Profile / Helper Profile** — their public-facing page
+- **Helper Registration** — a multi-step onboarding flow that includes:
+  - Tier selection (Free, Pro, etc.)
+  - Identity verification (via a service called Didit)
+  - Background check (via a service called Checkr — optional)
+  - Tax form (W-9) for U.S. helpers
+  - Stripe Connect setup so they can receive payouts
+- **Consulting Portal** — for paid consulting clients to view their plan and schedule sessions
+
+### Admins (you)
+
+Admins log in at **/admin/login** and get a completely separate panel — see Section 7 for the full tour.
+
+There are two admin levels:
+
+- **Admin** — can moderate content, handle disputes, answer support tickets, manage users
+- **Super Admin** — can do everything admins can, plus see financials, change platform settings, set fees, create other admin accounts, and run reports
+
+---
+
+## 4. Where Everything Lives (the Code Repository)
+
+All the code for OxSteed is stored in one place on **GitHub**, in a repository called **oxsteed/old-file**. Think of GitHub as Google Drive for code — every change is tracked, every version saved, and any developer you hire will need access to this repo.
+
+The repository has roughly this layout:
+
+```
+old-file/
+├── client/         ← The frontend (what the browser shows)
+│   └── src/
+│       ├── pages/      ← One file per page (HomePage, Login, Dashboard, etc.)
+│       ├── admin/      ← The entire admin panel lives here
+│       ├── components/ ← Reusable UI pieces (buttons, modals, the navbar)
+│       ├── api/        ← Code that talks to the backend
+│       └── context/    ← Login state, dark/light theme, language
+│
+├── server/         ← The backend (the brain)
+│   ├── routes/         ← The "front door" — every URL the backend listens on
+│   ├── controllers/    ← The actual logic for each feature
+│   ├── middleware/     ← Security checks that run on every request
+│   ├── migrations/     ← Numbered SQL files that build the database
+│   ├── services/       ← Helpers for email, payments, file uploads, etc.
+│   ├── jobs/           ← Scheduled tasks (e.g., "send weekly summary every Sunday")
+│   └── workers/        ← Background processes (e.g., delayed payment capture)
+│
+├── Dockerfile          ← Recipe for packaging the whole app into a container
+├── docker-compose.yml  ← Recipe for running it on a single computer
+├── DEPLOYMENT.md       ← How the site gets pushed live
+├── PRODUCTION_CHECKLIST.md ← What to check before any major release
+├── CLAUDE.md           ← Long-form running notes for AI assistants and developers
+└── ADMIN_CODEBASE_REPORT.md ← THIS DOCUMENT
+```
+
+### The naming pattern is simple
+
+Every feature on the site is split into three matching files:
+
+- A **route** file: `server/routes/jobs.js` — lists the URLs (`/api/jobs`, `/api/jobs/:id`)
+- A **controller** file: `server/controllers/jobController.js` — does the actual work
+- A **page** file: `client/src/pages/JobListPage.jsx` — the screen the user sees
+
+If a developer says "the bug is in the bid controller", they mean `server/controllers/bidController.js`. Once you know this pattern, you can find anything.
+
+---
+
+## 5. The Outside Services OxSteed Depends On
+
+OxSteed does not handle credit cards, send emails, store photos, or verify IDs by itself. It pays other companies (called **third-party services**) to do those things. If any of these stop working, the matching feature on OxSteed will break — and you may need to log into the third-party dashboard to fix it.
+
+| Service | What it does for us | When you'd need to log in |
+|---|---|---|
+| **Stripe** | Processes all payments and helper payouts | Refund disputes, payout questions, webhook errors |
+| **Resend** | Sends transactional emails (password resets, notifications) | If users say they aren't getting emails |
+| **Twilio** | Sends SMS text messages (login codes, alerts) | If text messages aren't arriving |
+| **Didit** | Verifies a helper's government ID | If ID verification is failing |
+| **Checkr** | Runs background checks on helpers | Background-check failures or disputes |
+| **AWS S3** | Stores uploaded photos and documents | If photos aren't loading, or to recover a deleted file |
+| **Redis** | Speeds up the site and handles rate-limiting | Site slowdowns, login lockout issues |
+| **PostgreSQL** | The actual database (the filing cabinet) | Almost never directly — but every backup of this is vital |
+| **Coolify** | Hosts the app and handles deployments | When the site is down or needs redeploying |
+| **GitHub** | Stores the code and tracks changes | To grant a new developer access to the code |
+| **Sentry** | Reports crashes and errors back to us | To diagnose unexplained issues |
+| **Google Analytics + Meta Pixel** | Track visitor stats (consent-gated) | Marketing analytics |
+| **OpenRouter / Ollama** | Powers the optional AI chat assistant | If the AI chat starts misbehaving |
+
+**Everything except Stripe, Resend, the Database, and Coolify is technically optional** — the site will keep running if any of the others go down, just with that feature disabled. Stripe and the database are the two things you absolutely must protect.
+
+---
+
+## 6. Money — How Payments Flow Through the Site
+
+This is the part most caretakers will care about. Here's how a single job moves through the money system:
+
+### Step-by-step
+
+1. **Customer posts a job.** No money has changed hands yet.
+2. **Helpers bid.** Still no money.
+3. **Customer accepts a bid.** OxSteed asks Stripe to charge the customer's card, but **the money is held in escrow** — Stripe authorizes the charge but doesn't release the funds.
+4. **Helper does the work.**
+5. **Customer marks the job complete.** OxSteed tells Stripe to release the money.
+6. **Stripe pays the helper directly** (minus OxSteed's platform fee). This is called a **direct charge** through Stripe Connect.
+7. **OxSteed keeps the platform fee** automatically.
+
+### Three pricing tiers exist
+
+- **Tier 1 / Tier 2 (standard):** Customer pays upfront via Stripe Checkout, money flows immediately.
+- **Tier 3 (escrow):** The "manual capture" flow described above — funds are authorized but held until job completion. This is the safer flow for larger jobs.
+
+### Refunds and disputes
+
+If a customer demands a refund or there's a dispute:
+
+- Either party can open a **dispute** through the OxSteed dispute system (super-admin can resolve it from `/admin/disputes`).
+- A super-admin can also issue a **manual refund** from the Job Detail page, which calls Stripe to reverse the charge.
+- All payment events are logged in `server/controllers/webhookController.js` and stored in the database.
+
+### What you should monitor monthly
+
+- Log in to the Stripe dashboard and check that **payouts to helpers** match what the OxSteed admin panel shows under **Super Admin → Payouts**.
+- Check **Super Admin → Revenue** for the platform-fee total.
+- Watch the **Financials** page for any "stuck" payments (status: `authorized` for more than a couple of weeks usually means a job was forgotten).
+
+---
+
+## 7. The Admin Panel — Your Control Room
+
+Go to **`/admin/login`** and sign in with your admin credentials. You'll land on the dashboard.
+
+The left sidebar is divided into two sections: **Operations** (visible to all admins) and **Super Admin** (visible only if your role is super_admin).
+
+### Operations menu — day-to-day tasks
+
+| Page | What it's for |
+|---|---|
+| **Dashboard** | At-a-glance numbers: users, jobs, revenue, pending items |
+| **Users** | Search and view every user account; ban/unban; verify ID |
+| **Jobs** | Browse every job posted; flag, cancel, or refund |
+| **Reports** | User-submitted reports of bad behavior — review and act |
+| **Moderation** | Anything flagged for review (jobs, profiles, content) |
+| **Content Removals** | Removed bids and reviews; you can restore reviews here |
+| **Skills** | The master list of trade skills helpers can claim |
+| **Support Tickets** | Customer support inbox — claim, reply, close tickets |
+| **Messages** | Send a message directly to any user as the platform |
+| **Search** | Full-text search across users, jobs, businesses |
+| **Businesses** | Approve or moderate business profile pages |
+| **Tool Rentals** | Moderate rental listings and bookings |
+| **Planned Needs** | Recurring-job requests submitted by customers |
+| **Payments** | All Stripe payments — search, filter, inspect |
+| **Consulting** | Dashboard, payments, scheduler, analytics, sessions, business-launch requests |
+
+### Super Admin menu — sensitive controls (super-admin only)
+
+| Page | What it's for |
+|---|---|
+| **Super Dashboard** | Higher-level numbers, including financial totals |
+| **Revenue** | Platform-fee revenue with charts and CSV export |
+| **Financials** | Detailed accounting view |
+| **Payouts** | Money sent to helpers |
+| **Conversations** | Inspect any conversation between users (privacy-sensitive — only use for safety/legal) |
+| **Admin Accounts** | Create, disable, or force-logout other admin staff |
+| **Permissions** | Grant specific powers to regular admins (see below) |
+| **Regions** | Country/state boundaries for regional admin scoping |
+| **Create User** | Manually create a customer/helper/broker account |
+| **Search Logs** | What admins have searched for (audit trail) |
+| **Settings** | Platform-wide toggles and feature flags |
+| **Audit Log** | Every important admin action, ever |
+| **User Action Log** | Specifically: things admins did that affected real users |
+
+### How admin permissions work
+
+- **Super admins** can do everything, period.
+- **Regular admins** can do the everyday Operations tasks. For sensitive things (issuing refunds, viewing financials, deleting users, creating new users, etc.), a super admin must explicitly grant them that permission via the **Permissions** page.
+- This is enforced by the code in `server/middleware/adminAuth.js`. You don't need to read it — just know that if a regular admin says "I don't have access", the answer is to grant them the right permission.
+
+The current list of grantable permissions includes:
+
+- `view_financials`, `export_data`, `manage_settings`, `view_audit_log`, `issue_refunds`, `verify_users`, `delete_users`, `delete_jobs`, `view_search_logs`, `manage_admin_accounts`, `message_users`, `create_users`.
+
+### Recent admin pages to be aware of
+
+These were added or expanded recently and may not be in older notes:
+
+- **Regions Manager** — Lets a super-admin scope a regional admin to a specific country or country+region. Useful as the platform expands internationally.
+- **Audit Log → User Actions** — A separate, focused log of every admin action that touched a real user account.
+- **Consulting Sessions Admin** — Manages scheduled 1-on-1 consulting sessions including notes, messaging, and post-session follow-ups.
+- **Business Launch Admin** — Reviews and progresses the multi-phase business-launch service for clients.
+- **Calendar Appointments** — Underlying scheduling system used by both consulting and helper bookings.
+
+---
+
+## 8. How the Site Gets Updated and Deployed
+
+### The development cycle
+
+When a developer wants to change something:
+
+1. They make changes on their own computer.
+2. They push the changes to **GitHub** (a git "commit").
+3. GitHub runs automatic checks (linting, tests).
+4. When approved and merged into the `main` branch, **Coolify** automatically picks it up.
+5. Coolify rebuilds the Docker container and restarts the app.
+6. **Database migrations run automatically on startup** — any new migration file (e.g., `119_some_change.sql`) is applied before the new code goes live.
+
+That's it. There's nothing manual unless something breaks.
+
+### What the developer is actually doing
+
+- Editing files inside the `client/` or `server/` folders
+- Sometimes adding a new SQL file in `server/migrations/`
+- Pushing to GitHub
+- Watching the Coolify logs to make sure deployment succeeded
+
+### Where to watch a deployment in real time
+
+- **GitHub** → repository → "Actions" tab — to see if automated checks passed
+- **Coolify dashboard** → the OxSteed app → "Logs" — to watch the server come up
+
+### Rolling back
+
+If a new deployment breaks things, log into Coolify and roll back to the previous deployment with one click. The old Docker image is kept.
+
+---
+
+## 9. If Something Goes Wrong — A Triage Playbook
+
+When the site is misbehaving, work through these steps in order. **Do not panic and do not start changing code yourself** — call a developer (see Section 11). But you can usually identify the problem quickly with this list.
+
+### Symptom: The whole site is down
+
+1. Try `https://oxsteed.com/health` — if you get `OK`, the server is up; the problem is somewhere else (DNS, SSL).
+2. Log in to **Coolify** and look at the OxSteed app status. If it says "stopped" or "crashed", restart it.
+3. Check Coolify logs for the most recent error — usually the first red line tells the whole story.
+4. Check that the **database** and **Redis** containers are also running.
+5. Check Sentry for a flood of new errors — sometimes a single bad deployment is the cause.
+6. **Last resort:** roll back the most recent deployment in Coolify.
+
+### Symptom: Users can't log in
+
+- Almost always: an expired secret. Check that `JWT_SECRET` is still set in Coolify environment variables.
+- Or: the database is down (see above).
+
+### Symptom: Payments aren't going through
+
+1. Log into the **Stripe dashboard** → Webhooks. Look for failed deliveries.
+2. Check that `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Coolify match what's in Stripe.
+3. Check the **Payments** page in the admin panel for stuck transactions.
+
+### Symptom: Emails aren't sending
+
+- Resend dashboard → check API status and recent send logs.
+- `RESEND_API_KEY` is set in Coolify.
+- If the domain's SPF/DKIM/DMARC records expired, emails will go to spam.
+
+### Symptom: Photo uploads broken
+
+- AWS S3 dashboard → check the bucket exists and credentials work.
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET` set in Coolify.
+- Without S3, the site falls back to storing photos as text inside the database — it works but bloats the DB. Get S3 fixed quickly.
+
+### Symptom: A specific user complains about something
+
+- Use **Admin → Search** to find their account.
+- Open their **User Detail** page. Everything they've ever done is listed there: jobs, payments, messages, billing history, payouts.
+- Use **Audit Log → User Actions** to see what admins have done to their account.
+
+### Symptom: A bad actor / harassment / fraud report
+
+- Find them via **Admin → Search**.
+- Use **Ban User** on their User Detail page.
+- For payment fraud: also block their card in Stripe.
+- All actions are logged automatically — no need to keep your own notes.
+
+---
+
+## 10. Important Accounts, Logins, and Where the Keys Live
+
+> **DO NOT WRITE PASSWORDS INTO THIS FILE.** This section is a checklist of *which accounts* exist. Store the actual passwords in a password manager (1Password, Bitwarden, etc.) and share access with whoever you trust.
+
+You should have administrative login credentials for each of these:
+
+- [ ] **GitHub** — `oxsteed` organization, owner of the `old-file` repository
+- [ ] **Coolify** — the host where the live site runs
+- [ ] **Stripe** — payment account
+- [ ] **AWS** — S3 bucket for file storage
+- [ ] **Resend** — email sending account
+- [ ] **Twilio** — SMS sending account
+- [ ] **Didit** — identity verification account
+- [ ] **Checkr** — background-check account (if used)
+- [ ] **Sentry** — error monitoring
+- [ ] **Google Analytics + Meta Business** — marketing analytics
+- [ ] **Domain registrar** — where `oxsteed.com` is registered (this is critical — losing the domain means losing the website)
+- [ ] **Email account** that owns all the above logins
+- [ ] **The OxSteed super-admin account** — to log into `/admin/login`
+
+All the secret keys (JWT_SECRET, ENCRYPTION_KEY, STRIPE_SECRET_KEY, etc.) live as **environment variables inside Coolify**. They are never stored in the code repository. If Coolify is lost, those secrets are gone — but they can all be regenerated from the corresponding service dashboards.
+
+The full list of required and optional environment variables is documented in `DEPLOYMENT.md` and `server/utils/validateEnv.js`.
+
+---
+
+## 11. Hiring a Developer to Take Over
+
+If something happens to me, you will need to hire a software developer to maintain or extend OxSteed. Here is exactly what to tell them so they can hit the ground running:
+
+### What to give them
+
+1. **Read access** to the GitHub repository at `oxsteed/old-file`.
+2. **A copy of this file** (`ADMIN_CODEBASE_REPORT.md`).
+3. **A copy of `CLAUDE.md`** in the same repository — that is the long-running technical changelog and project memory.
+4. **Login to Coolify** so they can deploy.
+5. **Stripe**, **AWS**, **Resend** dashboard access (or at least their environment variables read from Coolify).
+
+### What to tell them in plain English
+
+> "OxSteed is a React + Node.js + PostgreSQL marketplace running on Coolify. The frontend is in `/client`, the backend is in `/server`. Database migrations are numbered SQL files in `/server/migrations` and apply automatically on startup. Payments go through Stripe Connect with manual-capture escrow on Tier 3 jobs. Auth is JWT (15-minute access tokens, 7-day refresh), stored in browser localStorage. Read `CLAUDE.md` for the full project history and `DEPLOYMENT.md` for production env vars."
+
+Any competent full-stack web developer should be productive within a day or two with that information.
+
+### What kind of developer to hire
+
+Look for someone with experience in:
+
+- **React** and **Node.js / Express** (these are common — most full-stack developers know both)
+- **PostgreSQL** (any SQL experience is fine)
+- **Stripe Connect** (this is the slightly specialized one — be sure to ask)
+- Comfort with **Docker** and a hosting platform (Coolify, Heroku, Render, Railway are all similar)
+
+Hourly freelancer rates in the U.S. for this skill set range from roughly $75–$200/hour. For ongoing maintenance, a part-time retainer is usually more economical than per-incident billing.
+
+---
+
+## 12. Glossary of Terms
+
+- **API** — A doorway through which the frontend asks the backend for things. Every URL starting with `/api/` is an API endpoint.
+- **Backend** — The server program that does the thinking and database work.
+- **Branch** — A separate copy of the code where work-in-progress changes live until they're ready to merge into `main`.
+- **Cache** — A temporary fast copy of slow data, usually held in Redis.
+- **Commit** — A single saved change to the code, with a timestamp and a message.
+- **Container / Docker** — A way of packaging the entire app (code + dependencies) into one self-contained box that runs the same anywhere.
+- **CSRF / XSS / SQL injection** — Three common categories of website attack. The code already protects against all three (`server/middleware/`).
+- **Dependency** — Outside code we use (e.g., React, Express, Stripe library). Listed in `package.json` files.
+- **Deploy** — To take new code and make it live on the public website.
+- **Environment variable** — A secret value (like an API key) that's given to the running app from outside the code, so it isn't accidentally committed to GitHub.
+- **Escrow** — Money held by a third party (Stripe) until both parties agree it should be released.
+- **Frontend** — The visible website that runs in the user's browser.
+- **JWT** — JSON Web Token. A signed identification card the backend gives a user when they log in. The browser presents it on every subsequent request to prove they're logged in.
+- **Migration** — A numbered SQL file that changes the database structure (adds a column, creates a table, etc.). Migrations are applied in order and never edited after going live.
+- **Production** — The real, live website that real users use.
+- **Repository / Repo** — The folder full of code stored on GitHub.
+- **SPA / Single-Page App** — A site where navigating between pages happens in the browser without a full reload, making the site feel snappier. OxSteed is one.
+- **Stripe Connect** — A Stripe feature that lets us pay helpers directly (rather than money going to OxSteed first and then to the helper).
+- **Webhook** — A message Stripe (or another service) sends to OxSteed when something happens — like "payment succeeded" — so the site can update.
+
+---
+
+## Final Note
+
+This document is a snapshot in time. If the site changes substantially, update this file. The single most important rule:
+
+> **Don't let the domain `oxsteed.com` expire, don't let the database backups stop, and keep paying the Stripe and Coolify bills.** Everything else can be recovered.
+
+Good luck. — *E.*
