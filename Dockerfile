@@ -1,9 +1,9 @@
 # Multi-stage production build for OxSteed (Node.js + React SPA)
-# Stage 1: Build client (React)
+# Stage 1: Build client (Vite)
 FROM node:20-alpine AS client-build
 WORKDIR /app/client
 COPY client/package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 COPY client/ .
 RUN npm run build
 
@@ -23,8 +23,8 @@ RUN npm install
 # Copy server code
 COPY server/ .
 
-# Copy built client to be served as static assets
-COPY --from=client-build /app/client/dist /app/server/public/dist
+# Copy built client to correct location expected by server (../client/dist)
+COPY --from=client-build /app/client/dist /app/client/dist
 
 WORKDIR /app/server
 
