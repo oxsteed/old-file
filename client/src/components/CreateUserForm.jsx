@@ -21,8 +21,17 @@ const ROLES = [
   { value: 'broker',     label: 'Broker' },
 ];
 
+// Must match the Postgres enum subscription_status defined in
+// server/migrations/001_initial_schema.sql:
+//   ('none', 'trialing', 'active', 'past_due', 'cancelled', 'paused')
+// Mismatches here surface as cryptic 500 errors from the backend.
 const SUBSCRIPTION_STATUSES = [
-  'none', 'trial', 'active', 'past_due', 'canceled',
+  { value: 'none',      label: 'None' },
+  { value: 'trialing',  label: 'Trialing' },
+  { value: 'active',    label: 'Active' },
+  { value: 'past_due',  label: 'Past due' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'paused',    label: 'Paused' },
 ];
 
 const INITIAL = {
@@ -82,7 +91,11 @@ export default function CreateUserForm({ onCreated, onCancel }) {
       if (resp?.fields) {
         setErrors(resp.fields);
       }
-      setServerError(resp?.error || 'Failed to create user.');
+      // Backend may return { error, detail } — show the underlying detail to
+      // super-admins so schema/enum/validation problems are debuggable.
+      const baseMsg = resp?.error || 'Failed to create user.';
+      const detail  = resp?.detail;
+      setServerError(detail ? `${baseMsg} (${detail})` : baseMsg);
     } finally {
       setSubmitting(false);
     }
@@ -282,7 +295,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
               onChange={e => setField('subscription_status', e.target.value)}
             >
               {SUBSCRIPTION_STATUSES.map(s => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </div>

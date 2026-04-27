@@ -251,7 +251,14 @@ exports.createUserFull = async (req, res) => {
     });
   } catch (err) {
     logger.error('createUserFull error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to create user.' });
+    // Surface the underlying error detail so super-admins can debug
+    // schema mismatches (e.g. invalid enum values) instead of seeing a
+    // generic message. This route is requireSuperAdmin-gated so the
+    // exposure is limited to trusted users.
+    return res.status(500).json({
+      error:  'Failed to create user.',
+      detail: err.message,
+    });
   }
 };
 
@@ -471,7 +478,10 @@ exports.editUserFull = async (req, res) => {
       return res.status(err.httpStatus).json({ error: err.message });
     }
     logger.error('editUserFull error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to update user.' });
+    return res.status(500).json({
+      error:  'Failed to update user.',
+      detail: err.message,
+    });
   }
 };
 
