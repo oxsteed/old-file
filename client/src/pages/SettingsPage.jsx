@@ -12,6 +12,9 @@ import useSubscription from '../hooks/useSubscription';
 import NotificationPreferences from '../components/NotificationPreferences';
 import ReferralPanel from '../components/ReferralPanel';
 import PaymentMethodSettings from '../components/PaymentMethodSettings';
+import CountrySelect from '../components/CountrySelect';
+import RegionInput from '../components/RegionInput';
+import PostalCodeInput from '../components/PostalCodeInput';
 import '../styles/SettingsPage.css';
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
@@ -138,6 +141,7 @@ export default function SettingsPage() {
   const [bizForm, setBizForm] = useState({
     business_name: '', business_type: 'llc', ein: '',
     address_street: '', address_city: '', address_state: '', address_zip: '',
+    address_country: 'US',
   });
   const [bizSaving, setBizSaving] = useState(false);
 
@@ -240,7 +244,7 @@ export default function SettingsPage() {
   };
 
   const resetBizForm = () => {
-    setBizForm({ business_name: '', business_type: 'llc', ein: '', address_street: '', address_city: '', address_state: '', address_zip: '' });
+    setBizForm({ business_name: '', business_type: 'llc', ein: '', address_street: '', address_city: '', address_state: '', address_zip: '', address_country: 'US' });
     setEditingBiz(null);
     setShowAddBiz(false);
   };
@@ -256,6 +260,7 @@ export default function SettingsPage() {
       address_city: biz.address_city || '',
       address_state: biz.address_state || '',
       address_zip: biz.address_zip || '',
+      address_country: biz.address_country || 'US',
     });
     setEditingBiz(biz);
     setShowAddBiz(true);
@@ -548,10 +553,27 @@ export default function SettingsPage() {
           <div className="mb-4">
             <label className="sp-label">{t('settings.businesses.form.address')}</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <CountrySelect
+                className="sp-input"
+                value={bizForm.address_country || 'US'}
+                onChange={(code) => setBizForm({ ...bizForm, address_country: code, address_state: '' })}
+                includeBlank={false}
+              />
               <input className="sp-input" placeholder={t('settings.businesses.form.street')} value={bizForm.address_street} onChange={e => setBizForm({ ...bizForm, address_street: e.target.value })} />
               <input className="sp-input" placeholder={t('settings.businesses.form.city')} value={bizForm.address_city} onChange={e => setBizForm({ ...bizForm, address_city: e.target.value })} />
-              <input className="sp-input" placeholder={t('settings.businesses.form.state')} value={bizForm.address_state} onChange={e => setBizForm({ ...bizForm, address_state: e.target.value })} />
-              <input className="sp-input" placeholder={t('settings.businesses.form.zip')} value={bizForm.address_zip} onChange={e => setBizForm({ ...bizForm, address_zip: e.target.value })} />
+              <RegionInput
+                className="sp-input"
+                country={bizForm.address_country || 'US'}
+                value={bizForm.address_state}
+                onChange={(v) => setBizForm({ ...bizForm, address_state: v })}
+                placeholder={t('settings.businesses.form.state')}
+              />
+              <PostalCodeInput
+                className="sp-input"
+                country={bizForm.address_country || 'US'}
+                value={bizForm.address_zip}
+                onChange={(v) => setBizForm({ ...bizForm, address_zip: v })}
+              />
             </div>
           </div>
           <div className="flex gap-3">

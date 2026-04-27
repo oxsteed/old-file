@@ -6,6 +6,9 @@ import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import BusinessSkillsSelector from '../components/BusinessSkillsSelector';
+import CountrySelect from '../components/CountrySelect';
+import RegionInput from '../components/RegionInput';
+import PostalCodeInput from '../components/PostalCodeInput';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -243,6 +246,7 @@ function BusinessHubInner() {
         address_city:        biz.address_city    || '',
         address_state:       biz.address_state   || '',
         address_zip:         biz.address_zip     || '',
+        address_country:     biz.address_country || 'US',
         service_radius_miles: biz.service_radius_miles || '',
         logo_url:            biz.logo_url        || '',
         cover_photo_url:     biz.cover_photo_url || '',
@@ -292,6 +296,7 @@ function BusinessHubInner() {
         address_city:         profileForm.address_city ?? '',
         address_state:        profileForm.address_state ?? '',
         address_zip:          profileForm.address_zip ?? '',
+        address_country:      profileForm.address_country || 'US',
         ...photoPatch,
       };
       if (bl) {
@@ -1434,12 +1439,6 @@ function BusinessHubInner() {
 }
 
 // ── Profile tab ───────────────────────────────────────────────────────────────
-const US_STATES = [
-  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
-  'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
-  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
-  'VA','WA','WV','WI','WY','DC',
-];
 
 const BIZ_TYPES = [
   { value: 'Handyman',       labelKey: 'bizTypeHandyman' },
@@ -1707,6 +1706,20 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
               <p className="text-xs text-gray-500 mt-1">{t('businessHub.streetHint')}</p>
             </div>
 
+            <div>
+              <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldCountry') || 'Country'}</label>
+              <CountrySelect
+                value={form.address_country || 'US'}
+                onChange={(code) => {
+                  // Switching country invalidates the current state if it
+                  // came from a fixed-list country; clear it for safety.
+                  onChange({ address_country: code, address_state: '' });
+                }}
+                includeBlank={false}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
+              />
+            </div>
+
             <div className="grid sm:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldCity')}</label>
@@ -1720,24 +1733,22 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldState')}</label>
-                <select
+                <RegionInput
+                  country={form.address_country || 'US'}
                   name="address_state"
                   value={form.address_state}
-                  onChange={pf}
+                  onChange={(v) => onChange({ address_state: v })}
+                  placeholder={t('businessHub.selectStatePlaceholder')}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
-                >
-                  <option value="">{t('businessHub.selectStatePlaceholder')}</option>
-                  {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-300 block mb-1.5">{t('businessHub.fieldZip')}</label>
-                <input
+                <PostalCodeInput
+                  country={form.address_country || 'US'}
                   name="address_zip"
                   value={form.address_zip}
-                  onChange={pf}
-                  placeholder={t('businessHub.placeholderZip')}
-                  maxLength={10}
+                  onChange={(v) => onChange({ address_zip: v })}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:border-orange-500 focus:outline-none transition"
                 />
               </div>
