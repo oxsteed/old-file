@@ -231,7 +231,7 @@ export default function ConsultingScheduler() {
                   <strong>{t('consulting.serviceTier')}:</strong> {session.service_tier}
                 </p>
                 <p style={{ marginBottom: '0.5rem' }}>
-                  <strong>{t('consulting.phone')}:</strong> {session.phone || 'N/A'}
+                  <strong>{t('consulting.phone')}:</strong> {session.phone || t('common.na')}
                 </p>
                 <button style={buttonStyle} onClick={(e) => {
                   e.stopPropagation();
@@ -276,7 +276,7 @@ export default function ConsultingScheduler() {
                   <td style={tdStyle}>
                     {session.scheduled_at
                       ? new Date(session.scheduled_at).toLocaleString()
-                      : 'N/A'}
+                      : t('common.na')}
                   </td>
                   <td style={tdStyle}>
                     {session.meeting_url ? (
@@ -284,7 +284,7 @@ export default function ConsultingScheduler() {
                         {t('consulting.scheduler.joinMeeting')}
                       </a>
                     ) : (
-                      'N/A'
+                      t('common.na')
                     )}
                   </td>
                 </tr>
