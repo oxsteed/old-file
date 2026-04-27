@@ -121,31 +121,8 @@ exports.getMyBids = async (req, res) => {
 exports.updateBid = async (req, res) => {
   try {
     const { amount, message, eta_hours } = req.body;
-
-    // Atomic update — only succeeds if bid is still pending and belongs to this helper
-    const result = await pool.query(
-      `UPDATE bids
-       SET amount = COALESCE($1, amount),
-           message = COALESCE($2, message),
-           eta_hours = COALESCE($3, eta_hours),
-           updated_at = NOW()
-       WHERE id = $4 AND helper_id = $5 AND status = 'pending'
-       RETURNING *`,
-      [amount, message, eta_hours, req.params.id, req.user.id]
-    );
-
-    if (result.rows.length === 0) {
-      // Distinguish "not found / not yours" from "already actioned"
-      const check = await pool.query('SELECT id, helper_id, status FROM bids WHERE id = $1', [req.params.id]);
-      if (!check.rows[0]) return res.status(404).json({ error: 'Bid not found' });
-      if (check.rows[0].helper_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-      return res.status(409).json({ error: 'Can only update pending bids' });
-    }
-
-    res.json(result.rows[0]);
     const bidId = req.params.id;
     const userId = req.user.id;
-    const { amount, message, eta_hours } = req.body;
 
     // Pre-check: bid must exist and belong to requester (outside transaction)
     const { rows: bidRows } = await pool.query(
@@ -210,22 +187,6 @@ exports.updateBid = async (req, res) => {
 // Withdraw bid
 exports.withdrawBid = async (req, res) => {
   try {
-    // Atomic update — only succeeds if bid is still pending and belongs to this helper
-    const result = await pool.query(
-      `UPDATE bids SET status = 'withdrawn', withdrawn_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND helper_id = $2 AND status = 'pending'
-       RETURNING *`,
-      [req.params.id, req.user.id]
-    );
-
-    if (result.rows.length === 0) {
-      const check = await pool.query('SELECT id, helper_id, status FROM bids WHERE id = $1', [req.params.id]);
-      if (!check.rows[0]) return res.status(404).json({ error: 'Bid not found' });
-      if (check.rows[0].helper_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-      return res.status(409).json({ error: 'Can only withdraw pending bids' });
-    }
-
-    res.json(result.rows[0]);
     const bidId = req.params.id;
     const userId = req.user.id;
 
