@@ -105,7 +105,26 @@
     "sortBy": "Trier par",
     "reset": "Réinitialiser",
     "contactSupport": "Contacter le support",
-    "verifying": "Vérification…"
+    "verifying": "Vérification…",
+    "actions": "Actions",
+    "all": "Tous",
+    "backHome": "Retour à l'Accueil",
+    "copiedToClipboard": "Copié dans le presse-papiers",
+    "copy": "Copier",
+    "create": "Créer",
+    "description": "Description",
+    "error": "Erreur",
+    "errorLoading": "Erreur lors du chargement",
+    "errorUpdating": "Erreur lors de la mise à jour",
+    "notFound": "Non trouvé",
+    "other": "Autre",
+    "postJob": "Publier une Annonce",
+    "previous": "Précédent",
+    "processing": "Traitement…",
+    "refresh": "Actualiser",
+    "submitting": "Envoi…",
+    "update": "Mettre à jour",
+    "view": "Voir"
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -149,7 +168,8 @@
     "welcomeBack": "Bon retour parmi nous",
     "otpSent": "Code de vérification envoyé. Vérifiez votre boîte de réception.",
     "emailVerified": "E-mail vérifié.",
-    "otpCode": "Code de vérification"
+    "otpCode": "Code de vérification",
+    "signIn": "Se Connecter"
   },
   "errors": {
     "generic": "Une erreur s'est produite",
@@ -296,7 +316,9 @@
     "businessNamePlaceholder": "Nom de l'entreprise",
     "addressPlaceholder": "Adresse",
     "agreeToTerms": "J'accepte les conditions",
-    "haveAccount": "Vous avez déjà un compte?"
+    "haveAccount": "Vous avez déjà un compte?",
+    "country": "Pays",
+    "errorCountry": "Pays invalide"
   },
   "didit": {
     "title": "Vérifiez votre identité",
@@ -865,7 +887,16 @@
     "restore": "Restore conversation",
     "restored": "Conversation restored",
     "viewArchived": "View archived conversations",
-    "noArchivedConversations": "No archived conversations"
+    "noArchivedConversations": "No archived conversations",
+    "attachNeedsConversation": "Joindre à la conversation",
+    "attachUploadFailed": "Erreur d'envoi",
+    "confirmDelete": "Supprimer ce message?",
+    "copy": "Copier le message",
+    "delete": "Supprimer le message",
+    "edit": "Modifier le message",
+    "editFailed": "Erreur lors de la modification du message",
+    "edited": "(modifié)",
+    "messageNotFound": "Message non trouvé"
   },
   "dashboard": {
     "welcome": "Bon retour, {{name}} !",
@@ -1438,7 +1469,8 @@
       "removeFailed": "Erreur lors de la suppression du service automobile",
       "removed": "Service automobile supprimé",
       "addFailed": "Erreur lors de l'ajout du service automobile",
-      "vinDecodeFailed": "Erreur de décodage VIN"
+      "vinDecodeFailed": "Erreur de décodage VIN",
+      "quickAdded": "Tâche d'entretien automobile ajoutée rapidement"
     },
     "products": {
       "title": "Mes Produits & Équipement",
@@ -1726,7 +1758,9 @@
     "personalCareDesc": "Description des soins personnels",
     "taskAdded": "Tâche ajoutée : {title}",
     "pro": "Pro",
-    "subscribed": "Abonné"
+    "subscribed": "Abonné",
+    "imageLoadError": "Erreur lors du chargement de l'image",
+    "uploading": "Téléchargement…"
   },
   "postJob": {
     "title": "Publier une mission",
@@ -1943,7 +1977,11 @@
     "editNotes": "Modifier les notes",
     "editMedia": "Modifier les médias",
     "viewMyJobsAriaLabel": "Accéder au tableau de bord pour voir vos annonces publiées",
-    "postAnotherJobAriaLabel": "Effacer le formulaire pour publier une autre annonce"
+    "postAnotherJobAriaLabel": "Effacer le formulaire pour publier une autre annonce",
+    "stepBudgetTimeline": "Budget et Calendrier",
+    "stepJobDetails": "Détails de l'Emploi",
+    "stepRequirements": "Exigences",
+    "stepReviewPost": "Réviser et Publier"
   },
   "jobDetail": {
     "bidNow": "Faire une offre",
@@ -2590,7 +2628,13 @@
     "btnSaveHours": "Enregistrer les Horaires",
     "loadingHours": "Chargement des horaires…",
     "loadingSkills": "Chargement des compétences…",
-    "errorLoadSkills": "Impossible de charger les compétences"
+    "errorLoadSkills": "Impossible de charger les compétences",
+    "fieldCountry": "Pays",
+    "loadingFAQs": "Chargement des FAQ…",
+    "loadingGallery": "Chargement de la galerie…",
+    "loadingPolicies": "Chargement des politiques…",
+    "loadingServices": "Chargement des services…",
+    "tabSkillsLabel": "Compétences"
   },
   "plans": {
     "free": "Gratuit",
@@ -3162,7 +3206,8 @@
       "deleteConfirm": "Supprimer ce message?",
       "messageComposer": "Compositeur de messages",
       "chatPanel": "Panneau de chat",
-      "filterSearchResults": "Filtrer les résultats de recherche"
+      "filterSearchResults": "Filtrer les résultats de recherche",
+      "clearSearch": "Effacer la recherche"
     }
   },
   "disputes": {
@@ -4499,5 +4544,8 @@
     "didntReceive": "Pas reçu ?",
     "verify": "Vérifier l'e-mail",
     "help": "Besoin d'aide ?"
+  },
+  "helpers": {
+    "viewProfileAria": "Voir le profil"
   }
 }
