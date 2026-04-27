@@ -131,7 +131,7 @@ export default function ConsultingDashboard() {
           <p style={{ margin: '0 0 0.5rem', color: 'var(--color-text-muted)' }}>
             {t('consulting.admin.stats.avgNps')}
           </p>
-          <div style={statNumberStyle}>{stats?.avg_nps ? stats.avg_nps.toFixed(1) : 'N/A'}</div>
+          <div style={statNumberStyle}>{stats?.avg_nps ? stats.avg_nps.toFixed(1) : t('common.na')}</div>
         </div>
       </div>
 
@@ -217,7 +217,7 @@ export default function ConsultingDashboard() {
             </h2>
             <p><strong>{t('consulting.email')}:</strong> {selectedRequest.email}</p>
             <p><strong>{t('consulting.phone')}:</strong> {selectedRequest.phone || t('common.notProvided')}</p>
-            <p><strong>{t('consulting.businessName')}:</strong> {selectedRequest.business_name || 'N/A'}</p>
+            <p><strong>{t('consulting.businessName')}:</strong> {selectedRequest.business_name || t('common.na')}</p>
             <p><strong>{t('consulting.admin.requestDetail.phase')}:</strong> {selectedRequest.current_phase || t('common.notSpecified')}/30</p>
             <p><strong>{t('consulting.serviceTier')}:</strong> {selectedRequest.service_tier}</p>
             <p><strong>{t('consulting.admin.requestDetail.areas')}:</strong> {selectedRequest.areas_of_help.join(', ')}</p>
