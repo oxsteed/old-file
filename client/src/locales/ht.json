@@ -105,7 +105,26 @@
     "sortBy": "Triye pa",
     "reset": "Reinisyalize",
     "contactSupport": "Kontakte sipò",
-    "verifying": "N ap verifye…"
+    "verifying": "N ap verifye…",
+    "actions": "Aksyon",
+    "all": "Tout",
+    "backHome": "Retou Lakay",
+    "copiedToClipboard": "Kopye nan clipboard",
+    "copy": "Kopye",
+    "create": "Kreye",
+    "description": "Deskripsyon",
+    "error": "Erè",
+    "errorLoading": "Erè chajman",
+    "errorUpdating": "Erè mete ajou",
+    "notFound": "Pa jwenn",
+    "other": "Lòt",
+    "postJob": "Afiche yon Travay",
+    "previous": "Anvan",
+    "processing": "Trete…",
+    "refresh": "Rafrechi",
+    "submitting": "Voye…",
+    "update": "Mete ajou",
+    "view": "Gade"
   },
   "trial": {
     "active": "Esè aktif",
@@ -232,7 +251,8 @@
     "welcomeBack": "Byenvini tounen",
     "otpSent": "Kòd verifikasyon voye. Tcheke bwat resepsyon ou.",
     "emailVerified": "Imèl verifye.",
-    "otpCode": "Kòd verifikasyon"
+    "otpCode": "Kòd verifikasyon",
+    "signIn": "Konekte"
   },
   "errors": {
     "generic": "Yon erè te pase",
@@ -379,7 +399,9 @@
     "businessNamePlaceholder": "Non biznis",
     "addressPlaceholder": "Adrès",
     "agreeToTerms": "Dakò avèk kondisyon",
-    "haveAccount": "Ou deja gen kont?"
+    "haveAccount": "Ou deja gen kont?",
+    "country": "Peyi",
+    "errorCountry": "Peyi envalid"
   },
   "didit": {
     "title": "Verifye idantite ou",
@@ -948,7 +970,16 @@
     "restore": "Restore conversation",
     "restored": "Conversation restored",
     "viewArchived": "View archived conversations",
-    "noArchivedConversations": "No archived conversations"
+    "noArchivedConversations": "No archived conversations",
+    "attachNeedsConversation": "Atache nan konvèsasyon",
+    "attachUploadFailed": "Echèk envoy",
+    "confirmDelete": "Efase mesaj sa?",
+    "copy": "Kopye mesaj",
+    "delete": "Efase mesaj",
+    "edit": "Modifye mesaj",
+    "editFailed": "Erè modifye mesaj",
+    "edited": "(modifye)",
+    "messageNotFound": "Mesaj pa jwenn"
   },
   "dashboard": {
     "welcome": "Byenvini tounen, {{name}}!",
@@ -1521,7 +1552,8 @@
       "removed": "Sèvis otomobil efase",
       "addFailed": "Erè ajoute sèvis otomobil",
       "vinDecodeFailed": "Erè dekode VIN",
-      "unknownModel": "Modèl Enkoni"
+      "unknownModel": "Modèl Enkoni",
+      "quickAdded": "Travay swen machin ajoute vit"
     },
     "products": {
       "title": "Pwodwi ak Ekipman mwen",
@@ -1809,7 +1841,9 @@
     "taskAdded": "Travay ajoute: {title}",
     "pro": "Pro",
     "subscribed": "Souskebi",
-    "jobNumber": "Travay #{{id}}"
+    "jobNumber": "Travay #{{id}}",
+    "imageLoadError": "Erè chajman imaj",
+    "uploading": "Envoy…"
   },
   "postJob": {
     "title": "Pibliye yon Travay",
@@ -2026,7 +2060,11 @@
     "editNotes": "Modifye nòt",
     "editMedia": "Modifye medya",
     "viewMyJobsAriaLabel": "Ale nan tablo bò pou gade travay ou poste",
-    "postAnotherJobAriaLabel": "Efase fòm pou poste yon lòt travay"
+    "postAnotherJobAriaLabel": "Efase fòm pou poste yon lòt travay",
+    "stepBudgetTimeline": "Bidjè ak Kalondriye",
+    "stepJobDetails": "Detay Travay",
+    "stepRequirements": "Egzijans",
+    "stepReviewPost": "Revize ak Afiche"
   },
   "jobDetail": {
     "bidNow": "Fè Òf sou Travay sa",
@@ -2673,7 +2711,13 @@
     "btnSaveHours": "Sove Òdòr",
     "loadingHours": "Ap chaje orè yo…",
     "loadingSkills": "Ap chaje konpetans…",
-    "errorLoadSkills": "Pa ka chaje konpetans yo"
+    "errorLoadSkills": "Pa ka chaje konpetans yo",
+    "fieldCountry": "Peyi",
+    "loadingFAQs": "Chajman FAQ…",
+    "loadingGallery": "Chajman galeriye…",
+    "loadingPolicies": "Chajman politiki…",
+    "loadingServices": "Chajman sèvis…",
+    "tabSkillsLabel": "Konpetans"
   },
   "plans": {
     "free": "Gratis",
@@ -3161,7 +3205,8 @@
       "deleteConfirm": "Efase mesaj sa a?",
       "messageComposer": "Konpoze Mesaj",
       "chatPanel": "Panèl Chat",
-      "filterSearchResults": "Filtye rezilta chèch"
+      "filterSearchResults": "Filtye rezilta chèch",
+      "clearSearch": "Efase rechech"
     }
   },
   "disputes": {
@@ -4498,5 +4543,8 @@
     "didntReceive": "Ou pa resevwa li?",
     "verify": "Verifye imèl",
     "help": "Ou bezwen èd?"
+  },
+  "helpers": {
+    "viewProfileAria": "Gade pwofil"
   }
 }

@@ -106,7 +106,26 @@
     "sortBy": "Sort by",
     "reset": "Reset",
     "contactSupport": "Contact support",
-    "verifying": "Verifying…"
+    "verifying": "Verifying…",
+    "actions": "Actions",
+    "all": "All",
+    "backHome": "Back to Home",
+    "copiedToClipboard": "Copied to clipboard",
+    "copy": "Copy",
+    "create": "Create",
+    "description": "Description",
+    "error": "Error",
+    "errorLoading": "Error loading",
+    "errorUpdating": "Error updating",
+    "notFound": "Not found",
+    "other": "Other",
+    "postJob": "Post a Job",
+    "previous": "Previous",
+    "processing": "Processing…",
+    "refresh": "Refresh",
+    "submitting": "Submitting…",
+    "update": "Update",
+    "view": "View"
   },
   "jobs": {
     "title": "Job Details",
@@ -150,7 +169,8 @@
     "welcomeBack": "Welcome back",
     "otpSent": "Verification code sent. Check your inbox.",
     "emailVerified": "Email verified.",
-    "otpCode": "Verification code"
+    "otpCode": "Verification code",
+    "signIn": "Sign In"
   },
   "errors": {
     "generic": "Something went wrong",
@@ -297,7 +317,9 @@
     "businessNamePlaceholder": "My Business Name LLC",
     "addressPlaceholder": "123 Main St, Springfield, OH 45501",
     "agreeToTerms": "I agree to the terms",
-    "haveAccount": "Already have an account?"
+    "haveAccount": "Already have an account?",
+    "country": "Country",
+    "errorCountry": "Invalid country"
   },
   "didit": {
     "title": "Verify your identity",
@@ -866,7 +888,16 @@
     "restore": "Restore conversation",
     "restored": "Conversation restored",
     "viewArchived": "View archived conversations",
-    "noArchivedConversations": "No archived conversations"
+    "noArchivedConversations": "No archived conversations",
+    "attachNeedsConversation": "Attach to conversation",
+    "attachUploadFailed": "Upload failed",
+    "confirmDelete": "Delete this message?",
+    "copy": "Copy message",
+    "delete": "Delete message",
+    "edit": "Edit message",
+    "editFailed": "Failed to edit message",
+    "edited": "(edited)",
+    "messageNotFound": "Message not found"
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}!",
@@ -1439,7 +1470,8 @@
       "removeFailed": "Failed to remove car service",
       "removed": "Car service removed",
       "addFailed": "Failed to add car service",
-      "vinDecodeFailed": "Failed to decode VIN"
+      "vinDecodeFailed": "Failed to decode VIN",
+      "quickAdded": "Quick-added car care task"
     },
     "products": {
       "title": "My Products & Gear",
@@ -1727,7 +1759,9 @@
     "addSkill": "Add Skill",
     "manageSkills": "Manage Skills",
     "addTool": "Add Tool",
-    "manageTools": "Manage Tools"
+    "manageTools": "Manage Tools",
+    "imageLoadError": "Failed to load image",
+    "uploading": "Uploading…"
   },
   "postJob": {
     "title": "Post a Job",
@@ -1944,7 +1978,11 @@
     "editNotes": "Edit notes",
     "editMedia": "Edit media",
     "viewMyJobsAriaLabel": "Navigate to dashboard to view your posted jobs",
-    "postAnotherJobAriaLabel": "Clear form to post another job"
+    "postAnotherJobAriaLabel": "Clear form to post another job",
+    "stepBudgetTimeline": "Budget & Timeline",
+    "stepJobDetails": "Job Details",
+    "stepRequirements": "Requirements",
+    "stepReviewPost": "Review & Post"
   },
   "jobDetail": {
     "bidNow": "Bid on This Job",
@@ -2591,7 +2629,13 @@
     "btnSaveHours": "Save Hours",
     "loadingHours": "Loading hours…",
     "loadingSkills": "Loading skills…",
-    "errorLoadSkills": "Failed to load skills"
+    "errorLoadSkills": "Failed to load skills",
+    "fieldCountry": "Country",
+    "loadingFAQs": "Loading FAQs…",
+    "loadingGallery": "Loading gallery…",
+    "loadingPolicies": "Loading policies…",
+    "loadingServices": "Loading services…",
+    "tabSkillsLabel": "Skills"
   },
   "plans": {
     "free": "Free",
@@ -3163,7 +3207,8 @@
       "deleteConfirm": "Delete this message?",
       "messageComposer": "Message composer",
       "chatPanel": "Chat panel",
-      "filterSearchResults": "Filter search results"
+      "filterSearchResults": "Filter search results",
+      "clearSearch": "Clear search"
     }
   },
   "disputes": {
@@ -4500,5 +4545,8 @@
     "didntReceive": "Didn't get it?",
     "verify": "Verify email",
     "help": "Need help?"
+  },
+  "helpers": {
+    "viewProfileAria": "View profile"
   }
 }

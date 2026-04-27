@@ -105,7 +105,26 @@
     "sortBy": "Ordenar por",
     "reset": "Restablecer",
     "contactSupport": "Contactar soporte",
-    "verifying": "Verificando…"
+    "verifying": "Verificando…",
+    "actions": "Acciones",
+    "all": "Todo",
+    "backHome": "Volver al Inicio",
+    "copiedToClipboard": "Copiado al portapapeles",
+    "copy": "Copiar",
+    "create": "Crear",
+    "description": "Descripción",
+    "error": "Error",
+    "errorLoading": "Error al cargar",
+    "errorUpdating": "Error al actualizar",
+    "notFound": "No encontrado",
+    "other": "Otro",
+    "postJob": "Publicar un Trabajo",
+    "previous": "Anterior",
+    "processing": "Procesando…",
+    "refresh": "Actualizar",
+    "submitting": "Enviando…",
+    "update": "Actualizar",
+    "view": "Ver"
   },
   "jobs": {
     "title": "Detalles del Trabajo",
@@ -149,7 +168,8 @@
     "welcomeBack": "Bienvenido de nuevo",
     "otpSent": "Código de verificación enviado. Revisa tu bandeja de entrada.",
     "emailVerified": "Correo verificado.",
-    "otpCode": "Código de verificación"
+    "otpCode": "Código de verificación",
+    "signIn": "Iniciar Sesión"
   },
   "errors": {
     "generic": "Algo salió mal",
@@ -296,7 +316,9 @@
     "businessNamePlaceholder": "Nombre del negocio",
     "addressPlaceholder": "Dirección",
     "agreeToTerms": "Acepto los términos",
-    "haveAccount": "¿Ya tienes cuenta?"
+    "haveAccount": "¿Ya tienes cuenta?",
+    "country": "País",
+    "errorCountry": "País inválido"
   },
   "didit": {
     "title": "Verifica tu identidad",
@@ -865,7 +887,16 @@
     "restore": "Restore conversation",
     "restored": "Conversation restored",
     "viewArchived": "View archived conversations",
-    "noArchivedConversations": "No archived conversations"
+    "noArchivedConversations": "No archived conversations",
+    "attachNeedsConversation": "Adjuntar a conversación",
+    "attachUploadFailed": "Error en la carga",
+    "confirmDelete": "¿Eliminar este mensaje?",
+    "copy": "Copiar mensaje",
+    "delete": "Eliminar mensaje",
+    "edit": "Editar mensaje",
+    "editFailed": "Error al editar mensaje",
+    "edited": "(editado)",
+    "messageNotFound": "Mensaje no encontrado"
   },
   "dashboard": {
     "welcome": "¡Bienvenido de nuevo, {{name}}!",
@@ -1438,7 +1469,8 @@
       "removeFailed": "Error al remover el servicio de automóvil",
       "removed": "Servicio de automóvil removido",
       "addFailed": "Error al agregar servicio de automóvil",
-      "vinDecodeFailed": "Error al decodificar VIN"
+      "vinDecodeFailed": "Error al decodificar VIN",
+      "quickAdded": "Tarea de cuidado del automóvil agregada rápidamente"
     },
     "products": {
       "title": "Mis Productos y Equipo",
@@ -1726,7 +1758,9 @@
     "personalCareDesc": "Descripción del cuidado personal",
     "taskAdded": "Tarea agregada: {title}",
     "pro": "Pro",
-    "subscribed": "Suscrito"
+    "subscribed": "Suscrito",
+    "imageLoadError": "Error al cargar imagen",
+    "uploading": "Subiendo…"
   },
   "postJob": {
     "title": "Publicar un trabajo",
@@ -1943,7 +1977,11 @@
     "editNotes": "Editar notas",
     "editMedia": "Editar multimedia",
     "viewMyJobsAriaLabel": "Navegar al panel para ver tus trabajos publicados",
-    "postAnotherJobAriaLabel": "Limpiar formulario para publicar otro trabajo"
+    "postAnotherJobAriaLabel": "Limpiar formulario para publicar otro trabajo",
+    "stepBudgetTimeline": "Presupuesto y Cronograma",
+    "stepJobDetails": "Detalles del Trabajo",
+    "stepRequirements": "Requisitos",
+    "stepReviewPost": "Revisar y Publicar"
   },
   "jobDetail": {
     "bidNow": "Hacer oferta",
@@ -2590,7 +2628,13 @@
     "btnSaveHours": "Guardar Horario",
     "loadingHours": "Cargando horarios…",
     "loadingSkills": "Cargando habilidades…",
-    "errorLoadSkills": "No se pudieron cargar las habilidades"
+    "errorLoadSkills": "No se pudieron cargar las habilidades",
+    "fieldCountry": "País",
+    "loadingFAQs": "Cargando preguntas frecuentes…",
+    "loadingGallery": "Cargando galería…",
+    "loadingPolicies": "Cargando políticas…",
+    "loadingServices": "Cargando servicios…",
+    "tabSkillsLabel": "Habilidades"
   },
   "plans": {
     "free": "Gratis",
@@ -3162,7 +3206,8 @@
       "deleteConfirm": "¿Eliminar este mensaje?",
       "messageComposer": "Compositor de mensajes",
       "chatPanel": "Panel de chat",
-      "filterSearchResults": "Filtrar resultados de búsqueda"
+      "filterSearchResults": "Filtrar resultados de búsqueda",
+      "clearSearch": "Limpiar búsqueda"
     }
   },
   "disputes": {
@@ -4499,5 +4544,8 @@
     "didntReceive": "¿No lo recibiste?",
     "verify": "Verificar correo",
     "help": "¿Necesitas ayuda?"
+  },
+  "helpers": {
+    "viewProfileAria": "Ver perfil"
   }
 }
