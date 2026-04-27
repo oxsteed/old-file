@@ -436,51 +436,7 @@ exports.assignHelper = async (req, res) => {
 
     if (!bid_id) {
       return res.status(400).json({ error: 'bid_id is required' });
-    // Validate helper exists and is active (outside transaction for early validation)
-    const helperCheck = await pool.query(
-      `SELECT id, role, onboarding_completed, deleted_at FROM users WHERE id = $1`,
-      [helper_id]
-    );
-    if (!helperCheck.rows[0] || helperCheck.rows[0].deleted_at) {
-      return res.status(404).json({ error: 'Helper not found or inactive' });
     }
-    if (!helperCheck.rows[0].onboarding_completed) {
-      return res.status(400).json({ error: 'Helper has not completed onboarding' });
-    }
-    if (!['helper_free', 'helper_pro', 'helper', 'broker'].includes(helperCheck.rows[0].role)) {
-      return res.status(400).json({ error: 'User is not a helper' });
-    }
-
-    // Check job exists and belongs to requester (outside transaction)
-    const jobCheck = await pool.query(
-      `SELECT id, client_id, status, assigned_helper_id FROM jobs WHERE id = $1`,
-      [job_id]
-    );
-    if (!jobCheck.rows[0]) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
-    if (jobCheck.rows[0].client_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to assign helpers to this job' });
-    }
-    if (!['published', 'matched', 'negotiating'].includes(jobCheck.rows[0].status)) {
-      return res.status(400).json({ error: 'Job cannot be assigned in its current state' });
-    }
-    if (jobCheck.rows[0].assigned_helper_id && jobCheck.rows[0].assigned_helper_id !== helper_id) {
-      return res.status(400).json({ error: 'Job already has a helper assigned' });
-    }
-
-    // Wrap assignment in transaction for atomicity
-    const result = await withJobTransaction(pool, async (client) => {
-      const { rows } = await client.query(`
-        UPDATE jobs SET
-          assigned_helper_id = $1,
-          status = 'accepted',
-          updated_at = now()
-        WHERE id = $2 AND client_id = $3
-        AND status IN ('published','matched','negotiating')
-        AND (assigned_helper_id IS NULL OR assigned_helper_id = $1)
-        RETURNING *
-      `, [helper_id, job_id, req.user.id]);
 
     const result = await withTransaction(pool, async (client) => {
       // 1. Look up the bid and verify it belongs to a job owned by the requester
@@ -555,12 +511,13 @@ exports.assignHelper = async (req, res) => {
 
       return { job: jobResult.rows[0], bid: acceptedBid };
     }, 'assign_helper');
-    } catch (err) {
-                                                logger.error('Assign helper error', { err });
-          res.status(500).json({ error: 'Failed to assign helper' });
-    }
 
-
+    res.status(200).json({ message: 'Bid accepted and helper assigned', job: result.job, bid: result.bid });
+  } catch (err) {
+    logger.error('Assign helper error', { err });
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || 'Failed to assign helper' });
+  }
 };
 
 // Start a job
