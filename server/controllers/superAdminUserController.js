@@ -442,7 +442,7 @@ exports.getUsersInRegion = async (req, res) => {
       const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
       const { rows } = await db.query(
         `SELECT u.id, u.email, u.first_name, u.last_name, u.role,
-                u.city, u.state, u.zip_code, u.is_active,
+                u.city, u.state, u.zip_code, u.country, u.is_active,
                 u.created_at
            FROM users u
            ${whereSql}
@@ -481,6 +481,24 @@ exports.getUsersInRegion = async (req, res) => {
           values.push(e.city || '', e.state || '');
           p += 2;
         }
+      } else if (def.type === 'country_region' && Array.isArray(def.entries)) {
+        // Country + region (state/province) match. State casing is normalized
+        // to uppercase here — matches the regionAuth fixed-list rule.
+        for (const e of def.entries) {
+          if (!e || !e.country || !e.region) continue;
+          orFragments.push(
+            `(UPPER(u.country) = UPPER($${p}) AND UPPER(u.state) = UPPER($${p + 1}))`
+          );
+          values.push(e.country, e.region);
+          p += 2;
+        }
+      } else if (def.type === 'country_only' && Array.isArray(def.countries)) {
+        for (const c of def.countries) {
+          if (!c) continue;
+          orFragments.push(`(UPPER(u.country) = UPPER($${p}))`);
+          values.push(c);
+          p += 1;
+        }
       }
       // geo_radius is filtered in JS post-query (rare path; keeps SQL simple)
     }
@@ -493,7 +511,7 @@ exports.getUsersInRegion = async (req, res) => {
       const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
       const { rows } = await db.query(
         `SELECT u.id, u.email, u.first_name, u.last_name, u.role,
-                u.city, u.state, u.zip_code, u.latitude, u.longitude,
+                u.city, u.state, u.zip_code, u.country, u.latitude, u.longitude,
                 u.is_active, u.created_at
            FROM users u
            ${whereSql}
@@ -516,7 +534,7 @@ exports.getUsersInRegion = async (req, res) => {
 
     const { rows } = await db.query(
       `SELECT u.id, u.email, u.first_name, u.last_name, u.role,
-              u.city, u.state, u.zip_code, u.is_active,
+              u.city, u.state, u.zip_code, u.country, u.is_active,
               u.created_at
          FROM users u
          ${whereSql}

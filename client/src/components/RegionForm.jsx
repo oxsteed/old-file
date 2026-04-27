@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Loader2, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import adminApi from '../lib/adminApi';
+import CountrySelect from './CountrySelect';
+import RegionInput from './RegionInput';
 
 /**
  * Create or edit an admin region.
@@ -11,17 +13,21 @@ import adminApi from '../lib/adminApi';
  *   onCancel  – callback when user cancels
  */
 const BOUNDARY_TYPES = [
-  { value: 'zip_range',  label: 'ZIP code ranges' },
-  { value: 'city_state', label: 'City + state list' },
-  { value: 'geo_radius', label: 'Geographic radius' },
+  { value: 'zip_range',       label: 'ZIP code ranges (US)' },
+  { value: 'city_state',      label: 'City + state list (US)' },
+  { value: 'geo_radius',      label: 'Geographic radius' },
+  { value: 'country_region',  label: 'Country + region (international)' },
+  { value: 'country_only',    label: 'Whole country (international)' },
 ];
 
 function defaultBoundary(type) {
   switch (type) {
-    case 'zip_range':  return { type, ranges: [{ start: 90000, end: 90999 }] };
-    case 'city_state': return { type, entries: [{ city: '', state: '' }] };
-    case 'geo_radius': return { type, center: { lat: 0, lng: 0 }, radius_miles: 25 };
-    default:           return { type };
+    case 'zip_range':      return { type, ranges: [{ start: 90000, end: 90999 }] };
+    case 'city_state':     return { type, entries: [{ city: '', state: '' }] };
+    case 'geo_radius':     return { type, center: { lat: 0, lng: 0 }, radius_miles: 25 };
+    case 'country_region': return { type, entries: [{ country: 'US', region: '' }] };
+    case 'country_only':   return { type, countries: ['US'] };
+    default:               return { type };
   }
 }
 
@@ -133,6 +139,12 @@ export default function RegionForm({ region, onSaved, onCancel }) {
       )}
       {boundary.type === 'geo_radius' && (
         <GeoRadiusEditor boundary={boundary} setBoundary={setBoundary} />
+      )}
+      {boundary.type === 'country_region' && (
+        <CountryRegionEditor boundary={boundary} setBoundary={setBoundary} />
+      )}
+      {boundary.type === 'country_only' && (
+        <CountryOnlyEditor boundary={boundary} setBoundary={setBoundary} />
       )}
 
       <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-800">
@@ -274,6 +286,133 @@ function CityStateEditor({ boundary, setBoundary }) {
               onClick={() => remove(i)}
               className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-950"
               disabled={boundary.entries.length === 1}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CountryRegionEditor({ boundary, setBoundary }) {
+  const update = (idx, field, value) => {
+    const entries = [...boundary.entries];
+    if (field === 'country') {
+      entries[idx] = { country: value, region: '' };
+    } else {
+      entries[idx] = { ...entries[idx], region: value };
+    }
+    setBoundary({ ...boundary, entries });
+  };
+  const add = () => setBoundary({
+    ...boundary,
+    entries: [...boundary.entries, { country: 'US', region: '' }],
+  });
+  const remove = (idx) => setBoundary({
+    ...boundary,
+    entries: boundary.entries.filter((_, i) => i !== idx),
+  });
+
+  const cellCls =
+    'w-full px-2 py-1.5 rounded bg-gray-900 border border-gray-700 ' +
+    'text-gray-100 text-sm focus:outline-none focus:border-orange-500';
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-medium text-gray-300">Country + region pairs</h4>
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300"
+        >
+          <Plus size={12} /> Add pair
+        </button>
+      </div>
+      <div className="space-y-2">
+        {boundary.entries.map((e, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className="w-44">
+              <CountrySelect
+                value={e.country}
+                onChange={v => update(i, 'country', v)}
+                includeBlank={false}
+                className={cellCls}
+              />
+            </div>
+            <div className="flex-1">
+              <RegionInput
+                country={e.country}
+                value={e.region}
+                onChange={v => update(i, 'region', v)}
+                className={cellCls}
+                placeholder="State / province / region"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-950"
+              disabled={boundary.entries.length === 1}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CountryOnlyEditor({ boundary, setBoundary }) {
+  const update = (idx, value) => {
+    const countries = [...boundary.countries];
+    countries[idx] = (value || '').toUpperCase();
+    setBoundary({ ...boundary, countries });
+  };
+  const add = () => setBoundary({
+    ...boundary,
+    countries: [...boundary.countries, 'US'],
+  });
+  const remove = (idx) => setBoundary({
+    ...boundary,
+    countries: boundary.countries.filter((_, i) => i !== idx),
+  });
+
+  const cellCls =
+    'w-full px-2 py-1.5 rounded bg-gray-900 border border-gray-700 ' +
+    'text-gray-100 text-sm focus:outline-none focus:border-orange-500';
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-medium text-gray-300">Countries</h4>
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300"
+        >
+          <Plus size={12} /> Add country
+        </button>
+      </div>
+      <div className="space-y-2">
+        {boundary.countries.map((c, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className="flex-1">
+              <CountrySelect
+                value={c}
+                onChange={v => update(i, v)}
+                includeBlank={false}
+                className={cellCls}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-950"
+              disabled={boundary.countries.length === 1}
             >
               <Trash2 size={14} />
             </button>

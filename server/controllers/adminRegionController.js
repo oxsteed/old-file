@@ -8,9 +8,10 @@
  * (via the new `region_id` column).
  */
 
-const db     = require('../db');
-const logger = require('../utils/logger');
+const db             = require('../db');
+const logger         = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
+const countriesUtil  = require('../utils/countries');
 
 // ── Validation helpers ──────────────────────────────────────────────────────
 
@@ -47,6 +48,40 @@ function validateBoundary(def) {
       }
       if (!Number.isFinite(def.radius_miles) || def.radius_miles <= 0) {
         return 'geo_radius requires a positive `radius_miles`.';
+      }
+      return null;
+
+    // country_region: explicit (country, region) pairs — e.g. give a regional
+    // admin authority over Ontario (CA) and New York (US) at the same time.
+    case 'country_region':
+      if (!Array.isArray(def.entries) || def.entries.length === 0) {
+        return 'country_region requires a non-empty `entries` array.';
+      }
+      for (const e of def.entries) {
+        if (!e.country || !countriesUtil.isValidCountry(e.country)) {
+          return 'Each country_region entry requires a valid ISO-2 `country`.';
+        }
+        if (!e.region) {
+          return 'Each country_region entry requires a `region`.';
+        }
+        // For known-region countries the region must be in the canonical list;
+        // for free-text countries any non-empty string is acceptable.
+        if (!countriesUtil.isValidRegion(e.country, e.region)) {
+          return `Region '${e.region}' is not valid for country '${e.country}'.`;
+        }
+      }
+      return null;
+
+    // country_only: territory is the entire country/countries — useful for
+    // launch markets that don't yet have a finer-grained breakdown.
+    case 'country_only':
+      if (!Array.isArray(def.countries) || def.countries.length === 0) {
+        return 'country_only requires a non-empty `countries` array.';
+      }
+      for (const c of def.countries) {
+        if (!countriesUtil.isValidCountry(c)) {
+          return `Unknown country code: ${c}.`;
+        }
       }
       return null;
 
