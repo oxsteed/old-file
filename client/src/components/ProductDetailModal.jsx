@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Star, Loader, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { marketplaceApi } from '../api/marketplaceApi';
+import ProductImageGallery from './ProductImageGallery';
 import '../styles/ProductDetailModal.css';
 
 export default function ProductDetailModal({ product, onClose, onAddToCart }) {
@@ -112,20 +113,12 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
         </button>
 
         <div className="pdm-content">
-          {/* Image section */}
+          {/* Image Gallery section */}
           <div className="pdm-image-section">
-            {fullProduct.product_image_url && (
-              <img
-                src={fullProduct.product_image_url}
-                alt={fullProduct.name}
-                className="pdm-product-image"
-              />
-            )}
-            {!fullProduct.product_image_url && (
-              <div className="pdm-image-placeholder">
-                {t('marketplace.noImage')}
-              </div>
-            )}
+            <ProductImageGallery
+              images={fullProduct.product_images || (fullProduct.product_image_url ? [fullProduct.product_image_url] : [])}
+              productName={fullProduct.name}
+            />
           </div>
 
           {/* Details section */}
