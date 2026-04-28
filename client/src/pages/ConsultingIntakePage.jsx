@@ -12,133 +12,45 @@ import {
   COUNTRY_CODES_SORTED,
 } from '../lib/countries';
 
-// Phase data - 25 phases with names
-const BUSINESS_PHASES = [
-  { id: 1, name: 'Skill Clarity' },
-  { id: 2, name: 'Offer Selection' },
-  { id: 3, name: 'Customer Definition' },
-  { id: 4, name: 'Pricing Setup' },
-  { id: 5, name: 'Business Name Decision' },
-  { id: 6, name: 'Domain Registration' },
-  { id: 7, name: 'Brand Starter Kit' },
-  { id: 8, name: 'Business Email Setup' },
-  { id: 9, name: 'Phone Number Setup' },
-  { id: 10, name: 'Business Address Setup' },
-  { id: 11, name: 'LLC or Entity Filing' },
-  { id: 12, name: 'EIN Registration' },
-  { id: 13, name: 'Operating Docs Folder' },
-  { id: 14, name: 'Business Bank Account' },
-  { id: 15, name: 'Payment Processor Setup' },
-  { id: 16, name: 'Accounting Starter System' },
-  { id: 17, name: 'Website Launch' },
-  { id: 18, name: 'Contact Form & Lead Capture' },
-  { id: 19, name: 'Scheduling System' },
-  { id: 20, name: 'Service Agreement Templates' },
-  { id: 21, name: 'Client Intake Workflow' },
-  { id: 22, name: 'Social Proof Setup' },
-  { id: 23, name: 'Google Business & Online Listings' },
-  { id: 24, name: 'Launch Outreach System' },
-  { id: 25, name: 'First Client Operating System' },
-];
+// Phase data structure (names will be translated at runtime)
+const BUSINESS_PHASES = Array.from({ length: 25 }, (_, i) => ({
+  id: i + 1,
+  nameKey: `phase${i + 1}`,
+}));
 
-// Setup items grouped by category
-const SETUP_ITEMS_GROUPED = {
-  'Business Formation': [
-    { id: 'llc_filing', label: 'LLC or Business Entity Filing' },
-    { id: 'ein_registration', label: 'EIN (Federal Tax ID) Registration' },
-    { id: 'business_address', label: 'Business Mailing Address Setup' },
-    { id: 'operating_docs', label: 'Operating Documents Folder (organized digital records)' },
+// Setup items grouped by category (labels will be translated at runtime)
+const SETUP_ITEMS_GROUPED_KEYS = {
+  groupBusinessFormation: [
+    { id: 'llc_filing', labelKey: 'llcFiling' },
+    { id: 'ein_registration', labelKey: 'einRegistration' },
+    { id: 'business_address', labelKey: 'businessAddress' },
+    { id: 'operating_docs', labelKey: 'operatingDocs' },
   ],
-  'Digital Identity': [
-    { id: 'domain_registration', label: 'Domain Name Registration' },
-    { id: 'business_email', label: 'Professional Email (e.g. you@yourbusiness.com)' },
-    { id: 'business_phone', label: 'Dedicated Business Phone Number' },
-    { id: 'logo_branding', label: 'Logo & Basic Brand Kit (colors, fonts, simple logo)' },
+  groupDigitalIdentity: [
+    { id: 'domain_registration', labelKey: 'domainRegistration' },
+    { id: 'business_email', labelKey: 'businessEmail' },
+    { id: 'business_phone', labelKey: 'businessPhone' },
+    { id: 'logo_branding', labelKey: 'logoBranding' },
   ],
-  'Online Presence': [
-    { id: 'website_build', label: 'Website Build (homepage, services, about, contact)' },
-    { id: 'contact_form', label: 'Contact Form & Lead Capture' },
-    { id: 'google_business', label: 'Google Business Profile Setup' },
-    { id: 'social_media', label: 'Social Media Handle Reservation' },
+  groupOnlinePresence: [
+    { id: 'website_build', labelKey: 'websiteBuild' },
+    { id: 'contact_form', labelKey: 'contactForm' },
+    { id: 'google_business', labelKey: 'googleBusiness' },
+    { id: 'social_media', labelKey: 'socialMedia' },
   ],
-  'Business Operations': [
-    { id: 'payment_processor', label: 'Payment Processor Setup (Stripe, Square, or PayPal)' },
-    { id: 'scheduling_system', label: 'Online Scheduling System (booking page)' },
-    { id: 'client_intake', label: 'Client Intake Form & Workflow' },
-    { id: 'invoice_templates', label: 'Invoice & Proposal Templates' },
-    { id: 'bookkeeping_system', label: 'Basic Bookkeeping Starter System' },
+  groupBusinessOperations: [
+    { id: 'payment_processor', labelKey: 'paymentProcessor' },
+    { id: 'scheduling_system', labelKey: 'schedulingSystem' },
+    { id: 'client_intake', labelKey: 'clientIntake' },
+    { id: 'invoice_templates', labelKey: 'invoiceTemplates' },
+    { id: 'bookkeeping_system', labelKey: 'bookkeepingSystem' },
   ],
-  'Launch Support': [
-    { id: 'outreach_templates', label: 'First Client Outreach Templates' },
-    { id: 'referral_system', label: 'Referral Request System' },
-    { id: 'online_listings', label: 'Online Business Listings Setup' },
-    { id: 'launch_support', label: 'Post-Launch 30-Day Support' },
+  groupLaunchSupport: [
+    { id: 'outreach_templates', labelKey: 'outreachTemplates' },
+    { id: 'referral_system', labelKey: 'referralSystem' },
+    { id: 'online_listings', labelKey: 'onlineListings' },
+    { id: 'launch_support', labelKey: 'launchSupport' },
   ],
-};
-
-const PACKAGES = {
-  initial: {
-    name: 'Initial Consultation',
-    price: 100,
-    timeline: 'Up to 2 hours',
-    forWho: 'People who want to explore whether a consulting program is right for them',
-    features: [
-      'Strategy deep-dive call (up to 2 hours)',
-      'Business assessment & opportunity audit',
-      'Implementation roadmap & timeline',
-      'Custom recommendation for next steps',
-      'Q&A on your specific situation',
-    ],
-  },
-  foundation: {
-    name: 'Business Foundation',
-    price: 750,
-    timeline: '1–2 weeks',
-    forWho: 'People who just need the legal and identity layer set up',
-    features: [
-      'Business name guidance',
-      'Domain registration',
-      'Professional email setup',
-      'Business phone number',
-      'Business address setup',
-      'LLC filing guidance + EIN support',
-      'Organized documents folder',
-    ],
-  },
-  launch: {
-    name: 'Business Launch',
-    price: 1500,
-    timeline: '2–3 weeks',
-    forWho: 'People who want a fully operational business presence',
-    features: [
-      'Everything in Foundation plus:',
-      'Logo & basic brand kit',
-      '4-page website (Home, Services, About, Contact)',
-      'Contact form & lead capture',
-      'Online scheduling setup',
-      'Payment processor setup',
-      'Invoice template',
-      'Launch checklist & go-live review',
-    ],
-    popular: true,
-  },
-  accelerator: {
-    name: 'Business Accelerator',
-    price: 3000,
-    timeline: '3–4 weeks',
-    forWho: 'People who want everything done and a system to grow',
-    features: [
-      'Everything in Launch plus:',
-      'Google Business Profile setup',
-      'Social media handle reservation',
-      'Client intake workflow',
-      'Bookkeeping starter system',
-      'Referral request system',
-      'Online listings setup',
-      '30-day post-launch check-in call',
-      'First client outreach templates',
-    ],
-  },
 };
 
 // Countries with states/provinces
@@ -149,9 +61,91 @@ const PACKAGES = {
 export default function ConsultingIntakePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t } = useTranslation(['consulting']);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+
+  // Build localized business phases
+  const businessPhases = BUSINESS_PHASES.map(phase => ({
+    id: phase.id,
+    name: t(`consulting.intake.businessPhases.${phase.nameKey}`),
+  }));
+
+  // Build localized setup items grouped
+  const setupItemsGrouped = Object.entries(SETUP_ITEMS_GROUPED_KEYS).reduce((acc, [groupKey, items]) => {
+    const groupName = t(`consulting.intake.setupItems.${groupKey}`);
+    acc[groupName] = items.map(item => ({
+      ...item,
+      label: t(`consulting.intake.setupItems.${item.labelKey}`),
+    }));
+    return acc;
+  }, {});
+
+  // Build localized packages
+  const packages = {
+    initial: {
+      name: t('consulting.intake.packageDetails.initial.name'),
+      price: 100,
+      timeline: t('consulting.intake.packageDetails.initial.timeline'),
+      forWho: t('consulting.intake.packageDetails.initial.forWho'),
+      features: [
+        t('consulting.intake.packageDetails.initial.features.0'),
+        t('consulting.intake.packageDetails.initial.features.1'),
+        t('consulting.intake.packageDetails.initial.features.2'),
+        t('consulting.intake.packageDetails.initial.features.3'),
+        t('consulting.intake.packageDetails.initial.features.4'),
+      ],
+    },
+    foundation: {
+      name: t('consulting.intake.packageDetails.foundation.name'),
+      price: 750,
+      timeline: t('consulting.intake.packageDetails.foundation.timeline'),
+      forWho: t('consulting.intake.packageDetails.foundation.forWho'),
+      features: [
+        t('consulting.intake.packageDetails.foundation.features.0'),
+        t('consulting.intake.packageDetails.foundation.features.1'),
+        t('consulting.intake.packageDetails.foundation.features.2'),
+        t('consulting.intake.packageDetails.foundation.features.3'),
+        t('consulting.intake.packageDetails.foundation.features.4'),
+        t('consulting.intake.packageDetails.foundation.features.5'),
+        t('consulting.intake.packageDetails.foundation.features.6'),
+      ],
+    },
+    launch: {
+      name: t('consulting.intake.packageDetails.launch.name'),
+      price: 1500,
+      timeline: t('consulting.intake.packageDetails.launch.timeline'),
+      forWho: t('consulting.intake.packageDetails.launch.forWho'),
+      features: [
+        t('consulting.intake.packageDetails.launch.features.0'),
+        t('consulting.intake.packageDetails.launch.features.1'),
+        t('consulting.intake.packageDetails.launch.features.2'),
+        t('consulting.intake.packageDetails.launch.features.3'),
+        t('consulting.intake.packageDetails.launch.features.4'),
+        t('consulting.intake.packageDetails.launch.features.5'),
+        t('consulting.intake.packageDetails.launch.features.6'),
+        t('consulting.intake.packageDetails.launch.features.7'),
+      ],
+      popular: true,
+    },
+    accelerator: {
+      name: t('consulting.intake.packageDetails.accelerator.name'),
+      price: 3000,
+      timeline: t('consulting.intake.packageDetails.accelerator.timeline'),
+      forWho: t('consulting.intake.packageDetails.accelerator.forWho'),
+      features: [
+        t('consulting.intake.packageDetails.accelerator.features.0'),
+        t('consulting.intake.packageDetails.accelerator.features.1'),
+        t('consulting.intake.packageDetails.accelerator.features.2'),
+        t('consulting.intake.packageDetails.accelerator.features.3'),
+        t('consulting.intake.packageDetails.accelerator.features.4'),
+        t('consulting.intake.packageDetails.accelerator.features.5'),
+        t('consulting.intake.packageDetails.accelerator.features.6'),
+        t('consulting.intake.packageDetails.accelerator.features.7'),
+        t('consulting.intake.packageDetails.accelerator.features.8'),
+      ],
+    },
+  };
 
   const [form, setForm] = useState({
     // Step 1
@@ -216,29 +210,29 @@ export default function ConsultingIntakePage() {
   const validateStep = () => {
     if (step === 1) {
       if (!form.email || !form.first_name || !form.last_name || !form.phone) {
-        toast.error('Please fill in all required fields');
+        toast.error(t('consulting.intake.formErrors.missingFields'));
         return false;
       }
       return true;
     } else if (step === 2) {
       if (!form.skill_description || !form.target_market || !form.has_revenue || !form.business_name_decided || !form.operating_country || !form.operating_state) {
-        toast.error('Please fill in all required fields');
+        toast.error(t('consulting.intake.formErrors.missingFields'));
         return false;
       }
       if (form.business_name_decided === 'yes' && !form.business_name) {
-        toast.error('Please enter your business name');
+        toast.error(t('consulting.intake.formErrors.businessNameRequired'));
         return false;
       }
       return true;
     } else if (step === 3) {
       if (!form.urgency || form.setup_items_selected.length === 0) {
-        toast.error('Please select your urgency and at least one setup item');
+        toast.error(t('consulting.intake.formErrors.urgencyAndItems'));
         return false;
       }
       return true;
     } else if (step === 4) {
       if (!form.package_selected) {
-        toast.error('Please select a package');
+        toast.error(t('consulting.intake.formErrors.packageRequired'));
         return false;
       }
       return true;
@@ -257,7 +251,7 @@ export default function ConsultingIntakePage() {
 
     setLoading(true);
     try {
-      const packagePrice = PACKAGES[form.package_selected].price;
+      const packagePrice = packages[form.package_selected].price;
 
       const response = await api.post('/consulting/business-launch/submit', {
         email: form.email,
@@ -281,17 +275,17 @@ export default function ConsultingIntakePage() {
         package_price: packagePrice,
       });
 
-      toast.success('Your request has been submitted! Check your email for confirmation.');
+      toast.success(t('consulting.intake.formSuccess'));
       setTimeout(() => navigate('/'), 2000);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to submit. Please try again.');
+      toast.error(err.response?.data?.error || t('common.errorSubmitting'));
     } finally {
       setLoading(false);
     }
   };
 
   // Get all setup items as flat array
-  const allSetupItems = Object.values(SETUP_ITEMS_GROUPED).flatMap(group => group);
+  const allSetupItems = Object.values(setupItemsGrouped).flatMap(group => group);
 
   return (
     <PageShell>
@@ -306,11 +300,11 @@ export default function ConsultingIntakePage() {
           {/* Progress Bar */}
           <div style={{ marginBottom: '3rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 500 }}>
-              <span style={{ opacity: step >= 1 ? 1 : 0.5 }}>Contact</span>
-              <span style={{ opacity: step >= 2 ? 1 : 0.5 }}>Skill & Offer</span>
-              <span style={{ opacity: step >= 3 ? 1 : 0.5 }}>Setup Needs</span>
-              <span style={{ opacity: step >= 4 ? 1 : 0.5 }}>Package</span>
-              <span style={{ opacity: step >= 5 ? 1 : 0.5 }}>Confirm</span>
+              <span style={{ opacity: step >= 1 ? 1 : 0.5 }}>{t('consulting.intake.progressContact')}</span>
+              <span style={{ opacity: step >= 2 ? 1 : 0.5 }}>{t('consulting.intake.progressSkillOffer')}</span>
+              <span style={{ opacity: step >= 3 ? 1 : 0.5 }}>{t('consulting.intake.progressSetupNeeds')}</span>
+              <span style={{ opacity: step >= 4 ? 1 : 0.5 }}>{t('consulting.intake.progressPackage')}</span>
+              <span style={{ opacity: step >= 5 ? 1 : 0.5 }}>{t('consulting.intake.progressConfirm')}</span>
             </div>
             <div style={{ width: '100%', height: '4px', background: 'var(--color-border)', borderRadius: '2px', overflow: 'hidden' }}>
               <div style={{
@@ -332,26 +326,26 @@ export default function ConsultingIntakePage() {
           }}>
             {/* Title & Subtitle */}
             <h1 style={{ margin: '0 0 1rem', fontSize: '1.75rem', fontWeight: 700 }}>
-              {step === 1 && 'Your Contact Information'}
-              {step === 2 && 'Tell Us About Your Skill'}
-              {step === 3 && 'What Do You Need Set Up?'}
-              {step === 4 && 'Choose Your Package'}
-              {step === 5 && 'Review & Submit'}
+              {step === 1 && t('consulting.intake.step1Title')}
+              {step === 2 && t('consulting.intake.step2Title')}
+              {step === 3 && t('consulting.intake.step3Title')}
+              {step === 4 && t('consulting.intake.step4Title')}
+              {step === 5 && t('consulting.intake.step5Title')}
             </h1>
 
             <p style={{ margin: '0 0 2rem', fontSize: '1rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-              {step === 1 && 'Let us know the best way to reach you.'}
-              {step === 2 && 'We help people turn skills into real businesses. Tell us what you do so we can customize your setup plan.'}
-              {step === 3 && 'Select everything that applies. We handle the implementation so you can focus on your craft.'}
-              {step === 4 && 'All packages are flat-fee, delivered in 2–4 weeks. No hourly billing. No surprises.'}
-              {step === 5 && 'Here is a summary of your request. We will confirm your package and schedule your kickoff call within 24 hours.'}
+              {step === 1 && t('consulting.intake.step1Subtitle')}
+              {step === 2 && t('consulting.intake.step2Subtitle')}
+              {step === 3 && t('consulting.intake.step3Subtitle')}
+              {step === 4 && t('consulting.intake.step4Subtitle')}
+              {step === 5 && t('consulting.intake.step5Subtitle')}
             </p>
 
             {/* STEP 1: CONTACT */}
-            {step === 1 && <Step1Contact form={form} handleInputChange={handleInputChange} />}
+            {step === 1 && <Step1Contact form={form} handleInputChange={handleInputChange} t={t} />}
 
             {/* STEP 2: SKILL & OFFER */}
-            {step === 2 && <Step2SkillOffer form={form} handleInputChange={handleInputChange} />}
+            {step === 2 && <Step2SkillOffer form={form} handleInputChange={handleInputChange} t={t} />}
 
             {/* STEP 3: SETUP NEEDS */}
             {step === 3 && (
@@ -361,14 +355,17 @@ export default function ConsultingIntakePage() {
                 handleCheckbox={handleCheckbox}
                 handleSelectAll={handleSelectAll}
                 allSetupItems={allSetupItems}
+                businessPhases={businessPhases}
+                setupItemsGrouped={setupItemsGrouped}
+                t={t}
               />
             )}
 
             {/* STEP 4: PACKAGE SELECTION */}
-            {step === 4 && <Step4PackageSelection form={form} setForm={setForm} />}
+            {step === 4 && <Step4PackageSelection form={form} setForm={setForm} packages={packages} t={t} />}
 
             {/* STEP 5: CONFIRMATION */}
-            {step === 5 && <Step5Confirmation form={form} />}
+            {step === 5 && <Step5Confirmation form={form} packages={packages} businessPhases={businessPhases} setupItemsGrouped={setupItemsGrouped} t={t} />}
 
             {/* Buttons */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
@@ -387,7 +384,7 @@ export default function ConsultingIntakePage() {
                   }}
                   disabled={loading}
                 >
-                  Back
+                  {t('consulting.intake.buttons.back')}
                 </button>
               )}
               <button
@@ -404,7 +401,7 @@ export default function ConsultingIntakePage() {
                 }}
                 disabled={loading}
               >
-                Cancel
+                {t('consulting.intake.buttons.cancel')}
               </button>
               <button
                 onClick={step === 5 ? handleSubmit : handleNext}
@@ -422,7 +419,7 @@ export default function ConsultingIntakePage() {
                 }}
                 disabled={loading}
               >
-                {loading ? 'Submitting...' : step === 5 ? 'Submit & Get Started' : 'Next'}
+                {loading ? t('consulting.intake.buttons.submitting') : step === 5 ? t('consulting.intake.buttons.submit') : t('consulting.intake.buttons.next')}
               </button>
             </div>
           </div>
@@ -433,19 +430,19 @@ export default function ConsultingIntakePage() {
 }
 
 // STEP 1: CONTACT
-function Step1Contact({ form, handleInputChange }) {
+function Step1Contact({ form, handleInputChange, t }) {
   const referralOptions = [
-    { value: 'marketplace', label: 'OxSteed Marketplace' },
-    { value: 'google', label: 'Google Search' },
-    { value: 'referral', label: 'Referral from a Friend' },
-    { value: 'social', label: 'Social Media' },
-    { value: 'other', label: 'Other' },
+    { value: 'marketplace', labelKey: 'consulting.intake.referralSource.marketplace' },
+    { value: 'google', labelKey: 'consulting.intake.referralSource.google' },
+    { value: 'referral', labelKey: 'consulting.intake.referralSource.referral' },
+    { value: 'social', labelKey: 'consulting.intake.referralSource.social' },
+    { value: 'other', labelKey: 'consulting.intake.referralSource.other' },
   ];
 
   return (
     <>
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Email *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.emailLabel')} *</label>
         <input
           type="email"
           name="email"
@@ -458,7 +455,7 @@ function Step1Contact({ form, handleInputChange }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
         <div>
-          <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>First Name *</label>
+          <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.firstNameLabel')} *</label>
           <input
             type="text"
             name="first_name"
@@ -469,7 +466,7 @@ function Step1Contact({ form, handleInputChange }) {
           />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Last Name *</label>
+          <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.lastNameLabel')} *</label>
           <input
             type="text"
             name="last_name"
@@ -482,29 +479,29 @@ function Step1Contact({ form, handleInputChange }) {
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Phone Number *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.phoneLabel')} *</label>
         <input
           type="tel"
           name="phone"
           value={form.phone}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
-          placeholder="(555) 123-4567"
+          placeholder={t('consulting.intake.formFields.phoneNumberPlaceholder')}
           required
         />
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>How did you hear about us?</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.howDidYouHear')}</label>
         <select
           name="referral_source"
           value={form.referral_source}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
         >
-          <option value="">Select an option</option>
+          <option value="">{t('consulting.intake.formFields.selectOption')}</option>
           {referralOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
           ))}
         </select>
       </div>
@@ -513,43 +510,50 @@ function Step1Contact({ form, handleInputChange }) {
 }
 
 // STEP 2: SKILL & OFFER
-function Step2SkillOffer({ form, handleInputChange }) {
+function Step2SkillOffer({ form, handleInputChange, t }) {
+  const revenueOptions = [
+    { value: 'no', labelKey: 'consulting.intake.revenueOptions.no' },
+    { value: 'informal', labelKey: 'consulting.intake.revenueOptions.informal' },
+    { value: 'formal', labelKey: 'consulting.intake.revenueOptions.formal' },
+  ];
+
+  const businessNameOptions = [
+    { value: 'yes', labelKey: 'consulting.intake.businessNameOptions.yes' },
+    { value: 'no', labelKey: 'consulting.intake.businessNameOptions.no' },
+  ];
+
   return (
     <>
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>What is your primary skill or service? *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.skillQuestion')} *</label>
         <input
           type="text"
           name="skill_description"
           value={form.skill_description}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
-          placeholder="e.g. Pressure washing, Graphic design, Bookkeeping, Tutoring"
+          placeholder={t('consulting.intake.formFields.skillPlaceholder')}
           required
         />
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Who do you want to serve with this skill? *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.targetMarketQuestion')} *</label>
         <input
           type="text"
           name="target_market"
           value={form.target_market}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
-          placeholder="e.g. Homeowners in my area, small business owners, local restaurants"
+          placeholder={t('consulting.intake.formFields.targetMarketPlaceholder')}
           required
         />
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Have you made any money from this skill yet? *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>{t('consulting.intake.formFields.revenueQuestion')} *</label>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          {[
-            { value: 'no', label: 'No, not yet' },
-            { value: 'informal', label: 'Yes, informally (cash/Venmo)' },
-            { value: 'formal', label: 'Yes, I have paying clients' },
-          ].map(opt => (
+          {revenueOptions.map(opt => (
             <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <input
                 type="radio"
@@ -558,19 +562,16 @@ function Step2SkillOffer({ form, handleInputChange }) {
                 checked={form.has_revenue === opt.value}
                 onChange={handleInputChange}
               />
-              <span style={{ fontSize: '0.95rem' }}>{opt.label}</span>
+              <span style={{ fontSize: '0.95rem' }}>{t(opt.labelKey)}</span>
             </label>
           ))}
         </div>
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Do you already have a business name in mind? *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>{t('consulting.intake.formFields.businessNameQuestion')} *</label>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          {[
-            { value: 'yes', label: 'Yes' },
-            { value: 'no', label: 'No, I need help choosing one' },
-          ].map(opt => (
+          {businessNameOptions.map(opt => (
             <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <input
                 type="radio"
@@ -579,7 +580,7 @@ function Step2SkillOffer({ form, handleInputChange }) {
                 checked={form.business_name_decided === opt.value}
                 onChange={handleInputChange}
               />
-              <span style={{ fontSize: '0.95rem' }}>{opt.label}</span>
+              <span style={{ fontSize: '0.95rem' }}>{t(opt.labelKey)}</span>
             </label>
           ))}
         </div>
@@ -587,21 +588,21 @@ function Step2SkillOffer({ form, handleInputChange }) {
 
       {form.business_name_decided === 'yes' && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>What is it? *</label>
+          <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.businessNameInputLabel')} *</label>
           <input
             type="text"
             name="business_name"
             value={form.business_name}
             onChange={handleInputChange}
             style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
-            placeholder="Enter your preferred business name"
+            placeholder={t('consulting.intake.formFields.businessNamePlaceholder')}
             required
           />
         </div>
       )}
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Which country will this business operate in? *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.countryQuestion')} *</label>
         <select
           name="operating_country"
           value={form.operating_country}
@@ -609,7 +610,7 @@ function Step2SkillOffer({ form, handleInputChange }) {
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
           required
         >
-          <option value="">Select a country</option>
+          <option value="">{t('consulting.intake.formFields.selectCountry')}</option>
           {COUNTRY_CODES_SORTED.map(code => (
             <option key={code} value={code}>{ALL_COUNTRIES[code]}</option>
           ))}
@@ -631,7 +632,7 @@ function Step2SkillOffer({ form, handleInputChange }) {
               style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
               required
             >
-              <option value="">Select {COUNTRIES_WITH_REGIONS[form.operating_country].regionLabel}</option>
+              <option value="">{t('consulting.intake.formFields.selectRegion')}</option>
               {COUNTRIES_WITH_REGIONS[form.operating_country].regions.map(region => (
                 <option key={region} value={region}>{region}</option>
               ))}
@@ -643,7 +644,7 @@ function Step2SkillOffer({ form, handleInputChange }) {
               name="operating_state"
               value={form.operating_state}
               onChange={handleInputChange}
-              placeholder={`e.g. Port-au-Prince, Cap-Haïtien, Les Cayes`}
+              placeholder={t('consulting.intake.formFields.cityPlaceholder')}
               style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
               required
             />
@@ -655,7 +656,13 @@ function Step2SkillOffer({ form, handleInputChange }) {
 }
 
 // STEP 3: SETUP NEEDS
-function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelectAll, allSetupItems }) {
+function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelectAll, allSetupItems, businessPhases, setupItemsGrouped, t }) {
+  const urgencyOptions = [
+    { value: 'exploring', labelKey: 'consulting.intake.urgencyOptions.exploring' },
+    { value: 'two_weeks', labelKey: 'consulting.intake.urgencyOptions.twoWeeks' },
+    { value: 'asap', labelKey: 'consulting.intake.urgencyOptions.asap' },
+  ];
+
   return (
     <>
       {/* Select All Toggle */}
@@ -667,12 +674,12 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
           style={{ cursor: 'pointer', width: '18px', height: '18px' }}
         />
         <label style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
-          Select All ({form.setup_items_selected.length} / {allSetupItems.length} items)
+          {t('consulting.intake.selectAllLabel')} ({form.setup_items_selected.length} / {allSetupItems.length} items)
         </label>
       </div>
 
       {/* Grouped Checkboxes */}
-      {Object.entries(SETUP_ITEMS_GROUPED).map(([group, items]) => (
+      {Object.entries(setupItemsGrouped).map(([group, items]) => (
         <div key={group} style={{ marginBottom: '2rem' }}>
           <h4 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text)' }}>{group}</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
@@ -692,41 +699,37 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
       ))}
 
       <div style={{ marginBottom: '1.5rem', marginTop: '2rem', borderTop: '1px solid var(--color-border)', paddingTop: '2rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Current business phase (1–25) *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.businessPhaseQuestion')} *</label>
         <select
           name="current_phase"
           value={form.current_phase}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
         >
-          <option value="">Select a phase</option>
-          {BUSINESS_PHASES.map(phase => (
+          <option value="">{t('consulting.intake.formFields.selectPhase')}</option>
+          {businessPhases.map(phase => (
             <option key={phase.id} value={phase.id}>
-              Phase {phase.id} – {phase.name}
+              {t('consulting.intake.phaseLabel', { id: phase.id, name: phase.name })}
             </option>
           ))}
         </select>
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Tell us more (optional)</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.additionalNotes')}</label>
         <textarea
           name="additional_notes"
           value={form.additional_notes}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem', resize: 'vertical', minHeight: '100px' }}
-          placeholder="Describe your situation, timeline, or anything specific you want us to know..."
+          placeholder={t('consulting.intake.formFields.additionalNotesPlaceholder')}
         />
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Urgency *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>{t('consulting.intake.formFields.urgencyLabel')} *</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {[
-            { value: 'exploring', label: 'Just exploring' },
-            { value: 'two_weeks', label: 'Ready to start within 2 weeks' },
-            { value: 'asap', label: 'I need this done as soon as possible' },
-          ].map(opt => (
+          {urgencyOptions.map(opt => (
             <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
               <input
                 type="radio"
@@ -735,7 +738,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
                 checked={form.urgency === opt.value}
                 onChange={handleInputChange}
               />
-              <span style={{ fontSize: '0.95rem' }}>{opt.label}</span>
+              <span style={{ fontSize: '0.95rem' }}>{t(opt.labelKey)}</span>
             </label>
           ))}
         </div>
@@ -745,7 +748,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
 }
 
 // STEP 4: PACKAGE SELECTION
-function Step4PackageSelection({ form, setForm }) {
+function Step4PackageSelection({ form, setForm, packages, t }) {
   return (
     <>
       <div style={{
@@ -754,7 +757,7 @@ function Step4PackageSelection({ form, setForm }) {
         gap: '1.5rem',
         marginBottom: '2rem',
       }}>
-        {Object.entries(PACKAGES).map(([key, pkg]) => (
+        {Object.entries(packages).map(([key, pkg]) => (
           <div
             key={key}
             onClick={() => setForm(prev => ({ ...prev, package_selected: key }))}
@@ -771,14 +774,14 @@ function Step4PackageSelection({ form, setForm }) {
           >
             {pkg.popular && (
               <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--color-primary)', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>
-                MOST POPULAR
+                {t('consulting.intake.packageDetails.mostPopular')}
               </div>
             )}
 
             <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700 }}>{pkg.name}</h3>
             <p style={{ margin: '0 0 1.5rem', fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>${pkg.price}</p>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Timeline: {pkg.timeline}</p>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', fontWeight: 500 }}>Best for: {pkg.forWho}</p>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{t('consulting.intake.packageDetails.timeline')}: {pkg.timeline}</p>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', fontWeight: 500 }}>{t('consulting.intake.packageDetails.bestFor')}: {pkg.forWho}</p>
 
             <div style={{ fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--color-text)' }}>
               {pkg.features.map((feature, idx) => (
@@ -796,42 +799,48 @@ function Step4PackageSelection({ form, setForm }) {
       </div>
 
       <div style={{ background: 'rgba(249, 115, 22, 0.05)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
-        Not sure which package fits? Select the one that seems closest and we will confirm the right fit during your kickoff call. All packages include a 30-minute kickoff call.
+        {t('consulting.intake.packageHelper')}
       </div>
     </>
   );
 }
 
 // STEP 5: CONFIRMATION
-function Step5Confirmation({ form }) {
-  const pkgName = form.package_selected && PACKAGES[form.package_selected]?.name;
-  const pkgPrice = form.package_selected && PACKAGES[form.package_selected]?.price;
+function Step5Confirmation({ form, packages, businessPhases, setupItemsGrouped, t }) {
+  const pkgName = form.package_selected && packages[form.package_selected]?.name;
+  const pkgPrice = form.package_selected && packages[form.package_selected]?.price;
   const selectedCount = form.setup_items_selected.length;
-  const selectedLabels = Object.values(SETUP_ITEMS_GROUPED)
+  const selectedLabels = Object.values(setupItemsGrouped)
     .flatMap(group => group)
     .filter(item => form.setup_items_selected.includes(item.id))
     .slice(0, 5);
 
+  const urgencyLabel = {
+    exploring: t('consulting.intake.urgencyOptions.exploring'),
+    two_weeks: t('consulting.intake.urgencyOptions.twoWeeks'),
+    asap: t('consulting.intake.urgencyOptions.asap'),
+  }[form.urgency];
+
   return (
     <>
       <div style={{ background: 'var(--color-bg)', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 600 }}>Your Information</h3>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', fontWeight: 600 }}>{t('consulting.intake.confirmation.yourInformation')}</h3>
 
         <div style={{ fontSize: '0.9rem', lineHeight: 1.8 }}>
-          <p><strong>Name:</strong> {form.first_name} {form.last_name}</p>
-          <p><strong>Email:</strong> {form.email}</p>
-          <p><strong>Phone:</strong> {form.phone}</p>
-          {form.referral_source && <p><strong>How you heard about us:</strong> {form.referral_source}</p>}
+          <p><strong>{t('consulting.intake.confirmation.name')}:</strong> {form.first_name} {form.last_name}</p>
+          <p><strong>{t('consulting.intake.confirmation.email')}:</strong> {form.email}</p>
+          <p><strong>{t('consulting.intake.confirmation.phone')}:</strong> {form.phone}</p>
+          {form.referral_source && <p><strong>{t('consulting.intake.confirmation.howYouHeard')}:</strong> {t(`consulting.intake.referralSource.${form.referral_source}`)}</p>}
 
-          <p style={{ marginTop: '1rem' }}><strong>Skill:</strong> {form.skill_description}</p>
-          <p><strong>Target Market:</strong> {form.target_market}</p>
-          <p><strong>Business Name:</strong> {form.business_name || 'Not yet decided'}</p>
-          <p><strong>Country:</strong> {ALL_COUNTRIES[form.operating_country] || form.operating_country}</p>
+          <p style={{ marginTop: '1rem' }}><strong>{t('consulting.intake.confirmation.skill')}:</strong> {form.skill_description}</p>
+          <p><strong>{t('consulting.intake.confirmation.targetMarket')}:</strong> {form.target_market}</p>
+          <p><strong>{t('consulting.intake.confirmation.businessName')}:</strong> {form.business_name || t('consulting.intake.confirmation.notYetDecided')}</p>
+          <p><strong>{t('consulting.intake.confirmation.country')}:</strong> {ALL_COUNTRIES[form.operating_country] || form.operating_country}</p>
           <p><strong>{COUNTRIES_WITH_REGIONS[form.operating_country]?.regionLabel || 'City'}:</strong> {form.operating_state}</p>
 
-          <p style={{ marginTop: '1rem' }}><strong>Selected Package:</strong> {pkgName} (${pkgPrice})</p>
-          <p><strong>Urgency:</strong> {form.urgency === 'exploring' && 'Just exploring'}{form.urgency === 'two_weeks' && 'Ready to start within 2 weeks'}{form.urgency === 'asap' && 'ASAP'}</p>
-          <p><strong>Setup Items:</strong> {form.select_all_chosen ? 'All items' : `${selectedCount > 5 ? `${selectedCount} items (showing first 5):` : selectedCount + ' items:'}`}</p>
+          <p style={{ marginTop: '1rem' }}><strong>{t('consulting.intake.confirmation.selectedPackage')}:</strong> {pkgName} (${pkgPrice})</p>
+          <p><strong>{t('consulting.intake.confirmation.urgency')}:</strong> {urgencyLabel}</p>
+          <p><strong>{t('consulting.intake.confirmation.setupItems')}:</strong> {form.select_all_chosen ? t('consulting.intake.confirmation.allItems') : `${selectedCount > 5 ? `${selectedCount} ${t('consulting.intake.confirmation.items')} (${t('consulting.intake.confirmation.showingFirstFive')}):` : selectedCount + ' ' + t('consulting.intake.confirmation.items') + ':'}`}</p>
           {!form.select_all_chosen && selectedLabels.map((item, idx) => (
             <p key={item.id} style={{ margin: '0.25rem 0', marginLeft: '1rem' }}>✓ {item.label}</p>
           ))}
@@ -839,17 +848,17 @@ function Step5Confirmation({ form }) {
       </div>
 
       <div style={{ background: 'rgba(249, 115, 22, 0.05)', padding: '1.5rem', borderRadius: '8px', marginBottom: '1.5rem', borderLeft: '4px solid var(--color-primary)' }}>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', fontWeight: 600 }}>What Happens Next</p>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', fontWeight: 600 }}>{t('consulting.intake.confirmation.whatHappensNext')}</p>
         <ol style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          <li>We review your request (usually within 24 hours)</li>
-          <li>You'll receive a scheduling link to book your kickoff call</li>
-          <li>We send you a pre-kickoff questionnaire to complete</li>
-          <li>Your setup work begins after the kickoff call</li>
+          <li>{t('consulting.intake.confirmation.step1')}</li>
+          <li>{t('consulting.intake.confirmation.step2')}</li>
+          <li>{t('consulting.intake.confirmation.step3')}</li>
+          <li>{t('consulting.intake.confirmation.step4')}</li>
         </ol>
       </div>
 
       <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-        <strong>Important:</strong> OxSteed Business Launch provides business setup implementation support only. We do not provide legal, tax, or financial advice. For questions involving legal entity selection, tax obligations, or regulated financial matters, please consult a licensed professional.
+        <strong>{t('consulting.intake.confirmation.importantLabel')}:</strong> {t('consulting.intake.confirmation.disclaimer')}
       </div>
     </>
   );
