@@ -1,0 +1,376 @@
+/* ═══════════════════════════════════════════════════════════════
+   JobListPage — Design System Driven
+   All colors reference semantic tokens from index.css
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Hero Section ── */
+.jlp-hero {
+  text-align: center;
+  padding: var(--space-12) 0 var(--space-8);
+  border-bottom: 1px solid var(--color-border);
+}
+.jlp-hero h1 {
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.jlp-hero-sub {
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  max-width: 600px;
+  margin: 0 auto var(--space-8);
+  line-height: 1.6;
+}
+
+/* ── Filter Bar ── */
+.jlp-filter-bar {
+  display: flex;
+  gap: var(--space-3);
+  max-width: 720px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.jlp-filter-bar .ox-select,
+.jlp-filter-bar .ox-input {
+  min-width: 170px;
+  flex: 1;
+}
+
+.jlp-state-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-primary);
+}
+.jlp-state-clear {
+  background: none;
+  border: none;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+.jlp-state-clear:hover {
+  color: var(--color-text-muted);
+}
+
+/* ── Category Chips ── */
+.jlp-chips {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-5) 0;
+  overflow-x: auto;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+/* Uses .ox-chip and .ox-chip.active from index.css */
+
+/* ── Content Area ── */
+.jlp-content {
+  min-height: 300px;
+  padding: var(--space-6) 0;
+}
+
+/* ── Loading ── */
+.jlp-loading {
+  text-align: center;
+  padding: var(--space-16) 0;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ── Error State ── */
+.jlp-error {
+  text-align: center;
+  padding: var(--space-12) var(--space-4);
+}
+.jlp-error-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto var(--space-4);
+  color: var(--color-error);
+}
+.jlp-error h2 {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+.jlp-error p {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-6);
+  font-size: var(--text-sm);
+}
+
+/* ── Job Grid ── */
+.jlp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-5);
+}
+
+/* ── Job Card ── */
+.jlp-job-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  cursor: pointer;
+  transition: border-color var(--transition-base),
+              box-shadow var(--transition-base),
+              transform var(--transition-base);
+  display: flex;
+  flex-direction: column;
+}
+.jlp-job-card:hover {
+  border-color: var(--color-card-hover-border);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.jlp-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+.jlp-card-header .ox-badge {
+  flex-shrink: 0;
+}
+.jlp-bid-count {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.jlp-card-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+  line-height: 1.35;
+}
+.jlp-card-category {
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.jlp-card-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-bottom: var(--space-4);
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.jlp-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.jlp-card-budget {
+  font-weight: 700;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+.jlp-card-location {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ── Empty State ── */
+.jlp-empty {
+  text-align: center;
+  padding: var(--space-16) var(--space-4);
+}
+.jlp-empty-icon {
+  margin-bottom: var(--space-6);
+  opacity: 0.7;
+}
+.jlp-empty h2 {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+.jlp-empty p {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-8);
+  font-size: var(--text-base);
+}
+.jlp-empty-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Pagination ── */
+.jlp-pagination {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-top: var(--space-8);
+}
+.jlp-page-btn {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
+}
+.jlp-page-btn.active {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  border-color: var(--color-primary);
+}
+.jlp-page-btn:hover:not(.active) {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+
+/* ── How It Works Section ── */
+.jlp-how-section {
+  padding: var(--space-16) 0;
+  border-top: 1px solid var(--color-border);
+}
+.jlp-how-section h2 {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+/* Tour Toggle */
+.jlp-tour-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: var(--space-8);
+}
+.jlp-tour-btn {
+  padding: 0.625rem 1.5rem;
+  border: 1.5px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.jlp-tour-btn:first-child {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.jlp-tour-btn:last-child {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-left: none;
+}
+.jlp-tour-btn.active {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+.jlp-tour-btn:hover:not(.active) {
+  background: var(--color-primary-bg);
+}
+
+/* Steps */
+.jlp-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-6);
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+.jlp-step-num {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin: 0 auto var(--space-3);
+  border: 2px solid rgba(249, 115, 22, 0.25);
+}
+.jlp-steps h3 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+.jlp-steps p {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .jlp-hero h1 {
+    font-size: var(--text-2xl);
+  }
+  .jlp-hero-sub {
+    font-size: var(--text-base);
+  }
+  .jlp-steps {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+  }
+  .jlp-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .jlp-filter-bar {
+    flex-direction: column;
+  }
+  .jlp-filter-bar .ox-select,
+  .jlp-filter-bar .ox-input {
+    min-width: 100%;
+  }
+  .jlp-steps {
+    grid-template-columns: 1fr;
+  }
+  .jlp-chips {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .jlp-chips::-webkit-scrollbar {
+    display: none;
+  }
+}

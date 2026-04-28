@@ -1,0 +1,261 @@
+.adm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.adm-modal {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.adm-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--app-text);
+}
+
+.adm-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--muted-text);
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.adm-close:hover {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.adm-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.adm-section {
+  margin-bottom: 2rem;
+}
+
+.adm-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.adm-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.adm-detail label {
+  font-weight: 600;
+  color: var(--muted-text);
+  min-width: 120px;
+}
+
+.adm-detail value {
+  color: var(--app-text);
+  text-align: right;
+  flex: 1;
+  margin-left: 1rem;
+}
+
+.adm-person {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.adm-person img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.adm-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  display: inline-block;
+}
+
+.adm-status-requested {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.adm-status-confirmed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.adm-status-completed {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.adm-status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.adm-cancel-section {
+  background: var(--app-bg);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0;
+}
+
+.adm-cancel-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.adm-cancel-section textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--card-bg);
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+}
+
+.adm-cancel-section textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.adm-footer {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.adm-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.adm-btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.adm-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.adm-btn-secondary {
+  background: var(--app-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.adm-btn-secondary:hover:not(:disabled) {
+  background: var(--card-bg);
+  border-color: var(--primary-color);
+}
+
+.adm-btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.adm-btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.adm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .adm-header {
+    padding: 1rem;
+  }
+
+  .adm-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .adm-content {
+    padding: 1rem;
+  }
+
+  .adm-detail {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .adm-detail value {
+    text-align: left;
+  }
+
+  .adm-footer {
+    padding: 1rem;
+  }
+
+  .adm-btn {
+    min-width: auto;
+    flex: 1 1 48%;
+  }
+}

@@ -1,0 +1,28 @@
+.tool-favorite-button {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: var(--app-text);
+}
+
+.tool-favorite-button:hover {
+  background: var(--app-text);
+  color: var(--app-bg);
+  border-color: var(--app-text);
+}
+
+.tool-favorite-button.favorited {
+  background: var(--border-color);
+  border-color: red;
+}
+
+.tool-favorite-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

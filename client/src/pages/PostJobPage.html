@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OxSteed – Post a Job</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@300..700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+<style>
+/* ============================================================
+   ART DIRECTION: OxSteed — local trades marketplace
+   Palette: warm earth (beige surfaces, teal accent, amber status)
+   Typography: Instrument Serif (display) + Work Sans (body)
+   Density: balanced — functional but warm
+   ============================================================ */
+
+:root, [data-theme="light"] {
+  --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
+  --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+  --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
+  --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
+
+  --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem;
+  --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem;
+  --space-12: 3rem; --space-16: 4rem;
+
+  --color-bg:              #f7f6f2;
+  --color-surface:         #faf9f6;
+  --color-surface-2:       #ffffff;
+  --color-surface-offset:  #f0ede8;
+  --color-surface-dynamic: #e8e5df;
+  --color-divider:         #dcd9d4;
+  --color-border:          #d1cdc6;
+
+  --color-text:            #26231c;
+  --color-text-muted:      #6e6c66;
+  --color-text-faint:      #b0ae a9;
+  --color-text-faint:      #b0aea9;
+  --color-text-inverse:    #f9f8f4;
+
+  --color-primary:         #01696f;
+  --color-primary-hover:   #0c4e54;
+  --color-primary-active:  #0f3638;
+  --color-primary-bg:      #e8f2f2;
+
+  --color-amber:           #c07a10;
+  --color-amber-bg:        #fdf3e3;
+  --color-green:           #3d7520;
+  --color-green-bg:        #eaf3e4;
+  --color-red:             #a13544;
+  --color-red-bg:          #fcedef;
+
+  --radius-sm: .375rem; --radius-md: .5rem; --radius-lg: .75rem;
+  --radius-xl: 1rem; --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px oklch(0.2 0.01 80 / .06);
+  --shadow-md: 0 4px 12px oklch(0.2 0.01 80 / .09);
+  --shadow-lg: 0 12px 32px oklch(0.2 0.01 80 / .13);
+
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body:    'Work Sans', system-ui, sans-serif;
+
+  --content-narrow:  640px;
+  --content-default: 900px;
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] {
+  --color-bg:              #16150f;
+  --color-surface:         #1c1b15;
+  --color-surface-2:       #21201a;
+  --color-surface-offset:  #1a190f;
+  --color-surface-dynamic: #2c2b24;
+  --color-divider:         #2a2923;
+  --color-border:          #383630;
+  --color-text:            #d0cec8;
+  --color-text-muted:      #7a7870;
+  --color-text-faint:      #545249;
+  --color-text-inverse:    #26231c;
+  --color-primary:         #4fa8b0;
+  --color-primary-hover:   #2d8f98;
+  --color-primary-active:  #1a6e75;
+  --color-primary-bg:      #1a2e30;
+  --color-amber:           #e09030;
+  --color-amber-bg:        #2e2210;
+  --color-green:           #6db045;
+  --color-green-bg:        #1a2d14;
+  --color-red:             #d96070;
+  --color-red-bg:          #2d1518;
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / .25);
+  --shadow-md: 0 4px 14px oklch(0 0 0 / .35);
+  --shadow-lg: 0 14px 36px oklch(0 0 0 / .45);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; scroll-padding-top: var(--space-16); }
+body { min-height: 100dvh; font-family: var(--font-body); font-size: var(--text-base); color: var(--color-text); background: var(--color-bg); line-height: 1.6; }
+img, svg { display: block; max-width: 100%; }
+input, button, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: none; }
+h1,h2,h3,h4 { text-wrap: balance; line-height: 1.2; }
+p, li { text-wrap: pretty; }
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; border-radius: var(--radius-sm); }
+a, button, input, select, textarea { transition: color var(--transition), background var(--transition), border-color var(--transition), box-shadow var(--transition); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ── NAV ─────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  background: color-mix(in oklch, var(--color-bg) 90%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-3) var(--space-6);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4);
+}
+.nav-logo {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-family: var(--font-display); font-size: 1.35rem; font-weight: 400;
+  color: var(--color-text); text-decoration: none; letter-spacing: -.01em;
+}
+.nav-logo svg { color: var(--color-primary); }
+.nav-actions { display: flex; align-items: center; gap: var(--space-3); }
+.nav-link { font-size: var(--text-sm); color: var(--color-text-muted); text-decoration: none; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+.nav-link:hover { color: var(--color-text); background: var(--color-surface-offset); }
+.theme-toggle { width: 36px; height: 36px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--color-text-muted); }
+.theme-toggle:hover { background: var(--color-surface-offset); color: var(--color-text); }
+
+/* ── LAYOUT ──────────────────────────────────────── */
+.page-wrap { max-width: var(--content-default); margin-inline: auto; padding: var(--space-10) var(--space-6) var(--space-16); }
+.two-col { display: grid; grid-template-columns: 1fr 340px; gap: var(--space-8); align-items: start; }
+@media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── PAGE HEADER ─────────────────────────────────── */
+.page-header { margin-bottom: var(--space-8); }
+.breadcrumb { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-4); }
+.breadcrumb a { color: var(--color-text-muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--color-primary); }
+.breadcrumb span { color: var(--color-text-faint); }
+.page-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 400; color: var(--color-text); margin-bottom: var(--space-2); }
+.page-subtitle { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 52ch; }
+
+/* ── STEP INDICATOR ──────────────────────────────── */
+.steps { display: flex; align-items: center; gap: 0; margin-bottom: var(--space-8); }
+.step { display: flex; align-items: center; gap: var(--space-2); flex: 1; position: relative; }
+.step-dot {
+  width: 28px; height: 28px; border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-xs); font-weight: 600; flex-shrink: 0;
+  background: var(--color-surface-offset); color: var(--color-text-muted);
+  border: 1.5px solid var(--color-border); z-index: 1;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.step.active .step-dot { background: var(--color-primary); color: var(--color-text-inverse); border-color: var(--color-primary); }
+.step.done .step-dot { background: var(--color-green-bg); color: var(--color-green); border-color: var(--color-green); }
+.step-label { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
+.step.active .step-label { color: var(--color-text); font-weight: 600; }
+.step-line { flex: 1; height: 1px; background: var(--color-divider); margin: 0 var(--space-2); }
+@media (max-width: 480px) { .step-label { display: none; } }
+
+/* ── CARD ────────────────────────────────────────── */
+.card {
+  background: var(--color-surface);
+  border: 1px solid oklch(from var(--color-text) l c h / .1);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-sm);
+}
+.card + .card { margin-top: var(--space-6); }
+
+/* ── SECTION HEADERS ─────────────────────────────── */
+.section-label {
+  font-size: var(--text-xs); font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--color-text-muted);
+  margin-bottom: var(--space-5);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.section-label svg { color: var(--color-primary); }
+
+.section-title { font-size: var(--text-lg); font-weight: 600; color: var(--color-text); margin-bottom: var(--space-2); }
+.section-desc { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-6); max-width: 55ch; }
+
+/* ── FORM ELEMENTS ───────────────────────────────── */
+.field { margin-bottom: var(--space-5); }
+.field label {
+  display: block; font-size: var(--text-sm); font-weight: 500;
+  color: var(--color-text); margin-bottom: var(--space-2);
+}
+.field label .req { color: var(--color-red); margin-left: 2px; }
+.field label .hint { font-weight: 400; color: var(--color-text-muted); font-size: var(--text-xs); margin-left: var(--space-2); }
+.input, .textarea, .select {
+  width: 100%; padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-2); color: var(--color-text);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  font-size: var(--text-base); outline: none;
+}
+.input:focus, .textarea:focus, .select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-primary) 20%, transparent);
+}
+.textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+.select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236e6c66' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: var(--space-10); }
+.char-count { font-size: var(--text-xs); color: var(--color-text-faint); text-align: right; margin-top: var(--space-1); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+@media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
+
+/* ── REQUIREMENT TOGGLES ─────────────────────────── */
+.req-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+@media (max-width: 560px) { .req-grid { grid-template-columns: 1fr; } }
+
+.req-toggle {
+  position: relative; border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: var(--space-4);
+  background: var(--color-surface); cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.req-toggle:hover { border-color: var(--color-primary); background: var(--color-surface-2); box-shadow: var(--shadow-sm); }
+.req-toggle.selected { border-color: var(--color-primary); background: var(--color-primary-bg); box-shadow: 0 0 0 1px var(--color-primary); }
+.req-toggle input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+.req-toggle-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.req-icon { color: var(--color-text-muted); flex-shrink: 0; margin-top: 2px; }
+.req-toggle.selected .req-icon { color: var(--color-primary); }
+.req-check {
+  width: 20px; height: 20px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border); background: var(--color-surface-2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background var(--transition), border-color var(--transition);
+}
+.req-toggle.selected .req-check { background: var(--color-primary); border-color: var(--color-primary); }
+.req-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.req-desc { font-size: var(--text-xs); color: var(--color-text-muted); line-height: 1.5; }
+.req-toggle.selected .req-desc { color: color-mix(in oklch, var(--color-primary) 80%, var(--color-text)); }
+
+/* Requirement detail expand */
+.req-detail {
+  overflow: hidden; max-height: 0; opacity: 0;
+  transition: max-height .3s cubic-bezier(0.16,1,0.3,1), opacity .25s ease, padding .25s;
+  padding-top: 0;
+}
+.req-detail.open { max-height: 200px; opacity: 1; padding-top: var(--space-3); }
+.req-detail .input, .req-detail .select { margin-top: var(--space-2); }
+.req-detail-label { font-size: var(--text-xs); font-weight: 500; color: var(--color-text-muted); }
+
+/* ── BUDGET SLIDER ───────────────────────────────── */
+.budget-row { display: flex; align-items: center; gap: var(--space-4); }
+.budget-display {
+  font-family: var(--font-display); font-size: 1.6rem; font-weight: 400;
+  color: var(--color-primary); min-width: 90px; letter-spacing: -.02em;
+}
+.budget-type-tabs { display: flex; gap: var(--space-1); background: var(--color-surface-offset); border-radius: var(--radius-md); padding: 3px; margin-bottom: var(--space-4); width: fit-content; }
+.tab-btn { padding: var(--space-1) var(--space-4); border-radius: calc(var(--radius-md) - 2px); font-size: var(--text-sm); color: var(--color-text-muted); font-weight: 500; transition: background var(--transition), color var(--transition), box-shadow var(--transition); }
+.tab-btn.active { background: var(--color-surface-2); color: var(--color-text); box-shadow: var(--shadow-sm); }
+input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) var(--range-pct, 40%), var(--color-border) var(--range-pct, 40%), var(--color-border) 100%); outline: none; cursor: pointer; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface-2); border: 2.5px solid var(--color-primary); box-shadow: var(--shadow-sm); cursor: pointer; }
+input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface-2); border: 2.5px solid var(--color-primary); box-shadow: var(--shadow-sm); cursor: pointer; }
+
+/* ── URGENCY PILLS ───────────────────────────────── */
+.pill-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pill {
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-full);
+  font-size: var(--text-sm); font-weight: 500; border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted); background: var(--color-surface); cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.pill:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.pill.active { border-color: var(--color-primary); background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; }
+
+/* ── SUMMARY SIDEBAR ─────────────────────────────── */
+.sidebar { position: sticky; top: calc(64px + var(--space-8)); }
+.summary-card { background: var(--color-surface); border: 1px solid oklch(from var(--color-text) l c h / .1); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-md); }
+.summary-header { padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--color-divider); display: flex; align-items: center; justify-content: space-between; }
+.summary-header h3 { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.summary-status { font-size: var(--text-xs); padding: 3px var(--space-3); border-radius: var(--radius-full); font-weight: 600; background: var(--color-amber-bg); color: var(--color-amber); }
+.summary-body { padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
+.summary-row { display: flex; flex-direction: column; gap: var(--space-1); }
+.summary-row-label { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.summary-row-value { font-size: var(--text-sm); color: var(--color-text); line-height: 1.5; }
+.summary-reqs { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.summary-badge {
+  font-size: var(--text-xs); font-weight: 600; padding: 3px var(--space-3);
+  border-radius: var(--radius-full); display: flex; align-items: center; gap: 4px;
+  background: var(--color-primary-bg); color: var(--color-primary);
+  border: 1px solid color-mix(in oklch, var(--color-primary) 30%, transparent);
+}
+.summary-badge.empty { background: var(--color-surface-offset); color: var(--color-text-faint); border-color: var(--color-border); }
+.summary-footer { padding: var(--space-5) var(--space-6); border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* ── BUTTONS ─────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--space-2); padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 600;
+  cursor: pointer; border: none; text-decoration: none;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition), transform var(--transition);
+  min-height: 44px;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--color-primary); color: var(--color-text-inverse); }
+.btn-primary:hover { background: var(--color-primary-hover); box-shadow: var(--shadow-md); }
+.btn-secondary { background: var(--color-surface-offset); color: var(--color-text); border: 1px solid var(--color-border); }
+.btn-secondary:hover { background: var(--color-surface-dynamic); }
+.btn-full { width: 100%; }
+.btn-ghost { background: transparent; color: var(--color-text-muted); }
+.btn-ghost:hover { color: var(--color-text); background: var(--color-surface-offset); }
+
+/* ── INFO CALLOUT ────────────────────────────────── */
+.callout {
+  display: flex; gap: var(--space-3); padding: var(--space-4);
+  border-radius: var(--radius-lg); margin-bottom: var(--space-6);
+  background: var(--color-primary-bg);
+  border: 1px solid color-mix(in oklch, var(--color-primary) 25%, transparent);
+}
+.callout svg { color: var(--color-primary); flex-shrink: 0; margin-top: 2px; }
+.callout p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.6; }
+.callout strong { color: var(--color-text); }
+
+/* ── DIVIDER ─────────────────────────────────────── */
+hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--space-6) 0; }
+
+/* ── FORM ACTIONS ────────────────────────────────── */
+.form-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-top: var(--space-8); padding-top: var(--space-6); border-top: 1px solid var(--color-divider); }
+
+/* ── SUCCESS STATE ───────────────────────────────── */
+.success-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: color-mix(in oklch, var(--color-bg) 95%, transparent);
+  backdrop-filter: blur(8px);
+  align-items: center; justify-content: center; padding: var(--space-6);
+}
+.success-overlay.show { display: flex; }
+.success-card {
+  background: var(--color-surface); border: 1px solid oklch(from var(--color-text) l c h / .1);
+  border-radius: var(--radius-xl); padding: var(--space-10); max-width: 420px; width: 100%;
+  text-align: center; box-shadow: var(--shadow-lg);
+  animation: popIn .4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes popIn { from { opacity: 0; transform: scale(.92) translateY(16px); } to { opacity: 1; transform: none; } }
+.success-icon { width: 56px; height: 56px; border-radius: var(--radius-full); background: var(--color-green-bg); color: var(--color-green); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-5); }
+.success-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 400; margin-bottom: var(--space-3); }
+.success-sub { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-8); max-width: 34ch; margin-inline: auto; }
+.job-id { font-family: monospace; font-size: var(--text-xs); background: var(--color-surface-offset); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); color: var(--color-text-muted); display: inline-block; margin-bottom: var(--space-6); letter-spacing: .08em; }
+
+/* ── MOBILE SUMMARY TOGGLE ───────────────────────── */
+.mobile-summary-toggle { display: none; }
+@media (max-width: 768px) {
+  .page-wrap { padding-inline: var(--space-4); }
+  .mobile-summary-toggle { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); margin-bottom: var(--space-4); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
+  .sidebar { position: static; }
+  .sidebar.collapsed .summary-card { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <a href="#" class="nav-logo" aria-label="OxSteed home">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <rect x="4" y="14" width="10" height="14" rx="2" fill="currentColor" opacity=".2"/>
+      <rect x="18" y="8" width="10" height="20" rx="2" fill="currentColor" opacity=".35"/>
+      <path d="M4 14 C4 8 14 4 16 4 C18 4 28 8 28 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <circle cx="16" cy="4" r="2.5" fill="currentColor"/>
+    </svg>
+    OxSteed
+  </a>
+  <div class="nav-actions">
+    <a href="#" class="nav-link">Browse Jobs</a>
+    <a href="#" class="nav-link">My Posts</a>
+    <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<main id="main-content">
+<div class="page-wrap">
+
+  <!-- PAGE HEADER -->
+  <header class="page-header">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="#">Home</a>
+      <span aria-hidden="true">›</span>
+      <a href="#">Jobs</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">Post a Job</span>
+    </nav>
+    <h1 class="page-title">Post a Job</h1>
+    <p class="page-subtitle">Describe what needs doing and set your own requirements. Helpers who meet your bar will bid.</p>
+  </header>
+
+  <!-- STEP INDICATOR -->
+  <div class="steps" role="list" aria-label="Progress steps">
+    <div class="step active" role="listitem">
+      <div class="step-dot" aria-label="Step 1, current">1</div>
+      <span class="step-label">Job Details</span>
+    </div>
+    <div class="step-line" aria-hidden="true"></div>
+    <div class="step" role="listitem">
+      <div class="step-dot" aria-label="Step 2">2</div>
+      <span class="step-label">Requirements</span>
+    </div>
+    <div class="step-line" aria-hidden="true"></div>
+    <div class="step" role="listitem">
+      <div class="step-dot" aria-label="Step 3">3</div>
+      <span class="step-label">Budget & Timeline</span>
+    </div>
+    <div class="step-line" aria-hidden="true"></div>
+    <div class="step" role="listitem">
+      <div class="step-dot" aria-label="Step 4">4</div>
+      <span class="step-label">Review & Post</span>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- MAIN FORM -->
+    <div>
+
+      <!-- STEP 1: JOB DETAILS -->
+      <div class="card" id="step-1">
+        <div class="section-label">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Step 1 of 4 — Job Details
+        </div>
+
+        <div class="field">
+          <label for="job-title">Job Title <span class="req" aria-label="required">*</span></label>
+          <input type="text" id="job-title" class="input" placeholder="e.g. Full kitchen rewire — breakers keep tripping" maxlength="80" oninput="updateSummary()">
+          <div class="char-count"><span id="title-count">0</span>/80</div>
+        </div>
+
+        <div class="field">
+          <label for="job-category">Category <span class="req" aria-label="required">*</span></label>
+          <select id="job-category" class="select" onchange="updateSummary()">
+            <option value="">Select a category…</option>
+            <optgroup label="Electrical">
+              <option value="electrical-full">Electrical — Full Rewire</option>
+              <option value="electrical-repair">Electrical — Repair / Panel</option>
+              <option value="electrical-install">Electrical — Installation</option>
+            </optgroup>
+            <optgroup label="Plumbing">
+              <option value="plumbing-general">Plumbing — General</option>
+              <option value="plumbing-drain">Plumbing — Drain / Sewer</option>
+            </optgroup>
+            <optgroup label="HVAC">
+              <option value="hvac-install">HVAC — Install</option>
+              <option value="hvac-repair">HVAC — Repair</option>
+            </optgroup>
+            <optgroup label="Other Trades">
+              <option value="carpentry">Carpentry</option>
+              <option value="painting">Painting</option>
+              <option value="roofing">Roofing</option>
+              <option value="flooring">Flooring</option>
+              <option value="drywall">Drywall</option>
+              <option value="landscaping">Landscaping</option>
+              <option value="general">General Labor</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="job-desc">Describe the Work <span class="req" aria-label="required">*</span>
+            <span class="hint">Be specific — what's broken, what outcome you want</span>
+          </label>
+          <textarea id="job-desc" class="textarea" rows="5" maxlength="1000" placeholder="e.g. Kitchen keeps tripping the 20A breaker. Need a licensed electrician to inspect the panel, replace outdated wiring in the kitchen circuit (approx. 18 ft run), install 2 new dedicated circuits for appliances, and ensure work passes inspection." oninput="updateSummary()"></textarea>
+          <div class="char-count"><span id="desc-count">0</span>/1000</div>
+        </div>
+
+        <div class="field-row">
+          <div class="field" style="margin-bottom:0">
+            <label for="job-location">Location <span class="req" aria-label="required">*</span></label>
+            <input type="text" id="job-location" class="input" placeholder="Springfield, OH" oninput="updateSummary()">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="job-access">Site Access</label>
+            <select id="job-access" class="select">
+              <option value="easy">Easy — I'll be home</option>
+              <option value="lockbox">Lockbox available</option>
+              <option value="schedule">Must schedule access</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: REQUIREMENTS -->
+      <div class="card" id="step-2">
+        <div class="section-label">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Step 2 of 4 — Your Requirements
+        </div>
+
+        <p class="section-desc">Select what you require from any helper who bids on this job. Only helpers who confirm every requirement can submit a bid.</p>
+
+        <div class="callout" role="note">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p><strong>License &amp; insurance</strong> — when a helper provides credentials, OxSteed will attempt to verify them. All other requirements are <strong>self-confirmed</strong> by the helper before bidding.</p>
+        </div>
+
+        <div class="req-grid" role="group" aria-label="Job requirements">
+
+          <!-- LICENSE -->
+          <label class="req-toggle" id="toggle-license" onclick="toggleReq(this,'detail-license')">
+            <input type="checkbox" id="req-license" name="requirements" value="license" onchange="updateSummary()">
+            <div class="req-toggle-header">
+              <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
+                <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+                <div>
+                  <div class="req-name">License</div>
+                  <div class="req-desc">State-issued trade license required</div>
+                </div>
+              </div>
+              <div class="req-check" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+            <div class="req-detail" id="detail-license" aria-hidden="true">
+              <div class="req-detail-label">License type required</div>
+              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+                <option value="">Specify license type…</option>
+                <option value="oh-electrician">OH Electrician (OCILB)</option>
+                <option value="oh-plumber">OH Plumber</option>
+                <option value="oh-hvac">OH HVAC Contractor</option>
+                <option value="contractor">General Contractor</option>
+                <option value="other">Other / Specify below</option>
+              </select>
+            </div>
+          </label>
+
+          <!-- INSURANCE -->
+          <label class="req-toggle" id="toggle-insurance" onclick="toggleReq(this,'detail-insurance')">
+            <input type="checkbox" id="req-insurance" name="requirements" value="insurance" onchange="updateSummary()">
+            <div class="req-toggle-header">
+              <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
+                <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <div>
+                  <div class="req-name">Insurance</div>
+                  <div class="req-desc">Active liability coverage (COI)</div>
+                </div>
+              </div>
+              <div class="req-check" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+            <div class="req-detail" id="detail-insurance" aria-hidden="true">
+              <div class="req-detail-label">Minimum coverage amount</div>
+              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+                <option value="">Select minimum…</option>
+                <option value="300k">$300,000</option>
+                <option value="500k">$500,000</option>
+                <option value="1m" selected>$1,000,000</option>
+                <option value="2m">$2,000,000</option>
+              </select>
+            </div>
+          </label>
+
+          <!-- SKILLS -->
+          <label class="req-toggle" id="toggle-skills" onclick="toggleReq(this,'detail-skills')">
+            <input type="checkbox" id="req-skills" name="requirements" value="skills" onchange="updateSummary()">
+            <div class="req-toggle-header">
+              <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
+                <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                <div>
+                  <div class="req-name">Skill Level</div>
+                  <div class="req-desc">Minimum experience required</div>
+                </div>
+              </div>
+              <div class="req-check" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+            <div class="req-detail" id="detail-skills" aria-hidden="true">
+              <div class="req-detail-label">Minimum skill level</div>
+              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+                <option value="">Select level…</option>
+                <option value="beginner">Beginner — basic tasks</option>
+                <option value="intermediate">Intermediate — 2+ years</option>
+                <option value="advanced" selected>Advanced — 5+ years</option>
+                <option value="expert">Expert / Master level</option>
+              </select>
+            </div>
+          </label>
+
+          <!-- TOOLS -->
+          <label class="req-toggle" id="toggle-tools" onclick="toggleReq(this,'detail-tools')">
+            <input type="checkbox" id="req-tools" name="requirements" value="tools" onchange="updateSummary()">
+            <div class="req-toggle-header">
+              <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
+                <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                <div>
+                  <div class="req-name">Own Tools</div>
+                  <div class="req-desc">Must bring their own equipment</div>
+                </div>
+              </div>
+              <div class="req-check" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+            <div class="req-detail" id="detail-tools" aria-hidden="true">
+              <div class="req-detail-label">Specific tools needed (optional)</div>
+              <input type="text" class="input" placeholder="e.g. Wire tester, fish tape, panel tools" onclick="e=>e.stopPropagation()" oninput="updateSummary()">
+            </div>
+          </label>
+
+          <!-- CREW -->
+          <label class="req-toggle" id="toggle-crew" onclick="toggleReq(this,'detail-crew')">
+            <input type="checkbox" id="req-crew" name="requirements" value="crew" onchange="updateSummary()">
+            <div class="req-toggle-header">
+              <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
+                <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <div>
+                  <div class="req-name">Crew Size</div>
+                  <div class="req-desc">Minimum helpers needed on-site</div>
+                </div>
+              </div>
+              <div class="req-check" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+            <div class="req-detail" id="detail-crew" aria-hidden="true">
+              <div class="req-detail-label">Minimum crew size</div>
+              <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
+                <option value="1">Solo (1 person)</option>
+                <option value="2" selected>2 people</option>
+                <option value="3">3 people</option>
+                <option value="4">4+ people</option>
+              </select>
+            </div>
+          </label>
+
+          <!-- BACKGROUND CHECK -->
+          <label class="req-toggle" id="toggle-bgcheck" onclick="toggleReq(this,null)">
+            <input type="checkbox" id="req-bgcheck" name="requirements" value="bgcheck" onchange="updateSummary()">
+            <div class="req-toggle-header">
+              <div style="display:flex;align-items:flex-start;gap:var(--space-2)">
+                <svg class="req-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div>
+                  <div class="req-name">Background Check</div>
+                  <div class="req-desc">Verified ID on OxSteed</div>
+                </div>
+              </div>
+              <div class="req-check" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+          </label>
+
+        </div><!-- /req-grid -->
+      </div>
+
+      <!-- STEP 3: BUDGET & TIMELINE -->
+      <div class="card" id="step-3">
+        <div class="section-label">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Step 3 of 4 — Budget &amp; Timeline
+        </div>
+
+        <div class="budget-type-tabs" role="group" aria-label="Budget type">
+          <button class="tab-btn active" onclick="setBudgetType('fixed',this)">Fixed Price</button>
+          <button class="tab-btn" onclick="setBudgetType('hourly',this)">Hourly Rate</button>
+          <button class="tab-btn" onclick="setBudgetType('open',this)">Open to Bids</button>
+        </div>
+
+        <div id="budget-slider-section">
+          <div class="field">
+            <label for="budget-range">Your Budget <span class="req" aria-label="required">*</span></label>
+            <div class="budget-row">
+              <div class="budget-display" id="budget-display">$800</div>
+              <input type="range" id="budget-range" min="100" max="10000" step="50" value="800" oninput="updateBudget(this.value)" aria-label="Budget amount" style="flex:1">
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:var(--text-xs);color:var(--color-text-faint);margin-top:var(--space-1)"><span>$100</span><span>$10,000</span></div>
+          </div>
+        </div>
+
+        <div id="open-bids-note" style="display:none">
+          <div class="callout">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Helpers will submit their own price. You'll see all bids and choose the one that fits your budget.</p>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="field">
+          <label>Urgency</label>
+          <div class="pill-group" role="group" aria-label="Job urgency">
+            <button class="pill" onclick="selectPill(this,'urgency')" data-val="asap">ASAP</button>
+            <button class="pill active" onclick="selectPill(this,'urgency')" data-val="this-week">This week</button>
+            <button class="pill" onclick="selectPill(this,'urgency')" data-val="next-week">Next week</button>
+            <button class="pill" onclick="selectPill(this,'urgency')" data-val="flexible">Flexible</button>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:0">
+          <label for="job-notes">Additional Notes <span class="hint">Optional</span></label>
+          <textarea id="job-notes" class="textarea" rows="3" placeholder="Parking, access instructions, existing quotes, anything a helper should know…"></textarea>
+        </div>
+      </div>
+
+      <!-- FORM ACTIONS -->
+      <div class="form-actions">
+        <button class="btn btn-ghost" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+          Save Draft
+        </button>
+        <button class="btn btn-primary" type="button" onclick="submitJob()">
+          Post Job &amp; Invite Bids
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+    </div><!-- /main form -->
+
+    <!-- SIDEBAR SUMMARY -->
+    <aside class="sidebar" id="sidebar" aria-label="Job posting summary">
+      <button class="mobile-summary-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')" aria-expanded="true" aria-controls="sidebar">
+        <span>Job Summary</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+
+      <div class="summary-card">
+        <div class="summary-header">
+          <h3>Job Summary</h3>
+          <span class="summary-status" id="summary-status">Draft</span>
+        </div>
+        <div class="summary-body">
+          <div class="summary-row">
+            <span class="summary-row-label">Title</span>
+            <span class="summary-row-value" id="sum-title" style="color:var(--color-text-faint);font-style:italic">Not set yet</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row-label">Category</span>
+            <span class="summary-row-value" id="sum-category" style="color:var(--color-text-faint);font-style:italic">Not selected</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row-label">Location</span>
+            <span class="summary-row-value" id="sum-location" style="color:var(--color-text-faint);font-style:italic">Not set</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row-label">Budget</span>
+            <span class="summary-row-value" id="sum-budget">$800 fixed</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-row-label">Requirements</span>
+            <div class="summary-reqs" id="sum-reqs">
+              <span class="summary-badge empty">None selected</span>
+            </div>
+          </div>
+        </div>
+        <div class="summary-footer">
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.6">
+            Helpers must confirm <strong id="sum-req-count">0</strong> requirement(s) before they can bid on this job.
+          </div>
+          <button class="btn btn-primary btn-full" onclick="submitJob()">
+            Post Job
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="btn btn-secondary btn-full" style="font-size:var(--text-xs)">Save as Draft</button>
+        </div>
+      </div>
+    </aside>
+
+  </div><!-- /two-col -->
+</div><!-- /page-wrap -->
+</main>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="success-overlay" role="dialog" aria-modal="true" aria-labelledby="success-title">
+  <div class="success-card">
+    <div class="success-icon" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2 class="success-title" id="success-title">Job Posted!</h2>
+    <p class="success-sub">Your job is live. Qualified helpers in Springfield can now see it and submit bids.</p>
+    <div class="job-id" id="job-id-display">JOB-#0000</div>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+      <button class="btn btn-primary btn-full" onclick="document.getElementById('success-overlay').classList.remove('show')">View Bids</button>
+      <button class="btn btn-secondary btn-full" onclick="document.getElementById('success-overlay').classList.remove('show')">Post Another Job</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Theme toggle
+(function(){
+  const t = document.querySelector('[data-theme-toggle]');
+  const r = document.documentElement;
+  let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+  r.setAttribute('data-theme', d);
+  if(t) t.addEventListener('click', () => {
+    d = d === 'dark' ? 'light' : 'dark';
+    r.setAttribute('data-theme', d);
+    t.setAttribute('aria-label', 'Switch to ' + (d==='dark'?'light':'dark') + ' mode');
+    t.innerHTML = d === 'dark'
+      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  });
+})();
+
+// Lucide icons init
+document.addEventListener('DOMContentLoaded', () => { if(window.lucide) lucide.createIcons(); });
+
+// Requirement toggles
+function toggleReq(el, detailId) {
+  const cb = el.querySelector('input[type=checkbox]');
+  const checkMark = el.querySelector('.req-check svg');
+  cb.checked = !cb.checked;
+  el.classList.toggle('selected', cb.checked);
+  if(checkMark) checkMark.style.display = cb.checked ? 'block' : 'none';
+  if(detailId) {
+    const detail = document.getElementById(detailId);
+    if(detail) {
+      detail.classList.toggle('open', cb.checked);
+      detail.setAttribute('aria-hidden', String(!cb.checked));
+    }
+  }
+  updateSummary();
+}
+
+// Budget
+let budgetType = 'fixed';
+function setBudgetType(type, btn) {
+  budgetType = type;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('budget-slider-section').style.display = type === 'open' ? 'none' : 'block';
+  document.getElementById('open-bids-note').style.display = type === 'open' ? 'block' : 'none';
+  updateSummary();
+}
+
+function updateBudget(val) {
+  const num = parseInt(val);
+  document.getElementById('budget-display').textContent = '$' + num.toLocaleString();
+  const pct = ((num - 100) / (10000 - 100)) * 100;
+  document.getElementById('budget-range').style.setProperty('--range-pct', pct + '%');
+  updateSummary();
+}
+
+// Pill selection
+function selectPill(el, group) {
+  document.querySelectorAll(`[data-val]`).forEach(p => { if(p.closest('.pill-group') === el.closest('.pill-group')) p.classList.remove('active'); });
+  el.classList.add('active');
+}
+
+// Char counters
+document.getElementById('job-title').addEventListener('input', function() {
+  document.getElementById('title-count').textContent = this.value.length;
+});
+document.getElementById('job-desc').addEventListener('input', function() {
+  document.getElementById('desc-count').textContent = this.value.length;
+});
+
+// Summary update
+const reqLabels = { license:'License', insurance:'Insurance', skills:'Skill Level', tools:'Own Tools', crew:'Crew Size', bgcheck:'Background Check' };
+
+function updateSummary() {
+  const title = document.getElementById('job-title').value.trim();
+  const catEl = document.getElementById('job-category');
+  const loc = document.getElementById('job-location').value.trim();
+  const budgetVal = document.getElementById('budget-range') ? document.getElementById('budget-range').value : 0;
+
+  // Title
+  const sumTitle = document.getElementById('sum-title');
+  sumTitle.textContent = title || 'Not set yet';
+  sumTitle.style.color = title ? 'var(--color-text)' : 'var(--color-text-faint)';
+  sumTitle.style.fontStyle = title ? 'normal' : 'italic';
+
+  // Category
+  const sumCat = document.getElementById('sum-category');
+  const catText = catEl.options[catEl.selectedIndex]?.text;
+  sumCat.textContent = (catEl.value ? catText : 'Not selected');
+  sumCat.style.color = catEl.value ? 'var(--color-text)' : 'var(--color-text-faint)';
+  sumCat.style.fontStyle = catEl.value ? 'normal' : 'italic';
+
+  // Location
+  const sumLoc = document.getElementById('sum-location');
+  sumLoc.textContent = loc || 'Not set';
+  sumLoc.style.color = loc ? 'var(--color-text)' : 'var(--color-text-faint)';
+  sumLoc.style.fontStyle = loc ? 'normal' : 'italic';
+
+  // Budget
+  const sumBudget = document.getElementById('sum-budget');
+  if(budgetType === 'open') { sumBudget.textContent = 'Open to bids'; }
+  else { sumBudget.textContent = '$' + parseInt(budgetVal).toLocaleString() + (budgetType === 'hourly' ? '/hr' : ' fixed'); }
+
+  // Requirements
+  const checked = [...document.querySelectorAll('input[name=requirements]:checked')];
+  const sumReqs = document.getElementById('sum-reqs');
+  const sumCount = document.getElementById('sum-req-count');
+  sumCount.textContent = checked.length;
+
+  if(checked.length === 0) {
+    sumReqs.innerHTML = '<span class="summary-badge empty">None selected</span>';
+  } else {
+    sumReqs.innerHTML = checked.map(c =>
+      `<span class="summary-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>${reqLabels[c.value]||c.value}</span>`
+    ).join('');
+  }
+
+  // Status
+  const filled = title && catEl.value && loc;
+  document.getElementById('summary-status').textContent = filled ? 'Ready' : 'Draft';
+  document.getElementById('summary-status').style.background = filled ? 'var(--color-green-bg)' : 'var(--color-amber-bg)';
+  document.getElementById('summary-status').style.color = filled ? 'var(--color-green)' : 'var(--color-amber)';
+}
+
+// Init budget range pct
+updateBudget(800);
+
+// Submit
+function submitJob() {
+  const title = document.getElementById('job-title').value.trim();
+  if(!title) { document.getElementById('job-title').focus(); return; }
+  const id = 'JOB-' + String(Math.floor(Math.random()*9000)+1000);
+  document.getElementById('job-id-display').textContent = id;
+  document.getElementById('success-overlay').classList.add('show');
+}
+
+// Close overlay on backdrop click
+document.getElementById('success-overlay').addEventListener('click', function(e) {
+  if(e.target === this) this.classList.remove('show');
+});
+</script>
+</body>
+</html>

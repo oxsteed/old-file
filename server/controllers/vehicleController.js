@@ -1,0 +1,288 @@
+/**
+ * vehicleController.js
+ * Car Care — Vehicle Search (NHTSA vPIC) + User Garage CRUD
+ *
+ * NHTSA vPIC API: completely free, no API key required.
+ * https://vpic.nhtsa.dot.gov/api/
+ *
+ * OxSteed v2
+ */
+
+const axios  = require('axios');
+const db     = require('../db');
+const logger = require('../utils/logger');
+
+const NHTSA_BASE = 'https://vpic.nhtsa.dot.gov/api/vehicles';
+const CACHE_TTL  = 24 * 60 * 60 * 1000; // 24 h — NHTSA data rarely changes
+
+// ── Simple in-process cache (same pattern as geoController) ───────────────
+const cache = new Map();
+function cacheGet(key) {
+  const e = cache.get(key);
+  if (!e) return null;
+  if (Date.now() - e.ts > CACHE_TTL) { cache.delete(key); return null; }
+  return e.value;
+}
+function cacheSet(key, value) {
+  cache.set(key, { ts: Date.now(), value });
+  if (cache.size > 200) cache.delete(cache.keys().next().value);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// NHTSA PROXY — no auth required (public data)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/vehicles/makes
+ * Returns all vehicle makes from NHTSA.
+ * Cached for 24 h to avoid hammering the government API.
+ */
+exports.getMakes = async (_req, res) => {
+  try {
+    const cacheKey = 'nhtsa:makes';
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { data } = await axios.get(`${NHTSA_BASE}/getallmakes?format=json`, {
+      timeout: 10000,
+    });
+
+    const makes = (data.Results || []).map(m => ({
+      id:   m.Make_ID,
+      name: m.Make_Name,
+    }));
+
+    cacheSet(cacheKey, makes);
+    return res.json(makes);
+  } catch (err) {
+    logger.error('NHTSA getMakes error', { message: err.message });
+    return res.status(502).json({ error: 'Unable to fetch vehicle makes' });
+  }
+};
+
+/**
+ * GET /api/vehicles/models?make=Toyota
+ * Returns models for a given make name from NHTSA.
+ */
+exports.getModels = async (req, res) => {
+  try {
+    const make = (req.query.make || '').trim();
+    if (!make) return res.status(400).json({ error: 'make is required' });
+
+    const cacheKey = `nhtsa:models:${make.toLowerCase()}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { data } = await axios.get(
+      `${NHTSA_BASE}/getmodelsformake/${encodeURIComponent(make)}?format=json`,
+      { timeout: 10000 }
+    );
+
+    const models = (data.Results || []).map(m => ({
+      makeId:    m.Make_ID,
+      makeName:  m.Make_Name,
+      modelId:   m.Model_ID,
+      modelName: m.Model_Name,
+    }));
+
+    cacheSet(cacheKey, models);
+    return res.json(models);
+  } catch (err) {
+    logger.error('NHTSA getModels error', { message: err.message });
+    return res.status(502).json({ error: 'Unable to fetch vehicle models' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// USER GARAGE CRUD — authenticated
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/vehicles/my
+ * Returns the authenticated user's saved vehicles.
+ */
+exports.listMyVehicles = async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, make_id, make_name, model_id, model_name, year, nickname, notes, created_at
+         FROM user_vehicles
+        WHERE user_id = $1
+        ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    return res.json(rows);
+  } catch (err) {
+    logger.error('listMyVehicles error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to load your vehicles' });
+  }
+};
+
+/**
+ * POST /api/vehicles/my
+ * Body: { make_id, make_name, model_id, model_name, year?, nickname?, notes? }
+ * Adds a vehicle to the user's garage.
+ */
+exports.addVehicle = async (req, res) => {
+  try {
+    const { make_id, make_name, model_id, model_name, year, nickname, notes } = req.body;
+
+    if (!make_id || !make_name || !model_id || !model_name) {
+      return res.status(400).json({ error: 'make_id, make_name, model_id, and model_name are required' });
+    }
+    if (year !== undefined && year !== null) {
+      const y = parseInt(year, 10);
+      if (isNaN(y) || y < 1886 || y > new Date().getFullYear() + 2) {
+        return res.status(400).json({ error: 'Invalid year' });
+      }
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO user_vehicles (user_id, make_id, make_name, model_id, model_name, year, nickname, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT ON CONSTRAINT uq_user_vehicles_per_user DO NOTHING
+       RETURNING id, make_id, make_name, model_id, model_name, year, nickname, notes, created_at`,
+      [
+        req.user.id,
+        parseInt(make_id, 10),
+        String(make_name).trim().substring(0, 80),
+        parseInt(model_id, 10),
+        String(model_name).trim().substring(0, 120),
+        year ? parseInt(year, 10) : null,
+        nickname ? String(nickname).trim().substring(0, 80) : null,
+        notes   ? String(notes).trim().substring(0, 500)   : null,
+      ]
+    );
+
+    if (!rows.length) {
+      return res.status(409).json({ error: 'This vehicle is already in your garage' });
+    }
+    return res.status(201).json(rows[0]);
+  } catch (err) {
+    logger.error('addVehicle error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to add vehicle' });
+  }
+};
+
+/**
+ * PATCH /api/vehicles/my/:id
+ * Update nickname, year, or notes on a saved vehicle.
+ */
+exports.updateVehicle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { year, nickname, notes } = req.body;
+
+    const { rows } = await db.query(
+      `UPDATE user_vehicles
+          SET year     = COALESCE($1, year),
+              nickname = COALESCE($2, nickname),
+              notes    = COALESCE($3, notes)
+        WHERE id = $4 AND user_id = $5
+       RETURNING id, make_id, make_name, model_id, model_name, year, nickname, notes`,
+      [
+        year     ? parseInt(year, 10)                         : null,
+        nickname ? String(nickname).trim().substring(0, 80)   : null,
+        notes    ? String(notes).trim().substring(0, 500)     : null,
+        parseInt(id, 10),
+        req.user.id,
+      ]
+    );
+
+    if (!rows.length) return res.status(404).json({ error: 'Vehicle not found' });
+    return res.json(rows[0]);
+  } catch (err) {
+    logger.error('updateVehicle error', { message: err.message });
+    return res.status(500).json({ error: 'Failed to update vehicle' });
+  }
+};
+
+/**
+ * DELETE /api/vehicles/my/:id
+ */
+exports.deleteVehicle = async (req, res) => {
+  try {
+    const result = await db.query(
+      'DELETE FROM user_vehicles WHERE id = $1 AND user_id = $2 RETURNING id',
+      [parseInt(req.params.id, 10), req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Vehicle not found' });
+    return res.json({ success: true });
+  } catch (err) {
+    logger.error('deleteVehicle error', { userId: req.user?.id, vehicleId: req.params?.id, message: err.message });
+    return res.status(500).json({ error: 'Failed to delete vehicle' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// VIN DECODE — no auth required (public data)
+// ─────────────────────────────────────────────────────────────────────────
+
+const VIN_FIELDS = [
+  'Make','Model','Model Year','Body Class','Vehicle Type',
+  'Engine Number of Cylinders','Displacement (L)','Fuel Type - Primary',
+  'Drive Type','Transmission Style','Trim','Series','Manufacturer Name',
+  'Error Code','Error Text',
+];
+
+/**
+ * GET /api/vehicles/vin/:vin
+ * Decodes a 17-char VIN via NHTSA vPIC and returns a clean summary.
+ * Cached 24 h — same VIN always returns same data.
+ */
+exports.decodeVin = async (req, res) => {
+  try {
+    const vin = (req.params.vin || '').trim().toUpperCase();
+
+    // Basic format check — 17 alphanumeric chars, no I/O/Q
+    if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+      return res.status(400).json({ error: 'Invalid VIN — must be 17 characters (letters A–Z except I, O, Q and digits 0–9).' });
+    }
+
+    const cacheKey = `nhtsa:vin:${vin}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const { data } = await axios.get(
+      `${NHTSA_BASE}/decodevin/${encodeURIComponent(vin)}?format=json`,
+      { timeout: 10000 }
+    );
+
+    // Flatten Results array into a map
+    const raw = {};
+    for (const r of (data.Results || [])) {
+      if (r.Value && r.Value !== 'null' && r.Variable) {
+        raw[r.Variable] = r.Value;
+      }
+    }
+
+    const errorCode = raw['Error Code'] || '0';
+    // Error code 0 = clean decode, 1 = decode with warnings, others = bad VIN
+    if (!['0', '1', '2', '4', '8', '14'].includes(errorCode) && !raw['Make']) {
+      return res.status(422).json({ error: raw['Error Text'] || 'VIN could not be decoded.' });
+    }
+
+    const result = {
+      vin,
+      make:         raw['Make']         || null,
+      model:        raw['Model']        || null,
+      year:         raw['Model Year']   || null,
+      bodyClass:    raw['Body Class']   || null,
+      vehicleType:  raw['Vehicle Type'] || null,
+      cylinders:    raw['Engine Number of Cylinders'] || null,
+      displacement: raw['Displacement (L)'] || null,
+      fuelType:     raw['Fuel Type - Primary'] || null,
+      driveType:    raw['Drive Type']   || null,
+      transmission: raw['Transmission Style'] || null,
+      trim:         raw['Trim']         || null,
+      manufacturer: raw['Manufacturer Name'] || null,
+      errorCode,
+      errorText:    raw['Error Text']   || null,
+    };
+
+    cacheSet(cacheKey, result);
+    return res.json(result);
+  } catch (err) {
+    logger.error('decodeVin error', { message: err.message });
+    return res.status(502).json({ error: 'Unable to decode VIN at this time.' });
+  }
+};

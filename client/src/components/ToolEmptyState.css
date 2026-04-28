@@ -1,0 +1,67 @@
+.tool-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  text-align: center;
+  background: var(--app-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  min-height: 400px;
+}
+
+.tool-empty-state-icon {
+  margin-bottom: 20px;
+}
+
+.tool-empty-state-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0 0 12px 0;
+}
+
+.tool-empty-state-description {
+  font-size: 15px;
+  color: var(--muted-text);
+  margin: 0 0 24px 0;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.tool-empty-state-button {
+  padding: 10px 20px;
+  background: var(--app-text);
+  color: var(--app-bg);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tool-empty-state-button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.tool-empty-state-button:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  .tool-empty-state {
+    padding: 40px 20px;
+    min-height: 300px;
+  }
+
+  .tool-empty-state-title {
+    font-size: 18px;
+  }
+
+  .tool-empty-state-description {
+    font-size: 14px;
+  }
+}

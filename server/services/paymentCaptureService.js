@@ -1,0 +1,103 @@
+/**
+ * Shared Tier-3 payment capture: Stripe PaymentIntent.capture + DB update.
+ * Used by the API (synchronous path) and optional worker (async path).
+ */
+
+const pool = require('../db');
+const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
+const Stripe = require('stripe');
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+/**
+ * @param {{ paymentId: number|string, jobId?: number|string, amount: number }} params
+ * @returns {Promise<{ success: boolean, paymentId: any, chargeId?: string|null }>}
+ */
+async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
+  const paymentResult = await pool.query(
+    'SELECT id, stripe_payment_intent_id, stripe_account_id, status FROM payments WHERE id = $1',
+    [paymentId],
+  );
+
+  if (paymentResult.rows.length === 0) {
+    throw new Error(`Payment not found: ${paymentId}`);
+  }
+
+  const payment = paymentResult.rows[0];
+  if (payment.status !== 'authorized') {
+    throw new Error(`Payment ${paymentId} is not in authorized state (current: ${payment.status})`);
+  }
+  if (!payment.stripe_payment_intent_id) {
+    throw new Error(`No PaymentIntent for payment ${paymentId}`);
+  }
+  if (!payment.stripe_account_id) {
+    throw new Error(`No Stripe account for payment ${paymentId}`);
+  }
+
+  const captured = await stripe.paymentIntents.capture(
+    payment.stripe_payment_intent_id,
+    { amount_to_capture: Math.round(Number(amount) * 100) },
+    { stripeAccount: payment.stripe_account_id },
+  );
+
+  await withTransaction(pool, async (client) => {
+    await client.query(
+      `UPDATE payments
+       SET status = $1, stripe_charge_id = $2, updated_at = now()
+       WHERE id = $3 AND status = 'authorized'`,
+      ['captured', captured.charges?.data?.[0]?.id || null, paymentId],
+    );
+  });
+
+  logger.info('Payment captured', {
+    paymentId,
+    jobId,
+    chargeId: captured.charges?.data?.[0]?.id,
+    amount: captured.amount_received != null ? captured.amount_received / 100 : amount,
+  });
+
+  return {
+    success: true,
+    paymentId,
+    chargeId: captured.charges?.data?.[0]?.id || null,
+  };
+}
+
+/**
+ * Capture using an existing transaction client (row must be `authorized`).
+ * Used when completing a job so escrow capture rolls back with the job if Stripe fails.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {{ id: any, amount: number, stripe_payment_intent_id: string, stripe_account_id: string }} paymentRow
+ */
+async function captureAuthorizedPaymentWithClient(client, paymentRow) {
+  if (!paymentRow || paymentRow.status !== 'authorized') {
+    throw new Error('Invalid payment row for capture');
+  }
+  if (!paymentRow.stripe_payment_intent_id || !paymentRow.stripe_account_id) {
+    throw new Error('Payment missing Stripe identifiers');
+  }
+
+  const captured = await stripe.paymentIntents.capture(
+    paymentRow.stripe_payment_intent_id,
+    { amount_to_capture: Math.round(Number(paymentRow.amount) * 100) },
+    { stripeAccount: paymentRow.stripe_account_id },
+  );
+
+  await client.query(
+    `UPDATE payments
+     SET status = $1, stripe_charge_id = $2, updated_at = now()
+     WHERE id = $3 AND status = 'authorized'`,
+    ['captured', captured.charges?.data?.[0]?.id || null, paymentRow.id],
+  );
+
+  logger.info('Payment captured (in job transaction)', {
+    paymentId: paymentRow.id,
+    chargeId: captured.charges?.data?.[0]?.id,
+  });
+
+  return { paymentId: paymentRow.id, chargeId: captured.charges?.data?.[0]?.id || null };
+}
+
+module.exports = { captureAuthorizedPayment, captureAuthorizedPaymentWithClient };

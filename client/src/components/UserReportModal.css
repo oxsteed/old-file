@@ -1,0 +1,222 @@
+.report-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.report-modal-content {
+  background-color: var(--card-bg, #ffffff);
+  border-radius: 0.5rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.report-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.report-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--app-text, #1f2937);
+}
+
+.report-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted-text, #6b7280);
+  transition: color 0.2s;
+}
+
+.report-modal-close:hover {
+  color: var(--app-text, #1f2937);
+}
+
+.report-modal-body {
+  padding: 1.5rem;
+}
+
+.report-warning {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+  margin-bottom: 1.5rem;
+}
+
+.report-warning svg {
+  color: #dc2626;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.report-warning p {
+  margin: 0;
+  color: #7f1d1d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+html.dark .report-warning {
+  background-color: #7f1d1d;
+  border-color: #991b1b;
+}
+
+html.dark .report-warning p {
+  color: #fee2e2;
+}
+
+.report-field {
+  margin-bottom: 1.5rem;
+}
+
+.report-field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--app-text, #1f2937);
+  font-size: 0.95rem;
+}
+
+.report-field select,
+.report-field textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 0.375rem;
+  background-color: var(--card-bg, #ffffff);
+  color: var(--app-text, #1f2937);
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.report-field select:focus,
+.report-field textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.report-field select:disabled,
+.report-field textarea:disabled {
+  background-color: var(--card-bg, #f9fafb);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.report-field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.report-hint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--muted-text, #6b7280);
+}
+
+.report-info {
+  padding: 1rem;
+  background-color: var(--card-bg, #f9fafb);
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.report-info p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--app-text, #1f2937);
+  line-height: 1.5;
+}
+
+.report-modal-footer {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  justify-content: flex-end;
+}
+
+.report-btn-cancel {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  background-color: var(--card-bg, #ffffff);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  color: var(--app-text, #1f2937);
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.report-btn-cancel:hover:not(:disabled) {
+  background-color: var(--card-bg, #f9fafb);
+}
+
+.report-btn-submit {
+  padding: 0.75rem 1.5rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.report-btn-submit:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.report-btn-cancel:disabled,
+.report-btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .report-modal-overlay {
+    padding: 1rem;
+  }
+
+  .report-modal-content {
+    max-width: 100%;
+  }
+
+  .report-modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .report-btn-cancel,
+  .report-btn-submit {
+    width: 100%;
+  }
+}

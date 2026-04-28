@@ -1,0 +1,597 @@
+.scp-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.scp-loading,
+.scp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 1rem;
+  text-align: center;
+  min-height: 60vh;
+}
+
+.scp-spinner {
+  animation: spin 1s linear infinite;
+  color: #8b5cf6;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.scp-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.scp-back-btn:hover {
+  color: #8b5cf6;
+  transform: translateX(-4px);
+}
+
+/* Header */
+.scp-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.scp-header-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 1rem;
+}
+
+.scp-header-content h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--app-text);
+}
+
+.scp-description {
+  color: var(--muted-text);
+  font-size: 0.95rem;
+  margin: 0.5rem 0 0 0;
+}
+
+.scp-edit-btn {
+  padding: 0.75rem 1.5rem;
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.scp-edit-btn:hover {
+  background: #a78bfa;
+  transform: translateY(-1px);
+}
+
+.scp-edit-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.scp-edit-name,
+.scp-edit-description {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.scp-edit-name:focus,
+.scp-edit-description:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.scp-edit-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.scp-edit-description {
+  resize: vertical;
+}
+
+.scp-edit-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.scp-edit-btn-cancel,
+.scp-edit-btn-save {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.scp-edit-btn-cancel {
+  background: var(--app-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.scp-edit-btn-cancel:hover {
+  background: var(--border-color);
+}
+
+.scp-edit-btn-save {
+  background: #8b5cf6;
+  color: white;
+}
+
+.scp-edit-btn-save:hover {
+  background: #a78bfa;
+}
+
+/* Content */
+.scp-content {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* Items Section */
+.scp-items-section {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.scp-items-section h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+  color: var(--app-text);
+}
+
+.scp-empty-items {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted-text);
+}
+
+.scp-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.scp-item {
+  display: grid;
+  grid-template-columns: 80px 1fr 120px 100px 100px 40px;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: var(--app-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.scp-item:hover {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.scp-item-image {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--card-bg);
+}
+
+.scp-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.scp-item-info h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--app-text);
+}
+
+.scp-item-category {
+  font-size: 0.8rem;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.scp-item-notes {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  margin: 0.25rem 0 0 0;
+  font-style: italic;
+}
+
+/* Quantity */
+.scp-item-quantity {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--card-bg);
+  overflow: hidden;
+}
+
+.scp-qty-btn {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scp-qty-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.scp-qty-input {
+  width: 50px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.scp-qty-input:focus {
+  outline: none;
+}
+
+.scp-qty-input::-webkit-outer-spin-button,
+.scp-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Price */
+.scp-item-price,
+.scp-item-total {
+  text-align: right;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.scp-item-price {
+  font-size: 0.9rem;
+  color: var(--muted-text);
+}
+
+.scp-item-total {
+  font-size: 1.1rem;
+  color: #8b5cf6;
+}
+
+/* Delete */
+.scp-item-delete {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scp-item-delete:hover {
+  transform: scale(1.1);
+  color: #dc2626;
+}
+
+/* Summary Section */
+.scp-summary-section {
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+}
+
+.scp-summary {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.scp-summary h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+  color: var(--app-text);
+}
+
+.scp-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.95rem;
+}
+
+.scp-summary-row span {
+  color: var(--app-text);
+}
+
+.scp-summary-row:last-of-type {
+  border-bottom: none;
+}
+
+.scp-summary-total {
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 1rem 0 1.5rem 0;
+  color: #8b5cf6;
+}
+
+/* Actions */
+.scp-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scp-action-btn {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.scp-action-share {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  color: white;
+}
+
+.scp-action-share:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.scp-action-template {
+  background: var(--app-bg);
+  color: #8b5cf6;
+  border: 1px solid #8b5cf6;
+}
+
+.scp-action-template:hover {
+  background: rgba(139, 92, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Modal */
+.scp-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.scp-modal {
+  background: var(--card-bg);
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.scp-modal h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  color: var(--app-text);
+}
+
+.scp-modal p {
+  color: var(--muted-text);
+  margin: 0 0 1.5rem 0;
+}
+
+.scp-modal-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.scp-modal-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.scp-share-link-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.scp-share-link-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-size: 0.85rem;
+}
+
+.scp-share-link-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.scp-copy-btn {
+  padding: 0.75rem 1rem;
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.scp-copy-btn:hover {
+  background: #a78bfa;
+}
+
+.scp-modal-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.scp-modal-btn-cancel,
+.scp-modal-btn-save {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.scp-modal-btn-cancel {
+  background: var(--app-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.scp-modal-btn-cancel:hover {
+  background: var(--border-color);
+}
+
+.scp-modal-btn-save,
+.scp-modal-close-btn {
+  background: #8b5cf6;
+  color: white;
+  width: 100%;
+}
+
+.scp-modal-btn-save:hover,
+.scp-modal-close-btn:hover {
+  background: #a78bfa;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .scp-container {
+    padding: 1rem;
+  }
+
+  .scp-header {
+    flex-direction: column;
+  }
+
+  .scp-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .scp-content {
+    grid-template-columns: 1fr;
+  }
+
+  .scp-summary-section {
+    position: static;
+  }
+
+  .scp-item {
+    grid-template-columns: 60px 1fr 30px;
+    gap: 0.75rem;
+  }
+
+  .scp-item-image {
+    width: 60px;
+    height: 60px;
+  }
+
+  .scp-item-quantity,
+  .scp-item-price,
+  .scp-item-total {
+    display: none;
+  }
+
+  .scp-item {
+    grid-template-columns: 60px 1fr 30px;
+  }
+
+  .scp-item-delete {
+    grid-column: 3;
+    grid-row: 1 / span 3;
+  }
+}
