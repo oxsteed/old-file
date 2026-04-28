@@ -4153,32 +4153,33 @@
       "operatingCountry": "¿En qué país estás?",
       "operatingState": "¿En qué estado o provincia estás?",
       "setupItems": {
-        "businessFormation": "Formación Empresarial",
-        "llcFiling": "Presentación de Entidad Comercial o LLC",
-        "einRegistration": "Registro de EIN (Identificación Federal de Impuestos)",
-        "businessAddress": "Configuración de Dirección de Negocio",
-        "operatingDocs": "Carpeta de Documentos Operacionales (registros digitales organizados)",
-        "digitalIdentity": "Identidad Digital",
+        "groupBusinessFormation": "Formación Empresarial",
+        "groupDigitalIdentity": "Identidad Digital",
+        "groupOnlinePresence": "Presencia en Línea",
+        "groupBusinessOperations": "Operaciones Empresariales",
+        "groupLaunchSupport": "Apoyo de Lanzamiento",
+        "llcFiling": "Constitución de LLC o Entidad Empresarial",
+        "einRegistration": "Registro de EIN (ID de Impuesto Federal)",
+        "businessAddress": "Configuración de Dirección Empresarial",
+        "operatingDocs": "Carpeta de Documentos Operativos (registros digitales organizados)",
         "domainRegistration": "Registro de Nombre de Dominio",
-        "businessEmail": "Correo Empresarial Profesional (ej. tu@tunegocio.com)",
-        "businessPhone": "Número de Teléfono Dedicado al Negocio",
+        "businessEmail": "Correo Electrónico Profesional (ej. tu@tunegocio.com)",
+        "businessPhone": "Número de Teléfono Empresarial Dedicado",
         "logoBranding": "Logo y Kit de Marca Básico (colores, fuentes, logo simple)",
-        "onlinePresence": "Presencia en Línea",
         "websiteBuild": "Construcción de Sitio Web (inicio, servicios, acerca de, contacto)",
         "contactForm": "Formulario de Contacto y Captura de Leads",
         "googleBusiness": "Configuración de Perfil de Google Business",
-        "socialMedia": "Reserva de Identificador en Redes Sociales",
-        "businessOperations": "Operaciones Empresariales",
-        "paymentProcessor": "Configuración de Procesador de Pagos (Stripe, Square o PayPal)",
-        "schedulingSystem": "Sistema de Programación en Línea (página de reservas)",
-        "clientIntake": "Formulario de Admisión de Clientes y Flujo de Trabajo",
-        "invoiceTemplates": "Plantillas de Facturas y Propuestas",
-        "bookkeepingSystem": "Sistema Inicial de Contabilidad Básica",
-        "launchSupport": "Apoyo de Lanzamiento",
-        "outreachTemplates": "Plantillas de Alcance del Primer Cliente",
-        "referralSystem": "Sistema de Solicitud de Referencias",
-        "onlineListings": "Configuración de Listados de Negocios en Línea",
-        "launchSupportTitle": "Apoyo de 30 Días Post-Lanzamiento"
+        "socialMedia": "Reserva de Identificadores de Redes Sociales",
+        "paymentProcessor": "Configuración de Procesador de Pagos (Stripe, Square, o PayPal)",
+        "schedulingSystem": "Sistema de Programación en Línea (página de reserva)",
+        "clientIntake": "Formulario de Entrada de Cliente y Flujo de Trabajo",
+        "invoiceTemplates": "Plantillas de Factura y Propuesta",
+        "bookkeepingSystem": "Sistema Iniciador de Contabilidad Básica",
+        "outreachTemplates": "Plantillas de Alcance para Primer Cliente",
+        "referralSystem": "Sistema de Solicitud de Referencia",
+        "onlineListings": "Configuración de Directorios Empresariales en Línea",
+        "launchSupport": "Apoyo de 30 Días Post-Lanzamiento",
+        "selectAllLabel": "Seleccionar Todo"
       },
       "setupItemsRequired": "Selecciona al menos un elemento",
       "urgency": "¿Cuál es tu cronograma?",
@@ -4297,49 +4298,34 @@
         "twoWeeks": "Listo para comenzar dentro de 2 semanas",
         "asap": "Necesito esto hecho lo antes posible"
       },
-      "setupItems": {
-        "groupBusinessFormation": "Formación Empresarial",
-        "groupDigitalIdentity": "Identidad Digital",
-        "groupOnlinePresence": "Presencia en Línea",
-        "groupBusinessOperations": "Operaciones Empresariales",
-        "groupLaunchSupport": "Apoyo de Lanzamiento",
-        "llcFiling": "Constitución de LLC o Entidad Empresarial",
-        "einRegistration": "Registro de EIN (ID de Impuesto Federal)",
-        "businessAddress": "Configuración de Dirección Empresarial",
-        "operatingDocs": "Carpeta de Documentos Operativos (registros digitales organizados)",
-        "domainRegistration": "Registro de Nombre de Dominio",
-        "businessEmail": "Correo Electrónico Profesional (ej. tu@tunegocio.com)",
-        "businessPhone": "Número de Teléfono Empresarial Dedicado",
-        "logoBranding": "Logo y Kit de Marca Básico (colores, fuentes, logo simple)",
-        "websiteBuild": "Construcción de Sitio Web (inicio, servicios, acerca de, contacto)",
-        "contactForm": "Formulario de Contacto y Captura de Leads",
-        "googleBusiness": "Configuración de Perfil de Google Business",
-        "socialMedia": "Reserva de Identificadores de Redes Sociales",
-        "paymentProcessor": "Configuración de Procesador de Pagos (Stripe, Square, o PayPal)",
-        "schedulingSystem": "Sistema de Programación en Línea (página de reserva)",
-        "clientIntake": "Formulario de Entrada de Cliente y Flujo de Trabajo",
-        "invoiceTemplates": "Plantillas de Factura y Propuesta",
-        "bookkeepingSystem": "Sistema Iniciador de Contabilidad Básica",
-        "outreachTemplates": "Plantillas de Alcance para Primer Cliente",
-        "referralSystem": "Sistema de Solicitud de Referencia",
-        "onlineListings": "Configuración de Directorios Empresariales en Línea",
-        "launchSupport": "Apoyo de 30 Días Post-Lanzamiento",
-        "selectAllLabel": "Seleccionar Todo"
-      },
       "packageDetails": {
         "initial": {
           "name": "Consulta Inicial",
           "price": "$100",
           "timeline": "Hasta 2 horas",
           "forWho": "Personas que desean explorar si un programa de asesoría es apropiado",
-          "features": ["Llamada de estrategia profunda (hasta 2 horas)", "Evaluación empresarial y auditoría de oportunidades", "Hoja de ruta de implementación y cronograma", "Recomendación personalizada para próximos pasos", "Preguntas y respuestas sobre tu situación específica"]
+          "features": [
+            "Llamada de estrategia profunda (hasta 2 horas)",
+            "Evaluación empresarial y auditoría de oportunidades",
+            "Hoja de ruta de implementación y cronograma",
+            "Recomendación personalizada para próximos pasos",
+            "Preguntas y respuestas sobre tu situación específica"
+          ]
         },
         "foundation": {
           "name": "Cimiento Empresarial",
           "price": "$750",
           "timeline": "1–2 semanas",
           "forWho": "Personas que solo necesitan la capa legal e identidad configurada",
-          "features": ["Orientación de nombre empresarial", "Registro de dominio", "Configuración de email profesional", "Número telefónico empresarial", "Configuración de dirección empresarial", "Orientación de presentación LLC + soporte EIN", "Carpeta de documentos organizada"]
+          "features": [
+            "Orientación de nombre empresarial",
+            "Registro de dominio",
+            "Configuración de email profesional",
+            "Número telefónico empresarial",
+            "Configuración de dirección empresarial",
+            "Orientación de presentación LLC + soporte EIN",
+            "Carpeta de documentos organizada"
+          ]
         },
         "launch": {
           "name": "Lanzamiento Empresarial",
@@ -4347,14 +4333,33 @@
           "timeline": "2–3 semanas",
           "forWho": "Personas que desean una presencia comercial completamente operativa",
           "popular": true,
-          "features": ["Todo en Cimiento más:", "Logo y kit de marca básico", "Sitio web de 4 páginas (Inicio, Servicios, Acerca de, Contacto)", "Formulario de contacto y captura de leads", "Configuración de programación en línea", "Configuración de procesador de pagos", "Plantilla de factura", "Lista de verificación de lanzamiento y revisión de puesta en funcionamiento"]
+          "features": [
+            "Todo en Cimiento más:",
+            "Logo y kit de marca básico",
+            "Sitio web de 4 páginas (Inicio, Servicios, Acerca de, Contacto)",
+            "Formulario de contacto y captura de leads",
+            "Configuración de programación en línea",
+            "Configuración de procesador de pagos",
+            "Plantilla de factura",
+            "Lista de verificación de lanzamiento y revisión de puesta en funcionamiento"
+          ]
         },
         "accelerator": {
           "name": "Acelerador Empresarial",
           "price": "$3,000",
           "timeline": "3–4 semanas",
           "forWho": "Personas que desean que todo esté hecho y un sistema para crecer",
-          "features": ["Todo en Lanzamiento más:", "Configuración de Perfil Google Business", "Reserva de identificador de redes sociales", "Flujo de trabajo de admisión de clientes", "Sistema de contabilidad inicial", "Sistema de solicitud de referencias", "Configuración de listados en línea", "Llamada de seguimiento post-lanzamiento de 30 días", "Plantillas de alcance del primer cliente"]
+          "features": [
+            "Todo en Lanzamiento más:",
+            "Configuración de Perfil Google Business",
+            "Reserva de identificador de redes sociales",
+            "Flujo de trabajo de admisión de clientes",
+            "Sistema de contabilidad inicial",
+            "Sistema de solicitud de referencias",
+            "Configuración de listados en línea",
+            "Llamada de seguimiento post-lanzamiento de 30 días",
+            "Plantillas de alcance del primer cliente"
+          ]
         },
         "mostPopular": "MÁS POPULAR",
         "timeline": "Cronograma:",
@@ -4387,14 +4392,23 @@
         "importantLabel": "Importante",
         "disclaimer": "OxSteed Business Launch proporciona solo soporte de implementación de configuración empresarial. No proporcionamos asesoramiento legal, fiscal o financiero. Para preguntas relacionadas con la selección de entidades legales, obligaciones fiscales o asuntos financieros regulados, consulta a un profesional autorizado."
       },
-      "referralSource": {
-        "marketplace": "Mercado de OxSteed",
-        "google": "Búsqueda en Google",
-        "referral": "Referencia de un Amigo",
-        "social": "Redes Sociales",
-        "other": "Otro"
+      "packageHelper": "¿No estás seguro de qué paquete se ajusta? Selecciona el que parezca más cercano y confirmaremos el ajuste correcto durante tu llamada de inicio. Todos los paquetes incluyen una llamada de inicio de 30 minutos.",
+      "referralOptions": {
+        "marketplace": "OxSteed Marketplace",
+        "google": "Google Search",
+        "referral": "Referral from a Friend",
+        "social": "Social Media",
+        "other": "Other"
       },
-      "packageHelper": "¿No estás seguro de qué paquete se ajusta? Selecciona el que parezca más cercano y confirmaremos el ajuste correcto durante tu llamada de inicio. Todos los paquetes incluyen una llamada de inicio de 30 minutos."
+      "revenue": {
+        "no": "No, not yet",
+        "informal": "Yes, informally (cash/Venmo)",
+        "formal": "Yes, I have paying clients"
+      },
+      "businessName": {
+        "yes": "Yes",
+        "no": "No, I need help choosing one"
+      }
     },
     "email": "Correo electrónico",
     "firstName": "Nombre",

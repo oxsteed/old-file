@@ -4153,32 +4153,33 @@
       "operatingCountry": "Dans quel pays opérez-vous?",
       "operatingState": "Dans quel état ou province opérez-vous?",
       "setupItems": {
-        "businessFormation": "Formation Commerciale",
-        "llcFiling": "Dépôt d'Entité Commerciale ou SARL",
-        "einRegistration": "Enregistrement EIN (Numéro d'Identification Fédérale)",
+        "groupBusinessFormation": "Formation Commerciale",
+        "groupDigitalIdentity": "Identité Numérique",
+        "groupOnlinePresence": "Présence en Ligne",
+        "groupBusinessOperations": "Opérations Commerciales",
+        "groupLaunchSupport": "Support de Lancement",
+        "selectAllLabel": "Tout Sélectionner ({{selected}} / {{total}} éléments)",
+        "llcFiling": "Constitution de LLC ou Entité Commerciale",
+        "einRegistration": "Enregistrement EIN (Numéro d'Identification Fiscale Fédéral)",
         "businessAddress": "Configuration de l'Adresse Commerciale",
-        "operatingDocs": "Dossier de Documents Opérationnels (registres numériques organisés)",
-        "digitalIdentity": "Identité Numérique",
+        "operatingDocs": "Dossier des Documents d'Exploitation (registres numériques organisés)",
         "domainRegistration": "Enregistrement du Nom de Domaine",
         "businessEmail": "Email Professionnel (ex. vous@votreentreprise.com)",
-        "businessPhone": "Numéro de Téléphone Dédié à l'Entreprise",
+        "businessPhone": "Numéro de Téléphone Métier Dédié",
         "logoBranding": "Logo et Kit de Marque Basique (couleurs, polices, logo simple)",
-        "onlinePresence": "Présence en Ligne",
         "websiteBuild": "Construction de Site Web (accueil, services, à propos, contact)",
         "contactForm": "Formulaire de Contact et Capture de Prospects",
         "googleBusiness": "Configuration du Profil Google Business",
-        "socialMedia": "Réservation de Poignée de Réseaux Sociaux",
-        "businessOperations": "Opérations Commerciales",
+        "socialMedia": "Réservation des Identifiants des Réseaux Sociaux",
         "paymentProcessor": "Configuration du Processeur de Paiement (Stripe, Square ou PayPal)",
         "schedulingSystem": "Système de Planification en Ligne (page de réservation)",
-        "clientIntake": "Formulaire d'Admission de Client et Flux de Travail",
-        "invoiceTemplates": "Modèles de Factures et Propositions",
-        "bookkeepingSystem": "Système Initiateur de Comptabilité Basique",
-        "launchSupport": "Support de Lancement",
-        "outreachTemplates": "Modèles de Communication du Premier Client",
-        "referralSystem": "Système de Demande de Recommandation",
-        "onlineListings": "Configuration des Annonces Commerciales en Ligne",
-        "launchSupportTitle": "Support Post-Lancement de 30 Jours"
+        "clientIntake": "Formulaire d'Admission des Clients et Flux de Travail",
+        "invoiceTemplates": "Modèles de Facture et de Proposition",
+        "bookkeepingSystem": "Système de Comptabilité de Base",
+        "outreachTemplates": "Modèles de Sensibilisation pour le Premier Client",
+        "referralSystem": "Système de Demande de Référence",
+        "onlineListings": "Configuration des Annuaires Commerciaux en Ligne",
+        "launchSupport": "Support de 30 Jours Après le Lancement"
       },
       "setupItemsRequired": "Sélectionnez au moins un élément",
       "urgency": "Quel est votre calendrier?",
@@ -4267,7 +4268,24 @@
         "countryLabel": "Dans quel pays cette entreprise opérera-t-elle ? *",
         "selectCountry": "Sélectionnez un pays",
         "cityLabel": "Ville",
-        "selectRegion": "Sélectionnez {{regionLabel}}"
+        "selectRegion": "Sélectionnez {{regionLabel}}",
+        "howDidYouHear": "Comment avez-vous entendu parler de nous?",
+        "selectOption": "Sélectionnez une option",
+        "skillQuestion": "Quelle est votre compétence ou service principal? *",
+        "skillPlaceholder": "Ex. Nettoyage haute pression, Conception graphique, Comptabilité, Tutorat",
+        "targetMarketQuestion": "À qui voulez-vous servir avec cette compétence? *",
+        "targetMarketPlaceholder": "Ex. Propriétaires de maisons dans ma région, petits entrepreneurs, restaurants locaux",
+        "revenueQuestion": "Avez-vous gagné de l'argent grâce à cette compétence? *",
+        "businessNameQuestion": "Avez-vous déjà décidé d'un nom d'entreprise? *",
+        "businessNameInputLabel": "Quel est-il? *",
+        "businessNamePlaceholder": "Entrez le nom de votre entreprise préféré",
+        "countryQuestion": "Dans quel pays cette entreprise fonctionnera-t-elle? *",
+        "cityPlaceholder": "Ex. Port-au-Prince, Cap-Haïtien, Les Cayes",
+        "businessPhaseQuestion": "Phase d'entreprise actuelle (1–25) *",
+        "selectPhase": "Sélectionnez une phase",
+        "additionalNotes": "Dites-nous en plus (facultatif)",
+        "additionalNotesPlaceholder": "Décrivez votre situation, votre calendrier ou tout ce que vous aimeriez que nous sachions...",
+        "urgencyLabel": "Urgence *"
       },
       "revenueOptions": {
         "no": "Non, pas encore",
@@ -4283,28 +4301,34 @@
         "twoWeeks": "Prêt à commencer dans 2 semaines",
         "asap": "J'ai besoin que ce soit fait dès que possible"
       },
-      "setupItems": {
-        "groupBusinessFormation": "Formation Commerciale",
-        "groupDigitalIdentity": "Identité Numérique",
-        "groupOnlinePresence": "Présence en Ligne",
-        "groupBusinessOperations": "Opérations Commerciales",
-        "groupLaunchSupport": "Support de Lancement",
-        "selectAllLabel": "Tout Sélectionner ({{selected}} / {{total}} éléments)"
-      },
       "packageDetails": {
         "initial": {
           "name": "Consultation Initiale",
           "price": "$100",
           "timeline": "Jusqu'à 2 heures",
           "forWho": "Les personnes qui souhaitent explorer si un programme de conseil est approprié",
-          "features": ["Appel de plongée stratégique (jusqu'à 2 heures)", "Évaluation commerciale et audit des opportunités", "Feuille de route de mise en œuvre et calendrier", "Recommandation personnalisée pour les prochaines étapes", "Questions et réponses sur votre situation spécifique"]
+          "features": [
+            "Appel de plongée stratégique (jusqu'à 2 heures)",
+            "Évaluation commerciale et audit des opportunités",
+            "Feuille de route de mise en œuvre et calendrier",
+            "Recommandation personnalisée pour les prochaines étapes",
+            "Questions et réponses sur votre situation spécifique"
+          ]
         },
         "foundation": {
           "name": "Fondation Commerciale",
           "price": "$750",
           "timeline": "1–2 semaines",
           "forWho": "Les personnes qui ont seulement besoin de configurer la couche juridique et identitaire",
-          "features": ["Orientation sur le nom d'entreprise", "Enregistrement du domaine", "Configuration de l'email professionnel", "Numéro de téléphone professionnel", "Configuration de l'adresse professionnelle", "Orientation de dépôt SARL + support EIN", "Dossier de documents organisé"]
+          "features": [
+            "Orientation sur le nom d'entreprise",
+            "Enregistrement du domaine",
+            "Configuration de l'email professionnel",
+            "Numéro de téléphone professionnel",
+            "Configuration de l'adresse professionnelle",
+            "Orientation de dépôt SARL + support EIN",
+            "Dossier de documents organisé"
+          ]
         },
         "launch": {
           "name": "Lancement Commercial",
@@ -4312,14 +4336,33 @@
           "timeline": "2–3 semaines",
           "forWho": "Les personnes qui souhaitent une présence commerciale entièrement opérationnelle",
           "popular": true,
-          "features": ["Tout en Fondation plus :", "Logo et kit de marque basique", "Site web de 4 pages (Accueil, Services, À propos, Contact)", "Formulaire de contact et capture de prospects", "Configuration de la planification en ligne", "Configuration du processeur de paiement", "Modèle de facture", "Liste de contrôle de lancement et examen du lancement"]
+          "features": [
+            "Tout en Fondation plus :",
+            "Logo et kit de marque basique",
+            "Site web de 4 pages (Accueil, Services, À propos, Contact)",
+            "Formulaire de contact et capture de prospects",
+            "Configuration de la planification en ligne",
+            "Configuration du processeur de paiement",
+            "Modèle de facture",
+            "Liste de contrôle de lancement et examen du lancement"
+          ]
         },
         "accelerator": {
           "name": "Accélérateur Commercial",
           "price": "$3,000",
           "timeline": "3–4 semaines",
           "forWho": "Les personnes qui veulent que tout soit fait et un système pour croître",
-          "features": ["Tout en Lancement plus :", "Configuration du Profil Google Business", "Réservation de poignée de réseaux sociaux", "Flux de travail d'admission client", "Système de comptabilité initial", "Système de demande de recommandation", "Configuration des annonces en ligne", "Appel de suivi post-lancement de 30 jours", "Modèles de communication du premier client"]
+          "features": [
+            "Tout en Lancement plus :",
+            "Configuration du Profil Google Business",
+            "Réservation de poignée de réseaux sociaux",
+            "Flux de travail d'admission client",
+            "Système de comptabilité initial",
+            "Système de demande de recommandation",
+            "Configuration des annonces en ligne",
+            "Appel de suivi post-lancement de 30 jours",
+            "Modèles de communication du premier client"
+          ]
         },
         "mostPopular": "LE PLUS POPULAIRE",
         "timeline": "Calendrier :",
@@ -4344,9 +4387,31 @@
         "showingFirstFive": "{{count}} éléments (affichage des 5 premiers) :",
         "showingItems": "{{count}} éléments :",
         "whatHappensNext": "Ce qui se Passe Ensuite",
-        "nextSteps": ["Nous examinons votre demande (généralement dans les 24 heures)", "Vous recevrez un lien de planification pour réserver votre appel de lancement", "Nous vous envoyons un questionnaire préalable au lancement à compléter", "Votre travail de configuration commence après l'appel de lancement"],
+        "nextSteps": [
+          "Nous examinons votre demande (généralement dans les 24 heures)",
+          "Vous recevrez un lien de planification pour réserver votre appel de lancement",
+          "Nous vous envoyons un questionnaire préalable au lancement à compléter",
+          "Votre travail de configuration commence après l'appel de lancement"
+        ],
         "importantDisclaimer": "Important : OxSteed Business Launch fournit uniquement un support de mise en œuvre de configuration commerciale. Nous ne fournissons pas de conseils juridiques, fiscaux ou financiers. Pour les questions relatives à la sélection des entités légales, aux obligations fiscales ou aux questions financières réglementées, veuillez consulter un professionnel autorisé.",
         "packageHelper": "Vous n'êtes pas sûr de quel forfait correspond ? Sélectionnez celui qui semble le plus proche et nous confirmerons le bon ajustement lors de votre appel de lancement."
+      },
+      "packageHelper": "Vous n'êtes pas sûr du forfait qui convient? Sélectionnez celui qui semble le plus proche et nous confirmerons le bon choix lors de votre appel de lancement. Tous les forfaits incluent un appel de lancement de 30 minutes.",
+      "referralOptions": {
+        "marketplace": "OxSteed Marketplace",
+        "google": "Google Search",
+        "referral": "Referral from a Friend",
+        "social": "Social Media",
+        "other": "Other"
+      },
+      "revenue": {
+        "no": "No, not yet",
+        "informal": "Yes, informally (cash/Venmo)",
+        "formal": "Yes, I have paying clients"
+      },
+      "businessName": {
+        "yes": "Yes",
+        "no": "No, I need help choosing one"
       }
     },
     "email": "Email",
