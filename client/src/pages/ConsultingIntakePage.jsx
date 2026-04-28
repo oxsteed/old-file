@@ -210,29 +210,29 @@ export default function ConsultingIntakePage() {
   const validateStep = () => {
     if (step === 1) {
       if (!form.email || !form.first_name || !form.last_name || !form.phone) {
-        toast.error(t('consulting.intake.formErrors.missingFields'));
+        toast.error(t('consulting.intake.formErrors.fillContactInfo'));
         return false;
       }
       return true;
     } else if (step === 2) {
       if (!form.skill_description || !form.target_market || !form.has_revenue || !form.business_name_decided || !form.operating_country || !form.operating_state) {
-        toast.error(t('consulting.intake.formErrors.missingFields'));
+        toast.error(t('consulting.intake.formErrors.fillSkillInfo'));
         return false;
       }
       if (form.business_name_decided === 'yes' && !form.business_name) {
-        toast.error(t('consulting.intake.formErrors.businessNameRequired'));
+        toast.error(t('consulting.intake.formErrors.enterBusinessName'));
         return false;
       }
       return true;
     } else if (step === 3) {
       if (!form.urgency || form.setup_items_selected.length === 0) {
-        toast.error(t('consulting.intake.formErrors.urgencyAndItems'));
+        toast.error(t('consulting.intake.formErrors.selectSetupItems'));
         return false;
       }
       return true;
     } else if (step === 4) {
       if (!form.package_selected) {
-        toast.error(t('consulting.intake.formErrors.packageRequired'));
+        toast.error(t('consulting.intake.formErrors.selectPackage'));
         return false;
       }
       return true;
@@ -278,7 +278,7 @@ export default function ConsultingIntakePage() {
       toast.success(t('consulting.intake.formSuccess'));
       setTimeout(() => navigate('/'), 2000);
     } catch (err) {
-      toast.error(err.response?.data?.error || t('common.errorSubmitting'));
+      toast.error(err.response?.data?.error || t('consulting.intake.formErrors.failedSubmit'));
     } finally {
       setLoading(false);
     }
@@ -674,7 +674,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
           style={{ cursor: 'pointer', width: '18px', height: '18px' }}
         />
         <label style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
-          {t('consulting.intake.selectAllLabel')} ({form.setup_items_selected.length} / {allSetupItems.length} items)
+          {t('consulting.intake.selectAll')} ({form.setup_items_selected.length} / {allSetupItems.length} items)
         </label>
       </div>
 
