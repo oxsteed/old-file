@@ -4113,6 +4113,11 @@
     "confirmTitle": "Vérifiez votre soumission",
     "confirmSubtitle": "Veuillez vérifier vos informations avant de soumettre votre demande de conseil.",
     "intake": {
+      "progressContact": "Contact",
+      "progressSkillOffer": "Compétence et Offre",
+      "progressSetupNeeds": "Besoins de Configuration",
+      "progressPackage": "Forfait",
+      "progressConfirm": "Confirmer",
       "step1Title": "Vos Informations de Contact",
       "step1Subtitle": "Faites-nous connaître la meilleure façon de vous joindre.",
       "step2Title": "Parlez-Nous de Votre Compétence",
