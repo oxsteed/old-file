@@ -104,12 +104,8 @@
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .prs-form-modal {
@@ -124,14 +120,8 @@
 }
 
 @keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 .prs-form-header {
@@ -300,12 +290,8 @@
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .prs-empty-state {
@@ -414,40 +400,14 @@
   cursor: not-allowed;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .prs-container {
-    padding: 1rem;
-  }
-
-  .prs-rating-summary {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .prs-write-review-btn {
-    width: 100%;
-    align-self: stretch;
-  }
-
-  .prs-form-modal {
-    max-width: 90%;
-  }
-
-  .prs-review-item {
-    padding: 1rem;
-  }
-
-  .prs-big-rating {
-    font-size: 2.5rem;
-  }
+  .prs-container { padding: 1rem; }
+  .prs-rating-summary { flex-direction: column; gap: 1rem; }
+  .prs-write-review-btn { width: 100%; align-self: stretch; }
+  .prs-form-modal { max-width: 90%; }
+  .prs-review-item { padding: 1rem; }
+  .prs-big-rating { font-size: 2.5rem; }
 }
 
-/* Dark mode support */
-.dark .prs-star-empty {
-  color: var(--muted-text);
-}
-
-.dark .prs-rating-btn:hover {
-  color: #f59e0b;
-}
+.dark .prs-star-empty { color: var(--muted-text); }
+.dark .prs-rating-btn:hover { color: #f59e0b; }

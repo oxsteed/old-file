@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Star, Loader, ExternalLink } from 'lucide-react';
+import { X, Loader, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { marketplaceApi } from '../api/marketplaceApi';
 import ProductImageGallery from './ProductImageGallery';
-import RelatedProductsSection from './RelatedProductsSection';
 import ProductReviewsSection from './ProductReviewsSection';
+import RelatedProductsSection from './RelatedProductsSection';
+import { renderStarsAsIcons } from '../utils/renderStars';
 import '../styles/ProductDetailModal.css';
 
 export default function ProductDetailModal({ product, onClose, onAddToCart }) {
@@ -14,8 +15,8 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
   const [loading, setLoading] = useState(!product || !product.description);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [selectedRelatedProduct, setSelectedRelatedProduct] = useState(null);
   const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
+  const [selectedRelatedProduct, setSelectedRelatedProduct] = useState(null);
 
   useEffect(() => {
     // Fetch full product details if not already loaded
@@ -71,6 +72,10 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
     setSelectedRelatedProduct(null);
   };
 
+  const renderStars = (rating) => {
+    return renderStarsAsIcons(rating, 16, 'pdm-star');
+  };
+
   const handleReviewSubmitted = () => {
     // Refresh product details to update rating and review count
     if (fullProduct?.id) {
@@ -80,22 +85,6 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
     }
     // Force reviews section to refresh
     setReviewRefreshKey((prev) => prev + 1);
-  };
-
-  const renderStars = (rating) => {
-    const stars = [];
-    const roundedRating = Math.round(rating * 2) / 2;
-    for (let i = 1; i <= 5; i++) {
-      const fill = i <= roundedRating ? 'full' : i - roundedRating === 0.5 ? 'half' : 'none';
-      stars.push(
-        <Star
-          key={i}
-          size={16}
-          className={`pdm-star ${fill === 'full' ? 'pdm-star-full' : fill === 'half' ? 'pdm-star-half' : 'pdm-star-empty'}`}
-        />
-      );
-    }
-    return stars;
   };
 
   if (loading) {
@@ -137,13 +126,11 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
   // If a related product is selected, show its detail modal instead
   if (selectedRelatedProduct) {
     return (
-      <>
-        <ProductDetailModal
-          product={selectedRelatedProduct}
-          onClose={handleCloseRelatedProduct}
-          onAddToCart={handleAddRelatedToCart}
-        />
-      </>
+      <ProductDetailModal
+        product={selectedRelatedProduct}
+        onClose={handleCloseRelatedProduct}
+        onAddToCart={handleAddRelatedToCart}
+      />
     );
   }
 
@@ -290,6 +277,17 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
                 productId={fullProduct.id}
                 onAddToCart={handleAddRelatedToCart}
                 onOpenDetail={handleOpenRelatedProduct}
+              />
+            )}
+
+            {/* Reviews Section */}
+            {fullProduct.id && (
+              <ProductReviewsSection
+                key={reviewRefreshKey}
+                productId={fullProduct.id}
+                averageRating={rating}
+                reviewCount={reviewCount}
+                onSubmitReview={handleReviewSubmitted}
               />
             )}
           </div>

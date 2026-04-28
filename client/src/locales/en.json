@@ -4155,35 +4155,40 @@
       "operatingCountry": "Which country are you in?",
       "operatingState": "Which state/province are you in?",
       "setupItems": {
-        "businessFormation": "Business Formation",
+        "groupBusinessFormation": "Business Formation",
+        "groupDigitalIdentity": "Digital Identity",
+        "groupOnlinePresence": "Online Presence",
+        "groupBusinessOperations": "Business Operations",
+        "groupLaunchSupport": "Launch Support",
         "llcFiling": "LLC or Business Entity Filing",
         "einRegistration": "EIN (Federal Tax ID) Registration",
         "businessAddress": "Business Mailing Address Setup",
         "operatingDocs": "Operating Documents Folder (organized digital records)",
-        "digitalIdentity": "Digital Identity",
         "domainRegistration": "Domain Name Registration",
         "businessEmail": "Professional Email (e.g. you@yourbusiness.com)",
         "businessPhone": "Dedicated Business Phone Number",
         "logoBranding": "Logo & Basic Brand Kit (colors, fonts, simple logo)",
-        "onlinePresence": "Online Presence",
         "websiteBuild": "Website Build (homepage, services, about, contact)",
         "contactForm": "Contact Form & Lead Capture",
         "googleBusiness": "Google Business Profile Setup",
         "socialMedia": "Social Media Handle Reservation",
-        "businessOperations": "Business Operations",
         "paymentProcessor": "Payment Processor Setup (Stripe, Square, or PayPal)",
         "schedulingSystem": "Online Scheduling System (booking page)",
         "clientIntake": "Client Intake Form & Workflow",
         "invoiceTemplates": "Invoice & Proposal Templates",
         "bookkeepingSystem": "Basic Bookkeeping Starter System",
-        "launchSupport": "Launch Support",
         "outreachTemplates": "First Client Outreach Templates",
         "referralSystem": "Referral Request System",
         "onlineListings": "Online Business Listings Setup",
-        "launchSupportTitle": "Post-Launch 30-Day Support"
+        "launchSupport": "Post-Launch 30-Day Support",
+        "selectAllLabel": "Select All"
       },
       "setupItemsRequired": "Select at least one setup item",
-      "urgency": "What is your timeline?",
+      "urgency": {
+        "exploring": "Just exploring",
+        "twoWeeks": "Ready to start within 2 weeks",
+        "asap": "I need this done as soon as possible"
+      },
       "urgencyASAP": "ASAP (start immediately)",
       "urgencyThisMonth": "This month",
       "urgencyTwoMonths": "Within 2 months",
@@ -4299,49 +4304,34 @@
         "twoWeeks": "Ready to start within 2 weeks",
         "asap": "I need this done as soon as possible"
       },
-      "setupItems": {
-        "groupBusinessFormation": "Business Formation",
-        "groupDigitalIdentity": "Digital Identity",
-        "groupOnlinePresence": "Online Presence",
-        "groupBusinessOperations": "Business Operations",
-        "groupLaunchSupport": "Launch Support",
-        "llcFiling": "LLC or Business Entity Filing",
-        "einRegistration": "EIN (Federal Tax ID) Registration",
-        "businessAddress": "Business Mailing Address Setup",
-        "operatingDocs": "Operating Documents Folder (organized digital records)",
-        "domainRegistration": "Domain Name Registration",
-        "businessEmail": "Professional Email (e.g. you@yourbusiness.com)",
-        "businessPhone": "Dedicated Business Phone Number",
-        "logoBranding": "Logo & Basic Brand Kit (colors, fonts, simple logo)",
-        "websiteBuild": "Website Build (homepage, services, about, contact)",
-        "contactForm": "Contact Form & Lead Capture",
-        "googleBusiness": "Google Business Profile Setup",
-        "socialMedia": "Social Media Handle Reservation",
-        "paymentProcessor": "Payment Processor Setup (Stripe, Square, or PayPal)",
-        "schedulingSystem": "Online Scheduling System (booking page)",
-        "clientIntake": "Client Intake Form & Workflow",
-        "invoiceTemplates": "Invoice & Proposal Templates",
-        "bookkeepingSystem": "Basic Bookkeeping Starter System",
-        "outreachTemplates": "First Client Outreach Templates",
-        "referralSystem": "Referral Request System",
-        "onlineListings": "Online Business Listings Setup",
-        "launchSupport": "Post-Launch 30-Day Support",
-        "selectAllLabel": "Select All"
-      },
       "packageDetails": {
         "initial": {
           "name": "Initial Consultation",
           "price": "$100",
           "timeline": "Up to 2 hours",
           "forWho": "People who want to explore whether a consulting program is right for them",
-          "features": ["Strategy deep-dive call (up to 2 hours)", "Business assessment & opportunity audit", "Implementation roadmap & timeline", "Custom recommendation for next steps", "Q&A on your specific situation"]
+          "features": [
+            "Strategy deep-dive call (up to 2 hours)",
+            "Business assessment & opportunity audit",
+            "Implementation roadmap & timeline",
+            "Custom recommendation for next steps",
+            "Q&A on your specific situation"
+          ]
         },
         "foundation": {
           "name": "Business Foundation",
           "price": "$750",
           "timeline": "1–2 weeks",
           "forWho": "People who just need the legal and identity layer set up",
-          "features": ["Business name guidance", "Domain registration", "Professional email setup", "Business phone number", "Business address setup", "LLC filing guidance + EIN support", "Organized documents folder"]
+          "features": [
+            "Business name guidance",
+            "Domain registration",
+            "Professional email setup",
+            "Business phone number",
+            "Business address setup",
+            "LLC filing guidance + EIN support",
+            "Organized documents folder"
+          ]
         },
         "launch": {
           "name": "Business Launch",
@@ -4349,14 +4339,33 @@
           "timeline": "2–3 weeks",
           "forWho": "People who want a fully operational business presence",
           "popular": true,
-          "features": ["Everything in Foundation plus:", "Logo & basic brand kit", "4-page website (Home, Services, About, Contact)", "Contact form & lead capture", "Online scheduling setup", "Payment processor setup", "Invoice template", "Launch checklist & go-live review"]
+          "features": [
+            "Everything in Foundation plus:",
+            "Logo & basic brand kit",
+            "4-page website (Home, Services, About, Contact)",
+            "Contact form & lead capture",
+            "Online scheduling setup",
+            "Payment processor setup",
+            "Invoice template",
+            "Launch checklist & go-live review"
+          ]
         },
         "accelerator": {
           "name": "Business Accelerator",
           "price": "$3,000",
           "timeline": "3–4 weeks",
           "forWho": "People who want everything done and a system to grow",
-          "features": ["Everything in Launch plus:", "Google Business Profile setup", "Social media handle reservation", "Client intake workflow", "Bookkeeping starter system", "Referral request system", "Online listings setup", "30-day post-launch check-in call", "First client outreach templates"]
+          "features": [
+            "Everything in Launch plus:",
+            "Google Business Profile setup",
+            "Social media handle reservation",
+            "Client intake workflow",
+            "Bookkeeping starter system",
+            "Referral request system",
+            "Online listings setup",
+            "30-day post-launch check-in call",
+            "First client outreach templates"
+          ]
         },
         "mostPopular": "MOST POPULAR",
         "timeline": "Timeline:",
@@ -4404,11 +4413,6 @@
       "businessName": {
         "yes": "Yes",
         "no": "No, I need help choosing one"
-      },
-      "urgency": {
-        "exploring": "Just exploring",
-        "twoWeeks": "Ready to start within 2 weeks",
-        "asap": "I need this done as soon as possible"
       },
       "packageHelper": "Not sure which package fits? Select the one that seems closest and we will confirm the right fit during your kickoff call. All packages include a 30-minute kickoff call."
     },
@@ -4915,6 +4919,33 @@
     "source": "Source",
     "buyOnHomeDepot": "Buy on Home Depot",
     "skills": "Skills",
-    "addedToCart": "Added to cart"
+    "addedToCart": "Added to cart",
+    "priceRange": "Price Range",
+    "minPrice": "Min Price",
+    "maxPrice": "Max Price",
+    "sortBy": "Sort By",
+    "clearAll": "Clear All",
+    "categoryPill": "{{category}}",
+    "sortPill": "Sort: {{sortOption}}",
+    "rating": "Rating",
+    "leaveReview": "Leave a Review",
+    "review": "Review",
+    "reviewText": "Your Review",
+    "reviewTextPlaceholder": "Share your experience with this product...",
+    "reviewSubmittedSuccess": "Review submitted successfully",
+    "noReviews": "No reviews yet",
+    "sort": {
+      "bestMatch": "Best Match",
+      "lowestPrice": "Lowest Price",
+      "highestPrice": "Highest Price",
+      "topRated": "Top Rated",
+      "mostPopular": "Most Popular",
+      "newest": "Newest"
+    },
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "closeLightbox": "Close lightbox",
+    "slideOf": "Slide {{current}} of {{total}}",
+    "noImageAvailable": "No image available"
   }
 }
