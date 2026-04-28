@@ -4902,6 +4902,18 @@
     "create": "Crear",
     "approve": "Aprobar",
     "failedToLoadCart": "Error al cargar el carrito compartido",
-    "reviewingCartDescription": "Revisar y aprobar un carrito de compra compartido contigo"
+    "reviewingCartDescription": "Revisar y aprobar un carrito de compra compartido contigo",
+    "relatedProducts": "Productos Relacionados",
+    "frequentlyBoughtTogether": "Frecuentemente Comprado Junto Con",
+    "noImage": "Sin Imagen",
+    "reviews": "reseñas",
+    "addedToCarts": "Agregado a {{count}} carritos",
+    "productDetails": "Detalles del Producto",
+    "sku": "SKU",
+    "upc": "UPC",
+    "source": "Fuente",
+    "buyOnHomeDepot": "Comprar en Home Depot",
+    "skills": "Especialidades",
+    "addedToCart": "Agregado al carrito"
   }
 }

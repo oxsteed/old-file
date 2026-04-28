@@ -15,6 +15,7 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedRelatedProduct, setSelectedRelatedProduct] = useState(null);
+  const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
 
   useEffect(() => {
     // Fetch full product details if not already loaded
@@ -68,6 +69,17 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
 
   const handleCloseRelatedProduct = () => {
     setSelectedRelatedProduct(null);
+  };
+
+  const handleReviewSubmitted = () => {
+    // Refresh product details to update rating and review count
+    if (fullProduct?.id) {
+      marketplaceApi.getProduct(fullProduct.id).then((response) => {
+        setFullProduct(response.data);
+      });
+    }
+    // Force reviews section to refresh
+    setReviewRefreshKey((prev) => prev + 1);
   };
 
   const renderStars = (rating) => {
