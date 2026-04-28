@@ -48,6 +48,18 @@ CREATE INDEX IF NOT EXISTS idx_product_skills_product_id
   ON marketplace_product_skills(product_id);
 
 -- Shopping Carts
+-- Handle partial migration: drop bad FK if it exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shopping_carts') THEN
+    ALTER TABLE shopping_carts DROP CONSTRAINT IF EXISTS shopping_carts_helper_id_fkey;
+    -- Clean up rows with invalid/NULL helper_id values
+    DELETE FROM shopping_carts sc
+    WHERE helper_id IS NULL
+       OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = sc.helper_id);
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS shopping_carts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   helper_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

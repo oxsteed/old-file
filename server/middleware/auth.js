@@ -195,9 +195,34 @@ async function requireActiveSubscription(req, res, next) {
   }
 }
 
+/**
+ * Optional authentication middleware
+ * Tries to authenticate via Bearer token, but continues without req.user if token is missing/invalid
+ * Allows endpoints to serve both authenticated and unauthenticated requests
+ */
+const optionalAuth = async (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return next();
+  try {
+    const token = header.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active
+         FROM users u WHERE u.id = $1`,
+      [decoded.id]
+    );
+    const user = rows[0];
+    if (user && user.is_active) req.user = user;
+  } catch {
+    // Expired, invalid, or DB error — continue as unauthenticated
+  }
+  next();
+};
+
 module.exports = {
   generateTokens,
   authenticate,
+  optionalAuth,
   requireRole,
   requireTier,
   requireActiveSubscription,
