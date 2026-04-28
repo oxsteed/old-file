@@ -1,0 +1,302 @@
+/* Product Image Gallery */
+
+.pig-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+/* Main Image Container */
+.pig-main-container {
+  position: relative;
+  width: 100%;
+  background: var(--app-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pig-main-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: zoom-in;
+  background: var(--app-bg);
+}
+
+/* Placeholder */
+.pig-main-placeholder {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--card-bg);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pig-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted-text);
+}
+
+.pig-placeholder-icon {
+  width: 3rem;
+  height: 3rem;
+  opacity: 0.5;
+}
+
+.pig-placeholder-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Navigation Buttons */
+.pig-nav-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.pig-nav-button:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.pig-nav-button:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.pig-nav-prev {
+  left: 0.75rem;
+}
+
+.pig-nav-next {
+  right: 0.75rem;
+}
+
+/* Image Counter */
+.pig-image-counter {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Thumbnails Container */
+.pig-thumbnails-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.pig-thumbnail {
+  position: relative;
+  aspect-ratio: 1;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0;
+  background: var(--app-bg);
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.pig-thumbnail:hover {
+  border-color: #8b5cf6;
+}
+
+.pig-thumbnail-active {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px #8b5cf6;
+}
+
+.pig-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Lightbox Modal */
+.pig-lightbox-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pig-lightbox-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pig-lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: zoom-out;
+}
+
+.pig-lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.pig-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pig-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.pig-lightbox-nav:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pig-lightbox-nav:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.pig-lightbox-prev {
+  left: 1rem;
+}
+
+.pig-lightbox-next {
+  right: 1rem;
+}
+
+.pig-lightbox-counter {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pig-main-container {
+    aspect-ratio: 1;
+  }
+
+  .pig-thumbnails-container {
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .pig-nav-button {
+    padding: 0.4rem;
+  }
+
+  .pig-nav-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .pig-lightbox-nav {
+    padding: 0.5rem;
+  }
+
+  .pig-lightbox-nav svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .pig-lightbox-close svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pig-thumbnails-container {
+    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+  }
+
+  .pig-image-counter {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .pig-lightbox-counter {
+    font-size: 0.8rem;
+  }
+}

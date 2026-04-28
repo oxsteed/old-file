@@ -1,0 +1,380 @@
+/* Related Products Section Container */
+.rps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Section styling */
+.rps-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rps-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0;
+}
+
+/* Scroll container for mobile, grid for desktop */
+.rps-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.rps-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.rps-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rps-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.rps-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-text);
+}
+
+/* Products grid */
+.rps-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Product card */
+.rps-product-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.rps-product-card:hover {
+  border-color: #8b5cf6;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Card image */
+.rps-card-image {
+  width: 100%;
+  height: 120px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--app-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rps-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.rps-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-text);
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* Card content */
+.rps-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rps-product-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Rating */
+.rps-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+}
+
+.rps-stars {
+  display: flex;
+  gap: 0.1rem;
+}
+
+.rps-star {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  line-height: 1;
+}
+
+.rps-star-full {
+  color: #fbbf24;
+}
+
+.rps-star-half {
+  color: #fbbf24;
+  opacity: 0.6;
+}
+
+.rps-star-empty {
+  color: var(--border-color);
+}
+
+.rps-rating-text {
+  color: var(--muted-text);
+  font-size: 0.7rem;
+}
+
+/* Price */
+.rps-product-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #8b5cf6;
+  margin: 0;
+}
+
+/* Add to cart button */
+.rps-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.rps-add-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.rps-add-btn:active {
+  transform: translateY(0);
+}
+
+.rps-add-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Loading state */
+.rps-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--muted-text);
+}
+
+.rps-spinner {
+  animation: spin 1s linear infinite;
+  color: #8b5cf6;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Skeleton loading */
+.rps-skeleton {
+  opacity: 0.6;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.rps-skeleton-image {
+  background: var(--app-bg);
+}
+
+.rps-skeleton-text {
+  height: 0.75rem;
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.rps-skeleton-title {
+  height: 1rem;
+}
+
+.rps-skeleton-rating {
+  width: 80%;
+  height: 0.5rem;
+}
+
+.rps-skeleton-price {
+  width: 60%;
+  height: 1rem;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Desktop grid layout */
+@media (min-width: 769px) {
+  .rps-products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .rps-product-card {
+    min-width: 160px;
+    padding: 1rem;
+  }
+
+  .rps-card-image {
+    height: 140px;
+  }
+
+  .rps-product-name {
+    font-size: 0.9rem;
+  }
+
+  .rps-product-price {
+    font-size: 1.1rem;
+  }
+}
+
+/* Tablet layout */
+@media (max-width: 768px) {
+  .rps-container {
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .rps-section-title {
+    font-size: 1.1rem;
+  }
+
+  .rps-products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .rps-product-card {
+    min-width: 130px;
+    padding: 0.6rem;
+  }
+
+  .rps-card-image {
+    height: 110px;
+  }
+}
+
+/* Mobile layout - horizontal scroll */
+@media (max-width: 480px) {
+  .rps-container {
+    gap: 1rem;
+    padding-top: 1rem;
+    margin-top: 1rem;
+  }
+
+  .rps-section-title {
+    font-size: 1rem;
+    padding: 0 1rem;
+  }
+
+  .rps-scroll-container {
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
+
+  .rps-products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .rps-product-card {
+    min-width: 120px;
+    padding: 0.5rem;
+  }
+
+  .rps-card-image {
+    height: 100px;
+  }
+
+  .rps-product-name {
+    font-size: 0.8rem;
+  }
+
+  .rps-product-price {
+    font-size: 0.95rem;
+  }
+
+  .rps-add-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  .rps-add-btn span {
+    display: none;
+  }
+
+  .rps-add-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+}

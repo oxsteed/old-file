@@ -31,6 +31,13 @@ export const marketplaceApi = {
   getCategories: () => api.get('/marketplace/products/categories'),
 
   syncFromHomeDepot: () => api.post('/marketplace/products/sync-homedepot'),
+
+  // Product reviews
+  getProductReviews: (productId, page = 1) =>
+    api.get(`/marketplace/products/${productId}/reviews?page=${page}&limit=5`),
+
+  submitProductReview: (productId, data) =>
+    api.post(`/marketplace/products/${productId}/reviews`, data),
 };
 
 export const cartApi = {
