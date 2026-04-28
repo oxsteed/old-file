@@ -108,6 +108,7 @@ export default function Footer() {
               <FooterLink to="/how-it-works">{t('footer.howItWorks')}</FooterLink>
               <FooterLink to="/about">{t('footer.about')}</FooterLink>
               <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
+              <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>
             </div>
             {user && (user.role === 'helper' || user.role === 'helper_pro' || user.role === 'broker') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
