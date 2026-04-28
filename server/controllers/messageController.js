@@ -4,6 +4,7 @@ const logger        = require('../utils/logger');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { sendNotification } = require('../services/notificationService');
 const { uploadFile, getSignedDownloadUrl, getPublicUrl } = require('../utils/storage');
+const { withTransaction } = require('../utils/transaction');
 
 /**
  * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
@@ -480,52 +481,72 @@ const sendMessage = async (req, res) => {
     // Sanitize message to prevent XSS
     const content = sanitizeMessage(rawContent);
 
-    // Verify user is part of conversation (direct participant or active business rep)
-    const conv = await pool.query(
-      `SELECT c.customer_id, c.helper_id, c.business_id, b.business_name
-       FROM conversations c
-       LEFT JOIN businesses b ON b.id = c.business_id AND b.is_active = TRUE
-       WHERE c.id = $1 AND (
-         c.customer_id = $2
-         OR c.helper_id = $2
-         OR (c.business_id IS NOT NULL AND EXISTS(
-           SELECT 1 FROM business_members bm
-           WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
-         ))
-       )`,
-      [conversationId, userId]
-    );
-    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+    // Send message atomically with race condition prevention
+    const { messagePayload, conv } = await withTransaction(pool, async (client) => {
+      // Verify user is part of conversation (direct participant or active business rep)
+      const convResult = await client.query(
+        `SELECT c.customer_id, c.helper_id, c.business_id, b.business_name
+         FROM conversations c
+         LEFT JOIN businesses b ON b.id = c.business_id AND b.is_active = TRUE
+         WHERE c.id = $1 AND (
+           c.customer_id = $2
+           OR c.helper_id = $2
+           OR (c.business_id IS NOT NULL AND EXISTS(
+             SELECT 1 FROM business_members bm
+             WHERE bm.business_id = c.business_id AND bm.member_id = $2 AND bm.status = 'active'
+           ))
+         )`,
+        [conversationId, userId]
+      );
 
-    const result = await pool.query(
-      'INSERT INTO messages (conversation_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *',
-      [conversationId, userId, content]
-    );
+      if (convResult.rows.length === 0) {
+        const err = new Error('Access denied');
+        err.status = 403;
+        throw err;
+      }
 
-    // Update conversation last_message_at
-    await pool.query(
-      'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
-      [conversationId]
-    );
+      const conv = convResult.rows[0];
+
+      // Insert message
+      const msgResult = await client.query(
+        'INSERT INTO messages (conversation_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *',
+        [conversationId, userId, content]
+      );
+
+      if (!msgResult.rows.length) {
+        throw new Error('Failed to create message');
+      }
+
+      // Update conversation last_message_at (atomic within transaction)
+      await client.query(
+        'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1',
+        [conversationId]
+      );
+
+      return { messagePayload: msgResult.rows[0], conv };
+    }, 'send_message');
+
+    if (!messagePayload) {
+      return res.status(500).json({ error: 'Failed to send message' });
+    }
 
     // When messaging in a business-context conversation, the sender appears as the business
     // (applies to the owner AND any active representatives)
-    const { business_id, business_name } = conv.rows[0];
+    const { business_id, business_name, customer_id, helper_id } = conv;
     const senderName = (business_id && business_name)
       ? business_name
       : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim();
-    const messagePayload = { ...result.rows[0], sender_name: senderName };
+    const fullMessagePayload = { ...messagePayload, sender_name: senderName };
 
     // Broadcast to the conversation room — both participants see it in real-time
     // if they currently have the thread open.
     socketService.broadcastToConversation(conversationId, 'message:new', {
       conversationId,
-      message: messagePayload,
+      message: fullMessagePayload,
     });
 
     // Notify the appropriate recipient(s) via their personal room so inbox pages
     // update even when they're not currently in the conversation thread.
-    const { customer_id, helper_id } = conv.rows[0];
 
     // Collect all active rep IDs for this business conversation
     let repIds = [];
@@ -540,20 +561,20 @@ const sendMessage = async (req, res) => {
 
     if (userId === customer_id) {
       // Customer sent — notify the helper/owner
-      socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: messagePayload });
+      socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: fullMessagePayload });
     } else if (userId === helper_id) {
       // Owner sent — notify the customer
-      socketService.broadcastToUser(customer_id, 'message:new', { conversationId, message: messagePayload });
+      socketService.broadcastToUser(customer_id, 'message:new', { conversationId, message: fullMessagePayload });
     } else {
       // Rep sent — notify the customer; also ping the owner so they see it in their inbox
-      socketService.broadcastToUser(customer_id, 'message:new', { conversationId, message: messagePayload });
-      socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: messagePayload });
+      socketService.broadcastToUser(customer_id, 'message:new', { conversationId, message: fullMessagePayload });
+      socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: fullMessagePayload });
     }
 
     // Notify all other active reps so their inbox refreshes in real time
     for (const repId of repIds) {
       if (repId !== helper_id) { // owner already notified above
-        socketService.broadcastToUser(repId, 'message:new', { conversationId, message: messagePayload });
+        socketService.broadcastToUser(repId, 'message:new', { conversationId, message: fullMessagePayload });
       }
     }
 
@@ -620,8 +641,11 @@ const sendMessage = async (req, res) => {
       }
     });
 
-    res.status(201).json(messagePayload);
+    res.status(201).json(fullMessagePayload);
   } catch (error) {
+    if (error.status === 403) {
+      return res.status(403).json({ error: error.message });
+    }
     logger.error('Error sending message', { err: error.message });
     res.status(500).json({ error: 'Failed to send message' });
   }
