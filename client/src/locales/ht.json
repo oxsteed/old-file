@@ -4932,18 +4932,18 @@
     "reviewTextPlaceholder": "Pataje eksperyans ou ak pwodwi sa a...",
     "reviewSubmittedSuccess": "Revizyon soumis avek siksè",
     "noReviews": "Okenn revizyon ankò",
-    "sort": {
+    "previousImage": "Imaj anvan",
+    "nextImage": "Imaj suivan",
+    "closeLightbox": "Fèmen lightbox",
+    "slideOf": "Glisad {{current}} sou {{total}}",
+    "noImageAvailable": "Imaj pa disponib",
+    "sortOptions": {
       "bestMatch": "Konjesyon Meyè",
       "lowestPrice": "Pri Ki Pi Ba",
       "highestPrice": "Pri Ki Pi Wo",
       "topRated": "Meyè Klasman",
       "mostPopular": "Ki Pi Popile",
       "newest": "Ki Pi Nouvo"
-    },
-    "previousImage": "Imaj anvan",
-    "nextImage": "Imaj suivan",
-    "closeLightbox": "Fèmen lightbox",
-    "slideOf": "Glisad {{current}} sou {{total}}",
-    "noImageAvailable": "Imaj pa disponib"
+    }
   }
 }
