@@ -5,7 +5,7 @@ const getToolReviews = async (req, res) => {
   try {
     const { toolId } = req.params;
     const result = await db.query(
-      `SELECT tr.*, u.first_name, u.last_name, u.avatar_url
+      `SELECT tr.*, u.first_name, u.last_name, u.profile_photo_url
        FROM tool_reviews tr
        JOIN users u ON tr.user_id = u.id
        WHERE tr.tool_id = $1
