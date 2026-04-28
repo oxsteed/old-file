@@ -2,6 +2,7 @@ const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
 const { logAdminAction }    = require('../services/auditService');
 const logger                = require('../utils/logger');
+const { withTransaction }   = require('../utils/transaction');
 
 // ─── LIST ALL DISPUTES (Admin) ────────────────────────────────
 exports.getAllDisputes = async (req, res) => {
@@ -81,42 +82,52 @@ exports.resolveDispute = async (req, res) => {
       return res.status(400).json({ error: 'Resolution is required.' });
     }
 
-    // Verify dispute exists and is not already resolved
-    const { rows: disputeRows } = await db.query(
-      'SELECT * FROM disputes WHERE id = $1 AND status != $2',
-      [disputeId, 'resolved']
-    );
+    // Resolve dispute atomically with escrow updates
+    const dispute = await withTransaction(db, async (client) => {
+      // Lock dispute row to prevent concurrent resolution
+      const { rows: disputeRows } = await client.query(
+        'SELECT * FROM disputes WHERE id = $1 FOR UPDATE',
+        [disputeId]
+      );
 
-    if (!disputeRows.length) {
-      return res.status(404).json({
-        error: 'Dispute not found or already resolved.'
-      });
-    }
+      if (!disputeRows.length) {
+        const err = new Error('Dispute not found');
+        err.status = 404;
+        throw err;
+      }
 
-    const dispute = disputeRows[0];
+      const dispute = disputeRows[0];
 
-    // Update dispute (with status check to prevent double-resolution race condition)
-    const { rowCount } = await db.query(`
-      UPDATE disputes
-      SET status = 'resolved',
-          resolution = $1,
-          admin_notes = $2,
-          resolved_by = $3,
-          resolved_at = NOW()
-      WHERE id = $4 AND status != 'resolved'
-    `, [resolution, notes, adminId, disputeId]);
+      // Verify not already resolved (after lock)
+      if (dispute.status === 'resolved') {
+        const err = new Error('Dispute has already been resolved.');
+        err.status = 409;
+        throw err;
+      }
 
-    if (rowCount === 0) {
-      return res.status(409).json({
-        error: 'Dispute has already been resolved by another admin.'
-      });
-    }
+      // Update dispute status
+      const { rows: updateRows } = await client.query(`
+        UPDATE disputes
+        SET status = 'resolved',
+            resolution = $1,
+            admin_notes = $2,
+            resolved_by = $3,
+            resolved_at = NOW()
+        WHERE id = $4 AND status != 'resolved'
+        RETURNING *
+      `, [resolution, notes, adminId, disputeId]);
 
-    // RELEASE ESCROW HOLD if dispute resolved in favor of helper
-    try {
-      const { rows: paymentRows } = await db.query(`
-        SELECT id FROM payments
+      if (!updateRows.length) {
+        throw new Error('Dispute state changed during resolution');
+      }
+
+      const resolvedDispute = updateRows[0];
+
+      // RELEASE ESCROW HOLD (atomic within transaction with lock)
+      const { rows: paymentRows } = await client.query(`
+        SELECT id, escrow_status FROM payments
         WHERE job_id = $1 AND escrow_status = 'disputed'
+        FOR UPDATE
         LIMIT 1
       `, [dispute.job_id]);
 
@@ -124,10 +135,10 @@ exports.resolveDispute = async (req, res) => {
         const payment = paymentRows[0];
 
         // Determine escrow status based on resolution
-        // 'helper_at_fault' → refund customer (no_escrow)
-        // 'customer_at_fault' → release to helper (released)
-        // 'split' → handle split refund (released with note)
-        let newEscrowStatus = 'released'; // default: release to helper
+        // 'refund_customer' / 'customer_wins' → refund to customer
+        // 'split_resolution' → split refund
+        // default → release to helper
+        let newEscrowStatus = 'released';
 
         if (resolution === 'refund_customer' || resolution === 'customer_wins') {
           newEscrowStatus = 'refunded';
@@ -135,26 +146,28 @@ exports.resolveDispute = async (req, res) => {
           newEscrowStatus = 'split_refund';
         }
 
-        await db.query(
-          `UPDATE payments SET escrow_status = $1, updated_at = NOW() WHERE id = $2`,
+        // Update escrow with safeguard
+        const { rows: escrowUpdateRows } = await client.query(
+          `UPDATE payments SET escrow_status = $1, updated_at = NOW() WHERE id = $2 AND escrow_status = 'disputed' RETURNING id`,
           [newEscrowStatus, payment.id]
         );
 
-        // Log to audit trail
-        await db.query(`
-          INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-          VALUES (NULL, 'dispute_escrow_release', 0, $1, $2)
-        `, [
-          `Dispute #${dispute.id} resolved - escrow released as ${newEscrowStatus}`,
-          JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, resolution, job_id: dispute.job_id })
-        ]).catch(err => logger.error('Failed to log escrow release', { err }));
+        if (escrowUpdateRows.length > 0) {
+          // Log to audit trail
+          await client.query(`
+            INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+            VALUES (NULL, 'dispute_escrow_release', 0, $1, $2)
+          `, [
+            `Dispute #${dispute.id} resolved - escrow released as ${newEscrowStatus}`,
+            JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, resolution, job_id: dispute.job_id })
+          ]).catch(err => logger.error('Failed to log escrow release', { err }));
+        }
       }
-    } catch (releaseErr) {
-      logger.error('Failed to release escrow on dispute resolution', { disputeId, err: releaseErr });
-      // Don't fail the dispute resolution if release fails
-    }
 
-    // Log admin action
+      return resolvedDispute;
+    }, 'resolve_dispute');
+
+    // Log and notify AFTER transaction commits
     try {
       await logAdminAction({
         adminId,
@@ -167,7 +180,6 @@ exports.resolveDispute = async (req, res) => {
       logger.error('Failed to log admin action', { err: logErr });
     }
 
-    // Notify the dispute opener
     try {
       if (dispute.opened_by) {
         await sendNotification({
@@ -187,6 +199,12 @@ exports.resolveDispute = async (req, res) => {
       dispute: { id: disputeId, status: 'resolved', resolution }
     });
   } catch (err) {
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.status === 409) {
+      return res.status(409).json({ error: err.message });
+    }
     logger.error('Resolve dispute error', { err });
     res.status(500).json({ error: 'Failed to resolve dispute' });
   }
@@ -240,25 +258,43 @@ exports.startReview = async (req, res) => {
     const { disputeId } = req.params;
     const adminId = req.user.id;
 
-    // Verify dispute exists and is in 'open' status
-    const { rows: disputeRows } = await db.query(
-      'SELECT * FROM disputes WHERE id = $1 AND status = $2',
-      [disputeId, 'open']
-    );
+    // Perform status transition atomically with race condition prevention
+    const dispute = await withTransaction(db, async (client) => {
+      // Lock and fetch dispute in 'open' status
+      const { rows: disputeRows } = await client.query(
+        'SELECT * FROM disputes WHERE id = $1 FOR UPDATE',
+        [disputeId]
+      );
 
-    if (!disputeRows.length) {
-      return res.status(404).json({
-        error: 'Dispute not found or not in open status.'
-      });
-    }
+      if (!disputeRows.length) {
+        const err = new Error('Dispute not found');
+        err.status = 404;
+        throw err;
+      }
 
-    // Update status to under_review
-    await db.query(
-      `UPDATE disputes SET status = 'under_review', reviewed_at = NOW() WHERE id = $1`,
-      [disputeId]
-    );
+      const dispute = disputeRows[0];
 
-    // Log admin action
+      // Verify status is 'open' (atomic check after lock)
+      if (dispute.status !== 'open') {
+        const err = new Error(`Dispute is in '${dispute.status}' status and cannot be moved to review.`);
+        err.status = 409;
+        throw err;
+      }
+
+      // Update status to under_review (atomic within transaction)
+      const { rows: updateRows } = await client.query(
+        `UPDATE disputes SET status = 'under_review', reviewed_at = NOW() WHERE id = $1 AND status = 'open' RETURNING *`,
+        [disputeId]
+      );
+
+      if (!updateRows.length) {
+        throw new Error('Dispute state changed during update');
+      }
+
+      return updateRows[0];
+    }, 'start_dispute_review');
+
+    // Log and notify AFTER transaction commits
     try {
       await logAdminAction({
         adminId,
@@ -271,9 +307,7 @@ exports.startReview = async (req, res) => {
       logger.error('Failed to log admin action', { err: logErr });
     }
 
-    // Notify the dispute opener
     try {
-      const dispute = disputeRows[0];
       if (dispute.opened_by) {
         await sendNotification({
           userId: dispute.opened_by,
@@ -292,6 +326,12 @@ exports.startReview = async (req, res) => {
       dispute: { id: disputeId, status: 'under_review' }
     });
   } catch (err) {
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.status === 409) {
+      return res.status(409).json({ error: err.message });
+    }
     logger.error('Start review error', { err });
     res.status(500).json({ error: 'Failed to start dispute review.' });
   }

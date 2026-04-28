@@ -1,6 +1,7 @@
 const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
 const logger                = require('../utils/logger');
+const { withTransaction }   = require('../utils/transaction');
 
 const DISPUTE_REASONS = [
   'work_not_completed',
@@ -44,19 +45,7 @@ exports.openDispute = async (req, res) => {
       });
     }
 
-    // Check no existing open dispute for this job
-    const { rows: existRows } = await db.query(
-      `SELECT id FROM disputes WHERE job_id = $1 AND status NOT IN ('resolved','closed')`,
-      [jobId]
-    );
-
-    if (existRows.length) {
-      return res.status(409).json({
-        error: 'A dispute is already open for this job.'
-      });
-    }
-
-    // Get user name for the opened_by_name field
+    // Get user name (outside transaction for single query)
     const { rows: userRows } = await db.query(
       'SELECT first_name, last_name FROM users WHERE id = $1',
       [userId]
@@ -68,25 +57,55 @@ exports.openDispute = async (req, res) => {
     // Determine role from user record
     const openedByRole = req.user.role === 'helper' ? 'helper' : 'customer';
 
-    // Create dispute
-    const { rows: disputeRows } = await db.query(`
-      INSERT INTO disputes (
-        job_id, job_type, opened_by, opened_by_name,
-        opened_by_role, reason, description, status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,'open')
-      RETURNING *
-    `, [
-      jobId, job_type || 'standard', userId, userName,
-      openedByRole, reason, description.trim()
-    ]);
+    // Create dispute atomically with race condition prevention
+    const dispute = await withTransaction(db, async (client) => {
+      // Lock the job row to prevent concurrent disputes
+      const { rows: jobLockRows } = await client.query(
+        'SELECT id FROM jobs WHERE id = $1 FOR UPDATE',
+        [jobId]
+      );
 
-    const dispute = disputeRows[0];
+      if (!jobLockRows.length) {
+        const err = new Error('Job not found');
+        err.status = 404;
+        throw err;
+      }
 
-    // HOLD ESCROW FUNDS if job has pending escrow payment
-    try {
-      const { rows: paymentRows } = await db.query(`
+      // Check for existing disputes AFTER locking
+      const { rows: existRows } = await client.query(
+        `SELECT id FROM disputes WHERE job_id = $1 AND status NOT IN ('resolved','closed')`,
+        [jobId]
+      );
+
+      if (existRows.length) {
+        const err = new Error('A dispute is already open for this job.');
+        err.status = 409;
+        throw err;
+      }
+
+      // Create dispute
+      const { rows: disputeRows } = await client.query(`
+        INSERT INTO disputes (
+          job_id, job_type, opened_by, opened_by_name,
+          opened_by_role, reason, description, status
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,'open')
+        RETURNING *
+      `, [
+        jobId, job_type || 'standard', userId, userName,
+        openedByRole, reason, description.trim()
+      ]);
+
+      if (!disputeRows.length) {
+        throw new Error('Failed to create dispute');
+      }
+
+      const dispute = disputeRows[0];
+
+      // HOLD ESCROW FUNDS if job has pending escrow payment (atomic within transaction)
+      const { rows: paymentRows } = await client.query(`
         SELECT id, status, escrow_status FROM payments
         WHERE job_id = $1 AND status IN ('authorized', 'captured')
+        FOR UPDATE
         LIMIT 1
       `, [jobId]);
 
@@ -95,27 +114,28 @@ exports.openDispute = async (req, res) => {
 
         // Only hold if not already held/disputed
         if (payment.escrow_status !== 'disputed' && payment.escrow_status !== 'held') {
-          await db.query(
-            `UPDATE payments SET escrow_status = $1, updated_at = NOW() WHERE id = $2`,
+          const { rows: updateRows } = await client.query(
+            `UPDATE payments SET escrow_status = $1, updated_at = NOW() WHERE id = $2 AND escrow_status NOT IN ('disputed', 'held') RETURNING id`,
             ['disputed', payment.id]
           );
 
-          // Log to audit trail
-          await db.query(`
-            INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-            VALUES (NULL, 'dispute_escrow_hold', 0, $1, $2)
-          `, [
-            `Dispute #${dispute.id} opened - escrow hold on payment ${payment.id}`,
-            JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, job_id: jobId })
-          ]).catch(err => logger.error('Failed to log escrow hold', { err }));
+          if (updateRows.length > 0) {
+            // Log to audit trail (non-critical)
+            await client.query(`
+              INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
+              VALUES (NULL, 'dispute_escrow_hold', 0, $1, $2)
+            `, [
+              `Dispute #${dispute.id} opened - escrow hold on payment ${payment.id}`,
+              JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, job_id: jobId })
+            ]).catch(err => logger.error('Failed to log escrow hold', { err }));
+          }
         }
       }
-    } catch (holdErr) {
-      logger.error('Failed to hold escrow on dispute', { jobId, disputeId: dispute.id, err: holdErr });
-      // Don't fail the dispute creation if hold fails
-    }
 
-    // Notify admins — fetch all admin user IDs and notify each
+      return dispute;
+    }, 'open_dispute');
+
+    // Notify admins AFTER successful dispute creation (outside transaction)
     try {
       const { rows: adminRows } = await db.query(
         `SELECT id FROM users WHERE role IN ('admin', 'super_admin') AND is_active = true`
@@ -133,6 +153,7 @@ exports.openDispute = async (req, res) => {
       );
     } catch (notifErr) {
       logger.error('Failed to send dispute notification:', notifErr);
+      // Don't fail the response if notifications fail
     }
 
     res.status(201).json({
@@ -140,6 +161,12 @@ exports.openDispute = async (req, res) => {
       message: 'Dispute opened successfully.'
     });
   } catch (err) {
+    if (err.status === 409) {
+      return res.status(409).json({ error: err.message });
+    }
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
     logger.error('openDispute error:', err);
     res.status(500).json({ error: 'Failed to open dispute.' });
   }
