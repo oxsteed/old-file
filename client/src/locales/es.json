@@ -4221,6 +4221,127 @@
         "next": "Siguiente",
         "submit": "Enviar y Comenzar",
         "submitting": "Enviando..."
+      },
+      "businessPhases": {
+        "phase1": "Claridad de Habilidad",
+        "phase2": "Selección de Oferta",
+        "phase3": "Definición de Cliente",
+        "phase4": "Configuración de Precios",
+        "phase5": "Decisión de Nombre Empresarial",
+        "phase6": "Registro de Dominio",
+        "phase7": "Kit de Marca Inicial",
+        "phase8": "Configuración de Email Empresarial",
+        "phase9": "Configuración de Número Telefónico",
+        "phase10": "Configuración de Dirección Empresarial",
+        "phase11": "Presentación de LLC o Entidad",
+        "phase12": "Registro de EIN",
+        "phase13": "Carpeta de Documentos Operacionales",
+        "phase14": "Cuenta Bancaria Empresarial",
+        "phase15": "Configuración de Procesador de Pagos",
+        "phase16": "Sistema de Contabilidad Inicial",
+        "phase17": "Lanzamiento de Sitio Web",
+        "phase18": "Formulario de Contacto y Captura de Leads",
+        "phase19": "Sistema de Programación",
+        "phase20": "Plantillas de Acuerdos de Servicios",
+        "phase21": "Flujo de Trabajo de Admisión de Clientes",
+        "phase22": "Configuración de Prueba Social",
+        "phase23": "Google Business y Listados en Línea",
+        "phase24": "Sistema de Alcance de Lanzamiento",
+        "phase25": "Sistema Operativo del Primer Cliente",
+        "selectPhase": "Selecciona una fase",
+        "phaseLabel": "Fase {{id}} – {{name}}"
+      },
+      "formFields": {
+        "emailLabel": "Correo electrónico *",
+        "firstNameLabel": "Nombre *",
+        "lastNameLabel": "Apellido *",
+        "phoneLabel": "Número de Teléfono *",
+        "businessNameLabel": "Nombre del Negocio",
+        "businessNameRequiredLabel": "¿Cuál es? *",
+        "preferredBusinessNamePlaceholder": "Ingresa el nombre preferido de tu negocio",
+        "countryLabel": "¿En qué país operará este negocio? *",
+        "selectCountry": "Selecciona un país",
+        "cityLabel": "Ciudad",
+        "selectRegion": "Selecciona {{regionLabel}}"
+      },
+      "revenueOptions": {
+        "no": "No, aún no",
+        "informal": "Sí, informalmente (efectivo/Venmo)",
+        "formal": "Sí, tengo clientes pagadores"
+      },
+      "businessNameOptions": {
+        "yes": "Sí",
+        "no": "No, necesito ayuda eligiendo uno"
+      },
+      "urgencyOptions": {
+        "exploring": "Solo explorando",
+        "twoWeeks": "Listo para comenzar dentro de 2 semanas",
+        "asap": "Necesito esto hecho lo antes posible"
+      },
+      "setupItems": {
+        "groupBusinessFormation": "Formación Empresarial",
+        "groupDigitalIdentity": "Identidad Digital",
+        "groupOnlinePresence": "Presencia en Línea",
+        "groupBusinessOperations": "Operaciones Empresariales",
+        "groupLaunchSupport": "Apoyo de Lanzamiento",
+        "selectAllLabel": "Seleccionar Todo ({{selected}} / {{total}} elementos)"
+      },
+      "packageDetails": {
+        "initial": {
+          "name": "Consulta Inicial",
+          "price": "$100",
+          "timeline": "Hasta 2 horas",
+          "forWho": "Personas que desean explorar si un programa de asesoría es apropiado",
+          "features": ["Llamada de estrategia profunda (hasta 2 horas)", "Evaluación empresarial y auditoría de oportunidades", "Hoja de ruta de implementación y cronograma", "Recomendación personalizada para próximos pasos", "Preguntas y respuestas sobre tu situación específica"]
+        },
+        "foundation": {
+          "name": "Cimiento Empresarial",
+          "price": "$750",
+          "timeline": "1–2 semanas",
+          "forWho": "Personas que solo necesitan la capa legal e identidad configurada",
+          "features": ["Orientación de nombre empresarial", "Registro de dominio", "Configuración de email profesional", "Número telefónico empresarial", "Configuración de dirección empresarial", "Orientación de presentación LLC + soporte EIN", "Carpeta de documentos organizada"]
+        },
+        "launch": {
+          "name": "Lanzamiento Empresarial",
+          "price": "$1,500",
+          "timeline": "2–3 semanas",
+          "forWho": "Personas que desean una presencia comercial completamente operativa",
+          "popular": true,
+          "features": ["Todo en Cimiento más:", "Logo y kit de marca básico", "Sitio web de 4 páginas (Inicio, Servicios, Acerca de, Contacto)", "Formulario de contacto y captura de leads", "Configuración de programación en línea", "Configuración de procesador de pagos", "Plantilla de factura", "Lista de verificación de lanzamiento y revisión de puesta en funcionamiento"]
+        },
+        "accelerator": {
+          "name": "Acelerador Empresarial",
+          "price": "$3,000",
+          "timeline": "3–4 semanas",
+          "forWho": "Personas que desean que todo esté hecho y un sistema para crecer",
+          "features": ["Todo en Lanzamiento más:", "Configuración de Perfil Google Business", "Reserva de identificador de redes sociales", "Flujo de trabajo de admisión de clientes", "Sistema de contabilidad inicial", "Sistema de solicitud de referencias", "Configuración de listados en línea", "Llamada de seguimiento post-lanzamiento de 30 días", "Plantillas de alcance del primer cliente"]
+        },
+        "mostPopular": "MÁS POPULAR",
+        "timeline": "Cronograma:",
+        "bestFor": "Mejor para:",
+        "helperText": "¿No estás seguro de qué paquete se ajusta? Selecciona el que parezca más cercano y confirmaremos el ajuste correcto durante tu llamada de inicio. Todos los paquetes incluyen una llamada de inicio de 30 minutos."
+      },
+      "confirmation": {
+        "yourInformation": "Tu Información",
+        "name": "Nombre:",
+        "email": "Correo electrónico:",
+        "phone": "Teléfono:",
+        "howYouHeard": "Cómo te enteraste de nosotros:",
+        "skill": "Habilidad:",
+        "targetMarket": "Mercado Objetivo:",
+        "businessName": "Nombre del Negocio:",
+        "country": "País:",
+        "notYetDecided": "Aún no decidido",
+        "selectedPackage": "Paquete Seleccionado:",
+        "urgency": "Urgencia:",
+        "setupItems": "Elementos de Configuración:",
+        "allItems": "Todos los elementos",
+        "showingFirstFive": "{{count}} elementos (mostrando los primeros 5):",
+        "showingItems": "{{count}} elementos:",
+        "whatHappensNext": "Qué Sucede Después",
+        "nextSteps": ["Revisamos tu solicitud (generalmente dentro de 24 horas)", "Recibirás un enlace de programación para reservar tu llamada de inicio", "Te enviamos un cuestionario previo al inicio para completar", "Tu trabajo de configuración comienza después de la llamada de inicio"],
+        "importantDisclaimer": "Importante: OxSteed Business Launch proporciona solo soporte de implementación de configuración empresarial. No proporcionamos asesoramiento legal, fiscal o financiero. Para preguntas relacionadas con la selección de entidades legales, obligaciones fiscales o asuntos financieros regulados, consulta a un profesional autorizado.",
+        "packageHelper": "¿No estás seguro de qué paquete se ajusta? Selecciona el que parezca más cercano y confirmaremos el ajuste correcto durante tu llamada de inicio."
       }
     },
     "email": "Correo electrónico",
