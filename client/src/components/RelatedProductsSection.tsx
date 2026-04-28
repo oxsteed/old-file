@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { marketplaceApi } from '../api/marketplaceApi';
+import { renderStarsAsSpans } from '../utils/renderStars';
 import '../styles/RelatedProductsSection.css';
 
 interface RelatedProduct {
@@ -90,22 +91,7 @@ export default function RelatedProductsSection({
   };
 
   const renderStars = (rating: number) => {
-    if (!rating) return null;
-    const stars = [];
-    const roundedRating = Math.round(rating * 2) / 2;
-    for (let i = 1; i <= 5; i++) {
-      const fill =
-        i <= roundedRating ? 'full' : i - roundedRating === 0.5 ? 'half' : 'none';
-      stars.push(
-        <span
-          key={i}
-          className={`rps-star ${fill === 'full' ? 'rps-star-full' : fill === 'half' ? 'rps-star-half' : 'rps-star-empty'}`}
-        >
-          ★
-        </span>
-      );
-    }
-    return stars;
+    return renderStarsAsSpans(rating);
   };
 
   const ProductCard = ({ product }: { product: RelatedProduct }) => (

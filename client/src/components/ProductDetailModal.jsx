@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Star, Loader, ExternalLink } from 'lucide-react';
+import { X, Loader, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { marketplaceApi } from '../api/marketplaceApi';
 import ProductImageGallery from './ProductImageGallery';
 import ProductReviewsSection from './ProductReviewsSection';
 import RelatedProductsSection from './RelatedProductsSection';
+import { renderStarsAsIcons } from '../utils/renderStars';
 import '../styles/ProductDetailModal.css';
 
 export default function ProductDetailModal({ product, onClose, onAddToCart }) {
@@ -57,20 +58,22 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
     }
   };
 
-  const renderStars = (rating) => {
-    const stars = [];
-    const roundedRating = Math.round(rating * 2) / 2;
-    for (let i = 1; i <= 5; i++) {
-      const fill = i <= roundedRating ? 'full' : i - roundedRating === 0.5 ? 'half' : 'none';
-      stars.push(
-        <Star
-          key={i}
-          size={16}
-          className={`pdm-star ${fill === 'full' ? 'pdm-star-full' : fill === 'half' ? 'pdm-star-half' : 'pdm-star-empty'}`}
-        />
-      );
+  const handleAddRelatedToCart = (productId, quantity) => {
+    if (onAddToCart) {
+      onAddToCart(productId, quantity);
     }
-    return stars;
+  };
+
+  const handleOpenRelatedProduct = (relatedProduct) => {
+    setSelectedRelatedProduct(relatedProduct);
+  };
+
+  const handleCloseRelatedProduct = () => {
+    setSelectedRelatedProduct(null);
+  };
+
+  const renderStars = (rating) => {
+    return renderStarsAsIcons(rating, 16, 'pdm-star');
   };
 
   const handleReviewSubmitted = () => {
@@ -119,6 +122,17 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
   const reviewCount = fullProduct.review_count || 0;
   const cartsCount = fullProduct.in_carts_count || 0;
   const hasAffiliateLink = !!fullProduct.external_id;
+
+  // If a related product is selected, show its detail modal instead
+  if (selectedRelatedProduct) {
+    return (
+      <ProductDetailModal
+        product={selectedRelatedProduct}
+        onClose={handleCloseRelatedProduct}
+        onAddToCart={handleAddRelatedToCart}
+      />
+    );
+  }
 
   return (
     <div className="pdm-overlay" onClick={onClose}>
@@ -256,6 +270,15 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
                 {t('marketplace.addToCart')}
               </button>
             </div>
+
+            {/* Related Products Section */}
+            {fullProduct.id && (
+              <RelatedProductsSection
+                productId={fullProduct.id}
+                onAddToCart={handleAddRelatedToCart}
+                onOpenDetail={handleOpenRelatedProduct}
+              />
+            )}
 
             {/* Reviews Section */}
             {fullProduct.id && (
