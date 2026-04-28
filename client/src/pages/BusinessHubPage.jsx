@@ -2501,3 +2501,4 @@ function HoursTab({ hours, businessId, onEdit }) {
     </div>
   );
 }
+
