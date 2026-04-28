@@ -4,6 +4,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
+const { withTransaction } = require('../utils/transaction');
 
 async function getPlansActiveColumn() {
   const { rows } = await db.query(
@@ -66,12 +67,25 @@ exports.createCheckout = async (req, res) => {
     if (!plans.length) return res.status(404).json({ error: 'Plan not found.' });
     const plan = plans[0];
 
-    // Check if user already has active subscription
-    const { rows: existing } = await db.query(
-      'SELECT id FROM subscriptions WHERE user_id = $1 AND status IN ($2, $3)',
-      [userId, 'active', 'trialing']
-    );
-    if (existing.length) return res.status(400).json({ error: 'You already have an active subscription.' });
+    // Atomic check for existing subscription (prevents race conditions)
+    try {
+      await withTransaction(db, async (client) => {
+        const { rows: existing } = await client.query(
+          'SELECT id FROM subscriptions WHERE user_id = $1 AND status IN ($2, $3) FOR UPDATE',
+          [userId, 'active', 'trialing']
+        );
+        if (existing.length) {
+          const err = new Error('You already have an active subscription.');
+          err.status = 400;
+          throw err;
+        }
+      }, 'check_subscription');
+    } catch (checkErr) {
+      if (checkErr.status === 400) {
+        return res.status(400).json({ error: checkErr.message });
+      }
+      throw checkErr;
+    }
 
     // Get or create Stripe customer
     let stripeCustomerId;
@@ -144,52 +158,98 @@ exports.getSubscription = async (req, res) => {
 // Cancel subscription
 exports.cancelSubscription = async (req, res) => {
   try {
-    const { rows } = await db.query(
-      `SELECT stripe_subscription_id FROM subscriptions
-       WHERE user_id = $1 AND status IN ('active', 'trialing')`,
-      [req.user.id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'No active subscription found.' });
+    const userId = req.user.id;
 
-    // ── CHECK FOR OPEN ESCROW FUNDS ──────────────────────────────────────
-    // Helpers cannot cancel Tier 3 subscription while they have escrow funds held
-    const { rows: escrowRows } = await db.query(`
-      SELECT COUNT(*) as count FROM payments
-      WHERE payee_id = $1
-        AND escrow_status IN ('authorized', 'disputed', 'held')
-        AND status IN ('authorized', 'captured')
-    `, [req.user.id]);
+    // Check subscription and escrow atomically with locking
+    const subscription = await withTransaction(db, async (client) => {
+      // Lock user's subscription row to prevent concurrent cancellations
+      const { rows: subRows } = await client.query(
+        `SELECT stripe_subscription_id, id FROM subscriptions
+         WHERE user_id = $1 AND status IN ('active', 'trialing')
+         FOR UPDATE`,
+        [userId]
+      );
 
-    if (escrowRows[0] && parseInt(escrowRows[0].count) > 0) {
-      return res.status(409).json({
-        error: 'Cannot cancel subscription while escrow funds are held',
-        message: 'You have ' + escrowRows[0].count + ' job(s) with pending escrow. Complete or cancel these jobs before downgrading your subscription.',
-        escrow_count: parseInt(escrowRows[0].count)
+      if (!subRows.length) {
+        const err = new Error('No active subscription found');
+        err.status = 404;
+        throw err;
+      }
+
+      const subscription = subRows[0];
+
+      // Verify still not being cancelled (atomic check after lock)
+      if (subscription.cancel_at_period_end === true) {
+        const err = new Error('Subscription cancellation already in progress');
+        err.status = 409;
+        throw err;
+      }
+
+      // ── CHECK FOR OPEN ESCROW FUNDS (atomic within transaction)
+      // Helpers cannot cancel Tier 3 subscription while they have escrow funds held
+      const { rows: escrowRows } = await client.query(`
+        SELECT COUNT(*) as count FROM payments
+        WHERE payee_id = $1
+          AND escrow_status IN ('authorized', 'disputed', 'held')
+          AND status IN ('authorized', 'captured')
+      `, [userId]);
+
+      if (escrowRows[0] && parseInt(escrowRows[0].count) > 0) {
+        const err = new Error(`Cannot cancel subscription while ${escrowRows[0].count} job(s) have pending escrow`);
+        err.status = 409;
+        err.escrow_count = parseInt(escrowRows[0].count);
+        throw err;
+      }
+
+      // Return subscription for Stripe call (outside transaction)
+      return subscription;
+    }, 'cancel_subscription');
+
+    // Call Stripe API OUTSIDE transaction (don't hold DB lock during external API call)
+    let stripeSub;
+    try {
+      stripeSub = await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+        cancel_at_period_end: true,
       });
+    } catch (stripeErr) {
+      logger.error('Stripe subscription cancellation failed', { userId, subscriptionId: subscription.id, error: stripeErr.message });
+      return res.status(402).json({ error: 'Failed to cancel subscription with payment processor' });
     }
 
-    const stripeSub = await stripe.subscriptions.update(rows[0].stripe_subscription_id, {
-      cancel_at_period_end: true,
+    // Update DB with Stripe response (transaction ensures atomicity)
+    const updateResult = await withTransaction(db, async (client) => {
+      const { rows: updateRows } = await client.query(
+        `UPDATE subscriptions
+         SET cancel_at_period_end = TRUE,
+             current_period_end   = TO_TIMESTAMP($2),
+             updated_at           = NOW()
+         WHERE id = $3 AND cancel_at_period_end = FALSE
+         RETURNING id`,
+        [subscription.stripe_subscription_id, stripeSub.current_period_end, subscription.id]
+      );
+
+      if (!updateRows.length) {
+        throw new Error('Subscription state changed during update');
+      }
+
+      return updateRows[0];
+    }, 'update_subscription_cancellation');
+
+    res.json({
+      message: 'Subscription cancellation scheduled successfully.',
+      cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString()
     });
-
-    // Status stays 'active' — access continues until period_end.
-    // The webhook customer.subscription.deleted will flip it to 'cancelled' when Stripe actually ends it.
-    // Safeguard: ensure subscription is still active and not already being cancelled
-    const updateResult = await db.query(
-      `UPDATE subscriptions
-       SET cancel_at_period_end = TRUE,
-           current_period_end   = TO_TIMESTAMP($2),
-           updated_at           = NOW()
-       WHERE stripe_subscription_id = $1 AND cancel_at_period_end = FALSE RETURNING id`,
-      [rows[0].stripe_subscription_id, stripeSub.current_period_end]
-    );
-
-    if (!updateResult.rows.length) {
-      return res.status(409).json({ error: 'Subscription cancellation already in progress. Please try again.' });
-    }
-
-    res.json({ message: 'Subscription cancellation scheduled successfully.', cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString() });
   } catch (err) {
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.status === 409) {
+      const resp = { error: err.message };
+      if (err.escrow_count !== undefined) {
+        resp.escrow_count = err.escrow_count;
+      }
+      return res.status(409).json(resp);
+    }
     logger.error('Cancel subscription error', { userId: req.user?.id, error: err.message });
     res.status(500).json({ error: 'Failed to cancel subscription.' });
   }
