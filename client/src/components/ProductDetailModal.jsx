@@ -4,6 +4,7 @@ import { X, Star, Loader, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { marketplaceApi } from '../api/marketplaceApi';
 import ProductImageGallery from './ProductImageGallery';
+import ProductReviewsSection from './ProductReviewsSection';
 import '../styles/ProductDetailModal.css';
 
 export default function ProductDetailModal({ product, onClose, onAddToCart }) {

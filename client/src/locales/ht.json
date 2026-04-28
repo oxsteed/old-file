@@ -4905,6 +4905,18 @@
     "create": "Kreye",
     "approve": "Apwouve",
     "failedToLoadCart": "Echèk chaje charit pataje",
-    "reviewingCartDescription": "Revize epi apwouve yon charit achè pataje avèk ou"
+    "reviewingCartDescription": "Revize epi apwouve yon charit achè pataje avèk ou",
+    "relatedProducts": "Pwodwi Koneksyon",
+    "frequentlyBoughtTogether": "Souvan Achte Ansanm",
+    "noImage": "Pa Gen Imaj",
+    "reviews": "evalyasyon",
+    "addedToCarts": "Ajoute nan {{count}} charit",
+    "productDetails": "Detay Pwodwi",
+    "sku": "SKU",
+    "upc": "UPC",
+    "source": "Sous",
+    "buyOnHomeDepot": "Achte sou Home Depot",
+    "skills": "Konpetans",
+    "addedToCart": "Ajoute nan charit"
   }
 }
