@@ -348,14 +348,17 @@ export default function ProductMarketplacePage() {
 
                 return (
                 <div key={product.id} className="pmp-product-card">
-                  {product.product_image_url && (
-                    <img
-                      src={product.product_image_url}
-                      alt={product.name}
-                      className="pmp-product-image"
-                      loading="lazy"
-                    />
-                  )}
+                  <div className="pmp-product-image-wrapper">
+                    {product.product_image_url && (
+                      <img
+                        src={product.product_image_url}
+                        alt={product.name}
+                        className="pmp-product-image"
+                        loading="lazy"
+                      />
+                    )}
+                    {isRecommended && <RecommendedBadge />}
+                  </div>
                   <div className="pmp-product-info">
                     <h3 className="pmp-product-name">{product.name}</h3>
                     {product.category && (
