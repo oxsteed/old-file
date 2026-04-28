@@ -982,6 +982,7 @@ exports.deleteUser = async (req, res) => {
         await nullWhere('moderation_queue', 'assigned_to');
         await nullWhere('moderation_queue', 'resolved_by');
         await nullWhere('admin_user_action_log', 'admin_id');
+        await nullWhere('admin_user_action_log', 'target_user_id');
         await nullWhere('admin_audit_log', 'admin_id');
 
         // disputes.payment_id → payments; clear dispute rows before payments
