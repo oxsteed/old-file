@@ -1,22 +1,37 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ShoppingCart, Search, Filter, Loader } from 'lucide-react';
+import { ShoppingCart, Search, Filter, Loader, X } from 'lucide-react';
 import { toast } from 'sonner';
 import PageMeta from '../components/PageMeta';
 import { marketplaceApi, cartApi } from '../api/marketplaceApi';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/ProductMarketplacePage.css';
 
+const SORT_OPTIONS = {
+  best_match: 'Best Match',
+  price_asc: 'Lowest Price',
+  price_desc: 'Highest Price',
+  rating: 'Top Rated',
+  newest: 'Newest',
+  in_carts: 'Popular',
+};
+
 export default function ProductMarketplacePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+
+  // Initialize state from URL params
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSkill, setSelectedSkill] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [selectedSkill, setSelectedSkill] = useState(searchParams.get('skill') || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
+  const [selectedMinPrice, setSelectedMinPrice] = useState(searchParams.get('minPrice') || '');
+  const [selectedMaxPrice, setSelectedMaxPrice] = useState(searchParams.get('maxPrice') || '');
+  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'best_match');
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -24,16 +39,42 @@ export default function ProductMarketplacePage() {
   const [showNewCartModal, setShowNewCartModal] = useState(false);
   const [newCartName, setNewCartName] = useState('');
 
+  // Update URL params whenever filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchQuery) params.set('search', searchQuery);
+    if (selectedSkill) params.set('skill', selectedSkill);
+    if (selectedCategory) params.set('category', selectedCategory);
+    if (selectedMinPrice) params.set('minPrice', selectedMinPrice);
+    if (selectedMaxPrice) params.set('maxPrice', selectedMaxPrice);
+    if (sortBy !== 'best_match') params.set('sortBy', sortBy);
+
+    setSearchParams(params, { replace: true });
+  }, [searchQuery, selectedSkill, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy, setSearchParams]);
+
   // Fetch products
   const fetchProducts = async (pageNum = 1) => {
     setLoading(true);
     try {
-      const response = await marketplaceApi.browseProducts(
-        selectedSkill,
+      let minPrice = null;
+      let maxPrice = null;
+
+      // Convert prices to cents if provided
+      if (selectedMinPrice) {
+        minPrice = Math.floor(parseFloat(selectedMinPrice) * 100);
+      }
+      if (selectedMaxPrice) {
+        maxPrice = Math.floor(parseFloat(selectedMaxPrice) * 100);
+      }
+
+      const response = await marketplaceApi.searchProducts(
         searchQuery,
-        selectedCategory,
+        selectedSkill,
+        minPrice,
+        maxPrice,
         pageNum,
-        20
+        20,
+        sortBy
       );
       setProducts(response.data.products || []);
       setPage(pageNum);
@@ -61,7 +102,7 @@ export default function ProductMarketplacePage() {
 
   useEffect(() => {
     fetchProducts(1);
-  }, [selectedSkill, selectedCategory, searchQuery]);
+  }, [selectedSkill, selectedCategory, searchQuery, selectedMinPrice, selectedMaxPrice, sortBy]);
 
   // Create new cart
   const handleCreateCart = async () => {
@@ -81,6 +122,19 @@ export default function ProductMarketplacePage() {
       toast.error(t('common.errorCreating'));
     }
   };
+
+  // Clear all filters
+  const handleClearAllFilters = () => {
+    setSearchQuery('');
+    setSelectedSkill('');
+    setSelectedCategory('');
+    setSelectedMinPrice('');
+    setSelectedMaxPrice('');
+    setSortBy('best_match');
+  };
+
+  // Get active filters count
+  const hasActiveFilters = searchQuery || selectedSkill || selectedCategory || selectedMinPrice || selectedMaxPrice;
 
   // Add product to cart
   const handleAddToCart = async (productId) => {
@@ -139,8 +193,94 @@ export default function ProductMarketplacePage() {
                 ))}
               </select>
             </div>
+
+            <div className="pmp-filter-group">
+              <label>Min Price ($)</label>
+              <input
+                type="number"
+                placeholder="0"
+                value={selectedMinPrice}
+                onChange={(e) => setSelectedMinPrice(e.target.value)}
+                className="pmp-filter-input"
+                min="0"
+              />
+            </div>
+
+            <div className="pmp-filter-group">
+              <label>Max Price ($)</label>
+              <input
+                type="number"
+                placeholder="1000"
+                value={selectedMaxPrice}
+                onChange={(e) => setSelectedMaxPrice(e.target.value)}
+                className="pmp-filter-input"
+                min="0"
+              />
+            </div>
+
+            <div className="pmp-filter-group">
+              <label>Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="pmp-filter-select"
+              >
+                {Object.entries(SORT_OPTIONS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
+
+        {/* Active Filter Pills */}
+        {hasActiveFilters && (
+          <div className="pmp-active-filters">
+            <div className="pmp-filter-pills">
+              {selectedMinPrice && selectedMaxPrice && (
+                <div className="pmp-filter-pill">
+                  <span className="pmp-pill-text">
+                    Price: ${selectedMinPrice}-${selectedMaxPrice}
+                  </span>
+                  <button
+                    className="pmp-pill-remove"
+                    onClick={() => {
+                      setSelectedMinPrice('');
+                      setSelectedMaxPrice('');
+                    }}
+                    aria-label="Remove price filter"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              {selectedCategory && (
+                <div className="pmp-filter-pill">
+                  <span className="pmp-pill-text">Category: {selectedCategory}</span>
+                  <button
+                    className="pmp-pill-remove"
+                    onClick={() => setSelectedCategory('')}
+                    aria-label="Remove category filter"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              {sortBy !== 'best_match' && (
+                <div className="pmp-filter-pill pmp-pill-info">
+                  <span className="pmp-pill-text">Sort: {SORT_OPTIONS[sortBy]}</span>
+                </div>
+              )}
+            </div>
+            {hasActiveFilters && (
+              <button className="pmp-clear-all-btn" onClick={handleClearAllFilters}>
+                Clear All
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Products Grid */}
         {loading ? (

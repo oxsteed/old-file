@@ -1,0 +1,150 @@
+.php-preview {
+  position: absolute;
+  z-index: 50;
+  width: 220px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: fadeInPreview 0.2s ease-in-out;
+  pointer-events: auto;
+}
+
+@keyframes fadeInPreview {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Positioning variants */
+.php-preview.php-bottom-right {
+  bottom: -10px;
+  right: -10px;
+  transform: translateX(100%);
+}
+
+.php-preview.php-top-right {
+  top: -10px;
+  right: -10px;
+  transform: translateX(100%);
+}
+
+/* Price Section */
+.php-price-section {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.php-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #8b5cf6;
+}
+
+/* Rating Section */
+.php-rating-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.php-stars {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.php-star-filled {
+  fill: #fbbf24;
+  color: #fbbf24;
+}
+
+.php-star-empty {
+  color: var(--muted-text);
+  opacity: 0.3;
+}
+
+.php-rating-text {
+  font-size: 0.8rem;
+  color: var(--muted-text);
+}
+
+/* In Carts Section */
+.php-carts-section {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--app-text);
+  padding: 0.5rem;
+  background: rgba(139, 92, 246, 0.05);
+  border-radius: 4px;
+}
+
+.php-carts-text {
+  font-weight: 500;
+}
+
+/* Skills Section */
+.php-skills-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.php-skill-tag {
+  display: inline-block;
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Availability Section */
+.php-availability {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.php-available {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.php-unavailable {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Mobile & Responsive */
+@media (max-width: 640px) {
+  .php-preview {
+    display: none;
+  }
+}
+
+/* Prevent overflow on edges */
+@media (max-width: 1024px) {
+  .php-preview {
+    width: 200px;
+  }
+}
