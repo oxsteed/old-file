@@ -61,7 +61,7 @@ const SETUP_ITEMS_GROUPED_KEYS = {
 export default function ConsultingIntakePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useTranslation(['consulting']);
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
 
