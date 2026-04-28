@@ -4934,18 +4934,18 @@
     "reviewTextPlaceholder": "Share your experience with this product...",
     "reviewSubmittedSuccess": "Review submitted successfully",
     "noReviews": "No reviews yet",
-    "sort": {
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "closeLightbox": "Close lightbox",
+    "slideOf": "Slide {{current}} of {{total}}",
+    "noImageAvailable": "No image available",
+    "sortOptions": {
       "bestMatch": "Best Match",
       "lowestPrice": "Lowest Price",
       "highestPrice": "Highest Price",
       "topRated": "Top Rated",
       "mostPopular": "Most Popular",
       "newest": "Newest"
-    },
-    "previousImage": "Previous image",
-    "nextImage": "Next image",
-    "closeLightbox": "Close lightbox",
-    "slideOf": "Slide {{current}} of {{total}}",
-    "noImageAvailable": "No image available"
+    }
   }
 }
