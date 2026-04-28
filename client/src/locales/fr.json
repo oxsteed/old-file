@@ -4933,18 +4933,18 @@
     "reviewTextPlaceholder": "Partagez votre expérience avec ce produit...",
     "reviewSubmittedSuccess": "Avis soumis avec succès",
     "noReviews": "Pas d'avis pour le moment",
-    "sort": {
+    "previousImage": "Image précédente",
+    "nextImage": "Image suivante",
+    "closeLightbox": "Fermer la lightbox",
+    "slideOf": "Diapositive {{current}} sur {{total}}",
+    "noImageAvailable": "Image non disponible",
+    "sortOptions": {
       "bestMatch": "Meilleure Correspondance",
       "lowestPrice": "Prix le Plus Bas",
       "highestPrice": "Prix le Plus Élevé",
       "topRated": "Meilleure Évaluation",
       "mostPopular": "Le Plus Populaire",
       "newest": "Le Plus Récent"
-    },
-    "previousImage": "Image précédente",
-    "nextImage": "Image suivante",
-    "closeLightbox": "Fermer la lightbox",
-    "slideOf": "Diapositive {{current}} sur {{total}}",
-    "noImageAvailable": "Image non disponible"
+    }
   }
 }
