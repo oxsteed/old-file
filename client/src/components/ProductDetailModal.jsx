@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { marketplaceApi } from '../api/marketplaceApi';
 import ProductImageGallery from './ProductImageGallery';
 import ProductReviewsSection from './ProductReviewsSection';
+import RelatedProductsSection from './RelatedProductsSection';
 import '../styles/ProductDetailModal.css';
 
 export default function ProductDetailModal({ product, onClose, onAddToCart }) {
@@ -13,6 +14,8 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
   const [loading, setLoading] = useState(!product || !product.description);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
+  const [selectedRelatedProduct, setSelectedRelatedProduct] = useState(null);
 
   useEffect(() => {
     // Fetch full product details if not already loaded
@@ -68,6 +71,17 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
       );
     }
     return stars;
+  };
+
+  const handleReviewSubmitted = () => {
+    // Refresh product details to update rating and review count
+    if (fullProduct?.id) {
+      marketplaceApi.getProduct(fullProduct.id).then((response) => {
+        setFullProduct(response.data);
+      });
+    }
+    // Force reviews section to refresh
+    setReviewRefreshKey((prev) => prev + 1);
   };
 
   if (loading) {
@@ -242,6 +256,17 @@ export default function ProductDetailModal({ product, onClose, onAddToCart }) {
                 {t('marketplace.addToCart')}
               </button>
             </div>
+
+            {/* Reviews Section */}
+            {fullProduct.id && (
+              <ProductReviewsSection
+                key={reviewRefreshKey}
+                productId={fullProduct.id}
+                averageRating={rating}
+                reviewCount={reviewCount}
+                onSubmitReview={handleReviewSubmitted}
+              />
+            )}
           </div>
         </div>
       </div>

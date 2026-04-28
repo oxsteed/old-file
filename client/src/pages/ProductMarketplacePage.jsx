@@ -10,12 +10,12 @@ import { useAuth } from '../hooks/useAuth';
 import '../styles/ProductMarketplacePage.css';
 
 const SORT_OPTIONS = {
-  best_match: 'Best Match',
-  price_asc: 'Lowest Price',
-  price_desc: 'Highest Price',
-  rating: 'Top Rated',
-  newest: 'Newest',
-  in_carts: 'Popular',
+  best_match: 'marketplace.sortOptions.bestMatch',
+  price_asc: 'marketplace.sortOptions.lowestPrice',
+  price_desc: 'marketplace.sortOptions.highestPrice',
+  rating: 'marketplace.sortOptions.topRated',
+  newest: 'marketplace.sortOptions.newest',
+  in_carts: 'marketplace.sortOptions.mostPopular',
 };
 
 export default function ProductMarketplacePage() {
@@ -139,31 +139,25 @@ export default function ProductMarketplacePage() {
   // Get active filters count
   const hasActiveFilters = searchQuery || selectedSkill || selectedCategory || selectedMinPrice || selectedMaxPrice;
 
+  // Helper to translate sort option labels
+  const getSortLabel = (sortKey) => {
+    const labelKey = SORT_OPTIONS[sortKey];
+    return labelKey ? t(labelKey) : sortKey;
+  };
+
   // Add product to cart
-  const handleAddToCart = async (productId, quantity = 1) => {
+  const handleAddToCart = async (productId) => {
     if (!currentCart) {
       setShowNewCartModal(true);
       return;
     }
 
     try {
-      await cartApi.addItem(currentCart.id, productId, quantity);
+      await cartApi.addItem(currentCart.id, productId, 1);
       toast.success(t('marketplace.itemAdded'));
     } catch (err) {
       toast.error(t('common.errorUpdating'));
     }
-  };
-
-  // Handle product card click to open detail modal
-  const handleProductClick = (product) => {
-    setSelectedProduct(product);
-    setSelectedProductId(product.id);
-  };
-
-  // Handle close modal
-  const handleCloseModal = () => {
-    setSelectedProductId(null);
-    setSelectedProduct(null);
   };
 
   return (
@@ -210,7 +204,7 @@ export default function ProductMarketplacePage() {
             </div>
 
             <div className="pmp-filter-group">
-              <label>Min Price ($)</label>
+              <label>{t('marketplace.minPrice')}</label>
               <input
                 type="number"
                 placeholder="0"
@@ -222,7 +216,7 @@ export default function ProductMarketplacePage() {
             </div>
 
             <div className="pmp-filter-group">
-              <label>Max Price ($)</label>
+              <label>{t('marketplace.maxPrice')}</label>
               <input
                 type="number"
                 placeholder="1000"
@@ -234,15 +228,15 @@ export default function ProductMarketplacePage() {
             </div>
 
             <div className="pmp-filter-group">
-              <label>Sort By</label>
+              <label>{t('marketplace.sortBy')}</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="pmp-filter-select"
               >
-                {Object.entries(SORT_OPTIONS).map(([key, label]) => (
+                {Object.entries(SORT_OPTIONS).map(([key, labelKey]) => (
                   <option key={key} value={key}>
-                    {label}
+                    {t(labelKey)}
                   </option>
                 ))}
               </select>
@@ -257,7 +251,7 @@ export default function ProductMarketplacePage() {
               {selectedMinPrice && selectedMaxPrice && (
                 <div className="pmp-filter-pill">
                   <span className="pmp-pill-text">
-                    Price: ${selectedMinPrice}-${selectedMaxPrice}
+                    {t('marketplace.priceRange', { min: selectedMinPrice, max: selectedMaxPrice })}
                   </span>
                   <button
                     className="pmp-pill-remove"
@@ -265,7 +259,7 @@ export default function ProductMarketplacePage() {
                       setSelectedMinPrice('');
                       setSelectedMaxPrice('');
                     }}
-                    aria-label="Remove price filter"
+                    aria-label={t('common.remove')}
                   >
                     <X size={14} />
                   </button>
@@ -273,11 +267,13 @@ export default function ProductMarketplacePage() {
               )}
               {selectedCategory && (
                 <div className="pmp-filter-pill">
-                  <span className="pmp-pill-text">Category: {selectedCategory}</span>
+                  <span className="pmp-pill-text">
+                    {t('marketplace.categoryPill', { category: selectedCategory })}
+                  </span>
                   <button
                     className="pmp-pill-remove"
                     onClick={() => setSelectedCategory('')}
-                    aria-label="Remove category filter"
+                    aria-label={t('common.remove')}
                   >
                     <X size={14} />
                   </button>
@@ -285,13 +281,15 @@ export default function ProductMarketplacePage() {
               )}
               {sortBy !== 'best_match' && (
                 <div className="pmp-filter-pill pmp-pill-info">
-                  <span className="pmp-pill-text">Sort: {SORT_OPTIONS[sortBy]}</span>
+                  <span className="pmp-pill-text">
+                    {t('marketplace.sortPill', { sort: getSortLabel(sortBy) })}
+                  </span>
                 </div>
               )}
             </div>
             {hasActiveFilters && (
               <button className="pmp-clear-all-btn" onClick={handleClearAllFilters}>
-                Clear All
+                {t('marketplace.clearAll')}
               </button>
             )}
           </div>
@@ -312,18 +310,7 @@ export default function ProductMarketplacePage() {
           <>
             <div className="pmp-grid">
               {products.map((product) => (
-                <div
-                  key={product.id}
-                  className="pmp-product-card"
-                  onClick={() => handleProductClick(product)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      handleProductClick(product);
-                    }
-                  }}
-                >
+                <div key={product.id} className="pmp-product-card">
                   {product.product_image_url && (
                     <img
                       src={product.product_image_url}
@@ -348,10 +335,7 @@ export default function ProductMarketplacePage() {
                       ))}
                     </div>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToCart(product.id);
-                      }}
+                      onClick={() => handleAddToCart(product.id)}
                       className="pmp-add-to-cart-btn"
                       disabled={!user}
                     >
@@ -420,10 +404,10 @@ export default function ProductMarketplacePage() {
         )}
 
         {/* Product Detail Modal */}
-        {selectedProductId && selectedProduct && (
+        {selectedProduct && (
           <ProductDetailModal
             product={selectedProduct}
-            onClose={handleCloseModal}
+            onClose={() => setSelectedProduct(null)}
             onAddToCart={handleAddToCart}
           />
         )}

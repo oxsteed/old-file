@@ -434,14 +434,70 @@
 }
 
 /* Responsive design */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .pdm-overlay {
     padding: 0.5rem;
   }
 
   .pdm-modal {
-    max-height: 100vh;
-    border-radius: 12px 12px 0 0;
+    max-width: 95%;
+  }
+
+  .pdm-content {
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .pdm-image-section {
+    position: static;
+  }
+
+  .pdm-product-image {
+    max-height: 300px;
+  }
+
+  .pdm-title {
+    font-size: 1.25rem;
+  }
+
+  .pdm-price {
+    font-size: 1.5rem;
+  }
+
+  .pdm-close-btn {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 40px;
+    height: 40px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .pdm-quantity-input {
+    min-height: 44px;
+  }
+
+  .pdm-add-to-cart-btn {
+    min-height: 44px;
+  }
+
+  .pdm-affiliate-link {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 768px) {
+  .pdm-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .pdm-modal {
+    max-height: 90vh;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    margin-bottom: 0;
+    animation: slideUpMobile 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .pdm-content {
@@ -469,6 +525,10 @@
   .pdm-close-btn {
     top: 0.75rem;
     right: 0.75rem;
+    width: 40px;
+    height: 40px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .pdm-rating-row {
@@ -483,6 +543,7 @@
 
   .pdm-cart-section {
     flex-direction: column;
+    gap: 0.75rem;
   }
 
   .pdm-quantity-selector {
@@ -491,6 +552,9 @@
 
   .pdm-quantity-input {
     width: 100%;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
   }
 
   .pdm-detail-item {
@@ -502,29 +566,124 @@
   .pdm-detail-value {
     width: 100%;
   }
-}
 
-@media (max-width: 480px) {
-  .pdm-title {
-    font-size: 1.1rem;
+  .pdm-add-to-cart-btn {
+    min-height: 44px;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
   }
 
-  .pdm-price {
-    font-size: 1.25rem;
+  .pdm-affiliate-link {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+
+  .pdm-error-close-btn {
+    min-height: 44px;
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 640px) {
+  .pdm-overlay {
+    padding: 0;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .pdm-modal {
+    max-height: 85vh;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+  }
+
+  /* Draggable handle bar effect */
+  .pdm-modal::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    z-index: 11;
   }
 
   .pdm-content {
-    padding: 1rem;
-    gap: 1rem;
+    padding: 1.5rem 1rem 1rem 1rem;
+    gap: 1.2rem;
+  }
+
+  .pdm-header {
+    padding-top: 0.5rem;
+  }
+
+  .pdm-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .pdm-price {
+    font-size: 1.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .pdm-category {
+    font-size: 0.8rem;
+  }
+
+  .pdm-product-image {
+    max-height: 250px;
+    border-radius: 8px;
   }
 
   .pdm-close-btn {
-    padding: 0.4rem;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 36px;
+    height: 36px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem;
   }
 
   .pdm-close-btn svg {
     width: 20px;
     height: 20px;
+  }
+
+  .pdm-section-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .pdm-description-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .pdm-rating-row {
+    padding: 0.75rem 0;
+  }
+
+  .pdm-rating-text {
+    font-size: 0.85rem;
+  }
+
+  .pdm-detail-item {
+    padding: 0.6rem;
+    gap: 0.4rem;
+  }
+
+  .pdm-detail-label {
+    font-size: 0.8rem;
+  }
+
+  .pdm-detail-value {
+    font-size: 0.85rem;
   }
 
   .pdm-skills-list {
@@ -534,5 +693,55 @@
   .pdm-skill-badge {
     padding: 0.25rem 0.6rem;
     font-size: 0.75rem;
+  }
+
+  .pdm-quantity-selector {
+    width: 100%;
+  }
+
+  .pdm-quantity-label {
+    font-size: 0.8rem;
+  }
+
+  .pdm-quantity-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+
+  .pdm-add-to-cart-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  .pdm-affiliate-link {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .pdm-cart-section {
+    gap: 0.75rem;
+  }
+
+  .pdm-error-close-btn {
+    min-height: 44px;
+    min-width: 120px;
+    font-size: 0.95rem;
+  }
+}
+
+@keyframes slideUpMobile {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
