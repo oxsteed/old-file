@@ -4903,6 +4903,18 @@
     "create": "Create",
     "approve": "Approve",
     "failedToLoadCart": "Failed to load shared cart",
-    "reviewingCartDescription": "Review and approve a shopping cart shared with you"
+    "reviewingCartDescription": "Review and approve a shopping cart shared with you",
+    "relatedProducts": "Related Products",
+    "frequentlyBoughtTogether": "Frequently Bought Together",
+    "noImage": "No Image",
+    "reviews": "reviews",
+    "addedToCarts": "Added to {{count}} carts",
+    "productDetails": "Product Details",
+    "sku": "SKU",
+    "upc": "UPC",
+    "source": "Source",
+    "buyOnHomeDepot": "Buy on Home Depot",
+    "skills": "Skills",
+    "addedToCart": "Added to cart"
   }
 }
