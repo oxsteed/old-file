@@ -49,39 +49,6 @@ function RecommendedBadge() {
   );
 }
 
-
-
-/**
- * Checks if a product is recommended for a user based on skill matches
- */
-const isProductRecommended = (product, userSkills) => {
-  if (!userSkills || userSkills.length === 0) return false;
-  if (!product.skills || product.skills.length === 0) return false;
-
-  // Extract user skill IDs into a set for efficient lookup
-  const userSkillIds = new Set(
-    userSkills.map((skill) => {
-      // Handle both skill object with id property and plain skill IDs
-      return typeof skill === 'object' ? skill.id : skill;
-    })
-  );
-
-  // Check if any product skill ID is in the user's skills
-  return product.skills.some((skill) => userSkillIds.has(skill.id));
-};
-
-/**
- * RecommendedBadge component
- */
-function RecommendedBadge() {
-  return (
-    <div className="pmp-recommended-badge">
-      <Lightbulb size={14} />
-      <span>Recommended for You</span>
-    </div>
-  );
-}
-
 export default function ProductMarketplacePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
