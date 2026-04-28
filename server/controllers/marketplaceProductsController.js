@@ -166,34 +166,58 @@ const getProductDetail = async (req, res) => {
 const getProduct = getProductDetail;
 
 /**
- * Get products by skill
- * GET /api/marketplace/products/by-skill/:skillId?limit=50
+ * Get products by skill (with optional relevance sorting)
+ * GET /api/marketplace/products/by-skill/:skillId?limit=50&sort=relevance|rating|price
  */
 const getBySkill = async (req, res) => {
   try {
     const { skillId } = req.params;
-    const { limit = 50 } = req.query;
+    const { limit = 50, sort = 'relevance' } = req.query;
     const safeLimit = Math.min(parseInt(limit), 200);
+    const parsedSkillId = parseInt(skillId);
+
+    // Validate skillId
+    if (!skillId || isNaN(parsedSkillId)) {
+      return sendError(res, 400, 'Valid skill ID is required');
+    }
+
+    let orderBy = 'mps.relevance_score DESC NULLS LAST, mp.name ASC';
+    switch (sort) {
+      case 'rating':
+        orderBy = 'mp.avg_rating DESC NULLS LAST, mps.relevance_score DESC NULLS LAST';
+        break;
+      case 'price':
+        orderBy = 'mp.price_cents ASC, mps.relevance_score DESC NULLS LAST';
+        break;
+      case 'relevance':
+      default:
+        orderBy = 'mps.relevance_score DESC NULLS LAST, mp.name ASC';
+    }
 
     const query = `
       SELECT DISTINCT
         mp.id, mp.name, mp.description, mp.category, mp.price_cents,
-        mp.product_image_url, mp.is_available, mps.relevance_score
+        mp.product_image_url, mp.is_available, mp.avg_rating, mp.rating_count,
+        mp.in_carts_count, mps.relevance_score
       FROM marketplace_products mp
       JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       WHERE mps.skill_id = $1 AND mp.is_active = TRUE AND mp.is_available = TRUE
-      ORDER BY mps.relevance_score DESC, mp.name ASC
+      ORDER BY ${orderBy}
       LIMIT $2
     `;
 
-    const result = await pool.query(query, [skillId, safeLimit]);
+    const result = await pool.query(query, [parsedSkillId, safeLimit]);
 
-    logger.info('Products fetched by skill', { skillId, count: result.rows.length });
+    logger.info('Products fetched by skill', { skillId: parsedSkillId, count: result.rows.length, sort });
 
     sendSuccess(res, {
-      skillId,
-      products: result.rows,
-      count: result.rows.length,
+      data: result.rows,
+      skillId: parsedSkillId,
+      pagination: {
+        limit: safeLimit,
+        total: result.rows.length,
+        hasMore: result.rows.length >= safeLimit,
+      },
     });
   } catch (err) {
     logger.error('Error fetching products by skill', err);

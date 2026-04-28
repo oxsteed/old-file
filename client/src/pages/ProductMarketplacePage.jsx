@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ShoppingCart, Search, Filter, Loader, X } from 'lucide-react';
 import { toast } from 'sonner';
 import PageMeta from '../components/PageMeta';
+import ProductDetailModal from '../components/ProductDetailModal';
 import { marketplaceApi, cartApi } from '../api/marketplaceApi';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/ProductMarketplacePage.css';
@@ -38,6 +39,8 @@ export default function ProductMarketplacePage() {
   const [currentCart, setCurrentCart] = useState(null);
   const [showNewCartModal, setShowNewCartModal] = useState(false);
   const [newCartName, setNewCartName] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Update URL params whenever filters change
   useEffect(() => {
@@ -137,18 +140,30 @@ export default function ProductMarketplacePage() {
   const hasActiveFilters = searchQuery || selectedSkill || selectedCategory || selectedMinPrice || selectedMaxPrice;
 
   // Add product to cart
-  const handleAddToCart = async (productId) => {
+  const handleAddToCart = async (productId, quantity = 1) => {
     if (!currentCart) {
       setShowNewCartModal(true);
       return;
     }
 
     try {
-      await cartApi.addItem(currentCart.id, productId, 1);
+      await cartApi.addItem(currentCart.id, productId, quantity);
       toast.success(t('marketplace.itemAdded'));
     } catch (err) {
       toast.error(t('common.errorUpdating'));
     }
+  };
+
+  // Handle product card click to open detail modal
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setSelectedProductId(product.id);
+  };
+
+  // Handle close modal
+  const handleCloseModal = () => {
+    setSelectedProductId(null);
+    setSelectedProduct(null);
   };
 
   return (
@@ -297,7 +312,18 @@ export default function ProductMarketplacePage() {
           <>
             <div className="pmp-grid">
               {products.map((product) => (
-                <div key={product.id} className="pmp-product-card">
+                <div
+                  key={product.id}
+                  className="pmp-product-card"
+                  onClick={() => handleProductClick(product)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      handleProductClick(product);
+                    }
+                  }}
+                >
                   {product.product_image_url && (
                     <img
                       src={product.product_image_url}
@@ -322,7 +348,10 @@ export default function ProductMarketplacePage() {
                       ))}
                     </div>
                     <button
-                      onClick={() => handleAddToCart(product.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToCart(product.id);
+                      }}
                       className="pmp-add-to-cart-btn"
                       disabled={!user}
                     >
@@ -388,6 +417,15 @@ export default function ProductMarketplacePage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Product Detail Modal */}
+        {selectedProductId && selectedProduct && (
+          <ProductDetailModal
+            product={selectedProduct}
+            onClose={handleCloseModal}
+            onAddToCart={handleAddToCart}
+          />
         )}
       </div>
     </>
