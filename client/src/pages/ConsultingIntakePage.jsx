@@ -486,7 +486,7 @@ function Step1Contact({ form, handleInputChange, t }) {
           value={form.phone}
           onChange={handleInputChange}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
-          placeholder={t('consulting.intake.formFields.phoneNumberPlaceholder')}
+          placeholder={t('consulting.intake.phoneNumberPlaceholder')}
           required
         />
       </div>
