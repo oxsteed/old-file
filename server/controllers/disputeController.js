@@ -3,16 +3,25 @@ const { sendNotification }  = require('../services/notificationService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
 
-const DISPUTE_REASONS = [
-  'work_not_completed',
-  'poor_quality',
-  'no_show',
-  'overcharged',
-  'property_damage',
-  'safety_concern',
-  'fraud',
-  'other'
-];
+const DISPUTE_STATUSES = Object.freeze({
+  OPEN: 'open',
+  UNDER_REVIEW: 'under_review',
+  RESOLVED: 'resolved',
+  CLOSED: 'closed',
+});
+
+const DISPUTE_REASONS = Object.freeze({
+  WORK_NOT_COMPLETED: 'work_not_completed',
+  POOR_QUALITY: 'poor_quality',
+  NO_SHOW: 'no_show',
+  OVERCHARGED: 'overcharged',
+  PROPERTY_DAMAGE: 'property_damage',
+  SAFETY_CONCERN: 'safety_concern',
+  FRAUD: 'fraud',
+  OTHER: 'other',
+});
+
+const DISPUTE_REASON_VALUES = Object.freeze(Object.values(DISPUTE_REASONS));
 
 // ─── OPEN DISPUTE ─────────────────────────────────────────────
 exports.openDispute = async (req, res) => {
@@ -21,9 +30,9 @@ exports.openDispute = async (req, res) => {
     const { jobId } = req.params;
     const { reason, description, job_type } = req.body;
 
-    if (!DISPUTE_REASONS.includes(reason)) {
+    if (!DISPUTE_REASON_VALUES.includes(reason)) {
       return res.status(400).json({
-        error: `Invalid reason. Must be one of: ${DISPUTE_REASONS.join(', ')}`
+        error: `Invalid reason. Must be one of: ${DISPUTE_REASON_VALUES.join(', ')}`
       });
     }
 
@@ -73,8 +82,8 @@ exports.openDispute = async (req, res) => {
 
       // Check for existing disputes AFTER locking
       const { rows: existRows } = await client.query(
-        `SELECT id FROM disputes WHERE job_id = $1 AND status NOT IN ('resolved','closed')`,
-        [jobId]
+        `SELECT id FROM disputes WHERE job_id = $1 AND status NOT IN ($2,$3)`,
+        [jobId, DISPUTE_STATUSES.RESOLVED, DISPUTE_STATUSES.CLOSED]
       );
 
       if (existRows.length) {
@@ -88,11 +97,11 @@ exports.openDispute = async (req, res) => {
         INSERT INTO disputes (
           job_id, job_type, opened_by, opened_by_name,
           opened_by_role, reason, description, status
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,'open')
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         RETURNING *
       `, [
         jobId, job_type || 'standard', userId, userName,
-        openedByRole, reason, description.trim()
+        openedByRole, reason, description.trim(), DISPUTE_STATUSES.OPEN
       ]);
 
       if (!disputeRows.length) {
@@ -247,7 +256,7 @@ exports.submitEvidence = async (req, res) => {
     // Verify dispute exists and user has access
     const { rows: disputeRows } = await db.query(
       'SELECT * FROM disputes WHERE id = $1 AND status = $2',
-      [disputeId, 'open']
+      [disputeId, DISPUTE_STATUSES.OPEN]
     );
 
     if (!disputeRows.length) {

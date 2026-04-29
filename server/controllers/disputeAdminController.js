@@ -4,6 +4,20 @@ const { logAdminAction }    = require('../services/auditService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
 
+const DISPUTE_RESOLUTIONS = Object.freeze({
+  REFUND_CUSTOMER: 'refund_customer',
+  CUSTOMER_WINS: 'customer_wins',
+  SPLIT_RESOLUTION: 'split_resolution',
+  HELPER_WINS: 'helper_wins',
+});
+
+const DISPUTE_STATUSES = Object.freeze({
+  OPEN: 'open',
+  UNDER_REVIEW: 'under_review',
+  RESOLVED: 'resolved',
+  CLOSED: 'closed',
+});
+
 // ─── LIST ALL DISPUTES (Admin) ────────────────────────────────
 exports.getAllDisputes = async (req, res) => {
   try {
@@ -99,7 +113,7 @@ exports.resolveDispute = async (req, res) => {
       const dispute = disputeRows[0];
 
       // Verify not already resolved (after lock)
-      if (dispute.status === 'resolved') {
+      if (dispute.status === DISPUTE_STATUSES.RESOLVED) {
         const err = new Error('Dispute has already been resolved.');
         err.status = 409;
         throw err;
@@ -108,14 +122,14 @@ exports.resolveDispute = async (req, res) => {
       // Update dispute status
       const { rows: updateRows } = await client.query(`
         UPDATE disputes
-        SET status = 'resolved',
-            resolution = $1,
-            admin_notes = $2,
-            resolved_by = $3,
+        SET status = $1,
+            resolution = $2,
+            admin_notes = $3,
+            resolved_by = $4,
             resolved_at = NOW()
-        WHERE id = $4 AND status != 'resolved'
+        WHERE id = $5 AND status != $1
         RETURNING *
-      `, [resolution, notes, adminId, disputeId]);
+      `, [DISPUTE_STATUSES.RESOLVED, resolution, notes, adminId, disputeId]);
 
       if (!updateRows.length) {
         throw new Error('Dispute state changed during resolution');
@@ -134,15 +148,11 @@ exports.resolveDispute = async (req, res) => {
       if (paymentRows.length > 0) {
         const payment = paymentRows[0];
 
-        // Determine escrow status based on resolution
-        // 'refund_customer' / 'customer_wins' → refund to customer
-        // 'split_resolution' → split refund
-        // default → release to helper
-        let newEscrowStatus = 'released';
-
-        if (resolution === 'refund_customer' || resolution === 'customer_wins') {
+        // Map dispute resolution to escrow action
+        let newEscrowStatus = 'released'; // default: release to helper
+        if ([DISPUTE_RESOLUTIONS.REFUND_CUSTOMER, DISPUTE_RESOLUTIONS.CUSTOMER_WINS].includes(resolution)) {
           newEscrowStatus = 'refunded';
-        } else if (resolution === 'split_resolution') {
+        } else if (resolution === DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION) {
           newEscrowStatus = 'split_refund';
         }
 
@@ -275,7 +285,7 @@ exports.startReview = async (req, res) => {
       const dispute = disputeRows[0];
 
       // Verify status is 'open' (atomic check after lock)
-      if (dispute.status !== 'open') {
+      if (dispute.status !== DISPUTE_STATUSES.OPEN) {
         const err = new Error(`Dispute is in '${dispute.status}' status and cannot be moved to review.`);
         err.status = 409;
         throw err;
@@ -283,8 +293,8 @@ exports.startReview = async (req, res) => {
 
       // Update status to under_review (atomic within transaction)
       const { rows: updateRows } = await client.query(
-        `UPDATE disputes SET status = 'under_review', reviewed_at = NOW() WHERE id = $1 AND status = 'open' RETURNING *`,
-        [disputeId]
+        `UPDATE disputes SET status = $1, reviewed_at = NOW() WHERE id = $2 AND status = $1 RETURNING *`,
+        [DISPUTE_STATUSES.UNDER_REVIEW, disputeId]
       );
 
       if (!updateRows.length) {
