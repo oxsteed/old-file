@@ -3,6 +3,7 @@ const { sendNotification }  = require('../services/notificationService');
 const { logAdminAction }    = require('../services/auditService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
+const { mapResolutionToEscrowStatus } = require('../utils/disputeResolution');
 
 const DISPUTE_RESOLUTIONS = Object.freeze({
   REFUND_CUSTOMER: 'refund_customer',
@@ -149,12 +150,7 @@ exports.resolveDispute = async (req, res) => {
         const payment = paymentRows[0];
 
         // Map dispute resolution to escrow action
-        let newEscrowStatus = 'released'; // default: release to helper
-        if ([DISPUTE_RESOLUTIONS.REFUND_CUSTOMER, DISPUTE_RESOLUTIONS.CUSTOMER_WINS].includes(resolution)) {
-          newEscrowStatus = 'refunded';
-        } else if (resolution === DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION) {
-          newEscrowStatus = 'split_refund';
-        }
+        const newEscrowStatus = mapResolutionToEscrowStatus(resolution);
 
         // Update escrow with safeguard
         const { rows: escrowUpdateRows } = await client.query(
