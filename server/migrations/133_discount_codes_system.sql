@@ -23,13 +23,12 @@ CREATE TABLE IF NOT EXISTS discount_codes (
 CREATE INDEX idx_discount_codes_code ON discount_codes(code);
 CREATE INDEX idx_discount_codes_status ON discount_codes(status);
 CREATE INDEX idx_discount_codes_active ON discount_codes(status, start_date, end_date)
-  WHERE status = 'active' AND (start_date IS NULL OR start_date <= CURRENT_TIMESTAMP)
-  AND (end_date IS NULL OR end_date >= CURRENT_TIMESTAMP);
+  WHERE status = 'active';
 
 -- Track which discounts were applied to orders
 CREATE TABLE IF NOT EXISTS order_discount_history (
   id BIGSERIAL PRIMARY KEY,
-  order_id BIGINT NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
   discount_code_id BIGINT NOT NULL REFERENCES discount_codes(id) ON DELETE RESTRICT,
   code VARCHAR(50) NOT NULL,
   discount_applied_cents BIGINT NOT NULL,
