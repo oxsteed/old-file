@@ -1,7 +1,7 @@
 -- Affiliate commission tracking and payouts
 CREATE TABLE IF NOT EXISTS affiliate_programs (
   id BIGSERIAL PRIMARY KEY,
-  helper_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  helper_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   program_type VARCHAR(50) NOT NULL, -- home_depot, amazon, custom
   affiliate_id VARCHAR(255), -- External affiliate ID
   commission_rate DECIMAL(5,2), -- 1.5, 2.5, etc. (percent)
@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS affiliate_programs (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (helper_id, program_type)
 );
+
 CREATE INDEX idx_affiliate_programs_helper_id ON affiliate_programs(helper_id);
 CREATE INDEX idx_affiliate_programs_status ON affiliate_programs(status);
 
@@ -31,6 +32,7 @@ CREATE TABLE IF NOT EXISTS affiliate_commissions (
   paid_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
 CREATE INDEX idx_affiliate_commissions_order_id ON affiliate_commissions(order_id);
 CREATE INDEX idx_affiliate_commissions_affiliate_program_id ON affiliate_commissions(affiliate_program_id);
 CREATE INDEX idx_affiliate_commissions_status ON affiliate_commissions(status);
@@ -53,6 +55,7 @@ CREATE TABLE IF NOT EXISTS affiliate_payouts (
   received_at TIMESTAMP,
   failed_reason TEXT
 );
+
 CREATE INDEX idx_affiliate_payouts_affiliate_program_id ON affiliate_payouts(affiliate_program_id);
 CREATE INDEX idx_affiliate_payouts_period_start ON affiliate_payouts(period_start DESC);
 CREATE INDEX idx_affiliate_payouts_status ON affiliate_payouts(status);
@@ -70,5 +73,6 @@ CREATE TABLE IF NOT EXISTS affiliate_metrics (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (affiliate_program_id, metric_date)
 );
+
 CREATE INDEX idx_affiliate_metrics_affiliate_program_id ON affiliate_metrics(affiliate_program_id);
 CREATE INDEX idx_affiliate_metrics_metric_date ON affiliate_metrics(metric_date DESC);
