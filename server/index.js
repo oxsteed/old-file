@@ -342,6 +342,16 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Root health endpoint (for Docker healthcheck)
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch (err) {
+    res.status(503).json({ status: 'degraded' });
+  }
+});
+
 // Pool health metrics endpoint (used by monitoring systems)
 app.get('/api/health/pool', (req, res) => {
   res.json(poolMonitor.getMetrics());
