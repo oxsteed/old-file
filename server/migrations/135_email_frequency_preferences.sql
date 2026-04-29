@@ -16,7 +16,7 @@ END $$;
 -- Unsubscribe tokens for email footer links (one-click unsubscribe)
 CREATE TABLE IF NOT EXISTS email_unsubscribe_tokens (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token VARCHAR(255) NOT NULL UNIQUE,
   category VARCHAR(100),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_email_unsubscribe_tokens_token ON email_unsubscri
 -- Queue for batching notifications into daily/weekly digests
 CREATE TABLE IF NOT EXISTS email_digest_queue (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   notification_id BIGINT NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
   digest_type VARCHAR(20),
   queued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
