@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ShoppingCart, Search, Filter, Loader, X, Lightbulb } from 'lucide-react';
+import { ShoppingCart, Search, Filter, Loader, X, Lightbulb, Menu, ChevronDown, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useDebouncedCallback } from 'use-debounce';
 import PageMeta from '../components/PageMeta';
 import ProductDetailModal from '../components/ProductDetailModal';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import FilterDrawer from '../components/FilterDrawer';
+import ProductCard from '../components/ProductCard';
+import SearchSuggestions from '../components/SearchSuggestions';
 import { marketplaceApi, cartApi } from '../api/marketplaceApi';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/ProductMarketplacePage.css';
@@ -18,36 +25,23 @@ const SORT_OPTIONS = {
   in_carts: 'marketplace.sortOptions.mostPopular',
 };
 
-/**
- * Checks if a product is recommended for a user based on skill matches
- */
+const PRICE_PRESETS = [
+  { label: 'Under $50', min: 0, max: 5000 },
+  { label: '$50 - $200', min: 5000, max: 20000 },
+  { label: '$200 - $500', min: 20000, max: 50000 },
+  { label: '$500+', min: 50000, max: 1000000 },
+];
+
 const isProductRecommended = (product, userSkills) => {
   if (!userSkills || userSkills.length === 0) return false;
   if (!product.skills || product.skills.length === 0) return false;
 
-  // Extract user skill IDs into a set for efficient lookup
   const userSkillIds = new Set(
-    userSkills.map((skill) => {
-      // Handle both skill object with id property and plain skill IDs
-      return typeof skill === 'object' ? skill.id : skill;
-    })
+    userSkills.map((skill) => (typeof skill === 'object' ? skill.id : skill))
   );
 
-  // Check if any product skill ID is in the user's skills
   return product.skills.some((skill) => userSkillIds.has(skill.id));
 };
-
-/**
- * RecommendedBadge component
- */
-function RecommendedBadge() {
-  return (
-    <div className="pmp-recommended-badge">
-      <Lightbulb size={14} />
-      <span>Recommended for You</span>
-    </div>
-  );
-}
 
 export default function ProductMarketplacePage() {
   const { t } = useTranslation();
@@ -55,90 +49,97 @@ export default function ProductMarketplacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
 
-  // Initialize state from URL params
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // Filter state from URL
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [selectedSkill, setSelectedSkill] = useState(searchParams.get('skill') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
   const [selectedMinPrice, setSelectedMinPrice] = useState(searchParams.get('minPrice') || '');
   const [selectedMaxPrice, setSelectedMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'best_match');
-  const [categories, setCategories] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [currentCart, setCurrentCart] = useState(null);
+
+  // UI state
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [showNewCartModal, setShowNewCartModal] = useState(false);
   const [newCartName, setNewCartName] = useState('');
-  const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [currentCart, setCurrentCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem('oxs:lastCart');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  // Update URL params whenever filters change
+  // Debounced search
+  const debouncedSearch = useDebouncedCallback((query) => {
+    setSearchQuery(query);
+  }, 300);
+
+  // Update URL params
   useEffect(() => {
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
-    if (selectedSkill) params.set('skill', selectedSkill);
     if (selectedCategory) params.set('category', selectedCategory);
     if (selectedMinPrice) params.set('minPrice', selectedMinPrice);
     if (selectedMaxPrice) params.set('maxPrice', selectedMaxPrice);
     if (sortBy !== 'best_match') params.set('sortBy', sortBy);
-
     setSearchParams(params, { replace: true });
-  }, [searchQuery, selectedSkill, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy, setSearchParams]);
+  }, [searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy, setSearchParams]);
 
-  // Fetch products
-  const fetchProducts = async (pageNum = 1) => {
-    setLoading(true);
-    try {
-      let minPrice = null;
-      let maxPrice = null;
+  // Persist cart
+  useEffect(() => {
+    if (currentCart) {
+      localStorage.setItem('oxs:lastCart', JSON.stringify(currentCart));
+    }
+  }, [currentCart]);
 
-      // Convert prices to cents if provided
-      if (selectedMinPrice) {
-        minPrice = Math.floor(parseFloat(selectedMinPrice) * 100);
-      }
-      if (selectedMaxPrice) {
-        maxPrice = Math.floor(parseFloat(selectedMaxPrice) * 100);
-      }
+  // Fetch categories
+  const { data: categoriesData } = useQuery({
+    queryKey: ['productCategories'],
+    queryFn: () => marketplaceApi.getCategories(),
+    staleTime: Infinity,
+  });
+  const categories = categoriesData?.data?.categories || [];
+
+  // Fetch search suggestions
+  const { data: suggestionsData } = useQuery({
+    queryKey: ['searchSuggestions', searchQuery],
+    queryFn: () => marketplaceApi.searchSuggestions(searchQuery),
+    enabled: searchQuery.length > 2,
+    staleTime: 10 * 60 * 1000,
+  });
+  const suggestions = suggestionsData?.data?.suggestions || [];
+
+  // Infinite scroll products
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+    queryKey: ['products', searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy],
+    queryFn: async ({ pageParam = 1 }) => {
+      const minPrice = selectedMinPrice ? Math.floor(parseFloat(selectedMinPrice) * 100) : null;
+      const maxPrice = selectedMaxPrice ? Math.floor(parseFloat(selectedMaxPrice) * 100) : null;
 
       const response = await marketplaceApi.searchProducts(
         searchQuery,
-        selectedSkill,
+        null,
         minPrice,
         maxPrice,
-        pageNum,
+        pageParam,
         20,
-        sortBy
+        sortBy,
+        selectedCategory
       );
-      setProducts(response.data.products || []);
-      setPage(pageNum);
-      setTotalPages(Math.ceil(response.data.pagination.total / 20));
-    } catch (err) {
-      toast.error(t('common.errorLoading'));
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data;
+    },
+    getNextPageParam: (lastPage) => {
+      const currentPage = lastPage.pagination?.page || 1;
+      const totalPages = Math.ceil((lastPage.pagination?.total || 0) / 20);
+      return currentPage < totalPages ? currentPage + 1 : undefined;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-  // Fetch categories
-  const fetchCategories = async () => {
-    try {
-      const response = await marketplaceApi.getCategories();
-      setCategories(response.data.categories || []);
-    } catch (err) {
-      console.error('Failed to fetch categories:', err);
-    }
-  };
+  const allProducts = data?.pages.flatMap((page) => page.products || []) || [];
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    fetchProducts(1);
-  }, [selectedSkill, selectedCategory, searchQuery, selectedMinPrice, selectedMaxPrice, sortBy]);
-
-  // Create new cart
+  // Handlers
   const handleCreateCart = async () => {
     if (!newCartName.trim()) {
       toast.error(t('marketplace.cartNameRequired'));
@@ -151,45 +152,69 @@ export default function ProductMarketplacePage() {
       setShowNewCartModal(false);
       setNewCartName('');
       toast.success(t('marketplace.cartCreated'));
-      navigate(`/cart/${response.data.id}`);
     } catch (err) {
       toast.error(t('common.errorCreating'));
     }
   };
 
-  // Clear all filters
   const handleClearAllFilters = () => {
     setSearchQuery('');
-    setSelectedSkill('');
     setSelectedCategory('');
     setSelectedMinPrice('');
     setSelectedMaxPrice('');
     setSortBy('best_match');
   };
 
-  // Get active filters count
-  const hasActiveFilters = searchQuery || selectedSkill || selectedCategory || selectedMinPrice || selectedMaxPrice;
+  const handleAddToCart = async (productId, quantity = 1) => {
+    if (!user) {
+      toast.error(t('marketplace.loginRequired'));
+      navigate('/login');
+      return;
+    }
 
-  // Helper to translate sort option labels
-  const getSortLabel = (sortKey) => {
-    const labelKey = SORT_OPTIONS[sortKey];
-    return labelKey ? t(labelKey) : sortKey;
-  };
-
-  // Add product to cart
-  const handleAddToCart = async (productId) => {
     if (!currentCart) {
       setShowNewCartModal(true);
       return;
     }
 
     try {
-      await cartApi.addItem(currentCart.id, productId, 1);
+      await cartApi.addItem(currentCart.id, productId, quantity);
       toast.success(t('marketplace.itemAdded'));
     } catch (err) {
       toast.error(t('common.errorUpdating'));
     }
   };
+
+  const handleOpenCart = () => {
+    if (currentCart) {
+      navigate(`/cart/${currentCart.id}`);
+    }
+  };
+
+  const getSortLabel = (sortKey) => {
+    const labelKey = SORT_OPTIONS[sortKey];
+    return labelKey ? t(labelKey) : sortKey;
+  };
+
+  const hasActiveFilters = searchQuery || selectedCategory || selectedMinPrice || selectedMaxPrice || sortBy !== 'best_match';
+
+  // Intersection observer for infinite scroll
+  const loadMoreRef = useRef(null);
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <>
@@ -198,259 +223,284 @@ export default function ProductMarketplacePage() {
         description={t('marketplace.description')}
       />
 
-      <div className="pmp-container">
-        <div className="pmp-header">
-          <h1>{t('marketplace.title')}</h1>
-          <p>{t('marketplace.subtitle')}</p>
-        </div>
+      <Navbar />
 
-        {/* Search & Filters */}
-        <div className="pmp-search-section">
-          <div className="pmp-search-bar">
-            <Search className="pmp-search-icon" />
-            <input
-              type="text"
-              placeholder={t('marketplace.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pmp-search-input"
-            />
-          </div>
-
-          <div className="pmp-filters">
-            <div className="pmp-filter-group">
-              <label>{t('marketplace.filterCategory')}</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="pmp-filter-select"
-              >
-                <option value="">{t('common.all')}</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
+      <main className="pmp-main">
+        <div className="pmp-container">
+          {/* Hero Section */}
+          <div className="pmp-header">
+            <div className="pmp-header-content">
+              <h1>{t('marketplace.title')}</h1>
+              <p>{t('marketplace.subtitle')}</p>
             </div>
 
-            <div className="pmp-filter-group">
-              <label>{t('marketplace.minPrice')}</label>
-              <input
-                type="number"
-                placeholder="0"
-                value={selectedMinPrice}
-                onChange={(e) => setSelectedMinPrice(e.target.value)}
-                className="pmp-filter-input"
-                min="0"
-              />
-            </div>
-
-            <div className="pmp-filter-group">
-              <label>{t('marketplace.maxPrice')}</label>
-              <input
-                type="number"
-                placeholder="1000"
-                value={selectedMaxPrice}
-                onChange={(e) => setSelectedMaxPrice(e.target.value)}
-                className="pmp-filter-input"
-                min="0"
-              />
-            </div>
-
-            <div className="pmp-filter-group">
-              <label>{t('marketplace.sortBy')}</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="pmp-filter-select"
-              >
-                {Object.entries(SORT_OPTIONS).map(([key, labelKey]) => (
-                  <option key={key} value={key}>
-                    {t(labelKey)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Active Filter Pills */}
-        {hasActiveFilters && (
-          <div className="pmp-active-filters">
-            <div className="pmp-filter-pills">
-              {selectedMinPrice && selectedMaxPrice && (
-                <div className="pmp-filter-pill">
-                  <span className="pmp-pill-text">
-                    {t('marketplace.priceRange', { min: selectedMinPrice, max: selectedMaxPrice })}
-                  </span>
-                  <button
-                    className="pmp-pill-remove"
-                    onClick={() => {
-                      setSelectedMinPrice('');
-                      setSelectedMaxPrice('');
-                    }}
-                    aria-label={t('common.remove')}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
-              {selectedCategory && (
-                <div className="pmp-filter-pill">
-                  <span className="pmp-pill-text">
-                    {t('marketplace.categoryPill', { category: selectedCategory })}
-                  </span>
-                  <button
-                    className="pmp-pill-remove"
-                    onClick={() => setSelectedCategory('')}
-                    aria-label={t('common.remove')}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
-              {sortBy !== 'best_match' && (
-                <div className="pmp-filter-pill pmp-pill-info">
-                  <span className="pmp-pill-text">
-                    {t('marketplace.sortPill', { sort: getSortLabel(sortBy) })}
-                  </span>
-                </div>
-              )}
-            </div>
-            {hasActiveFilters && (
-              <button className="pmp-clear-all-btn" onClick={handleClearAllFilters}>
-                {t('marketplace.clearAll')}
+            {/* Cart Button */}
+            {currentCart && (
+              <button className="pmp-cart-fab" onClick={handleOpenCart} title="Open cart">
+                <ShoppingCart size={20} />
+                <span className="pmp-cart-count">+</span>
               </button>
             )}
           </div>
-        )}
 
-        {/* Products Grid */}
-        {loading ? (
-          <div className="pmp-loading">
-            <Loader className="pmp-spinner" />
-            <p>{t('common.loading')}</p>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="pmp-empty">
-            <Filter className="pmp-empty-icon" />
-            <p>{t('marketplace.noProducts')}</p>
-          </div>
-        ) : (
-          <>
-            <div className="pmp-grid">
-              {products.map((product) => {
-                const isRecommended = user && user.role && ['helper', 'helper_pro', 'broker'].includes(user.role)
-                  && isProductRecommended(product, user.skills);
+          {/* Search Section */}
+          <div className="pmp-search-section">
+            <div className="pmp-search-wrapper">
+              <div className="pmp-search-bar">
+                <Search className="pmp-search-icon" size={20} />
+                <input
+                  type="text"
+                  placeholder={t('marketplace.searchPlaceholder')}
+                  defaultValue={searchQuery}
+                  onChange={(e) => debouncedSearch(e.target.value)}
+                  className="pmp-search-input"
+                  aria-label="Search products"
+                />
+              </div>
 
-                return (
-                <div key={product.id} className="pmp-product-card">
-                  <div className="pmp-product-image-wrapper">
-                    {product.product_image_url && (
-                      <img
-                        src={product.product_image_url}
-                        alt={product.name}
-                        className="pmp-product-image"
-                        loading="lazy"
-                      />
-                    )}
-                    {isRecommended && <RecommendedBadge />}
-                  </div>
-                  <div className="pmp-product-info">
-                    <h3 className="pmp-product-name">{product.name}</h3>
-                    {product.category && (
-                      <p className="pmp-product-category">{product.category}</p>
-                    )}
-                    <p className="pmp-product-price">
-                      ${(product.price_cents / 100).toFixed(2)}
-                    </p>
-                    <div className="pmp-product-skills">
-                      {product.skills?.map((skill) => (
-                        <span key={skill.id} className="pmp-skill-badge">
-                          {skill.name}
-                        </span>
-                      ))}
-                    </div>
+              {/* Search Suggestions */}
+              {searchQuery.length > 2 && suggestions.length > 0 && (
+                <SearchSuggestions
+                  suggestions={suggestions}
+                  onSelect={(suggestion) => debouncedSearch(suggestion)}
+                />
+              )}
+
+              {/* Mobile Filter Toggle */}
+              <button
+                className="pmp-filter-toggle-mobile"
+                onClick={() => setShowFilterDrawer(true)}
+                aria-label="Open filters"
+              >
+                <Filter size={20} />
+              </button>
+            </div>
+
+            {/* Desktop Filters */}
+            <div className="pmp-filters-desktop">
+              <div className="pmp-filter-group">
+                <label>{t('marketplace.filterCategory')}</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="pmp-filter-select"
+                >
+                  <option value="">{t('common.all')}</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pmp-filter-group">
+                <label>{t('marketplace.priceRange')}</label>
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={selectedMinPrice}
+                  onChange={(e) => setSelectedMinPrice(e.target.value)}
+                  className="pmp-filter-input"
+                  min="0"
+                />
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={selectedMaxPrice}
+                  onChange={(e) => setSelectedMaxPrice(e.target.value)}
+                  className="pmp-filter-input"
+                  min="0"
+                />
+              </div>
+
+              <div className="pmp-filter-group">
+                <label>{t('marketplace.sortBy')}</label>
+                <div className="pmp-sort-select-wrapper">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="pmp-filter-select"
+                  >
+                    {Object.entries(SORT_OPTIONS).map(([key, labelKey]) => (
+                      <option key={key} value={key}>
+                        {t(labelKey)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="pmp-select-icon" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Filters */}
+          {hasActiveFilters && (
+            <div className="pmp-active-filters">
+              <div className="pmp-filter-pills">
+                {searchQuery && (
+                  <div className="pmp-filter-pill">
+                    <span className="pmp-pill-text">{t('marketplace.search')}: "{searchQuery}"</span>
                     <button
-                      onClick={() => handleAddToCart(product.id)}
-                      className="pmp-add-to-cart-btn"
-                      disabled={!user}
+                      className="pmp-pill-remove"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Remove search"
                     >
-                      <ShoppingCart size={16} />
-                      {t('marketplace.addToCart')}
+                      <X size={14} />
                     </button>
                   </div>
-                </div>
-                );
-              })}
+                )}
+                {selectedCategory && (
+                  <div className="pmp-filter-pill">
+                    <span className="pmp-pill-text">{selectedCategory}</span>
+                    <button
+                      className="pmp-pill-remove"
+                      onClick={() => setSelectedCategory('')}
+                      aria-label="Remove category"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+                {(selectedMinPrice || selectedMaxPrice) && (
+                  <div className="pmp-filter-pill">
+                    <span className="pmp-pill-text">
+                      ${selectedMinPrice || '0'} - ${selectedMaxPrice || '∞'}
+                    </span>
+                    <button
+                      className="pmp-pill-remove"
+                      onClick={() => {
+                        setSelectedMinPrice('');
+                        setSelectedMaxPrice('');
+                      }}
+                      aria-label="Remove price filter"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button className="pmp-clear-all-btn" onClick={handleClearAllFilters}>
+                {t('marketplace.clearAll')}
+              </button>
             </div>
+          )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pmp-pagination">
-                <button
-                  onClick={() => fetchProducts(page - 1)}
-                  disabled={page === 1}
-                  className="pmp-pagination-btn"
-                >
-                  {t('common.previous')}
-                </button>
-                <span className="pmp-pagination-info">
-                  {t('marketplace.pageInfo', { page, totalPages })}
-                </span>
-                <button
-                  onClick={() => fetchProducts(page + 1)}
-                  disabled={page === totalPages}
-                  className="pmp-pagination-btn"
-                >
-                  {t('common.next')}
-                </button>
-              </div>
-            )}
-          </>
-        )}
+          {/* Products Grid */}
+          {isLoading && allProducts.length === 0 ? (
+            <div className="pmp-loading">
+              <Loader className="pmp-spinner" />
+              <p>{t('common.loading')}</p>
+            </div>
+          ) : allProducts.length === 0 ? (
+            <div className="pmp-empty">
+              <Filter className="pmp-empty-icon" />
+              <h3>{t('marketplace.noProducts')}</h3>
+              <p>{t('marketplace.tryDifferentFilters')}</p>
+              <button className="pmp-clear-all-btn" onClick={handleClearAllFilters}>
+                {t('marketplace.clearAll')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="pmp-grid">
+                {allProducts.map((product) => {
+                  const isRecommended =
+                    user &&
+                    user.role &&
+                    ['helper', 'helper_pro', 'broker'].includes(user.role) &&
+                    isProductRecommended(product, user.skills);
 
-        {/* New Cart Modal */}
-        {showNewCartModal && (
-          <div className="pmp-modal-overlay" onClick={() => setShowNewCartModal(false)}>
-            <div className="pmp-modal" onClick={(e) => e.stopPropagation()}>
-              <h2>{t('marketplace.createNewCart')}</h2>
-              <input
-                type="text"
-                placeholder={t('marketplace.cartNamePlaceholder')}
-                value={newCartName}
-                onChange={(e) => setNewCartName(e.target.value)}
-                className="pmp-modal-input"
-                autoFocus
-              />
-              <div className="pmp-modal-actions">
-                <button
-                  onClick={() => setShowNewCartModal(false)}
-                  className="pmp-modal-btn-cancel"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={handleCreateCart}
-                  className="pmp-modal-btn-create"
-                >
-                  {t('common.create')}
-                </button>
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      isRecommended={isRecommended}
+                      onAddToCart={() => handleAddToCart(product.id)}
+                      onViewDetails={() => setSelectedProduct(product)}
+                      disabled={!user}
+                    />
+                  );
+                })}
               </div>
+
+              {/* Load More Trigger */}
+              {(hasNextPage || isFetchingNextPage) && (
+                <div ref={loadMoreRef} className="pmp-load-more">
+                  {isFetchingNextPage && (
+                    <>
+                      <Loader className="pmp-spinner" />
+                      <p>{t('common.loading')}</p>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </main>
+
+      {/* Filter Drawer (Mobile) */}
+      <FilterDrawer
+        open={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+        selectedMinPrice={selectedMinPrice}
+        onMinPriceChange={setSelectedMinPrice}
+        selectedMaxPrice={selectedMaxPrice}
+        onMaxPriceChange={setSelectedMaxPrice}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        sortOptions={SORT_OPTIONS}
+      />
+
+      {/* Create Cart Modal */}
+      {showNewCartModal && (
+        <div className="pmp-modal-overlay" onClick={() => setShowNewCartModal(false)}>
+          <div className="pmp-modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="pmp-modal-close"
+              onClick={() => setShowNewCartModal(false)}
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+            <h2>{t('marketplace.createNewCart')}</h2>
+            <input
+              type="text"
+              placeholder={t('marketplace.cartNamePlaceholder')}
+              value={newCartName}
+              onChange={(e) => setNewCartName(e.target.value)}
+              className="pmp-modal-input"
+              autoFocus
+            />
+            <div className="pmp-modal-actions">
+              <button
+                onClick={() => setShowNewCartModal(false)}
+                className="pmp-modal-btn-cancel"
+              >
+                {t('common.cancel')}
+              </button>
+              <button onClick={handleCreateCart} className="pmp-modal-btn-create">
+                {t('common.create')}
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Product Detail Modal */}
-        {selectedProduct && (
-          <ProductDetailModal
-            product={selectedProduct}
-            onClose={() => setSelectedProduct(null)}
-            onAddToCart={handleAddToCart}
-          />
-        )}
-      </div>
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+
+      <Footer />
     </>
   );
 }

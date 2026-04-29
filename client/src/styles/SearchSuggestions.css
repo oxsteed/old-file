@@ -1,0 +1,106 @@
+/* Search Suggestions Dropdown */
+.ss-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header */
+.ss-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--app-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-text);
+}
+
+.ss-header svg {
+  color: #8b5cf6;
+}
+
+/* List */
+.ss-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* Item */
+.ss-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.ss-item:hover {
+  background: var(--app-bg);
+  color: #8b5cf6;
+}
+
+.ss-item:focus {
+  outline: none;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.ss-item svg {
+  color: var(--muted-text);
+  flex-shrink: 0;
+}
+
+.ss-item:hover svg {
+  color: #8b5cf6;
+}
+
+/* Scrollbar */
+.ss-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ss-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ss-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.ss-list::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-text);
+}
