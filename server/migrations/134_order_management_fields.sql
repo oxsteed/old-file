@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS order_action_log (
   order_id BIGINT NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
   action_type VARCHAR(50) NOT NULL,
   action_details JSONB,
-  performed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  performed_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

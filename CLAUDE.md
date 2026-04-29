@@ -17,12 +17,19 @@
 
 **Codebase metrics:**
 - 241 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage)
-- 86 backend controllers (added 5 new: cartCheckout, orders, adminProducts, apiProducts, affiliatePayouts)
-- 135 database migrations (added 3 new: orders/transactions, API products, affiliate payouts)
+- 86 backend controllers (added 6 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts)
+- 136 database migrations (added 8 new: orders/transactions, API products, affiliate payouts, order management, email/SMS preferences, discount codes, product reviews)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Latest work completed (2026-04-29):**
-- **CRITICAL: Deployment Blocker Fixes** 🔧
+- **CRITICAL: Deployment Blocker Fixes #2** 🔧 (Commit: 0dae135)
+  - **Migration 126:** Fixed `product_reviews.helper_id` type (BIGINT→UUID) for FK to users
+  - **Migration 131:** Reordered table creation (affiliate_payouts before affiliate_commissions)
+  - **Migration 133:** Fixed `order_discount_history.order_id` type (UUID→BIGINT) for FK to marketplace_orders
+  - **Migration 134:** Fixed `order_action_log.performed_by` type (BIGINT→UUID) for FK to users
+  - **Route fixes:** Enhanced cartCheckout error handler; fixed adminProducts and discountCodes imports of requireAdmin middleware
+  - **Status:** Resolves all 4 migration failures and Route.get() error blocking Docker healthcheck
+- **CRITICAL: Deployment Blocker Fixes #1** 🔧
   - **Stripe initialization:** Made conditional to prevent module loading failure when env var missing
   - **Twilio initialization:** Made conditional to fall back to mock_sid (defensive pattern)
   - **FK type mismatches:** Fixed 5 UUID/BIGINT mismatches in foreign keys:
