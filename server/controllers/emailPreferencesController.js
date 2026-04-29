@@ -1,0 +1,303 @@
+const pool = require('../db');
+const crypto = require('crypto');
+const logger = require('../utils/logger');
+const { sendError, sendValidationError } = require('../utils/apiError');
+
+// Get user's email preferences
+async function getEmailPreferences(req, res) {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return sendError(res, 401, 'Unauthorized');
+    }
+
+    const result = await pool.query(
+      `SELECT
+        id,
+        user_id,
+        email_notifications,
+        sms_notifications,
+        push_notifications,
+        marketing_emails,
+        email_frequency,
+        unsubscribe_all,
+        unsubscribed_from_bulk_emails,
+        email_updated_at
+       FROM notification_preferences
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (!result.rows.length) {
+      return sendError(res, 404, 'Email preferences not found');
+    }
+
+    const prefs = result.rows[0];
+
+    res.json({
+      success: true,
+      data: {
+        userId: prefs.user_id,
+        frequency: prefs.email_frequency || 'real-time',
+        emailNotifications: prefs.email_notifications !== false,
+        marketingEmails: prefs.marketing_emails !== false,
+        smsNotifications: prefs.sms_notifications !== false,
+        pushNotifications: prefs.push_notifications !== false,
+        unsubscribeAll: prefs.unsubscribe_all || false,
+        unsubscribedFromBulk: prefs.unsubscribed_from_bulk_emails || false,
+        lastUpdated: prefs.email_updated_at
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching email preferences', { error, userId: req.user?.id });
+    sendError(res, 500, 'Failed to fetch email preferences');
+  }
+}
+
+// Update email preferences
+async function updateEmailPreferences(req, res) {
+  try {
+    const userId = req.user?.id;
+    const { frequency, emailNotifications, marketingEmails, smsNotifications, pushNotifications } = req.body;
+
+    if (!userId) {
+      return sendError(res, 401, 'Unauthorized');
+    }
+
+    // Validate frequency
+    if (frequency && !['real-time', 'daily', 'weekly', 'off'].includes(frequency)) {
+      return sendValidationError(res, { frequency: 'Invalid frequency option' });
+    }
+
+    const result = await pool.query(
+      `UPDATE notification_preferences
+       SET email_frequency = COALESCE($1, email_frequency),
+           email_notifications = COALESCE($2, email_notifications),
+           marketing_emails = COALESCE($3, marketing_emails),
+           sms_notifications = COALESCE($4, sms_notifications),
+           push_notifications = COALESCE($5, push_notifications),
+           email_updated_at = CURRENT_TIMESTAMP,
+           unsubscribe_all = FALSE
+       WHERE user_id = $6
+       RETURNING *`,
+      [frequency || null, emailNotifications, marketingEmails, smsNotifications, pushNotifications, userId]
+    );
+
+    if (!result.rows.length) {
+      return sendError(res, 404, 'Email preferences not found');
+    }
+
+    const prefs = result.rows[0];
+
+    logger.info('Email preferences updated', { userId, frequency, emailNotifications });
+
+    res.json({
+      success: true,
+      data: {
+        userId: prefs.user_id,
+        frequency: prefs.email_frequency || 'real-time',
+        emailNotifications: prefs.email_notifications !== false,
+        marketingEmails: prefs.marketing_emails !== false,
+        smsNotifications: prefs.sms_notifications !== false,
+        pushNotifications: prefs.push_notifications !== false,
+        lastUpdated: prefs.email_updated_at
+      }
+    });
+  } catch (error) {
+    logger.error('Error updating email preferences', { error, userId: req.user?.id });
+    sendError(res, 500, 'Failed to update email preferences');
+  }
+}
+
+// Request unsubscribe from all emails
+async function unsubscribeFromAll(req, res) {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return sendError(res, 401, 'Unauthorized');
+    }
+
+    await pool.query(
+      `UPDATE notification_preferences
+       SET unsubscribe_all = TRUE,
+           email_updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    logger.info('User unsubscribed from all emails', { userId });
+
+    res.json({
+      success: true,
+      message: 'You have been unsubscribed from all emails'
+    });
+  } catch (error) {
+    logger.error('Error unsubscribing from all emails', { error, userId: req.user?.id });
+    sendError(res, 500, 'Failed to unsubscribe from emails');
+  }
+}
+
+// Generate unsubscribe token for email links
+async function generateUnsubscribeToken(userId, category = null) {
+  try {
+    const token = crypto.randomBytes(32).toString('hex');
+
+    await pool.query(
+      `INSERT INTO email_unsubscribe_tokens (user_id, token, category)
+       VALUES ($1, $2, $3)
+       ON CONFLICT DO NOTHING`,
+      [userId, token, category]
+    );
+
+    return token;
+  } catch (error) {
+    logger.error('Error generating unsubscribe token', { error, userId, category });
+    return null;
+  }
+}
+
+// Handle unsubscribe via email link (no auth required)
+async function handleUnsubscribeLink(req, res) {
+  try {
+    const { token } = req.params;
+
+    if (!token || token.length < 32) {
+      return sendError(res, 400, 'Invalid unsubscribe token');
+    }
+
+    const result = await pool.query(
+      `SELECT user_id, category FROM email_unsubscribe_tokens
+       WHERE token = $1 AND used_at IS NULL`,
+      [token]
+    );
+
+    if (!result.rows.length) {
+      return sendError(res, 404, 'Token not found or already used');
+    }
+
+    const { user_id, category } = result.rows[0];
+
+    if (category) {
+      // Unsubscribe from specific category
+      const categoryMapping = {
+        'marketing': 'marketing_emails',
+        'bulk': 'unsubscribed_from_bulk_emails',
+      };
+
+      if (categoryMapping[category]) {
+        await pool.query(
+          `UPDATE notification_preferences
+           SET ${categoryMapping[category]} = TRUE,
+               email_updated_at = CURRENT_TIMESTAMP
+           WHERE user_id = $1`,
+          [user_id]
+        );
+      }
+    } else {
+      // Unsubscribe from all
+      await pool.query(
+        `UPDATE notification_preferences
+         SET unsubscribe_all = TRUE,
+             email_updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1`,
+        [user_id]
+      );
+    }
+
+    // Mark token as used
+    await pool.query(
+      `UPDATE email_unsubscribe_tokens
+       SET used_at = CURRENT_TIMESTAMP
+       WHERE token = $1`,
+      [token]
+    );
+
+    logger.info('User unsubscribed via email link', { userId: user_id, category });
+
+    res.json({
+      success: true,
+      message: 'You have been unsubscribed successfully'
+    });
+  } catch (error) {
+    logger.error('Error handling unsubscribe link', { error });
+    sendError(res, 500, 'Failed to process unsubscribe request');
+  }
+}
+
+// Confirm unsubscribe via POST
+async function confirmUnsubscribe(req, res) {
+  try {
+    const { token } = req.params;
+
+    if (!token || token.length < 32) {
+      return sendError(res, 400, 'Invalid unsubscribe token');
+    }
+
+    const result = await pool.query(
+      `SELECT user_id, category FROM email_unsubscribe_tokens
+       WHERE token = $1 AND used_at IS NULL`,
+      [token]
+    );
+
+    if (!result.rows.length) {
+      return sendError(res, 404, 'Token not found or already used');
+    }
+
+    const { user_id, category } = result.rows[0];
+
+    // Apply unsubscribe
+    if (category) {
+      const categoryMapping = {
+        'marketing': 'marketing_emails',
+        'bulk': 'unsubscribed_from_bulk_emails',
+      };
+
+      if (categoryMapping[category]) {
+        await pool.query(
+          `UPDATE notification_preferences
+           SET ${categoryMapping[category]} = TRUE,
+               email_updated_at = CURRENT_TIMESTAMP
+           WHERE user_id = $1`,
+          [user_id]
+        );
+      }
+    } else {
+      await pool.query(
+        `UPDATE notification_preferences
+         SET unsubscribe_all = TRUE,
+             email_updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1`,
+        [user_id]
+      );
+    }
+
+    // Mark token as used
+    await pool.query(
+      `UPDATE email_unsubscribe_tokens
+       SET used_at = CURRENT_TIMESTAMP
+       WHERE token = $1`,
+      [token]
+    );
+
+    logger.info('Unsubscribe confirmed via POST', { userId: user_id, category });
+
+    res.json({
+      success: true,
+      message: 'Your unsubscribe request has been confirmed'
+    });
+  } catch (error) {
+    logger.error('Error confirming unsubscribe', { error });
+    sendError(res, 500, 'Failed to confirm unsubscribe');
+  }
+}
+
+module.exports = {
+  getEmailPreferences,
+  updateEmailPreferences,
+  unsubscribeFromAll,
+  generateUnsubscribeToken,
+  handleUnsubscribeLink,
+  confirmUnsubscribe
+};
