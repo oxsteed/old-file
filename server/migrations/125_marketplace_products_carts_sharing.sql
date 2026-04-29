@@ -23,14 +23,10 @@ CREATE TABLE IF NOT EXISTS marketplace_products (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_marketplace_products_source_external_id
-  ON marketplace_products(source, external_id);
-CREATE INDEX IF NOT EXISTS idx_marketplace_products_is_active
-  ON marketplace_products(is_active);
-CREATE INDEX IF NOT EXISTS idx_marketplace_products_category
-  ON marketplace_products(category);
-CREATE INDEX IF NOT EXISTS idx_marketplace_products_name_gin
-  ON marketplace_products USING GIN(to_tsvector('english', name || ' ' || COALESCE(description, '')));
+CREATE INDEX IF NOT EXISTS idx_marketplace_products_source_external_id ON marketplace_products(source, external_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_products_is_active ON marketplace_products(is_active);
+CREATE INDEX IF NOT EXISTS idx_marketplace_products_category ON marketplace_products(category);
+CREATE INDEX IF NOT EXISTS idx_marketplace_products_name_gin ON marketplace_products USING GIN(to_tsvector('english', name || ' ' || COALESCE(description, '')));
 
 -- Product to Skills Mapping (Many-to-Many)
 CREATE TABLE IF NOT EXISTS marketplace_product_skills (
@@ -42,10 +38,8 @@ CREATE TABLE IF NOT EXISTS marketplace_product_skills (
   UNIQUE(product_id, skill_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_product_skills_skill_id
-  ON marketplace_product_skills(skill_id);
-CREATE INDEX IF NOT EXISTS idx_product_skills_product_id
-  ON marketplace_product_skills(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_skills_skill_id ON marketplace_product_skills(skill_id);
+CREATE INDEX IF NOT EXISTS idx_product_skills_product_id ON marketplace_product_skills(product_id);
 
 -- Shopping Carts
 -- Handle partial migration: drop bad FK if it exists
@@ -55,14 +49,14 @@ BEGIN
     ALTER TABLE shopping_carts DROP CONSTRAINT IF EXISTS shopping_carts_helper_id_fkey;
     -- Clean up rows with invalid/NULL helper_id values
     DELETE FROM shopping_carts sc
-    WHERE helper_id IS NULL
-       OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id = sc.helper_id);
+      WHERE helper_id IS NULL
+         OR NOT EXISTS (SELECT 1 FROM users u WHERE u.id::text = sc.helper_id::text);
   END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS shopping_carts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  helper_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  helper_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   job_id BIGINT REFERENCES jobs(id) ON DELETE SET NULL,
   name VARCHAR(255),
   description TEXT,
@@ -76,14 +70,10 @@ CREATE TABLE IF NOT EXISTS shopping_carts (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_shopping_carts_helper_id
-  ON shopping_carts(helper_id);
-CREATE INDEX IF NOT EXISTS idx_shopping_carts_job_id
-  ON shopping_carts(job_id);
-CREATE INDEX IF NOT EXISTS idx_shopping_carts_helper_template
-  ON shopping_carts(helper_id) WHERE is_template = TRUE;
-CREATE INDEX IF NOT EXISTS idx_shopping_carts_status
-  ON shopping_carts(status);
+CREATE INDEX IF NOT EXISTS idx_shopping_carts_helper_id ON shopping_carts(helper_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_carts_job_id ON shopping_carts(job_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_carts_helper_template ON shopping_carts(helper_id) WHERE is_template = TRUE;
+CREATE INDEX IF NOT EXISTS idx_shopping_carts_status ON shopping_carts(status);
 
 -- Shopping Cart Items
 CREATE TABLE IF NOT EXISTS shopping_cart_items (
@@ -98,18 +88,16 @@ CREATE TABLE IF NOT EXISTS shopping_cart_items (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_cart_items_cart_id
-  ON shopping_cart_items(cart_id);
-CREATE INDEX IF NOT EXISTS idx_cart_items_product_id
-  ON shopping_cart_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_cart_items_cart_id ON shopping_cart_items(cart_id);
+CREATE INDEX IF NOT EXISTS idx_cart_items_product_id ON shopping_cart_items(product_id);
 
 -- Shared Carts (with tokens for public access)
 CREATE TABLE IF NOT EXISTS shared_carts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cart_id UUID NOT NULL REFERENCES shopping_carts(id) ON DELETE CASCADE,
   share_token VARCHAR(64) NOT NULL UNIQUE, -- URL-safe token
-  shared_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  customer_id BIGINT REFERENCES users(id) ON DELETE SET NULL, -- if shared with specific customer
+  shared_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  customer_id UUID REFERENCES users(id) ON DELETE SET NULL, -- if shared with specific customer
   can_modify BOOLEAN DEFAULT TRUE, -- customer can add/remove items
   expires_at TIMESTAMPTZ,
   view_count INTEGER DEFAULT 0,
@@ -118,20 +106,16 @@ CREATE TABLE IF NOT EXISTS shared_carts (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_shared_carts_token
-  ON shared_carts(share_token);
-CREATE INDEX IF NOT EXISTS idx_shared_carts_cart_id
-  ON shared_carts(cart_id);
-CREATE INDEX IF NOT EXISTS idx_shared_carts_customer_id
-  ON shared_carts(customer_id);
-CREATE INDEX IF NOT EXISTS idx_shared_carts_shared_by
-  ON shared_carts(shared_by);
+CREATE INDEX IF NOT EXISTS idx_shared_carts_token ON shared_carts(share_token);
+CREATE INDEX IF NOT EXISTS idx_shared_carts_cart_id ON shared_carts(cart_id);
+CREATE INDEX IF NOT EXISTS idx_shared_carts_customer_id ON shared_carts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_shared_carts_shared_by ON shared_carts(shared_by);
 
 -- Shared Cart Views (Analytics)
 CREATE TABLE IF NOT EXISTS shared_cart_views (
   id SERIAL PRIMARY KEY,
   shared_cart_id UUID NOT NULL REFERENCES shared_carts(id) ON DELETE CASCADE,
-  viewed_by_id BIGINT REFERENCES users(id) ON DELETE SET NULL, -- null for guests
+  viewed_by_id UUID REFERENCES users(id) ON DELETE SET NULL, -- null for guests
   view_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   user_agent TEXT,
   ip_hash VARCHAR(64),
@@ -139,17 +123,15 @@ CREATE TABLE IF NOT EXISTS shared_cart_views (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_shared_cart_views_shared_cart
-  ON shared_cart_views(shared_cart_id, view_timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_shared_cart_views_viewed_by
-  ON shared_cart_views(viewed_by_id);
+CREATE INDEX IF NOT EXISTS idx_shared_cart_views_shared_cart ON shared_cart_views(shared_cart_id, view_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_shared_cart_views_viewed_by ON shared_cart_views(viewed_by_id);
 
 -- Cart Approvals (Customer approval workflow)
 CREATE TABLE IF NOT EXISTS cart_approvals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cart_id UUID NOT NULL REFERENCES shopping_carts(id) ON DELETE CASCADE,
   shared_cart_id UUID NOT NULL REFERENCES shared_carts(id) ON DELETE CASCADE,
-  customer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  customer_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   status VARCHAR(20) DEFAULT 'pending', -- pending, approved, rejected
   customer_notes TEXT,
   approved_at TIMESTAMPTZ,
@@ -157,14 +139,10 @@ CREATE TABLE IF NOT EXISTS cart_approvals (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_cart_approvals_customer
-  ON cart_approvals(customer_id);
-CREATE INDEX IF NOT EXISTS idx_cart_approvals_cart
-  ON cart_approvals(cart_id);
-CREATE INDEX IF NOT EXISTS idx_cart_approvals_shared_cart
-  ON cart_approvals(shared_cart_id);
-CREATE INDEX IF NOT EXISTS idx_cart_approvals_status
-  ON cart_approvals(status);
+CREATE INDEX IF NOT EXISTS idx_cart_approvals_customer ON cart_approvals(customer_id);
+CREATE INDEX IF NOT EXISTS idx_cart_approvals_cart ON cart_approvals(cart_id);
+CREATE INDEX IF NOT EXISTS idx_cart_approvals_shared_cart ON cart_approvals(shared_cart_id);
+CREATE INDEX IF NOT EXISTS idx_cart_approvals_status ON cart_approvals(status);
 
 -- Affiliate Links Log (track conversions)
 CREATE TABLE IF NOT EXISTS affiliate_links_log (
@@ -183,11 +161,7 @@ CREATE TABLE IF NOT EXISTS affiliate_links_log (
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_affiliate_links_shared_cart
-  ON affiliate_links_log(shared_cart_id);
-CREATE INDEX IF NOT EXISTS idx_affiliate_links_product
-  ON affiliate_links_log(product_id);
-CREATE INDEX IF NOT EXISTS idx_affiliate_links_status
-  ON affiliate_links_log(commission_status);
-CREATE INDEX IF NOT EXISTS idx_affiliate_links_order_id
-  ON affiliate_links_log(home_depot_order_id);
+CREATE INDEX IF NOT EXISTS idx_affiliate_links_shared_cart ON affiliate_links_log(shared_cart_id);
+CREATE INDEX IF NOT EXISTS idx_affiliate_links_product ON affiliate_links_log(product_id);
+CREATE INDEX IF NOT EXISTS idx_affiliate_links_status ON affiliate_links_log(commission_status);
+CREATE INDEX IF NOT EXISTS idx_affiliate_links_order_id ON affiliate_links_log(home_depot_order_id);
