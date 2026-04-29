@@ -57,7 +57,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS shopping_carts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   helper_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  job_id BIGINT REFERENCES jobs(id) ON DELETE SET NULL,
+  job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
   name VARCHAR(255),
   description TEXT,
   is_template BOOLEAN DEFAULT FALSE, -- marked as reusable template
