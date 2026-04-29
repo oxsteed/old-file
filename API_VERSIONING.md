@@ -8,6 +8,8 @@ OxSteed uses semantic API versioning to support breaking changes while maintaini
 - **v2**: New features, breaking changes accepted
 - **Fallback**: v2 routes fall back to v1 if endpoint not found
 
+
+
 ## Client Usage
 
 ### Explicit Version
