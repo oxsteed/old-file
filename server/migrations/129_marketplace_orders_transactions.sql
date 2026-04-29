@@ -65,7 +65,7 @@ ALTER TABLE affiliate_links_log ADD COLUMN IF NOT EXISTS payout_id BIGINT;
 
 CREATE TABLE IF NOT EXISTS affiliate_clicks (
   id BIGSERIAL PRIMARY KEY,
-  affiliate_link_id BIGINT NOT NULL REFERENCES affiliate_links_log(id) ON DELETE CASCADE,
+  affiliate_link_id UUID NOT NULL REFERENCES affiliate_links_log(id) ON DELETE CASCADE,
   user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   referrer VARCHAR(500),
   user_agent VARCHAR(500),
