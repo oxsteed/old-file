@@ -38,7 +38,21 @@
     - Frontend: OrderManagement page, OrderDetailModal, OrderFilters, OrderManagementTable
     - API routes: `/api/admin/orders` with sorting, pagination, status filtering
     - Integration: Admin sidebar navigation link added
-  - **Phase 2 (In Progress):** Email Preference Center & SMS Notifications
+  - **Phase 2: Email Preferences & SMS Notifications** ✅ COMPLETE
+    - **Part 1: Email Preference Center**
+      - Migration 135: Email frequency preferences, unsubscribe tokens, digest queue
+      - EmailPreferencesController: Preference management, one-click unsubscribe
+      - EmailPreferences page: Frequency selector, category toggles, unsubscribe all button
+      - Email digest batch job for daily/weekly notification compilation
+      - API routes: `/api/notifications/email` with get, update, unsubscribe endpoints
+    - **Part 2: SMS Notifications**
+      - Migration 136: SMS preferences, phone verification, SMS logs
+      - SMSNotificationService: Twilio integration for SMS sending
+      - Phone verification with OTP (6-digit code)
+      - SMS on order events: created, payment confirmed, shipped, cancelled, refunded
+      - SMSPreferences page: Phone verification, notification toggles, history
+      - Rate limiting: 1 per event, 5 verification attempts/hour
+      - API routes: `/api/notifications/sms` for verification and preference management
   - **Phase 3 (Planned):** Seller Payout Dashboard & Advanced Analytics
   - **Phase 4 (Planned):** A/B Testing for Discount Codes
 - Product marketplace redesign: React Query infinite scroll, modern filter drawer, search suggestions (commits 6a425fa, 8ea81db)
@@ -652,15 +666,24 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 ### POST-LAUNCH FEATURES (Admin Dashboard & Operations)
 
-**Phase 2: Email Preference Center & SMS Notifications** (Weeks 1-2, ~6-8 days)
-- [ ] Migration 135: Email frequency preferences, unsubscribe tokens, digest queue
-- [ ] Email preferences controller and routes (`/api/notifications/preferences`, `/api/notifications/unsubscribe/{token}`)
-- [ ] EmailPreferences page with frequency selector and category toggles
-- [ ] Email digest batch job (daily/weekly) for grouped notifications
-- [ ] Migration 136: SMS opt-in, phone verification, SMS logs
-- [ ] SMS notification service with Twilio integration (payment confirmed, order shipped, refund)
-- [ ] SMSPreferences page with phone verification flow
-- [ ] SMS rate limiting (5 verification attempts/hour, 1 per order event)
+**Phase 1: Admin Dashboard for Order Management** ✅ COMPLETE (Commits 9512167)
+- [x] Migration 134: Order management fields (shipped_at, tracking_number, refund_reason)
+- [x] AdminOrdersController with CRUD, ship, refund, cancel operations
+- [x] OrderManagement page with filtering, sorting, pagination
+- [x] OrderDetailModal with tabs (details, items, payment, actions)
+- [x] OrderFilters component with status and search
+- [x] Admin sidebar integration
+
+**Phase 2: Email Preference Center & SMS Notifications** ✅ COMPLETE (Commits 24c9b3c, f607bbc)
+- [x] Migration 135: Email frequency preferences, unsubscribe tokens, digest queue
+- [x] Email preferences controller and routes (`/api/notifications/email`)
+- [x] EmailPreferences page with frequency selector (real-time/daily/weekly/off)
+- [x] Email digest batch job for daily/weekly notification compilation
+- [x] Migration 136: SMS opt-in, phone verification, SMS logs
+- [x] SMS notification service with Twilio integration
+- [x] SMSPreferences page with OTP phone verification
+- [x] SMS rate limiting (5 verification attempts/hour, 1 per order event)
+- [x] SMS notifications: order created, payment confirmed, shipped, cancelled, refunded
 
 **Phase 3: Seller Payout Dashboard & Analytics** (Weeks 3-4, ~8-10 days)
 - [ ] Migration 137: Payout method management (bank account, payment status)
