@@ -69,7 +69,7 @@ import SharedCartPage from './pages/SharedCartPage';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
-import HybridSupportWidget from './components/support/HybridSupportWidget';
+import SupportWidget from './components/SupportWidget';
 import { LanguageProvider } from './context/LanguageContext';
 
 // Create a client for React Query
