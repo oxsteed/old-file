@@ -1,4 +1,4 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
@@ -7,6 +7,13 @@ const { calculateTax } = require('../services/taxService');
 const { validateAndApplyDiscount, recordDiscountUsage } = require('../services/discountService');
 const { calculateShipping, isValidShippingAddress } = require('../services/shippingService');
 const { sendOrderConfirmationEmail, sendPaymentReceivedEmail } = require('../services/orderNotificationService');
+
+// Validate Stripe is configured
+const validateStripe = () => {
+  if (!stripe) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not configured');
+  }
+};
 
 async function getCheckoutSession(req, res) {
   try {
@@ -66,6 +73,7 @@ async function getCheckoutSession(req, res) {
 
 async function createPaymentIntent(req, res) {
   try {
+    validateStripe();
     const { cartId, email, shippingAddress, discountCode } = req.body;
     const userId = req.user?.id;
 
@@ -203,6 +211,7 @@ async function createPaymentIntent(req, res) {
 
 async function confirmPayment(req, res) {
   try {
+    validateStripe();
     const { paymentIntentId, orderId } = req.body;
     const userId = req.user?.id;
 
