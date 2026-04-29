@@ -6,7 +6,14 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const { withTransaction } = require('../utils/transaction');
 
+let plansActiveColumn = null;
+
 async function getPlansActiveColumn() {
+  // Cache schema detection to avoid repeated catalog queries (~5-10ms each)
+  if (plansActiveColumn !== null) {
+    return plansActiveColumn;
+  }
+
   const { rows } = await db.query(
     `SELECT column_name
      FROM information_schema.columns
@@ -15,9 +22,8 @@ async function getPlansActiveColumn() {
        AND column_name IN ('active', 'is_active')`
   );
   const names = rows.map((r) => r.column_name);
-  if (names.includes('active')) return 'active';
-  if (names.includes('is_active')) return 'is_active';
-  return null;
+  plansActiveColumn = names.includes('active') ? 'active' : names.includes('is_active') ? 'is_active' : null;
+  return plansActiveColumn;
 }
 
 // Get available plans
@@ -221,11 +227,11 @@ exports.cancelSubscription = async (req, res) => {
       const { rows: updateRows } = await client.query(
         `UPDATE subscriptions
          SET cancel_at_period_end = TRUE,
-             current_period_end   = TO_TIMESTAMP($2),
+             current_period_end   = TO_TIMESTAMP($1),
              updated_at           = NOW()
-         WHERE id = $3 AND cancel_at_period_end = FALSE
+         WHERE id = $2 AND cancel_at_period_end = FALSE
          RETURNING id`,
-        [subscription.stripe_subscription_id, stripeSub.current_period_end, subscription.id]
+        [stripeSub.current_period_end, subscription.id]
       );
 
       if (!updateRows.length) {

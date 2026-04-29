@@ -196,7 +196,7 @@ exports.resolveDispute = async (req, res) => {
 
     res.json({
       message: 'Dispute resolved successfully.',
-      dispute: { id: disputeId, status: 'resolved', resolution }
+      dispute: { id: disputeId, status: 'resolved', resolution, resolved_at: dispute.resolved_at }
     });
   } catch (err) {
     if (err.status === 404) {

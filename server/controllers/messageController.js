@@ -5,6 +5,7 @@ const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { sendNotification } = require('../services/notificationService');
 const { uploadFile, getSignedDownloadUrl, getPublicUrl } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
+const { verifyConversationAccess } = require('../utils/conversationAccess');
 
 /**
  * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
@@ -483,7 +484,7 @@ const sendMessage = async (req, res) => {
 
     // Send message atomically with race condition prevention
     const { messagePayload, conv } = await withTransaction(pool, async (client) => {
-      // Verify user is part of conversation (direct participant or active business rep)
+      // Verify user is part of conversation and fetch metadata
       const convResult = await client.query(
         `SELECT c.customer_id, c.helper_id, c.business_id, b.business_name
          FROM conversations c
@@ -582,60 +583,37 @@ const sendMessage = async (req, res) => {
     setImmediate(async () => {
       try {
         const notifData = { conversationId, senderName };
+        const msgPreview = content.length > 100 ? content.slice(0, 97) + '…' : content;
+        const notificationPayload = {
+          type: 'new_message',
+          title: 'New message from ' + senderName,
+          body: msgPreview,
+          data: notifData,
+          action_url: `/messages/${conversationId}`,
+        };
+
+        // Determine which users to notify
+        const toNotify = [];
         if (userId === customer_id) {
-          // Customer sent — notify the helper/owner
-          await sendNotification({
-            userId: helper_id,
-            type: 'new_message',
-            title: 'New message from ' + senderName,
-            body: content.length > 100 ? content.slice(0, 97) + '…' : content,
-            data: notifData,
-            action_url: `/messages/${conversationId}`,
-          });
+          toNotify.push(helper_id);
         } else if (userId === helper_id) {
-          // Owner sent — notify the customer
-          await sendNotification({
-            userId: customer_id,
-            type: 'new_message',
-            title: 'New message from ' + senderName,
-            body: content.length > 100 ? content.slice(0, 97) + '…' : content,
-            data: notifData,
-            action_url: `/messages/${conversationId}`,
-          });
+          toNotify.push(customer_id);
         } else {
-          // Rep sent — notify the customer and owner
-          await Promise.all([
-            sendNotification({
-              userId: customer_id,
-              type: 'new_message',
-              title: 'New message from ' + senderName,
-              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
-              data: notifData,
-              action_url: `/messages/${conversationId}`,
-            }),
-            sendNotification({
-              userId: helper_id,
-              type: 'new_message',
-              title: 'New message from ' + senderName,
-              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
-              data: notifData,
-              action_url: `/messages/${conversationId}`,
-            }),
-          ]);
+          // Rep sent — notify customer and owner
+          toNotify.push(customer_id, helper_id);
         }
-        // Notify all other reps
+
+        // Add other reps (excluding sender and owner)
         for (const repId of repIds) {
-          if (repId !== userId && repId !== helper_id) {
-            await sendNotification({
-              userId: repId,
-              type: 'new_message',
-              title: 'New message from ' + senderName,
-              body: content.length > 100 ? content.slice(0, 97) + '…' : content,
-              data: notifData,
-              action_url: `/messages/${conversationId}`,
-            });
+          if (repId !== userId && repId !== helper_id && !toNotify.includes(repId)) {
+            toNotify.push(repId);
           }
         }
+
+        // Send all notifications in parallel
+        await Promise.all(
+          toNotify.map(userId => sendNotification({ userId, ...notificationPayload }))
+        );
       } catch (err) {
         logger.error('Failed to send chat notifications', { err: err.message, conversationId });
       }
