@@ -1,6 +1,8 @@
 const pool = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const productRankingService = require('../services/productRankingService');
+const queryUnderstandingService = require('../services/queryUnderstandingService');
 
 /**
  * Browse marketplace products with advanced filtering and sorting
@@ -249,13 +251,21 @@ const getCategories = async (req, res) => {
 };
 
 /**
- * Advanced search with aliases, skills, and ranking
- * GET /api/marketplace/products/search?q=wrench&skillIds=1,2&minPrice=10&maxPrice=100&page=1&limit=20
- * Searches: exact matches → name/description → aliases → related items
+ * Amazon-level advanced search with intelligence
+ * GET /api/marketplace/products/search?q=drill&skillIds=1&minPrice=50&maxPrice=500&page=1&limit=20
+ *
+ * Features:
+ * - Query understanding: intent detection, entity recognition, facet extraction
+ * - Spell correction and expansion
+ * - Multi-factor ranking: BM25 + CTR + conversion + engagement + user affinity
+ * - Temporal signals: freshness + momentum
+ * - Demand curve tracking
+ * - Behavioral learning from clicks and conversions
  */
 const searchProducts = async (req, res) => {
   try {
     const { q, skillIds, minPrice, maxPrice, page = 1, limit = 20 } = req.query;
+    const userId = req.user?.id;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const safeLimit = Math.min(parseInt(limit), 100);
 
@@ -263,34 +273,29 @@ const searchProducts = async (req, res) => {
       return sendError(res, 400, 'Search query must be at least 2 characters');
     }
 
-    // Parse skill IDs array
-    const skillIdArray = skillIds ? skillIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-    const searchTerm = q.toLowerCase().trim();
+    // Step 1: Understand query (intent, entities, facets, expansions)
+    const queryAnalysis = await queryUnderstandingService.understandQuery(q, {
+      userFacets: { minPrice, maxPrice, skillIds },
+    });
 
-    // Multi-pass search with relevance ranking:
-    // 1. Exact name match (highest relevance)
-    // 2. Name/description full-text match
-    // 3. Alias match (synonyms)
-    // 4. Related by skill
-    let query = `
+    // Merge extracted facets with user-provided filters
+    const finalFacets = {
+      minPrice: queryAnalysis.facets.priceRange?.min || (minPrice ? parseFloat(minPrice) : null),
+      maxPrice: queryAnalysis.facets.priceRange?.max || (maxPrice ? parseFloat(maxPrice) : null),
+      skillIds: skillIds ? skillIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [],
+      sortBy: queryAnalysis.facets.sortBy || 'best_match',
+      minRating: queryAnalysis.facets.minRating || null,
+      inStock: queryAnalysis.facets.inStock !== false,
+    };
+
+    const searchTerm = queryAnalysis.normalized;
+
+    // Step 2: Execute search query (get candidates)
+    let dbQuery = `
       SELECT DISTINCT
         mp.id, mp.name, mp.description, mp.category, mp.price_cents,
-        mp.product_image_url, mp.is_available,
+        mp.product_image_url, mp.is_available, mp.created_at,
         mp.avg_rating, mp.rating_count, mp.in_carts_count,
-        CASE
-          WHEN LOWER(mp.name) = $1 THEN 1000  -- Exact name match (highest)
-          WHEN LOWER(mp.name) LIKE $2 THEN 800  -- Name contains
-          WHEN ts_rank(to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, '')),
-                       plainto_tsquery('english', $1)) > 0 THEN 500  -- Full-text match
-          WHEN EXISTS (
-            SELECT 1 FROM product_aliases
-            WHERE product_id = mp.id
-              AND LOWER(alias_name) = $1
-          ) THEN 400  -- Alias synonym match
-          ELSE 100  -- Default relevance
-        END *
-        COALESCE(mp.in_carts_count, 0) / GREATEST(1, (SELECT MAX(in_carts_count) FROM marketplace_products WHERE in_carts_count > 0)) +
-        COALESCE(mp.avg_rating, 0) * 10 as relevance_score,
         COALESCE(
           json_agg(DISTINCT jsonb_build_object('id', sl.id, 'name', sl.name))
           FILTER (WHERE sl.id IS NOT NULL),
@@ -299,60 +304,92 @@ const searchProducts = async (req, res) => {
       FROM marketplace_products mp
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       LEFT JOIN skills_lookup sl ON mps.skill_id = sl.id
-      WHERE mp.is_active = TRUE
+      WHERE mp.is_active = TRUE AND mp.is_available = TRUE
         AND (
           LOWER(mp.name) = $1
           OR LOWER(mp.name) LIKE $2
           OR to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, '')) @@ plainto_tsquery('english', $1)
           OR EXISTS (
             SELECT 1 FROM product_aliases
-            WHERE product_id = mp.id
-              AND (LOWER(alias_name) = $1 OR LOWER(alias_name) LIKE $2)
+            WHERE product_id = mp.id AND (LOWER(alias_name) = $1 OR LOWER(alias_name) LIKE $2)
           )
         )
     `;
 
-    const params = [searchTerm, `%${searchTerm}%`];
+    const dbParams = [searchTerm, `%${searchTerm}%`];
     let paramCount = 3;
 
-    if (minPrice) {
-      query += ` AND mp.price_cents >= $${paramCount}`;
-      params.push(Math.ceil(parseFloat(minPrice) * 100));
+    // Apply facet filters
+    if (finalFacets.minPrice !== null) {
+      dbQuery += ` AND mp.price_cents >= $${paramCount}`;
+      dbParams.push(Math.ceil(finalFacets.minPrice * 100));
       paramCount++;
     }
 
-    if (maxPrice) {
-      query += ` AND mp.price_cents <= $${paramCount}`;
-      params.push(Math.floor(parseFloat(maxPrice) * 100));
+    if (finalFacets.maxPrice !== null) {
+      dbQuery += ` AND mp.price_cents <= $${paramCount}`;
+      dbParams.push(Math.floor(finalFacets.maxPrice * 100));
       paramCount++;
     }
 
-    if (skillIdArray.length > 0) {
-      query += ` AND mps.skill_id = ANY($${paramCount}::int[])`;
-      params.push(skillIdArray);
+    if (finalFacets.minRating !== null) {
+      dbQuery += ` AND mp.avg_rating >= $${paramCount}`;
+      dbParams.push(finalFacets.minRating);
       paramCount++;
     }
 
-    query += ` GROUP BY mp.id
-              ORDER BY relevance_score DESC NULLS LAST, mp.name ASC
-              LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-    params.push(safeLimit, offset);
+    if (finalFacets.skillIds.length > 0) {
+      dbQuery += ` AND mps.skill_id = ANY($${paramCount}::int[])`;
+      dbParams.push(finalFacets.skillIds);
+      paramCount++;
+    }
 
-    const result = await pool.query(query, params);
+    dbQuery += ` GROUP BY mp.id ORDER BY mp.name ASC LIMIT 200`;
 
-    logger.info('Products searched (advanced)', {
+    const result = await pool.query(dbQuery, dbParams);
+    let products = result.rows;
+
+    // Step 3: Advanced re-ranking using multiple signals
+    // Get top candidates and apply ML-style ranking
+    if (products.length > 0) {
+      products = await productRankingService.reRankResults(
+        products,
+        searchTerm,
+        userId
+      );
+
+      // Sort by final ranking score if available
+      products = products.sort((a, b) => (b._rankingScore || 0) - (a._rankingScore || 0));
+    }
+
+    // Apply pagination to ranked results
+    const paginatedProducts = products.slice(offset, offset + safeLimit);
+
+    // Log search for analytics and learning
+    await queryUnderstandingService.logSearch(q, userId, products.length, null);
+
+    logger.info('Products searched (Amazon-level)', {
       query: q,
-      skillIds: skillIdArray,
-      resultsCount: result.rows.length,
+      intent: queryAnalysis.intent.primary,
+      entities: queryAnalysis.entities.length,
+      facets: Object.keys(finalFacets).filter(k => finalFacets[k]),
+      resultsCount: products.length,
+      paginatedCount: paginatedProducts.length,
     });
 
     sendSuccess(res, {
-      data: result.rows,
+      data: paginatedProducts,
+      metadata: {
+        intent: queryAnalysis.intent,
+        entities: queryAnalysis.entities,
+        corrections: queryAnalysis.corrections,
+        expansions: queryAnalysis.expansions,
+      },
       pagination: {
         page: parseInt(page),
         limit: safeLimit,
-        total: result.rows.length,
-        hasMore: offset + safeLimit < result.rows.length,
+        total: products.length,
+        hasMore: offset + safeLimit < products.length,
       },
     });
   } catch (err) {
@@ -697,6 +734,121 @@ const syncFromHomeDepot = async (req, res) => {
   }
 };
 
+/**
+ * Autocomplete suggestions for search bar
+ * GET /api/marketplace/products/autocomplete?prefix=dri&limit=10
+ * Returns popular products matching prefix, ranked by popularity
+ */
+const getAutocompleteSuggestions = async (req, res) => {
+  try {
+    const { prefix, limit = 10 } = req.query;
+    const userId = req.user?.id;
+
+    if (!prefix || prefix.trim().length < 1) {
+      return sendSuccess(res, { data: [] });
+    }
+
+    // Get personalized suggestions if user authenticated, else global
+    let suggestions;
+    if (userId) {
+      suggestions = await queryUnderstandingService.getPersonalizedSuggestions(
+        userId,
+        prefix,
+        Math.min(parseInt(limit), 20)
+      );
+    } else {
+      suggestions = await queryUnderstandingService.getSuggestions(
+        prefix,
+        Math.min(parseInt(limit), 20)
+      );
+    }
+
+    logger.info('Autocomplete suggestions fetched', {
+      prefix,
+      count: suggestions.length,
+      personalized: !!userId,
+    });
+
+    sendSuccess(res, { data: suggestions });
+  } catch (err) {
+    logger.error('Error fetching autocomplete suggestions', err);
+    sendError(res, 500, 'Failed to fetch suggestions');
+  }
+};
+
+/**
+ * Get trending/popular searches
+ * GET /api/marketplace/products/trending?limit=10
+ * Returns most searched terms in last 7 days
+ */
+const getTrendingSearches = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    const result = await pool.query(`
+      SELECT
+        query,
+        COUNT(*) as search_count,
+        COUNT(DISTINCT user_id) as unique_users,
+        MAX(created_at) as last_searched
+      FROM search_history
+      WHERE created_at > NOW() - INTERVAL '7 days'
+      GROUP BY query
+      ORDER BY search_count DESC
+      LIMIT $1
+    `, [Math.min(parseInt(limit), 50)]);
+
+    sendSuccess(res, { data: result.rows });
+  } catch (err) {
+    logger.error('Error fetching trending searches', err);
+    sendError(res, 500, 'Failed to fetch trending searches');
+  }
+};
+
+/**
+ * Get search analytics and performance metrics
+ * GET /api/admin/marketplace/search-analytics
+ * Returns CTR, conversion rates, trending queries for optimization
+ */
+const getSearchAnalytics = async (req, res) => {
+  try {
+    // Require admin role
+    if (req.user?.role !== 'admin') {
+      return sendError(res, 403, 'Admin access required');
+    }
+
+    const result = await pool.query(`
+      SELECT
+        query,
+        COUNT(*) as impressions,
+        SUM(CASE WHEN clicked = TRUE THEN 1 ELSE 0 END) as clicks,
+        ROUND(
+          (SUM(CASE WHEN clicked = TRUE THEN 1 ELSE 0 END)::FLOAT /
+           NULLS IF(COUNT(*), 0)) * 100,
+          2
+        ) as ctr_percent,
+        AVG(EXTRACT(EPOCH FROM (updated_at - created_at))) as avg_result_time_seconds
+      FROM search_impressions
+      WHERE created_at > NOW() - INTERVAL '30 days'
+      GROUP BY query
+      HAVING COUNT(*) > 10
+      ORDER BY impressions DESC
+      LIMIT 100
+    `);
+
+    sendSuccess(res, {
+      data: result.rows,
+      metadata: {
+        period: '30 days',
+        minImpressions: 10,
+      },
+    });
+  } catch (err) {
+    logger.error('Error fetching search analytics', err);
+    sendError(res, 500, 'Failed to fetch analytics');
+  }
+};
+
 module.exports = {
   browseProducts,
   getProduct,
@@ -711,5 +863,8 @@ module.exports = {
   getProductReviews,
   submitProductReview,
   getRecommendedProducts,
+  getAutocompleteSuggestions,
+  getTrendingSearches,
+  getSearchAnalytics,
   syncFromHomeDepot,
 };

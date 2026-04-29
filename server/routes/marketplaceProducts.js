@@ -10,8 +10,14 @@ router.use(generalLimiter);
 // Browse products with advanced filtering and sorting
 router.get('/browse', optionalAuth, marketplaceProductsController.browseProducts);
 
-// Search products (full-text search on name + description)
+// Search products (Amazon-level with ranking, intent detection, entity recognition)
 router.get('/search', optionalAuth, marketplaceProductsController.searchProducts);
+
+// Autocomplete suggestions for search bar
+router.get('/autocomplete', optionalAuth, marketplaceProductsController.getAutocompleteSuggestions);
+
+// Get trending searches
+router.get('/trending', marketplaceProductsController.getTrendingSearches);
 
 // Get product categories
 router.get('/categories', marketplaceProductsController.getCategories);
