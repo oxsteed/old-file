@@ -22,6 +22,21 @@
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Latest work completed (2026-04-29):**
+- **Support Message Retention & Auto-Deletion System** ✅ COMPLETE (180-day GDPR-compliant message retention)
+  - **Migration 140:** `server/migrations/140_create_support_messages.sql` - Creates support_messages table with 180-day expiry tracking
+  - **Table schema:** `support_messages` with sender_type, sender_id, sender_name, content, message_type, created_at, expires_at, deleted_at columns
+  - **Cleanup job:** `server/jobs/cleanupOldMessages.js` - Daily 2 AM UTC automated deletion of expired messages (hard delete after 180 days)
+  - **Job scheduler:** `server/utils/jobScheduler.js` - Reusable cron scheduler for background tasks with error handling and logging
+  - **Server integration:** Updated `server/index.js` to register and start cleanup job at startup
+  - **Controller updates:** Enhanced `supportRoutingController.js` to:
+    - Insert messages with sender_name and 180-day expiry timestamp
+    - Retrieve only non-deleted messages within retention window
+    - Track last_message_at for conversation ordering
+    - Support soft-delete via deleted_at column for compliance holds
+  - **Compliance:** Supports GDPR, CCPA, and international privacy regulations with legal hold exceptions
+  - **Documentation:** `MESSAGE_RETENTION_POLICY.md` with operational procedures, monitoring, backup/recovery, troubleshooting
+  - **Features:** Structured logging, error notifications, admin dashboard metrics, manual cleanup endpoint, archive-to-cold-storage ready
+  - **Status:** Production-ready, integrated into main server, scheduled to run daily
 - **Customer-Facing Support Widget** ✅ COMPLETE (Embeddable customer support component)
   - **SupportWidget.jsx** (Main component): Floating launcher button, widget state management, view navigation (main → tickets → chat → create)
   - **WidgetPanel.jsx** (Container): View routing, ticket/chat/create modal management, API integration for ticket CRUD

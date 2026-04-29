@@ -69,7 +69,7 @@ import SharedCartPage from './pages/SharedCartPage';
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
 import { ThemeProvider } from './context/ThemeContext';
-import SupportWidget from './components/SupportWidget';
+import HybridSupportWidget from './components/support/HybridSupportWidget';
 import { LanguageProvider } from './context/LanguageContext';
 
 // Create a client for React Query
@@ -206,7 +206,7 @@ export default function App() {
                   </Routes>
                 </TermsGate>
                 <CookieConsent />
-                <SupportWidget />
+                <HybridSupportWidget />
                 </AuthProvider>
               </RouterAwareErrorBoundary>
             </CookieConsentProvider>

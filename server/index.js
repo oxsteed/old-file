@@ -59,6 +59,7 @@ const diditRoutes = require('./routes/didit');
 const businessRoutes = require('./routes/businesses');
 const supportRoutes = require('./routes/support');
 const supportChatRoutes = require('./routes/supportChat');
+const supportRoutingRoutes = require('./routes/supportRouting');
 const chatRoutes    = require('./routes/chat');
 const guestChatRoutes = require('./routes/guestChat');
 const geoRoutes     = require('./routes/geo');
@@ -137,6 +138,10 @@ io.use((socket, next) => {
     return next(new Error('Invalid token'));
   }
 });
+
+// ── WEBSOCKET SERVICE (Support Routing) ────────────────────────
+const WebSocketService = require('./services/websocketService');
+WebSocketService.initialize(httpServer);
 
 io.on('connection', (socket) => {
   const userId = socket.userId;
@@ -388,6 +393,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/guest-chat', guestChatRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/support-chat', supportChatRoutes);
+app.use('/api/support-routing', supportRoutingRoutes);
 app.use('/api/geo',          geoRoutes);
 app.use('/api/helpers',      helperRoutes);
 app.use('/api/user-skills',  userSkillsRoutes);
@@ -496,6 +502,8 @@ const { startConsultingPostSessionFollowup } = require('./jobs/consultingPostSes
 const { startConsultingNoShowFollowup } = require('./jobs/consultingNoShowFollowup');
 const { startCalendarReminderJob } = require('./jobs/calendarReminders');
 const { startAffiliateCommissionBatchJob } = require('./jobs/affiliateCommissionBatch');
+const cleanupOldMessagesJob = require('./jobs/cleanupOldMessages');
+
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
@@ -506,6 +514,21 @@ startConsultingPostSessionFollowup();
 startConsultingNoShowFollowup();
 startCalendarReminderJob();
 startAffiliateCommissionBatchJob();
+
+// Start message cleanup job (180-day auto-retention for support conversations)
+const cron = require('node-cron');
+const cleanupTask = cron.schedule(cleanupOldMessagesJob.cronExpression, async () => {
+  try {
+    const result = await cleanupOldMessagesJob.handler();
+    logger.info('Support message cleanup job completed', result);
+  } catch (err) {
+    logger.error('Support message cleanup job failed', { error: err.message });
+  }
+});
+logger.info('Support message cleanup job scheduled', {
+  description: cleanupOldMessagesJob.description,
+  cronExpression: cleanupOldMessagesJob.cronExpression,
+});
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
