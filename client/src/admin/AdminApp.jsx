@@ -47,18 +47,6 @@ import BusinessLaunchAdmin from './pages/BusinessLaunchAdmin';
 import ConsultingSessionsAdmin from './pages/ConsultingSessionsAdmin';
 import OrderManagement from './pages/OrderManagement';
 import AdminLogin      from './pages/Login';
-
-// Enterprise Support System pages
-import SupportAgentDashboard from './pages/SupportAgentDashboard';
-import SupportAgentOnboarding from './pages/SupportAgentOnboarding';
-import SupportShiftsManager from './pages/SupportShiftsManager';
-import SupportAgentManagement from './pages/SupportAgentManagement';
-import SupportAgentChat from './pages/SupportAgentChat';
-import SupportKnowledgeBase from './pages/SupportKnowledgeBase';
-import SupportTemplates from './pages/SupportTemplates';
-import SupportMetricsDashboard from './pages/SupportMetricsDashboard';
-import SupportSLADashboard from './pages/SupportSLADashboard';
-import SupportPerformanceAnalytics from './pages/SupportPerformanceAnalytics';
 import SupportCSATAnalytics from './pages/SupportCSATAnalytics';
 import SupportEscalationManager from './pages/SupportEscalationManager';
 import SupportTeamHierarchy from './pages/SupportTeamHierarchy';
@@ -129,23 +117,11 @@ export default function AdminApp() {
           <Route path="consulting/analytics" element={<ConsultingAnalyticsDashboard />} />
           <Route path="consulting/business-launch" element={<BusinessLaunchAdmin />} />
           <Route path="consulting/sessions" element={<ConsultingSessionsAdmin />} />
-
-          {/* Enterprise Support System routes */}
-          <Route path="support/agent-dashboard"  element={<SupportAgentDashboard />} />
-          <Route path="support/agent-onboarding" element={<SupportAgentOnboarding />} />
-          <Route path="support/shifts"           element={<SupportShiftsManager />} />
-          <Route path="support/agents"           element={<SupportAgentManagement />} />
-          <Route path="support/chat"             element={<SupportAgentChat />} />
-          <Route path="support/kb"               element={<SupportKnowledgeBase />} />
-          <Route path="support/templates"        element={<SupportTemplates />} />
-          <Route path="support/metrics"          element={<SupportMetricsDashboard />} />
-          <Route path="support/sla"              element={<SupportSLADashboard />} />
-          <Route path="support/performance"      element={<SupportPerformanceAnalytics />} />
-          <Route path="support/csat"             element={<SupportCSATAnalytics />} />
-          <Route path="support/escalations"      element={<SupportEscalationManager />} />
-          <Route path="support/team-hierarchy"   element={<SupportTeamHierarchy />} />
-          <Route path="support/settings"         element={<SupportSettingsPage />} />
-          <Route path="support/audit"            element={<SupportAuditLog />} />
+          <Route path="support/csat" element={<SupportCSATAnalytics />} />
+          <Route path="support/escalations" element={<SupportEscalationManager />} />
+          <Route path="support/team-hierarchy" element={<SupportTeamHierarchy />} />
+          <Route path="support/settings" element={<SupportSettingsPage />} />
+          <Route path="support/audit" element={<SupportAuditLog />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={
