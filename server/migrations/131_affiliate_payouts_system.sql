@@ -17,27 +17,7 @@ CREATE TABLE IF NOT EXISTS affiliate_programs (
 CREATE INDEX idx_affiliate_programs_helper_id ON affiliate_programs(helper_id);
 CREATE INDEX idx_affiliate_programs_status ON affiliate_programs(status);
 
--- Affiliate commissions (calculated per order)
-CREATE TABLE IF NOT EXISTS affiliate_commissions (
-  id BIGSERIAL PRIMARY KEY,
-  order_id BIGINT NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
-  affiliate_program_id BIGINT NOT NULL REFERENCES affiliate_programs(id) ON DELETE CASCADE,
-  product_id UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE RESTRICT,
-  commission_cents BIGINT NOT NULL,
-  commission_rate DECIMAL(5,2),
-  product_sale_amount_cents BIGINT,
-  status VARCHAR(50) NOT NULL DEFAULT 'pending', -- pending, confirmed, paid, failed
-  payout_id BIGINT REFERENCES affiliate_payouts(id) ON DELETE SET NULL,
-  confirmed_at TIMESTAMP,
-  paid_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_affiliate_commissions_order_id ON affiliate_commissions(order_id);
-CREATE INDEX idx_affiliate_commissions_affiliate_program_id ON affiliate_commissions(affiliate_program_id);
-CREATE INDEX idx_affiliate_commissions_status ON affiliate_commissions(status);
-
--- Affiliate payouts (monthly/periodic payouts)
+-- Affiliate payouts (monthly/periodic payouts) - must be created before affiliate_commissions
 CREATE TABLE IF NOT EXISTS affiliate_payouts (
   id BIGSERIAL PRIMARY KEY,
   affiliate_program_id BIGINT NOT NULL REFERENCES affiliate_programs(id) ON DELETE CASCADE,
@@ -59,6 +39,26 @@ CREATE TABLE IF NOT EXISTS affiliate_payouts (
 CREATE INDEX idx_affiliate_payouts_affiliate_program_id ON affiliate_payouts(affiliate_program_id);
 CREATE INDEX idx_affiliate_payouts_period_start ON affiliate_payouts(period_start DESC);
 CREATE INDEX idx_affiliate_payouts_status ON affiliate_payouts(status);
+
+-- Affiliate commissions (calculated per order)
+CREATE TABLE IF NOT EXISTS affiliate_commissions (
+  id BIGSERIAL PRIMARY KEY,
+  order_id BIGINT NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
+  affiliate_program_id BIGINT NOT NULL REFERENCES affiliate_programs(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE RESTRICT,
+  commission_cents BIGINT NOT NULL,
+  commission_rate DECIMAL(5,2),
+  product_sale_amount_cents BIGINT,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending', -- pending, confirmed, paid, failed
+  payout_id BIGINT REFERENCES affiliate_payouts(id) ON DELETE SET NULL,
+  confirmed_at TIMESTAMP,
+  paid_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_affiliate_commissions_order_id ON affiliate_commissions(order_id);
+CREATE INDEX idx_affiliate_commissions_affiliate_program_id ON affiliate_commissions(affiliate_program_id);
+CREATE INDEX idx_affiliate_commissions_status ON affiliate_commissions(status);
 
 -- Affiliate performance metrics (cached for analytics)
 CREATE TABLE IF NOT EXISTS affiliate_metrics (

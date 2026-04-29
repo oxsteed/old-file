@@ -39,7 +39,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS product_reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
-  helper_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  helper_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   rating SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
   review_text TEXT,
   helpful_count INTEGER DEFAULT 0,
