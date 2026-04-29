@@ -22,6 +22,18 @@
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Latest work completed (2026-04-29):**
+- **CRITICAL: Deployment Blocker Fixes** 🔧
+  - **Stripe initialization:** Made conditional to prevent module loading failure when env var missing
+  - **Twilio initialization:** Made conditional to fall back to mock_sid (defensive pattern)
+  - **FK type mismatches:** Fixed 5 UUID/BIGINT mismatches in foreign keys:
+    - marketplace_order_items.product_id (BIGINT→UUID)
+    - affiliate_commissions.product_id (BIGINT→UUID)
+    - affiliate_clicks.affiliate_link_id (BIGINT→UUID)
+    - marketplace_orders.cart_id (BIGINT→UUID)
+    - discount_codes.applicable_products (BIGINT[]→UUID[])
+  - **Query column mismatch:** Fixed shopping_carts queries (customer_id→helper_id in 2 places)
+  - **Migration defensive patterns:** Wrapped ALTER TABLE in DO blocks (migrations 134-135)
+  - **Commits:** 386a571, 9dbefb0, c021c70, 5ccc0d9
 - **Product Marketplace Sales Setup:** Complete implementation of Stripe checkout, orders, affiliate payouts, and API products system
   - Migrations 129-131: Orders, transactions, API products, affiliate programs, commissions, payouts
   - Migrations 133: Discount codes with flexible constraints
