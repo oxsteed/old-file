@@ -2,7 +2,7 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
-const { getDiscountStats } = require('../services/discountService');
+const discountService = require('../services/discountService');
 
 async function createDiscountCode(req, res) {
   try {
@@ -169,7 +169,7 @@ async function getDiscountCodes(req, res) {
 
 async function getDiscountStats(req, res) {
   try {
-    const stats = await getDiscountStats();
+    const stats = await discountService.getDiscountStats();
 
     res.json({
       success: true,
