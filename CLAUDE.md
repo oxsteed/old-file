@@ -16,12 +16,19 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 238 React components / pages
-- 81 backend controllers
-- 132 database migrations
+- 241 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage)
+- 86 backend controllers (added 5 new: cartCheckout, orders, adminProducts, apiProducts, affiliatePayouts)
+- 135 database migrations (added 3 new: orders/transactions, API products, affiliate payouts)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Latest work completed (2026-04-29):**
+- **Product Marketplace Sales Setup:** Complete implementation of Stripe checkout, orders, affiliate payouts, and API products system
+  - Migrations 129-131: Orders, transactions, API products, affiliate programs, commissions, payouts
+  - 5 new controllers: cartCheckout, orders, adminProducts, apiProducts, affiliatePayouts
+  - 5 new routes: `/api/carts/{id}/checkout`, `/api/orders`, `/api/admin/products`, `/api/api-products`, `/api/affiliate`
+  - 3 new frontend pages: CheckoutPage, OrderHistoryPage, OrderDetailsPage
+  - Stripe webhook integration for payment_intent.succeeded (dual-mode: jobs + marketplace orders)
+  - Affiliate link tracking, commission calculation, payout automation
 - Product marketplace redesign: React Query infinite scroll, modern filter drawer, search suggestions (commits 6a425fa, 8ea81db)
 - Dispute resolution: escrow mapping, race condition prevention (commits 7be9f89, 9597806)
 - Message notifications: optimization, deduplication (commit 8b27059)
@@ -441,6 +448,148 @@ Use methods from `server/services/socketService.js`:
 broadcastToUser(userId, 'event_name', { data: true });
 broadcastToConversation(conversationId, 'message', { text: '...' });
 ```
+
+---
+
+## Product Marketplace Sales System (New: 2026-04-29)
+
+Complete payment processing, affiliate tracking, and API product management system for OxSteed marketplace.
+
+### Features Implemented
+
+**1. Stripe Checkout & Order Management**
+- `POST /api/carts/{cartId}/session` — Get cart summary with tax/totals
+- `POST /api/carts/{cartId}/payment-intent` — Create Stripe PaymentIntent, create marketplace_orders row
+- `POST /api/carts/{cartId}/confirm` — Confirm payment, mark order as paid
+- `GET/POST /api/orders` — Fetch orders with filtering (pending, paid, completed, etc.)
+- `GET /api/orders/{orderId}` — Full order details with items, transaction, shipping address
+- `POST /api/orders/{orderId}/cancel` — Cancel pending/paid orders
+- `GET /api/orders/stats` — Total orders, completed count, pending count, total spent
+
+**Database Tables:**
+- `marketplace_orders` — Order metadata (19 cols: status, totals, shipping_address, created_at)
+- `marketplace_order_items` — Line items per order with product ID, quantity, unit price
+- `marketplace_transactions` — Stripe PaymentIntent records with client_secret, status, metadata
+
+**Frontend Pages:**
+- `CheckoutPage.jsx` — Stripe Payment Element form with Stripe.js integration, order summary
+- `OrderHistoryPage.jsx` — Orders list with filtering, stats dashboard (total/completed/pending/spent)
+- `OrderDetailsPage.jsx` — Full order details with items, shipping, payment info, cancel button
+
+---
+
+**2. Affiliate Marketing & Commission Payouts**
+- `POST /api/affiliate` — Create affiliate program (helper_id, program_type, commission_rate)
+- `GET /api/affiliate` — List all affiliate programs for user
+- `GET /api/affiliate/{programId}/commissions` — Fetch pending/confirmed commissions
+- `POST /api/affiliate/calculate` — Calculate payout for date range, create affiliate_payouts row
+- `POST /api/affiliate/{payoutId}/process` — Process payout via Stripe Direct (ACH/bank transfer)
+- `GET /api/affiliate/schedule` — View payout history
+- `GET /api/affiliate/stats/all` — Lifetime commission stats
+
+**Database Tables:**
+- `affiliate_programs` — Helper's affiliate programs (program_type, commission_rate, total_commission_cents, pending_cents)
+- `affiliate_commissions` — Per-order commission records (status: pending→confirmed→paid)
+- `affiliate_links_log` — (Enhanced) Product affiliate links with click/conversion tracking
+- `affiliate_clicks` — Click tracking, user_id, session_id, conversion linking
+- `affiliate_payouts` — Monthly payout batches (period_start, period_end, payout_reference, status)
+- `affiliate_metrics` — Daily cached metrics (clicks, conversions, conversion_rate, avg_order_value)
+
+**Workflow:**
+1. Helper creates affiliate program (e.g., Home Depot) with commission_rate (e.g., 2.5%)
+2. Admin adds products with `affiliate_url` (e.g., Home Depot links)
+3. Customer purchases product → order created → affiliate click tracked
+4. Monthly: Batch calculate commissions for period_start..period_end
+5. Process payout via Stripe ACH to helper's bank account
+6. Commission status: pending → confirmed → paid
+
+---
+
+**3. API Products & Digital Licensing**
+- `POST /api/api-products` — Create API product (name, description, pricing_type, webhook_url)
+- `POST /api/api-products/{id}/publish` — Publish to marketplace
+- `POST /api/api-products/{id}/keys/generate` — Generate API key (apk_xxxxx), return once
+- `GET /api/api-products/{id}/keys` — List active keys (key_prefix, requests_this_month, expires_at)
+- `POST /api/api-products/{keyId}/revoke` — Revoke key immediately
+- `GET /api/api-products/{id}/usage` — Usage analytics (daily stats for last 30 days)
+- `POST /api/api-products/{id}/subscribe` — Create subscription from paid order
+
+**Database Tables:**
+- `api_products` — (9 cols) creator_id, pricing_type (one_time/recurring), monthly_price_cents, max_requests_per_month, webhook_url, status (draft/published)
+- `api_product_keys` — API keys with hashing (key_hash), rate limits, expiry, revocation
+- `api_product_subscriptions` — Active subscriptions (status: active/paused/cancelled, current_period_end)
+- `api_product_usage_logs` — Request logging (endpoint, method, response_time_ms, error_message)
+
+**Key Security Features:**
+- Keys hashed with SHA-256 (only prefix returned in GET /keys)
+- Usage limits enforced per subscription (requests_this_month counter)
+- Automatic expiry + manual revocation support
+- Webhook_url for event notifications (if configured)
+
+---
+
+**4. Admin Product Management**
+- `POST /api/admin/products` — Create marketplace product
+- `PUT /api/admin/products/{id}` — Update product (price, description, image_url, affiliate_url)
+- `DELETE /api/admin/products/{id}` — Delete (only if no active orders)
+- `POST /api/admin/products/bulk-create` — Bulk import from CSV/JSON (Home Depot sync)
+- `GET /api/admin/products/stats` — Product stats (total_products, avg_price, avg_rating, total_in_carts)
+
+**Notes:**
+- All routes require `requireAuth` + `requireAdmin` middleware
+- Products can link to affiliate programs (affiliate_url field)
+- Bulk create handles errors gracefully (skips invalid rows, logs warnings)
+
+---
+
+### Stripe Integration Points
+
+**Environment Variables Required:**
+```
+STRIPE_SECRET_KEY          # Must already be set (job payments reuse)
+STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
+```
+
+**Webhook Events Handled:**
+- `payment_intent.succeeded` — Dual-mode: job escrow OR marketplace order (checks metadata.orderId vs metadata.job_id)
+- Existing events (subscription, invoice, charge.refunded) still work unchanged
+
+**PaymentIntent Metadata:**
+```javascript
+{
+  orderId: "order_id",       // For marketplace orders
+  cartId: "cart_id",
+  userId: "user_id",
+  // OR for jobs:
+  job_id: "job_id"           // For job escrow (existing)
+}
+```
+
+---
+
+### Known Limitations & TODOs
+
+1. **API Product Delivery:** No automatic API key provisioning on purchase; helpers must manually issue keys
+2. **Affiliate Commission Disputes:** No dispute/chargeback handling workflow
+3. **Tax Calculation:** Hardcoded 8% tax; should be per-state/country
+4. **Shipping Costs:** Shipping_cents always 0; no shipping calculator
+5. **Discount/Promo Codes:** Discount_cents always 0; no promo code system
+6. **Multiple Affiliate Programs per Helper:** Current design allows only 1 program per type (UNIQUE constraint)
+7. **API Usage Enforcement:** Usage logs recorded but not actively enforced (rate limiter not implemented)
+8. **Webhook Delivery:** affiliate_programs.webhook_url exists but not used; webhook events not sent
+
+### Testing Checklist
+
+- [ ] Create cart, proceed to checkout, see PaymentIntent created
+- [ ] Complete payment with test card (4242 4242 4242 4242)
+- [ ] Webhook fires, marketplace_orders.status → "paid"
+- [ ] Fetch /api/orders/{id}, see transaction details
+- [ ] Create affiliate program, add commission_rate
+- [ ] Manually test commission calculation: POST /api/affiliate/calculate
+- [ ] Process payout with Stripe (requires test bank account setup)
+- [ ] Create API product, publish, generate key
+- [ ] Verify key_hash is stored (not plaintext key)
+- [ ] Generate second key, revoke first, verify in GET /keys
 
 ---
 
