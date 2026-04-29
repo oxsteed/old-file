@@ -67,8 +67,8 @@ CREATE TABLE IF NOT EXISTS affiliate_metrics (
   conversion_rate DECIMAL(5,2),
   total_commission_cents BIGINT DEFAULT 0,
   average_order_value_cents BIGINT,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (affiliate_program_id, metric_date)
 );
 CREATE INDEX idx_affiliate_metrics_affiliate_program_id ON affiliate_metrics(affiliate_program_id);
 CREATE INDEX idx_affiliate_metrics_metric_date ON affiliate_metrics(metric_date DESC);
-UNIQUE (affiliate_program_id, metric_date);
