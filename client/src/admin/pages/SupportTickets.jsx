@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import adminApi from '../../lib/adminApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useSocket } from '../../hooks/useSocket';
+import { useNavigate } from 'react-router-dom';
 import {
   Inbox, MessageSquare, User, Clock, AlertTriangle, CheckCircle,
   ChevronRight, Search, Filter, RefreshCw, Lock, Unlock,
-  Send, FileText, Flag, X,
+  Send, FileText, Flag, X, Users, BookOpen, Settings, BarChart3,
+  AlertCircle, TrendingUp, Layers,
 } from 'lucide-react';
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -386,6 +388,7 @@ function TicketDetail({ ticketId, currentUserId, isSuper, onUpdated }) {
 
 export default function SupportTickets() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isSuper = user?.role === 'super_admin';
 
   const [tickets,     setTickets]     = useState([]);
@@ -466,6 +469,58 @@ export default function SupportTickets() {
             >
               <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
             </button>
+          </div>
+
+          {/* Navigation to support pages */}
+          <div className="mb-3 p-3 bg-gray-800/40 rounded-lg border border-gray-700/50">
+            <p className="text-xs text-gray-400 mb-2 font-medium">Support Tools</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button onClick={() => navigate('/admin/support/agent-dashboard')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <Users size={12} /> Dashboard
+              </button>
+              <button onClick={() => navigate('/admin/support/agents')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <Users size={12} /> Agents
+              </button>
+              <button onClick={() => navigate('/admin/support/agent-onboarding')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <User size={12} /> Onboarding
+              </button>
+              <button onClick={() => navigate('/admin/support/shifts')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <Clock size={12} /> Shifts
+              </button>
+              <button onClick={() => navigate('/admin/support/chat')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <MessageSquare size={12} /> Chat
+              </button>
+              <button onClick={() => navigate('/admin/support/kb')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <BookOpen size={12} /> KB
+              </button>
+              <button onClick={() => navigate('/admin/support/templates')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <FileText size={12} /> Templates
+              </button>
+              <button onClick={() => navigate('/admin/support/metrics')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <BarChart3 size={12} /> Metrics
+              </button>
+              <button onClick={() => navigate('/admin/support/sla')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <AlertCircle size={12} /> SLA
+              </button>
+              <button onClick={() => navigate('/admin/support/performance')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <TrendingUp size={12} /> Performance
+              </button>
+              <button onClick={() => navigate('/admin/support/csat')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <BarChart3 size={12} /> CSAT
+              </button>
+              <button onClick={() => navigate('/admin/support/escalations')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <AlertTriangle size={12} /> Escalations
+              </button>
+              <button onClick={() => navigate('/admin/support/team-hierarchy')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <Layers size={12} /> Hierarchy
+              </button>
+              <button onClick={() => navigate('/admin/support/settings')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <Settings size={12} /> Settings
+              </button>
+              <button onClick={() => navigate('/admin/support/audit')} className="text-xs px-2 py-1.5 bg-gray-700 hover:bg-orange-600 text-gray-300 hover:text-white rounded transition flex items-center gap-1.5">
+                <FileText size={12} /> Audit
+              </button>
+            </div>
           </div>
 
           {/* Stats row */}
