@@ -24,11 +24,37 @@
 **Latest work completed (2026-04-29):**
 - **Product Marketplace Sales Setup:** Complete implementation of Stripe checkout, orders, affiliate payouts, and API products system
   - Migrations 129-131: Orders, transactions, API products, affiliate programs, commissions, payouts
-  - 5 new controllers: cartCheckout, orders, adminProducts, apiProducts, affiliatePayouts
-  - 5 new routes: `/api/carts/{id}/checkout`, `/api/orders`, `/api/admin/products`, `/api/api-products`, `/api/affiliate`
+  - Migrations 133: Discount codes with flexible constraints
+  - 5 new controllers: cartCheckout, orders, adminProducts, apiProducts, affiliatePayouts, discountCodes
+  - 6 new routes with full CRUD and analytics
   - 3 new frontend pages: CheckoutPage, OrderHistoryPage, OrderDetailsPage
   - Stripe webhook integration for payment_intent.succeeded (dual-mode: jobs + marketplace orders)
   - Affiliate link tracking, commission calculation, payout automation
+  - Promo code system, shipping calculator, tax service, order notifications
+- **Post-Launch Feature Development (2026-04-29):**
+  - **Phase 1: Admin Dashboard for Order Management** ✅ COMPLETE
+    - Migration 134: Order management fields (shipped_at, tracking_number, refund_reason)
+    - AdminOrdersController: Full order lifecycle management (list, filter, detail, ship, refund, cancel)
+    - Frontend: OrderManagement page, OrderDetailModal, OrderFilters, OrderManagementTable
+    - API routes: `/api/admin/orders` with sorting, pagination, status filtering
+    - Integration: Admin sidebar navigation link added
+  - **Phase 2: Email Preferences & SMS Notifications** ✅ COMPLETE
+    - **Part 1: Email Preference Center**
+      - Migration 135: Email frequency preferences, unsubscribe tokens, digest queue
+      - EmailPreferencesController: Preference management, one-click unsubscribe
+      - EmailPreferences page: Frequency selector, category toggles, unsubscribe all button
+      - Email digest batch job for daily/weekly notification compilation
+      - API routes: `/api/notifications/email` with get, update, unsubscribe endpoints
+    - **Part 2: SMS Notifications**
+      - Migration 136: SMS preferences, phone verification, SMS logs
+      - SMSNotificationService: Twilio integration for SMS sending
+      - Phone verification with OTP (6-digit code)
+      - SMS on order events: created, payment confirmed, shipped, cancelled, refunded
+      - SMSPreferences page: Phone verification, notification toggles, history
+      - Rate limiting: 1 per event, 5 verification attempts/hour
+      - API routes: `/api/notifications/sms` for verification and preference management
+  - **Phase 3 (Planned):** Seller Payout Dashboard & Advanced Analytics
+  - **Phase 4 (Planned):** A/B Testing for Discount Codes
 - Product marketplace redesign: React Query infinite scroll, modern filter drawer, search suggestions (commits 6a425fa, 8ea81db)
 - Dispute resolution: escrow mapping, race condition prevention (commits 7be9f89, 9597806)
 - Message notifications: optimization, deduplication (commit 8b27059)
@@ -567,16 +593,57 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 ---
 
-### Known Limitations & TODOs
+### Improvements Made (Post-Review Fixes: 2026-04-29)
+
+1. ✅ **Inventory Management:** Added `quantity_available` tracking and stock validation before payment
+2. ✅ **Location-Based Tax:** Created `taxService.js` with US state rates and international VAT/GST
+3. ✅ **Affiliate Commission Batch:** Implemented daily batch job to process pending commissions
+4. ✅ **API Key Expiry:** Created `apiKeyValidator` middleware to enforce key expiration and rate limits
+5. ✅ **Cart Clearing:** Orders now delete cart items after successful payment
+6. ✅ **Input Validation:** Comprehensive validation for product names, descriptions, URLs, categories
+7. ✅ **Affiliate Click Tracking:** Populated `affiliate_clicks` table on order creation
+8. ✅ **Error Boundaries:** Added `OrderErrorBoundary` wrapper to checkout/order pages
+9. ✅ **Accessibility:** Added `aria-labels`, `aria-required`, `scope` attributes, `htmlFor` labels
+
+### Remaining Limitations & TODOs
 
 1. **API Product Delivery:** No automatic API key provisioning on purchase; helpers must manually issue keys
 2. **Affiliate Commission Disputes:** No dispute/chargeback handling workflow
-3. **Tax Calculation:** Hardcoded 8% tax; should be per-state/country
-4. **Shipping Costs:** Shipping_cents always 0; no shipping calculator
-5. **Discount/Promo Codes:** Discount_cents always 0; no promo code system
-6. **Multiple Affiliate Programs per Helper:** Current design allows only 1 program per type (UNIQUE constraint)
-7. **API Usage Enforcement:** Usage logs recorded but not actively enforced (rate limiter not implemented)
-8. **Webhook Delivery:** affiliate_programs.webhook_url exists but not used; webhook events not sent
+3. **Shipping Costs:** Shipping_cents always 0; no shipping calculator
+4. **Discount/Promo Codes:** Discount_cents always 0; no promo code system
+5. **Multiple Affiliate Programs per Helper:** Current design allows only 1 program per type (UNIQUE constraint)
+6. **Webhook Delivery:** affiliate_programs.webhook_url exists but not used; webhook events not sent
+
+### Additional Features (Post-Review: 2026-04-29)
+
+**Promo Code System**:
+- `discount_codes` table with percentage/fixed amount support
+- Min/max order value constraints
+- Category and product-level eligibility
+- Usage limits and date-based activation
+- Admin endpoints: `/api/admin/discount-codes` for CRUD and stats
+- Discount tracking via `order_discount_history`
+
+**Shipping Calculator**:
+- Zone-based rates: US continental, Alaska/Hawaii, Canada, Mexico, Europe, Other
+- Base rate + per-item charges
+- Weight surcharge for items over 5 lbs per item
+- Automatic calculation in checkout
+- Shipping address validation (street, city, state/country, zip required)
+
+**Order Notifications**:
+- `orderNotificationService.js` with email templates
+- Triggers: Order confirmation, Payment received, Order shipped, Order cancelled
+- HTML email templates with order details, tracking info
+- Async email sending (doesn't block payment confirmation)
+- Ready to integrate with Resend, SendGrid, or similar
+
+**API Documentation**:
+- Comprehensive `API_DOCUMENTATION.md` with all endpoints
+- Request/response examples for each operation
+- Rate limiting, authentication, error codes
+- Complete checkout flow example
+- Webhook event documentation
 
 ### Testing Checklist
 
@@ -584,16 +651,55 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [ ] Complete payment with test card (4242 4242 4242 4242)
 - [ ] Webhook fires, marketplace_orders.status → "paid"
 - [ ] Fetch /api/orders/{id}, see transaction details
+- [ ] Apply discount code in checkout, verify discount applied
+- [ ] Test with different shipping addresses (US, AK, HI, Canada)
 - [ ] Create affiliate program, add commission_rate
 - [ ] Manually test commission calculation: POST /api/affiliate/calculate
 - [ ] Process payout with Stripe (requires test bank account setup)
 - [ ] Create API product, publish, generate key
 - [ ] Verify key_hash is stored (not plaintext key)
-- [ ] Generate second key, revoke first, verify in GET /keys
+- [ ] Check order confirmation emails sent asynchronously
 
 ---
 
 ## Remaining Work (Prioritized by Production Readiness)
+
+### POST-LAUNCH FEATURES (Admin Dashboard & Operations)
+
+**Phase 1: Admin Dashboard for Order Management** ✅ COMPLETE (Commits 9512167)
+- [x] Migration 134: Order management fields (shipped_at, tracking_number, refund_reason)
+- [x] AdminOrdersController with CRUD, ship, refund, cancel operations
+- [x] OrderManagement page with filtering, sorting, pagination
+- [x] OrderDetailModal with tabs (details, items, payment, actions)
+- [x] OrderFilters component with status and search
+- [x] Admin sidebar integration
+
+**Phase 2: Email Preference Center & SMS Notifications** ✅ COMPLETE (Commits 24c9b3c, f607bbc)
+- [x] Migration 135: Email frequency preferences, unsubscribe tokens, digest queue
+- [x] Email preferences controller and routes (`/api/notifications/email`)
+- [x] EmailPreferences page with frequency selector (real-time/daily/weekly/off)
+- [x] Email digest batch job for daily/weekly notification compilation
+- [x] Migration 136: SMS opt-in, phone verification, SMS logs
+- [x] SMS notification service with Twilio integration
+- [x] SMSPreferences page with OTP phone verification
+- [x] SMS rate limiting (5 verification attempts/hour, 1 per order event)
+- [x] SMS notifications: order created, payment confirmed, shipped, cancelled, refunded
+
+**Phase 3: Seller Payout Dashboard & Analytics** (Weeks 3-4, ~8-10 days)
+- [ ] Migration 137: Payout method management (bank account, payment status)
+- [ ] Payout dashboard controller with commission breakdown and payment methods
+- [ ] Migration 138: Affiliate funnel analysis and time-series metrics
+- [ ] Analytics service with time-series queries, funnel conversion, top products
+- [ ] SellerPayoutDashboard page with payment method management
+- [ ] AffiliateAnalytics page with charts (Recharts), time-series, funnel visualization
+- [ ] PDF/CSV export functionality for analytics and payouts
+
+**Phase 4: A/B Testing for Discount Codes** (Week 5, ~3-4 days)
+- [ ] Migration 139: AB test variants, metrics, statistical significance
+- [ ] AB test service with chi-square statistical testing
+- [ ] ABTestingPage for creating and monitoring tests
+- [ ] Integration with discount code usage tracking
+- [ ] Winner selection and reporting
 
 ### CRITICAL (Block Production Launch)
 1. **Monitoring & Alerting Setup** — Set up Datadog, Sentry, or Logtail; configure alerts; create runbooks

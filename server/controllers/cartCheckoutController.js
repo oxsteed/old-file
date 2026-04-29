@@ -1,8 +1,12 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { pool } = require('../utils/db');
+const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
+const { calculateTax } = require('../services/taxService');
+const { validateAndApplyDiscount, recordDiscountUsage } = require('../services/discountService');
+const { calculateShipping, isValidShippingAddress } = require('../services/shippingService');
+const { sendOrderConfirmationEmail, sendPaymentReceivedEmail } = require('../services/orderNotificationService');
 
 async function getCheckoutSession(req, res) {
   try {
@@ -34,7 +38,7 @@ async function getCheckoutSession(req, res) {
       subtotal += item.quantity * item.price_cents;
     }
 
-    const tax = Math.round(subtotal * 0.08); // 8% tax (customize per location)
+    const tax = calculateTax(subtotal, {});
     const total = subtotal + tax;
 
     res.json({
@@ -62,7 +66,7 @@ async function getCheckoutSession(req, res) {
 
 async function createPaymentIntent(req, res) {
   try {
-    const { cartId, email, shippingAddress } = req.body;
+    const { cartId, email, shippingAddress, discountCode } = req.body;
     const userId = req.user?.id;
 
     if (!userId) return sendError(res, 401, 'Unauthorized');
@@ -77,7 +81,7 @@ async function createPaymentIntent(req, res) {
     if (!cart.rows.length) return sendError(res, 404, 'Cart not found');
 
     const items = await pool.query(
-      `SELECT sci.*, mp.id as product_id, mp.price_cents, mp.affiliate_url
+      `SELECT sci.*, mp.id as product_id, mp.price_cents, mp.affiliate_url, mp.quantity_available
        FROM shopping_cart_items sci
        JOIN marketplace_products mp ON sci.product_id = mp.id
        WHERE sci.cart_id = $1`,
@@ -85,6 +89,12 @@ async function createPaymentIntent(req, res) {
     );
 
     if (!items.rows.length) return sendError(res, 400, 'Cart is empty');
+
+    // Validate all items are in stock
+    const outOfStock = items.rows.filter(item => !item.quantity_available || item.quantity > item.quantity_available);
+    if (outOfStock.length > 0) {
+      return sendError(res, 400, `${outOfStock.length} item(s) out of stock`);
+    }
 
     // Calculate totals
     let subtotal = 0;
@@ -102,10 +112,29 @@ async function createPaymentIntent(req, res) {
       });
     }
 
-    const tax = Math.round(subtotal * 0.08);
-    const shipping = 0; // Can be customized based on address
-    const discount = 0; // Can apply promo codes
-    const total = subtotal + tax + shipping - discount;
+    const tax = calculateTax(subtotal, shippingAddress);
+
+    // Calculate shipping if shipping address is provided
+    let shipping = 0;
+    if (shippingAddress && isValidShippingAddress(shippingAddress)) {
+      shipping = calculateShipping(shippingAddress, lineItems.length, 0);
+    }
+
+    // Apply discount code if provided
+    let discountCents = 0;
+    let discountCodeId = null;
+    let discountValidation = null;
+
+    if (discountCode) {
+      const productIds = lineItems.map(item => item.product_id);
+      discountValidation = await validateAndApplyDiscount(discountCode, subtotal, null, productIds);
+      if (discountValidation.isValid) {
+        discountCents = discountValidation.discountCents;
+        discountCodeId = discountValidation.codeId;
+      }
+    }
+
+    const total = subtotal + tax + shipping - discountCents;
 
     if (total <= 0) return sendError(res, 400, 'Invalid order total');
 
@@ -117,7 +146,7 @@ async function createPaymentIntent(req, res) {
          (customer_id, cart_id, total_cents, subtotal_cents, tax_cents, shipping_cents, discount_cents, status, shipping_address)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [userId, cartId, total, subtotal, tax, shipping, discount, 'pending', JSON.stringify(shippingAddress || {})]
+        [userId, cartId, total, subtotal, tax, shipping, discountCents, 'pending', JSON.stringify(shippingAddress || {})]
       );
 
       const orderId = orderResult.rows[0].id;
@@ -210,8 +239,28 @@ async function confirmPayment(req, res) {
         ['succeeded', orderId]
       );
 
+      // Clear cart items after successful payment
+      if (order.rows[0].cart_id) {
+        await pool.query(
+          'DELETE FROM shopping_cart_items WHERE cart_id = $1',
+          [order.rows[0].cart_id]
+        );
+        logger.info('Cart cleared after payment', { cartId: order.rows[0].cart_id, orderId });
+      }
+
+      // Record discount usage if a discount was applied
+      if (discountCodeId && discountCents > 0) {
+        await recordDiscountUsage(orderId, discountCodeId, discountCents, discountCode);
+      }
+
       // Process affiliate commissions if applicable
-      await processAffiliateCommissions(orderId);
+      await processAffiliateCommissions(orderId, userId);
+
+      // Send confirmation and payment emails (async, don't block response)
+      setImmediate(async () => {
+        await sendOrderConfirmationEmail(orderId);
+        await sendPaymentReceivedEmail(orderId);
+      });
 
       res.json({
         success: true,
@@ -238,35 +287,48 @@ async function confirmPayment(req, res) {
   }
 }
 
-async function processAffiliateCommissions(orderId) {
+async function processAffiliateCommissions(orderId, userId) {
   try {
     const orderItems = await pool.query(
-      `SELECT oi.*, mp.affiliate_url
+      `SELECT oi.*, mp.affiliate_url, al.id as affiliate_link_id
        FROM marketplace_order_items oi
        JOIN marketplace_products mp ON oi.product_id = mp.id
+       LEFT JOIN affiliate_links_log al ON mp.affiliate_url = al.affiliate_url
        WHERE oi.order_id = $1`,
       [orderId]
     );
 
     for (const item of orderItems.rows) {
-      if (item.affiliate_url) {
-        // Track conversion in affiliate_links_log
+      if (item.affiliate_url && item.affiliate_link_id) {
+        // Track click/conversion in affiliate_clicks table
+        await pool.query(
+          `INSERT INTO affiliate_clicks
+           (affiliate_link_id, user_id, converted_to_order_id, session_id)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            item.affiliate_link_id,
+            userId,
+            orderId,
+            null // Session ID would come from tracking pixel if available
+          ]
+        );
+
+        // Update affiliate_links_log conversion count
         await pool.query(
           `UPDATE affiliate_links_log
            SET conversions = conversions + 1, confirmed_conversions = confirmed_conversions + 1
-           WHERE affiliate_url = $1`,
-          [item.affiliate_url]
+           WHERE id = $1`,
+          [item.affiliate_link_id]
         );
 
-        // Create affiliate commission record (if program exists)
-        // This will be processed by batch payout job
+        logger.debug('Affiliate click recorded', { orderId, affiliateLinkId: item.affiliate_link_id });
       }
     }
 
-    logger.info('Affiliate commissions processed', { orderId });
+    logger.info('Affiliate clicks processed', { orderId, itemCount: orderItems.rows.length });
   } catch (error) {
-    logger.error('Error processing affiliate commissions', { error });
-    // Don't fail the order if commission processing fails
+    logger.error('Error processing affiliate clicks', { error });
+    // Don't fail the order if affiliate processing fails
   }
 }
 

@@ -45,6 +45,7 @@ import ConsultingScheduler from './pages/ConsultingScheduler';
 import ConsultingAnalyticsDashboard from './pages/ConsultingAnalyticsDashboard';
 import BusinessLaunchAdmin from './pages/BusinessLaunchAdmin';
 import ConsultingSessionsAdmin from './pages/ConsultingSessionsAdmin';
+import OrderManagement from './pages/OrderManagement';
 import AdminLogin      from './pages/Login';
 
 function AdminGuard({ children, superOnly = false }) {
@@ -104,6 +105,7 @@ export default function AdminApp() {
           <Route path="tool-rentals"        element={<ToolRentalModeration />} />
           <Route path="planned-needs"       element={<PlannedNeedsAdmin />} />
           <Route path="payments"            element={<PaymentsList />} />
+          <Route path="orders"              element={<OrderManagement />} />
           <Route path="consulting"          element={<ConsultingDashboard />} />
           <Route path="consulting/payments" element={<ConsultingPayments />} />
           <Route path="consulting/scheduler" element={<ConsultingScheduler />} />

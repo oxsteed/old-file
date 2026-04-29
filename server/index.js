@@ -415,9 +415,13 @@ if (process.env.NODE_ENV !== 'production') {
 const { getPublicProfile } = require('./controllers/authController');
 const cartCheckoutRoutes = require('./routes/cartCheckout');
 const ordersRoutes = require('./routes/orders');
+const adminOrdersRoutes = require('./routes/adminOrders');
 const adminProductsRoutes = require('./routes/adminProducts');
 const apiProductsRoutes = require('./routes/apiProducts');
 const affiliatePayoutsRoutes = require('./routes/affiliatePayouts');
+const discountCodesRoutes = require('./routes/discountCodes');
+const emailPreferencesRoutes = require('./routes/emailPreferences');
+const smsNotificationsRoutes = require('./routes/smsNotifications');
 
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/marketplace/products', marketplaceProductsRoutes);
@@ -425,9 +429,13 @@ app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);
 app.use('/api/shared-carts', sharedCartsRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/products', adminProductsRoutes);
+app.use('/api/admin/discount-codes', discountCodesRoutes);
 app.use('/api/api-products', apiProductsRoutes);
 app.use('/api/affiliate', affiliatePayoutsRoutes);
+app.use('/api/notifications/email', emailPreferencesRoutes);
+app.use('/api/notifications/sms', smsNotificationsRoutes);
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
@@ -477,6 +485,7 @@ const { startConsultingSessionReminders } = require('./jobs/consultingSessionRem
 const { startConsultingPostSessionFollowup } = require('./jobs/consultingPostSessionFollowup');
 const { startConsultingNoShowFollowup } = require('./jobs/consultingNoShowFollowup');
 const { startCalendarReminderJob } = require('./jobs/calendarReminders');
+const { startAffiliateCommissionBatchJob } = require('./jobs/affiliateCommissionBatch');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
@@ -486,6 +495,7 @@ startConsultingSessionReminders();
 startConsultingPostSessionFollowup();
 startConsultingNoShowFollowup();
 startCalendarReminderJob();
+startAffiliateCommissionBatchJob();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {

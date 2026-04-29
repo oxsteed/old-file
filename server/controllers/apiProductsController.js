@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { pool } = require('../utils/db');
+const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');

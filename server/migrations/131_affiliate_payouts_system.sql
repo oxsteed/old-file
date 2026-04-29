@@ -10,11 +10,11 @@ CREATE TABLE IF NOT EXISTS affiliate_programs (
   total_paid_cents BIGINT DEFAULT 0,
   pending_cents BIGINT DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (helper_id, program_type)
 );
 CREATE INDEX idx_affiliate_programs_helper_id ON affiliate_programs(helper_id);
 CREATE INDEX idx_affiliate_programs_status ON affiliate_programs(status);
-UNIQUE (helper_id, program_type); -- One program per helper per type
 
 -- Affiliate commissions (calculated per order)
 CREATE TABLE IF NOT EXISTS affiliate_commissions (

@@ -3,8 +3,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
+import OrderErrorBoundary from '../components/OrderErrorBoundary';
 
 export default function OrderDetailsPage() {
+  return (
+    <OrderErrorBoundary componentName="Order Details">
+      <OrderDetailsPageContent />
+    </OrderErrorBoundary>
+  );
+}
+
+function OrderDetailsPageContent() {
   const { t } = useTranslation();
   const { orderId } = useParams();
   const navigate = useNavigate();
