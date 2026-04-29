@@ -19,6 +19,12 @@ router.get('/autocomplete', optionalAuth, marketplaceProductsController.getAutoc
 // Get trending searches
 router.get('/trending', marketplaceProductsController.getTrendingSearches);
 
+// Recommendation endpoints
+router.get('/recommendations/personalized', authenticate, marketplaceProductsController.getPersonalizedRecommendations);
+router.get('/recommendations/cross-sell', authenticate, marketplaceProductsController.getCrossSellRecommendations);
+router.get('/recommendations/explore', authenticate, marketplaceProductsController.getExploreRecommendations);
+router.get('/trending/hot', marketplaceProductsController.getTrendingProducts);
+
 // Get product categories
 router.get('/categories', marketplaceProductsController.getCategories);
 

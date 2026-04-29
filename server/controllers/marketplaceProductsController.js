@@ -3,6 +3,7 @@ const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const productRankingService = require('../services/productRankingService');
 const queryUnderstandingService = require('../services/queryUnderstandingService');
+const recommendationService = require('../services/recommendationService');
 
 /**
  * Browse marketplace products with advanced filtering and sorting
@@ -849,6 +850,126 @@ const getSearchAnalytics = async (req, res) => {
   }
 };
 
+/**
+ * Get personalized product recommendations
+ * GET /api/marketplace/products/recommendations/personalized?limit=20
+ * Requires authentication - uses user's history for recommendations
+ */
+const getPersonalizedRecommendations = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return sendError(res, 401, 'Authentication required');
+    }
+
+    const { limit = 20 } = req.query;
+    const recommendations = await recommendationService.getPersonalizedRecommendations(
+      req.user.id,
+      Math.min(parseInt(limit), 50)
+    );
+
+    logger.info('Personalized recommendations fetched', {
+      userId: req.user.id,
+      count: recommendations.length,
+    });
+
+    sendSuccess(res, { data: recommendations });
+  } catch (err) {
+    logger.error('Error fetching personalized recommendations', err);
+    sendError(res, 500, 'Failed to fetch recommendations');
+  }
+};
+
+/**
+ * Get frequently bought together
+ * GET /api/marketplace/products/:productId/frequently-bought-with?limit=10
+ */
+const getFrequentlyBoughtWith = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { limit = 10 } = req.query;
+
+    const recommendations = await recommendationService.getFrequentlyBoughtTogether(
+      productId,
+      Math.min(parseInt(limit), 50)
+    );
+
+    sendSuccess(res, { data: recommendations });
+  } catch (err) {
+    logger.error('Error fetching frequently bought together', err);
+    sendError(res, 500, 'Failed to fetch recommendations');
+  }
+};
+
+/**
+ * Get trending products
+ * GET /api/marketplace/products/trending/hot?limit=20&timeWindow=7%20days
+ */
+const getTrendingProducts = async (req, res) => {
+  try {
+    const { limit = 20, timeWindow = '7 days' } = req.query;
+
+    const products = await recommendationService.getTrendingProducts(
+      Math.min(parseInt(limit), 50),
+      timeWindow
+    );
+
+    sendSuccess(res, { data: products });
+  } catch (err) {
+    logger.error('Error fetching trending products', err);
+    sendError(res, 500, 'Failed to fetch trending products');
+  }
+};
+
+/**
+ * Get cross-sell recommendations
+ * GET /api/marketplace/products/recommendations/cross-sell?limit=10
+ * Products from different categories but complementary to user's history
+ */
+const getCrossSellRecommendations = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return sendError(res, 401, 'Authentication required');
+    }
+
+    const { limit = 10 } = req.query;
+
+    const recommendations = await recommendationService.getCrossSellRecommendations(
+      req.user.id,
+      Math.min(parseInt(limit), 50)
+    );
+
+    sendSuccess(res, { data: recommendations });
+  } catch (err) {
+    logger.error('Error fetching cross-sell recommendations', err);
+    sendError(res, 500, 'Failed to fetch cross-sell recommendations');
+  }
+};
+
+/**
+ * Get explore recommendations
+ * GET /api/marketplace/products/recommendations/explore?limit=12
+ * Intentionally introduce serendipity/discovery from less-obvious categories
+ */
+const getExploreRecommendations = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return sendError(res, 401, 'Authentication required');
+    }
+
+    const { limit = 12 } = req.query;
+
+    const recommendations = await recommendationService.getExploreRecommendations(
+      req.user.id,
+      Math.min(parseInt(limit), 50)
+    );
+
+    sendSuccess(res, { data: recommendations });
+  } catch (err) {
+    logger.error('Error fetching explore recommendations', err);
+    sendError(res, 500, 'Failed to fetch explore recommendations');
+  }
+};
+
 module.exports = {
   browseProducts,
   getProduct,
@@ -866,5 +987,9 @@ module.exports = {
   getAutocompleteSuggestions,
   getTrendingSearches,
   getSearchAnalytics,
+  getPersonalizedRecommendations,
+  getTrendingProducts,
+  getCrossSellRecommendations,
+  getExploreRecommendations,
   syncFromHomeDepot,
 };
