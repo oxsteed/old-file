@@ -66,6 +66,8 @@ CREATE INDEX idx_api_product_subscriptions_api_product_id ON api_product_subscri
 CREATE INDEX idx_api_product_subscriptions_customer_id ON api_product_subscriptions(customer_id);
 CREATE INDEX idx_api_product_subscriptions_status ON api_product_subscriptions(status);
 
+CREATE INDEX idx_api_product_subscriptions_unique ON api_product_subscriptions(api_product_id, customer_id) WHERE status != 'cancelled';
+
 -- API usage logs for analytics
 CREATE TABLE IF NOT EXISTS api_product_usage_logs (
   id BIGSERIAL PRIMARY KEY,
