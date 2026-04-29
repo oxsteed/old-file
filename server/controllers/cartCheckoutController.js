@@ -1,4 +1,4 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
@@ -8,6 +8,13 @@ const { validateAndApplyDiscount, recordDiscountUsage } = require('../services/d
 const { calculateShipping, isValidShippingAddress } = require('../services/shippingService');
 const { sendOrderConfirmationEmail, sendPaymentReceivedEmail } = require('../services/orderNotificationService');
 
+// Validate Stripe is configured
+const validateStripe = () => {
+  if (!stripe) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not configured');
+  }
+};
+
 async function getCheckoutSession(req, res) {
   try {
     const { cartId } = req.params;
@@ -16,7 +23,7 @@ async function getCheckoutSession(req, res) {
     if (!userId) return sendError(res, 401, 'Unauthorized');
 
     const cart = await pool.query(
-      'SELECT * FROM shopping_carts WHERE id = $1 AND customer_id = $2',
+      'SELECT * FROM shopping_carts WHERE id = $1 AND helper_id = $2',
       [cartId, userId]
     );
 
@@ -66,6 +73,7 @@ async function getCheckoutSession(req, res) {
 
 async function createPaymentIntent(req, res) {
   try {
+    validateStripe();
     const { cartId, email, shippingAddress, discountCode } = req.body;
     const userId = req.user?.id;
 
@@ -74,7 +82,7 @@ async function createPaymentIntent(req, res) {
 
     // Fetch cart and items
     const cart = await pool.query(
-      'SELECT * FROM shopping_carts WHERE id = $1 AND customer_id = $2',
+      'SELECT * FROM shopping_carts WHERE id = $1 AND helper_id = $2',
       [cartId, userId]
     );
 
@@ -203,6 +211,7 @@ async function createPaymentIntent(req, res) {
 
 async function confirmPayment(req, res) {
   try {
+    validateStripe();
     const { paymentIntentId, orderId } = req.body;
     const userId = req.user?.id;
 

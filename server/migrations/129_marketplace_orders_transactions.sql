@@ -25,11 +25,11 @@ CREATE INDEX idx_marketplace_orders_created_at ON marketplace_orders(created_at 
 CREATE TABLE IF NOT EXISTS marketplace_order_items (
   id BIGSERIAL PRIMARY KEY,
   order_id BIGINT NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
-  product_id BIGINT NOT NULL REFERENCES marketplace_products(id) ON DELETE RESTRICT,
+  product_id UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE RESTRICT,
   quantity INT NOT NULL DEFAULT 1,
   unit_price_cents BIGINT NOT NULL,
   total_price_cents BIGINT NOT NULL,
-  affiliate_link_id BIGINT REFERENCES affiliate_links_log(id) ON DELETE SET NULL,
+  affiliate_link_id UUID REFERENCES affiliate_links_log(id) ON DELETE SET NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT positive_quantity CHECK (quantity > 0),
   CONSTRAINT positive_price CHECK (unit_price_cents > 0)
@@ -65,7 +65,7 @@ ALTER TABLE affiliate_links_log ADD COLUMN IF NOT EXISTS payout_id BIGINT;
 
 CREATE TABLE IF NOT EXISTS affiliate_clicks (
   id BIGSERIAL PRIMARY KEY,
-  affiliate_link_id BIGINT NOT NULL REFERENCES affiliate_links_log(id) ON DELETE CASCADE,
+  affiliate_link_id UUID NOT NULL REFERENCES affiliate_links_log(id) ON DELETE CASCADE,
   user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   referrer VARCHAR(500),
   user_agent VARCHAR(500),
