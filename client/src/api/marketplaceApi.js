@@ -17,15 +17,23 @@ export const marketplaceApi = {
   getProductsBySkill: (skillId, limit = 50) =>
     api.get(`/marketplace/products/by-skill/${skillId}?limit=${limit}`),
 
-  searchProducts: (query, skillId, minPrice, maxPrice, page = 1, limit = 20) => {
+  searchProducts: (query, skillId, minPrice, maxPrice, page = 1, limit = 20, sortBy = 'best_match', category) => {
     const params = new URLSearchParams();
-    params.append('q', query);
+    if (query) params.append('q', query);
     if (skillId) params.append('skill', skillId);
     if (minPrice) params.append('minPrice', minPrice);
     if (maxPrice) params.append('maxPrice', maxPrice);
+    if (category) params.append('category', category);
     params.append('page', page);
     params.append('limit', limit);
+    params.append('sortBy', sortBy);
     return api.get(`/marketplace/products/search?${params.toString()}`);
+  },
+
+  searchSuggestions: (query) => {
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    return api.get(`/marketplace/products/suggestions?${params.toString()}`);
   },
 
   getCategories: () => api.get('/marketplace/products/categories'),

@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
 import './i18n'; // initialise i18next before any component renders
@@ -71,6 +72,18 @@ import { ThemeProvider } from './context/ThemeContext';
 import SupportWidget from './components/SupportWidget';
 import { LanguageProvider } from './context/LanguageContext';
 
+// Create a client for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 // Wraps each route element in its own error boundary so a crash in one page
 // doesn't blank the entire app — only that route shows an error.
 // Plain ErrorBoundary is fine here: these are already inside <Router>.
@@ -83,18 +96,19 @@ export default function App() {
     <HelmetProvider>
       <LanguageProvider>
       <ThemeProvider>
-        {/*
-          Root boundary: RouterAwareErrorBoundary must sit INSIDE <Router> so
-          useNavigate() is available. The outer ThemeProvider/HelmetProvider
-          layer is stateless — catastrophic failures there are vanishingly rare
-          and would prevent the Router from mounting anyway.
-        */}
-        <Router>
-          {/* Single shared cookie-consent state — Footer and CookieConsent
-              both consume this via useCookieConsentContext(). */}
-          <CookieConsentProvider>
-            <RouterAwareErrorBoundary>
-              <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          {/*
+            Root boundary: RouterAwareErrorBoundary must sit INSIDE <Router> so
+            useNavigate() is available. The outer ThemeProvider/HelmetProvider
+            layer is stateless — catastrophic failures there are vanishingly rare
+            and would prevent the Router from mounting anyway.
+          */}
+          <Router>
+            {/* Single shared cookie-consent state — Footer and CookieConsent
+                both consume this via useCookieConsentContext(). */}
+            <CookieConsentProvider>
+              <RouterAwareErrorBoundary>
+                <AuthProvider>
                 <ScrollToTop />
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 <TermsGate>
@@ -193,10 +207,11 @@ export default function App() {
                 </TermsGate>
                 <CookieConsent />
                 <SupportWidget />
-              </AuthProvider>
-            </RouterAwareErrorBoundary>
-          </CookieConsentProvider>
-        </Router>
+                </AuthProvider>
+              </RouterAwareErrorBoundary>
+            </CookieConsentProvider>
+          </Router>
+        </QueryClientProvider>
       </ThemeProvider>
       </LanguageProvider>
     </HelmetProvider>
