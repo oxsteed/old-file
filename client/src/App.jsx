@@ -206,7 +206,7 @@ export default function App() {
                   </Routes>
                 </TermsGate>
                 <CookieConsent />
-                <HybridSupportWidget />
+                <SupportWidget />
                 </AuthProvider>
               </RouterAwareErrorBoundary>
             </CookieConsentProvider>
