@@ -25,7 +25,7 @@ END $$;
 -- SMS verification tokens (OTP codes)
 CREATE TABLE IF NOT EXISTS sms_opt_in_tokens (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   phone_number VARCHAR(20) NOT NULL,
   token VARCHAR(6),
   verified BOOLEAN DEFAULT FALSE,
@@ -42,7 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_sms_opt_in_tokens_expires ON sms_opt_in_tokens(ex
 -- SMS delivery logs for audit trail and rate limiting
 CREATE TABLE IF NOT EXISTS sms_logs (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   phone_number VARCHAR(20),
   message_body TEXT,
   notification_type VARCHAR(50),
