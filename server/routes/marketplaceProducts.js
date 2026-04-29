@@ -16,6 +16,12 @@ router.get('/search', optionalAuth, marketplaceProductsController.searchProducts
 // Get product categories
 router.get('/categories', marketplaceProductsController.getCategories);
 
+// Get hierarchical product categories (with parent-child relationship)
+router.get('/categories/hierarchy', marketplaceProductsController.getHierarchicalCategories);
+
+// Get all available skills with product counts
+router.get('/skills/all', marketplaceProductsController.getSkills);
+
 // Get products by skill
 router.get('/by-skill/:skillId', optionalAuth, marketplaceProductsController.getBySkill);
 

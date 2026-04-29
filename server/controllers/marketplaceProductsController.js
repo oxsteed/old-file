@@ -249,8 +249,9 @@ const getCategories = async (req, res) => {
 };
 
 /**
- * Search products (full-text search on name + description + filters)
- * GET /api/marketplace/products/search?q=sink&skillIds=1,2&minPrice=10&maxPrice=100&page=1&limit=20
+ * Advanced search with aliases, skills, and ranking
+ * GET /api/marketplace/products/search?q=wrench&skillIds=1,2&minPrice=10&maxPrice=100&page=1&limit=20
+ * Searches: exact matches → name/description → aliases → related items
  */
 const searchProducts = async (req, res) => {
   try {
@@ -264,14 +265,32 @@ const searchProducts = async (req, res) => {
 
     // Parse skill IDs array
     const skillIdArray = skillIds ? skillIds.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+    const searchTerm = q.toLowerCase().trim();
 
+    // Multi-pass search with relevance ranking:
+    // 1. Exact name match (highest relevance)
+    // 2. Name/description full-text match
+    // 3. Alias match (synonyms)
+    // 4. Related by skill
     let query = `
       SELECT DISTINCT
         mp.id, mp.name, mp.description, mp.category, mp.price_cents,
         mp.product_image_url, mp.is_available,
         mp.avg_rating, mp.rating_count, mp.in_carts_count,
-        ts_rank(to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, '')),
-                plainto_tsquery('english', $1)) as relevance,
+        CASE
+          WHEN LOWER(mp.name) = $1 THEN 1000  -- Exact name match (highest)
+          WHEN LOWER(mp.name) LIKE $2 THEN 800  -- Name contains
+          WHEN ts_rank(to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, '')),
+                       plainto_tsquery('english', $1)) > 0 THEN 500  -- Full-text match
+          WHEN EXISTS (
+            SELECT 1 FROM product_aliases
+            WHERE product_id = mp.id
+              AND LOWER(alias_name) = $1
+          ) THEN 400  -- Alias synonym match
+          ELSE 100  -- Default relevance
+        END *
+        COALESCE(mp.in_carts_count, 0) / GREATEST(1, (SELECT MAX(in_carts_count) FROM marketplace_products WHERE in_carts_count > 0)) +
+        COALESCE(mp.avg_rating, 0) * 10 as relevance_score,
         COALESCE(
           json_agg(DISTINCT jsonb_build_object('id', sl.id, 'name', sl.name))
           FILTER (WHERE sl.id IS NOT NULL),
@@ -281,12 +300,20 @@ const searchProducts = async (req, res) => {
       LEFT JOIN marketplace_product_skills mps ON mp.id = mps.product_id
       LEFT JOIN skills_lookup sl ON mps.skill_id = sl.id
       WHERE mp.is_active = TRUE
-        AND to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, ''))
-            @@ plainto_tsquery('english', $1)
+        AND (
+          LOWER(mp.name) = $1
+          OR LOWER(mp.name) LIKE $2
+          OR to_tsvector('english', mp.name || ' ' || COALESCE(mp.description, '')) @@ plainto_tsquery('english', $1)
+          OR EXISTS (
+            SELECT 1 FROM product_aliases
+            WHERE product_id = mp.id
+              AND (LOWER(alias_name) = $1 OR LOWER(alias_name) LIKE $2)
+          )
+        )
     `;
 
-    const params = [q];
-    let paramCount = 2;
+    const params = [searchTerm, `%${searchTerm}%`];
+    let paramCount = 3;
 
     if (minPrice) {
       query += ` AND mp.price_cents >= $${paramCount}`;
@@ -307,13 +334,17 @@ const searchProducts = async (req, res) => {
     }
 
     query += ` GROUP BY mp.id
-              ORDER BY relevance DESC, mp.name ASC
+              ORDER BY relevance_score DESC NULLS LAST, mp.name ASC
               LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(safeLimit, offset);
 
     const result = await pool.query(query, params);
 
-    logger.info('Products searched', { query: q, skillIds: skillIdArray, resultsCount: result.rows.length });
+    logger.info('Products searched (advanced)', {
+      query: q,
+      skillIds: skillIdArray,
+      resultsCount: result.rows.length,
+    });
 
     sendSuccess(res, {
       data: result.rows,
@@ -560,6 +591,93 @@ const getRecommendedProducts = async (req, res) => {
 };
 
 /**
+ * Get all available skills with product counts
+ * GET /api/marketplace/products/skills/all
+ */
+const getSkills = async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        sl.id, sl.name, sl.description,
+        COUNT(DISTINCT mps.product_id) as product_count,
+        ROUND(AVG(mp.avg_rating)::numeric, 2) as avg_rating
+      FROM skills_lookup sl
+      LEFT JOIN marketplace_product_skills mps ON sl.id = mps.skill_id
+      LEFT JOIN marketplace_products mp ON mps.product_id = mp.id AND mp.is_active = TRUE
+      GROUP BY sl.id, sl.name, sl.description
+      HAVING COUNT(DISTINCT mps.product_id) > 0
+      ORDER BY product_count DESC, sl.name ASC
+    `;
+
+    const result = await pool.query(query);
+    logger.info('Skills fetched', { count: result.rows.length });
+
+    sendSuccess(res, {
+      data: result.rows,
+      pagination: {
+        total: result.rows.length,
+      },
+    });
+  } catch (err) {
+    logger.error('Error fetching skills', err);
+    sendError(res, 500, 'Failed to fetch skills');
+  }
+};
+
+/**
+ * Get hierarchical product categories
+ * GET /api/marketplace/products/categories/hierarchy
+ */
+const getHierarchicalCategories = async (req, res) => {
+  try {
+    // Get all categories with product count
+    const query = `
+      SELECT
+        pc.id, pc.name, pc.slug, pc.description,
+        pc.parent_category_id, pc.icon_emoji, pc.icon_name, pc.display_order,
+        COUNT(DISTINCT mpc.product_id) as product_count
+      FROM product_categories pc
+      LEFT JOIN marketplace_product_categories mpc ON pc.id = mpc.category_id
+      WHERE pc.is_active = TRUE
+      GROUP BY pc.id, pc.name, pc.slug, pc.description, pc.parent_category_id,
+               pc.icon_emoji, pc.icon_name, pc.display_order
+      ORDER BY pc.parent_category_id NULLS FIRST, pc.display_order ASC
+    `;
+
+    const result = await pool.query(query);
+
+    // Build hierarchical structure
+    const categoryMap = {};
+    const rootCategories = [];
+
+    result.rows.forEach(cat => {
+      categoryMap[cat.id] = {
+        ...cat,
+        children: [],
+      };
+    });
+
+    result.rows.forEach(cat => {
+      if (cat.parent_category_id === null) {
+        rootCategories.push(categoryMap[cat.id]);
+      } else if (categoryMap[cat.parent_category_id]) {
+        categoryMap[cat.parent_category_id].children.push(categoryMap[cat.id]);
+      }
+    });
+
+    logger.info('Categories fetched (hierarchical)', { count: result.rows.length });
+
+    sendSuccess(res, {
+      data: rootCategories,
+      totalCategories: result.rows.length,
+    });
+  } catch (err) {
+    logger.error('Error fetching hierarchical categories', err);
+    sendError(res, 500, 'Failed to fetch categories');
+  }
+};
+
+/**
  * Sync products from Home Depot (admin/scheduled only)
  * POST /api/marketplace/products/sync-homedepot
  */
@@ -585,6 +703,8 @@ module.exports = {
   getProductDetail,
   getBySkill,
   getCategories,
+  getHierarchicalCategories,
+  getSkills,
   searchProducts,
   getRelatedProducts,
   getFrequentlyBoughtWith,

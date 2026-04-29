@@ -1,20 +1,24 @@
 /**
- * ProductMarketplacePage
+ * ProductMarketplacePage — Advanced Product Discovery
  *
- * Customer-facing browse/search page for discovering OxSteed products.
- * Mirrors the HelpersDirectoryPage layout and design language.
+ * Amazon-scale marketplace with:
+ * - 100+ hierarchical product categories
+ * - Skill-based product discovery (click "Electrician" → electrical products)
+ * - Advanced search with synonyms and ranking
+ * - Product-skill mapping for intelligent browsing
  *
  * Layout:
- *   - Hero section with search + popular category pills
- *   - Browse by Category grid (high-density product categories)
- *   - Desktop: left sidebar with filters, right results grid
- *   - Mobile: filters in slide-up drawer
+ *   - Hero with search + popular category/skill pills
+ *   - Category grid (dynamic from API)
+ *   - Skill grid for trade-specific discovery
+ *   - Desktop sidebar: filters by category, skill, price, rating
+ *   - Mobile: filters in bottom drawer
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { SlidersHorizontal, X, ChevronDown, Sparkles, ShoppingCart, Loader } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, Zap, ShoppingCart, Loader } from 'lucide-react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useDebouncedCallback } from 'use-debounce';
 import { toast } from 'sonner';
@@ -29,20 +33,6 @@ import { marketplaceApi, cartApi } from '../api/marketplaceApi';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/ProductMarketplacePage.css';
 
-// Product categories with icons
-const PRODUCT_CATEGORIES = [
-  { id: 'tools', label: 'Tools', icon: '🔧', emoji: true },
-  { id: 'safety', label: 'Safety Gear', icon: '⛑️', emoji: true },
-  { id: 'hardware', label: 'Hardware', icon: '🔩', emoji: true },
-  { id: 'materials', label: 'Materials', icon: '📦', emoji: true },
-  { id: 'power', label: 'Power Tools', icon: '⚡', emoji: true },
-  { id: 'hand-tools', label: 'Hand Tools', icon: '🔨', emoji: true },
-  { id: 'measuring', label: 'Measuring', icon: '📐', emoji: true },
-  { id: 'fasteners', label: 'Fasteners', icon: '🔗', emoji: true },
-  { id: 'paint', label: 'Paint & Coatings', icon: '🎨', emoji: true },
-  { id: 'lumber', label: 'Lumber', icon: '🪵', emoji: true },
-];
-
 const SORT_OPTIONS = {
   best_match: 'marketplace.sortOptions.bestMatch',
   price_asc: 'marketplace.sortOptions.lowestPrice',
@@ -54,7 +44,7 @@ const SORT_OPTIONS = {
 
 const PAGE_SIZE = 9;
 
-// ── Card skeleton ─────────────────────────────────────────────────────────────
+// ── Card skeleton ──────────────────────────────────────────────────────────────
 const CardSkeleton = () => (
   <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden animate-pulse">
     <div className="h-40 bg-gray-800" />
@@ -73,7 +63,7 @@ const CardSkeleton = () => (
   </div>
 );
 
-// ── Mobile filter drawer ──────────────────────────────────────────────────────
+// ── Mobile filter drawer ───────────────────────────────────────────────────────
 const FilterDrawer = ({ open, onClose, children, activeCount }) => {
   const { t } = useTranslation();
 
@@ -131,9 +121,27 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
   );
 };
 
-// ── Category tile grid ────────────────────────────────────────────────────────
-const CategoryTileGrid = ({ selectedCategory, onSelect }) => {
+// ── Category tile grid ──────────────────────────────────────────────────────────
+const CategoryTileGrid = ({ categories, selectedCategory, onSelect, loading }) => {
   const { t } = useTranslation();
+
+  if (loading) {
+    return (
+      <section className="bg-gray-900 border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="h-6 bg-gray-800 rounded w-40 mb-4 animate-pulse" />
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+            {Array(10).fill(null).map((_, i) => (
+              <div key={i} className="h-16 bg-gray-800 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const rootCats = categories.filter(c => !c.parent_category_id).slice(0, 10);
+
   return (
     <section className="bg-gray-900 border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -141,24 +149,21 @@ const CategoryTileGrid = ({ selectedCategory, onSelect }) => {
           {t('marketplace.browseByCategory')}
         </p>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-          {PRODUCT_CATEGORIES.map((cat) => {
+          {rootCats.map((cat) => {
             const active = selectedCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => onSelect(active ? '' : cat.id)}
                 aria-pressed={active}
-                title={cat.label}
-                className={`
-                  flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border text-center transition-all
-                  ${active
-                    ? 'bg-orange-500/20 border-orange-500 text-orange-300 shadow-sm shadow-orange-500/20'
-                    : 'bg-gray-800/60 border-gray-700 text-gray-400 hover:bg-gray-800 hover:border-gray-600 hover:text-gray-200'
-                  }
-                `}
+                className={`p-2 rounded-lg text-center transition-all duration-200 ${
+                  active
+                    ? 'bg-orange-500 text-white ring-2 ring-orange-400'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                }`}
               >
-                <span className="text-xl leading-none" aria-hidden="true">{cat.icon}</span>
-                <span className="text-xs font-medium leading-tight">{cat.label}</span>
+                <div className="text-lg mb-1">{cat.icon_emoji || '📦'}</div>
+                <div className="text-xs font-medium leading-tight line-clamp-2">{cat.name}</div>
               </button>
             );
           })}
@@ -168,95 +173,81 @@ const CategoryTileGrid = ({ selectedCategory, onSelect }) => {
   );
 };
 
-// ── Hero banner ───────────────────────────────────────────────────────────────
-const DirectoryHero = ({ searchValue, onSearch }) => {
+// ── Skill tile grid (Trade-specific discovery) ──────────────────────────────────
+const SkillTileGrid = ({ skills, selectedSkill, onSelect, loading }) => {
   const { t } = useTranslation();
+
+  if (loading || !skills || skills.length === 0) return null;
+
+  const topSkills = skills.slice(0, 12);
+
   return (
-    <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
-      <div className="absolute inset-0 opacity-5" aria-hidden="true">
-        <svg width="100%" height="100%">
-          <defs>
-            <pattern id="hero-dots-products" width="32" height="32" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1.5" fill="white" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#hero-dots-products)" />
-        </svg>
-      </div>
-      <div className="absolute inset-y-0 left-0 w-1 bg-orange-500" aria-hidden="true" />
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-        <div className="max-w-2xl">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-orange-400" />
-            <span className="text-xs font-semibold text-orange-400 uppercase tracking-widest">
-              {t('marketplace.browseProducts')}
-            </span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
-            {t('marketplace.title')}
-          </h1>
-          <p className="text-gray-400 mt-2 text-base leading-relaxed">
-            {t('marketplace.subtitle')}
-          </p>
-
-          {/* Hero search */}
-          <div className="mt-6">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={t('marketplace.searchPlaceholder')}
-                value={searchValue}
-                onChange={(e) => onSearch(e.target.value)}
-                className="w-full px-5 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Popular categories */}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {PRODUCT_CATEGORIES.slice(0, 6).map((cat) => (
+    <section className="bg-gray-900 border-b border-gray-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
+          {t('marketplace.browseBySkill')}
+        </p>
+        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 gap-2">
+          {topSkills.map((skill) => {
+            const active = selectedSkill === skill.id;
+            return (
               <button
-                key={cat.id}
-                type="button"
-                onClick={() => onSearch(cat.label)}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+                key={skill.id}
+                onClick={() => onSelect(active ? '' : skill.id)}
+                aria-pressed={active}
+                className={`p-2 rounded-lg text-center transition-all duration-200 ${
+                  active
+                    ? 'bg-orange-500 text-white ring-2 ring-orange-400'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
+                }`}
+                title={`${skill.product_count} ${t('common.products')}`}
               >
-                {cat.label}
+                <div className="text-lg mb-1"><Zap className="w-5 h-5 inline-block" /></div>
+                <div className="text-xs font-medium leading-tight line-clamp-2">{skill.name}</div>
+                <div className="text-xs text-gray-500 mt-1">{skill.product_count}</div>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
-// ── Desktop sidebar filters ───────────────────────────────────────────────────
-const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onCategoryChange, onMinPriceChange, onMaxPriceChange, categories, sortBy, onSortChange }) => {
+// ── Desktop sidebar filters ────────────────────────────────────────────────────
+const FilterPanel = ({
+  selectedCategory,
+  selectedSkill,
+  selectedMinPrice,
+  selectedMaxPrice,
+  onCategoryChange,
+  onSkillChange,
+  onMinPriceChange,
+  onMaxPriceChange,
+  categories,
+  skills,
+  sortBy,
+  onSortChange,
+}) => {
   const { t } = useTranslation();
+  const rootCats = categories.filter(c => !c.parent_category_id);
 
   return (
     <div className="space-y-6">
-      {/* Quick Filters */}
+      {/* Sort By */}
       <div>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
-          {t('marketplace.quickFilters')}
+          {t('marketplace.sortBy')}
         </h3>
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" />
-            <span className="text-sm text-gray-400 group-hover:text-gray-300">{t('marketplace.inStock')}</span>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" />
-            <span className="text-sm text-gray-400 group-hover:text-gray-300">{t('marketplace.discounted')}</span>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500" />
-            <span className="text-sm text-gray-400 group-hover:text-gray-300">{t('marketplace.onSale')}</span>
-          </label>
-        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => onSortChange(e.target.value)}
+          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors"
+        >
+          {Object.entries(SORT_OPTIONS).map(([key, label]) => (
+            <option key={key} value={key}>{t(label)}</option>
+          ))}
+        </select>
       </div>
 
       {/* Category Checkboxes */}
@@ -264,8 +255,8 @@ const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onC
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
           {t('marketplace.category')}
         </h3>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {PRODUCT_CATEGORIES.map((cat) => (
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {rootCats.slice(0, 15).map((cat) => (
             <label key={cat.id} className="flex items-center gap-3 cursor-pointer group">
               <input
                 type="checkbox"
@@ -273,11 +264,39 @@ const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onC
                 onChange={(e) => onCategoryChange(e.target.checked ? cat.id : '')}
                 className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500"
               />
-              <span className="text-sm text-gray-400 group-hover:text-gray-300">{cat.label}</span>
+              <span className="text-sm text-gray-400 group-hover:text-gray-300">{cat.name}</span>
+              {cat.product_count > 0 && (
+                <span className="text-xs text-gray-600">({cat.product_count})</span>
+              )}
             </label>
           ))}
         </div>
       </div>
+
+      {/* Skills */}
+      {skills && skills.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+            {t('marketplace.skills')}
+          </h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {skills.slice(0, 10).map((skill) => (
+              <label key={skill.id} className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={selectedSkill === skill.id}
+                  onChange={(e) => onSkillChange(e.target.checked ? skill.id : '')}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-orange-500"
+                />
+                <span className="text-sm text-gray-400 group-hover:text-gray-300">{skill.name}</span>
+                {skill.product_count > 0 && (
+                  <span className="text-xs text-gray-600">({skill.product_count})</span>
+                )}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Price Range */}
       <div>
@@ -299,7 +318,7 @@ const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onC
             <label className="text-xs text-gray-500 block mb-1">{t('marketplace.maxPrice')}</label>
             <input
               type="number"
-              placeholder="Any"
+              placeholder="10000"
               value={selectedMaxPrice}
               onChange={(e) => onMaxPriceChange(e.target.value)}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors"
@@ -307,349 +326,338 @@ const FilterPanel = ({ selectedCategory, selectedMinPrice, selectedMaxPrice, onC
           </div>
         </div>
       </div>
+    </div>
+  );
+};
 
-      {/* Sort */}
-      <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
-          {t('marketplace.sortBy')}
-        </h3>
-        <select
-          value={sortBy}
-          onChange={(e) => onSortChange(e.target.value)}
-          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition-colors"
-        >
-          {Object.entries(SORT_OPTIONS).map(([key, labelKey]) => (
-            <option key={key} value={key}>{t(labelKey)}</option>
+// ── Hero section ───────────────────────────────────────────────────────────────
+const DirectoryHero = ({ searchValue, onSearch, categories, skills, topProducts }) => {
+  const { t } = useTranslation();
+  const rootCats = categories.filter(c => !c.parent_category_id).slice(0, 6);
+
+  return (
+    <div className="bg-gradient-to-b from-gray-800 to-gray-900 border-b border-gray-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
+          {t('marketplace.title')}
+        </h1>
+        <p className="text-gray-400 text-sm sm:text-base mb-6">
+          {t('marketplace.subtitle')}
+        </p>
+
+        <div className="mt-6">
+          <input
+            type="text"
+            placeholder={t('marketplace.searchPlaceholder')}
+            value={searchValue}
+            onChange={(e) => onSearch(e.target.value)}
+            className="w-full px-5 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
+          />
+        </div>
+
+        {/* Popular suggestions */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {rootCats.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onSearch(cat.name)}
+              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+            >
+              {cat.name}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
     </div>
   );
 };
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-const EmptyState = ({ onReset }) => {
+// ── Empty state ────────────────────────────────────────────────────────────────
+const EmptyState = ({ searchTerm }) => {
   const { t } = useTranslation();
   return (
-    <div className="text-center py-16">
-      <ShoppingCart className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-white mb-2">{t('marketplace.noProducts')}</h3>
-      <p className="text-gray-400 mb-6">{t('marketplace.tryDifferentFilters')}</p>
-      <button
-        onClick={onReset}
-        className="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm transition-colors"
-      >
-        {t('marketplace.clearAll')}
-      </button>
+    <div className="col-span-full py-12 text-center">
+      <div className="text-4xl mb-4">🔍</div>
+      <h3 className="text-lg font-semibold text-white mb-2">{t('marketplace.noResults')}</h3>
+      <p className="text-gray-400 text-sm">
+        {searchTerm
+          ? t('marketplace.noResultsFor', { term: searchTerm })
+          : t('marketplace.tryBrowsing')}
+      </p>
     </div>
   );
 };
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Main component ──────────────────────────────────────────────────────────────
 export default function ProductMarketplacePage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const observerTarget = useRef(null);
 
-  // State from URL
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  // State
+  const [searchValue, setSearchValue] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
+  const [selectedSkill, setSelectedSkill] = useState(searchParams.get('skill') || '');
   const [selectedMinPrice, setSelectedMinPrice] = useState(searchParams.get('minPrice') || '');
   const [selectedMaxPrice, setSelectedMaxPrice] = useState(searchParams.get('maxPrice') || '');
-  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'best_match');
-
-  // UI state
-  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'best_match');
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showNewCartModal, setShowNewCartModal] = useState(false);
-  const [newCartName, setNewCartName] = useState('');
-  const [currentCart, setCurrentCart] = useState(() => {
-    try {
-      const saved = localStorage.getItem('oxs:lastCart');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+
+  // API Queries
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['product-categories'],
+    queryFn: async () => {
+      const res = await marketplaceApi.get('/categories/hierarchy');
+      return res.data.data;
+    },
+    staleTime: 1000 * 60 * 30,
   });
 
-  const debouncedSearch = useDebouncedCallback((query) => {
-    setSearchQuery(query);
-  }, 300);
+  const { data: skillsData, isLoading: skillsLoading } = useQuery({
+    queryKey: ['product-skills'],
+    queryFn: async () => {
+      const res = await marketplaceApi.get('/skills/all');
+      return res.data.data;
+    },
+    staleTime: 1000 * 60 * 30,
+  });
 
-  // Update URL
-  useEffect(() => {
+  // Debounced search + filter
+  const debouncedSearch = useDebouncedCallback((value) => {
     const params = new URLSearchParams();
-    if (searchQuery) params.set('search', searchQuery);
+    if (value) params.set('q', value);
     if (selectedCategory) params.set('category', selectedCategory);
+    if (selectedSkill) params.set('skill', selectedSkill);
     if (selectedMinPrice) params.set('minPrice', selectedMinPrice);
     if (selectedMaxPrice) params.set('maxPrice', selectedMaxPrice);
-    if (sortBy !== 'best_match') params.set('sortBy', sortBy);
+    if (sortBy !== 'best_match') params.set('sort', sortBy);
     setSearchParams(params, { replace: true });
-  }, [searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy, setSearchParams]);
+  }, 300);
 
-  // Persist cart
   useEffect(() => {
-    if (currentCart) {
-      localStorage.setItem('oxs:lastCart', JSON.stringify(currentCart));
-    }
-  }, [currentCart]);
+    debouncedSearch(searchValue);
+  }, [searchValue, selectedCategory, selectedSkill, selectedMinPrice, selectedMaxPrice, sortBy, debouncedSearch]);
 
-  // Fetch categories
-  const { data: categoriesData } = useQuery({
-    queryKey: ['productCategories'],
-    queryFn: () => marketplaceApi.getCategories(),
-    staleTime: Infinity,
-  });
-  const categories = categoriesData?.data?.categories || [];
-
-  // Infinite scroll products
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
-    queryKey: ['products', searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice, sortBy],
+  // Products infinite query
+  const {
+    data: productsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: productsLoading,
+    refetch: refetchProducts,
+  } = useInfiniteQuery({
+    queryKey: ['marketplace-products', { searchValue, selectedCategory, selectedSkill, selectedMinPrice, selectedMaxPrice, sortBy }],
     queryFn: async ({ pageParam = 1 }) => {
-      const minPrice = selectedMinPrice ? Math.floor(parseFloat(selectedMinPrice) * 100) : null;
-      const maxPrice = selectedMaxPrice ? Math.floor(parseFloat(selectedMaxPrice) * 100) : null;
-
-      const response = await marketplaceApi.searchProducts(
-        searchQuery,
-        null,
-        minPrice,
-        maxPrice,
-        pageParam,
-        PAGE_SIZE,
+      const params = {
+        page: pageParam,
+        limit: PAGE_SIZE,
         sortBy,
-        selectedCategory
-      );
-      return response.data;
+      };
+      if (searchValue.trim()) params.q = searchValue.trim();
+      if (selectedCategory) params.category = selectedCategory;
+      if (selectedSkill) params.skillIds = selectedSkill;
+      if (selectedMinPrice) params.minPrice = parseFloat(selectedMinPrice);
+      if (selectedMaxPrice) params.maxPrice = parseFloat(selectedMaxPrice);
+
+      const endpoint = searchValue.trim() ? '/search' : '/browse';
+      const res = await marketplaceApi.get(endpoint, { params });
+      return res.data.data;
     },
-    getNextPageParam: (lastPage) => {
-      const currentPage = lastPage.pagination?.page || 1;
-      const totalPages = Math.ceil((lastPage.pagination?.total || 0) / PAGE_SIZE);
-      return currentPage < totalPages ? currentPage + 1 : undefined;
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length >= PAGE_SIZE ? allPages.length + 1 : undefined;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 1000 * 60 * 5,
   });
 
-  const allProducts = data?.pages.flatMap((page) => page.products || []) || [];
-  const total = data?.pages[0]?.pagination?.total || 0;
-  const activeFilterCount = [searchQuery, selectedCategory, selectedMinPrice, selectedMaxPrice].filter(Boolean).length;
-
-  // Handlers
-  const handleClearAllFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('');
-    setSelectedMinPrice('');
-    setSelectedMaxPrice('');
-    setSortBy('best_match');
-  };
-
-  const handleAddToCart = async (productId) => {
-    if (!user) {
-      toast.error(t('marketplace.loginRequired'));
-      navigate('/login');
-      return;
-    }
-
-    if (!currentCart) {
-      setShowNewCartModal(true);
-      return;
-    }
-
-    try {
-      await cartApi.addItem(currentCart.id, productId, 1);
-      toast.success(t('marketplace.itemAdded'));
-    } catch {
-      toast.error(t('common.errorUpdating'));
-    }
-  };
-
-  const handleCreateCart = async () => {
-    if (!newCartName.trim()) {
-      toast.error(t('marketplace.cartNameRequired'));
-      return;
-    }
-
-    try {
-      const response = await cartApi.createCart(null, newCartName.trim());
-      setCurrentCart(response.data);
-      setShowNewCartModal(false);
-      setNewCartName('');
-      toast.success(t('marketplace.cartCreated'));
-    } catch {
-      toast.error(t('common.errorCreating'));
-    }
-  };
-
-  const handleOpenCart = () => {
-    if (currentCart) navigate(`/cart/${currentCart.id}`);
-  };
-
-  // Intersection observer for infinite scroll
-  const loadMoreRef = useRef(null);
+  // Infinite scroll observer
   useEffect(() => {
-    if (!loadMoreRef.current) return;
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
       { threshold: 0.1 }
     );
-    observer.observe(loadMoreRef.current);
-    return () => observer.disconnect();
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Handlers
+  const handleSearch = (value) => {
+    setSearchValue(value);
+    setShowFiltersMobile(false);
+  };
+
+  const handleCategoryChange = (catId) => {
+    setSelectedCategory(catId);
+    setSearchValue('');
+  };
+
+  const handleSkillChange = (skillId) => {
+    setSelectedSkill(skillId);
+    setSearchValue('');
+  };
+
+  const handleMinPriceChange = (value) => setSelectedMinPrice(value);
+  const handleMaxPriceChange = (value) => setSelectedMaxPrice(value);
+  const handleSortChange = (newSort) => setSortBy(newSort);
+
+  const products = productsData?.pages.flat() || [];
+  const categories = categoriesData || [];
+  const skills = skillsData || [];
+
+  const activeFilterCount = [selectedCategory, selectedSkill, selectedMinPrice, selectedMaxPrice].filter(Boolean).length;
 
   return (
     <>
-      <PageMeta
-        title={t('marketplace.title')}
-        description={t('marketplace.description')}
-      />
-
+      <PageMeta title={t('marketplace.title')} />
       <Navbar />
 
-      <DirectoryHero searchValue={searchQuery} onSearch={debouncedSearch} />
+      <DirectoryHero
+        searchValue={searchValue}
+        onSearch={handleSearch}
+        categories={categories}
+        skills={skills}
+      />
 
-      <CategoryTileGrid selectedCategory={selectedCategory} onSelect={setSelectedCategory} />
+      <CategoryTileGrid
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelect={handleCategoryChange}
+        loading={categoriesLoading}
+      />
 
-      {/* Mobile filter bar */}
-      <div className="lg:hidden sticky top-0 z-20 bg-gray-950/95 backdrop-blur border-b border-gray-800 px-4 py-2.5 flex items-center gap-3">
-        <button
-          onClick={() => setShowFilterDrawer(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-          {t('marketplace.filters')}
-          {activeFilterCount > 0 && (
-            <span className="w-4 h-4 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
+      <SkillTileGrid
+        skills={skills}
+        selectedSkill={selectedSkill}
+        onSelect={handleSkillChange}
+        loading={skillsLoading}
+      />
+
+      <div className="bg-gray-950 border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-400">
+              {productsLoading ? t('common.loading') : `${products.length} ${t('common.results')}`}
+            </p>
+            <button
+              onClick={() => setShowFiltersMobile(true)}
+              className="lg:hidden flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              {t('marketplace.filters')}
+              {activeFilterCount > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-orange-500 rounded-full text-xs font-semibold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Page body */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
-          {/* Desktop sidebar */}
-          <aside className="hidden lg:block w-72 flex-shrink-0">
-            <div className="sticky top-6">
+      <div className="bg-gray-950 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid lg:grid-cols-[280px_1fr] gap-8">
+            {/* Desktop sidebar */}
+            <div className="hidden lg:block">
               <FilterPanel
                 selectedCategory={selectedCategory}
+                selectedSkill={selectedSkill}
                 selectedMinPrice={selectedMinPrice}
                 selectedMaxPrice={selectedMaxPrice}
-                onCategoryChange={setSelectedCategory}
-                onMinPriceChange={setSelectedMinPrice}
-                onMaxPriceChange={setSelectedMaxPrice}
+                onCategoryChange={handleCategoryChange}
+                onSkillChange={handleSkillChange}
+                onMinPriceChange={handleMinPriceChange}
+                onMaxPriceChange={handleMaxPriceChange}
                 categories={categories}
+                skills={skills}
                 sortBy={sortBy}
-                onSortChange={setSortBy}
+                onSortChange={handleSortChange}
               />
             </div>
-          </aside>
 
-          {/* Results column */}
-          <div className="flex-1 min-w-0 space-y-6">
-            {/* Grid */}
-            {isLoading && allProducts.length === 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" aria-busy="true">
-                {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                  <CardSkeleton key={i} />
-                ))}
-              </div>
-            ) : allProducts.length === 0 ? (
-              <EmptyState onReset={handleClearAllFilters} />
-            ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list">
-                  {allProducts.map((product) => (
-                    <div key={product.id} role="listitem">
-                      <ProductCard
-                        product={product}
-                        onAddToCart={() => handleAddToCart(product.id)}
-                        onViewDetails={() => setSelectedProduct(product)}
-                        disabled={!user}
-                      />
-                    </div>
+            {/* Mobile filter drawer */}
+            <FilterDrawer
+              open={showFiltersMobile}
+              onClose={() => setShowFiltersMobile(false)}
+              activeCount={activeFilterCount}
+            >
+              <FilterPanel
+                selectedCategory={selectedCategory}
+                selectedSkill={selectedSkill}
+                selectedMinPrice={selectedMinPrice}
+                selectedMaxPrice={selectedMaxPrice}
+                onCategoryChange={handleCategoryChange}
+                onSkillChange={handleSkillChange}
+                onMinPriceChange={handleMinPriceChange}
+                onMaxPriceChange={handleMaxPriceChange}
+                categories={categories}
+                skills={skills}
+                sortBy={sortBy}
+                onSortChange={handleSortChange}
+              />
+            </FilterDrawer>
+
+            {/* Products grid */}
+            <div>
+              {productsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array(PAGE_SIZE).fill(null).map((_, i) => (
+                    <CardSkeleton key={i} />
                   ))}
                 </div>
+              ) : products.length === 0 ? (
+                <EmptyState searchTerm={searchValue} />
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {products.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onDetail={() => setSelectedProduct(product)}
+                      />
+                    ))}
+                  </div>
 
-                {/* Load more */}
-                {(hasNextPage || isFetchingNextPage) && (
-                  <div ref={loadMoreRef} className="flex justify-center py-8">
+                  {/* Infinite scroll trigger */}
+                  <div ref={observerTarget} className="mt-12 text-center">
                     {isFetchingNextPage && (
-                      <div className="flex items-center gap-2 text-gray-400">
+                      <div className="flex items-center justify-center gap-2 text-gray-400">
                         <Loader className="w-5 h-5 animate-spin" />
-                        <span>{t('common.loading')}</span>
+                        {t('common.loading')}
                       </div>
                     )}
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </main>
-
-      {/* Create Cart Modal */}
-      {showNewCartModal && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70">
-          <div className="bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4">
-            <h2 className="text-xl font-bold text-white mb-4">{t('marketplace.createNewCart')}</h2>
-            <input
-              type="text"
-              placeholder={t('marketplace.cartNamePlaceholder')}
-              value={newCartName}
-              onChange={(e) => setNewCartName(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 mb-6"
-              autoFocus
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowNewCartModal(false)}
-                className="flex-1 py-2 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleCreateCart}
-                className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white transition-colors font-medium"
-              >
-                {t('common.create')}
-              </button>
+                </>
+              )}
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Product Detail Modal */}
+      {/* Product detail modal */}
       {selectedProduct && (
         <ProductDetailModal
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
-          onAddToCart={handleAddToCart}
         />
       )}
-
-      {/* Filter Drawer (Mobile) */}
-      <FilterDrawer
-        open={showFilterDrawer}
-        onClose={() => setShowFilterDrawer(false)}
-        activeCount={activeFilterCount}
-      >
-        <FilterPanel
-          selectedCategory={selectedCategory}
-          selectedMinPrice={selectedMinPrice}
-          selectedMaxPrice={selectedMaxPrice}
-          onCategoryChange={setSelectedCategory}
-          onMinPriceChange={setSelectedMinPrice}
-          onMaxPriceChange={setSelectedMaxPrice}
-          categories={categories}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-        />
-      </FilterDrawer>
 
       <Footer />
     </>
