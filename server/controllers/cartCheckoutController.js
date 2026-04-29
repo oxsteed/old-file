@@ -248,11 +248,6 @@ async function confirmPayment(req, res) {
         logger.info('Cart cleared after payment', { cartId: order.rows[0].cart_id, orderId });
       }
 
-      // Record discount usage if a discount was applied
-      if (discountCodeId && discountCents > 0) {
-        await recordDiscountUsage(orderId, discountCodeId, discountCents, discountCode);
-      }
-
       // Process affiliate commissions if applicable
       await processAffiliateCommissions(orderId, userId);
 

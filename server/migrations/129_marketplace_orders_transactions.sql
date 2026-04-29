@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS marketplace_orders (
   id BIGSERIAL PRIMARY KEY,
   customer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  cart_id BIGINT REFERENCES shopping_carts(id) ON DELETE SET NULL,
+  cart_id UUID REFERENCES shopping_carts(id) ON DELETE SET NULL,
   total_cents BIGINT NOT NULL,
   subtotal_cents BIGINT NOT NULL,
   tax_cents BIGINT DEFAULT 0,
