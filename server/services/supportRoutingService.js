@@ -3,7 +3,7 @@
  * Implements 3-layer routing: AI → Skill → Availability
  */
 
-const db = require('../utils/db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 
 class SupportRoutingService {
@@ -75,7 +75,7 @@ class SupportRoutingService {
         ? JSON.stringify(requiredSkills)
         : '[]';
 
-      const result = await db.query(query, [businessId, skillsJson]);
+      const result = await pool.query(query, [businessId, skillsJson]);
       return result.rows;
     } catch (err) {
       logger.error('Skill-based routing failed', { error: err.message });
@@ -210,7 +210,7 @@ class SupportRoutingService {
         RETURNING *
       `;
 
-      const result = await db.query(query, [agentId, ticketId]);
+      const result = await pool.query(query, [agentId, ticketId]);
       logger.info('Ticket assigned to agent', { ticketId, agentId });
       return result.rows[0];
     } catch (err) {
@@ -233,7 +233,7 @@ class SupportRoutingService {
         WHERE assigned_agent_id = $1
       `;
 
-      const result = await db.query(query, [agentId]);
+      const result = await pool.query(query, [agentId]);
       return result.rows[0] || { active_chats: 0, waiting: 0, past_hour: 0 };
     } catch (err) {
       logger.error('Workload query failed', { error: err.message });
