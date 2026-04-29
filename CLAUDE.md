@@ -16,12 +16,43 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 241 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage)
-- 86 backend controllers (added 6 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts)
-- 136 database migrations (added 8 new: orders/transactions, API products, affiliate payouts, order management, email/SMS preferences, discount codes, product reviews)
+- 241 React components / pages (ProductMarketplacePage redesigned for skill-based discovery)
+- 86 backend controllers (marketplaceProductsController enhanced with advanced search + skill/category APIs)
+- 137 database migrations (added Migration 137: product_aliases + product_categories hierarchy)
 - 82 Jest tests (some failing due to test environment constraints)
+- 70+ product categories (hierarchical with parent-child relationships)
+- 2 new API documentation files: MARKETPLACE_API_GUIDE.md + productSeed.sql
 
 **Latest work completed (2026-04-29):**
+- **Amazon-Scale Marketplace with Skill-Based Discovery** 🏭 (Commit: c003ada)
+  - **Migration 137:** Comprehensive product category hierarchy (70+ categories, parent-child structure) + product_aliases table for synonym matching
+  - **Product aliases:** Enable smart search (user searches "wrench" → also finds "socket", "ratchet" via alias synonyms)
+  - **Advanced search algorithm:** Multi-pass relevance ranking (exact match → full-text → alias match → skill match) with popularity/rating boosts
+  - **New API endpoints:**
+    - `GET /categories/hierarchy` — Hierarchical categories with product counts (70+ total)
+    - `GET /skills/all` — All available skills with product counts and avg ratings
+    - Enhanced `/search` with alias support + relevance ranking
+  - **Frontend ProductMarketplacePage redesign:**
+    - Load categories & skills dynamically from API (not hardcoded)
+    - Category tile grid (10 root categories, clickable for browsing)
+    - Skill tile grid for trade-specific discovery (click "Electrician" → electrical products)
+    - Desktop sidebar filters: category, skill, price range, rating
+    - Mobile bottom drawer for filters (Tailwind responsive)
+    - Infinite scroll product grid with React Query
+    - Orange color scheme matching brand
+  - **Database schema:**
+    - `product_categories` — Hierarchical categories (parent_id, icon_emoji, display_order)
+    - `marketplace_product_categories` — Many-to-many product-category mapping with is_primary flag
+    - `product_aliases` — Synonyms for products (alias_name, alias_type: synonym/related/brand/alternative)
+    - Enhanced `marketplace_products` with avg_rating, rating_count, in_carts_count (used for ranking)
+  - **Key features:**
+    - Skill-product many-to-many already existed (marketplace_product_skills), now fully utilized
+    - Dynamic category browsing with product count display
+    - Relevance ranking: exact match (1000) → name contains (800) → full-text (500) → alias (400) + popularity boost
+    - Product aliases enable synonym discovery (wrench → socket → ratchet)
+    - Hierarchical categories allow subcategory browsing (Tools → Power Tools → Drills)
+  - **Documentation:** Added MARKETPLACE_API_GUIDE.md with complete endpoint reference and frontend examples
+  - **Seeding:** Added productSeed.sql with 30+ sample products across all categories + skill mappings
 - **CRITICAL: Deployment Blocker Fixes #2** 🔧 (Commit: 0dae135)
   - **Migration 126:** Fixed `product_reviews.helper_id` type (BIGINT→UUID) for FK to users
   - **Migration 131:** Reordered table creation (affiliate_payouts before affiliate_commissions)
