@@ -6,6 +6,7 @@ const { sendError, sendValidationError } = require('../utils/apiError');
 const { calculateTax } = require('../services/taxService');
 const { validateAndApplyDiscount, recordDiscountUsage } = require('../services/discountService');
 const { calculateShipping, isValidShippingAddress } = require('../services/shippingService');
+const { sendOrderConfirmationEmail, sendPaymentReceivedEmail } = require('../services/orderNotificationService');
 
 async function getCheckoutSession(req, res) {
   try {
@@ -254,6 +255,12 @@ async function confirmPayment(req, res) {
 
       // Process affiliate commissions if applicable
       await processAffiliateCommissions(orderId, userId);
+
+      // Send confirmation and payment emails (async, don't block response)
+      setImmediate(async () => {
+        await sendOrderConfirmationEmail(orderId);
+        await sendPaymentReceivedEmail(orderId);
+      });
 
       res.json({
         success: true,

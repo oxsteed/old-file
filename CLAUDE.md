@@ -588,18 +588,51 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 5. **Multiple Affiliate Programs per Helper:** Current design allows only 1 program per type (UNIQUE constraint)
 6. **Webhook Delivery:** affiliate_programs.webhook_url exists but not used; webhook events not sent
 
+### Additional Features (Post-Review: 2026-04-29)
+
+**Promo Code System**:
+- `discount_codes` table with percentage/fixed amount support
+- Min/max order value constraints
+- Category and product-level eligibility
+- Usage limits and date-based activation
+- Admin endpoints: `/api/admin/discount-codes` for CRUD and stats
+- Discount tracking via `order_discount_history`
+
+**Shipping Calculator**:
+- Zone-based rates: US continental, Alaska/Hawaii, Canada, Mexico, Europe, Other
+- Base rate + per-item charges
+- Weight surcharge for items over 5 lbs per item
+- Automatic calculation in checkout
+- Shipping address validation (street, city, state/country, zip required)
+
+**Order Notifications**:
+- `orderNotificationService.js` with email templates
+- Triggers: Order confirmation, Payment received, Order shipped, Order cancelled
+- HTML email templates with order details, tracking info
+- Async email sending (doesn't block payment confirmation)
+- Ready to integrate with Resend, SendGrid, or similar
+
+**API Documentation**:
+- Comprehensive `API_DOCUMENTATION.md` with all endpoints
+- Request/response examples for each operation
+- Rate limiting, authentication, error codes
+- Complete checkout flow example
+- Webhook event documentation
+
 ### Testing Checklist
 
 - [ ] Create cart, proceed to checkout, see PaymentIntent created
 - [ ] Complete payment with test card (4242 4242 4242 4242)
 - [ ] Webhook fires, marketplace_orders.status → "paid"
 - [ ] Fetch /api/orders/{id}, see transaction details
+- [ ] Apply discount code in checkout, verify discount applied
+- [ ] Test with different shipping addresses (US, AK, HI, Canada)
 - [ ] Create affiliate program, add commission_rate
 - [ ] Manually test commission calculation: POST /api/affiliate/calculate
 - [ ] Process payout with Stripe (requires test bank account setup)
 - [ ] Create API product, publish, generate key
 - [ ] Verify key_hash is stored (not plaintext key)
-- [ ] Generate second key, revoke first, verify in GET /keys
+- [ ] Check order confirmation emails sent asynchronously
 
 ---
 
