@@ -1,4 +1,4 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
