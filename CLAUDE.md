@@ -24,11 +24,23 @@
 **Latest work completed (2026-04-29):**
 - **Product Marketplace Sales Setup:** Complete implementation of Stripe checkout, orders, affiliate payouts, and API products system
   - Migrations 129-131: Orders, transactions, API products, affiliate programs, commissions, payouts
-  - 5 new controllers: cartCheckout, orders, adminProducts, apiProducts, affiliatePayouts
-  - 5 new routes: `/api/carts/{id}/checkout`, `/api/orders`, `/api/admin/products`, `/api/api-products`, `/api/affiliate`
+  - Migrations 133: Discount codes with flexible constraints
+  - 5 new controllers: cartCheckout, orders, adminProducts, apiProducts, affiliatePayouts, discountCodes
+  - 6 new routes with full CRUD and analytics
   - 3 new frontend pages: CheckoutPage, OrderHistoryPage, OrderDetailsPage
   - Stripe webhook integration for payment_intent.succeeded (dual-mode: jobs + marketplace orders)
   - Affiliate link tracking, commission calculation, payout automation
+  - Promo code system, shipping calculator, tax service, order notifications
+- **Post-Launch Feature Development (2026-04-29):**
+  - **Phase 1: Admin Dashboard for Order Management** ✅ COMPLETE
+    - Migration 134: Order management fields (shipped_at, tracking_number, refund_reason)
+    - AdminOrdersController: Full order lifecycle management (list, filter, detail, ship, refund, cancel)
+    - Frontend: OrderManagement page, OrderDetailModal, OrderFilters, OrderManagementTable
+    - API routes: `/api/admin/orders` with sorting, pagination, status filtering
+    - Integration: Admin sidebar navigation link added
+  - **Phase 2 (In Progress):** Email Preference Center & SMS Notifications
+  - **Phase 3 (Planned):** Seller Payout Dashboard & Advanced Analytics
+  - **Phase 4 (Planned):** A/B Testing for Discount Codes
 - Product marketplace redesign: React Query infinite scroll, modern filter drawer, search suggestions (commits 6a425fa, 8ea81db)
 - Dispute resolution: escrow mapping, race condition prevention (commits 7be9f89, 9597806)
 - Message notifications: optimization, deduplication (commit 8b27059)
@@ -637,6 +649,34 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ---
 
 ## Remaining Work (Prioritized by Production Readiness)
+
+### POST-LAUNCH FEATURES (Admin Dashboard & Operations)
+
+**Phase 2: Email Preference Center & SMS Notifications** (Weeks 1-2, ~6-8 days)
+- [ ] Migration 135: Email frequency preferences, unsubscribe tokens, digest queue
+- [ ] Email preferences controller and routes (`/api/notifications/preferences`, `/api/notifications/unsubscribe/{token}`)
+- [ ] EmailPreferences page with frequency selector and category toggles
+- [ ] Email digest batch job (daily/weekly) for grouped notifications
+- [ ] Migration 136: SMS opt-in, phone verification, SMS logs
+- [ ] SMS notification service with Twilio integration (payment confirmed, order shipped, refund)
+- [ ] SMSPreferences page with phone verification flow
+- [ ] SMS rate limiting (5 verification attempts/hour, 1 per order event)
+
+**Phase 3: Seller Payout Dashboard & Analytics** (Weeks 3-4, ~8-10 days)
+- [ ] Migration 137: Payout method management (bank account, payment status)
+- [ ] Payout dashboard controller with commission breakdown and payment methods
+- [ ] Migration 138: Affiliate funnel analysis and time-series metrics
+- [ ] Analytics service with time-series queries, funnel conversion, top products
+- [ ] SellerPayoutDashboard page with payment method management
+- [ ] AffiliateAnalytics page with charts (Recharts), time-series, funnel visualization
+- [ ] PDF/CSV export functionality for analytics and payouts
+
+**Phase 4: A/B Testing for Discount Codes** (Week 5, ~3-4 days)
+- [ ] Migration 139: AB test variants, metrics, statistical significance
+- [ ] AB test service with chi-square statistical testing
+- [ ] ABTestingPage for creating and monitoring tests
+- [ ] Integration with discount code usage tracking
+- [ ] Winner selection and reporting
 
 ### CRITICAL (Block Production Launch)
 1. **Monitoring & Alerting Setup** — Set up Datadog, Sentry, or Logtail; configure alerts; create runbooks
