@@ -24,13 +24,22 @@
 - 2 new API documentation files: MARKETPLACE_API_GUIDE.md + productSeed.sql
 
 **Latest work completed (2026-04-29):**
-- **Multilingual Support & Duplicate Function Fix** 🌍 (Commits: a8a0efa, 364fbd4)
+- **Product Marketplace Restoration & Database Seeding** 🏪 (Commits: a6ac9f9, d6bd1c2, a8a0efa)
+  - **Migration 138:** Seeded 30+ sample products across all categories with category/skill mappings
+  - **Category tiles:** Now populated from `/api/marketplace/products/categories/hierarchy` API endpoint
+  - **Skill tiles:** Now populated from `/api/marketplace/products/skills/all` API endpoint
+  - **Product-category mapping:** Created many-to-many relationships in marketplace_product_categories table
+  - **Skill-product mapping:** Linked products to trade skills (Electrician → electrical products, Plumber → plumbing, etc.)
+  - **Search aliases:** Added product synonyms (drill → power drill, wrench → socket wrench, etc.)
+  - **Bug fixes:**
+    - Removed duplicate `getFrequentlyBoughtWith` function declaration causing SyntaxError
+    - Fixed ProductMarketplacePage design with category/skill tile grids displaying correctly
+- **Multilingual Support** 🌍 (Commit: a8a0efa)
   - **Multilingual marketplace:** Extended all 4 languages (English, Spanish, French, Haitian Creole)
   - **LanguageService:** Singleton service for language detection (user profile → Accept-Language header → English default)
   - **Server-side translations:** Created server/locales/marketplace.json with error messages, success messages, filters, sorting
   - **Client-side translations:** Updated all 4 locale files with marketplace-specific UI strings (~60 keys per language)
   - **Accept-Language parsing:** Full support for HTTP quality weights (e.g., "en-US,en;q=0.9,es;q=0.8")
-  - **Bug fix:** Removed duplicate `getFrequentlyBoughtWith` function declaration causing SyntaxError; kept recommendation service-based version
 - **Amazon-Scale Marketplace with Skill-Based Discovery** 🏭 (Commit: c003ada)
   - **Migration 137:** Comprehensive product category hierarchy (70+ categories, parent-child structure) + product_aliases table for synonym matching
   - **Product aliases:** Enable smart search (user searches "wrench" → also finds "socket", "ratchet" via alias synonyms)
