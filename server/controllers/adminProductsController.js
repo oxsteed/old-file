@@ -1,0 +1,282 @@
+const { pool } = require('../utils/db');
+const { withTransaction } = require('../utils/transaction');
+const logger = require('../utils/logger');
+const { sendError, sendValidationError } = require('../utils/apiError');
+
+async function createProduct(req, res) {
+  try {
+    const {
+      name,
+      description,
+      category,
+      price_cents,
+      skills = [],
+      image_url,
+      affiliate_url,
+      external_id,
+      source = 'manual'
+    } = req.body;
+
+    // Validation
+    if (!name) return sendValidationError(res, { name: 'Required' });
+    if (!price_cents || price_cents < 0) return sendValidationError(res, { price_cents: 'Must be positive' });
+
+    const product = await withTransaction(async (client) => {
+      // Create product
+      const result = await client.query(
+        `INSERT INTO marketplace_products
+         (name, description, category, price_cents, image_url, affiliate_url, external_id, source, rating, review_count, in_carts_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0)
+         RETURNING *`,
+        [name, description, category, price_cents, image_url, affiliate_url, external_id, source]
+      );
+
+      const productId = result.rows[0].id;
+
+      // Link skills if provided
+      if (skills.length > 0) {
+        for (const skillId of skills) {
+          await client.query(
+            `INSERT INTO marketplace_product_skills (product_id, skill_id)
+             VALUES ($1, $2)
+             ON CONFLICT DO NOTHING`,
+            [productId, skillId]
+          );
+        }
+      }
+
+      return result.rows[0];
+    });
+
+    logger.info('Product created', { productId: product.id, name });
+
+    res.json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    logger.error('Error creating product', { error });
+    sendError(res, 500, 'Failed to create product');
+  }
+}
+
+async function updateProduct(req, res) {
+  try {
+    const { productId } = req.params;
+    const {
+      name,
+      description,
+      category,
+      price_cents,
+      image_url,
+      affiliate_url,
+      skills = []
+    } = req.body;
+
+    // Check product exists
+    const existing = await pool.query(
+      'SELECT * FROM marketplace_products WHERE id = $1',
+      [productId]
+    );
+
+    if (!existing.rows.length) return sendError(res, 404, 'Product not found');
+
+    const product = await withTransaction(async (client) => {
+      // Update product
+      const updates = [];
+      const values = [productId];
+      let paramCount = 2;
+
+      if (name !== undefined) {
+        updates.push(`name = $${paramCount}`);
+        values.push(name);
+        paramCount++;
+      }
+      if (description !== undefined) {
+        updates.push(`description = $${paramCount}`);
+        values.push(description);
+        paramCount++;
+      }
+      if (category !== undefined) {
+        updates.push(`category = $${paramCount}`);
+        values.push(category);
+        paramCount++;
+      }
+      if (price_cents !== undefined) {
+        updates.push(`price_cents = $${paramCount}`);
+        values.push(price_cents);
+        paramCount++;
+      }
+      if (image_url !== undefined) {
+        updates.push(`image_url = $${paramCount}`);
+        values.push(image_url);
+        paramCount++;
+      }
+      if (affiliate_url !== undefined) {
+        updates.push(`affiliate_url = $${paramCount}`);
+        values.push(affiliate_url);
+        paramCount++;
+      }
+
+      if (updates.length === 0) return existing.rows[0];
+
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      const result = await client.query(
+        `UPDATE marketplace_products SET ${updates.join(', ')} WHERE id = $1 RETURNING *`,
+        values
+      );
+
+      // Update skills if provided
+      if (skills.length > 0) {
+        // Clear existing skills
+        await client.query('DELETE FROM marketplace_product_skills WHERE product_id = $1', [productId]);
+
+        // Add new skills
+        for (const skillId of skills) {
+          await client.query(
+            `INSERT INTO marketplace_product_skills (product_id, skill_id) VALUES ($1, $2)`,
+            [productId, skillId]
+          );
+        }
+      }
+
+      return result.rows[0];
+    });
+
+    logger.info('Product updated', { productId });
+
+    res.json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    logger.error('Error updating product', { error });
+    sendError(res, 500, 'Failed to update product');
+  }
+}
+
+async function deleteProduct(req, res) {
+  try {
+    const { productId } = req.params;
+
+    // Check product exists
+    const product = await pool.query(
+      'SELECT * FROM marketplace_products WHERE id = $1',
+      [productId]
+    );
+
+    if (!product.rows.length) return sendError(res, 404, 'Product not found');
+
+    // Check if product is in any active orders
+    const activeOrders = await pool.query(
+      `SELECT COUNT(*) as count FROM marketplace_order_items
+       WHERE product_id = $1 AND order_id IN (
+         SELECT id FROM marketplace_orders WHERE status IN ('pending', 'paid', 'processing')
+       )`,
+      [productId]
+    );
+
+    if (activeOrders.rows[0].count > 0) {
+      return sendError(res, 400, 'Cannot delete product with active orders');
+    }
+
+    await withTransaction(async (client) => {
+      // Delete product skills
+      await client.query('DELETE FROM marketplace_product_skills WHERE product_id = $1', [productId]);
+
+      // Delete product
+      await client.query('DELETE FROM marketplace_products WHERE id = $1', [productId]);
+    });
+
+    logger.info('Product deleted', { productId });
+
+    res.json({
+      success: true,
+      data: { id: productId }
+    });
+  } catch (error) {
+    logger.error('Error deleting product', { error });
+    sendError(res, 500, 'Failed to delete product');
+  }
+}
+
+async function bulkCreateProducts(req, res) {
+  try {
+    const { products } = req.body;
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return sendValidationError(res, { products: 'Array of products required' });
+    }
+
+    const created = [];
+
+    for (const productData of products) {
+      if (!productData.name || !productData.price_cents) continue;
+
+      try {
+        const result = await pool.query(
+          `INSERT INTO marketplace_products
+           (name, description, category, price_cents, image_url, affiliate_url, external_id, source, rating, review_count, in_carts_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0)
+           RETURNING *`,
+          [
+            productData.name,
+            productData.description || null,
+            productData.category || null,
+            productData.price_cents,
+            productData.image_url || null,
+            productData.affiliate_url || null,
+            productData.external_id || null,
+            productData.source || 'manual'
+          ]
+        );
+        created.push(result.rows[0]);
+      } catch (err) {
+        logger.warn('Failed to create product in bulk', { product: productData.name, error: err.message });
+      }
+    }
+
+    logger.info('Bulk created products', { count: created.length });
+
+    res.json({
+      success: true,
+      data: {
+        created: created.length,
+        products: created
+      }
+    });
+  } catch (error) {
+    logger.error('Error bulk creating products', { error });
+    sendError(res, 500, 'Failed to bulk create products');
+  }
+}
+
+async function getProductStats(req, res) {
+  try {
+    const stats = await pool.query(
+      `SELECT
+        COUNT(*) as total_products,
+        AVG(price_cents) as avg_price_cents,
+        AVG(rating) as avg_rating,
+        SUM(in_carts_count) as total_in_carts,
+        COUNT(DISTINCT category) as total_categories
+       FROM marketplace_products`
+    );
+
+    res.json({
+      success: true,
+      data: stats.rows[0]
+    });
+  } catch (error) {
+    logger.error('Error fetching product stats', { error });
+    sendError(res, 500, 'Failed to fetch product stats');
+  }
+}
+
+module.exports = {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  bulkCreateProducts,
+  getProductStats
+};

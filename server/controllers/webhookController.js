@@ -199,9 +199,11 @@ exports.stripeWebhook = async (req, res) => {
       }
 
       case 'payment_intent.succeeded': {
-        // Capture completed — money is on its way to the helper.
+        // Capture completed — money is on its way to the helper or order is complete.
         const pi = event.data.object;
         const jobId = pi.metadata?.job_id;
+        const orderId = pi.metadata?.orderId;
+
         if (jobId) {
           await db.query(
             `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
@@ -215,6 +217,19 @@ exports.stripeWebhook = async (req, res) => {
             [jobId]
           );
           logger.info(`[Stripe] PaymentIntent ${pi.id} captured — funds released for job ${jobId}`);
+        } else if (orderId) {
+          // Marketplace order payment succeeded
+          await db.query(
+            `UPDATE marketplace_orders SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            ['paid', orderId]
+          );
+          await db.query(
+            `UPDATE marketplace_transactions SET status = $1, updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP
+             WHERE payment_intent_id = $2`,
+            ['succeeded', pi.id]
+          );
+          logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded — order ${orderId} marked as paid`);
         }
         break;
       }
