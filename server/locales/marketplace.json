@@ -1,0 +1,154 @@
+{
+  "en": {
+    "errors": {
+      "searchQueryTooShort": "Search query must be at least 2 characters",
+      "validSkillIdRequired": "Valid skill ID is required",
+      "productNotFound": "Product not found",
+      "skillNotFound": "Skill not found",
+      "categoryNotFound": "Category not found",
+      "failedSearch": "Failed to search products",
+      "failedFetch": "Failed to fetch products",
+      "failedBrowse": "Failed to browse products",
+      "failedCategories": "Failed to fetch categories",
+      "failedSkills": "Failed to fetch skills",
+      "failedRecommendations": "Failed to fetch recommendations",
+      "failedAutocomplete": "Failed to fetch suggestions"
+    },
+    "messages": {
+      "noResults": "No products found matching your criteria",
+      "noResultsSearch": "No products found for your search",
+      "tryAdjustFilters": "Try adjusting your filters or search terms",
+      "browseCategories": "Browse our categories to explore more"
+    },
+    "filters": {
+      "price": "Price",
+      "rating": "Rating",
+      "availability": "Availability",
+      "inStock": "In Stock",
+      "freeShipping": "Free Shipping",
+      "sales": "On Sale"
+    },
+    "sorting": {
+      "relevance": "Relevance",
+      "priceAsc": "Price: Low to High",
+      "priceDesc": "Price: High to Low",
+      "rating": "Highest Rated",
+      "newest": "Newest",
+      "trending": "Trending"
+    }
+  },
+  "es": {
+    "errors": {
+      "searchQueryTooShort": "La búsqueda debe tener al menos 2 caracteres",
+      "validSkillIdRequired": "Se requiere una ID de especialidad válida",
+      "productNotFound": "Producto no encontrado",
+      "skillNotFound": "Especialidad no encontrada",
+      "categoryNotFound": "Categoría no encontrada",
+      "failedSearch": "Error al buscar productos",
+      "failedFetch": "Error al obtener productos",
+      "failedBrowse": "Error al explorar productos",
+      "failedCategories": "Error al obtener categorías",
+      "failedSkills": "Error al obtener especialidades",
+      "failedRecommendations": "Error al obtener recomendaciones",
+      "failedAutocomplete": "Error al obtener sugerencias"
+    },
+    "messages": {
+      "noResults": "No se encontraron productos que coincidan con tus criterios",
+      "noResultsSearch": "No se encontraron productos para tu búsqueda",
+      "tryAdjustFilters": "Intenta ajustar tus filtros o términos de búsqueda",
+      "browseCategories": "Explora nuestras categorías para ver más"
+    },
+    "filters": {
+      "price": "Precio",
+      "rating": "Calificación",
+      "availability": "Disponibilidad",
+      "inStock": "En Stock",
+      "freeShipping": "Envío Gratis",
+      "sales": "En Oferta"
+    },
+    "sorting": {
+      "relevance": "Relevancia",
+      "priceAsc": "Precio: Menor a Mayor",
+      "priceDesc": "Precio: Mayor a Menor",
+      "rating": "Mejor Calificado",
+      "newest": "Más Nuevo",
+      "trending": "Tendencia"
+    }
+  },
+  "fr": {
+    "errors": {
+      "searchQueryTooShort": "La recherche doit contenir au moins 2 caractères",
+      "validSkillIdRequired": "Une ID de métier valide est requise",
+      "productNotFound": "Produit non trouvé",
+      "skillNotFound": "Métier non trouvé",
+      "categoryNotFound": "Catégorie non trouvée",
+      "failedSearch": "Échec de la recherche de produits",
+      "failedFetch": "Échec de la récupération des produits",
+      "failedBrowse": "Échec de la navigation des produits",
+      "failedCategories": "Échec de la récupération des catégories",
+      "failedSkills": "Échec de la récupération des métiers",
+      "failedRecommendations": "Échec de la récupération des recommandations",
+      "failedAutocomplete": "Échec de la récupération des suggestions"
+    },
+    "messages": {
+      "noResults": "Aucun produit ne correspond à vos critères",
+      "noResultsSearch": "Aucun produit trouvé pour votre recherche",
+      "tryAdjustFilters": "Essayez d'ajuster vos filtres ou termes de recherche",
+      "browseCategories": "Parcourez nos catégories pour explorer davantage"
+    },
+    "filters": {
+      "price": "Prix",
+      "rating": "Évaluation",
+      "availability": "Disponibilité",
+      "inStock": "En Stock",
+      "freeShipping": "Livraison Gratuite",
+      "sales": "En Solde"
+    },
+    "sorting": {
+      "relevance": "Pertinence",
+      "priceAsc": "Prix : Du Plus Bas au Plus Élevé",
+      "priceDesc": "Prix : Du Plus Élevé au Plus Bas",
+      "rating": "Mieux Noté",
+      "newest": "Plus Récent",
+      "trending": "Tendance"
+    }
+  },
+  "ht": {
+    "errors": {
+      "searchQueryTooShort": "Chèch la dwe genyen omwen 2 karaktè",
+      "validSkillIdRequired": "Yon ID métye valab obligatwa",
+      "productNotFound": "Pwodwi pa jwenn",
+      "skillNotFound": "Métye pa jwenn",
+      "categoryNotFound": "Kategori pa jwenn",
+      "failedSearch": "Echèk nan chèch pwodwi",
+      "failedFetch": "Echèk nan pran pwodwi",
+      "failedBrowse": "Echèk nan pale pwodwi",
+      "failedCategories": "Echèk nan pran kategori",
+      "failedSkills": "Echèk nan pran métye",
+      "failedRecommendations": "Echèk nan pran rekòmandasyon",
+      "failedAutocomplete": "Echèk nan pran sijesyon"
+    },
+    "messages": {
+      "noResults": "Pa gen pwodwi ki matche kritè ou",
+      "noResultsSearch": "Pa gen pwodwi pou chèch ou",
+      "tryAdjustFilters": "Eseye ajiste filtè oswa tèm chèch ou",
+      "browseCategories": "Pale kategori nou yo pou dekouvri plis"
+    },
+    "filters": {
+      "price": "Pri",
+      "rating": "Evalyasyon",
+      "availability": "Disponibilite",
+      "inStock": "An Estòk",
+      "freeShipping": "Livrezon Gratis",
+      "sales": "An Solde"
+    },
+    "sorting": {
+      "relevance": "Relèvans",
+      "priceAsc": "Pri: Ba Al Wo",
+      "priceDesc": "Pri: Wo Al Ba",
+      "rating": "Pi Byen Evalye",
+      "newest": "Pi Nèf",
+      "trending": "Tandans"
+    }
+  }
+}
