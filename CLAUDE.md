@@ -23,7 +23,7 @@
 
 **Latest work completed (2026-04-29):**
 - **Support Message Retention & Auto-Deletion System** ✅ COMPLETE (180-day GDPR-compliant message retention)
-  - **Migration 140:** `server/migrations/140_create_support_messages.sql` - Creates support_messages table with 180-day expiry tracking
+  - **Migration 144:** `server/migrations/144_support_message_retention.sql` - Creates support_messages table with 180-day expiry tracking (note: migration 140 slot taken by knowledge_base)
   - **Table schema:** `support_messages` with sender_type, sender_id, sender_name, content, message_type, created_at, expires_at, deleted_at columns
   - **Cleanup job:** `server/jobs/cleanupOldMessages.js` - Daily 2 AM UTC automated deletion of expired messages (hard delete after 180 days)
   - **Job scheduler:** `server/utils/jobScheduler.js` - Reusable cron scheduler for background tasks with error handling and logging

@@ -3,7 +3,7 @@
  * Handles ticket creation with 3-layer routing
  */
 
-const db = require('../utils/db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const SupportRoutingService = require('../services/supportRoutingService');
@@ -28,7 +28,7 @@ exports.createConversation = async (req, res) => {
       RETURNING id, created_at
     `;
 
-    const conversationResult = await db.query(conversationQuery, [
+    const conversationResult = await pool.query(conversationQuery, [
       customerId,
       businessId,
       `${category.charAt(0).toUpperCase() + category.slice(1)} Support Request`,
@@ -46,7 +46,7 @@ exports.createConversation = async (req, res) => {
       RETURNING id
     `;
 
-    await db.query(messageQuery, [ticketId, customerId, visitorName, message]);
+    await pool.query(messageQuery, [ticketId, customerId, visitorName, message]);
 
     // Layer 1-3 Routing
     const routing = await SupportRoutingService.routeTicket({
@@ -73,7 +73,7 @@ exports.createConversation = async (req, res) => {
         SET assigned_agent_id = $1, status = 'assigned'
         WHERE id = $2
       `;
-      await db.query(assignQuery, [assignedAgentId, ticketId]);
+      await pool.query(assignQuery, [assignedAgentId, ticketId]);
 
       response.assignedAgent = {
         id: routing.agent.id,
@@ -103,7 +103,7 @@ exports.createConversation = async (req, res) => {
         SET status = 'waiting_agent', queued_at = NOW()
         WHERE id = $1
       `;
-      await db.query(queueQuery, [ticketId]);
+      await pool.query(queueQuery, [ticketId]);
 
       response.message = 'Your request has been queued. An agent will help you shortly.';
 
@@ -145,7 +145,7 @@ exports.getConversation = async (req, res) => {
       WHERE sc.id = $1
     `;
 
-    const result = await db.query(query, [ticketId]);
+    const result = await pool.query(query, [ticketId]);
     if (result.rows.length === 0) {
       return sendError(res, 404, 'Conversation not found');
     }
@@ -159,7 +159,7 @@ exports.getConversation = async (req, res) => {
       WHERE ticket_id = $1 AND deleted_at IS NULL
       ORDER BY created_at ASC
     `;
-    const messagesResult = await db.query(messagesQuery, [ticketId]);
+    const messagesResult = await pool.query(messagesQuery, [ticketId]);
 
     res.json({
       conversation,
@@ -267,7 +267,7 @@ exports.updateStatus = async (req, res) => {
       RETURNING *
     `;
 
-    const result = await db.query(query, [status, ticketId]);
+    const result = await pool.query(query, [status, ticketId]);
     if (result.rows.length === 0) {
       return sendError(res, 404, 'Conversation not found');
     }
@@ -297,7 +297,7 @@ exports.assignToAgent = async (req, res) => {
       SELECT id, first_name, last_name FROM support_agents
       WHERE id = $1 AND is_active = true
     `;
-    const agentResult = await db.query(agentQuery, [agentId]);
+    const agentResult = await pool.query(agentQuery, [agentId]);
     if (agentResult.rows.length === 0) {
       return sendError(res, 404, 'Agent not found or inactive');
     }
@@ -310,7 +310,7 @@ exports.assignToAgent = async (req, res) => {
       RETURNING *
     `;
 
-    const result = await db.query(assignQuery, [agentId, ticketId]);
+    const result = await pool.query(assignQuery, [agentId, ticketId]);
 
     // Notify agent via WebSocket
     WebSocketService.notifyAgent(agentId, 'ticket:assigned-to-you', {
