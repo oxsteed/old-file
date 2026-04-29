@@ -454,41 +454,6 @@ const getRelatedProducts = async (req, res) => {
   }
 };
 
-/**
- * Get frequently bought together products
- * GET /api/marketplace/products/:productId/frequently-bought?limit=10
- */
-const getFrequentlyBoughtWith = async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { limit = 10 } = req.query;
-    const safeLimit = Math.min(parseInt(limit), 50);
-
-    const query = `
-      SELECT
-        mp.id, mp.name, mp.description, mp.category, mp.price_cents,
-        mp.product_image_url, mp.is_available,
-        mp.avg_rating, mp.rating_count, mp.in_carts_count,
-        fbt.frequency, fbt.co_purchase_count
-      FROM frequently_bought_together fbt
-      JOIN marketplace_products mp ON fbt.related_product_id = mp.id
-      WHERE fbt.product_id = $1
-        AND mp.is_active = TRUE
-        AND mp.is_available = TRUE
-      ORDER BY fbt.frequency DESC, fbt.co_purchase_count DESC
-      LIMIT $2
-    `;
-
-    const result = await pool.query(query, [productId, safeLimit]);
-
-    logger.info('Frequently bought products fetched', { productId, count: result.rows.length });
-
-    sendSuccess(res, { data: result.rows });
-  } catch (err) {
-    logger.error('Error fetching frequently bought products', err);
-    sendError(res, 500, 'Failed to fetch frequently bought products');
-  }
-};
 
 /**
  * Get product reviews with pagination
