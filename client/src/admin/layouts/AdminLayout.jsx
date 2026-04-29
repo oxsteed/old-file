@@ -9,7 +9,7 @@ import {
   ScrollText, Wrench, Trash2, UserCog,
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
-  HeartHandshake, Calendar, UserPlus, Map,
+  HeartHandshake, Calendar, UserPlus, Map, ShoppingCart,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -27,6 +27,7 @@ const REGULAR_NAV = [
   { to: '/admin/tool-rentals',     icon: Wrench,          label: 'Tool Rentals'     },
   { to: '/admin/planned-needs',        icon: ClipboardList,      label: 'Planned Needs'    },
   { to: '/admin/payments',             icon: CreditCard,         label: 'Payments'         },
+  { to: '/admin/orders',               icon: ShoppingCart,       label: 'Orders'           },
   { to: '/admin/consulting',           icon: HeartHandshake,     label: 'Consulting'       },
   { to: '/admin/consulting/payments',  icon: CreditCard,         label: 'Consulting Pay'   },
   { to: '/admin/consulting/scheduler', icon: Calendar,           label: 'Scheduling'       },

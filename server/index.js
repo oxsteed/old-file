@@ -415,6 +415,7 @@ if (process.env.NODE_ENV !== 'production') {
 const { getPublicProfile } = require('./controllers/authController');
 const cartCheckoutRoutes = require('./routes/cartCheckout');
 const ordersRoutes = require('./routes/orders');
+const adminOrdersRoutes = require('./routes/adminOrders');
 const adminProductsRoutes = require('./routes/adminProducts');
 const apiProductsRoutes = require('./routes/apiProducts');
 const affiliatePayoutsRoutes = require('./routes/affiliatePayouts');
@@ -426,6 +427,7 @@ app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);
 app.use('/api/shared-carts', sharedCartsRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/products', adminProductsRoutes);
 app.use('/api/admin/discount-codes', discountCodesRoutes);
 app.use('/api/api-products', apiProductsRoutes);
