@@ -567,16 +567,26 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 
 ---
 
-### Known Limitations & TODOs
+### Improvements Made (Post-Review Fixes: 2026-04-29)
+
+1. ✅ **Inventory Management:** Added `quantity_available` tracking and stock validation before payment
+2. ✅ **Location-Based Tax:** Created `taxService.js` with US state rates and international VAT/GST
+3. ✅ **Affiliate Commission Batch:** Implemented daily batch job to process pending commissions
+4. ✅ **API Key Expiry:** Created `apiKeyValidator` middleware to enforce key expiration and rate limits
+5. ✅ **Cart Clearing:** Orders now delete cart items after successful payment
+6. ✅ **Input Validation:** Comprehensive validation for product names, descriptions, URLs, categories
+7. ✅ **Affiliate Click Tracking:** Populated `affiliate_clicks` table on order creation
+8. ✅ **Error Boundaries:** Added `OrderErrorBoundary` wrapper to checkout/order pages
+9. ✅ **Accessibility:** Added `aria-labels`, `aria-required`, `scope` attributes, `htmlFor` labels
+
+### Remaining Limitations & TODOs
 
 1. **API Product Delivery:** No automatic API key provisioning on purchase; helpers must manually issue keys
 2. **Affiliate Commission Disputes:** No dispute/chargeback handling workflow
-3. **Tax Calculation:** Hardcoded 8% tax; should be per-state/country
-4. **Shipping Costs:** Shipping_cents always 0; no shipping calculator
-5. **Discount/Promo Codes:** Discount_cents always 0; no promo code system
-6. **Multiple Affiliate Programs per Helper:** Current design allows only 1 program per type (UNIQUE constraint)
-7. **API Usage Enforcement:** Usage logs recorded but not actively enforced (rate limiter not implemented)
-8. **Webhook Delivery:** affiliate_programs.webhook_url exists but not used; webhook events not sent
+3. **Shipping Costs:** Shipping_cents always 0; no shipping calculator
+4. **Discount/Promo Codes:** Discount_cents always 0; no promo code system
+5. **Multiple Affiliate Programs per Helper:** Current design allows only 1 program per type (UNIQUE constraint)
+6. **Webhook Delivery:** affiliate_programs.webhook_url exists but not used; webhook events not sent
 
 ### Testing Checklist
 

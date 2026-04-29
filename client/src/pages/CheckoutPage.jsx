@@ -5,10 +5,19 @@ import { loadStripe } from '@stripe/js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
+import OrderErrorBoundary from '../components/OrderErrorBoundary';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 export default function CheckoutPage() {
+  return (
+    <OrderErrorBoundary componentName="Checkout">
+      <CheckoutPageContent />
+    </OrderErrorBoundary>
+  );
+}
+
+function CheckoutPageContent() {
   const { t } = useTranslation();
   const { cartId } = useParams();
   const navigate = useNavigate();
@@ -178,23 +187,32 @@ function CheckoutForm({ cartId, email, setEmail, clientSecret, onSuccess }) {
 
       <div className="bg-white rounded-lg shadow p-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="checkout-email" className="block text-sm font-medium text-gray-700 mb-2">
             {t('checkout.email')}
           </label>
           <input
+            id="checkout-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            aria-required="true"
+            aria-label={t('checkout.email')}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t('checkout.paymentMethod')}
-          </label>
-          <PaymentElement />
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-2">
+              {t('checkout.paymentMethod')}
+            </legend>
+            <PaymentElement
+              options={{
+                layout: 'tabs'
+              }}
+            />
+          </fieldset>
         </div>
 
         {error && (

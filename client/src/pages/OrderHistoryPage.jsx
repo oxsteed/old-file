@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import PageMeta from '../components/PageMeta';
+import OrderErrorBoundary from '../components/OrderErrorBoundary';
 
 export default function OrderHistoryPage() {
+  return (
+    <OrderErrorBoundary componentName="Order History">
+      <OrderHistoryPageContent />
+    </OrderErrorBoundary>
+  );
+}
+
+function OrderHistoryPageContent() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -125,25 +134,25 @@ export default function OrderHistoryPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full" role="grid" aria-label={t('orders.yourOrders')}>
                   <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    <tr role="row">
+                      <th scope="col" className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                         {t('orders.orderId')}
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                      <th scope="col" className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                         {t('orders.date')}
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                      <th scope="col" className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                         {t('orders.items')}
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                      <th scope="col" className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                         {t('orders.total')}
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                      <th scope="col" className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                         {t('orders.status')}
                       </th>
-                      <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                      <th scope="col" className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
                         {t('common.action')}
                       </th>
                     </tr>

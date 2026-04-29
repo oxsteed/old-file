@@ -14,21 +14,72 @@ async function createProduct(req, res) {
       image_url,
       affiliate_url,
       external_id,
-      source = 'manual'
+      source = 'manual',
+      quantity_available = 999999
     } = req.body;
 
-    // Validation
-    if (!name) return sendValidationError(res, { name: 'Required' });
-    if (!price_cents || price_cents < 0) return sendValidationError(res, { price_cents: 'Must be positive' });
+    // Comprehensive validation
+    const errors = {};
+
+    if (!name || typeof name !== 'string') {
+      errors.name = 'Required string';
+    } else if (name.trim().length < 3) {
+      errors.name = 'Must be at least 3 characters';
+    } else if (name.trim().length > 255) {
+      errors.name = 'Must be less than 255 characters';
+    }
+
+    if (description && typeof description === 'string') {
+      if (description.trim().length > 2000) {
+        errors.description = 'Must be less than 2000 characters';
+      }
+    }
+
+    if (!price_cents || typeof price_cents !== 'number') {
+      errors.price_cents = 'Required positive number';
+    } else if (price_cents < 0 || price_cents > 999999999) {
+      errors.price_cents = 'Must be between 0 and 999999999';
+    }
+
+    if (quantity_available && (typeof quantity_available !== 'number' || quantity_available < 0)) {
+      errors.quantity_available = 'Must be non-negative number';
+    }
+
+    if (category && typeof category === 'string') {
+      const validCategories = ['tools', 'supplies', 'equipment', 'materials', 'other'];
+      if (!validCategories.includes(category.toLowerCase())) {
+        errors.category = `Must be one of: ${validCategories.join(', ')}`;
+      }
+    }
+
+    if (image_url && typeof image_url === 'string') {
+      try {
+        new URL(image_url);
+      } catch {
+        errors.image_url = 'Invalid URL format';
+      }
+    }
+
+    if (affiliate_url && typeof affiliate_url === 'string') {
+      try {
+        new URL(affiliate_url);
+      } catch {
+        errors.affiliate_url = 'Invalid URL format';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return sendValidationError(res, errors);
+    }
 
     const product = await withTransaction(async (client) => {
       // Create product
       const result = await client.query(
         `INSERT INTO marketplace_products
-         (name, description, category, price_cents, image_url, affiliate_url, external_id, source, rating, review_count, in_carts_count)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0)
+         (name, description, category, price_cents, image_url, affiliate_url, external_id, source, quantity_available, rating, review_count, in_carts_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, 0, 0)
          RETURNING *`,
-        [name, description, category, price_cents, image_url, affiliate_url, external_id, source]
+        [name, description, category, price_cents, image_url, affiliate_url, external_id, source, quantity_available]
       );
 
       const productId = result.rows[0].id;

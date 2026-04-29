@@ -477,6 +477,7 @@ const { startConsultingSessionReminders } = require('./jobs/consultingSessionRem
 const { startConsultingPostSessionFollowup } = require('./jobs/consultingPostSessionFollowup');
 const { startConsultingNoShowFollowup } = require('./jobs/consultingNoShowFollowup');
 const { startCalendarReminderJob } = require('./jobs/calendarReminders');
+const { startAffiliateCommissionBatchJob } = require('./jobs/affiliateCommissionBatch');
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
 startDiscoverDigestJob();
@@ -486,6 +487,7 @@ startConsultingSessionReminders();
 startConsultingPostSessionFollowup();
 startConsultingNoShowFollowup();
 startCalendarReminderJob();
+startAffiliateCommissionBatchJob();
 
 // ── GRACEFUL SHUTDOWN ────────────────────────────────────────
 function shutdown(signal) {
