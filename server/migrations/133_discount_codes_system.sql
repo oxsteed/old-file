@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS discount_codes (
   status VARCHAR(50) NOT NULL DEFAULT 'active', -- active, inactive, expired
   start_date TIMESTAMP,
   end_date TIMESTAMP,
-  created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
