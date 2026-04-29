@@ -1,4 +1,4 @@
-const { query } = require('../utils/db');
+const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { broadcastToConversation } = require('../services/socketService');
 const logger = require('../utils/logger');

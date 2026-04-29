@@ -1,7 +1,7 @@
 // Support Conversations Controller
 // Manages support tickets: creation, assignment, status updates, resolution
 
-const { query, withTransaction } = require('../utils/db');
+const { query, withTransaction } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 

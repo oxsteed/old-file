@@ -1,7 +1,7 @@
 // Queue Controller
 // Manages support queue: FIFO routing, queue status, next available agent routing
 
-const { query } = require('../utils/db');
+const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 

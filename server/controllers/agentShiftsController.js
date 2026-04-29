@@ -1,7 +1,7 @@
 // Agent Shifts Controller
 // Manages shift scheduling, clock in/out, breaks, and shift tracking
 
-const { query, withTransaction } = require('../utils/db');
+const { query, withTransaction } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 

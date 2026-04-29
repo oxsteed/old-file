@@ -1,4 +1,4 @@
-const { query } = require('../utils/db');
+const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 
