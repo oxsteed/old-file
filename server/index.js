@@ -418,6 +418,7 @@ const ordersRoutes = require('./routes/orders');
 const adminProductsRoutes = require('./routes/adminProducts');
 const apiProductsRoutes = require('./routes/apiProducts');
 const affiliatePayoutsRoutes = require('./routes/affiliatePayouts');
+const discountCodesRoutes = require('./routes/discountCodes');
 
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/marketplace/products', marketplaceProductsRoutes);
@@ -426,6 +427,7 @@ app.use('/api/carts', cartCheckoutRoutes);
 app.use('/api/shared-carts', sharedCartsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin/products', adminProductsRoutes);
+app.use('/api/admin/discount-codes', discountCodesRoutes);
 app.use('/api/api-products', apiProductsRoutes);
 app.use('/api/affiliate', affiliatePayoutsRoutes);
 app.use('/api/chat', chatRoutes);

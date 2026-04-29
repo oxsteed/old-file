@@ -4,6 +4,8 @@ const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { calculateTax } = require('../services/taxService');
+const { validateAndApplyDiscount, recordDiscountUsage } = require('../services/discountService');
+const { calculateShipping, isValidShippingAddress } = require('../services/shippingService');
 
 async function getCheckoutSession(req, res) {
   try {
@@ -63,7 +65,7 @@ async function getCheckoutSession(req, res) {
 
 async function createPaymentIntent(req, res) {
   try {
-    const { cartId, email, shippingAddress } = req.body;
+    const { cartId, email, shippingAddress, discountCode } = req.body;
     const userId = req.user?.id;
 
     if (!userId) return sendError(res, 401, 'Unauthorized');
@@ -110,9 +112,28 @@ async function createPaymentIntent(req, res) {
     }
 
     const tax = calculateTax(subtotal, shippingAddress);
-    const shipping = 0; // Can be customized based on address
-    const discount = 0; // Can apply promo codes
-    const total = subtotal + tax + shipping - discount;
+
+    // Calculate shipping if shipping address is provided
+    let shipping = 0;
+    if (shippingAddress && isValidShippingAddress(shippingAddress)) {
+      shipping = calculateShipping(shippingAddress, lineItems.length, 0);
+    }
+
+    // Apply discount code if provided
+    let discountCents = 0;
+    let discountCodeId = null;
+    let discountValidation = null;
+
+    if (discountCode) {
+      const productIds = lineItems.map(item => item.product_id);
+      discountValidation = await validateAndApplyDiscount(discountCode, subtotal, null, productIds);
+      if (discountValidation.isValid) {
+        discountCents = discountValidation.discountCents;
+        discountCodeId = discountValidation.codeId;
+      }
+    }
+
+    const total = subtotal + tax + shipping - discountCents;
 
     if (total <= 0) return sendError(res, 400, 'Invalid order total');
 
@@ -124,7 +145,7 @@ async function createPaymentIntent(req, res) {
          (customer_id, cart_id, total_cents, subtotal_cents, tax_cents, shipping_cents, discount_cents, status, shipping_address)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [userId, cartId, total, subtotal, tax, shipping, discount, 'pending', JSON.stringify(shippingAddress || {})]
+        [userId, cartId, total, subtotal, tax, shipping, discountCents, 'pending', JSON.stringify(shippingAddress || {})]
       );
 
       const orderId = orderResult.rows[0].id;
@@ -224,6 +245,11 @@ async function confirmPayment(req, res) {
           [order.rows[0].cart_id]
         );
         logger.info('Cart cleared after payment', { cartId: order.rows[0].cart_id, orderId });
+      }
+
+      // Record discount usage if a discount was applied
+      if (discountCodeId && discountCents > 0) {
+        await recordDiscountUsage(orderId, discountCodeId, discountCents, discountCode);
       }
 
       // Process affiliate commissions if applicable
