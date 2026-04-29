@@ -2,7 +2,9 @@ const twilio = require('twilio');
 const pool = require('../db');
 const logger = require('../utils/logger');
 
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const client = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
 const fromNumber = process.env.TWILIO_PHONE_NUMBER || '+1234567890';
 
 // Send SMS if user opted in
@@ -130,7 +132,7 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
 // Send SMS via Twilio API
 async function sendTwilioSMS(phoneNumber, messageBody) {
   try {
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+    if (!client) {
       logger.warn('Twilio credentials not configured, SMS not sent');
       return { sid: 'mock_sid', status: 'queued' };
     }
