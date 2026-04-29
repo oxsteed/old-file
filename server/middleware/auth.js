@@ -222,6 +222,7 @@ const optionalAuth = async (req, res, next) => {
 module.exports = {
   generateTokens,
   authenticate,
+  requireAuth: authenticate,
   optionalAuth,
   requireRole,
   requireTier,
