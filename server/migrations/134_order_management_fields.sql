@@ -1,14 +1,22 @@
 -- Migration 134: Add order management fields for admin dashboard
 -- Adds shipped tracking, refund tracking, and performance indexes
 
-ALTER TABLE marketplace_orders
-  ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP,
-  ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(255),
-  ADD COLUMN IF NOT EXISTS refund_reason TEXT,
-  ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMP;
+-- Only alter tables if they exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'marketplace_orders') THEN
+    ALTER TABLE marketplace_orders
+      ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS refund_reason TEXT,
+      ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMP;
+  END IF;
 
-ALTER TABLE marketplace_order_items
-  ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending';
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'marketplace_order_items') THEN
+    ALTER TABLE marketplace_order_items
+      ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending';
+  END IF;
+END $$;
 
 -- Performance indexes for admin dashboard queries
 CREATE INDEX IF NOT EXISTS idx_orders_status_created ON marketplace_orders(status, created_at DESC);

@@ -23,7 +23,7 @@ async function getCheckoutSession(req, res) {
     if (!userId) return sendError(res, 401, 'Unauthorized');
 
     const cart = await pool.query(
-      'SELECT * FROM shopping_carts WHERE id = $1 AND customer_id = $2',
+      'SELECT * FROM shopping_carts WHERE id = $1 AND helper_id = $2',
       [cartId, userId]
     );
 
@@ -82,7 +82,7 @@ async function createPaymentIntent(req, res) {
 
     // Fetch cart and items
     const cart = await pool.query(
-      'SELECT * FROM shopping_carts WHERE id = $1 AND customer_id = $2',
+      'SELECT * FROM shopping_carts WHERE id = $1 AND helper_id = $2',
       [cartId, userId]
     );
 

@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS affiliate_commissions (
   id BIGSERIAL PRIMARY KEY,
   order_id BIGINT NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
   affiliate_program_id BIGINT NOT NULL REFERENCES affiliate_programs(id) ON DELETE CASCADE,
-  product_id BIGINT NOT NULL REFERENCES marketplace_products(id) ON DELETE RESTRICT,
+  product_id UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE RESTRICT,
   commission_cents BIGINT NOT NULL,
   commission_rate DECIMAL(5,2),
   product_sale_amount_cents BIGINT,

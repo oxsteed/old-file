@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS discount_codes (
   min_order_cents BIGINT DEFAULT 0, -- Minimum order value required
   max_order_cents BIGINT, -- Maximum order value eligible
   applicable_categories VARCHAR(255)[], -- NULL = all categories
-  applicable_products BIGINT[], -- NULL = all products
+  applicable_products UUID[], -- NULL = all products
   status VARCHAR(50) NOT NULL DEFAULT 'active', -- active, inactive, expired
   start_date TIMESTAMP,
   end_date TIMESTAMP,

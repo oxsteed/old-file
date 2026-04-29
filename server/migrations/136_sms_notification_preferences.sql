@@ -1,18 +1,26 @@
 -- Migration 136: SMS notification preferences and tracking
 -- Enables SMS opt-in, phone verification, and SMS delivery logging
 
-ALTER TABLE notification_preferences
-  ADD COLUMN IF NOT EXISTS sms_enabled BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS sms_order_created BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS sms_payment_confirmed BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS sms_order_shipped BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS sms_order_cancelled BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS sms_order_refunded BOOLEAN DEFAULT TRUE;
+-- Only alter tables if they exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'notification_preferences') THEN
+    ALTER TABLE notification_preferences
+      ADD COLUMN IF NOT EXISTS sms_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS sms_order_created BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS sms_payment_confirmed BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS sms_order_shipped BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS sms_order_cancelled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS sms_order_refunded BOOLEAN DEFAULT TRUE;
+  END IF;
 
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20),
-  ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP;
+  END IF;
+END $$;
 
 -- SMS verification tokens (OTP codes)
 CREATE TABLE IF NOT EXISTS sms_opt_in_tokens (
