@@ -1,6 +1,7 @@
 -- Migration 137: Support agents and hiring system
 -- Enables multi-tenant support teams with agent hiring, onboarding, and status tracking
 
+
 -- Support agents table (agents assigned to a business)
 CREATE TABLE IF NOT EXISTS support_agents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
