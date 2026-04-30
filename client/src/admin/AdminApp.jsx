@@ -62,10 +62,10 @@ import SupportTemplates from './pages/SupportTemplates';
 import SupportMetricsDashboard from './pages/SupportMetricsDashboard';
 import SupportSLADashboard from './pages/SupportSLADashboard';
 import SupportPerformanceAnalytics from './pages/SupportPerformanceAnalytics';
-import AdminLegalDocumentsPage from './pages/AdminLegalDocumentsPage';
-import AdminLegalDocumentEditorPage from './pages/AdminLegalDocumentEditorPage';
-import AdminLegalApprovalPage from './pages/AdminLegalApprovalPage';
-import AdminLegalAuditLogPage from './pages/AdminLegalAuditLogPage';
+import AdminLegalDocumentsPage from '../pages/admin/AdminLegalDocumentsPage';
+import AdminLegalDocumentEditorPage from '../pages/admin/AdminLegalDocumentEditorPage';
+import AdminLegalApprovalPage from '../pages/admin/AdminLegalApprovalPage';
+import AdminLegalAuditLogPage from '../pages/admin/AdminLegalAuditLogPage';
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
