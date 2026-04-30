@@ -3,7 +3,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
 const { termsLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
 
