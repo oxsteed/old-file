@@ -125,7 +125,8 @@
     "refresh": "Refresh",
     "submitting": "Submitting…",
     "update": "Update",
-    "view": "View"
+    "view": "View",
+    "characters": "characters"
   },
   "jobs": {
     "title": "Job Details",
@@ -2155,7 +2156,32 @@
     "message": "Message",
     "submitTicket": "Submit Ticket",
     "ticketSent": "Ticket submitted! Your reference number is #{{number}}.",
-    "close": "Close"
+    "close": "Close",
+    "escalation": {
+      "pageTitle": "Support — OxSteed",
+      "pageDesc": "Connect with our support team or submit a ticket for assistance.",
+      "checking": "Checking availability...",
+      "checkingDesc": "Looking for available support agents",
+      "agentWaiting": "Support Agent",
+      "agentOnline": "Online",
+      "connecting": "Connecting...",
+      "noMessages": "No messages yet. Start the conversation!",
+      "messagePlaceholder": "Type your message...",
+      "noAgentsTitle": "Our agents are currently unavailable",
+      "noAgentsMessage": "We apologize for the inconvenience. Our support team is currently busy or offline. We'd love to help! Please submit a ticket below and one of our agents will get back to you as soon as possible, typically within a few hours.",
+      "ticketCTA": "Fill out the form below to create a support ticket.",
+      "ticketFormTitle": "Submit a Support Ticket",
+      "nameLabel": "Your Name",
+      "namePlaceholder": "John Doe",
+      "emailLabel": "Your Email",
+      "emailPlaceholder": "john@example.com",
+      "messageLabel": "Your Message",
+      "submitButton": "Submit Ticket",
+      "ticketError": "Failed to submit ticket. Please try again.",
+      "successTitle": "Ticket Submitted!",
+      "successMessage": "Your support ticket #{{ticketId}} has been created. Check your email for confirmation.",
+      "successNextSteps": "Our support team will review your message and get back to you shortly. You can also check your email for updates."
+    }
   },
   "businessHub": {
     "title": "Business Hub",

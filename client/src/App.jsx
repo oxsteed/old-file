@@ -65,6 +65,7 @@ import CalendarPage from './pages/CalendarPage';
 import ProductMarketplacePage from './pages/ProductMarketplacePage';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 import SharedCartPage from './pages/SharedCartPage';
+import SupportEscalationPage from './pages/SupportEscalationPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -141,6 +142,9 @@ export default function App() {
                     <Route path="/products"                element={<Guarded><ProductMarketplacePage /></Guarded>} />
                     <Route path="/cart/:cartId"           element={<Guarded><ProtectedRoute><ShoppingCartPage /></ProtectedRoute></Guarded>} />
                     <Route path="/shared-cart/:shareToken" element={<Guarded><SharedCartPage /></Guarded>} />
+
+                    {/* ── Support & Help ───────────────────────────────────── */}
+                    <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
                     <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />

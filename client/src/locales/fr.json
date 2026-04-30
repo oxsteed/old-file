@@ -124,7 +124,8 @@
     "refresh": "Actualiser",
     "submitting": "Envoi…",
     "update": "Mettre à jour",
-    "view": "Voir"
+    "view": "Voir",
+    "characters": "caractères"
   },
   "jobs": {
     "title": "Détails de la mission",
@@ -2154,7 +2155,32 @@
     "message": "Message",
     "submitTicket": "Soumettre un ticket",
     "ticketSent": "Ticket soumis ! Votre numéro de référence est #{{number}}.",
-    "close": "Fermer"
+    "close": "Fermer",
+    "escalation": {
+      "pageTitle": "Support — OxSteed",
+      "pageDesc": "Connectez-vous avec notre équipe d'assistance ou soumettez un ticket pour obtenir de l'aide.",
+      "checking": "Vérification de la disponibilité...",
+      "checkingDesc": "Recherche d'agents d'assistance disponibles",
+      "agentWaiting": "Agent d'assistance",
+      "agentOnline": "En ligne",
+      "connecting": "Connexion...",
+      "noMessages": "Pas encore de messages. Commencez la conversation !",
+      "messagePlaceholder": "Tapez votre message...",
+      "noAgentsTitle": "Nos agents ne sont actuellement pas disponibles",
+      "noAgentsMessage": "Nous nous excusons du désagrément. Notre équipe d'assistance est actuellement occupée ou hors ligne. Nous aimerions vraiment vous aider ! Veuillez soumettre un ticket ci-dessous et l'un de nos agents vous répondra dès que possible, généralement dans quelques heures.",
+      "ticketCTA": "Remplissez le formulaire ci-dessous pour créer un ticket d'assistance.",
+      "ticketFormTitle": "Soumettre un ticket d'assistance",
+      "nameLabel": "Votre nom",
+      "namePlaceholder": "Jean Dupont",
+      "emailLabel": "Votre e-mail",
+      "emailPlaceholder": "jean@exemple.com",
+      "messageLabel": "Votre message",
+      "submitButton": "Soumettre un ticket",
+      "ticketError": "Erreur lors de la soumission du ticket. Veuillez réessayer.",
+      "successTitle": "Ticket soumis !",
+      "successMessage": "Votre ticket d'assistance #{{ticketId}} a été créé. Vérifiez votre e-mail pour la confirmation.",
+      "successNextSteps": "Notre équipe d'assistance examinera votre message et vous répondra bientôt. Vous pouvez également vérifier votre e-mail pour les mises à jour."
+    }
   },
   "businessHub": {
     "title": "Hub d'entreprise",

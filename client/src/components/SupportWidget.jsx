@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
@@ -140,138 +141,6 @@ function exportTranscript(messages) {
   URL.revokeObjectURL(url);
 }
 
-// ── 3. Escalation modal ───────────────────────────────────────────────────────
-function EscalationModal({ messages, onClose, adminsOnline, onLiveChat }) {
-  const { t } = useTranslation();
-  const [sent,         setSent]         = useState(false);
-  const [ticketNumber, setTicketNumber] = useState(null);
-  const [name,         setName]         = useState('');
-  const [email,        setEmail]        = useState('');
-  const [desc,         setDesc]         = useState('');
-  const [sending,      setSending]      = useState(false);
-
-  const transcript = messages
-    .map(m => `${m.role === 'user' ? 'Customer' : 'AI'}: ${m.content}`)
-    .join('\n');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSending(true);
-
-    if (adminsOnline) {
-      // Route to live chat
-      try {
-        onLiveChat(desc || 'I need help', name, email);
-        onClose();
-      } catch (err) {
-        alert('Failed to connect to support. Please try again.');
-      }
-    } else {
-      // Escalate to ticket
-      try {
-        const { data } = await api.post('/support/request', {
-          name,
-          email,
-          subject:  'Support request from chat widget',
-          message:  `${desc || '(No additional description provided)'}\n\n${'─'.repeat(40)}\nAI Chat History:\n${transcript}`,
-          category: 'Chat Escalation',
-        });
-        if (data?.ticket_number) setTicketNumber(data.ticket_number);
-      } catch { /* still show success — user can email directly */ }
-      setSent(true);
-    }
-    setSending(false);
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/60"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl">
-        {sent ? (
-          <div className="text-center py-4">
-            <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </div>
-            <p className="text-white font-semibold">Request sent!</p>
-            {ticketNumber ? (
-              <p className="text-gray-400 text-sm mt-1">
-                Your ticket number is <strong className="text-orange-400">#{ticketNumber}</strong>.
-                Check your email for confirmation.
-              </p>
-            ) : (
-              <p className="text-gray-400 text-sm mt-1">Our support team will email you back soon.</p>
-            )}
-            <button onClick={onClose} className="mt-4 w-full py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-xl transition">
-              Close
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-white font-semibold text-sm">
-                  {adminsOnline ? 'Connect with Support Team' : t('support.escalateTitle')}
-                </h3>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  {adminsOnline
-                    ? 'Our support team is online and ready to help!'
-                    : 'We\'ll reply to your email, usually within a few hours.'}
-                </p>
-              </div>
-              <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white rounded-lg hover:bg-gray-800 transition" aria-label="Close">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <input
-                type="text"
-                required
-                placeholder="Your name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500 placeholder-gray-500 transition"
-              />
-              <input
-                type="email"
-                required
-                placeholder="Your email address"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500 placeholder-gray-500 transition"
-              />
-              <textarea
-                placeholder="Describe your issue (optional — chat history will be included)"
-                value={desc}
-                onChange={e => setDesc(e.target.value)}
-                rows={3}
-                style={{ resize: 'none' }}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500 placeholder-gray-500 transition"
-              />
-              <button
-                type="submit"
-                disabled={sending}
-                className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-sm rounded-xl transition disabled:opacity-50"
-              >
-                {sending
-                  ? t('common.sending') + '…'
-                  : adminsOnline
-                  ? 'Connect to Support'
-                  : t('support.submitTicket')}
-              </button>
-            </form>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Main widget ───────────────────────────────────────────────────────────────
 export default function SupportWidget() {
   // 8. Welcome-back: show different greeting if prior history exists
@@ -287,15 +156,10 @@ export default function SupportWidget() {
   const [loading,      setLoading]      = useState(false);
   const [copied,       setCopied]       = useState(null);
   const [unread,       setUnread]       = useState(0);
-  const [showEscalate, setShowEscalate] = useState(false);
   const [isMobile,     setIsMobile]     = useState(false);
-  const [adminsOnline, setAdminsOnline] = useState(null);
-  const [liveChat,     setLiveChat]     = useState(false);
-  const [conversationId, setConversationId] = useState(null);
-  const [visitorEmail, setVisitorEmail] = useState('');
-  const [visitorName,  setVisitorName]  = useState('');
 
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const endRef      = useRef(null);
   const inputRef    = useRef(null);
@@ -378,58 +242,10 @@ export default function SupportWidget() {
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
 
-  // Check if admins are online when widget opens
-  useEffect(() => {
-    if (!open) return;
-    const checkAdminStatus = async () => {
-      try {
-        const { data } = await api.get('/support-chat/admin-status');
-        setAdminsOnline(data.adminsOnline);
-      } catch (err) {
-        setAdminsOnline(false);
-      }
-    };
-    checkAdminStatus();
-    const interval = setInterval(checkAdminStatus, 30000); // Check every 30s
-    return () => clearInterval(interval);
-  }, [open]);
-
-  const initiateLiveChat = useCallback(async (firstMessage) => {
-    if (!firstMessage.trim() || !visitorName.trim() || !visitorEmail.trim()) {
-      alert('Please fill in your name, email, and message');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data } = await api.post('/support-chat/initiate', {
-        message: firstMessage,
-        visitorName,
-        visitorEmail,
-      });
-
-      if (data.routedTo === 'live_admin') {
-        setLiveChat(true);
-        setConversationId(data.conversationId);
-        setMessages([{
-          role: 'assistant',
-          content: 'You\'re connected with our support team. They\'ll be with you shortly.',
-          ts: new Date().toISOString(),
-        }]);
-      } else if (data.routedTo === 'support_ticket') {
-        setMessages([{
-          role: 'assistant',
-          content: `No admins available right now, but we've created ticket #${data.ticketNumber} and will email you soon.`,
-          ts: new Date().toISOString(),
-        }]);
-      }
-      setInput('');
-    } catch (err) {
-      alert('Failed to initiate support chat. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [visitorName, visitorEmail]);
+  // Navigate to escalation page
+  const handleEscalate = useCallback(() => {
+    navigate('/support/escalation');
+  }, [navigate]);
 
   const send = useCallback(async (text, isRetry = false) => {
     if (!text.trim() || loading) return;
@@ -573,7 +389,7 @@ export default function SupportWidget() {
               <div className="flex items-center gap-1">
                 {/* 3. Talk to human */}
                 <button
-                  onClick={() => setShowEscalate(true)}
+                  onClick={() => handleEscalate()}
                   title="Talk to a human"
                   className="p-1.5 text-gray-500 hover:text-orange-400 transition rounded-lg hover:bg-gray-800"
                   aria-label="Talk to a human"
@@ -823,7 +639,7 @@ export default function SupportWidget() {
                   <p className="text-[10px] text-gray-600">
                     AI responses may be inaccurate.{' '}
                     <button
-                      onClick={() => setShowEscalate(true)}
+                      onClick={() => handleEscalate()}
                       className="text-orange-500/70 hover:text-orange-400 underline transition"
                     >
                       Talk to a human
@@ -840,15 +656,6 @@ export default function SupportWidget() {
         </div>
       )}
 
-      {/* 3. Escalation modal */}
-      {showEscalate && (
-        <EscalationModal
-          messages={messages}
-          onClose={() => setShowEscalate(false)}
-          adminsOnline={adminsOnline}
-          onLiveChat={initiateLiveChat}
-        />
-      )}
     </>
   );
 }

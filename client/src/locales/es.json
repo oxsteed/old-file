@@ -124,7 +124,8 @@
     "refresh": "Actualizar",
     "submitting": "Enviando…",
     "update": "Actualizar",
-    "view": "Ver"
+    "view": "Ver",
+    "characters": "caracteres"
   },
   "jobs": {
     "title": "Detalles del Trabajo",
@@ -2154,7 +2155,32 @@
     "message": "Mensaje",
     "submitTicket": "Enviar ticket",
     "ticketSent": "¡Ticket enviado! Tu número de referencia es #{{number}}.",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "escalation": {
+      "pageTitle": "Soporte — OxSteed",
+      "pageDesc": "Conéctate con nuestro equipo de soporte o envía un ticket para obtener ayuda.",
+      "checking": "Verificando disponibilidad...",
+      "checkingDesc": "Buscando agentes de soporte disponibles",
+      "agentWaiting": "Agente de soporte",
+      "agentOnline": "En línea",
+      "connecting": "Conectando...",
+      "noMessages": "Sin mensajes aún. ¡Inicia la conversación!",
+      "messagePlaceholder": "Escribe tu mensaje...",
+      "noAgentsTitle": "Nuestros agentes no están disponibles actualmente",
+      "noAgentsMessage": "Disculpa las molestias. Nuestro equipo de soporte está ocupado o fuera de línea. ¡Nos encantaría ayudarte! Envía un ticket abajo y uno de nuestros agentes te responderá lo antes posible, generalmente en pocas horas.",
+      "ticketCTA": "Completa el formulario de abajo para crear un ticket de soporte.",
+      "ticketFormTitle": "Enviar un ticket de soporte",
+      "nameLabel": "Tu nombre",
+      "namePlaceholder": "Juan Pérez",
+      "emailLabel": "Tu correo",
+      "emailPlaceholder": "juan@ejemplo.com",
+      "messageLabel": "Tu mensaje",
+      "submitButton": "Enviar ticket",
+      "ticketError": "Error al enviar el ticket. Por favor intenta de nuevo.",
+      "successTitle": "¡Ticket enviado!",
+      "successMessage": "Tu ticket de soporte #{{ticketId}} ha sido creado. Revisa tu correo para la confirmación.",
+      "successNextSteps": "Nuestro equipo de soporte revisará tu mensaje y te responderá pronto. También puedes revisar tu correo para actualizaciones."
+    }
   },
   "businessHub": {
     "title": "Centro de negocios",

@@ -124,7 +124,8 @@
     "refresh": "Rafrechi",
     "submitting": "Voye…",
     "update": "Mete ajou",
-    "view": "Gade"
+    "view": "Gade",
+    "characters": "karaktè"
   },
   "trial": {
     "active": "Esè aktif",
@@ -2237,7 +2238,32 @@
     "message": "Mesaj",
     "submitTicket": "Soumèt Tikè",
     "ticketSent": "Tikè soumèt! Nimewo referans ou se #{{number}}.",
-    "close": "Fèmen"
+    "close": "Fèmen",
+    "escalation": {
+      "pageTitle": "Sipò — OxSteed",
+      "pageDesc": "Konekte ak ekip sipò nou an oswa soumèt yon tikè pou jwenn èd.",
+      "checking": "Verifye diponibilite...",
+      "checkingDesc": "Chèche ajan sipò ki disponib",
+      "agentWaiting": "Ajan Sipò",
+      "agentOnline": "Sou Tèlènèt",
+      "connecting": "Konekte...",
+      "noMessages": "Okenn mesaj toujou. Kòmanse konvèsasyon an!",
+      "messagePlaceholder": "Ekri mesaj ou...",
+      "noAgentsTitle": "Ajan nou yo pa disponib kounye a",
+      "noAgentsMessage": "Nou regrete enkonvenyan sa a. Ekip sipò nou an okipe oswa pa sou tèlènèt kounye a. Nou ta renmen èd ou! Soumèt yon tikè anba a epi youn nan ajan nou pral reponn ou pi vit posib, nòmalman nan kèk zè.",
+      "ticketCTA": "Ranpli fòm anba a pou kreye yon tikè sipò.",
+      "ticketFormTitle": "Soumèt yon Tikè Sipò",
+      "nameLabel": "Non ou",
+      "namePlaceholder": "Jan Duspre",
+      "emailLabel": "Imel ou",
+      "emailPlaceholder": "jan@egzanp.com",
+      "messageLabel": "Mesaj ou",
+      "submitButton": "Soumèt Tikè",
+      "ticketError": "Echèk soumèt tikè. Tanpri eseye ankò.",
+      "successTitle": "Tikè Soumèt!",
+      "successMessage": "Tikè sipò ou #{{ticketId}} te kreye. Tcheke imel ou pou konfirmasyon.",
+      "successNextSteps": "Ekip sipò nou pral revize mesaj ou epi pral reponn ou pi vit. Ou kapab tou tcheke imel ou pou update."
+    }
   },
   "businessHub": {
     "title": "Sant Biznis",
