@@ -47,6 +47,7 @@
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
 **Latest work completed (2026-04-30):**
+- **`/terms` runtime crash (production)** ✅ Fixed state variable shadowing the DOM global: React state was named `document`, so the scroll handler read `document.documentElement` from API state (null/object) and threw inside `Guarded` → generic error boundary. Renamed to `legalDocument`; scroll uses `globalThis.document.documentElement`.
 - **Legal UI redesign (mockup parity)** ✅ Terms public page (`TermsOfServicePage.jsx` / `.css`) matches `oxsteed_terms_visual_mockup.html`: grid header, sticky TOC, search highlight/dim, collapsible sections, scroll-to-accept bar on window scroll, copy-link. Admin list (`AdminLegalDocumentsPage.jsx` + `AdminLegalDocumentsDashboard.css`) matches dashboard mockup (sidebar doc list + detail panel). Editor (`AdminLegalDocumentEditorPage.jsx` / `.css`) uses two-column layout, preview banner, section rows, toolbar wraps selection. **API:** `GET /api/legal/admin/documents/:id` (`getAdminDocument`); `createLegalDocument` / `updateLegalDocument` persist `legal_document_sections` + `legal_section_versions` when `sections[]` is sent.
 - **Coolify deploy crash & migrations (137–144)** ✅ FIXED IN CODE (verify on next deploy)
   - **Startup:** Removed invalid `require('../services/email')` from `legalDocumentsController.js` (was `MODULE_NOT_FOUND`, crashed process before healthcheck).
