@@ -6,6 +6,7 @@ const { sendNotification } = require('../services/notificationService');
 const { uploadFile, getSignedDownloadUrl, getPublicUrl } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
+const { AppError } = require('../middleware/errorHandler');
 
 /**
  * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
@@ -286,7 +287,7 @@ const getOrCreateConversation = async (req, res) => {
 };
 
 // Get messages for a conversation
-const getMessages = async (req, res) => {
+const getMessages = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
@@ -306,7 +307,9 @@ const getMessages = async (req, res) => {
        )`,
       [conversationId, userId]
     );
-    if (conv.rows.length === 0) return res.status(403).json({ error: 'Access denied' });
+    if (conv.rows.length === 0) {
+      throw new AppError('Access denied', 403, 'access_denied');
+    }
 
     // Mark inbound messages as read, get count so we only emit when needed
     const readResult = await pool.query(
@@ -337,8 +340,7 @@ const getMessages = async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    logger.error('Error fetching messages', { err: error.message });
-    res.status(500).json({ error: 'Failed to fetch messages' });
+    next(error);
   }
 };
 
@@ -470,14 +472,18 @@ const searchMessages = async (req, res) => {
 };
 
 // Send a message
-const sendMessage = async (req, res) => {
+const sendMessage = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
     const rawContent = (req.body.content || '').trim();
 
-    if (!rawContent) return res.status(400).json({ error: 'Message content is required' });
-    if (rawContent.length > 4000) return res.status(400).json({ error: 'Message too long (max 4000 chars)' });
+    const fields = {};
+    if (!rawContent) fields.content = 'Message content is required';
+    if (rawContent.length > 4000) fields.content = 'Message too long (max 4000 characters)';
+    if (Object.keys(fields).length > 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    }
 
     // Sanitize message to prevent XSS
     const content = sanitizeMessage(rawContent);
@@ -635,11 +641,7 @@ const sendMessage = async (req, res) => {
 
     res.status(201).json(fullMessagePayload);
   } catch (error) {
-    if (error.status === 403) {
-      return res.status(403).json({ error: error.message });
-    }
-    logger.error('Error sending message', { err: error.message });
-    res.status(500).json({ error: 'Failed to send message' });
+    next(error);
   }
 };
 

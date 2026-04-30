@@ -5,6 +5,7 @@ const { validate, rules } = require('../utils/validate');
 const logger = require('../utils/logger');
 const { withPaymentTransaction } = require('../utils/transaction');
 const { captureAuthorizedPayment } = require('../services/paymentCaptureService');
+const { AppError } = require('../middleware/errorHandler');
 
 /** When true, capture is queued to Redis (requires worker). Default false = capture in-request so funds release without a separate process. */
 function isAsyncPaymentCapture() {
@@ -89,21 +90,29 @@ exports.getConnectStatus = async (req, res) => {
  *   5. Stripe processing fees are deducted from the helper's charge.
  *   6. On capture, helper gets paid and OxSteed receives its application_fee.
  */
-exports.createPaymentIntent = async (req, res) => {
+exports.createPaymentIntent = async (req, res, next) => {
   try {
     const { job_id } = req.body;
 
     const errs = validate(req.body, { job_id: [rules.required, rules.integer] });
-    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
+    if (errs) {
+      throw new AppError('Validation failed', 400, 'validation_failed', errs);
+    }
 
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
-    if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });
-    if (job.rows[0].client_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-    if (!job.rows[0].job_value) return res.status(400).json({ error: 'No agreed price set' });
+    if (!job.rows[0]) {
+      throw new AppError('Job not found', 404, 'job_not_found');
+    }
+    if (job.rows[0].client_id !== req.user.id) {
+      throw new AppError('Not authorized to create payment for this job', 403, 'forbidden');
+    }
+    if (!job.rows[0].job_value) {
+      throw new AppError('No agreed price set for this job', 400, 'missing_job_value');
+    }
 
     const connect = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [job.rows[0].assigned_helper_id]);
     if (!connect.rows[0] || !connect.rows[0].charges_enabled) {
-      return res.status(400).json({ error: 'Helper payment account not ready' });
+      throw new AppError('Helper payment account is not ready. Please ask the helper to complete their payment setup.', 400, 'helper_account_not_ready');
     }
 
     const jobValueCents = Math.round(job.rows[0].job_value * 100);
@@ -160,37 +169,38 @@ exports.createPaymentIntent = async (req, res) => {
     );
 
     if (insertRows.length === 0) {
-      return res.status(500).json({ error: 'Failed to save payment intent' });
+      throw new AppError('Failed to save payment intent to database', 500, 'payment_save_failed');
     }
 
     res.json({ client_secret: paymentIntent.client_secret, payment_intent_id: paymentIntent.id });
   } catch (err) {
-    logger.error('Create payment intent error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to create payment' });
+    next(err);
   }
 };
 
 // Capture payment after job completion (on helper's connected account)
-exports.capturePayment = async (req, res) => {
+exports.capturePayment = async (req, res, next) => {
   try {
     const { job_id } = req.body;
 
     // ── Validation (outside transaction) ──────────────────────────────────
     const job = await pool.query('SELECT * FROM jobs WHERE id = $1', [job_id]);
     if (!job.rows[0] || job.rows[0].status !== 'completed') {
-      return res.status(400).json({ error: 'Job must be completed first' });
+      throw new AppError('Job must be completed before capturing payment', 400, 'job_not_completed');
     }
     if (job.rows[0].client_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
+      throw new AppError('Not authorized to capture payment for this job', 403, 'forbidden');
     }
 
     const payment = await pool.query('SELECT * FROM payments WHERE job_id = $1 AND status = $2', [job_id, 'authorized']);
-    if (!payment.rows[0]) return res.status(404).json({ error: 'No authorized payment found' });
+    if (!payment.rows[0]) {
+      throw new AppError('No authorized payment found for this job', 404, 'payment_not_found');
+    }
 
     // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
     const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'in_progress']);
     if (dispute.rows[0]) {
-      return res.status(409).json({ error: 'Cannot capture payment while dispute is open. Dispute must be resolved first.' });
+      throw new AppError('Cannot capture payment while a dispute is open. Dispute must be resolved first.', 409, 'dispute_open');
     }
 
     const paymentData = payment.rows[0];
@@ -226,30 +236,32 @@ exports.capturePayment = async (req, res) => {
         paymentId: paymentData.id,
         error: capErr.message,
       });
-      return res.status(502).json({
-        error: 'payment_capture_failed',
-        message: capErr.message || 'Could not capture payment. Please try again or contact support.',
-      });
+      throw new AppError(
+        capErr.message || 'Could not capture payment. Please try again or contact support.',
+        502,
+        'payment_capture_failed'
+      );
     }
   } catch (err) {
-    logger.error('Capture payment error', { jobId: req.body?.job_id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to capture payment' });
+    next(err);
   }
 };
 
 // Refund payment (on helper's connected account — admin only)
 // ATOMIC: Stripe refund + DB update happen together
-exports.refundPayment = async (req, res) => {
+exports.refundPayment = async (req, res, next) => {
   try {
     if (!['admin', 'super_admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
+      throw new AppError('Admin access required', 403, 'forbidden');
     }
 
     const { payment_id, reason, amount, reverse_application_fee } = req.body;
 
     // ── Validation (outside transaction) ──────────────────────────────────
     const payment = await pool.query('SELECT * FROM payments WHERE id = $1', [payment_id]);
-    if (!payment.rows[0]) return res.status(404).json({ error: 'Payment not found' });
+    if (!payment.rows[0]) {
+      throw new AppError('Payment not found', 404, 'payment_not_found');
+    }
 
     const paymentData = payment.rows[0];
     const refundAmount = amount || paymentData.amount;
@@ -257,16 +269,18 @@ exports.refundPayment = async (req, res) => {
     // ── VALIDATE PAYMENT STATUS ──────────────────────────────────────────
     // Only authorized and captured payments can be refunded
     if (!['authorized', 'captured'].includes(paymentData.status)) {
-      return res.status(400).json({
-        error: `Payment cannot be refunded in '${paymentData.status}' status. Only authorized and captured payments can be refunded.`
-      });
+      throw new AppError(
+        `Payment cannot be refunded in '${paymentData.status}' status. Only authorized and captured payments can be refunded.`,
+        400,
+        'invalid_payment_state'
+      );
     }
 
     // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
     // Refunds can only happen after disputes are resolved
     const dispute = await pool.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [paymentData.job_id, 'open', 'in_progress']);
     if (dispute.rows[0]) {
-      return res.status(409).json({ error: 'Cannot refund payment while dispute is open. Dispute must be resolved first.' });
+      throw new AppError('Cannot refund payment while dispute is open. Dispute must be resolved first.', 409, 'dispute_open');
     }
 
     // ── Stripe refund (outside transaction for idempotency) ──────────────
@@ -287,7 +301,7 @@ exports.refundPayment = async (req, res) => {
       refundId = refund.id;
     } catch (stripeErr) {
       logger.error('Stripe refund failed', { paymentId: paymentData.id, error: stripeErr.message });
-      return res.status(402).json({ error: 'Refund failed with payment processor' });
+      throw new AppError('Refund failed with payment processor. Please try again or contact support.', 502, 'stripe_error');
     }
 
     // ── Database update (ATOMIC TRANSACTION) ─────────────────────────────

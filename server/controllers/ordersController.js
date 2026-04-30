@@ -1,6 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError } = require('../utils/apiError');
+const { AppError } = require('../middleware/errorHandler');
 
 async function getOrders(req, res) {
   try {
@@ -103,12 +104,14 @@ async function getOrderStats(req, res) {
   }
 }
 
-async function cancelOrder(req, res) {
+async function cancelOrder(req, res, next) {
   try {
     const { orderId } = req.params;
     const userId = req.user?.id;
 
-    if (!userId) return sendError(res, 401, 'Unauthorized');
+    if (!userId) {
+      throw new AppError('Authentication required', 401, 'no_auth');
+    }
 
     // Check order exists and belongs to user
     const order = await pool.query(
@@ -116,10 +119,12 @@ async function cancelOrder(req, res) {
       [orderId, userId]
     );
 
-    if (!order.rows.length) return sendError(res, 404, 'Order not found');
+    if (!order.rows.length) {
+      throw new AppError('Order not found', 404, 'order_not_found');
+    }
 
     if (order.rows[0].status !== 'pending' && order.rows[0].status !== 'paid') {
-      return sendError(res, 400, 'Cannot cancel order in ' + order.rows[0].status + ' status');
+      throw new AppError(`Cannot cancel order in ${order.rows[0].status} status`, 400, 'invalid_order_state');
     }
 
     // Update order status
@@ -138,8 +143,7 @@ async function cancelOrder(req, res) {
       data: updatedOrder.rows[0]
     });
   } catch (error) {
-    logger.error('Error cancelling order', { error });
-    sendError(res, 500, 'Failed to cancel order');
+    next(error);
   }
 }
 

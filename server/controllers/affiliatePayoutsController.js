@@ -3,6 +3,7 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
+const { AppError } = require('../middleware/errorHandler');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -156,14 +157,21 @@ async function getPayoutsSchedule(req, res) {
   }
 }
 
-async function calculateAndCreatePayout(req, res) {
+async function calculateAndCreatePayout(req, res, next) {
   try {
     const userId = req.user?.id;
     const { programId, periodStart, periodEnd } = req.body;
 
-    if (!userId) return sendError(res, 401, 'Unauthorized');
-    if (!programId || !periodStart || !periodEnd) {
-      return sendValidationError(res, { programId: 'Required', periodStart: 'Required', periodEnd: 'Required' });
+    if (!userId) {
+      throw new AppError('Authentication required', 401, 'no_auth');
+    }
+
+    const fields = {};
+    if (!programId) fields.programId = 'Program ID is required';
+    if (!periodStart) fields.periodStart = 'Period start date is required';
+    if (!periodEnd) fields.periodEnd = 'Period end date is required';
+    if (Object.keys(fields).length > 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Verify program belongs to user
@@ -172,7 +180,9 @@ async function calculateAndCreatePayout(req, res) {
       [programId, userId]
     );
 
-    if (!program.rows.length) return sendError(res, 404, 'Program not found');
+    if (!program.rows.length) {
+      throw new AppError('Affiliate program not found', 404, 'program_not_found');
+    }
 
     // Calculate commissions for period
     const commissions = await pool.query(
@@ -188,7 +198,7 @@ async function calculateAndCreatePayout(req, res) {
     const commissionCount = commissions.rows[0]?.count || 0;
 
     if (totalCommissionCents === 0) {
-      return sendError(res, 400, 'No commissions to payout for this period');
+      throw new AppError('No commissions to payout for this period', 400, 'no_commissions');
     }
 
     const payout = await withTransaction(async (client) => {
@@ -231,18 +241,19 @@ async function calculateAndCreatePayout(req, res) {
       data: payout
     });
   } catch (error) {
-    logger.error('Error calculating payout', { error });
-    sendError(res, 500, 'Failed to calculate payout');
+    next(error);
   }
 }
 
-async function processPayout(req, res) {
+async function processPayout(req, res, next) {
   try {
     const userId = req.user?.id;
     const { payoutId } = req.params;
     const { payment_method_id, payout_method = 'stripe_direct' } = req.body;
 
-    if (!userId) return sendError(res, 401, 'Unauthorized');
+    if (!userId) {
+      throw new AppError('Authentication required', 401, 'no_auth');
+    }
 
     // Get payout
     const payout = await pool.query(
@@ -252,10 +263,12 @@ async function processPayout(req, res) {
       [payoutId, userId]
     );
 
-    if (!payout.rows.length) return sendError(res, 404, 'Payout not found');
+    if (!payout.rows.length) {
+      throw new AppError('Payout not found', 404, 'payout_not_found');
+    }
 
     if (payout.rows[0].status !== 'pending') {
-      return sendError(res, 400, 'Payout already processed or cancelled');
+      throw new AppError('Payout already processed or cancelled', 400, 'invalid_payout_state');
     }
 
     try {
@@ -297,20 +310,19 @@ async function processPayout(req, res) {
         success: true,
         data: updated.rows[0]
       });
-    } catch (error) {
+    } catch (stripeError) {
       // Log the error but still update status to failed
-      logger.error('Stripe payout failed', { error });
+      logger.error('Stripe payout failed', { error: stripeError.message });
 
       await pool.query(
         `UPDATE affiliate_payouts SET status = $1, failed_reason = $2 WHERE id = $3`,
-        ['failed', error.message, payoutId]
+        ['failed', stripeError.message, payoutId]
       );
 
-      sendError(res, 500, 'Failed to process payout: ' + error.message);
+      throw new AppError('Failed to process payout through payment processor', 502, 'stripe_error');
     }
   } catch (error) {
-    logger.error('Error processing payout', { error });
-    sendError(res, 500, 'Failed to process payout');
+    next(error);
   }
 }
 

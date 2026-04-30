@@ -17,6 +17,7 @@ const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { AppError } = require('../middleware/errorHandler');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 
@@ -75,7 +76,7 @@ function formatAuthUser(user) {
   };
 }
 
-async function register(req, res) {
+async function register(req, res, next) {
   try {
     const { email, password, first_name, last_name, phone, role, language = 'en', ref } = req.body;
 
@@ -86,10 +87,15 @@ async function register(req, res) {
       last_name:  [rules.required, rules.minLen(1), rules.maxLen(50), rules.noScript],
       phone:      [rules.phone],
     });
-    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
+    if (errs) {
+      throw new AppError('Validation failed', 400, 'validation_failed', errs);
+    }
+
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Email already registered' });
+      throw new AppError('Email is already registered', 409, 'already_exists', {
+        email: 'This email address is already in use'
+      });
     }
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const referralCode = crypto.randomBytes(6).toString('hex');
@@ -160,13 +166,12 @@ async function register(req, res) {
 );
 res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
   } catch (err) {
-    logger.error('Register error', { err });
-    res.status(500).json({ error: 'Registration failed' });
+    next(err);
   }
 }
 
 // LOGIN - Updated to support 2FA
-async function login(req, res) {
+async function login(req, res, next) {
   try {
     const { email, password, rememberMe } = req.body;
 
@@ -174,7 +179,9 @@ async function login(req, res) {
       email:    [rules.required, rules.email],
       password: [rules.required],
     });
-    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
+    if (errs) {
+      throw new AppError('Validation failed', 400, 'validation_failed', errs);
+    }
 
     const { rows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, password_hash, role, is_active,
@@ -189,11 +196,19 @@ async function login(req, res) {
        FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
-    if (!rows[0]) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!rows[0]) {
+      throw new AppError('Invalid email or password', 401, 'auth_failed');
+    }
+
     const user = rows[0];
-    if (!user.is_active) return res.status(403).json({ error: 'Account deactivated' });
+    if (!user.is_active) {
+      throw new AppError('Your account has been deactivated', 403, 'account_deactivated');
+    }
+
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) {
+      throw new AppError('Invalid email or password', 401, 'auth_failed');
+    }
     if (user.totp_enabled) {
       const mfaToken = jwt.sign(
         { id: user.id, isMfaToken: true },
@@ -222,8 +237,7 @@ async function login(req, res) {
       refreshToken: tokens.refreshToken
     });
   } catch (err) {
-    logger.error('Login error', { err });
-    res.status(500).json({ error: 'Login failed' });
+    next(err);
   }
 }
 
@@ -405,21 +419,30 @@ async function verifyOTP(req, res) {
   }
 }
 
-async function refreshToken(req, res) {
+async function refreshToken(req, res, next) {
   try {
     const { refreshToken: token } = req.body;
-    if (!token) return res.status(401).json({ error: 'Refresh token required' });
+    if (!token) {
+      throw new AppError('Refresh token is required', 401, 'no_token');
+    }
+
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
       'SELECT s.user_id FROM sessions s WHERE s.refresh_token = $1 AND s.is_valid = true AND s.expires_at > NOW()',
       [hashedToken]
     );
-    if (!sessionRows[0]) return res.status(401).json({ error: 'Invalid refresh token' });
+    if (!sessionRows[0]) {
+      throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
+    }
+
     const { rows: invalidateRows } = await pool.query(
       'UPDATE sessions SET is_valid = false WHERE refresh_token = $1 RETURNING id',
       [hashedToken]
     );
-    if (invalidateRows.length === 0) return res.status(401).json({ error: 'Session invalidation failed' });
+    if (invalidateRows.length === 0) {
+      throw new AppError('Session invalidation failed', 401, 'session_error');
+    }
+
     const { rows: userRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role,
               email_verified, is_verified,
@@ -433,7 +456,9 @@ async function refreshToken(req, res) {
        FROM users WHERE id = $1`,
       [sessionRows[0].user_id]
     );
-    if (!userRows[0]) return res.status(401).json({ error: 'User not found' });
+    if (!userRows[0]) {
+      throw new AppError('User not found', 401, 'user_not_found');
+    }
     const user = userRows[0];
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
@@ -448,8 +473,7 @@ async function refreshToken(req, res) {
       refreshToken: tokens.refreshToken
     });
   } catch (err) {
-    logger.error('Refresh error', { err });
-    res.status(500).json({ error: 'Token refresh failed' });
+    next(err);
   }
 }
 

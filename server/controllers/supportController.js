@@ -9,6 +9,7 @@ const db            = require('../db');
 const logger        = require('../utils/logger');
 const socketService = require('../services/socketService');
 const { sendEmail } = require('../utils/email');
+const { AppError } = require('../middleware/errorHandler');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -57,30 +58,34 @@ function notifyUser(userId, event, data) {
  * Creates a ticket + first message.
  * Works for guests (no auth) and logged-in users.
  */
-exports.submitSupportRequest = async (req, res) => {
-  const { name, email, subject, message, category = 'general', priority = 'normal', sender_language = 'en' } = req.body;
-
-  if (!name?.trim())    return res.status(400).json({ error: 'Name is required.' });
-  if (!email?.trim())   return res.status(400).json({ error: 'Email is required.' });
-  if (!message?.trim()) return res.status(400).json({ error: 'Message is required.' });
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ error: 'Valid email address is required.' });
-  }
-
-  const allowedPriority = ['low', 'normal', 'high', 'urgent'];
-  const safePriority = allowedPriority.includes(priority) ? priority : 'normal';
-
-  const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation'];
-  const safeCategory = allowedCategory.includes(category?.toLowerCase?.()) ? category.toLowerCase() : 'general';
-
-  // Validate and sanitize language code (en, es, fr, ht, etc)
-  const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
-  const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
-
-  const client = await db.connect();
+exports.submitSupportRequest = async (req, res, next) => {
   try {
-    await client.query('BEGIN');
+    const { name, email, subject, message, category = 'general', priority = 'normal', sender_language = 'en' } = req.body;
+
+    const fields = {};
+    if (!name?.trim()) fields.name = 'Name is required';
+    if (!email?.trim()) fields.email = 'Email is required';
+    if (!message?.trim()) fields.message = 'Message content is required';
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      fields.email = 'Please enter a valid email address';
+    }
+    if (Object.keys(fields).length > 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    }
+
+    const allowedPriority = ['low', 'normal', 'high', 'urgent'];
+    const safePriority = allowedPriority.includes(priority) ? priority : 'normal';
+
+    const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation'];
+    const safeCategory = allowedCategory.includes(category?.toLowerCase?.()) ? category.toLowerCase() : 'general';
+
+    // Validate and sanitize language code (en, es, fr, ht, etc)
+    const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+    const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
+
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
 
     // Link to an existing user account if possible
     let userId = null;
@@ -157,17 +162,20 @@ exports.submitSupportRequest = async (req, res) => {
       ticketId: ticket.id, ticketNumber: ticket.ticket_number,
     });
 
-    return res.status(201).json({
-      ticket_id:     ticket.id,
-      ticket_number: ticket.ticket_number,
-      message: 'Your support request has been received. Check your email for confirmation.',
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    logger.error('Failed to create support ticket', { err });
-    return res.status(500).json({ error: 'Failed to submit support request.' });
-  } finally {
-    client.release();
+      return res.status(201).json({
+        ticket_id:     ticket.id,
+        ticket_number: ticket.ticket_number,
+        message: 'Your support request has been received. Check your email for confirmation.',
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      logger.error('Failed to create support ticket', { err });
+      throw new AppError('Failed to submit support request', 500, 'support_request_failed');
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -196,7 +204,7 @@ exports.getMyTickets = async (req, res) => {
 };
 
 /** GET /api/support/my-tickets/:ticketId */
-exports.getMyTicket = async (req, res) => {
+exports.getMyTicket = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT id, ticket_number, subject, category, priority, status, created_at, updated_at
@@ -204,7 +212,9 @@ exports.getMyTicket = async (req, res) => {
         WHERE id = $1 AND user_id = $2`,
       [req.params.ticketId, req.user.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    if (!rows.length) {
+      throw new AppError('Support ticket not found', 404, 'ticket_not_found');
+    }
 
     const { rows: msgs } = await db.query(
       `SELECT id, sender_name, sender_email, content, is_from_admin, created_at
@@ -215,32 +225,35 @@ exports.getMyTicket = async (req, res) => {
     );
     return res.json({ ticket: rows[0], messages: msgs });
   } catch (err) {
-    logger.error('getMyTicket error', { err });
-    return res.status(500).json({ error: 'Failed to fetch ticket.' });
+    next(err);
   }
 };
 
 /** POST /api/support/my-tickets/:ticketId/reply */
-exports.replyToMyTicket = async (req, res) => {
-  const { content, sender_language = 'en' } = req.body;
-  if (!content?.trim()) return res.status(400).json({ error: 'Message content is required.' });
-
-  // Validate language code
-  const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
-  const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
-
+exports.replyToMyTicket = async (req, res, next) => {
   try {
+    const { content, sender_language = 'en' } = req.body;
+    if (!content?.trim()) {
+      throw new AppError('Message content is required', 400, 'validation_failed', { content: 'Message content cannot be empty' });
+    }
+
+    // Validate language code
+    const allowedLanguages = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+    const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
+
     const { rows: tRows } = await db.query(
       `SELECT id, status, assigned_to, ticket_number, subject, name, email
          FROM support_tickets
         WHERE id = $1 AND user_id = $2`,
       [req.params.ticketId, req.user.id]
     );
-    if (!tRows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    if (!tRows.length) {
+      throw new AppError('Support ticket not found', 404, 'ticket_not_found');
+    }
 
     const ticket = tRows[0];
     if (['resolved', 'closed'].includes(ticket.status)) {
-      return res.status(409).json({ error: 'This ticket is already closed.' });
+      throw new AppError('This ticket is already closed', 409, 'ticket_closed');
     }
 
     const { rows: [msg] } = await db.query(
@@ -279,8 +292,7 @@ exports.replyToMyTicket = async (req, res) => {
 
     return res.status(201).json({ message: msg });
   } catch (err) {
-    logger.error('replyToMyTicket error', { err });
-    return res.status(500).json({ error: 'Failed to send reply.' });
+    next(err);
   }
 };
 

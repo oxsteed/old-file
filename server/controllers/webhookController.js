@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 if (!process.env.STRIPE_SECRET_KEY) {
   logger.error('[FATAL] STRIPE_SECRET_KEY is not set — Stripe webhooks will fail.');
@@ -9,7 +10,7 @@ const db = require('../db');
 const { recalculateBadges } = require('./verificationController');
 
 // Stripe webhook handler for subscription events
-exports.stripeWebhook = async (req, res) => {
+exports.stripeWebhook = async (req, res, next) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
@@ -21,7 +22,7 @@ exports.stripeWebhook = async (req, res) => {
     );
   } catch (err) {
     logger.error('Webhook signature verification failed', { error: err.message });
-    return res.status(400).json({ error: 'Invalid signature.' });
+    throw new AppError('Invalid signature', 400, 'invalid_webhook_signature');
   }
 
   try {
@@ -276,7 +277,7 @@ exports.stripeWebhook = async (req, res) => {
     res.json({ received: true });
   } catch (err) {
     logger.error('Stripe webhook handler error', { error: err.message });
-    res.status(500).json({ error: 'Webhook processing failed.' });
+    throw new AppError('Webhook processing failed', 500, 'webhook_processing_error');
   }
 };
 
@@ -362,22 +363,23 @@ function verifySignatureOriginal(rawBody, receivedSignature, timestamp, secret) 
 }
 
 // Didit identity webhook handler (v3 API)
-exports.diditWebhook = async (req, res) => {
-  const secret = process.env.DIDIT_WEBHOOK_SECRET;
-  if (!secret) {
-    logger.error('[Didit] DIDIT_WEBHOOK_SECRET not set');
-    return res.status(500).json({ error: 'Webhook not configured.' });
-  }
-
-  // Parse body from raw Buffer
-  let rawBody;
-  let body;
+exports.diditWebhook = async (req, res, next) => {
   try {
-    rawBody = req.body instanceof Buffer ? req.body.toString('utf-8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
-    body = typeof req.body === 'object' && !(req.body instanceof Buffer) ? req.body : JSON.parse(rawBody);
-  } catch {
-    return res.status(400).json({ error: 'Invalid JSON.' });
-  }
+    const secret = process.env.DIDIT_WEBHOOK_SECRET;
+    if (!secret) {
+      logger.error('[Didit] DIDIT_WEBHOOK_SECRET not set');
+      throw new AppError('Webhook not configured', 500, 'webhook_not_configured');
+    }
+
+    // Parse body from raw Buffer
+    let rawBody;
+    let body;
+    try {
+      rawBody = req.body instanceof Buffer ? req.body.toString('utf-8') : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+      body = typeof req.body === 'object' && !(req.body instanceof Buffer) ? req.body : JSON.parse(rawBody);
+    } catch {
+      throw new AppError('Invalid JSON', 400, 'invalid_json');
+    }
 
   // Get signature headers (Express lowercases them)
   const signatureV2 = req.headers['x-signature-v2'];
@@ -402,25 +404,24 @@ exports.diditWebhook = async (req, res) => {
     if (isValid) method = 'original';
   }
 
-  if (!isValid) {
-    logger.warn('[Didit] Invalid webhook signature');
-    return res.status(401).json({ error: 'Invalid signature.' });
-  }
+    if (!isValid) {
+      logger.warn('[Didit] Invalid webhook signature');
+      throw new AppError('Invalid signature', 401, 'invalid_webhook_signature');
+    }
 
-  logger.info(`[Didit] Signature verified via ${method}`);
+    logger.info(`[Didit] Signature verified via ${method}`);
 
-  // Handle test webhooks from Didit console
-  const isTestWebhook = req.headers['x-didit-test-webhook'] === 'true';
-  if (isTestWebhook || body.metadata?.test_webhook) {
-    logger.info('[Didit] Test webhook received - signature valid');
-    return res.json({ received: true, test: true });
-  }
+    // Handle test webhooks from Didit console
+    const isTestWebhook = req.headers['x-didit-test-webhook'] === 'true';
+    if (isTestWebhook || body.metadata?.test_webhook) {
+      logger.info('[Didit] Test webhook received - signature valid');
+      return res.json({ received: true, test: true });
+    }
 
-  // Process verification result
-  try {
+    // Process verification result
     const { session_id, status, decision } = body;
     if (!session_id) {
-      return res.status(400).json({ error: 'Missing session_id.' });
+      throw new AppError('Missing session_id', 400, 'missing_session_id');
     }
 
     // Didit sends capitalized status: "Approved", "Declined"
@@ -565,6 +566,6 @@ exports.diditWebhook = async (req, res) => {
     res.json({ received: true });
   } catch (err) {
     logger.error('Didit webhook handler error', { error: err.message });
-    res.status(500).json({ error: 'Webhook processing failed.' });
+    throw new AppError('Webhook processing failed', 500, 'webhook_processing_error');
   }
 };

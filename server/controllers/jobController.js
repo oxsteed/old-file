@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
+const { AppError } = require('../middleware/errorHandler');
 
 function isTier3EscrowJob(jobRow) {
   const label = String(jobRow?.job_type_label || '').toLowerCase();
@@ -13,7 +14,7 @@ function isTier3EscrowJob(jobRow) {
 }
 
 // Create a new job (wizard publish)
-exports.createJob = async (req, res) => {
+exports.createJob = async (req, res, next) => {
   try {
     const {
       title, description,
@@ -39,7 +40,7 @@ exports.createJob = async (req, res) => {
     if (!description || description.trim().length < 50) errs.description = 'Description must be at least 50 characters';
     if (!location_city)                            errs.location    = 'Location is required';
     if (Object.keys(errs).length) {
-      return res.status(400).json({ error: 'validation_failed', fields: errs });
+      throw new AppError('Validation failed', 400, 'validation_failed', errs);
     }
 
     // ── Resolve category ──────────────────────────────────────────────────────────────────────────
@@ -85,7 +86,9 @@ exports.createJob = async (req, res) => {
     if (required_skills && Array.isArray(required_skills) && required_skills.length > 0) {
       // Validate skill count
       if (required_skills.length > 20) {
-        return res.status(400).json({ error: 'validation_failed', fields: { required_skills: 'Maximum 20 skills allowed' } });
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          required_skills: 'Maximum 20 skills allowed'
+        });
       }
       // Extract IDs for efficient filtering and store full objects
       skillIds = `{${required_skills.map(s => s.id || s.skill_id).join(',')}}`;
@@ -166,8 +169,7 @@ exports.createJob = async (req, res) => {
       notify_count: matchResult.notified || 0,
     });
   } catch (err) {
-    logger.error('Create job error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to create job' });
+    next(err);
   }
 };
 
@@ -263,7 +265,7 @@ exports.getJobs = async (req, res) => {
 };
 
 // Get single job by ID
-exports.getJob = async (req, res) => {
+exports.getJob = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -285,18 +287,17 @@ exports.getJob = async (req, res) => {
     `, [id]);
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found' });
+      throw new AppError('Job not found', 404, 'job_not_found');
     }
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('Get job error', { jobId: req.params?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch job' });
+    next(err);
   }
 };
 
 // Update a job (only by the client who created it)
-exports.updateJob = async (req, res) => {
+exports.updateJob = async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -332,18 +333,17 @@ exports.updateJob = async (req, res) => {
     ]);
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be edited' });
+      throw new AppError('Job not found or cannot be edited', 404, 'job_not_found');
     }
 
     res.json(rows[0]);
   } catch (err) {
-    logger.error('Update job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to update job' });
+    next(err);
   }
 };
 
 // Cancel a job (soft)
-exports.cancelJob = async (req, res) => {
+exports.cancelJob = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -354,16 +354,18 @@ exports.cancelJob = async (req, res) => {
     );
 
     if (!jobRows[0]) {
-      return res.status(404).json({ error: 'Job not found or you are not authorized' });
+      throw new AppError('Job not found or you are not authorized', 404, 'job_not_found');
     }
 
     const job = jobRows[0];
 
     // Step 2: Verify job is in a cancellable state
     if (!['draft', 'published', 'matched', 'negotiating'].includes(job.status)) {
-      return res.status(400).json({
-        error: `Job cannot be cancelled in '${job.status}' state. Only draft, published, matched, and negotiating jobs can be cancelled.`
-      });
+      throw new AppError(
+        `Job cannot be cancelled in '${job.status}' state. Only draft, published, matched, and negotiating jobs can be cancelled.`,
+        400,
+        'invalid_job_state'
+      );
     }
 
     // Step 3: Check for pending/authorized payments (escrow holds)
@@ -374,10 +376,11 @@ exports.cancelJob = async (req, res) => {
     `, [id]);
 
     if (paymentRows.length > 0) {
-      return res.status(409).json({
-        error: 'Cannot cancel job with pending payments',
-        message: 'This job has pending or authorized payments. Cancel or refund the payments before cancelling the job.'
-      });
+      throw new AppError(
+        'Cannot cancel job with pending payments. Cancel or refund the payments before cancelling the job.',
+        409,
+        'pending_payments'
+      );
     }
 
     // Step 4: Atomically cancel job and reject all active bids (transactional)
@@ -392,7 +395,7 @@ exports.cancelJob = async (req, res) => {
       `, [id]);
 
       if (!updateRows.length) {
-        throw new Error('Job state changed during cancellation — status is no longer cancellable');
+        throw new AppError('Job state changed during cancellation', 409, 'state_conflict');
       }
 
       // Reject all pending/accepted bids
@@ -424,18 +427,19 @@ exports.cancelJob = async (req, res) => {
       rejected_bids: result.rejectedBids.length
     });
   } catch (err) {
-    logger.error('Cancel job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to cancel job' });
+    next(err);
   }
 };
 
 // Assign a helper to a job by accepting a specific bid
-exports.assignHelper = async (req, res) => {
+exports.assignHelper = async (req, res, next) => {
   try {
     const { bid_id } = req.body;
 
     if (!bid_id) {
-      return res.status(400).json({ error: 'bid_id is required' });
+      throw new AppError('bid_id is required', 400, 'missing_field', {
+        bid_id: 'bid_id is required'
+      });
     }
 
     const result = await withTransaction(pool, async (client) => {
@@ -449,23 +453,17 @@ exports.assignHelper = async (req, res) => {
       );
 
       if (bidLookup.rows.length === 0) {
-        const err = new Error('Bid not found');
-        err.status = 404;
-        throw err;
+        throw new AppError('Bid not found', 404, 'bid_not_found');
       }
 
       const bid = bidLookup.rows[0];
 
       if (bid.client_id !== req.user.id) {
-        const err = new Error('Not authorized to accept bids on this job');
-        err.status = 403;
-        throw err;
+        throw new AppError('Not authorized to accept bids on this job', 403, 'forbidden');
       }
 
       if (!['published', 'matched', 'negotiating'].includes(bid.job_status)) {
-        const err = new Error('Job is not in a state that allows bid acceptance');
-        err.status = 409;
-        throw err;
+        throw new AppError('Job is not in a state that allows bid acceptance', 409, 'invalid_job_state');
       }
 
       // 2. Accept the bid atomically — only succeeds if it is still pending
@@ -477,9 +475,7 @@ exports.assignHelper = async (req, res) => {
       );
 
       if (acceptResult.rows.length === 0) {
-        const err = new Error('Bid is no longer pending — it may have been withdrawn or already accepted');
-        err.status = 409;
-        throw err;
+        throw new AppError('Bid is no longer pending. It may have been withdrawn or already accepted.', 409, 'bid_no_longer_pending');
       }
 
       const acceptedBid = acceptResult.rows[0];
@@ -504,9 +500,7 @@ exports.assignHelper = async (req, res) => {
       );
 
       if (jobResult.rows.length === 0) {
-        const err = new Error('Job not found or cannot be assigned');
-        err.status = 409;
-        throw err;
+        throw new AppError('Job not found or cannot be assigned', 409, 'state_conflict');
       }
 
       return { job: jobResult.rows[0], bid: acceptedBid };
@@ -514,14 +508,12 @@ exports.assignHelper = async (req, res) => {
 
     res.status(200).json({ message: 'Bid accepted and helper assigned', job: result.job, bid: result.bid });
   } catch (err) {
-    logger.error('Assign helper error', { err });
-    const status = err.status || 500;
-    res.status(status).json({ error: err.message || 'Failed to assign helper' });
+    next(err);
   }
 };
 
 // Start a job
-exports.startJob = async (req, res) => {
+exports.startJob = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -533,21 +525,25 @@ exports.startJob = async (req, res) => {
     `, [id, req.user.id]);
 
     if (!jobRows[0]) {
-      return res.status(404).json({ error: 'Job not found or you are not authorized' });
+      throw new AppError('Job not found or you are not authorized', 404, 'job_not_found');
     }
 
     const job = jobRows[0];
 
     if (job.status !== 'accepted') {
-      return res.status(400).json({ error: `Job cannot be started in '${job.status}' state. Job must be in 'accepted' state.` });
+      throw new AppError(
+        `Job cannot be started in '${job.status}' state. Job must be in 'accepted' state.`,
+        400,
+        'invalid_job_state'
+      );
     }
 
     if (!job.assigned_helper_id) {
-      return res.status(400).json({ error: 'Job cannot be started without an assigned helper' });
+      throw new AppError('Job cannot be started without an assigned helper', 400, 'no_helper_assigned');
     }
 
     if (job.expires_at && new Date(job.expires_at) < new Date()) {
-      return res.status(400).json({ error: 'Job has expired and cannot be started' });
+      throw new AppError('Job has expired and cannot be started', 400, 'job_expired');
     }
 
     // Wrap state transition in transaction for atomicity
@@ -564,20 +560,19 @@ exports.startJob = async (req, res) => {
       `, [id]);
 
       if (!rows.length) {
-        throw new Error('Job start failed — state changed during processing');
+        throw new AppError('Job start failed — state changed during processing', 400, 'state_conflict');
       }
       return rows[0];
     }, 'start_job');
 
     res.json({ message: 'Job started', job: result });
   } catch (err) {
-    logger.error('Start job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to start job' });
+    next(err);
   }
 };
 
 // Complete a job
-exports.completeJob = async (req, res) => {
+exports.completeJob = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -590,7 +585,7 @@ exports.completeJob = async (req, res) => {
     `, [id, req.user.id]);
 
     if (jobRows.length === 0) {
-      return res.status(404).json({ error: 'Job not found or cannot be completed' });
+      throw new AppError('Job not found or cannot be completed', 404, 'job_not_found');
     }
 
     const job = jobRows[0];
@@ -611,9 +606,12 @@ exports.completeJob = async (req, res) => {
             [id],
           );
           if (dispute.rows[0]) {
-            const e = new Error('DISPUTE_OPEN');
-            e.code = 'DISPUTE_OPEN';
-            throw e;
+            const err = new AppError(
+              'Cannot complete job while a payment dispute is open. Resolve the dispute first.',
+              409,
+              'dispute_open'
+            );
+            throw err;
           }
           await captureAuthorizedPaymentWithClient(client, payRows[0]);
         }
@@ -629,7 +627,7 @@ exports.completeJob = async (req, res) => {
       `, [id]);
 
       if (!rows.length) {
-        throw new Error('Job state changed during completion — job is no longer in_progress');
+        throw new AppError('Job state changed during completion', 409, 'state_conflict');
       }
 
       return rows[0];
@@ -637,13 +635,7 @@ exports.completeJob = async (req, res) => {
 
     res.json({ message: 'Job completed', job: result });
   } catch (err) {
-    if (err && err.code === 'DISPUTE_OPEN') {
-      return res.status(409).json({
-        error: 'Cannot complete job while a payment dispute is open. Resolve the dispute first.',
-      });
-    }
-    logger.error('Complete job error', { jobId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to complete job' });
+    next(err);
   }
 };
 
@@ -708,7 +700,7 @@ exports.closeJob = async (req, res) => {
 };
 
 // Get jobs posted by current user
-exports.getMyJobs = async (req, res) => {
+exports.getMyJobs = async (req, res, next) => {
   try {
     const { rows } = await pool.query(`
       SELECT
@@ -731,7 +723,6 @@ exports.getMyJobs = async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    logger.error('Get my jobs error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch your jobs' });
+    next(err);
   }
 };
