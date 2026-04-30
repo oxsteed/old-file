@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS support_teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   team_name VARCHAR(100) NOT NULL,
   team_type VARCHAR(50), -- tier1, tier2, tier3, specialized (e.g., billing, technical)
   description TEXT,
@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_team_members_active ON team_members(is_active);
 -- Escalation policies (routing chains)
 CREATE TABLE IF NOT EXISTS escalation_policies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   policy_name VARCHAR(100) NOT NULL,
   description TEXT,
   trigger_condition VARCHAR(100), -- sla_breach, timeout, urgent_priority, agent_unavailable, customer_request
@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_team_skills_skill ON team_skills(skill_name);
 CREATE TABLE IF NOT EXISTS escalation_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   escalation_policy_id UUID REFERENCES escalation_policies(id) ON DELETE SET NULL,
   from_agent_id UUID REFERENCES support_agents(id) ON DELETE SET NULL,
   to_agent_id UUID REFERENCES support_agents(id) ON DELETE SET NULL,
@@ -109,7 +109,7 @@ CREATE INDEX IF NOT EXISTS idx_escalation_history_created ON escalation_history(
 CREATE TABLE IF NOT EXISTS team_daily_performance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES support_teams(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   performance_date DATE NOT NULL,
   conversations_handled INTEGER DEFAULT 0,
   conversations_resolved INTEGER DEFAULT 0,

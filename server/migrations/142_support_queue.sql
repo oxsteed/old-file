@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS support_queue (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   conversation_id UUID NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
   queue_position INTEGER,
   priority VARCHAR(20) DEFAULT 'normal', -- low, normal, high, urgent
@@ -31,7 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_support_queue_skills ON support_queue USING GIN(r
 CREATE TABLE IF NOT EXISTS queue_events (
   id BIGSERIAL PRIMARY KEY,
   queue_id UUID NOT NULL REFERENCES support_queue(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   conversation_id UUID NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
   event_type VARCHAR(50), -- queued, routed, claimed, reassigned, escalated, removed
   from_agent_id UUID REFERENCES support_agents(id) ON DELETE SET NULL,
@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_queue_events_created ON queue_events(created_at D
 -- Routing rules (configurable per business)
 CREATE TABLE IF NOT EXISTS routing_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   rule_name VARCHAR(100) NOT NULL,
   rule_type VARCHAR(50), -- skill_based, availability, language, team, manual
   description TEXT,
@@ -71,7 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_routing_rules_active ON routing_rules(is_active);
 -- Queue analytics snapshots (for dashboard performance)
 CREATE TABLE IF NOT EXISTS queue_analytics_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   snapshot_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   queue_length INTEGER DEFAULT 0,
   avg_wait_time_seconds INTEGER,

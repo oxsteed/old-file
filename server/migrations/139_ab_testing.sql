@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS ab_test_variants (
   is_control BOOLEAN DEFAULT FALSE,
 
   -- For discount code tests
-  discount_code_id UUID REFERENCES discount_codes(id),
+  discount_code_id BIGINT REFERENCES discount_codes(id),
 
   -- Variant configuration
   discount_percentage DECIMAL(5,2),

@@ -47,23 +47,21 @@ class SupportRoutingService {
       const query = `
         SELECT
           a.id,
-          a.first_name,
-          a.last_name,
-          a.email,
+          u.first_name,
+          u.last_name,
+          u.email,
           a.skills,
           a.is_active,
           (
-            SELECT COUNT(*) FROM support_conversations
-            WHERE assigned_agent_id = a.id
+            SELECT COUNT(*)::int FROM support_conversations
+            WHERE agent_id = a.id
             AND status NOT IN ('resolved', 'closed')
-          ) as current_chats,
-          (
-            SELECT max_agents FROM support_shifts
-            WHERE id = a.current_shift_id
-          ) as shift_capacity
+          ) as current_chats
         FROM support_agents a
+        JOIN users u ON u.id = a.user_id
         WHERE a.business_id = $1
         AND a.is_active = true
+        AND a.status = 'active'
         AND (
           a.skills @> $2::jsonb
           OR $2::text = '[]'
@@ -205,7 +203,7 @@ class SupportRoutingService {
     try {
       const query = `
         UPDATE support_conversations
-        SET assigned_agent_id = $1, status = 'assigned', updated_at = NOW()
+        SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
         WHERE id = $2
         RETURNING *
       `;
@@ -230,7 +228,7 @@ class SupportRoutingService {
           COUNT(*) FILTER (WHERE status = 'waiting_customer') as waiting,
           COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 hour') as past_hour
         FROM support_conversations
-        WHERE assigned_agent_id = $1
+        WHERE agent_id = $1
       `;
 
       const result = await pool.query(query, [agentId]);
