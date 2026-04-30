@@ -4,7 +4,7 @@
 -- Support agents table (agents assigned to a business)
 CREATE TABLE IF NOT EXISTS support_agents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   hire_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status VARCHAR(20) DEFAULT 'active', -- active, inactive, paused, training
@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS support_agents (
   department VARCHAR(100), -- e.g., billing, technical, sales
   max_concurrent_chats INTEGER DEFAULT 3,
   is_available BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  skills JSONB DEFAULT '[]'::jsonb,
   total_conversations_handled INTEGER DEFAULT 0,
   total_resolved_count INTEGER DEFAULT 0,
   avg_rating DECIMAL(3,2),
@@ -28,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_support_agents_available ON support_agents(is_ava
 -- Agent applications (hiring flow)
 CREATE TABLE IF NOT EXISTS agent_applications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   job_title VARCHAR(200) NOT NULL,
   experience_level VARCHAR(50), -- entry, intermediate, expert

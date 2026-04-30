@@ -47,6 +47,12 @@
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
 **Latest work completed (2026-04-30):**
+- **Coolify deploy crash & migrations (137–144)** ✅ FIXED IN CODE (verify on next deploy)
+  - **Startup:** Removed invalid `require('../services/email')` from `legalDocumentsController.js` (was `MODULE_NOT_FOUND`, crashed process before healthcheck).
+  - **Migrations:** `137_payout_methods.sql` — replaced invalid inline UNIQUE … WHERE with partial unique index; `business_id` columns in enterprise support migrations (137–143) — `INTEGER` FK to `businesses(id)` (SERIAL); `139_ab_testing.sql` — `discount_code_id BIGINT`; `137_support_agents.sql` — added `is_active`, `skills` JSONB for routing/controller parity; `140_create_support_messages.sql` / `144_support_message_retention.sql` — ALTER existing `support_messages` from 046 (no second CREATE).
+  - **Routing:** `supportRoutingController.js` / `supportRoutingService.js` — use `agent_id` and migration status strings (`waiting_for_agent`, etc.); `sendMessage` uses `pool` not undefined `db`; agent lookup JOINs `users`. `supportAgentsController.js` — use `pool.query` (db module exports pool only).
+  - **Ops:** Failed migrations were recorded as skipped on prod DB; DBAs may need manual cleanup of `_migrations` rows + objects if partial apply occurred.
+
 - **Terms & Conditions Management System — FINAL INTEGRATION** ✅ COMPLETE
   - **Backend:** Controller (legalDocumentsController.js) + Routes (legalDocuments.js) fully integrated into server/index.js at `/api/legal`
   - **Migrations 145-148:** Legal documents, sections, multilingual support, audit logging (12 tables with 20+ indexes)

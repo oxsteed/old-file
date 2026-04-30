@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS support_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   agent_id UUID REFERENCES support_agents(id) ON DELETE SET NULL,
   subject VARCHAR(255) NOT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS conversation_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
   agent_id UUID NOT NULL REFERENCES support_agents(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   assigned_by UUID REFERENCES users(id) ON DELETE SET NULL,
   assignment_type VARCHAR(20) DEFAULT 'auto', -- auto, manual, escalation
   claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS pre_chat_forms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID REFERENCES support_conversations(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_name VARCHAR(255),
   customer_email VARCHAR(255),
   customer_phone VARCHAR(20),
