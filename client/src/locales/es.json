@@ -4995,5 +4995,16 @@
     "openFilters": "Abrir Filtros",
     "closeFilters": "Cerrar Filtros",
     "filtersSidebar": "Barra Lateral de Filtros"
+  },
+  "financialAdvisor": {
+    "title": "💰 Calculadora Financiera IA",
+    "disclaimerTitle": "Aviso de IA — No es Asesoramiento Financiero",
+    "disclaimerBody": "Esta IA puede cometer errores y no constituye asesoramiento financiero profesional. Siempre consulte con un asesor financiero autorizado antes de tomar decisiones financieras. Las respuestas se basan en los datos de su cuenta y pueden ser inexactas.",
+    "emptyPrompt": "Pregúntame cualquier cosa sobre tus finanzas — ingresos, gastos, objetivos o necesidades planeadas.",
+    "inputPlaceholder": "Pregunta sobre tus finanzas…",
+    "notAdviceTag": "⚠️ No es asesoramiento financiero profesional",
+    "authRequired": "Por favor inicia sesión para usar el asesor financiero.",
+    "error": "El servicio de IA no está disponible temporalmente. Por favor, intenta de nuevo.",
+    "windowLabel": "Ventana de análisis"
   }
 }

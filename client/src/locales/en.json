@@ -5000,5 +5000,16 @@
     "openFilters": "Open Filters",
     "closeFilters": "Close Filters",
     "filtersSidebar": "Filters Sidebar"
+  },
+  "financialAdvisor": {
+    "title": "💰 AI Finance Calculator",
+    "disclaimerTitle": "AI Disclaimer — Not Financial Advice",
+    "disclaimerBody": "This AI can make mistakes and does not constitute professional financial advice. Always consult a licensed financial advisor before making financial decisions. Responses are based on your account data and may be inaccurate.",
+    "emptyPrompt": "Ask me anything about your finances — income, expenses, goals, or planned needs.",
+    "inputPlaceholder": "Ask about your finances…",
+    "notAdviceTag": "⚠️ Not professional financial advice",
+    "authRequired": "Please sign in to use the financial advisor.",
+    "error": "AI service temporarily unavailable. Please try again.",
+    "windowLabel": "Analysis window"
   }
 }

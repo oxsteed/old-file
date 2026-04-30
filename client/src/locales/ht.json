@@ -4998,5 +4998,16 @@
     "openFilters": "Ouvri Filtr",
     "closeFilters": "Fèmen Filtr",
     "filtersSidebar": "Bab Lateral Filtr"
+  },
+  "financialAdvisor": {
+    "title": "💰 Kalkil Finansyal IA",
+    "disclaimerTitle": "Avètisman IA — Pa Konsey Finansyal",
+    "disclaimerBody": "IA sa a ka fè erè e li pa konstitiye konsey finansyal pwofesyonel. Toujou konsil yon konsèyè finansyal otorize anvan ou fè desizyon finansyal. Repons yo baze sou done kont ou e yo ka eneksak.",
+    "emptyPrompt": "Poze m' nenpot kesyon sou finansyal ou — revni, depans, objektif oswa bezwen planifye.",
+    "inputPlaceholder": "Poze yon kesyon sou finansyal ou…",
+    "notAdviceTag": "⚠️ Pa konsey finansyal pwofesyonel",
+    "authRequired": "Tanpri konekte pou itilize konsèyè finansyal la.",
+    "error": "Sèvis IA a pa disponib pandan tan. Tanpri eseye ankò.",
+    "windowLabel": "Fenèt analiz"
   }
 }
