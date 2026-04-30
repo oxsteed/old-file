@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS support_sla_targets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   priority VARCHAR(20) NOT NULL, -- low, normal, high, urgent
   first_response_target_minutes INTEGER NOT NULL, -- Target for first agent response
   resolution_target_hours INTEGER NOT NULL, -- Target for complete resolution
@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_support_sla_targets_business ON support_sla_targe
 CREATE TABLE IF NOT EXISTS conversation_metrics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   agent_id UUID REFERENCES support_agents(id) ON DELETE SET NULL,
   first_response_time_seconds INTEGER, -- Time from ticket creation to first agent response
   resolution_time_seconds INTEGER, -- Time from creation to resolution
@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_conversation_metrics_created ON conversation_metr
 CREATE TABLE IF NOT EXISTS satisfaction_surveys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   agent_id UUID REFERENCES support_agents(id) ON DELETE SET NULL,
   rating INTEGER, -- 1-5 scale
@@ -68,7 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_satisfaction_surveys_responded ON satisfaction_su
 CREATE TABLE IF NOT EXISTS agent_daily_performance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_id UUID NOT NULL REFERENCES support_agents(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   performance_date DATE NOT NULL,
   conversations_handled INTEGER DEFAULT 0,
   conversations_resolved INTEGER DEFAULT 0,
@@ -94,7 +94,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_daily_performance_date ON agent_daily_perfo
 -- Business daily support metrics (aggregated)
 CREATE TABLE IF NOT EXISTS business_daily_metrics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   metric_date DATE NOT NULL,
   total_conversations_created INTEGER DEFAULT 0,
   total_conversations_resolved INTEGER DEFAULT 0,

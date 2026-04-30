@@ -4,7 +4,6 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
-const emailService = require('../services/email');
 
 // ────────────────────────────────────────────────────────────
 // PUBLIC ENDPOINTS

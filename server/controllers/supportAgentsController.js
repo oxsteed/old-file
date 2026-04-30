@@ -1,7 +1,7 @@
 // Support Agents Controller
 // Manages agent lifecycle: hiring, onboarding, status changes, availability tracking
 
-const { query } = require('../db');
+const pool = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 
@@ -12,7 +12,7 @@ async function listAgents(req, res) {
     const { status, role, department } = req.query;
 
     // Verify user has access to this business
-    const access = await query(
+    const access = await pool.query(
       'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
       [businessId, req.user.id, JSON.stringify([req.user.id])]
     );
@@ -47,7 +47,7 @@ async function listAgents(req, res) {
 
     sql += ' ORDER BY sa.created_at DESC';
 
-    const result = await query(sql, params);
+    const result = await pool.query(sql, params);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     logger.error('listAgents error', { error: err.message });
@@ -60,7 +60,7 @@ async function getAgent(req, res) {
   try {
     const { agentId } = req.params;
 
-    const result = await query(
+    const result = await pool.query(
       `SELECT
         sa.id, sa.business_id, sa.user_id,
         u.name, u.email, u.avatar_url,
@@ -80,7 +80,7 @@ async function getAgent(req, res) {
 
     // Verify access (business owner/admin or the agent themselves)
     if (req.user.id !== agent.user_id) {
-      const access = await query(
+      const access = await pool.query(
         'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
         [agent.business_id, req.user.id, JSON.stringify([req.user.id])]
       );
@@ -88,7 +88,7 @@ async function getAgent(req, res) {
     }
 
     // Get agent skills
-    const skillsResult = await query(
+    const skillsResult = await pool.query(
       `SELECT skill_name, proficiency_level, years_of_experience, verified
        FROM agent_skills WHERE agent_id = $1 ORDER BY skill_name`,
       [agentId]
@@ -118,14 +118,14 @@ async function hireAgent(req, res) {
     }
 
     // Verify user is business owner/admin
-    const access = await query(
+    const access = await pool.query(
       'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
       [businessId, req.user.id, JSON.stringify([req.user.id])]
     );
     if (!access.rows.length) return sendError(res, 403, 'Access denied');
 
     // Get application
-    const appResult = await query(
+    const appResult = await pool.query(
       'SELECT * FROM agent_applications WHERE id = $1 AND business_id = $2',
       [applicationId, businessId]
     );
@@ -137,7 +137,7 @@ async function hireAgent(req, res) {
     }
 
     // Check if user is already an agent for this business
-    const existing = await query(
+    const existing = await pool.query(
       'SELECT id FROM support_agents WHERE user_id = $1 AND business_id = $2',
       [app.user_id, businessId]
     );
@@ -146,7 +146,7 @@ async function hireAgent(req, res) {
     }
 
     // Create agent record
-    const agentResult = await query(
+    const agentResult = await pool.query(
       `INSERT INTO support_agents
        (business_id, user_id, hire_date, status, role)
        VALUES ($1, $2, CURRENT_TIMESTAMP, 'active', 'agent')
@@ -155,7 +155,7 @@ async function hireAgent(req, res) {
     );
 
     // Update application status
-    await query(
+    await pool.query(
       `UPDATE agent_applications
        SET status = 'hired', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
        WHERE id = $2`,
@@ -183,21 +183,21 @@ async function updateAgentStatus(req, res) {
     }
 
     // Get agent and verify access
-    const agentResult = await query(
+    const agentResult = await pool.query(
       'SELECT business_id FROM support_agents WHERE id = $1',
       [agentId]
     );
     if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
 
     const { business_id } = agentResult.rows[0];
-    const access = await query(
+    const access = await pool.query(
       'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
       [business_id, req.user.id, JSON.stringify([req.user.id])]
     );
     if (!access.rows.length) return sendError(res, 403, 'Access denied');
 
     // Update status
-    const result = await query(
+    const result = await pool.query(
       `UPDATE support_agents SET status = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 RETURNING *`,
       [status, agentId]
@@ -223,7 +223,7 @@ async function setAgentAvailability(req, res) {
     }
 
     // Get agent
-    const agentResult = await query(
+    const agentResult = await pool.query(
       'SELECT * FROM support_agents WHERE id = $1',
       [agentId]
     );
@@ -233,7 +233,7 @@ async function setAgentAvailability(req, res) {
 
     // Verify access (agent themselves or manager)
     if (req.user.id !== agent.user_id) {
-      const access = await query(
+      const access = await pool.query(
         'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
         [agent.business_id, req.user.id, JSON.stringify([req.user.id])]
       );
@@ -241,7 +241,7 @@ async function setAgentAvailability(req, res) {
     }
 
     // Update availability
-    const result = await query(
+    const result = await pool.query(
       `UPDATE support_agents SET is_available = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 RETURNING *`,
       [isAvailable, agentId]
@@ -249,7 +249,7 @@ async function setAgentAvailability(req, res) {
 
     // Log availability change
     const status = isAvailable ? 'available' : 'offline';
-    await query(
+    await pool.query(
       `INSERT INTO agent_availability_log (agent_id, status, reason)
        VALUES ($1, $2, $3)`,
       [agentId, status, reason || null]
@@ -280,14 +280,14 @@ async function addAgentSkill(req, res) {
     }
 
     // Check agent exists
-    const agentResult = await query(
+    const agentResult = await pool.query(
       'SELECT id FROM support_agents WHERE id = $1',
       [agentId]
     );
     if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
 
     // Insert or update skill
-    const result = await query(
+    const result = await pool.query(
       `INSERT INTO agent_skills (agent_id, skill_name, proficiency_level, years_of_experience)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (agent_id, skill_name) DO UPDATE SET
@@ -312,7 +312,7 @@ async function getAvailabilityLog(req, res) {
     const { agentId } = req.params;
     const { limit = 50 } = req.query;
 
-    const result = await query(
+    const result = await pool.query(
       `SELECT * FROM agent_availability_log
        WHERE agent_id = $1
        ORDER BY status_changed_at DESC

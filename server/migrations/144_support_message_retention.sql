@@ -1,28 +1,19 @@
--- Migration 144: Support Messages with 180-day Auto-Retention
--- Stores all customer-agent chat conversations with auto-expiry timestamps
--- GDPR/CCPA compliant: Messages auto-delete after 180 days
+-- Migration 144: Idempotent retention columns for support_messages (046 table may predate 140)
+ALTER TABLE support_messages
+  ADD COLUMN IF NOT EXISTS sender_type VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS message_type VARCHAR(50) DEFAULT 'text',
+  ADD COLUMN IF NOT EXISTS metadata JSONB,
+  ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '180 days',
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
-CREATE TABLE IF NOT EXISTS support_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ticket_id UUID NOT NULL,
-  sender_type VARCHAR(20) NOT NULL CHECK (sender_type IN ('customer', 'agent', 'system')),
-  sender_id UUID,
-  sender_name VARCHAR(255),
-  content TEXT NOT NULL,
-  message_type VARCHAR(50) DEFAULT 'text',
-  metadata JSONB,
-  created_at TIMESTAMP DEFAULT NOW(),
-  expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '180 days',
-  deleted_at TIMESTAMP
-);
+UPDATE support_messages
+SET sender_type = CASE WHEN is_from_admin THEN 'agent' ELSE 'customer' END
+WHERE sender_type IS NULL;
 
--- Indexes for efficient querying
-CREATE INDEX IF NOT EXISTS idx_support_messages_ticket_id ON support_messages(ticket_id);
+ALTER TABLE IF EXISTS support_conversations
+  ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMP DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_support_messages_expires_at ON support_messages(expires_at);
 CREATE INDEX IF NOT EXISTS idx_support_messages_created_at ON support_messages(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_support_messages_sender_id ON support_messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_support_messages_soft_delete ON support_messages(deleted_at) WHERE deleted_at IS NOT NULL;
-
--- Add retention tracking columns to support_conversations if needed
-ALTER TABLE IF EXISTS support_conversations
-ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMP DEFAULT NOW();

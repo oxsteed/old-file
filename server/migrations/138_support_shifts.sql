@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS agent_shifts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agent_id UUID NOT NULL REFERENCES support_agents(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   shift_date DATE NOT NULL,
   scheduled_start TIME,
   scheduled_end TIME,
@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_shifts_agent_date ON agent_shifts(agent_id,
 -- Shift templates (recurring schedules)
 CREATE TABLE IF NOT EXISTS shift_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   agent_id UUID NOT NULL REFERENCES support_agents(id) ON DELETE CASCADE,
   day_of_week INTEGER, -- 0=Sunday, 6=Saturday
   start_time TIME,
@@ -47,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_shift_templates_business ON shift_templates(busin
 CREATE TABLE IF NOT EXISTS agent_availability_snapshots (
   id BIGSERIAL PRIMARY KEY,
   agent_id UUID NOT NULL REFERENCES support_agents(id) ON DELETE CASCADE,
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   is_clocked_in BOOLEAN DEFAULT FALSE,
   current_chat_count INTEGER DEFAULT 0,
   max_concurrent_chats INTEGER DEFAULT 3,
@@ -66,7 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_availability_snapshots_recorded ON agent_av
 -- Break types configuration
 CREATE TABLE IF NOT EXISTS break_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
   break_name VARCHAR(100) NOT NULL,
   duration_minutes INTEGER NOT NULL,
   max_per_shift INTEGER DEFAULT 1,

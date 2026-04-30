@@ -26,12 +26,13 @@ CREATE TABLE IF NOT EXISTS payout_methods (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   verified_at TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT unique_primary_method_per_helper UNIQUE (helper_id) WHERE is_primary = TRUE,
   CONSTRAINT method_type_check CHECK (method_type IN ('bank_account', 'paypal', 'stripe_connect'))
 );
 
 CREATE INDEX idx_payout_methods_helper_id ON payout_methods(helper_id);
 CREATE INDEX idx_payout_methods_status ON payout_methods(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payout_methods_one_primary_per_helper
+  ON payout_methods(helper_id) WHERE is_primary = TRUE;
 
 -- Extend affiliate_payouts table with additional fields
 ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS payout_method_id UUID REFERENCES payout_methods(id);

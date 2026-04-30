@@ -70,7 +70,7 @@ exports.createConversation = async (req, res) => {
 
       const assignQuery = `
         UPDATE support_conversations
-        SET assigned_agent_id = $1, status = 'assigned'
+        SET agent_id = $1, status = 'in_progress', assigned_at = NOW()
         WHERE id = $2
       `;
       await pool.query(assignQuery, [assignedAgentId, ticketId]);
@@ -100,7 +100,7 @@ exports.createConversation = async (req, res) => {
       // Queue status update
       const queueQuery = `
         UPDATE support_conversations
-        SET status = 'waiting_agent', queued_at = NOW()
+        SET status = 'waiting_for_agent', updated_at = NOW()
         WHERE id = $1
       `;
       await pool.query(queueQuery, [ticketId]);
@@ -138,10 +138,11 @@ exports.getConversation = async (req, res) => {
     const query = `
       SELECT
         sc.id, sc.customer_id, sc.business_id, sc.subject, sc.category,
-        sc.priority, sc.status, sc.assigned_agent_id, sc.created_at,
-        sa.first_name as agent_first_name, sa.last_name as agent_last_name, sa.email as agent_email
+        sc.priority, sc.status, sc.agent_id, sc.created_at,
+        u.first_name as agent_first_name, u.last_name as agent_last_name, u.email as agent_email
       FROM support_conversations sc
-      LEFT JOIN support_agents sa ON sc.assigned_agent_id = sa.id
+      LEFT JOIN support_agents sa ON sc.agent_id = sa.id
+      LEFT JOIN users u ON sa.user_id = u.id
       WHERE sc.id = $1
     `;
 
@@ -194,7 +195,7 @@ exports.sendMessage = async (req, res) => {
       RETURNING id, created_at
     `;
 
-    const result = await db.query(messageQuery, [
+    const result = await pool.query(messageQuery, [
       ticketId,
       senderType,
       senderId,
@@ -207,9 +208,9 @@ exports.sendMessage = async (req, res) => {
       const updateQuery = `
         UPDATE support_conversations
         SET status = 'in_progress', updated_at = NOW(), last_message_at = NOW()
-        WHERE id = $1 AND status = 'waiting_customer'
+        WHERE id = $1 AND status = 'waiting_for_customer'
       `;
-      await db.query(updateQuery, [ticketId]);
+      await pool.query(updateQuery, [ticketId]);
     } else {
       // Update last_message_at for any message
       const updateQuery = `
@@ -217,7 +218,7 @@ exports.sendMessage = async (req, res) => {
         SET last_message_at = NOW()
         WHERE id = $1
       `;
-      await db.query(updateQuery, [ticketId]);
+      await pool.query(updateQuery, [ticketId]);
     }
 
     // Broadcast message to ticket room via WebSocket
@@ -255,7 +256,7 @@ exports.updateStatus = async (req, res) => {
     const { ticketId } = req.params;
     const { status } = req.body;
 
-    const validStatuses = ['open', 'assigned', 'in_progress', 'waiting_customer', 'resolved', 'closed'];
+    const validStatuses = ['open', 'in_progress', 'waiting_for_customer', 'waiting_for_agent', 'resolved', 'closed', 'escalated'];
     if (!validStatuses.includes(status)) {
       return sendValidationError(res, { status: 'Invalid status' });
     }
@@ -294,8 +295,10 @@ exports.assignToAgent = async (req, res) => {
 
     // Verify agent exists and has capacity
     const agentQuery = `
-      SELECT id, first_name, last_name FROM support_agents
-      WHERE id = $1 AND is_active = true
+      SELECT sa.id, u.first_name, u.last_name, u.email
+      FROM support_agents sa
+      JOIN users u ON sa.user_id = u.id
+      WHERE sa.id = $1 AND sa.is_active = true AND sa.status = 'active'
     `;
     const agentResult = await pool.query(agentQuery, [agentId]);
     if (agentResult.rows.length === 0) {
@@ -305,7 +308,7 @@ exports.assignToAgent = async (req, res) => {
     // Assign
     const assignQuery = `
       UPDATE support_conversations
-      SET assigned_agent_id = $1, status = 'assigned', updated_at = NOW()
+      SET agent_id = $1, status = 'in_progress', assigned_at = NOW(), updated_at = NOW()
       WHERE id = $2
       RETURNING *
     `;
