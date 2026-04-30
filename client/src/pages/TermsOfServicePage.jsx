@@ -7,7 +7,7 @@ import './TermsOfServicePage.css';
 
 export default function TermsOfServicePage() {
   const { t, i18n } = useTranslation();
-  const [document, setDocument] = useState(null);
+  const [legalDocument, setLegalDocument] = useState(null);
   const [sections, setSections] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDiffViewer, setShowDiffViewer] = useState(false);
@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
           params: { language: i18n.language },
         });
 
-        setDocument(data.document);
+        setLegalDocument(data.document);
         setSections(data.sections || []);
         setUserAccepted(data.document.userAccepted);
       } catch (err) {
@@ -67,7 +67,8 @@ export default function TermsOfServicePage() {
 
   useEffect(() => {
     const onScroll = () => {
-      const docH = document.documentElement.scrollHeight - window.innerHeight;
+      const docH =
+        globalThis.document.documentElement.scrollHeight - window.innerHeight;
       const pct = docH <= 0 ? 100 : (window.scrollY / docH) * 100;
       const clamped = Math.min(100, Math.max(0, pct));
       setScrollProgress(clamped);
@@ -126,7 +127,7 @@ export default function TermsOfServicePage() {
         return;
       }
 
-      await api.post(`/legal/documents/${document.id}/accept`, {
+      await api.post(`/legal/documents/${legalDocument.id}/accept`, {
         firstName,
         lastName,
       });
@@ -167,12 +168,12 @@ export default function TermsOfServicePage() {
   return (
     <div className="terms-page terms-visual">
       <header className="terms-header terms-header-span">
-        <h1>{document?.title || 'Terms of Service'}</h1>
+        <h1>{legalDocument?.title || 'Terms of Service'}</h1>
         <p>
-          {document?.lastUpdated
-            ? `${t('terms.lastUpdated', 'Last updated')} ${new Date(document.lastUpdated).toLocaleDateString()}`
+          {legalDocument?.lastUpdated
+            ? `${t('terms.lastUpdated', 'Last updated')} ${new Date(legalDocument.lastUpdated).toLocaleDateString()}`
             : ''}
-          {document?.version != null && ` • ${t('terms.version', 'Version')} ${document.version}`}
+          {legalDocument?.version != null && ` • ${t('terms.version', 'Version')} ${legalDocument.version}`}
         </p>
       </header>
 
@@ -323,7 +324,7 @@ export default function TermsOfServicePage() {
       </main>
 
       {showDiffViewer && (
-        <VersionDiffModal documentId={document?.id} onClose={() => setShowDiffViewer(false)} />
+        <VersionDiffModal documentId={legalDocument?.id} onClose={() => setShowDiffViewer(false)} />
       )}
     </div>
   );
