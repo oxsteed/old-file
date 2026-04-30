@@ -3421,14 +3421,15 @@
     },
     "consulting": {
       "heading": "Conseil en Ascension Commerciale",
-      "subcopy": "Pour les personnes compétentes qui sont prêtes à transformer ce qu'elles savent déjà faire en un vrai service commercial local.",
+      "subcopy": "Pour les personnes compétentes prêtes à construire une entreprise locale stable à partir de ce qu'elles savent déjà—tout en devenant partie d'quelque chose de plus grand.",
       "title": "Conseil en Ascension Commerciale",
-      "subtitle1": "Trop de personnes compétentes restent invisibles",
-      "desc1": "Des millions de personnes savent comment nettoyer, réparer, déménager, installer, organiser, enseigner, conduire, cuisiner et résoudre des problèmes. Mais savoir comment faire quelque chose et savoir comment en faire un métier ne sont pas la même chose.",
-      "subtitle2": "Nous croyons que la propriété entrepreneuriale devrait être accessible",
-      "desc2": "Tout le monde ne commence pas avec du capital, des connexions ou une formation commerciale. Mais beaucoup de personnes ont déjà quelque chose de précieux : une compétence qui résout des problèmes réels. OxSteed existe pour aider les gens à commencer à partir de là. La mission est simple : donner aux gens ordinaires la possibilité de passer de savoir comment faire quelque chose à posséder leur propre entreprise à long terme.",
+      "subtitle1": "De nombreuses personnes capables restent invisibles, bien que leur travail maintienne les communautés vivantes.",
+      "desc1": "Chaque jour, les gens nettoient, réparent, organisent, enseignent, cuisinent et résolvent des problèmes réels et pratiques. Ces compétences ont une valeur non seulement individuellement, mais collectivement. Pourtant, transformer cette valeur en une entreprise durable peut sembler hors de portée sans le bon soutien.",
+      "subtitle2": "Nous croyons que la propriété devrait être accessible—et partagée.",
+      "desc2": "Tout le monde ne commence pas avec du capital, des connexions ou une formation formelle. Mais beaucoup ont déjà une compétence dont d'autres dépendent. OxSteed existe pour aider les gens à construire à partir de cette base, étape par étape, vers quelque chose de stable et durable. En chemin, ils ne sont pas seuls—ils font partie d'un réseau croissant de personnes faisant la même chose.",
       "ctaButton": "Planifier une Séance de Conseil",
-      "ctaSubtext": "Consultation initiale de 100 $ (jusqu'à 2 heures)"
+      "ctaPrice": "100 $ pour une consultation initiale (jusqu'à 2 heures)",
+      "ctaSubtext": "L'objectif est simple : aider les gens à passer de faire le travail à le posséder, tout en renforçant les communautés qu'ils servent."
     },
     "cta": {
       "title": "Prêt à commencer ?",

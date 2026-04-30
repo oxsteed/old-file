@@ -3420,14 +3420,15 @@
     },
     "consulting": {
       "heading": "Konsèy Asansyon Biznis",
-      "subcopy": "Pou moun ki gen kapasite ki pare vire sa yo konnen deja fè an yon vrè sèvis biznis lokal.",
+      "subcopy": "Pou moun ki gen kapasite pare bati yon biznis lokal estab a soti nan sa yo konnen deja—pandan y ap vin pati yon bagay pi gwo.",
       "title": "Konsèy Asansyon Biznis",
-      "subtitle1": "Twòp moun ki gen kapasite yo rete envisib",
-      "desc1": "Milyon moun konnen ki jan yo genyen ke netwaye, repare, deplase, instale, òganize, anseye, kondwi, kwit ak rezoud pwoblèm. Men konnen ki jan fè yon bagay ak konnen ki jan vire li an nèg se pa menm bagay.",
-      "subtitle2": "Nou kwè ke pwopriyete biznis ta dwe aksesib",
-      "desc2": "Se pa tout moun ki kòmanse ak kapital, koneksyon oswa fòmasyon biznis. Men anpil moun genyen deja yon bagay ki gen valè: yon kapasite ki rezoud pwoblèm reyèl. OxSteed egziste pou èd moun yo kòmanse soti nan la. Misyon an se senp: bay moun òdinè a opòtinite a al soti nan konnen ki jan fè yon bagay a posede pwòp biznis yo pou lontan.",
+      "subtitle1": "Anpil moun kapab yo pa wè, menm si travay yo kenbe kominote yo vivan.",
+      "desc1": "Chak jou, moun yo netwaye, repare, òganize, anseye, kwit, ak rezoud pwoblèm reyèl ak prakti. Kapasite sa yo gen valè pa sèlman nan fason endividyèl, men kolektif tou. Sepandan, vire valè sa a an yon biznis soutenabl kapab sanble enpòsib san sipò dwèt.",
+      "subtitle2": "Nou kwè ke pwopriyete ta dwe aksesib—ak pataje.",
+      "desc2": "Se pa tout moun ki kòmanse ak kapital, koneksyon oswa fòmasyon fòmèl. Men anpil genyen deja yon kapasite ke lòt depand sou. OxSteed egziste pou ede moun bati soti nan fondasyon sa a, etap pa etap, an yon bagay estab ak kal. Sou wout lan, yo pa sèl—yo pati yon rezo ki ap grandi nan moun ap fè menm bagay.",
       "ctaButton": "Planifye Sesyon Konsèy",
-      "ctaSubtext": "Konsiltasyon inisyal $100 (jiska 2 èdtan)"
+      "ctaPrice": "$100 konsiltasyon inisyal (jiska 2 èdtan)",
+      "ctaSubtext": "Objektif la senp: ede moun yo pase nan fè travay nan pwopriye li, pandan y ap ranfòse kominote yo sèvi yo."
     },
     "cta": {
       "title": "Pare pou kòmanse?",

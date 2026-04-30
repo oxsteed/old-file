@@ -3422,14 +3422,15 @@
     },
     "consulting": {
       "heading": "Business Ascension Consulting",
-      "subcopy": "For skilled people who are ready to turn what they already know how to do into a real local service business.",
+      "subcopy": "For skilled individuals ready to build a stable, local business from what they already know—while becoming part of something larger.",
       "title": "Business Ascension Consulting",
-      "subtitle1": "Too many skilled people stay invisible",
-      "desc1": "Millions of people know how to clean, repair, move, install, organize, teach, drive, cook, and solve problems. But knowing how to do something and knowing how to turn it into a business are not the same.",
-      "subtitle2": "We believe ownership should be reachable",
-      "desc2": "Not everyone starts with capital, connections, or business training. But many people already have something valuable: a skill that solves real problems. OxSteed exists to help people start there. The mission is simple: give regular people the opportunity to go from knowing how to do something to owning their own business in the long term.",
+      "subtitle1": "Many capable people go unseen, even though their work keeps communities running.",
+      "desc1": "Every day, people clean, repair, organize, teach, cook, and solve real, practical problems. These skills have value not just individually, but collectively. Yet turning that value into a sustainable business can feel out of reach without the right support.",
+      "subtitle2": "We believe ownership should be accessible—and shared.",
+      "desc2": "Not everyone starts with capital, connections, or formal training. But many already have a skill that others depend on. OxSteed exists to help people build from that foundation, step by step, into something steady and lasting. Along the way, they're not alone—they're part of a growing network of people doing the same.",
       "ctaButton": "Schedule Consulting Session",
-      "ctaSubtext": "$100 initial consultation (up to 2 hours)"
+      "ctaPrice": "$100 initial consultation (up to 2 hours)",
+      "ctaSubtext": "The goal is simple: help people move from doing the work to owning it, while strengthening the communities they serve."
     },
     "cta": {
       "title": "Post your skills.",

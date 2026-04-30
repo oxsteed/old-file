@@ -576,24 +576,33 @@ export default function HomePage() {
             </p>
           </div>
           <div className="hp-consulting-grid">
-            <div className="hp-consulting-block">
+            <div className="hp-consulting-block" style={{'--icon': '👥'} as React.CSSProperties}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--hp-primary)', opacity: 0.7, marginBottom: '0.5rem' }} aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              </svg>
               <h3 className="hp-consulting-subtitle">{t('homePage.consulting.subtitle1')}</h3>
               <p className="hp-consulting-text">{t('homePage.consulting.desc1')}</p>
             </div>
-            <div className="hp-consulting-block">
+            <div className="hp-consulting-block" style={{'--icon': '🚀'} as React.CSSProperties}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--hp-primary)', opacity: 0.7, marginBottom: '0.5rem' }} aria-hidden="true">
+                <path d="M4.5 16.5c-1.5-1.26-2-5-2-8.5a9 9 0 0 1 18 0c0 3.5-.5 7.26-2 8.5M12 8v5M8 13h8"/>
+              </svg>
               <h3 className="hp-consulting-subtitle">{t('homePage.consulting.subtitle2')}</h3>
               <p className="hp-consulting-text">{t('homePage.consulting.desc2')}</p>
             </div>
           </div>
           <div className="hp-consulting-cta">
-            <Link
-              to="/consulting-intake"
-              className="hp-btn hp-btn-primary hp-btn-lg hp-consulting-btn"
-              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              {t('homePage.consulting.ctaButton')}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-            </Link>
+            <div>
+              <Link
+                to="/consulting-intake"
+                className="hp-btn hp-btn-primary hp-btn-lg hp-consulting-btn"
+                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                {t('homePage.consulting.ctaButton')}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+              </Link>
+              <p className="hp-consulting-price">{t('homePage.consulting.ctaPrice')}</p>
+            </div>
             <p className="hp-consulting-subtext">{t('homePage.consulting.ctaSubtext')}</p>
           </div>
         </div>
