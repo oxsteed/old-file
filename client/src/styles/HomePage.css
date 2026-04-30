@@ -703,11 +703,12 @@
 }
 
 .hp-consulting-price {
-  font-size: .875rem;
+  font-size: 0.9rem;
   color: var(--hp-primary);
   font-weight: 600;
-  margin-top: -0.75rem;
-  letter-spacing: 0.2px;
+  margin-top: 0.5rem;
+  letter-spacing: 0.3px;
+  display: block;
 }
 
 .hp-consulting-subtext {
