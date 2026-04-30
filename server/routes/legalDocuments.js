@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireAdmin } = require('../middleware/auth');
-const { rateLimiter } = require('../middleware/rateLimiter');
+const { termsLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
 
 // ────────────────────────────────────────────────────────────
@@ -16,31 +16,31 @@ const legalController = require('../controllers/legalDocumentsController');
  * Fetch published legal document
  * Optional: ?language=en (defaults to 'en')
  */
-router.get('/documents/:category', rateLimiter, legalController.getLegalDocument);
+router.get('/documents/:category', legalController.getLegalDocument);
 
 /**
  * GET /api/legal/documents/:id/history
  * Fetch version history
  */
-router.get('/documents/:id/history', rateLimiter, legalController.getDocumentHistory);
+router.get('/documents/:id/history', legalController.getDocumentHistory);
 
 /**
  * GET /api/legal/documents/:id/version/:versionNumber
  * Fetch specific version
  */
-router.get('/documents/:id/version/:versionNumber', rateLimiter, legalController.getDocumentVersion);
+router.get('/documents/:id/version/:versionNumber', legalController.getDocumentVersion);
 
 /**
  * POST /api/legal/documents/:id/accept
  * User accepts a document with electronic signature
  */
-router.post('/documents/:id/accept', authenticate, rateLimiter, legalController.acceptDocument);
+router.post('/documents/:id/accept', authenticate, termsLimiter, legalController.acceptDocument);
 
 /**
  * GET /api/legal/my-acceptances
  * Fetch user's acceptance history
  */
-router.get('/my-acceptances', authenticate, rateLimiter, legalController.getUserAcceptances);
+router.get('/my-acceptances', authenticate, termsLimiter, legalController.getUserAcceptances);
 
 // ────────────────────────────────────────────────────────────
 // ADMIN ROUTES
