@@ -22,7 +22,7 @@ import JobListPage from './pages/JobListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import PostJobPage from './pages/PostJobPage';
 import NotFoundPage from './pages/NotFoundPage';
-import TermsPage from './pages/terms';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import PrivacyPage from './pages/privacy';
 import DoNotSellPage from './pages/donotsell';
 import SecurityPage from './pages/security';
@@ -147,7 +147,7 @@ export default function App() {
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
-                    <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
+                    <Route path="/terms"          element={<Guarded><TermsOfServicePage /></Guarded>} />
                     <Route path="/privacy"        element={<Guarded><PrivacyPage /></Guarded>} />
                     <Route path="/do-not-sell"    element={<Guarded><DoNotSellPage /></Guarded>} />
                     <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />

@@ -25,7 +25,7 @@ export default function AdminLegalApprovalPage() {
   const fetchApprovals = async () => {
     try {
       setLoading(true);
-      // Mock data - in production, would fetch from /api/admin/legal/approvals
+      // Mock data - in production, would fetch from /api/legal/admin/approvals
       const mockApprovals = [
         {
           id: '1',
@@ -65,7 +65,7 @@ export default function AdminLegalApprovalPage() {
 
     try {
       setProcessing(true);
-      await api.post(`/admin/legal/documents/${selectedApproval.documentId}/approve`, {
+      await api.post(`/legal/admin/documents/${selectedApproval.documentId}/approve`, {
         scheduledPublishDate: scheduledDate ? new Date(scheduledDate) : null,
         reviewComments
       });

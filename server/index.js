@@ -92,6 +92,7 @@ const calendarRoutes = require('./routes/calendar');
 const marketplaceProductsRoutes = require('./routes/marketplaceProducts');
 const shoppingCartsRoutes = require('./routes/shoppingCarts');
 const sharedCartsRoutes = require('./routes/sharedCarts');
+const legalDocumentsRoutes = require('./routes/legalDocuments');
 // roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
@@ -452,6 +453,7 @@ app.use('/api/api-products', apiProductsRoutes);
 app.use('/api/affiliate', affiliatePayoutsRoutes);
 app.use('/api/notifications/email', emailPreferencesRoutes);
 app.use('/api/notifications/sms', smsNotificationsRoutes);
+app.use('/api/legal', legalDocumentsRoutes);
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 

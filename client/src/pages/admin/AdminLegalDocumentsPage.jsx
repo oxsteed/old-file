@@ -22,9 +22,7 @@ export default function AdminLegalDocumentsPage() {
   const fetchDocuments = async () => {
     try {
       setLoading(true);
-      // This would call a new GET /api/admin/legal/documents endpoint
-      // For now, using placeholder
-      const { data } = await api.get('/admin/legal/documents', {
+      const { data } = await api.get('/legal/admin/documents', {
         params: { status: selectedStatus !== 'all' ? selectedStatus : undefined }
       });
       setDocuments(data.documents || []);

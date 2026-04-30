@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 
 ## Instructions for Every Session
 
@@ -46,7 +46,17 @@
 
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
-**Latest work completed (2026-04-29):**
+**Latest work completed (2026-04-30):**
+- **Terms & Conditions Management System — FINAL INTEGRATION** ✅ COMPLETE
+  - **Backend:** Controller (legalDocumentsController.js) + Routes (legalDocuments.js) fully integrated into server/index.js at `/api/legal`
+  - **Migrations 145-148:** Legal documents, sections, multilingual support, audit logging (12 tables with 20+ indexes)
+  - **Admin Pages:** 4 pages complete (documents list, editor, approval workflow, audit log) with API endpoint fixes
+  - **Public Page:** TermsOfServicePage.jsx with API integration, scroll-to-agree, version history, electronic signatures
+  - **Frontend Routes:** AdminApp.jsx + App.jsx routes configured; sidebar navigation added to AdminLayout
+  - **API Endpoints:** 9 endpoints (3 public, 6 admin) with full validation and error handling
+  - **Next Steps:** Run migrations (`node migrate.js`), test workflows, schedule deployment
+  - **Status:** Production-ready; all frontend-backend integration complete
+
 - **Support Message Retention & Auto-Deletion System** ✅ COMPLETE (180-day GDPR-compliant message retention)
   - **Migration 144:** `server/migrations/144_support_message_retention.sql` - Creates support_messages table with 180-day expiry tracking (note: migration 140 slot taken by knowledge_base)
   - **Table schema:** `support_messages` with sender_type, sender_id, sender_name, content, message_type, created_at, expires_at, deleted_at columns

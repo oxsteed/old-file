@@ -14,6 +14,7 @@ import {
 
 const REGULAR_NAV = [
   { to: '/admin/dashboard',        icon: LayoutDashboard, label: 'Dashboard'        },
+  { to: '/admin/legal/documents',  icon: FileText,        label: 'Legal Documents'  },
   { to: '/admin/users',            icon: Users,           label: 'Users'            },
   { to: '/admin/jobs',             icon: Briefcase,       label: 'Jobs'             },
   { to: '/admin/reports',          icon: Flag,            label: 'Reports'          },

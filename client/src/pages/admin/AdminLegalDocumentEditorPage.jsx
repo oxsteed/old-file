@@ -53,7 +53,7 @@ export default function AdminLegalDocumentEditorPage() {
   const fetchDocument = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get(`/admin/legal/documents/${id}`);
+      const { data } = await api.get(`/legal/admin/documents/${id}`);
       setDocument(data.document);
       setSections(data.sections || []);
     } catch (err) {
@@ -77,17 +77,17 @@ export default function AdminLegalDocumentEditorPage() {
       };
 
       if (isNew) {
-        await api.post('/admin/legal/documents', {
+        await api.post('/legal/admin/documents', {
           category: document.category,
           ...payload
         });
         logger.info('Document created');
       } else {
-        await api.put(`/admin/legal/documents/${id}`, payload);
+        await api.put(`/legal/admin/documents/${id}`, payload);
         logger.info('Document updated');
       }
 
-      navigate('/admin/legal/documents');
+      navigate('/legal/admin/documents');
     } catch (err) {
       logger.error('Failed to save document', { err });
       setError(err.response?.data?.message || 'Failed to save document');
@@ -120,7 +120,7 @@ export default function AdminLegalDocumentEditorPage() {
   const handleRequestApproval = async () => {
     try {
       setSaving(true);
-      await api.post(`/admin/legal/documents/${id}/request-approval`, {
+      await api.post(`/legal/admin/documents/${id}/request-approval`, {
         changeSummary: document.changeSummary,
         changedSections: sections.map(s => s.key)
       });
@@ -164,7 +164,7 @@ export default function AdminLegalDocumentEditorPage() {
               Request Approval
             </button>
           )}
-          <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/admin/legal/documents')}>
+          <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/legal/admin/documents')}>
             <X size={18} />
           </button>
         </div>
@@ -299,7 +299,7 @@ export default function AdminLegalDocumentEditorPage() {
           <Save size={18} />
           {saving ? 'Saving...' : 'Save Draft'}
         </button>
-        <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/admin/legal/documents')}>
+        <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/legal/admin/documents')}>
           Cancel
         </button>
       </div>
