@@ -10,10 +10,20 @@ const api = axios.create({
 // Attach token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
+
+  // Always add Authorization header if token exists
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    // Log missing token for debugging
+    console.warn('[axios] No access token found in localStorage for request:', {
+      method: config.method,
+      url: config.url,
+      headers: config.headers,
+    });
   }
+
   return config;
 });
 

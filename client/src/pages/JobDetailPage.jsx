@@ -154,31 +154,91 @@ export default function JobDetailPage() {
 
   async function handleAssign(bidId) {
     setActionLoading(true);
-    try { await assignHelper(bidId); fetchJob(id); loadBids(); }
-    catch (err) { toast.error(err.response?.data?.error || 'Failed to assign helper'); }
-    finally { setActionLoading(false); }
+    try {
+      await assignHelper(bidId);
+      fetchJob(id);
+      loadBids();
+      toast.success('Helper assigned successfully');
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      toast.error(errorMsg);
+      // Handle auth errors - redirect to login
+      if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {
+        setTimeout(() => navigate('/login'), 2000);
+      }
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleStart() {
     setActionLoading(true);
-    try { await startJob(id); fetchJob(id); }
-    catch (err) { toast.error(err.response?.data?.error || 'Failed to start job'); }
-    finally { setActionLoading(false); }
+    try {
+      await startJob(id);
+      fetchJob(id);
+      toast.success('Job started successfully');
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      toast.error(errorMsg);
+      // Handle auth errors - redirect to login
+      if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {
+        setTimeout(() => navigate('/login'), 2000);
+      }
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleComplete() {
     setActionLoading(true);
-    try { await completeJob(id); fetchJob(id); }
-    catch (err) { toast.error(err.response?.data?.error || 'Failed to complete job'); }
-    finally { setActionLoading(false); }
+    try {
+      await completeJob(id);
+      fetchJob(id);
+      toast.success('Job completed successfully');
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      toast.error(errorMsg);
+      // Handle auth errors - redirect to login
+      if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {
+        setTimeout(() => navigate('/login'), 2000);
+      }
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleCancel() {
     if (!cancelReason.trim()) return;
     setActionLoading(true);
-    try { await cancelJob(id, cancelReason); fetchJob(id); setShowCancelModal(false); }
-    catch (err) { toast.error(err.response?.data?.error || 'Failed to cancel job'); }
-    finally { setActionLoading(false); }
+    try {
+      await cancelJob(id, cancelReason);
+      fetchJob(id);
+      setShowCancelModal(false);
+      toast.success('Job cancelled successfully');
+    } catch (err) {
+      const errorMsg = getErrorMessage(err);
+      toast.error(errorMsg);
+      // Handle auth errors - redirect to login
+      if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {
+        setTimeout(() => navigate('/login'), 2000);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Helper function to extract error message
+  function getErrorMessage(err) {
+    if (err.code === 'NO_TOKEN') {
+      return 'Your session has expired. Please log in again.';
+    }
+    if (err.code === 'AUTH_EXPIRED') {
+      return 'Your session has expired. Redirecting to login...';
+    }
+    if (err.code === 'DISPUTE_OPEN') {
+      return 'Cannot complete job while a payment dispute is open. Resolve the dispute first.';
+    }
+    return err.message || err.response?.data?.error || 'Operation failed. Please try again.';
   }
 
   async function handlePayment() {

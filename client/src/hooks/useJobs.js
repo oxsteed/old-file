@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
+import { withTokenValidation } from '../api/tokenValidator';
 
 export default function useJobs() {
   const [jobs, setJobs] = useState([]);
@@ -66,23 +67,19 @@ export default function useJobs() {
   };
 
   const cancelJob = async (id, reason) => {
-    const { data } = await api.post(`/jobs/${id}/cancel`, { reason });
-    return data;
+    return withTokenValidation(() => api.post(`/jobs/${id}/cancel`, { reason }).then(r => r.data));
   };
 
   const assignHelper = async (bidId) => {
-    const { data } = await api.post('/jobs/assign', { bid_id: bidId });
-    return data;
+    return withTokenValidation(() => api.post('/jobs/assign', { bid_id: bidId }).then(r => r.data));
   };
 
   const startJob = async (id) => {
-    const { data } = await api.post(`/jobs/${id}/start`);
-    return data;
+    return withTokenValidation(() => api.post(`/jobs/${id}/start`).then(r => r.data));
   };
 
   const completeJob = async (id) => {
-    const { data } = await api.post(`/jobs/${id}/complete`);
-    return data;
+    return withTokenValidation(() => api.post(`/jobs/${id}/complete`).then(r => r.data));
   };
 
   // Bids

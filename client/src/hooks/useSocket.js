@@ -19,18 +19,34 @@ export const useSocket = () => {
   const [connected, setConnected] = useState(() => !!socketInstance?.connected);
   const socketRef   = useRef(socketInstance);
 
+  console.log('[useSocket] Hook called, current state:', {
+    hasSocketInstance: !!socketInstance,
+    socketConnected: socketInstance?.connected,
+    connectedState: connected,
+    userId: user?.id,
+  });
+
   // Keep each instance's connected state in sync with the singleton.
   useEffect(() => {
-    const handler = (c) => setConnected(c);
+    const handler = (c) => {
+      console.log('[useSocket] Connected state changed:', c);
+      setConnected(c);
+    };
     connListeners.add(handler);
     return () => connListeners.delete(handler);
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      console.log('[useSocket] No user, skipping socket setup');
+      return;
+    }
+
+    console.log('[useSocket] Setting up socket connection for user:', user.id);
 
     // Reuse existing connected socket — update ref and reflect current state.
     if (socketInstance?.connected) {
+      console.log('[useSocket] Socket already connected, reusing instance');
       socketRef.current = socketInstance;
       setConnected(true);
       return;
@@ -38,6 +54,7 @@ export const useSocket = () => {
 
     // If an instance exists but is disconnected, reconnect it.
     if (socketInstance && !socketInstance.connected) {
+      console.log('[useSocket] Socket exists but disconnected, reconnecting...');
       socketInstance.connect();
       socketRef.current = socketInstance;
       return;
@@ -45,6 +62,7 @@ export const useSocket = () => {
 
     const token = localStorage.getItem('accessToken');
 
+    console.log('[useSocket] Creating new Socket.io connection');
     socketInstance = io(
       import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
       {
@@ -57,17 +75,19 @@ export const useSocket = () => {
     );
 
     socketInstance.on('connect', () => {
+      console.log('[useSocket] Socket connected successfully');
       setConnected(true);
       notifyListeners(true);
     });
 
     socketInstance.on('disconnect', () => {
+      console.log('[useSocket] Socket disconnected');
       setConnected(false);
       notifyListeners(false);
     });
 
     socketInstance.on('connect_error', (err) => {
-      console.error('[Socket] Connection error:', err.message);
+      console.error('[useSocket] Connection error:', err.message, err);
     });
 
     // Server emits this when an admin bans or deactivates the account.
@@ -88,10 +108,15 @@ export const useSocket = () => {
   }, [user]);
 
   const joinConversation = useCallback((conversationId) => {
+    console.log('[useSocket] Emitting conversation:join for:', conversationId, {
+      hasSocket: !!socketRef.current,
+      socketConnected: socketRef.current?.connected,
+    });
     socketRef.current?.emit('conversation:join', conversationId);
   }, []);
 
   const leaveConversation = useCallback((conversationId) => {
+    console.log('[useSocket] Emitting conversation:leave for:', conversationId);
     socketRef.current?.emit('conversation:leave', conversationId);
   }, []);
 

@@ -70,9 +70,20 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
 
   // ── Join / leave socket room ──────────────────────────────────
   useEffect(() => {
-    if (!socket || !connected || !conversationId) return;
+    if (!socket || !connected || !conversationId) {
+      console.log('[useConversationChat] Skipping room join:', {
+        hasSocket: !!socket,
+        connected,
+        conversationId,
+      });
+      return;
+    }
+    console.log('[useConversationChat] Joining conversation room:', conversationId);
     joinConversation(conversationId);
-    return () => leaveConversation(conversationId);
+    return () => {
+      console.log('[useConversationChat] Leaving conversation room:', conversationId);
+      leaveConversation(conversationId);
+    };
   }, [socket, connected, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-scroll ───────────────────────────────────────────────
@@ -105,11 +116,21 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
 
   // ── Real-time events ─────────────────────────────────────────
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log('[useConversationChat] No socket available, skipping listener setup');
+      return;
+    }
+
+    console.log('[useConversationChat] Setting up socket listeners for conversation:', conversationId, { listenProfileChat });
 
     const onMessageNew = ({ conversationId: cid, message }) => {
-      if (String(cid) !== String(conversationId)) return;
+      console.log('[useConversationChat] Received message:new event:', { cid, conversationId, messageId: message?.id });
+      if (String(cid) !== String(conversationId)) {
+        console.log('[useConversationChat] Ignoring message:new - conversation ID mismatch');
+        return;
+      }
       const appended = appendMessageIfNew(message);
+      console.log('[useConversationChat] Message appended:', appended, message?.content?.substring(0, 50));
       if (!appended) return;
       // Only clear "other typing" when the message is from the other party.
       // Our own message echoes would incorrectly hide their typing indicator.
@@ -123,10 +144,15 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     };
 
     const onProfileChatNew = ({ conversationId: cid, message, senderName }) => {
-      if (String(cid) !== String(conversationId)) return;
+      console.log('[useConversationChat] Received profile_chat:new_message event:', { cid, conversationId, messageId: message?.id, senderName });
+      if (String(cid) !== String(conversationId)) {
+        console.log('[useConversationChat] Ignoring profile_chat:new_message - conversation ID mismatch');
+        return;
+      }
       const enriched =
         senderName && !message.sender_name ? { ...message, sender_name: senderName } : message;
       const appended = appendMessageIfNew(enriched);
+      console.log('[useConversationChat] Profile chat message appended:', appended, message?.content?.substring(0, 50));
       if (!appended) return;
       if (enriched.sender_id !== user?.id) {
         clearOtherTyping();
@@ -174,6 +200,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
       );
     };
 
+    console.log('[useConversationChat] Attaching socket listeners');
     socket.on('message:new', onMessageNew);
     socket.on('user:typing', onTyping);
     socket.on('user:stopped_typing', onStoppedTyping);
@@ -181,6 +208,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     socket.on('message:deleted', onMessageDeleted);
     socket.on('message:updated', onMessageUpdated);
     if (listenProfileChat) {
+      console.log('[useConversationChat] Attaching profile_chat:new_message listener');
       socket.on('profile_chat:new_message', onProfileChatNew);
     }
 
@@ -189,6 +217,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     }
 
     return () => {
+      console.log('[useConversationChat] Detaching socket listeners for conversation:', conversationId);
       socket.off('message:new', onMessageNew);
       socket.off('user:typing', onTyping);
       socket.off('user:stopped_typing', onStoppedTyping);
@@ -234,11 +263,13 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     e?.preventDefault();
     const content = newMessage.trim();
     if (!content || sending) return;
+    console.log('[useConversationChat] Sending message:', { conversationId, contentLength: content.length });
     stopTypingEmit();
     setSending(true);
     setNewMessage('');
     try {
       const res = await api.post(`/messages/conversations/${conversationId}`, { content });
+      console.log('[useConversationChat] Message sent successfully, ID:', res.data?.id);
       appendMessageIfNew(res.data);
     } catch (err) {
       console.error('[useConversationChat] send error:', err);
