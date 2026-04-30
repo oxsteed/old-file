@@ -1,25 +1,17 @@
 const db            = require('../db');
 const logger        = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
+const { AppError } = require('../middleware/errorHandler');
 
 // ─── SUBMIT REVIEW ────────────────────────────────────────────
-exports.submitReview = async (req, res) => {
+exports.submitReview = async (req, res, next) => {
   let dbClient;
   try {
     dbClient = await db.connect();
   } catch (connErr) {
     logger.error('submitReview: DB connection failed', { message: connErr.message });
-    return res.status(503).json({ error: 'Database unavailable. Please try again.' });
+    throw new AppError('Database unavailable', 503, 'database_error');
   }
-
-  // Helper: roll back, release, and send an error response.
-  // Nulls dbClient so the finally block's guarded release() is a no-op.
-  const abort = async (status, body) => {
-    try { await dbClient.query('ROLLBACK'); } catch (_) {}
-    dbClient.release();
-    dbClient = null;
-    return res.status(status).json(body);
-  };
 
   try {
     await dbClient.query('BEGIN');
@@ -30,7 +22,7 @@ exports.submitReview = async (req, res) => {
 
     // Validate rating
     if (!rating || rating < 1 || rating > 5) {
-      return abort(400, { error: 'Rating must be between 1 and 5.' });
+      throw new AppError('Rating must be between 1 and 5', 400, 'validation_failed', { rating: 'Rating must be between 1 and 5' });
     }
 
     // Get job — verify reviewer was involved
@@ -47,7 +39,7 @@ exports.submitReview = async (req, res) => {
     `, [jobId, reviewerId]);
 
     if (!jobRows.length) {
-      return abort(403, { error: 'Can only review completed and closed jobs you were part of.' });
+      throw new AppError('Can only review completed and closed jobs you were part of', 403, 'forbidden');
     }
 
     const job = jobRows[0];
@@ -57,7 +49,7 @@ exports.submitReview = async (req, res) => {
     const revieweeId  = isClient ? job.assigned_helper_id : job.client_id;
 
     if (!revieweeId) {
-      return abort(400, { error: 'No reviewee found for this job.' });
+      throw new AppError('No reviewee found for this job', 400, 'invalid_job_state');
     }
 
     // Combine title and body into comment field (DB has 'comment', not 'title'/'body')
@@ -114,17 +106,17 @@ exports.submitReview = async (req, res) => {
   } catch (err) {
     try { await dbClient.query('ROLLBACK'); } catch (_) {}
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'You have already reviewed this job.' });
+      next(new AppError('You have already reviewed this job', 409, 'already_exists'));
+    } else {
+      next(err);
     }
-    logger.error('submitReview error', { userId: req.user?.id, jobId: req.params?.jobId, error: err.message });
-    res.status(500).json({ error: 'Failed to submit review.' });
   } finally {
     if (dbClient) dbClient.release();
   }
 };
 
 // ─── GET REVIEWS FOR A USER ───────────────────────────────────
-exports.getUserReviews = async (req, res) => {
+exports.getUserReviews = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -168,13 +160,12 @@ exports.getUserReviews = async (req, res) => {
       limit:   parseInt(limit)
     });
   } catch (err) {
-    logger.error('getUserReviews error', { userId: req.params?.userId, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch reviews.' });
+    next(err);
   }
 };
 
 // ─── CHECK REVIEW ELIGIBILITY ─────────────────────────────────
-exports.getReviewEligibility = async (req, res) => {
+exports.getReviewEligibility = async (req, res, next) => {
   try {
     const userId  = req.user.id;
     const { jobId } = req.params;
@@ -195,7 +186,7 @@ exports.getReviewEligibility = async (req, res) => {
     `, [jobId, userId]);
 
     if (!rows.length) {
-      return res.status(404).json({ error: 'Job not found.' });
+      throw new AppError('Job not found', 404, 'not_found');
     }
 
     const { status, already_reviewed } = rows[0];
@@ -203,23 +194,24 @@ exports.getReviewEligibility = async (req, res) => {
 
     res.json({ eligible, already_reviewed, job_status: status });
   } catch (err) {
-    logger.error('getReviewEligibility error', { jobId: req.params?.jobId, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to check eligibility.' });
+    next(err);
   }
 };
 
 // ─── ADMIN: HIDE REVIEW ───────────────────────────────────────
-exports.adminHideReview = async (req, res) => {
+exports.adminHideReview = async (req, res, next) => {
   try {
     if (!['admin', 'super_admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required.' });
+      throw new AppError('Admin access required', 403, 'forbidden');
     }
     const adminId = req.user.id;
     const { id }  = req.params;
     const { reason } = req.body;
 
-    if (!reason?.trim()) {
-      return res.status(400).json({ error: 'Hide reason required.' });
+    const fields = {};
+    if (!reason?.trim()) fields.reason = 'Hide reason required';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     const { rows } = await db.query(`
@@ -231,7 +223,7 @@ exports.adminHideReview = async (req, res) => {
     `, [id]);
 
     if (!rows.length) {
-      return res.status(404).json({ error: 'Review not found.' });
+      throw new AppError('Review not found', 404, 'not_found');
     }
 
     // Recalculate helper rating after hiding
@@ -262,20 +254,21 @@ exports.adminHideReview = async (req, res) => {
 
     res.json({ message: 'Review hidden successfully.' });
   } catch (err) {
-    logger.error('adminHideReview error', { reviewId: req.params?.id, adminId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to hide review.' });
+    next(err);
   }
 };
 
 // ─── RESPOND TO REVIEW ────────────────────────────────────────
-exports.respondToReview = async (req, res) => {
+exports.respondToReview = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
     const { response } = req.body;
 
-    if (!response?.trim()) {
-      return res.status(400).json({ error: 'Response text is required.' });
+    const fields = {};
+    if (!response?.trim()) fields.response = 'Response text is required';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Only the reviewee can respond
@@ -291,14 +284,11 @@ exports.respondToReview = async (req, res) => {
     `, [response.trim(), id, userId]);
 
     if (!rows.length) {
-      return res.status(404).json({
-        error: 'Review not found, you are not the reviewee, or already responded.'
-      });
+      throw new AppError('Review not found, you are not the reviewee, or already responded', 404, 'not_found');
     }
 
     res.json({ review: rows[0] });
   } catch (err) {
-    logger.error('respondToReview error', { reviewId: req.params?.id, userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to respond to review.' });
+    next(err);
   }
 };

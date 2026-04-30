@@ -5,13 +5,14 @@ const db = require('../db');
 const { sendPush } = require('../utils/pushNotification');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 const CHECKR_API = 'https://api.checkr.com/v1';
 
 // === CHECKR BACKGROUND CHECK ===
 
 // Initiate background check
-exports.initiateBackgroundCheck = async (req, res) => {
+exports.initiateBackgroundCheck = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { rows: users } = await db.query(
@@ -23,7 +24,7 @@ exports.initiateBackgroundCheck = async (req, res) => {
     const { rows: existing } = await db.query(
       `SELECT id FROM background_checks WHERE user_id = $1 AND status IN ('pending', 'invited', 'in_progress')`, [userId]
     );
-    if (existing.length) return res.status(400).json({ error: 'Background check already in progress.' });
+    if (existing.length) throw new AppError('Background check already in progress', 400, 'invalid_state');
 
     // Create Checkr candidate
     const candidateResponse = await fetch(`${CHECKR_API}/candidates`, {
@@ -42,7 +43,7 @@ exports.initiateBackgroundCheck = async (req, res) => {
     });
     if (!candidateResponse.ok) {
       const text = await candidateResponse.text();
-      throw new Error(`Checkr candidate create failed: ${text}`);
+      throw new AppError(`Checkr candidate creation failed: ${text}`, 502, 'external_service_error');
     }
     const candidateRes = await candidateResponse.json();
 
@@ -60,7 +61,7 @@ exports.initiateBackgroundCheck = async (req, res) => {
     });
     if (!inviteResponse.ok) {
       const text = await inviteResponse.text();
-      throw new Error(`Checkr invitation create failed: ${text}`);
+      throw new AppError(`Checkr invitation creation failed: ${text}`, 502, 'external_service_error');
     }
     const inviteRes = await inviteResponse.json();
 
@@ -84,23 +85,22 @@ exports.initiateBackgroundCheck = async (req, res) => {
 
     res.json({ status: 'invited', message: 'Background check initiated. Check your email.' });
   } catch (err) {
-    logger.error('Background check error:', { err: err.response?.data || err });
-    res.status(500).json({ error: 'Failed to initiate background check.' });
+    next(err);
   }
 };
 
 // Checkr webhook handler
-exports.checkrWebhook = async (req, res) => {
+exports.checkrWebhook = async (req, res, next) => {
   try {
     const secret = process.env.CHECKR_WEBHOOK_SECRET;
     if (!secret) {
       logger.error('CHECKR_WEBHOOK_SECRET is not configured');
-      return res.status(500).json({ error: 'Webhook secret not configured' });
+      throw new AppError('Webhook secret not configured', 500, 'processing_error');
     }
 
     const incomingSignature = req.headers['x-checkr-signature'];
     if (!incomingSignature) {
-      return res.status(400).json({ error: 'Missing signature' });
+      throw new AppError('Missing signature', 400, 'invalid_format');
     }
 
     const rawBody = req.body; // Buffer from express.raw()
@@ -109,7 +109,7 @@ exports.checkrWebhook = async (req, res) => {
     const computedBuf = Buffer.from(computed, 'utf8');
     const incomingBuf = Buffer.from(incomingSignature, 'utf8');
     if (computedBuf.length !== incomingBuf.length || !crypto.timingSafeEqual(computedBuf, incomingBuf)) {
-      return res.status(401).json({ error: 'Invalid signature' });
+      throw new AppError('Invalid signature', 401, 'no_auth');
     }
 
     const { type, data } = JSON.parse(rawBody.toString());
@@ -159,13 +159,12 @@ exports.checkrWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (err) {
-    logger.error('Checkr webhook error:', { err: err });
-    res.status(500).json({ error: 'Webhook processing failed.' });
+    next(err);
   }
 };
 
 // Get background check status
-exports.getBackgroundCheckStatus = async (req, res) => {
+exports.getBackgroundCheckStatus = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT status, result, completed_at, expires_at FROM background_checks
@@ -173,15 +172,14 @@ exports.getBackgroundCheckStatus = async (req, res) => {
     );
     res.json({ backgroundCheck: rows[0] || null });
   } catch (err) {
-    logger.error('Failed to fetch background check status', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch background check status.' });
+    next(err);
   }
 };
 
 // === STRIPE IDENTITY VERIFICATION ===
 
 // Create identity verification session
-exports.createIdentitySession = async (req, res) => {
+exports.createIdentitySession = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -203,23 +201,22 @@ exports.createIdentitySession = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    logger.error('Identity session error:', { err: err });
-    res.status(500).json({ error: 'Failed to create identity verification session.' });
+    next(err);
   }
 };
 
 // Stripe Identity webhook handler
-exports.identityWebhook = async (req, res) => {
+exports.identityWebhook = async (req, res, next) => {
   try {
     const secret = process.env.STRIPE_IDENTITY_WEBHOOK_SECRET;
     if (!secret) {
       logger.error('STRIPE_IDENTITY_WEBHOOK_SECRET is not configured');
-      return res.status(500).json({ error: 'Webhook secret not configured' });
+      throw new AppError('Webhook secret not configured', 500, 'processing_error');
     }
 
     const sig = req.headers['stripe-signature'];
     if (!sig) {
-      return res.status(400).json({ error: 'Missing signature' });
+      throw new AppError('Missing signature', 400, 'invalid_format');
     }
 
     let event;
@@ -227,7 +224,7 @@ exports.identityWebhook = async (req, res) => {
       event = stripe.webhooks.constructEvent(req.body, sig, secret);
     } catch (err) {
       logger.error('Stripe signature verification failed:', { err: err.message });
-      return res.status(400).json({ error: 'Webhook signature verification failed' });
+      throw new AppError('Webhook signature verification failed', 400, 'invalid_format');
     }
 
     const { type, data } = event;
@@ -264,13 +261,12 @@ exports.identityWebhook = async (req, res) => {
 
     res.json({ received: true });
   } catch (err) {
-    logger.error('Identity webhook error:', { err: err });
-    res.status(500).json({ error: 'Webhook processing failed.' });
+    next(err);
   }
 };
 
 // Get identity verification status
-exports.getIdentityStatus = async (req, res) => {
+exports.getIdentityStatus = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT status, verified_name, last_error, created_at FROM identity_verifications
@@ -278,14 +274,13 @@ exports.getIdentityStatus = async (req, res) => {
     );
     res.json({ identity: rows[0] || null });
   } catch (err) {
-    logger.error('Failed to fetch identity verification status', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch identity status.' });
+    next(err);
   }
 };
 
 // === BADGE SYSTEM ===
 
-exports.getUserBadges = async (req, res) => {
+exports.getUserBadges = async (req, res, next) => {
   try {
     const userId = req.params.userId || req.user.id;
     const { rows } = await db.query(
@@ -295,7 +290,7 @@ exports.getUserBadges = async (req, res) => {
     );
     res.json({ badges: rows });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch badges.' });
+    next(err);
   }
 };
 

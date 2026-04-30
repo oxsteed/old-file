@@ -2,6 +2,7 @@ const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
+const { AppError }          = require('../middleware/errorHandler');
 
 const DISPUTE_STATUSES = Object.freeze({
   OPEN: 'open',
@@ -24,22 +25,21 @@ const DISPUTE_REASONS = Object.freeze({
 const DISPUTE_REASON_VALUES = Object.freeze(Object.values(DISPUTE_REASONS));
 
 // ─── OPEN DISPUTE ─────────────────────────────────────────────
-exports.openDispute = async (req, res) => {
+exports.openDispute = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { jobId } = req.params;
     const { reason, description, job_type } = req.body;
 
+    const fields = {};
     if (!DISPUTE_REASON_VALUES.includes(reason)) {
-      return res.status(400).json({
-        error: `Invalid reason. Must be one of: ${DISPUTE_REASON_VALUES.join(', ')}`
-      });
+      fields.reason = `Invalid reason. Must be one of: ${DISPUTE_REASON_VALUES.join(', ')}`;
     }
-
     if (!description || description.trim().length < 20) {
-      return res.status(400).json({
-        error: 'Please provide at least 20 characters of description.'
-      });
+      fields.description = 'Please provide at least 20 characters of description';
+    }
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Verify the requesting user is a party to this job
@@ -49,9 +49,7 @@ exports.openDispute = async (req, res) => {
     );
 
     if (!jobRows.length) {
-      return res.status(403).json({
-        error: 'You are not a party to this job'
-      });
+      throw new AppError('You are not a party to this job', 403, 'forbidden');
     }
 
     // Get user name (outside transaction for single query)
@@ -75,9 +73,7 @@ exports.openDispute = async (req, res) => {
       );
 
       if (!jobLockRows.length) {
-        const err = new Error('Job not found');
-        err.status = 404;
-        throw err;
+        throw new AppError('Job not found', 404, 'not_found');
       }
 
       // Check for existing disputes AFTER locking
@@ -87,9 +83,7 @@ exports.openDispute = async (req, res) => {
       );
 
       if (existRows.length) {
-        const err = new Error('A dispute is already open for this job.');
-        err.status = 409;
-        throw err;
+        throw new AppError('A dispute is already open for this job', 409, 'already_exists');
       }
 
       // Create dispute
@@ -105,7 +99,7 @@ exports.openDispute = async (req, res) => {
       ]);
 
       if (!disputeRows.length) {
-        throw new Error('Failed to create dispute');
+        throw new AppError('Failed to create dispute', 500, 'processing_error');
       }
 
       const dispute = disputeRows[0];
@@ -170,19 +164,12 @@ exports.openDispute = async (req, res) => {
       message: 'Dispute opened successfully.'
     });
   } catch (err) {
-    if (err.status === 409) {
-      return res.status(409).json({ error: err.message });
-    }
-    if (err.status === 404) {
-      return res.status(404).json({ error: err.message });
-    }
-    logger.error('openDispute error:', err);
-    res.status(500).json({ error: 'Failed to open dispute.' });
+    next(err);
   }
 };
 
 // ─── GET DISPUTE DETAIL ───────────────────────────────────────
-exports.getDispute = async (req, res) => {
+exports.getDispute = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { disputeId } = req.params;
@@ -201,25 +188,24 @@ exports.getDispute = async (req, res) => {
     `, [disputeId]);
 
     if (!rows.length) {
-      return res.status(404).json({ error: 'Dispute not found.' });
+      throw new AppError('Dispute not found', 404, 'not_found');
     }
 
     const dispute = rows[0];
 
     // Non-admins can only see their own disputes
     if (!isAdmin && dispute.opened_by !== userId) {
-      return res.status(403).json({ error: 'Not authorized.' });
+      throw new AppError('Not authorized', 403, 'forbidden');
     }
 
     res.json({ dispute });
   } catch (err) {
-    logger.error('getDispute error:', err);
-    res.status(500).json({ error: 'Failed to fetch dispute.' });
+    next(err);
   }
 };
 
 // ─── GET MY DISPUTES ──────────────────────────────────────────
-exports.getMyDisputes = async (req, res) => {
+exports.getMyDisputes = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -236,21 +222,22 @@ exports.getMyDisputes = async (req, res) => {
 
     res.json({ disputes: rows });
   } catch (err) {
-    logger.error('getMyDisputes error:', err);
-    res.status(500).json({ error: 'Failed to fetch disputes.' });
+    next(err);
   }
 };
 
 // ─── SUBMIT EVIDENCE (text only, stored in disputes table) ─────
-exports.submitEvidence = async (req, res) => {
+exports.submitEvidence = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { disputeId } = req.params;
     const { evidence } = req.body;
     const isAdmin = ['admin','super_admin'].includes(req.user.role);
 
-    if (!evidence?.trim()) {
-      return res.status(400).json({ error: 'Evidence cannot be empty.' });
+    const fields = {};
+    if (!evidence?.trim()) fields.evidence = 'Evidence cannot be empty';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Verify dispute exists and user has access
@@ -260,15 +247,13 @@ exports.submitEvidence = async (req, res) => {
     );
 
     if (!disputeRows.length) {
-      return res.status(404).json({
-        error: 'Dispute not found or not accepting evidence.'
-      });
+      throw new AppError('Dispute not found or not accepting evidence', 404, 'not_found');
     }
 
     const dispute = disputeRows[0];
 
     if (!isAdmin && dispute.opened_by !== userId) {
-      return res.status(403).json({ error: 'Not authorized.' });
+      throw new AppError('Not authorized', 403, 'forbidden');
     }
 
     // Determine which evidence field to update based on role
@@ -286,21 +271,22 @@ exports.submitEvidence = async (req, res) => {
       disputeId
     });
   } catch (err) {
-    logger.error('submitEvidence error:', err);
-    res.status(500).json({ error: 'Failed to submit evidence.' });
+    next(err);
   }
 };
 
 
 // ─── SEND DISPUTE MESSAGE ─────────────────────────────────────
-exports.sendDisputeMessage = async (req, res) => {
+exports.sendDisputeMessage = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { disputeId } = req.params;
     const { message } = req.body;
 
-    if (!message || !message.trim()) {
-      return res.status(400).json({ error: 'Message cannot be empty.' });
+    const fields = {};
+    if (!message || !message.trim()) fields.message = 'Message cannot be empty';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Verify dispute exists and user has access
@@ -310,14 +296,14 @@ exports.sendDisputeMessage = async (req, res) => {
     );
 
     if (!disputeRows.length) {
-      return res.status(404).json({ error: 'Dispute not found.' });
+      throw new AppError('Dispute not found', 404, 'not_found');
     }
 
     const dispute = disputeRows[0];
     const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
     if (!isAdmin && dispute.opened_by !== userId) {
-      return res.status(403).json({ error: 'Not authorized.' });
+      throw new AppError('Not authorized', 403, 'forbidden');
     }
 
     // Insert message into dispute_messages table
@@ -332,7 +318,6 @@ exports.sendDisputeMessage = async (req, res) => {
       disputeMessage: rows[0]
     });
   } catch (err) {
-    logger.error('sendDisputeMessage error:', err);
-    res.status(500).json({ error: 'Failed to send dispute message.' });
+    next(err);
   }
 };

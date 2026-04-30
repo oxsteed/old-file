@@ -5,6 +5,7 @@
 const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
+const { AppError }  = require('../middleware/errorHandler');
 
 function formatResponseTime(hours) {
   if (!hours) return 'Varies';
@@ -40,7 +41,7 @@ function sanitizeServicePriceUnit(u) {
 //   lat, lng, radius (miles, default 60) — haversine distance filter,
 //   sort (best_match|highest_rated|most_reviews|lowest_price|fastest_response|newest),
 //   page, limit
-async function listHelpers(req, res) {
+async function listHelpers(req, res, next) {
   try {
     const {
       query = '',
@@ -469,13 +470,12 @@ async function listHelpers(req, res) {
 
     return res.json({ helpers: mapped, businesses, total: parseInt(count), page: pageNum });
   } catch (err) {
-    logger.error('[listHelpers] error', { err });
-    return res.status(500).json({ error: 'Failed to load helpers' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/:id/profile ──────────────────────────────────────────────
-async function getHelperProfile(req, res) {
+async function getHelperProfile(req, res, next) {
   try {
     const { id } = req.params;
 
@@ -568,7 +568,7 @@ async function getHelperProfile(req, res) {
     ]);
 
     const h = helperRes.rows[0];
-    if (!h) return res.status(404).json({ error: 'Helper not found' });
+    if (!h) throw new AppError('Helper not found', 404, 'not_found');
 
     const categories = [...new Set(skillRes.rows.map((r) => r.category_name))];
 
@@ -725,13 +725,12 @@ async function getHelperProfile(req, res) {
       },
     });
   } catch (err) {
-    logger.error('[getHelperProfile] error', { err });
-    return res.status(500).json({ error: 'Failed to load helper profile' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/skills?q=&limit= ────────────────────────────────────────
-async function searchSkills(req, res) {
+async function searchSkills(req, res, next) {
   try {
     const q     = (req.query.q     || '').trim();
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
@@ -754,13 +753,12 @@ async function searchSkills(req, res) {
     }
     return res.json({ skills: rows });
   } catch (err) {
-    logger.error('[searchSkills] error', { err });
-    return res.status(500).json({ error: 'Failed to search skills' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/licenses?q=&limit= ──────────────────────────────────────
-async function searchLicenses(req, res) {
+async function searchLicenses(req, res, next) {
   try {
     const q     = (req.query.q     || '').trim();
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
@@ -783,13 +781,12 @@ async function searchLicenses(req, res) {
     }
     return res.json({ licenses: rows });
   } catch (err) {
-    logger.error('[searchLicenses] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to search licenses' });
+    next(err);
   }
 }
 
 // GET /api/helpers/:id/status — real-time online status (no auth required)
-async function getHelperStatus(req, res) {
+async function getHelperStatus(req, res, next) {
   try {
     const { id } = req.params;
     // Check is_available_now first (manual toggle), then fall back to Socket.IO status
@@ -807,13 +804,13 @@ async function getHelperStatus(req, res) {
       helperStatus: online ? 'live' : 'ai_assistant',
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get helper status' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/:id/availability ────────────────────────────────────────
 // Dynamic endpoint: returns live availability data (fetched client-side after page load)
-async function getHelperAvailability(req, res) {
+async function getHelperAvailability(req, res, next) {
   try {
     const { id } = req.params;
     const { rows: [hp] } = await pool.query(
@@ -825,7 +822,7 @@ async function getHelperAvailability(req, res) {
          AND u.email_verified = TRUE`,
       [id]
     );
-    if (!hp) return res.status(404).json({ error: 'Helper not found' });
+    if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
     const avail = hp.availability_json || {};
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -860,14 +857,13 @@ async function getHelperAvailability(req, res) {
       responseTimeHours: hp.response_time_hours,
     });
   } catch (err) {
-    logger.error('[getHelperAvailability] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to load availability' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/:id/pricing ─────────────────────────────────────────────
 // Dynamic endpoint: returns current pricing info (fetched client-side after page load)
-async function getHelperPricing(req, res) {
+async function getHelperPricing(req, res, next) {
   try {
     const { id } = req.params;
     const { rows: [hp] } = await pool.query(
@@ -881,7 +877,7 @@ async function getHelperPricing(req, res) {
          AND u.email_verified = TRUE`,
       [id]
     );
-    if (!hp) return res.status(404).json({ error: 'Helper not found' });
+    if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
     // Fetch service-level pricing from helper_skills if available
     const { rows: serviceRows } = await pool.query(
@@ -910,14 +906,13 @@ async function getHelperPricing(req, res) {
       servicePricing,
     });
   } catch (err) {
-    logger.error('[getHelperPricing] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to load pricing' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/:id/slots ───────────────────────────────────────────────
 // Dynamic endpoint: returns available booking slots for the current week
-async function getHelperSlots(req, res) {
+async function getHelperSlots(req, res, next) {
   try {
     const { id } = req.params;
 
@@ -931,7 +926,7 @@ async function getHelperSlots(req, res) {
          AND u.email_verified = TRUE`,
       [id]
     );
-    if (!hp) return res.status(404).json({ error: 'Helper not found' });
+    if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
     // Get existing bookings for this week to subtract from available slots
     const now = new Date();
@@ -985,19 +980,22 @@ async function getHelperSlots(req, res) {
       totalBookedSlots: bookedSlots.length,
     });
   } catch (err) {
-    logger.error('[getHelperSlots] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to load slots' });
+    next(err);
   }
 }
 
 // ── PUT /api/helpers/me/listing ───────────────────────────────────────────
 // Toggle the logged-in helper's directory visibility (is_listed).
 // Body: { is_listed: boolean }
-async function toggleListing(req, res) {
+async function toggleListing(req, res, next) {
   try {
     const { is_listed } = req.body;
+    const fields = {};
     if (typeof is_listed !== 'boolean') {
-      return res.status(400).json({ error: 'is_listed must be a boolean' });
+      fields.is_listed = 'is_listed must be a boolean';
+    }
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     const { rows } = await pool.query(
@@ -1009,19 +1007,18 @@ async function toggleListing(req, res) {
     );
 
     if (!rows[0]) {
-      return res.status(404).json({ error: 'Helper profile not found — switch to helper mode first' });
+      throw new AppError('Helper profile not found — switch to helper mode first', 404, 'not_found');
     }
 
     return res.json({ success: true, is_listed: rows[0].is_listed });
   } catch (err) {
-    logger.error('[toggleListing] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to update listing status' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/me/status ────────────────────────────────────────────
 // Returns the logged-in helper's own listing status.
-async function getMyListingStatus(req, res) {
+async function getMyListingStatus(req, res, next) {
   try {
     const { rows } = await pool.query(
       `SELECT is_listed FROM helper_profiles WHERE user_id = $1`,
@@ -1031,14 +1028,13 @@ async function getMyListingStatus(req, res) {
     const is_listed = rows[0] ? rows[0].is_listed : false;
     return res.json({ is_listed });
   } catch (err) {
-    logger.error('[getMyListingStatus] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to fetch listing status' });
+    next(err);
   }
 }
 
 // ── GET /api/helpers/me/availability ───────────────────────────────────────
 // Returns whether the logged-in helper is currently available for live chat
-async function getMyAvailability(req, res) {
+async function getMyAvailability(req, res, next) {
   try {
     const { rows } = await pool.query(
       `SELECT is_available_now FROM helper_profiles WHERE user_id = $1`,
@@ -1048,19 +1044,22 @@ async function getMyAvailability(req, res) {
     const is_available_now = rows[0] ? rows[0].is_available_now : false;
     return res.json({ is_available_now });
   } catch (err) {
-    logger.error('[getMyAvailability] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to fetch availability status' });
+    next(err);
   }
 }
 
 // ── PUT /api/helpers/me/availability ───────────────────────────────────────
 // Toggle live chat availability (is_available_now)
-async function toggleAvailability(req, res) {
+async function toggleAvailability(req, res, next) {
   try {
     const { is_available_now } = req.body;
 
+    const fields = {};
     if (typeof is_available_now !== 'boolean') {
-      return res.status(400).json({ error: 'is_available_now must be a boolean' });
+      fields.is_available_now = 'is_available_now must be a boolean';
+    }
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     const { rows } = await pool.query(
@@ -1072,20 +1071,19 @@ async function toggleAvailability(req, res) {
     );
 
     if (!rows[0]) {
-      return res.status(404).json({ error: 'Helper profile not found' });
+      throw new AppError('Helper profile not found', 404, 'not_found');
     }
 
     return res.json({ is_available_now: rows[0].is_available_now });
   } catch (err) {
-    logger.error('[toggleAvailability] error:', { err: err });
-    return res.status(500).json({ error: 'Failed to update availability' });
+    next(err);
   }
 }
 
 // ── POST /api/admin/helpers/:id/remove-credential ─────────────────────────────
 // Admin removes a self-reported credential (license, insurance) with reason
 // Logs removal and triggers in-app notification to helper
-async function removeCredential(req, res) {
+async function removeCredential(req, res, next) {
   try {
     const { id } = req.params;
     const { credential_type, removal_reason, notes } = req.body;
@@ -1094,12 +1092,15 @@ async function removeCredential(req, res) {
     const validCredentials = ['license', 'insurance'];
     const validReasons = ['unverified', 'expired', 'false_claim', 'user_report', 'other'];
 
+    const fields = {};
     if (!validCredentials.includes(credential_type)) {
-      return res.status(400).json({ error: 'Invalid credential_type' });
+      fields.credential_type = 'Invalid credential_type';
     }
-
     if (!validReasons.includes(removal_reason)) {
-      return res.status(400).json({ error: 'Invalid removal_reason' });
+      fields.removal_reason = 'Invalid removal_reason';
+    }
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Map credential type to column name
@@ -1116,11 +1117,11 @@ async function removeCredential(req, res) {
     );
 
     if (!checkRes.rows[0]) {
-      return res.status(404).json({ error: 'Helper not found' });
+      throw new AppError('Helper not found', 404, 'not_found');
     }
 
     if (!checkRes.rows[0][columnName]) {
-      return res.status(409).json({ error: 'Credential not claimed by this helper' });
+      throw new AppError('Credential not claimed by this helper', 409, 'already_exists');
     }
 
     // Remove credential and log removal
@@ -1164,8 +1165,7 @@ async function removeCredential(req, res) {
       removal_reason,
     });
   } catch (err) {
-    logger.error('[removeCredential] error:', { err });
-    return res.status(500).json({ error: 'Failed to remove credential' });
+    next(err);
   }
 }
 
