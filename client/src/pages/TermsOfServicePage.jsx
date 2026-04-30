@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Copy, CheckCircle, ChevronDown, AlertCircle, Clock } from 'lucide-react';
 import api from '../api/axios';
-import logger from '../utils/logger';
 import './TermsOfServicePage.css';
 
 export default function TermsOfServicePage() {
