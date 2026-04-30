@@ -397,6 +397,36 @@
     "consulting": "Conseil",
     "consultingTooltip": "Programmer une session de conseil commercial initiale de $100"
   },
+  "termsPage": {
+    "title": "Conditions d’utilisation",
+    "lastUpdated": "Dernière mise à jour : 22 mars 2026 — Effectives dès la création du compte",
+    "onThisPage": "Sur cette page",
+    "onThisPageAria": "Table des matières",
+    "searchLabel": "Rechercher dans les sections des conditions",
+    "searchPlaceholder": "Rechercher des sections…",
+    "sectionTitles": {
+      "1": "1. Ce qu’est OxSteed — et ce qu’il n’est pas",
+      "2": "2. Admissibilité",
+      "3": "3. Niveaux de la plateforme et services",
+      "4": "4. Avenant location d’outils",
+      "5": "5. Rôles utilisateurs et définitions",
+      "6": "6. Frais et modalités de paiement",
+      "7": "Vérifications d’antécédents, vérification et conformité FCRA",
+      "8": "8. Statut de travailleur indépendant",
+      "9": "9. Propriété intellectuelle et DMCA",
+      "10": "10. Résiliation et suspension",
+      "11": "11. Exclusion de garanties",
+      "12": "12. Limitation de responsabilité et assurance",
+      "13": "13. Indemnisation",
+      "14": "14. Avis concernant les licences",
+      "15": "15. Annonces de location d’outils — Conditions particulières",
+      "16": "16. OxSteed Pay — Modalités de paiement",
+      "17": "17. Offres d’emploi et système d’enchères",
+      "18": "18. Services tiers",
+      "19": "19. Consentement et acceptation",
+      "20": "20. Modifications des présentes conditions"
+    }
+  },
   "howItWorks": {
     "badge": "Présentation de la plateforme",
     "title": "Comment fonctionne OxSteed",

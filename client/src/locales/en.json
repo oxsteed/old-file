@@ -398,6 +398,36 @@
     "consulting": "Consulting",
     "consultingTooltip": "Schedule an initial $100 business consulting session"
   },
+  "termsPage": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: March 22, 2026 — Effective immediately upon account creation",
+    "onThisPage": "On this page",
+    "onThisPageAria": "Table of contents",
+    "searchLabel": "Search terms sections",
+    "searchPlaceholder": "Search sections…",
+    "sectionTitles": {
+      "1": "1. What OxSteed Is - And Is Not",
+      "2": "2. Eligibility",
+      "3": "3. Platform Tiers and Services",
+      "4": "4. Tool Rental Addendum",
+      "5": "5. User Roles and Definitions",
+      "6": "6. Fees and Payment Terms",
+      "7": "Background Checks, Verification, and FCRA Compliance",
+      "8": "8. Independent Contractor Status",
+      "9": "9. Intellectual Property and DMCA",
+      "10": "10. Termination and Suspension",
+      "11": "11. Disclaimer of Warranties",
+      "12": "12. Liability Limitations and Insurance",
+      "13": "13. Indemnification",
+      "14": "14. Licensing Disclaimer",
+      "15": "15. Tool Rental Listings — Special Terms",
+      "16": "16. OxSteed Pay — Payment Terms",
+      "17": "17. Job Postings and Bid System",
+      "18": "18. Third-Party Services",
+      "19": "19. Consent and Acceptance",
+      "20": "20. Modifications to These Terms"
+    }
+  },
   "howItWorks": {
     "badge": "Platform Overview",
     "title": "How OxSteed Works",
