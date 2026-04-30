@@ -293,6 +293,30 @@ app.use(cors({
   credentials: true,
 }));
 
+// ── HEALTH CHECK (before rate limiting — Docker/orchestrator probes must not be throttled)
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch (err) {
+    res.status(503).json({ status: 'degraded' });
+  }
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.error('Health DB check failed', { message: err.message });
+    res.status(503).json({ status: 'degraded', error: 'database unreachable' });
+  }
+});
+
+app.get('/api/health/pool', (req, res) => {
+  res.json(poolMonitor.getMetrics());
+});
+
 // ── WEBHOOK ROUTES (before rate limiting AND body parsing) ───
 // Stripe needs raw body for signature verification.
 // Webhooks must skip the rate limiter — Stripe/Didit IPs can burst
@@ -336,32 +360,6 @@ app.use(validateCsrfToken);
 // Enables soft versioning for gradual migration to explicit /api/v1/, /api/v2/ URLs
 const { apiVersionMiddleware } = require('./middleware/apiVersioning');
 app.use('/api/', apiVersionMiddleware);
-
-// ── HEALTH CHECK ─────────────────────────────────────────────
-app.get('/api/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  } catch (err) {
-    logger.error('Health DB check failed', { message: err.message });
-    res.status(503).json({ status: 'degraded', error: 'database unreachable' });
-  }
-});
-
-// Root health endpoint (for Docker healthcheck)
-app.get('/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok' });
-  } catch (err) {
-    res.status(503).json({ status: 'degraded' });
-  }
-});
-
-// Pool health metrics endpoint (used by monitoring systems)
-app.get('/api/health/pool', (req, res) => {
-  res.json(poolMonitor.getMetrics());
-});
 
 
 // ── API ROUTES ───────────────────────────────────────────────
