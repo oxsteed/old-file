@@ -1,5 +1,6 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 const HELPER_ROLES = new Set(['helper', 'helper_pro', 'broker']);
 
@@ -13,10 +14,10 @@ const HELPER_ROLES = new Set(['helper', 'helper_pro', 'broker']);
  * }
  * Updates helper_profiles for helper-tier users only.
  */
-async function patchPrivacySettings(req, res) {
+async function patchPrivacySettings(req, res, next) {
   try {
     if (!HELPER_ROLES.has(req.user.role)) {
-      return res.status(403).json({ error: 'Only helpers can update this setting' });
+      throw new AppError('Only helpers can update this setting', 403, 'forbidden');
     }
 
     const {
@@ -51,8 +52,11 @@ async function patchPrivacySettings(req, res) {
     }
 
     if (!hasValidSetting) {
-      return res.status(400).json({
-        error: 'At least one privacy setting must be a boolean',
+      throw new AppError('At least one privacy setting must be provided as boolean', 400, 'validation_failed', {
+        allow_guest_contact: 'Must be boolean if provided',
+        allow_booking: 'Must be boolean if provided',
+        allow_scheduling: 'Must be boolean if provided',
+        allow_live_chat: 'Must be boolean if provided',
       });
     }
 
@@ -75,14 +79,13 @@ async function patchPrivacySettings(req, res) {
     );
 
     if (!rowCount) {
-      return res.status(404).json({ error: 'Helper profile not found' });
+      throw new AppError('Helper profile not found', 404, 'not_found');
     }
 
     // Return updated settings
-    return res.json(settingsToUpdate);
+    res.json(settingsToUpdate);
   } catch (err) {
-    logger.error('[patchPrivacySettings]', { err });
-    return res.status(500).json({ error: 'Failed to update privacy settings' });
+    next(err);
   }
 }
 

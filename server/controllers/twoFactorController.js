@@ -7,6 +7,7 @@ const QRCode = require('qrcode');
 const pool = require('../db');
 const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 const APP_NAME = 'OxSteed';
 const BACKUP_CODE_COUNT = 8;
@@ -42,13 +43,15 @@ async function log2FAAction(userId, action, req, success) {
 }
 
 // POST /api/2fa/setup — Generate TOTP secret + QR code
-async function setup2FA(req, res) {
+async function setup2FA(req, res, next) {
   try {
     const userId = req.user.id;
     const { rows } = await pool.query('SELECT email, totp_enabled FROM users WHERE id = $1', [userId]);
-    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    if (!rows[0]) {
+      throw new AppError('User not found', 404, 'not_found');
+    }
     if (rows[0].totp_enabled) {
-      return res.status(400).json({ error: '2FA is already enabled. Disable it first to reconfigure.' });
+      throw new AppError('2FA is already enabled. Disable it first to reconfigure.', 400, 'invalid_state');
     }
 
     const secretKey = authenticator.generateSecret(32);
@@ -70,28 +73,29 @@ async function setup2FA(req, res) {
       message: 'Scan the QR code with your authenticator app, then verify with a code.'
     });
   } catch (err) {
-    logger.error('2FA setup error:', { err: err });
-    res.status(500).json({ error: 'Failed to setup 2FA' });
+    next(err);
   }
 }
 
 // POST /api/2fa/verify-setup — Confirm TOTP setup with a code from the app
-async function verifySetup(req, res) {
+async function verifySetup(req, res, next) {
   try {
     const userId = req.user.id;
     const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Verification code required' });
+    if (!token) {
+      throw new AppError('Verification code required', 400, 'validation_failed', { token: 'Verification code is required' });
+    }
 
     const { rows } = await pool.query('SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [userId]);
     if (!rows[0] || !rows[0].totp_secret) {
-      return res.status(400).json({ error: 'No 2FA setup in progress. Call /api/2fa/setup first.' });
+      throw new AppError('No 2FA setup in progress. Call /api/2fa/setup first.', 400, 'invalid_state');
     }
     if (rows[0].totp_enabled) {
-      return res.status(400).json({ error: '2FA is already enabled.' });
+      throw new AppError('2FA is already enabled.', 400, 'invalid_state');
     }
 
     const decryptedSecret = decrypt(rows[0].totp_secret);
-    
+
     // otplib options window config
     authenticator.options = { window: 1 };
     const verified = authenticator.verify({
@@ -101,7 +105,7 @@ async function verifySetup(req, res) {
 
     if (!verified) {
       await log2FAAction(userId, 'setup_verify_failed', req, false);
-      return res.status(400).json({ error: 'Invalid verification code. Try again.' });
+      throw new AppError('Invalid verification code. Try again.', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
 
     // Generate backup codes
@@ -121,17 +125,16 @@ async function verifySetup(req, res) {
       warning: 'Save these backup codes in a safe place. They will not be shown again.'
     });
   } catch (err) {
-    logger.error('2FA verify setup error:', { err: err });
-    res.status(500).json({ error: 'Failed to verify 2FA setup' });
+    next(err);
   }
 }
 
 // POST /api/2fa/validate — Validate a TOTP code during login
-async function validate2FA(req, res) {
+async function validate2FA(req, res, next) {
   try {
     const { userId, token, isBackupCode } = req.body;
     if (!userId || !token) {
-      return res.status(400).json({ error: 'User ID and verification code required' });
+      throw new AppError('User ID and verification code required', 400, 'validation_failed', { userId: 'Required', token: 'Required' });
     }
 
     const { rows } = await pool.query(
@@ -139,7 +142,7 @@ async function validate2FA(req, res) {
       [userId]
     );
     if (!rows[0] || !rows[0].totp_enabled) {
-      return res.status(400).json({ error: '2FA is not enabled for this account' });
+      throw new AppError('2FA is not enabled for this account', 400, 'invalid_state');
     }
 
     // Try backup code first if flagged
@@ -154,7 +157,7 @@ async function validate2FA(req, res) {
       }
       if (matchedIndex === -1) {
         await log2FAAction(userId, 'backup_code_failed', req, false);
-        return res.status(400).json({ error: 'Invalid backup code' });
+        throw new AppError('Invalid backup code', 400, 'validation_failed', { token: 'Invalid backup code' });
       }
       // Remove used backup code
       codes.splice(matchedIndex, 1);
@@ -173,29 +176,30 @@ async function validate2FA(req, res) {
 
     if (!verified) {
       await log2FAAction(userId, 'totp_verify_failed', req, false);
-      return res.status(400).json({ error: 'Invalid verification code' });
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
 
     await log2FAAction(userId, 'totp_verify_success', req, true);
     res.json({ valid: true });
   } catch (err) {
-    logger.error('2FA validate error:', { err: err });
-    res.status(500).json({ error: 'Failed to validate 2FA' });
+    next(err);
   }
 }
 
 // POST /api/2fa/disable — Disable 2FA (requires current TOTP code)
-async function disable2FA(req, res) {
+async function disable2FA(req, res, next) {
   try {
     const userId = req.user.id;
     const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Current 2FA code required to disable' });
+    if (!token) {
+      throw new AppError('Current 2FA code required to disable', 400, 'validation_failed', { token: 'Current 2FA code is required' });
+    }
 
     const { rows } = await pool.query(
       'SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [userId]
     );
     if (!rows[0] || !rows[0].totp_enabled) {
-      return res.status(400).json({ error: '2FA is not currently enabled' });
+      throw new AppError('2FA is not currently enabled', 400, 'invalid_state');
     }
 
     const decryptedSecret = decrypt(rows[0].totp_secret);
@@ -207,7 +211,7 @@ async function disable2FA(req, res) {
 
     if (!verified) {
       await log2FAAction(userId, 'disable_failed', req, false);
-      return res.status(400).json({ error: 'Invalid verification code' });
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
 
     await pool.query(
@@ -218,43 +222,45 @@ async function disable2FA(req, res) {
     await log2FAAction(userId, 'disabled', req, true);
     res.json({ message: '2FA has been disabled.' });
   } catch (err) {
-    logger.error('2FA disable error:', { err: err });
-    res.status(500).json({ error: 'Failed to disable 2FA' });
+    next(err);
   }
 }
 
 // GET /api/2fa/status — Check if 2FA is enabled
-async function get2FAStatus(req, res) {
+async function get2FAStatus(req, res, next) {
   try {
     const userId = req.user.id;
     const { rows } = await pool.query(
       'SELECT totp_enabled, totp_verified_at, COALESCE(array_length(backup_codes, 1), 0) as backup_count FROM users WHERE id = $1',
       [userId]
     );
-    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    if (!rows[0]) {
+      throw new AppError('User not found', 404, 'not_found');
+    }
     res.json({
       enabled: rows[0].totp_enabled,
       verifiedAt: rows[0].totp_verified_at,
       backupCodesRemaining: rows[0].backup_count
     });
   } catch (err) {
-    logger.error('2FA status error:', { err: err });
-    res.status(500).json({ error: 'Failed to get 2FA status' });
+    next(err);
   }
 }
 
 // POST /api/2fa/regenerate-backup — Generate new backup codes (requires TOTP)
-async function regenerateBackupCodes(req, res) {
+async function regenerateBackupCodes(req, res, next) {
   try {
     const userId = req.user.id;
     const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Current 2FA code required' });
+    if (!token) {
+      throw new AppError('Current 2FA code required', 400, 'validation_failed', { token: 'Current 2FA code is required' });
+    }
 
     const { rows } = await pool.query(
       'SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [userId]
     );
     if (!rows[0] || !rows[0].totp_enabled) {
-      return res.status(400).json({ error: '2FA is not enabled' });
+      throw new AppError('2FA is not enabled', 400, 'invalid_state');
     }
 
     const decryptedSecret = decrypt(rows[0].totp_secret);
@@ -266,7 +272,7 @@ async function regenerateBackupCodes(req, res) {
 
     if (!verified) {
       await log2FAAction(userId, 'regenerate_backup_failed', req, false);
-      return res.status(400).json({ error: 'Invalid verification code' });
+      throw new AppError('Invalid verification code', 400, 'validation_failed', { token: 'Invalid verification code' });
     }
 
     const backupCodes = generateBackupCodes();
@@ -280,8 +286,7 @@ async function regenerateBackupCodes(req, res) {
       warning: 'Previous backup codes are now invalid. Save these new codes securely.'
     });
   } catch (err) {
-    logger.error('Regenerate backup codes error:', { err: err });
-    res.status(500).json({ error: 'Failed to regenerate backup codes' });
+    next(err);
   }
 }
 

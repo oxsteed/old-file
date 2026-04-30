@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { withChatTransaction, updateSessionStatus, logChatEvent, queueMessageIfTransitioning, drainMessageQueue } = require('../services/chatTransactionService');
 const { broadcastNewGuestSession, broadcastGuestSessionUpdate, broadcastGuestChatMessage } = require('../services/socketService');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 /**
  * Guest creates a new chat session and sends initial message
@@ -14,13 +15,13 @@ async function createGuestSession(req, res, next) {
 
     // Validate inputs
     if (!guestName || !guestName.trim()) {
-      return res.status(400).json({ error: 'Guest name is required' });
+      throw new AppError('Guest name is required', 400, 'validation_failed', { guestName: 'Guest name is required' });
     }
     if (!message || !message.trim()) {
-      return res.status(400).json({ error: 'Initial message is required' });
+      throw new AppError('Initial message is required', 400, 'validation_failed', { message: 'Initial message is required' });
     }
     if (message.length > 4000) {
-      return res.status(400).json({ error: 'Message too long (max 4000 characters)' });
+      throw new AppError('Message too long (max 4000 characters)', 400, 'validation_failed', { message: 'Maximum 4000 characters' });
     }
 
     let sessionId;
@@ -83,7 +84,6 @@ async function createGuestSession(req, res, next) {
       deadlineMinutes: 5
     });
   } catch (err) {
-    logger.error('Failed to create guest chat session', { error: err.message });
     next(err);
   }
 }
@@ -98,10 +98,10 @@ async function sendGuestMessage(req, res, next) {
     const { guestName, message } = req.body;
 
     if (!message || !message.trim()) {
-      return res.status(400).json({ error: 'Message is required' });
+      throw new AppError('Message is required', 400, 'validation_failed', { message: 'Message is required' });
     }
     if (message.length > 4000) {
-      return res.status(400).json({ error: 'Message too long (max 4000 characters)' });
+      throw new AppError('Message too long (max 4000 characters)', 400, 'validation_failed', { message: 'Maximum 4000 characters' });
     }
 
     let messageId;
@@ -114,11 +114,11 @@ async function sendGuestMessage(req, res, next) {
       );
 
       if (!session) {
-        throw new Error(`Session ${sessionId} not found`);
+        throw new AppError('Session not found', 404, 'not_found');
       }
 
       if (session.session_status === 'resolved' || session.session_status === 'abandoned') {
-        throw new Error('Cannot send messages to resolved or abandoned sessions');
+        throw new AppError('Cannot send messages to resolved or abandoned sessions', 400, 'invalid_state');
       }
 
       // Check if we should queue this message
@@ -176,13 +176,6 @@ async function sendGuestMessage(req, res, next) {
       sessionId
     });
   } catch (err) {
-    logger.error('Failed to send guest message', { error: err.message });
-    if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
-    }
-    if (err.message.includes('resolved or abandoned')) {
-      return res.status(400).json({ error: err.message });
-    }
     next(err);
   }
 }
@@ -197,7 +190,7 @@ async function helperClaimSession(req, res, next) {
     const helperId = req.user.id;
 
     if (!helperId) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AppError('Authentication required', 401, 'auth_error');
     }
 
     await withChatTransaction(async (client) => {
@@ -208,12 +201,12 @@ async function helperClaimSession(req, res, next) {
       );
 
       if (!session) {
-        throw new Error(`Session ${sessionId} not found`);
+        throw new AppError('Session not found', 404, 'not_found');
       }
 
       // Can only claim from ai_support_active state
       if (session.session_status !== 'ai_support_active') {
-        throw new Error(`Cannot claim session in state: ${session.session_status}`);
+        throw new AppError(`Cannot claim session in state: ${session.session_status}`, 400, 'invalid_state');
       }
 
       // Transition to helper_assigned
@@ -269,13 +262,6 @@ async function helperClaimSession(req, res, next) {
       message: 'Session claimed successfully'
     });
   } catch (err) {
-    logger.error('Failed to claim session', { error: err.message });
-    if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
-    }
-    if (err.message.includes('Cannot claim')) {
-      return res.status(400).json({ error: err.message });
-    }
     next(err);
   }
 }
@@ -292,14 +278,14 @@ async function sendHelperMessage(req, res, next) {
     const helperId = req.user.id;
 
     if (!helperId) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AppError('Authentication required', 401, 'auth_error');
     }
 
     if (!message || !message.trim()) {
-      return res.status(400).json({ error: 'Message is required' });
+      throw new AppError('Message is required', 400, 'validation_failed', { message: 'Message is required' });
     }
     if (message.length > 4000) {
-      return res.status(400).json({ error: 'Message too long (max 4000 characters)' });
+      throw new AppError('Message too long (max 4000 characters)', 400, 'validation_failed', { message: 'Maximum 4000 characters' });
     }
 
     let messageId;
@@ -312,17 +298,17 @@ async function sendHelperMessage(req, res, next) {
       );
 
       if (!session) {
-        throw new Error(`Session ${sessionId} not found`);
+        throw new AppError('Session not found', 404, 'not_found');
       }
 
       // Can only send messages if helper_assigned
       if (session.session_status !== 'helper_assigned') {
-        throw new Error(`Cannot send messages in state: ${session.session_status}`);
+        throw new AppError(`Cannot send messages in state: ${session.session_status}`, 400, 'invalid_state');
       }
 
       // Verify this helper owns this session
       if (session.helper_id !== helperId) {
-        throw new Error('Unauthorized: this session is not assigned to you');
+        throw new AppError('This session is not assigned to you', 403, 'forbidden');
       }
 
       // Insert message
@@ -366,16 +352,6 @@ async function sendHelperMessage(req, res, next) {
       sessionId
     });
   } catch (err) {
-    logger.error('Failed to send helper message', { error: err.message });
-    if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
-    }
-    if (err.message.includes('Cannot send messages')) {
-      return res.status(400).json({ error: err.message });
-    }
-    if (err.message.includes('Unauthorized')) {
-      return res.status(403).json({ error: err.message });
-    }
     next(err);
   }
 }
@@ -391,7 +367,7 @@ async function resolveSession(req, res, next) {
     const { reason = 'completed' } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AppError('Authentication required', 401, 'auth_error');
     }
 
     await withChatTransaction(async (client) => {
@@ -402,7 +378,7 @@ async function resolveSession(req, res, next) {
       );
 
       if (!session) {
-        throw new Error(`Session ${sessionId} not found`);
+        throw new AppError('Session not found', 404, 'not_found');
       }
 
       // Verify user owns this session (either guest or helper)
@@ -410,7 +386,7 @@ async function resolveSession(req, res, next) {
       const isGuest = session.guest_id === userId;
 
       if (!isHelper && !isGuest) {
-        throw new Error('Unauthorized: you do not own this session');
+        throw new AppError('You do not own this session', 403, 'forbidden');
       }
 
       // Transition to resolved
@@ -448,13 +424,6 @@ async function resolveSession(req, res, next) {
       status: 'resolved'
     });
   } catch (err) {
-    logger.error('Failed to resolve session', { error: err.message });
-    if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
-    }
-    if (err.message.includes('Unauthorized')) {
-      return res.status(403).json({ error: err.message });
-    }
     next(err);
   }
 }
@@ -473,7 +442,7 @@ async function getSession(req, res, next) {
     );
 
     if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
+      throw new AppError('Session not found', 404, 'not_found');
     }
 
     const { rows: messages } = await db.query(
@@ -489,7 +458,6 @@ async function getSession(req, res, next) {
       messages
     });
   } catch (err) {
-    logger.error('Failed to get session', { error: err.message });
     next(err);
   }
 }

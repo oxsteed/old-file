@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 if (!process.env.STRIPE_SECRET_KEY) {
   logger.error('[FATAL] STRIPE_SECRET_KEY is not set — subscription features will fail.');
 }
@@ -27,7 +28,7 @@ async function getPlansActiveColumn() {
 }
 
 // Get available plans
-exports.getPlans = async (req, res) => {
+exports.getPlans = async (req, res, next) => {
   try {
     const activeCol = await getPlansActiveColumn();
     const whereClause = activeCol ? `WHERE ${activeCol} = TRUE` : '';
@@ -48,19 +49,18 @@ exports.getPlans = async (req, res) => {
       }))
     });
   } catch (err) {
-    logger.error('Get plans error', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch plans.' });
+    next(err);
   }
 };
 
 // Create checkout session for subscription
-exports.createCheckout = async (req, res) => {
+exports.createCheckout = async (req, res, next) => {
   try {
     const { planSlug, priceId } = req.body;
     const userId = req.user.id;
     const effectivePlanSlug = planSlug || priceId;
     if (!effectivePlanSlug) {
-      return res.status(400).json({ error: 'planSlug is required.' });
+      throw new AppError('planSlug is required', 400, 'validation_failed', { planSlug: 'planSlug is required' });
     }
 
     const activeCol = await getPlansActiveColumn();
@@ -70,7 +70,7 @@ exports.createCheckout = async (req, res) => {
       `SELECT * FROM plans WHERE slug = $1 ${whereClause}`,
       [effectivePlanSlug]
     );
-    if (!plans.length) return res.status(404).json({ error: 'Plan not found.' });
+    if (!plans.length) throw new AppError('Plan not found', 404, 'not_found');
     const plan = plans[0];
 
     // Atomic check for existing subscription (prevents race conditions)
@@ -81,15 +81,11 @@ exports.createCheckout = async (req, res) => {
           [userId, 'active', 'trialing']
         );
         if (existing.length) {
-          const err = new Error('You already have an active subscription.');
-          err.status = 400;
-          throw err;
+          throw new AppError('You already have an active subscription', 400, 'already_exists');
         }
       }, 'check_subscription');
     } catch (checkErr) {
-      if (checkErr.status === 400) {
-        return res.status(400).json({ error: checkErr.message });
-      }
+      if (checkErr instanceof AppError) throw checkErr;
       throw checkErr;
     }
 
@@ -138,13 +134,12 @@ exports.createCheckout = async (req, res) => {
 
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    logger.error('Create checkout error', { userId: req.user?.id, planSlug: req.body?.planSlug, error: err.message });
-    res.status(500).json({ error: 'Failed to create checkout session.' });
+    next(err);
   }
 };
 
 // Get current subscription status
-exports.getSubscription = async (req, res) => {
+exports.getSubscription = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT s.*, p.name as plan_name, p.slug as plan_slug, p.amount_cents, p.features
@@ -156,13 +151,12 @@ exports.getSubscription = async (req, res) => {
     );
     res.json({ subscription: rows[0] || null });
   } catch (err) {
-    logger.error('Get subscription error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to fetch subscription.' });
+    next(err);
   }
 };
 
 // Cancel subscription
-exports.cancelSubscription = async (req, res) => {
+exports.cancelSubscription = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -177,18 +171,14 @@ exports.cancelSubscription = async (req, res) => {
       );
 
       if (!subRows.length) {
-        const err = new Error('No active subscription found');
-        err.status = 404;
-        throw err;
+        throw new AppError('No active subscription found', 404, 'not_found');
       }
 
       const subscription = subRows[0];
 
       // Verify still not being cancelled (atomic check after lock)
       if (subscription.cancel_at_period_end === true) {
-        const err = new Error('Subscription cancellation already in progress');
-        err.status = 409;
-        throw err;
+        throw new AppError('Subscription cancellation already in progress', 409, 'conflict');
       }
 
       // ── CHECK FOR OPEN ESCROW FUNDS (atomic within transaction)
@@ -201,8 +191,11 @@ exports.cancelSubscription = async (req, res) => {
       `, [userId]);
 
       if (escrowRows[0] && parseInt(escrowRows[0].count) > 0) {
-        const err = new Error(`Cannot cancel subscription while ${escrowRows[0].count} job(s) have pending escrow`);
-        err.status = 409;
+        const err = new AppError(
+          `Cannot cancel subscription while ${escrowRows[0].count} job(s) have pending escrow`,
+          409,
+          'conflict'
+        );
         err.escrow_count = parseInt(escrowRows[0].count);
         throw err;
       }
@@ -218,8 +211,7 @@ exports.cancelSubscription = async (req, res) => {
         cancel_at_period_end: true,
       });
     } catch (stripeErr) {
-      logger.error('Stripe subscription cancellation failed', { userId, subscriptionId: subscription.id, error: stripeErr.message });
-      return res.status(402).json({ error: 'Failed to cancel subscription with payment processor' });
+      throw new AppError('Failed to cancel subscription with payment processor', 402, 'external_service_error');
     }
 
     // Update DB with Stripe response (transaction ensures atomicity)
@@ -235,7 +227,7 @@ exports.cancelSubscription = async (req, res) => {
       );
 
       if (!updateRows.length) {
-        throw new Error('Subscription state changed during update');
+        throw new AppError('Subscription state changed during update', 409, 'status_mismatch');
       }
 
       return updateRows[0];
@@ -246,23 +238,12 @@ exports.cancelSubscription = async (req, res) => {
       cancel_at: new Date(stripeSub.current_period_end * 1000).toISOString()
     });
   } catch (err) {
-    if (err.status === 404) {
-      return res.status(404).json({ error: err.message });
-    }
-    if (err.status === 409) {
-      const resp = { error: err.message };
-      if (err.escrow_count !== undefined) {
-        resp.escrow_count = err.escrow_count;
-      }
-      return res.status(409).json(resp);
-    }
-    logger.error('Cancel subscription error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to cancel subscription.' });
+    next(err);
   }
 };
 
 // Create portal session (manage billing)
-exports.createPortalSession = async (req, res) => {
+exports.createPortalSession = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT stripe_customer_id
@@ -275,7 +256,7 @@ exports.createPortalSession = async (req, res) => {
     );
     const stripeCustomerId = rows[0]?.stripe_customer_id || null;
     if (!stripeCustomerId) {
-      return res.status(400).json({ error: 'No billing account found.' });
+      throw new AppError('No billing account found', 400, 'not_found');
     }
 
     const session = await stripe.billingPortal.sessions.create({
@@ -285,7 +266,6 @@ exports.createPortalSession = async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    logger.error('Portal session error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'Failed to create portal session.' });
+    next(err);
   }
 };

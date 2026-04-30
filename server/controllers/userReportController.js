@@ -1,5 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 // Map report types to severity levels
 const SEVERITY_MAP = {
@@ -14,7 +15,7 @@ const getReportSeverity = (reportType) => {
   return SEVERITY_MAP[reportType] || 'medium';
 };
 
-const submitReport = async (req, res) => {
+const submitReport = async (req, res, next) => {
   try {
     const { reportedUserId, bookingId, reportType, description } = req.body;
     const reporterId = req.user.id;
@@ -22,15 +23,15 @@ const submitReport = async (req, res) => {
     // Validate report type
     const validTypes = ['non_payment', 'tool_damage', 'non_return', 'fraud', 'other'];
     if (!validTypes.includes(reportType)) {
-      return res.status(400).json({ error: 'Invalid report type' });
+      throw new AppError('Invalid report type', 400, 'validation_failed', { reportType: 'Must be one of: non_payment, tool_damage, non_return, fraud, other' });
     }
 
     if (!description || description.trim().length < 10) {
-      return res.status(400).json({ error: 'Description must be at least 10 characters' });
+      throw new AppError('Description must be at least 10 characters', 400, 'validation_failed', { description: 'Minimum 10 characters required' });
     }
 
     if (reporterId === reportedUserId) {
-      return res.status(400).json({ error: 'Cannot report yourself' });
+      throw new AppError('Cannot report yourself', 400, 'validation_failed', { reportedUserId: 'Cannot be the same as reporter' });
     }
 
     // Prevent duplicate reports for same user+booking combo (within 30 days)
@@ -42,7 +43,7 @@ const submitReport = async (req, res) => {
     );
 
     if (existingReport.rows.length > 0) {
-      return res.status(400).json({ error: 'You have already reported this user for this booking' });
+      throw new AppError('You have already reported this user for this booking', 400, 'already_exists');
     }
 
     // Determine severity based on report type
@@ -59,25 +60,24 @@ const submitReport = async (req, res) => {
 
     const report = result.rows[0];
 
-    res.json({
-      reportId: report.id,
-      status: report.status,
-      message: 'Report submitted. Our team will review it within 48 hours.'
-    });
-
     logger.info('User report submitted', {
       reportId: report.id,
       reporterId,
       reportedUserId,
       reportType
     });
+
+    res.json({
+      reportId: report.id,
+      status: report.status,
+      message: 'Report submitted. Our team will review it within 48 hours.'
+    });
   } catch (err) {
-    logger.error('submitReport error', { err });
-    res.status(500).json({ error: 'Failed to submit report' });
+    next(err);
   }
 };
 
-const getMyReports = async (req, res) => {
+const getMyReports = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { status } = req.query;
@@ -102,12 +102,11 @@ const getMyReports = async (req, res) => {
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
-    logger.error('getMyReports error', { err });
-    res.status(500).json({ error: 'Failed to load reports' });
+    next(err);
   }
 };
 
-const getReportsAgainstMe = async (req, res) => {
+const getReportsAgainstMe = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { page = 1, limit = 50 } = req.query;
@@ -144,16 +143,15 @@ const getReportsAgainstMe = async (req, res) => {
       }
     });
   } catch (err) {
-    logger.error('getReportsAgainstMe error', { err });
-    res.status(500).json({ error: 'Failed to load reports against you' });
+    next(err);
   }
 };
 
-const adminGetReports = async (req, res) => {
+const adminGetReports = async (req, res, next) => {
   try {
     // Require admin role
     if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin access required' });
+      throw new AppError('Admin access required', 403, 'forbidden');
     }
 
     const { status, severity, page = 1, limit = 50 } = req.query;
@@ -196,19 +194,18 @@ const adminGetReports = async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    logger.error('adminGetReports error', { err });
-    res.status(500).json({ error: 'Failed to load reports' });
+    next(err);
   }
 };
 
-const adminUpdateReportStatus = async (req, res) => {
+const adminUpdateReportStatus = async (req, res, next) => {
   try {
     const { reportId } = req.params;
     const { status, platformAction } = req.body;
 
     const validStatuses = ['open', 'investigating', 'resolved', 'dismissed', 'closed'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+      throw new AppError('Invalid status', 400, 'validation_failed', { status: 'Must be one of: open, investigating, resolved, dismissed, closed' });
     }
 
     const result = await db.query(
@@ -221,19 +218,18 @@ const adminUpdateReportStatus = async (req, res) => {
     );
 
     if (!result.rows[0]) {
-      return res.status(404).json({ error: 'Report not found' });
+      throw new AppError('Report not found', 404, 'not_found');
     }
-
-    res.json(result.rows[0]);
 
     logger.info('Report status updated', {
       reportId,
       newStatus: status,
       platformAction
     });
+
+    res.json(result.rows[0]);
   } catch (err) {
-    logger.error('adminUpdateReportStatus error', { err });
-    res.status(500).json({ error: 'Failed to update report' });
+    next(err);
   }
 };
 

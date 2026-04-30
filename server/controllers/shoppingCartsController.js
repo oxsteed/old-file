@@ -1,19 +1,21 @@
 const { pool } = require('../db');
-const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 /**
  * Create a new shopping cart
  * POST /api/carts
  * Body: { jobId?, name, description? }
  */
-const createCart = async (req, res) => {
+const createCart = async (req, res, next) => {
   try {
     const helperId = req.user.id;
     const { jobId, name, description } = req.body;
 
-    if (!name || name.trim().length === 0) {
-      return sendError(res, 400, 'Cart name is required');
+    const fields = {};
+    if (!name || name.trim().length === 0) fields.name = 'Cart name is required';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     const query = `
@@ -32,10 +34,9 @@ const createCart = async (req, res) => {
     const cart = result.rows[0];
     logger.info('Shopping cart created', { cartId: cart.id, helperId, jobId });
 
-    sendSuccess(res, cart, 201);
+    res.status(201).json(cart);
   } catch (err) {
-    logger.error('Error creating shopping cart', err);
-    sendError(res, 500, 'Failed to create cart');
+    next(err);
   }
 };
 
@@ -43,7 +44,7 @@ const createCart = async (req, res) => {
  * Get all carts for logged-in helper
  * GET /api/carts?templateOnly=false
  */
-const getCarts = async (req, res) => {
+const getCarts = async (req, res, next) => {
   try {
     const helperId = req.user.id;
     const { templateOnly = false } = req.query;
@@ -68,13 +69,12 @@ const getCarts = async (req, res) => {
 
     const result = await pool.query(query, params);
 
-    sendSuccess(res, {
+    res.json({
       carts: result.rows,
       count: result.rows.length,
     });
   } catch (err) {
-    logger.error('Error fetching carts', err);
-    sendError(res, 500, 'Failed to fetch carts');
+    next(err);
   }
 };
 
@@ -82,7 +82,7 @@ const getCarts = async (req, res) => {
  * Get single cart with items
  * GET /api/carts/:cartId
  */
-const getCart = async (req, res) => {
+const getCart = async (req, res, next) => {
   try {
     const { cartId } = req.params;
     const helperId = req.user.id;
@@ -98,7 +98,7 @@ const getCart = async (req, res) => {
     const cartResult = await pool.query(cartQuery, [cartId, helperId]);
 
     if (cartResult.rows.length === 0) {
-      return sendError(res, 404, 'Cart not found or you do not own this cart');
+      throw new AppError('Cart not found or you do not own this cart', 404, 'not_found');
     }
 
     const cart = cartResult.rows[0];
@@ -122,15 +122,14 @@ const getCart = async (req, res) => {
       0
     );
 
-    sendSuccess(res, {
+    res.json({
       ...cart,
       items: itemsResult.rows,
       itemCount: itemsResult.rows.length,
       calculatedSubtotal: subtotal,
     });
   } catch (err) {
-    logger.error('Error fetching cart', err);
-    sendError(res, 500, 'Failed to fetch cart');
+    next(err);
   }
 };
 
@@ -139,7 +138,7 @@ const getCart = async (req, res) => {
  * PUT /api/carts/:cartId
  * Body: { name?, description?, status? }
  */
-const updateCart = async (req, res) => {
+const updateCart = async (req, res, next) => {
   try {
     const { cartId } = req.params;
     const helperId = req.user.id;
@@ -150,7 +149,7 @@ const updateCart = async (req, res) => {
     const checkResult = await pool.query(checkQuery, [cartId, helperId]);
 
     if (checkResult.rows.length === 0) {
-      return sendError(res, 404, 'Cart not found or you do not own this cart');
+      throw new AppError('Cart not found or you do not own this cart', 404, 'not_found');
     }
 
     const updates = [];
@@ -176,7 +175,7 @@ const updateCart = async (req, res) => {
     }
 
     if (updates.length === 0) {
-      return sendError(res, 400, 'No fields to update');
+      throw new AppError('No fields to update', 400, 'validation_failed');
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
@@ -191,10 +190,9 @@ const updateCart = async (req, res) => {
     const result = await pool.query(query, params);
 
     logger.info('Shopping cart updated', { cartId, helperId });
-    sendSuccess(res, result.rows[0]);
+    res.json(result.rows[0]);
   } catch (err) {
-    logger.error('Error updating cart', err);
-    sendError(res, 500, 'Failed to update cart');
+    next(err);
   }
 };
 
@@ -202,7 +200,7 @@ const updateCart = async (req, res) => {
  * Delete a cart
  * DELETE /api/carts/:cartId
  */
-const deleteCart = async (req, res) => {
+const deleteCart = async (req, res, next) => {
   try {
     const { cartId } = req.params;
     const helperId = req.user.id;
@@ -216,14 +214,13 @@ const deleteCart = async (req, res) => {
     const result = await pool.query(query, [cartId, helperId]);
 
     if (result.rows.length === 0) {
-      return sendError(res, 404, 'Cart not found or you do not own this cart');
+      throw new AppError('Cart not found or you do not own this cart', 404, 'not_found');
     }
 
     logger.info('Shopping cart deleted', { cartId, helperId });
-    sendSuccess(res, { message: 'Cart deleted' });
+    res.json({ message: 'Cart deleted' });
   } catch (err) {
-    logger.error('Error deleting cart', err);
-    sendError(res, 500, 'Failed to delete cart');
+    next(err);
   }
 };
 
@@ -232,18 +229,17 @@ const deleteCart = async (req, res) => {
  * POST /api/carts/:cartId/items
  * Body: { productId, quantity, notes? }
  */
-const addItem = async (req, res) => {
+const addItem = async (req, res, next) => {
   try {
     const { cartId } = req.params;
     const helperId = req.user.id;
     const { productId, quantity = 1, notes } = req.body;
 
-    if (!productId) {
-      return sendError(res, 400, 'Product ID is required');
-    }
-
-    if (quantity <= 0) {
-      return sendError(res, 400, 'Quantity must be greater than 0');
+    const fields = {};
+    if (!productId) fields.productId = 'Product ID is required';
+    if (quantity <= 0) fields.quantity = 'Quantity must be greater than 0';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Verify cart ownership
@@ -253,7 +249,7 @@ const addItem = async (req, res) => {
     );
 
     if (cartCheck.rows.length === 0) {
-      return sendError(res, 404, 'Cart not found or you do not own this cart');
+      throw new AppError('Cart not found or you do not own this cart', 404, 'not_found');
     }
 
     // Get product price
@@ -263,7 +259,7 @@ const addItem = async (req, res) => {
     );
 
     if (productCheck.rows.length === 0) {
-      return sendError(res, 404, 'Product not found or unavailable');
+      throw new AppError('Product not found or unavailable', 404, 'not_found');
     }
 
     const productPrice = productCheck.rows[0].price_cents;
@@ -283,10 +279,9 @@ const addItem = async (req, res) => {
     ]);
 
     logger.info('Item added to cart', { cartId, productId, quantity });
-    sendSuccess(res, result.rows[0], 201);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
-    logger.error('Error adding item to cart', err);
-    sendError(res, 500, 'Failed to add item');
+    next(err);
   }
 };
 
@@ -295,7 +290,7 @@ const addItem = async (req, res) => {
  * PUT /api/carts/:cartId/items/:itemId
  * Body: { quantity?, notes? }
  */
-const updateItem = async (req, res) => {
+const updateItem = async (req, res, next) => {
   try {
     const { cartId, itemId } = req.params;
     const helperId = req.user.id;
@@ -310,7 +305,7 @@ const updateItem = async (req, res) => {
     );
 
     if (cartCheck.rows.length === 0) {
-      return sendError(res, 404, 'Item not found or you do not own this cart');
+      throw new AppError('Item not found or you do not own this cart', 404, 'not_found');
     }
 
     const updates = [];
@@ -319,7 +314,7 @@ const updateItem = async (req, res) => {
 
     if (quantity !== undefined) {
       if (quantity <= 0) {
-        return sendError(res, 400, 'Quantity must be greater than 0');
+        throw new AppError('Quantity must be greater than 0', 400, 'validation_failed', { quantity: 'Quantity must be greater than 0' });
       }
       updates.push(`quantity = $${paramCount}`);
       params.push(quantity);
@@ -333,7 +328,7 @@ const updateItem = async (req, res) => {
     }
 
     if (updates.length === 0) {
-      return sendError(res, 400, 'No fields to update');
+      throw new AppError('No fields to update', 400, 'validation_failed');
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
@@ -348,10 +343,9 @@ const updateItem = async (req, res) => {
     const result = await pool.query(query, params);
 
     logger.info('Cart item updated', { cartId, itemId });
-    sendSuccess(res, result.rows[0]);
+    res.json(result.rows[0]);
   } catch (err) {
-    logger.error('Error updating cart item', err);
-    sendError(res, 500, 'Failed to update item');
+    next(err);
   }
 };
 
@@ -359,7 +353,7 @@ const updateItem = async (req, res) => {
  * Remove item from cart
  * DELETE /api/carts/:cartId/items/:itemId
  */
-const removeItem = async (req, res) => {
+const removeItem = async (req, res, next) => {
   try {
     const { cartId, itemId } = req.params;
     const helperId = req.user.id;
@@ -373,7 +367,7 @@ const removeItem = async (req, res) => {
     );
 
     if (cartCheck.rows.length === 0) {
-      return sendError(res, 404, 'Item not found or you do not own this cart');
+      throw new AppError('Item not found or you do not own this cart', 404, 'not_found');
     }
 
     const query = `
@@ -385,10 +379,9 @@ const removeItem = async (req, res) => {
     await pool.query(query, [itemId, cartId]);
 
     logger.info('Cart item removed', { cartId, itemId });
-    sendSuccess(res, { message: 'Item removed from cart' });
+    res.json({ message: 'Item removed from cart' });
   } catch (err) {
-    logger.error('Error removing cart item', err);
-    sendError(res, 500, 'Failed to remove item');
+    next(err);
   }
 };
 
@@ -397,14 +390,14 @@ const removeItem = async (req, res) => {
  * POST /api/carts/:cartId/save-as-template
  * Body: { templateName }
  */
-const saveAsTemplate = async (req, res) => {
+const saveAsTemplate = async (req, res, next) => {
   try {
     const { cartId } = req.params;
     const helperId = req.user.id;
     const { templateName } = req.body;
 
     if (!templateName || templateName.trim().length === 0) {
-      return sendError(res, 400, 'Template name is required');
+      throw new AppError('Template name is required', 400, 'validation_failed', { templateName: 'Template name is required' });
     }
 
     // Verify cart ownership
@@ -414,7 +407,7 @@ const saveAsTemplate = async (req, res) => {
     );
 
     if (cartCheck.rows.length === 0) {
-      return sendError(res, 404, 'Cart not found or you do not own this cart');
+      throw new AppError('Cart not found or you do not own this cart', 404, 'not_found');
     }
 
     const query = `
@@ -427,10 +420,9 @@ const saveAsTemplate = async (req, res) => {
     const result = await pool.query(query, [cartId, templateName.trim()]);
 
     logger.info('Cart saved as template', { cartId, templateName });
-    sendSuccess(res, result.rows[0]);
+    res.json(result.rows[0]);
   } catch (err) {
-    logger.error('Error saving cart as template', err);
-    sendError(res, 500, 'Failed to save template');
+    next(err);
   }
 };
 
@@ -439,14 +431,14 @@ const saveAsTemplate = async (req, res) => {
  * POST /api/carts/from-template/:templateId
  * Body: { name, jobId? }
  */
-const createFromTemplate = async (req, res) => {
+const createFromTemplate = async (req, res, next) => {
   try {
     const { templateId } = req.params;
     const helperId = req.user.id;
     const { name, jobId } = req.body;
 
     if (!name || name.trim().length === 0) {
-      return sendError(res, 400, 'Cart name is required');
+      throw new AppError('Cart name is required', 400, 'validation_failed', { name: 'Cart name is required' });
     }
 
     // Get template
@@ -458,7 +450,7 @@ const createFromTemplate = async (req, res) => {
     const templateResult = await pool.query(templateQuery, [templateId, helperId]);
 
     if (templateResult.rows.length === 0) {
-      return sendError(res, 404, 'Template not found or you do not own this template');
+      throw new AppError('Template not found or you do not own this template', 404, 'not_found');
     }
 
     // Start transaction
@@ -497,7 +489,7 @@ const createFromTemplate = async (req, res) => {
 
       logger.info('Cart created from template', { newCartId, templateId, helperId });
 
-      sendSuccess(res, { id: newCartId, name }, 201);
+      res.status(201).json({ id: newCartId, name });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -505,8 +497,7 @@ const createFromTemplate = async (req, res) => {
       client.release();
     }
   } catch (err) {
-    logger.error('Error creating cart from template', err);
-    sendError(res, 500, 'Failed to create cart from template');
+    next(err);
   }
 };
 

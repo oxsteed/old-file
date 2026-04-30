@@ -5,6 +5,7 @@ const pool   = require('../db');
 const logger = require('../utils/logger');
 const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../utils/businessOwnership');
 const countriesUtil = require('../utils/countries');
+const { AppError } = require('../middleware/errorHandler');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -33,7 +34,7 @@ function currentQuarter() {
 function round2(n) { return Math.round((n || 0) * 100) / 100; }
 
 // ── List user's businesses ────────────────────────────────────────────────────
-async function listBusinesses(req, res) {
+async function listBusinesses(req, res, next) {
   try {
     const { rows } = await pool.query(
       `SELECT id, business_name, business_type, description, website, phone,
@@ -46,13 +47,12 @@ async function listBusinesses(req, res) {
     );
     return res.json({ businesses: rows });
   } catch (err) {
-    logger.error('listBusinesses error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to load businesses' });
+    next(err);
   }
 }
 
 // ── Add a business ────────────────────────────────────────────────────────────
-async function addBusiness(req, res) {
+async function addBusiness(req, res, next) {
   try {
     const {
       business_name, business_type, ein, description, website, phone,
@@ -60,8 +60,10 @@ async function addBusiness(req, res) {
       address_country, tax_rate,
     } = req.body;
 
-    if (!business_name?.trim()) {
-      return res.status(400).json({ error: 'Business name is required' });
+    const fields = {};
+    if (!business_name?.trim()) fields.business_name = 'Business name is required';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     // Normalize country (ISO-2 upper, fallback US) and uppercase state for
@@ -95,19 +97,18 @@ async function addBusiness(req, res) {
 
     return res.status(201).json({ business: biz });
   } catch (err) {
-    logger.error('addBusiness error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to add business' });
+    next(err);
   }
 }
 
 // ── Update a business ─────────────────────────────────────────────────────────
-async function updateBusiness(req, res) {
+async function updateBusiness(req, res, next) {
   try {
     const { id } = req.params;
 
     // Allow owner OR active manager to update the business profile.
     const access = await canEditProfile(req.user.id, id);
-    if (!access) return res.status(404).json({ error: 'Business not found' });
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
 
     const ownerId = access.owner_id;
 
@@ -186,7 +187,7 @@ async function updateBusiness(req, res) {
       ]
     );
 
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    if (!biz) throw new AppError('Business not found', 404, 'not_found');
 
     // Update profile_headline / service_radius_miles on the OWNER's helper_profiles
     // row (keyed by ownerId, not the requester — a manager editing profile must not
@@ -215,8 +216,7 @@ async function updateBusiness(req, res) {
 
     return res.json({ business: biz });
   } catch (err) {
-    logger.error('updateBusiness error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to update business' });
+    next(err);
   }
 }
 
@@ -224,13 +224,13 @@ async function updateBusiness(req, res) {
 // PUT /api/businesses/:id/photos  multipart/form-data
 // fields: logo (optional), cover (optional)
 // Access: owner OR active manager
-async function uploadBusinessPhotos(req, res) {
+async function uploadBusinessPhotos(req, res, next) {
   try {
     const { id } = req.params;
 
     // Allow owner OR active manager to upload photos.
     const access = await canEditProfile(req.user.id, id);
-    if (!access) return res.status(404).json({ error: 'Business not found' });
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
 
     const { uploadFile, getPublicUrl } = require('../utils/storage');
     const updates = {};
@@ -239,7 +239,7 @@ async function uploadBusinessPhotos(req, res) {
     if (req.files?.logo?.[0]) {
       const file = req.files.logo[0];
       if (!allowed.includes(file.mimetype))
-        return res.status(400).json({ error: 'Logo must be a JPG, PNG, WebP, or GIF' });
+        throw new AppError('Logo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
       const key = await uploadFile(file.buffer, 'business-logos', file.originalname, file.mimetype);
       updates.logo_url = key
         ? getPublicUrl(key)
@@ -249,7 +249,7 @@ async function uploadBusinessPhotos(req, res) {
     if (req.files?.cover?.[0]) {
       const file = req.files.cover[0];
       if (!allowed.includes(file.mimetype))
-        return res.status(400).json({ error: 'Cover photo must be a JPG, PNG, WebP, or GIF' });
+        throw new AppError('Cover photo must be a JPG, PNG, WebP, or GIF', 400, 'invalid_format');
       const key = await uploadFile(file.buffer, 'business-covers', file.originalname, file.mimetype);
       updates.cover_photo_url = key
         ? getPublicUrl(key)
@@ -257,7 +257,7 @@ async function uploadBusinessPhotos(req, res) {
     }
 
     if (Object.keys(updates).length === 0)
-      return res.status(400).json({ error: 'No files uploaded' });
+      throw new AppError('No files uploaded', 400, 'validation_failed');
 
     // Access already verified above — update by id only (no user_id guard needed here).
     const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
@@ -271,13 +271,12 @@ async function uploadBusinessPhotos(req, res) {
 
     return res.json({ business: updated, ...updates });
   } catch (err) {
-    logger.error('uploadBusinessPhotos error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to upload photos' });
+    next(err);
   }
 }
 
 // ── Set primary business ──────────────────────────────────────────────────────
-async function setPrimary(req, res) {
+async function setPrimary(req, res, next) {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -288,16 +287,15 @@ async function setPrimary(req, res) {
       [id, userId]
     );
 
-    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    if (!biz) throw new AppError('Business not found', 404, 'not_found');
     return res.json({ business: biz });
   } catch (err) {
-    logger.error('setPrimary error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to set primary business' });
+    next(err);
   }
 }
 
 // ── Delete a business ─────────────────────────────────────────────────────────
-async function deleteBusiness(req, res) {
+async function deleteBusiness(req, res, next) {
   try {
     const { id } = req.params;
     // Soft-delete: set is_active = FALSE instead of hard DELETE (preserves audit trail)
@@ -307,21 +305,20 @@ async function deleteBusiness(req, res) {
       [id, req.user.id]
     );
     if (!result.rows.length) {
-      return res.status(404).json({ error: 'Business not found or already deleted' });
+      throw new AppError('Business not found or already deleted', 404, 'not_found');
     }
     return res.json({ ok: true });
   } catch (err) {
-    logger.error('deleteBusiness error', { userId: req.user?.id, businessId: req.params?.id, err: err.message });
-    return res.status(500).json({ error: 'Failed to delete business' });
+    next(err);
   }
 }
 
 // ── Analytics: P&L, trends, job stats ────────────────────────────────────────
 // GET /api/businesses/:id/analytics?period=6m
-async function getBusinessAnalytics(req, res) {
+async function getBusinessAnalytics(req, res, next) {
   try {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
-    if (!access) return res.status(404).json({ error: 'Business not found' });
+    if (!access) throw new AppError('Business not found', 404, 'not_found');
 
     const bizId   = access.id;
     const ownerId = access.owner_id;
@@ -445,8 +442,7 @@ async function getBusinessAnalytics(req, res) {
       },
     });
   } catch (err) {
-    logger.error('getBusinessAnalytics error', { err: err.message });
-    return res.status(500).json({ error: 'Failed to load analytics' });
+    next(err);
   }
 }
 

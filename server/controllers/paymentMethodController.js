@@ -1,5 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 const { encrypt, decrypt } = require('../utils/encryption');
 
 const validatePaymentIdentifier = (type, identifier) => {
@@ -42,7 +43,7 @@ const maskPaymentIdentifier = (type, identifier) => {
   }
 };
 
-const getPaymentMethod = async (req, res) => {
+const getPaymentMethod = async (req, res, next) => {
   try {
     const ownerId = req.user.id;
     const result = await db.query(
@@ -69,8 +70,7 @@ const getPaymentMethod = async (req, res) => {
         decryptedIdentifier = paymentMethod.payment_identifier;
       }
     } catch (decryptErr) {
-      logger.error('Failed to decrypt payment identifier', { ownerId, error: decryptErr.message });
-      return res.status(500).json({ error: 'Failed to load payment method (decryption error)' });
+      throw new AppError('Failed to load payment method (decryption error)', 500, 'processing_error');
     }
 
     res.json({
@@ -81,36 +81,38 @@ const getPaymentMethod = async (req, res) => {
       is_active: paymentMethod.is_active
     });
   } catch (err) {
-    logger.error('getPaymentMethod error', { err });
-    res.status(500).json({ error: 'Failed to load payment method' });
+    next(err);
   }
 };
 
-const setPaymentMethod = async (req, res) => {
+const setPaymentMethod = async (req, res, next) => {
   try {
     const ownerId = req.user.id;
     const { paymentType, paymentIdentifier } = req.body;
 
-    if (!paymentType || !paymentIdentifier) {
-      return res.status(400).json({ error: 'Payment type and identifier required' });
+    const fields = {};
+    if (!paymentType) fields.paymentType = 'Payment type is required';
+    if (!paymentIdentifier) fields.paymentIdentifier = 'Payment identifier is required';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     const validTypes = ['cash_app', 'venmo', 'bank_transfer'];
     if (!validTypes.includes(paymentType)) {
-      return res.status(400).json({ error: 'Invalid payment type' });
+      throw new AppError('Invalid payment type', 400, 'validation_failed', { paymentType: 'Must be cash_app, venmo, or bank_transfer' });
     }
 
     // Validate payment identifier format
     if (!validatePaymentIdentifier(paymentType, paymentIdentifier)) {
+      let fieldErr = 'Invalid format';
       if (paymentType === 'cash_app') {
-        return res.status(400).json({ error: 'Cash App identifier must start with $ followed by username' });
+        fieldErr = 'Cash App identifier must start with $ followed by username';
+      } else if (paymentType === 'venmo') {
+        fieldErr = 'Venmo identifier must start with @ followed by username';
+      } else if (paymentType === 'bank_transfer') {
+        fieldErr = 'Bank account identifier must be at least 5 characters';
       }
-      if (paymentType === 'venmo') {
-        return res.status(400).json({ error: 'Venmo identifier must start with @ followed by username' });
-      }
-      if (paymentType === 'bank_transfer') {
-        return res.status(400).json({ error: 'Bank account identifier must be at least 5 characters' });
-      }
+      throw new AppError('Validation failed', 400, 'validation_failed', { paymentIdentifier: fieldErr });
     }
 
     // Encrypt the payment identifier
@@ -118,8 +120,7 @@ const setPaymentMethod = async (req, res) => {
     try {
       encryptedIdentifier = encrypt(paymentIdentifier);
     } catch (encryptErr) {
-      logger.error('Failed to encrypt payment identifier', { ownerId, error: encryptErr.message });
-      return res.status(500).json({ error: 'Encryption failed. Payment method not saved.' });
+      throw new AppError('Encryption failed. Payment method not saved', 500, 'processing_error');
     }
 
     // Upsert payment method with encrypted identifier
@@ -151,12 +152,11 @@ const setPaymentMethod = async (req, res) => {
       is_active: true
     });
   } catch (err) {
-    logger.error('setPaymentMethod error', { err });
-    res.status(500).json({ error: 'Failed to save payment method' });
+    next(err);
   }
 };
 
-const deletePaymentMethod = async (req, res) => {
+const deletePaymentMethod = async (req, res, next) => {
   try {
     const ownerId = req.user.id;
 
@@ -181,8 +181,7 @@ const deletePaymentMethod = async (req, res) => {
 
     res.json({ deleted: true });
   } catch (err) {
-    logger.error('deletePaymentMethod error', { err });
-    res.status(500).json({ error: 'Failed to delete payment method' });
+    next(err);
   }
 };
 

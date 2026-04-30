@@ -2,9 +2,10 @@ const db = require('../db');
 const { invalidateCache, DEFAULTS } = require('../utils/feeCalculator');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 // ——— Get all fee config values ———————————————————————
-exports.getFeeConfig = async (req, res) => {
+exports.getFeeConfig = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT fc.*,
@@ -15,12 +16,12 @@ exports.getFeeConfig = async (req, res) => {
     );
     res.json({ config: rows });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to load fee config.' });
+    next(err);
   }
 };
 
 // ——— Get fee change history —————————————————————————
-exports.getFeeHistory = async (req, res) => {
+exports.getFeeHistory = async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT
@@ -33,20 +34,20 @@ exports.getFeeHistory = async (req, res) => {
     );
     res.json({ history: rows });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to load fee history.' });
+    next(err);
   }
 };
 
 // ——— Update a single fee config value ——————————————————
-exports.updateFeeConfig = async (req, res) => {
+exports.updateFeeConfig = async (req, res, next) => {
   const { key, value, reason } = req.body;
   const adminId = req.user.id;
 
-  if (!key || value === undefined || value === null) {
-    return res.status(400).json({ error: 'key and value are required.' });
-  }
-
   try {
+    if (!key || value === undefined || value === null) {
+      throw new AppError('key and value are required', 400, 'validation_failed', { key: 'Required', value: 'Required' });
+    }
+
     // Fetch current config row
     const { rows: existing } = await db.query(
       'SELECT * FROM fee_config WHERE key = $1',
@@ -54,7 +55,7 @@ exports.updateFeeConfig = async (req, res) => {
     );
 
     if (!existing.length) {
-      return res.status(404).json({ error: `Fee config key '${key}' not found.` });
+      throw new AppError(`Fee config key '${key}' not found`, 404, 'not_found');
     }
 
     const current = existing[0];
@@ -62,14 +63,10 @@ exports.updateFeeConfig = async (req, res) => {
 
     // Validate within allowed range
     if (current.min_value !== null && newValue < current.min_value) {
-      return res.status(400).json({
-        error: `Value ${newValue} is below minimum ${current.min_value}`,
-      });
+      throw new AppError(`Value ${newValue} is below minimum ${current.min_value}`, 400, 'validation_failed', { value: `Must be at least ${current.min_value}` });
     }
     if (current.max_value !== null && newValue > current.max_value) {
-      return res.status(400).json({
-        error: `Value ${newValue} is above maximum ${current.max_value}`,
-      });
+      throw new AppError(`Value ${newValue} is above maximum ${current.max_value}`, 400, 'validation_failed', { value: `Must not exceed ${current.max_value}` });
     }
 
     // Log the change (immutable)
@@ -105,8 +102,7 @@ exports.updateFeeConfig = async (req, res) => {
 
     res.json({ success: true, key, newValue });
   } catch (err) {
-    logger.error('[FeeConfig] Update failed:', { err: err });
-    res.status(500).json({ error: 'Failed to update fee config.' });
+    next(err);
   }
 };
 
@@ -161,7 +157,7 @@ async function syncSubscriptionToStripe(key, newCents) {
 }
 
 // ——— Preview fee calculation at new rates ———————————————
-exports.previewFees = async (req, res) => {
+exports.previewFees = async (req, res, next) => {
   try {
     const {
       jobValueDollars,
@@ -190,12 +186,12 @@ exports.previewFees = async (req, res) => {
       helperPayoutDollars: (helperPayout / 100).toFixed(2),
     });
   } catch (err) {
-    res.status(500).json({ error: 'Preview calculation failed.' });
+    next(err);
   }
 };
 
 // ——— Reset all fees to defaults ———————————————————————
-exports.resetToDefaults = async (req, res) => {
+exports.resetToDefaults = async (req, res, next) => {
   const adminId = req.user.id;
   const { reason } = req.body;
 
@@ -227,7 +223,6 @@ exports.resetToDefaults = async (req, res) => {
     invalidateCache();
     res.json({ success: true, message: 'All fees reset to defaults.' });
   } catch (err) {
-    logger.error('[FeeConfig] Reset failed:', { err: err });
-    res.status(500).json({ error: 'Failed to reset fees.' });
+    next(err);
   }
 };

@@ -2,6 +2,7 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
 const { hashIP } = require('../utils/encryption');
+const { AppError } = require('../middleware/errorHandler');
 
 const TERMS_VERSION = '1.0';
 const TERMS_CONTENT = {
@@ -17,30 +18,29 @@ const TERMS_CONTENT = {
   }
 };
 
-const getTerms = async (req, res) => {
+const getTerms = async (req, res, next) => {
   try {
     res.json(TERMS_CONTENT);
   } catch (err) {
-    logger.error('getTerms error', { err });
-    res.status(500).json({ error: 'Failed to load terms' });
+    next(err);
   }
 };
 
-const acceptTerms = async (req, res) => {
+const acceptTerms = async (req, res, next) => {
   try {
     const { bookingId, userRole } = req.body;
     const userId = req.user.id;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('user-agent') || '';
 
+    // Validate user role
+    if (!['customer', 'owner'].includes(userRole)) {
+      throw new AppError('Invalid user role', 400, 'validation_failed', { userRole: 'Must be customer or owner' });
+    }
+
     // Hash IP and user-agent for privacy (stored hashed, not plaintext)
     const hashedIp = hashIP(ipAddress);
     const hashedUserAgent = crypto.createHash('sha256').update(userAgent).digest('hex');
-
-    // Validate user role
-    if (!['customer', 'owner'].includes(userRole)) {
-      return res.status(400).json({ error: 'Invalid user role' });
-    }
 
     // Verify booking exists and user is part of it
     const bookingResult = await db.query(
@@ -50,17 +50,17 @@ const acceptTerms = async (req, res) => {
     );
 
     if (!bookingResult.rows[0]) {
-      return res.status(404).json({ error: 'Booking not found' });
+      throw new AppError('Booking not found', 404, 'not_found');
     }
 
     const booking = bookingResult.rows[0];
 
     // Verify user role matches their booking role
     if (userRole === 'customer' && booking.customer_id !== userId) {
-      return res.status(403).json({ error: 'You are not the customer on this booking' });
+      throw new AppError('You are not the customer on this booking', 403, 'forbidden');
     }
     if (userRole === 'owner' && booking.owner_id !== userId) {
-      return res.status(403).json({ error: 'You are not the owner on this booking' });
+      throw new AppError('You are not the owner on this booking', 403, 'forbidden');
     }
 
     // Check if already accepted
@@ -71,7 +71,7 @@ const acceptTerms = async (req, res) => {
     );
 
     if (existingResult.rows[0]) {
-      return res.status(400).json({ error: 'You have already accepted these terms' });
+      throw new AppError('You have already accepted these terms', 400, 'already_exists');
     }
 
     // Record acceptance with hashed IP and user-agent for privacy
@@ -85,25 +85,24 @@ const acceptTerms = async (req, res) => {
 
     const acceptance = result.rows[0];
 
-    res.json({
-      accepted: true,
-      acceptedAt: acceptance.accepted_at,
-      termsVersion: TERMS_VERSION
-    });
-
     logger.info('Terms accepted', {
       bookingId,
       userId,
       userRole,
       termsVersion: TERMS_VERSION
     });
+
+    res.json({
+      accepted: true,
+      acceptedAt: acceptance.accepted_at,
+      termsVersion: TERMS_VERSION
+    });
   } catch (err) {
-    logger.error('acceptTerms error', { err });
-    res.status(500).json({ error: 'Failed to accept terms' });
+    next(err);
   }
 };
 
-const getBookingTermsStatus = async (req, res) => {
+const getBookingTermsStatus = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
     const userId = req.user.id;
@@ -116,7 +115,7 @@ const getBookingTermsStatus = async (req, res) => {
     );
 
     if (!bookingResult.rows[0]) {
-      return res.status(404).json({ error: 'Booking not found' });
+      throw new AppError('Booking not found', 404, 'not_found');
     }
 
     // Get acceptance status for both parties
@@ -139,8 +138,7 @@ const getBookingTermsStatus = async (req, res) => {
       acceptances
     });
   } catch (err) {
-    logger.error('getBookingTermsStatus error', { err });
-    res.status(500).json({ error: 'Failed to load terms status' });
+    next(err);
   }
 };
 

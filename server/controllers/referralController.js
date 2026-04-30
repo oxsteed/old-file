@@ -1,11 +1,12 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 const REWARD_TYPE = process.env.REFERRAL_REWARD_TYPE || 'none';
 
 // ── GET /api/referrals/me ──────────────────────────────────────────────────────
 // Returns the authenticated user's referral code, share URL, and stats.
-exports.getMyReferral = async (req, res) => {
+exports.getMyReferral = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -33,7 +34,7 @@ exports.getMyReferral = async (req, res) => {
     `, [userId]);
 
     if (!rows.length) {
-      return res.status(404).json({ error: 'User not found.' });
+      throw new AppError('User not found', 404, 'not_found');
     }
 
     const { referral_code, referrals_count, referral_conversions_count, referral_reward_given, referred_users } = rows[0];
@@ -53,17 +54,16 @@ exports.getMyReferral = async (req, res) => {
       referred_users,
     });
   } catch (err) {
-    logger.error('getMyReferral error', { err });
-    res.status(500).json({ error: 'Failed to fetch referral info.' });
+    next(err);
   }
 };
 
 // ── POST /api/referrals/validate ───────────────────────────────────────────────
 // Public endpoint — validate a referral code before registration.
-exports.validateCode = async (req, res) => {
+exports.validateCode = async (req, res, next) => {
   try {
     const { code } = req.body;
-    if (!code) return res.status(400).json({ error: 'code required.' });
+    if (!code) throw new AppError('code is required', 400, 'validation_failed', { code: 'code is required' });
 
     const { rows } = await db.query(
       `SELECT id, first_name FROM users WHERE referral_code = $1`,
@@ -71,12 +71,11 @@ exports.validateCode = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ valid: false, error: 'Referral code not found.' });
+      return res.status(404).json({ valid: false, error: 'Referral code not found' });
     }
 
     res.json({ valid: true, referrer_name: rows[0].first_name });
   } catch (err) {
-    logger.error('validateCode error', { err });
-    res.status(500).json({ error: 'Failed to validate code.' });
+    next(err);
   }
 };

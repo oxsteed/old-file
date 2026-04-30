@@ -12,8 +12,8 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 const { validate, rules } = require('../utils/validate');
-const { sendError, sendSuccess } = require('../utils/apiError');
 const { withTransaction } = require('../utils/transaction');
 const emailService = require('../services/emailService');
 const { broadcastToUser } = require('../services/socketService');
@@ -54,58 +54,58 @@ function displayName(row) {
 }
 
 // ─── createAppointment ───────────────────────────────────────
-exports.createAppointment = async (req, res) => {
-  const customer_id = req.user.id;
-  const {
-    helper_id,
-    job_id = null,
-    service_description,
-    scheduled_start_time,
-    scheduled_end_time,
-    location_address = null,
-    location_lat = null,
-    location_lng = null,
-    estimated_duration_minutes = 60,
-    customer_notes = null,
-  } = req.body || {};
-
-  const errors = validate(req.body || {}, {
-    helper_id:           [rules.required],
-    service_description: [rules.required, rules.minLen(5), rules.maxLen(2000), rules.noScript],
-    scheduled_start_time:[rules.required],
-    scheduled_end_time:  [rules.required],
-    estimated_duration_minutes: [rules.integer],
-    customer_notes:      [rules.maxLen(2000), rules.noScript],
-    location_address:    [rules.maxLen(500), rules.noScript],
-  });
-  if (errors) return sendError(res, 400, 'Validation failed', 'VALIDATION_ERROR', { fields: errors });
-
-  if (!isUuid(helper_id)) {
-    return sendError(res, 400, 'helper_id must be a valid UUID', 'VALIDATION_ERROR');
-  }
-  if (helper_id === customer_id) {
-    return sendError(res, 400, 'Cannot request an appointment with yourself', 'INVALID_PARTY');
-  }
-  if (job_id !== null && !isUuid(job_id)) {
-    return sendError(res, 400, 'job_id must be a valid UUID or null', 'VALIDATION_ERROR');
-  }
-
-  const start = parseDate(scheduled_start_time);
-  const end = parseDate(scheduled_end_time);
-  if (!start || !end) {
-    return sendError(res, 400, 'Invalid scheduled_start_time or scheduled_end_time', 'INVALID_TIME');
-  }
-  if (end <= start) {
-    return sendError(res, 400, 'End time must be after start time', 'INVALID_TIME_RANGE');
-  }
-  const minAdvanceMs = 15 * 60 * 1000;
-  if (start.getTime() - Date.now() < minAdvanceMs) {
-    return sendError(res, 400, 'Appointments must be scheduled at least 15 minutes in advance', 'INSUFFICIENT_ADVANCE_TIME');
-  }
-  // Cap duration safety net (DB also enforces 15..480)
-  const duration = clampInt(estimated_duration_minutes, 60, 15, 480);
-
+exports.createAppointment = async (req, res, next) => {
   try {
+    const customer_id = req.user.id;
+    const {
+      helper_id,
+      job_id = null,
+      service_description,
+      scheduled_start_time,
+      scheduled_end_time,
+      location_address = null,
+      location_lat = null,
+      location_lng = null,
+      estimated_duration_minutes = 60,
+      customer_notes = null,
+    } = req.body || {};
+
+    const errors = validate(req.body || {}, {
+      helper_id:           [rules.required],
+      service_description: [rules.required, rules.minLen(5), rules.maxLen(2000), rules.noScript],
+      scheduled_start_time:[rules.required],
+      scheduled_end_time:  [rules.required],
+      estimated_duration_minutes: [rules.integer],
+      customer_notes:      [rules.maxLen(2000), rules.noScript],
+      location_address:    [rules.maxLen(500), rules.noScript],
+    });
+    if (errors) throw new AppError('Validation failed', 400, 'validation_failed', errors);
+
+    if (!isUuid(helper_id)) {
+      throw new AppError('helper_id must be a valid UUID', 400, 'validation_failed', { helper_id: 'Invalid UUID format' });
+    }
+    if (helper_id === customer_id) {
+      throw new AppError('Cannot request an appointment with yourself', 400, 'invalid_state');
+    }
+    if (job_id !== null && !isUuid(job_id)) {
+      throw new AppError('job_id must be a valid UUID or null', 400, 'validation_failed', { job_id: 'Invalid UUID format' });
+    }
+
+    const start = parseDate(scheduled_start_time);
+    const end = parseDate(scheduled_end_time);
+    if (!start || !end) {
+      throw new AppError('Invalid scheduled_start_time or scheduled_end_time', 400, 'validation_failed', { scheduled_start_time: 'Invalid date format', scheduled_end_time: 'Invalid date format' });
+    }
+    if (end <= start) {
+      throw new AppError('End time must be after start time', 400, 'validation_failed', { scheduled_end_time: 'Must be after start time' });
+    }
+    const minAdvanceMs = 15 * 60 * 1000;
+    if (start.getTime() - Date.now() < minAdvanceMs) {
+      throw new AppError('Appointments must be scheduled at least 15 minutes in advance', 400, 'invalid_state');
+    }
+    // Cap duration safety net (DB also enforces 15..480)
+    const duration = clampInt(estimated_duration_minutes, 60, 15, 480);
+
     // 1. Verify helper is a real, active helper-role user (cheap, no lock)
     const helperPre = await pool.query(
       `SELECT id, role, is_active, deleted_at
@@ -114,10 +114,10 @@ exports.createAppointment = async (req, res) => {
       [helper_id]
     );
     if (helperPre.rows.length === 0 || !helperPre.rows[0].is_active || helperPre.rows[0].deleted_at) {
-      return sendError(res, 404, 'Helper not found or inactive', 'HELPER_NOT_FOUND');
+      throw new AppError('Helper not found or inactive', 404, 'not_found');
     }
     if (!HELPER_ROLES.includes(helperPre.rows[0].role)) {
-      return sendError(res, 400, 'User is not a helper', 'NOT_A_HELPER');
+      throw new AppError('User is not a helper', 400, 'invalid_state');
     }
 
     // 2. Atomic: re-check conflict + insert in one transaction.

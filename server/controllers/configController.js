@@ -1,5 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 async function hasPlatformConfigTable() {
   const { rows } = await db.query(
@@ -19,7 +20,7 @@ const DEFAULT_PRICES = {
 };
 
 // GET /api/config/pricing — public, no auth needed
-exports.getPricing = async (req, res) => {
+exports.getPricing = async (req, res, next) => {
   try {
     if (!(await hasPlatformConfigTable())) {
       return res.json(DEFAULT_PRICES);
@@ -41,16 +42,16 @@ exports.getPricing = async (req, res) => {
 };
 
 // PUT /api/config/pricing — super_admin only
-exports.updatePricing = async (req, res) => {
+exports.updatePricing = async (req, res, next) => {
   try {
     if (!(await hasPlatformConfigTable())) {
-      return res.status(501).json({ error: 'Pricing configuration is not available yet.' });
+      throw new AppError('Pricing configuration is not available yet.', 501, 'processing_error');
     }
     const updates = req.body; // { tier1_price: '0', tier2_price: '29.99', ... }
     const allowedKeys = Object.keys(DEFAULT_PRICES);
     const entries = Object.entries(updates).filter(([k]) => allowedKeys.includes(k));
     if (entries.length === 0) {
-      return res.status(400).json({ error: 'No valid pricing keys provided' });
+      throw new AppError('No valid pricing keys provided', 400, 'validation_failed', { pricing: 'At least one valid pricing key is required' });
     }
     for (const [key, value] of entries) {
       await db.query(
@@ -62,7 +63,6 @@ exports.updatePricing = async (req, res) => {
     }
     res.json({ message: 'Pricing updated', updated: Object.fromEntries(entries) });
   } catch (err) {
-    logger.error('Update pricing error:', { err: err });
-    res.status(500).json({ error: 'Failed to update pricing' });
+    next(err);
   }
 };

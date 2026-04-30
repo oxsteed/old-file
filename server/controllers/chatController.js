@@ -1,5 +1,6 @@
 const logger        = require('../utils/logger');
 const { ROLES }     = require('../constants/roles');
+const { AppError } = require('../middleware/errorHandler');
 const helperContext = require('../services/helperContext');
 const threadMemory  = require('../services/threadMemory');
 const { getUserFinancialContext, formatFinancialContextForAI } = require('../services/userFinancialContextService');
@@ -279,11 +280,11 @@ In-app widget (chat icon) or Settings → Support. Tickets tracked with numbers 
 
 For payment questions, refer users to contact OxSteed support team for the most up-to-date information.`;
 
-exports.chatMessage = async (req, res) => {
+exports.chatMessage = async (req, res, next) => {
   try {
     const { messages, pageContext, language } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: 'messages array is required' });
+      throw new AppError('messages array is required', 400, 'validation_failed', { messages: 'messages array is required' });
     }
 
     // Page context awareness — append current page info to system prompt
@@ -327,13 +328,12 @@ exports.chatMessage = async (req, res) => {
     );
 
     if (!ai.ok) {
-      return res.status(502).json({ error: 'AI service temporarily unavailable' });
+      throw new AppError('AI service temporarily unavailable', 502, 'external_service_error');
     }
 
     res.json({ reply: ai.reply });
   } catch (err) {
-    logger.error('[Chat] Error', { error: err.message });
-    res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
+    next(err);
   }
 };
 
@@ -342,18 +342,18 @@ exports.chatMessage = async (req, res) => {
  * Personalized financial advice based on user's real data.
  * Requires authentication. Includes pulse score, expenses, income, goals, planned needs.
  */
-exports.financialAdvisor = async (req, res) => {
+exports.financialAdvisor = async (req, res, next) => {
   try {
     const { messages, language, window = '1m' } = req.body;
     const userId = req.user?.id;
 
     // Require authentication
     if (!userId) {
-      return res.status(401).json({ error: 'Authentication required for financial advice' });
+      throw new AppError('Authentication required for financial advice', 401, 'auth_required');
     }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: 'messages array is required' });
+      throw new AppError('messages array is required', 400, 'validation_failed', { messages: 'messages array is required' });
     }
 
     // Fetch user's financial context
@@ -417,13 +417,12 @@ ${getLanguageInstruction(language)}`;
     );
 
     if (!ai.ok) {
-      return res.status(502).json({ error: 'AI service temporarily unavailable' });
+      throw new AppError('AI service temporarily unavailable', 502, 'external_service_error');
     }
 
     res.json({ reply: ai.reply, window, context: financialContext });
   } catch (err) {
-    logger.error('[FinancialAdvisor] Error', { userId: req.user?.id, error: err.message });
-    res.status(500).json({ error: 'AI service temporarily unavailable. Please try again.' });
+    next(err);
   }
 };
 
@@ -447,7 +446,7 @@ const socketService = require('../services/socketService');
  *   returns the threadId so subsequent requests skip sending full history.
  *   Falls back to client-supplied `messages` array when Redis is unavailable.
  */
-exports.profileChatMessage = async (req, res) => {
+exports.profileChatMessage = async (req, res, next) => {
   try {
     const {
       helperId: rawHelperId,
@@ -459,7 +458,7 @@ exports.profileChatMessage = async (req, res) => {
     } = req.body;
 
     if (!Array.isArray(msgHistory) || msgHistory.length === 0) {
-      return res.status(400).json({ error: 'messages array is required' });
+      throw new AppError('messages array is required', 400, 'validation_failed', { messages: 'messages array is required' });
     }
 
     // If a businessId is supplied (message from a business profile page), look up
@@ -473,12 +472,12 @@ exports.profileChatMessage = async (req, res) => {
         [resolvedBusinessId]
       );
       if (!bizRes.rows.length) {
-        return res.status(404).json({ error: 'Business not found' });
+        throw new AppError('Business not found', 404, 'not_found');
       }
       resolvedHelperId = bizRes.rows[0].user_id;
     }
 
-    if (!resolvedHelperId) return res.status(400).json({ error: 'helperId or businessId is required' });
+    if (!resolvedHelperId) throw new AppError('helperId or businessId is required', 400, 'validation_failed', { helperId: 'helperId or businessId is required' });
 
     const userId = req.user?.id;
 
@@ -551,12 +550,12 @@ exports.profileChatMessage = async (req, res) => {
           conversationId = fetched.rows[0]?.id;
         }
       }
-      if (!conversationId) return res.status(500).json({ error: 'Failed to resolve conversation' });
+      if (!conversationId) throw new AppError('Failed to resolve conversation', 500, 'processing_error');
 
       // Save message
       const lastMsg = msgHistory[msgHistory.length - 1];
       const content = String(lastMsg.content || '').trim().slice(0, 2000);
-      if (!content) return res.status(400).json({ error: 'Empty message' });
+      if (!content) throw new AppError('Empty message', 400, 'validation_failed', { content: 'Message cannot be empty' });
 
       const msgRow = await pool.query(
         `INSERT INTO messages (conversation_id, sender_id, content)
@@ -614,11 +613,11 @@ exports.profileChatMessage = async (req, res) => {
         : (await helperContext.getHelperContext(resolvedHelperId))?.systemPrompt;
     } else {
       const ctx = await helperContext.getHelperContext(resolvedHelperId);
-      if (!ctx) return res.status(404).json({ error: 'Helper not found' });
+      if (!ctx) throw new AppError('Helper not found', 404, 'not_found');
       systemPrompt = ctx.systemPrompt;
     }
 
-    if (!systemPrompt) return res.status(404).json({ error: 'Helper not found' });
+    if (!systemPrompt) throw new AppError('Helper not found', 404, 'not_found');
     systemPrompt += getLanguageInstruction(language);
 
     // Retrieve stored history from Redis; fall back to client-supplied messages
@@ -659,7 +658,7 @@ exports.profileChatMessage = async (req, res) => {
     );
 
     if (!ai.ok) {
-      return res.status(502).json({ error: 'AI service temporarily unavailable' });
+      throw new AppError('AI service temporarily unavailable', 502, 'external_service_error');
     }
 
     // Persist the new exchange to thread memory (user message + AI reply)
@@ -676,8 +675,7 @@ exports.profileChatMessage = async (req, res) => {
       authorType:  destination === 'oxsteed' ? 'oxsteed_ai' : 'helper_ai',
     });
   } catch (err) {
-    logger.error('[ProfileChat] Error', { error: err.message });
-    res.status(500).json({ error: 'Chat service temporarily unavailable.' });
+    next(err);
   }
 };
 
@@ -686,7 +684,7 @@ exports.profileChatMessage = async (req, res) => {
  * Public — stores a guest inquiry when the helper allows guest contact.
  * Does not create a full conversation row (no customer user id).
  */
-exports.guestProfileChatSession = async (req, res) => {
+exports.guestProfileChatSession = async (req, res, next) => {
   try {
     const {
       helperId: rawHelperId,
@@ -705,13 +703,13 @@ exports.guestProfileChatSession = async (req, res) => {
         [resolvedBusinessId]
       );
       if (!bizRes.rows.length) {
-        return res.status(404).json({ error: 'Business not found' });
+        throw new AppError('Business not found', 404, 'not_found');
       }
       resolvedHelperId = bizRes.rows[0].user_id;
     }
 
     if (!resolvedHelperId) {
-      return res.status(400).json({ error: 'helperId is required' });
+      throw new AppError('helperId is required', 400, 'validation_failed', { helperId: 'helperId is required' });
     }
 
     const guestName = String(rawName || '').trim().slice(0, 200);
@@ -719,11 +717,16 @@ exports.guestProfileChatSession = async (req, res) => {
     const rawMsg = String(rawMessage || '').trim().slice(0, 2000);
     const message = sanitizeMessage(rawMsg);
 
-    if (!guestName || !guestEmail || !message) {
-      return res.status(400).json({ error: 'guestName, guestEmail, and message are required' });
+    const fields = {};
+    if (!guestName) fields.guestName = 'Guest name is required';
+    if (!guestEmail) fields.guestEmail = 'Email address is required';
+    if (!message) fields.message = 'Message is required';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
-      return res.status(400).json({ error: 'Invalid email address' });
+      throw new AppError('Invalid email address', 400, 'validation_failed', { guestEmail: 'Invalid email address' });
     }
 
     const gate = await pool.query(
@@ -734,10 +737,10 @@ exports.guestProfileChatSession = async (req, res) => {
       [resolvedHelperId]
     );
     if (!gate.rows.length) {
-      return res.status(404).json({ error: 'Helper not found' });
+      throw new AppError('Helper not found', 404, 'not_found');
     }
     if (!gate.rows[0].allow_guest_contact) {
-      return res.status(403).json({ error: 'Guest messaging is disabled for this helper' });
+      throw new AppError('Guest messaging is disabled for this helper', 403, 'forbidden');
     }
 
     const { rows } = await pool.query(
@@ -886,8 +889,7 @@ exports.guestProfileChatSession = async (req, res) => {
       message: 'Your message was sent. A confirmation email has been sent to your inbox.',
     });
   } catch (err) {
-    logger.error('[GuestProfileChat]', { error: err.message });
-    return res.status(500).json({ error: 'Failed to send message' });
+    next(err);
   }
 };
 
@@ -898,19 +900,19 @@ exports.guestProfileChatSession = async (req, res) => {
  * Request body: { audio_data: base64, language: 'en' }
  * Response: { transcript, confidence, language }
  */
-exports.transcribeAudio = async (req, res) => {
-  const { audio_data, language = 'en' } = req.body;
-
-  if (!audio_data?.trim()) {
-    return res.status(400).json({ error: 'audio_data is required' });
-  }
-
-  const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
-  if (!SUPPORTED_LANGUAGES.includes(language)) {
-    return res.status(400).json({ error: 'Invalid language code' });
-  }
-
+exports.transcribeAudio = async (req, res, next) => {
   try {
+    const { audio_data, language = 'en' } = req.body;
+
+    if (!audio_data?.trim()) {
+      throw new AppError('audio_data is required', 400, 'validation_failed', { audio_data: 'audio_data is required' });
+    }
+
+    const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'ht', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
+    if (!SUPPORTED_LANGUAGES.includes(language)) {
+      throw new AppError('Invalid language code', 400, 'validation_failed', { language: 'Language not supported' });
+    }
+
     const { transcribeAudio } = require('../utils/speechToText');
     const audioBuffer = Buffer.from(audio_data, 'base64');
     const result = await transcribeAudio(audioBuffer, language);
@@ -921,13 +923,12 @@ exports.transcribeAudio = async (req, res) => {
       confidence: result.confidence,
     });
 
-    return res.json({
+    res.json({
       transcript: result.transcript,
       confidence: result.confidence,
       language: result.language,
     });
   } catch (err) {
-    logger.error('Audio transcription failed', { err: err.message, language });
-    return res.status(502).json({ error: 'Transcription service unavailable' });
+    next(err);
   }
 };

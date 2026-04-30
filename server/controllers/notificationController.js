@@ -1,8 +1,9 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 
 // ─── GET USER NOTIFICATIONS ───────────────────────────────────
-exports.getNotifications = async (req, res) => {
+exports.getNotifications = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { page = 1, limit = 20, unread_only } = req.query;
@@ -33,13 +34,12 @@ exports.getNotifications = async (req, res) => {
       limit: parseInt(limit)
     });
   } catch (err) {
-    logger.error('getNotifications error:', { err: err });
-    res.status(500).json({ error: 'Failed to fetch notifications.' });
+    next(err);
   }
 };
 
 // ─── MARK AS READ ─────────────────────────────────────────────
-exports.markRead = async (req, res) => {
+exports.markRead = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { ids } = req.body; // array of notification IDs, or 'all'
@@ -68,13 +68,12 @@ exports.markRead = async (req, res) => {
 
     res.json({ unread_count: parseInt(rows[0].count) });
   } catch (err) {
-    logger.error('markRead error:', { err: err });
-    res.status(500).json({ error: 'Failed to mark notifications.' });
+    next(err);
   }
 };
 
 // ─── GET + UPDATE PREFERENCES ─────────────────────────────────
-exports.getPreferences = async (req, res) => {
+exports.getPreferences = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -91,12 +90,11 @@ exports.getPreferences = async (req, res) => {
 
     res.json({ preferences: rows[0] });
   } catch (err) {
-    logger.error('getPreferences error:', { err: err });
-    res.status(500).json({ error: 'Failed to fetch preferences.' });
+    next(err);
   }
 };
 
-exports.updatePreferences = async (req, res) => {
+exports.updatePreferences = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const updates = req.body;
@@ -117,7 +115,7 @@ exports.updatePreferences = async (req, res) => {
 
     const filteredKeys = Object.keys(updates).filter(k => allowed.includes(k));
     if (!filteredKeys.length) {
-      return res.status(400).json({ error: 'No valid preference keys provided.' });
+      throw new AppError('No valid preference keys provided', 400, 'validation_failed');
     }
 
     // Dynamic SET clause
@@ -135,19 +133,20 @@ exports.updatePreferences = async (req, res) => {
 
     res.json({ message: 'Preferences updated.' });
   } catch (err) {
-    logger.error('updatePreferences error:', { err: err });
-    res.status(500).json({ error: 'Failed to update preferences.' });
+    next(err);
   }
 };
 
 // ─── REGISTER PUSH TOKEN ──────────────────────────────────────
-exports.registerPushToken = async (req, res) => {
+exports.registerPushToken = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { token } = req.body;
 
-    if (!token) {
-      return res.status(400).json({ error: 'Push token required.' });
+    const fields = {};
+    if (!token) fields.token = 'Push token required';
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
     await db.query(
@@ -160,7 +159,6 @@ exports.registerPushToken = async (req, res) => {
 
     return res.json({ success: true, message: 'Push token registered.' });
   } catch (err) {
-    logger.error('registerPushToken error:', { err: err });
-    res.status(500).json({ error: 'Failed to register push token.' });
+    next(err);
   }
 };

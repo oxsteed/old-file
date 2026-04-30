@@ -1,16 +1,24 @@
 const db = require('../db');
 const logger = require('../utils/logger');
+const { AppError } = require('../middleware/errorHandler');
 const bookingEmailService = require('../services/bookingEmailService');
 
-const createBooking = async (req, res) => {
+const createBooking = async (req, res, next) => {
   const client = await db.connect();
   try {
     const { toolId, startDate, endDate, totalPrice } = req.body;
     const userId = req.user.id;
 
+    const fields = {};
+    if (!toolId) fields.toolId = 'toolId is required';
+    if (!startDate) fields.startDate = 'startDate is required';
+    if (!endDate) fields.endDate = 'endDate is required';
+    if (!totalPrice) fields.totalPrice = 'totalPrice is required';
+    if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
+
     // Validate dates
     if (new Date(startDate) >= new Date(endDate)) {
-      return res.status(400).json({ error: 'End date must be after start date' });
+      throw new AppError('End date must be after start date', 400, 'validation_failed', { endDate: 'Must be after startDate' });
     }
 
     // Get tool and owner info
@@ -19,7 +27,7 @@ const createBooking = async (req, res) => {
       [toolId]
     );
     if (toolResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Tool not found' });
+      throw new AppError('Tool not found', 404, 'not_found');
     }
     const ownerId = toolResult.rows[0].owner_id;
 
@@ -34,7 +42,7 @@ const createBooking = async (req, res) => {
     );
 
     if (parseInt(conflictResult.rows[0].conflict_count) > 0) {
-      return res.status(409).json({ error: 'Tool is already booked for these dates' });
+      throw new AppError('Tool is already booked for these dates', 409, 'conflict');
     }
 
     // Create booking in transaction
@@ -72,15 +80,14 @@ const createBooking = async (req, res) => {
 
     res.status(201).json(booking.rows[0]);
   } catch (err) {
-    await client.query('ROLLBACK');
-    logger.error('createBooking error', { err });
-    res.status(500).json({ error: 'Failed to create booking' });
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
   } finally {
     client.release();
   }
 };
 
-const getMyBookings = async (req, res) => {
+const getMyBookings = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const result = await db.query(
@@ -93,12 +100,11 @@ const getMyBookings = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    logger.error('getMyBookings error', { err });
-    res.status(500).json({ error: 'Failed to load bookings' });
+    next(err);
   }
 };
 
-const getBookingsByOwner = async (req, res) => {
+const getBookingsByOwner = async (req, res, next) => {
   try {
     const ownerId = req.user.id;
     const result = await db.query(
@@ -112,16 +118,19 @@ const getBookingsByOwner = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    logger.error('getBookingsByOwner error', { err });
-    res.status(500).json({ error: 'Failed to load bookings' });
+    next(err);
   }
 };
 
-const updateBookingStatus = async (req, res) => {
+const updateBookingStatus = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
     const { status } = req.body;
     const userId = req.user.id;
+
+    if (!status) {
+      throw new AppError('status is required', 400, 'validation_failed', { status: 'status is required' });
+    }
 
     // Verify owner and get booking details
     const bookingQuery = await db.query(
@@ -129,12 +138,12 @@ const updateBookingStatus = async (req, res) => {
       [bookingId]
     );
     if (!bookingQuery.rows[0]) {
-      return res.status(404).json({ error: 'Booking not found' });
+      throw new AppError('Booking not found', 404, 'not_found');
     }
 
     const booking = bookingQuery.rows[0];
     if (booking.owner_id !== userId) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      throw new AppError('Unauthorized', 403, 'forbidden');
     }
 
     const result = await db.query(
@@ -161,14 +170,16 @@ const updateBookingStatus = async (req, res) => {
 
     res.json(updatedBooking);
   } catch (err) {
-    logger.error('updateBookingStatus error', { err });
-    res.status(500).json({ error: 'Failed to update booking' });
+    next(err);
   }
 };
 
-const checkAvailability = async (req, res) => {
+const checkAvailability = async (req, res, next) => {
   try {
     const { toolId } = req.params;
+    if (!toolId) {
+      throw new AppError('toolId is required', 400, 'validation_failed', { toolId: 'toolId is required' });
+    }
     const result = await db.query(
       `SELECT start_date, end_date, status
        FROM tool_rentals_bookings
@@ -178,8 +189,7 @@ const checkAvailability = async (req, res) => {
     );
     res.json({ booked_dates: result.rows });
   } catch (err) {
-    logger.error('checkAvailability error', { err });
-    res.status(500).json({ error: 'Failed to check availability' });
+    next(err);
   }
 };
 

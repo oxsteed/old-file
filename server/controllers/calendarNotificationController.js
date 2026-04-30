@@ -7,7 +7,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { sendError, sendSuccess } = require('../utils/apiError');
+const { AppError } = require('../middleware/errorHandler');
 const emailService = require('../services/emailService');
 const { sendSMS } = require('../utils/sms');
 const { broadcastToUser } = require('../services/socketService');
@@ -35,7 +35,7 @@ const SUBJECT_BY_TYPE = {
 };
 
 // ─── HTTP: list pending + sent notifications ─────────────────
-exports.getPendingNotifications = async (req, res) => {
+exports.getPendingNotifications = async (req, res, next) => {
   const userId = req.user.id;
   try {
     const result = await pool.query(
@@ -58,23 +58,22 @@ exports.getPendingNotifications = async (req, res) => {
         LIMIT 50`,
       [userId]
     );
-    return sendSuccess(res, result.rows);
+    res.json(result.rows);
   } catch (err) {
-    logger.error('Failed to fetch notifications', { err: err.message, userId });
-    return sendError(res, 500, 'Failed to fetch notifications', 'INTERNAL_ERROR');
+    next(err);
   }
 };
 
 // ─── HTTP: mark as read ──────────────────────────────────────
-exports.markNotificationAsRead = async (req, res) => {
+exports.markNotificationAsRead = async (req, res, next) => {
   const { id } = req.params;
   const userId = req.user.id;
 
-  if (!/^\d+$/.test(String(id))) {
-    return sendError(res, 400, 'Invalid notification id', 'VALIDATION_ERROR');
-  }
-
   try {
+    if (!/^\d+$/.test(String(id))) {
+      throw new AppError('Invalid notification id', 400, 'validation_failed', { id: 'Must be a numeric ID' });
+    }
+
     const r = await pool.query(
       `UPDATE calendar_notifications
           SET opened_at = COALESCE(opened_at, now())
@@ -83,17 +82,16 @@ exports.markNotificationAsRead = async (req, res) => {
       [id, userId]
     );
     if (r.rows.length === 0) {
-      return sendError(res, 404, 'Notification not found', 'NOT_FOUND');
+      throw new AppError('Notification not found', 404, 'not_found');
     }
-    return sendSuccess(res, r.rows[0]);
+    res.json(r.rows[0]);
   } catch (err) {
-    logger.error('Failed to mark notification as read', { err: err.message, id, userId });
-    return sendError(res, 500, 'Failed to mark notification as read', 'INTERNAL_ERROR');
+    next(err);
   }
 };
 
 // ─── HTTP: stats (last 30 days) ──────────────────────────────
-exports.getNotificationStats = async (req, res) => {
+exports.getNotificationStats = async (req, res, next) => {
   const userId = req.user.id;
   try {
     const r = await pool.query(
@@ -106,10 +104,9 @@ exports.getNotificationStats = async (req, res) => {
          AND created_at > now() - interval '30 days'`,
       [userId]
     );
-    return sendSuccess(res, r.rows[0]);
+    res.json(r.rows[0]);
   } catch (err) {
-    logger.error('Failed to fetch notification stats', { err: err.message, userId });
-    return sendError(res, 500, 'Failed to fetch notification stats', 'INTERNAL_ERROR');
+    next(err);
   }
 };
 

@@ -1,10 +1,10 @@
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
-const { sendError, sendValidationError } = require('../utils/apiError');
+const { AppError } = require('../middleware/errorHandler');
 const discountService = require('../services/discountService');
 
-async function createDiscountCode(req, res) {
+async function createDiscountCode(req, res, next) {
   try {
     const {
       code,
@@ -22,7 +22,7 @@ async function createDiscountCode(req, res) {
     } = req.body;
 
     const userId = req.user?.id;
-    if (!userId) return sendError(res, 401, 'Unauthorized');
+    if (!userId) throw new AppError('Unauthorized', 401, 'auth_error');
 
     // Validation
     const errors = {};
@@ -46,7 +46,7 @@ async function createDiscountCode(req, res) {
     }
 
     if (Object.keys(errors).length > 0) {
-      return sendValidationError(res, errors);
+      throw new AppError('Validation failed', 400, 'validation_failed', errors);
     }
 
     const result = await pool.query(
@@ -81,12 +81,11 @@ async function createDiscountCode(req, res) {
       data: result.rows[0]
     });
   } catch (error) {
-    logger.error('Error creating discount code', { error });
-    sendError(res, 500, 'Failed to create discount code');
+    next(error);
   }
 }
 
-async function updateDiscountCode(req, res) {
+async function updateDiscountCode(req, res, next) {
   try {
     const { codeId } = req.params;
     const { status, usage_limit, end_date } = req.body;
@@ -96,7 +95,7 @@ async function updateDiscountCode(req, res) {
       [codeId]
     );
 
-    if (!code.rows.length) return sendError(res, 404, 'Discount code not found');
+    if (!code.rows.length) throw new AppError('Discount code not found', 404, 'not_found');
 
     const updates = [];
     const values = [codeId];
@@ -135,12 +134,11 @@ async function updateDiscountCode(req, res) {
       data: result.rows[0]
     });
   } catch (error) {
-    logger.error('Error updating discount code', { error });
-    sendError(res, 500, 'Failed to update discount code');
+    next(error);
   }
 }
 
-async function getDiscountCodes(req, res) {
+async function getDiscountCodes(req, res, next) {
   try {
     const { status, skip = 0, limit = 50 } = req.query;
 
@@ -162,12 +160,11 @@ async function getDiscountCodes(req, res) {
       data: codes.rows
     });
   } catch (error) {
-    logger.error('Error fetching discount codes', { error });
-    sendError(res, 500, 'Failed to fetch discount codes');
+    next(error);
   }
 }
 
-async function getDiscountStats(req, res) {
+async function getDiscountStats(req, res, next) {
   try {
     const stats = await discountService.getDiscountStats();
 
@@ -176,12 +173,11 @@ async function getDiscountStats(req, res) {
       data: stats
     });
   } catch (error) {
-    logger.error('Error fetching discount stats', { error });
-    sendError(res, 500, 'Failed to fetch discount stats');
+    next(error);
   }
 }
 
-async function getDiscountCodeUsage(req, res) {
+async function getDiscountCodeUsage(req, res, next) {
   try {
     const { codeId } = req.params;
 
@@ -197,15 +193,14 @@ async function getDiscountCodeUsage(req, res) {
       [codeId]
     );
 
-    if (!usage.rows.length) return sendError(res, 404, 'Discount code not found');
+    if (!usage.rows.length) throw new AppError('Discount code not found', 404, 'not_found');
 
     res.json({
       success: true,
       data: usage.rows[0]
     });
   } catch (error) {
-    logger.error('Error fetching discount usage', { error });
-    sendError(res, 500, 'Failed to fetch discount usage');
+    next(error);
   }
 }
 
