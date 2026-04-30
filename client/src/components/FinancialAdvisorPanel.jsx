@@ -69,7 +69,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
       <div className="flex items-center gap-2 px-4 py-3 bg-emerald-900/60 border-b border-emerald-800/60 flex-shrink-0">
         <DollarSign className="w-4 h-4 text-emerald-400 flex-shrink-0" aria-hidden="true" />
         <span className="text-sm font-semibold text-white flex-1">
-          {t('financialAdvisor.title') || '💰 Financial Advisor'}
+          {t('financialAdvisor.title') || '💰 AI Finance Calculator'}
         </span>
         {/* Window selector */}
         <select

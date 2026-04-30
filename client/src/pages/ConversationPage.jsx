@@ -179,9 +179,9 @@ export default function ConversationPage() {
           <button
             onClick={() => setShowAdvisor(v => !v)}
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-medium transition"
-            title={t('financialAdvisor.title') || 'Financial Advisor'}
+            title={t('financialAdvisor.title') || 'AI Finance Calculator'}
           >
-            💰 <span className="hidden sm:inline">{t('financialAdvisor.buttonLabel') || 'Financial Advice'}</span>
+            💰 <span className="hidden sm:inline">{t('financialAdvisor.buttonLabel') || 'AI Finance Calculator'}</span>
           </button>
         </div>
 

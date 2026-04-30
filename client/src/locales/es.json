@@ -4074,16 +4074,16 @@
     }
   },
   "financialAdvisor": {
-    "title": "💰 Asesor Financiero",
-    "buttonLabel": "Asesoría Financiera",
-    "disclaimerTitle": "Aviso de IA — No es Asesoría Financiera",
-    "disclaimerBody": "Esta IA puede cometer errores y no constituye asesoramiento financiero profesional. Consulte siempre a un asesor financiero certificado antes de tomar decisiones. Las respuestas se basan en sus datos y pueden ser inexactas.",
-    "emptyPrompt": "Pregúntame lo que quieras sobre tus finanzas.",
+    "title": "💰 Calculadora Financiera IA",
+    "buttonLabel": "Calculadora Financiera IA",
+    "disclaimerTitle": "Aviso de IA — No es Asesoramiento Financiero",
+    "disclaimerBody": "Esta IA puede cometer errores y no constituye asesoramiento financiero profesional. Siempre consulte con un asesor financiero autorizado antes de tomar decisiones financieras. Las respuestas se basan en los datos de su cuenta y pueden ser inexactas.",
+    "emptyPrompt": "Pregúntame cualquier cosa sobre tus finanzas — ingresos, gastos, objetivos o necesidades planeadas.",
     "notAdviceTag": "⚠️ No es asesoramiento financiero profesional",
     "inputPlaceholder": "Pregunta sobre tus finanzas…",
     "windowLabel": "Ventana de análisis",
-    "authRequired": "Inicia sesión para usar el asesor financiero.",
-    "error": "Servicio de IA no disponible. Por favor intenta de nuevo."
+    "authRequired": "Por favor inicia sesión para usar el asesor financiero.",
+    "error": "El servicio de IA no está disponible temporalmente. Por favor, intenta de nuevo."
   },
   "qrGenerator": {
     "pageTitle": "Generador de Código QR | OxSteed",

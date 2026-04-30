@@ -4073,11 +4073,11 @@
     }
   },
   "financialAdvisor": {
-    "title": "💰 Konsèy Finansye",
-    "buttonLabel": "Konsèy Finansye",
-    "disclaimerTitle": "Avètisman IA — Pa Konsèy Finansye",
-    "disclaimerBody": "IA sa a ka fè erè epi li pa reprezante konsèy finansye pwofesyonèl. Toujou konsilte yon konsèy finansye ki gen lisans anvan ou pran desizyon finansye. Repons yo baze sou done ou yo epi yo ka pa egzat.",
-    "emptyPrompt": "Poze mwen nenpòt kesyon sou finans ou.",
+    "title": "💰 Kalkil Finansyal IA",
+    "buttonLabel": "Kalkil Finansyal IA",
+    "disclaimerTitle": "Avètisman IA — Pa Konsey Finansyal",
+    "disclaimerBody": "IA sa a ka fè erè e li pa konstitiye konsey finansyal pwofesyonel. Toujou konsil yon konsèyè finansyal otorize anvan ou fè desizyon finansyal. Repons yo baze sou done kont ou e yo ka eneksak.",
+    "emptyPrompt": "Poze m' nenpot kesyon sou finansyal ou — revni, depans, objektif oswa bezwen planifye.",
     "notAdviceTag": "⚠️ Pa konsèy finansye pwofesyonèl",
     "inputPlaceholder": "Poze kesyon sou finans ou…",
     "windowLabel": "Fenèt analiz",

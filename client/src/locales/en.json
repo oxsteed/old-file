@@ -4075,8 +4075,8 @@
     }
   },
   "financialAdvisor": {
-    "title": "💰 Financial Advisor",
-    "buttonLabel": "Financial Advice",
+    "title": "💰 AI Finance Calculator",
+    "buttonLabel": "AI Finance Calculator",
     "disclaimerTitle": "AI Disclaimer — Not Financial Advice",
     "disclaimerBody": "This AI can make mistakes and does not constitute professional financial advice. Always consult a licensed financial advisor before making financial decisions. Responses are based on your account data and may be inaccurate.",
     "emptyPrompt": "Ask me anything about your finances — income, expenses, goals, or planned needs.",

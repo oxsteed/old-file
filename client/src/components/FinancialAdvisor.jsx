@@ -104,7 +104,7 @@ export default function FinancialAdvisor({ isOpen, onClose }) {
         >
           <div>
             <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 600 }}>
-              💰 Financial Advisor
+              💰 AI Finance Calculator
             </h2>
             <p style={{ margin: '0.5rem 0 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-muted-text)' }}>
               Ask questions about your finances
