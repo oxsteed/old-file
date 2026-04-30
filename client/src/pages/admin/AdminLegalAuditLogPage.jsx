@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Download, Filter, X } from 'lucide-react';
 import api from '../../api/axios';
-import logger from '../../utils/logger';
 import './AdminLegalAuditLogPage.css';
 
 export default function AdminLegalAuditLogPage() {

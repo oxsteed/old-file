@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X, Plus, Edit, Trash2, ChevronDown, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
-import logger from '../../utils/logger';
 import './AdminLegalDocumentEditorPage.css';
 
 export default function AdminLegalDocumentEditorPage() {

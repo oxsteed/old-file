@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Clock, Calendar, AlertCircle, User, MessageSquare } from 'lucide-react';
 import api from '../../api/axios';
-import logger from '../../utils/logger';
 import './AdminLegalApprovalPage.css';
 
 export default function AdminLegalApprovalPage() {
