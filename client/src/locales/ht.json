@@ -480,6 +480,36 @@
     "consulting": "Konsèy",
     "consultingTooltip": "Planifye yon seyans konsèy biznis inisyal $100"
   },
+  "termsPage": {
+    "title": "Kondisyon Sèvis",
+    "lastUpdated": "Dènye aktyalizasyon: 22 mas 2026 — Efikas imedyatman lè ou kreye yon kont",
+    "onThisPage": "Sou paj sa a",
+    "onThisPageAria": "Tablo kontni",
+    "searchLabel": "Chèche nan seksyon kondisyon yo",
+    "searchPlaceholder": "Chèche seksyon…",
+    "sectionTitles": {
+      "1": "1. Ki sa OxSteed Ye — epi Ki sa li Pa Ye",
+      "2": "2. Kalifikasyon",
+      "3": "3. Nivo Platfòm ak Sèvis",
+      "4": "4. Addendum Lwaye Zouti",
+      "5": "5. Wòl Itilizatè ak Definisyon",
+      "6": "6. Frè ak Kondisyon Peman",
+      "7": "Verifikasyon Antye, Verifikasyon, ak Konfòmite FCRA",
+      "8": "8. Estati Kontraktor Endepandan",
+      "9": "9. Pwopriyete Entèlektyèl ak DMCA",
+      "10": "10. Terminasyon ak Sispansyon",
+      "11": "11. Deklarasyon sou Garanti",
+      "12": "12. Limit Responsablite ak Asirans",
+      "13": "13. Endèmnizasyon",
+      "14": "14. Deklarasyon sou Lisans",
+      "15": "15. Lis Lwaye Zouti — Kondisyon Espesyal",
+      "16": "16. OxSteed Pay — Kondisyon Peman",
+      "17": "17. Pibliye Travay ak Sistèm Of",
+      "18": "18. Sèvis Twazyèm Pati",
+      "19": "19. Konsantman ak Akseptasyon",
+      "20": "20. Modifye Kondisyon Sa Yo"
+    }
+  },
   "howItWorks": {
     "badge": "Apèsi Platfòm",
     "title": "Kijan OxSteed Mache",

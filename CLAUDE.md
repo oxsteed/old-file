@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 
 ## Instructions for Every Session
 
@@ -45,6 +45,9 @@
   - Monitoring alerts
 
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
+
+**Latest work completed (2026-04-30):**
+- **Static Terms page (`client/src/pages/terms.tsx`):** `PageShell` (shared Navbar + Footer), sticky left "On this page" TOC with `#terms-section-N` anchors, search field that filters sections and smooth-scrolls to the first match, i18n for chrome + TOC via `termsPage.*` in `en` / `es` / `fr` / `ht` (body copy remains English as before).
 
 **Latest work completed (2026-04-29):**
 - **Support Message Retention & Auto-Deletion System** ✅ COMPLETE (180-day GDPR-compliant message retention)

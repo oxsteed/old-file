@@ -1,24 +1,83 @@
-import { Link } from 'react-router-dom';
-import { Home, FileText } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import PageShell from '../components/PageShell';
+
+/** Section order matches document flow (anchor ids terms-section-1 … terms-section-20). */
+const TERMS_SECTION_META: { id: number; match: string }[] = [
+  { id: 1, match: '1 what oxsteed is not customers helpers directory cda 230' },
+  { id: 2, match: '2 eligibility 18 account united states' },
+  { id: 3, match: '3 platform tiers tier 1 tier 2 stripe pro subscription' },
+  { id: 4, match: '4 tool rental addendum owner renter damage safety' },
+  { id: 5, match: '5 user roles customer helper independent contractor' },
+  { id: 6, match: '6 fees payment subscription w-9 1099 refunds dispute 16' },
+  { id: 7, match: '7 background check fcra checkr adverse action badge verified' },
+  { id: 8, match: '8 independent contractor employment taxes insurance' },
+  { id: 9, match: '9 intellectual property dmca copyright trademark legal@oxsteed.com' },
+  { id: 10, match: '10 termination suspension deactivate appeal escrow legal' },
+  { id: 11, match: '11 disclaimer warranties as is available merchantability' },
+  { id: 12, match: '12 liability insurance limitation damages ohio 4113' },
+  { id: 13, match: '13 indemnification claims attorney fees tools' },
+  { id: 14, match: '14 licensing disclaimer license verified badge electrician' },
+  { id: 15, match: '15 tool rental listings bailment tier 3 escrow renter owner' },
+  { id: 16, match: '16 oxsteed pay stripe connect escrow held funds refund stripe express dispute' },
+  { id: 17, match: '17 job postings bids cancellation volume subscription' },
+  { id: 18, match: '18 third-party stripe checkr resend services' },
+  { id: 19, match: '19 consent acceptance e-sign create account continue' },
+  { id: 20, match: '20 modifications terms update email notice deactivate' },
+];
 
 export default function TermsOfService() {
-  return (
-    <div className="min-h-screen bg-gray-950 text-gray-300 flex flex-col">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 bg-gray-950/80 backdrop-blur-md border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <Home className="w-5 h-5 text-orange-500 group-hover:text-orange-400 transition-colors" />
-            <span className="text-xl font-bold text-white group-hover:text-orange-400 transition-colors">OxSteed</span>
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link to="/" className="text-sm text-gray-400 hover:text-white transition-colors">Home</Link>
-            <Link to="/jobs" className="text-sm text-gray-400 hover:text-white transition-colors">Browse Jobs</Link>
-            <Link to="/login" className="text-sm bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg transition-colors font-medium">Sign In</Link>
-          </div>
-        </div>
-      </nav>
+  const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const visibleSectionIds = useMemo(() => {
+    if (!normalizedQuery) return null;
+    const q = normalizedQuery.replace(/\s+/g, ' ');
+    const matched = TERMS_SECTION_META.filter(({ id, match }) => {
+      if (String(id) === q) return true;
+      return match.includes(q);
+    }).map((x) => x.id);
+    return matched.length ? new Set(matched) : new Set<number>();
+  }, [normalizedQuery]);
+
+  const tocLinks = useMemo(
+    () =>
+      TERMS_SECTION_META.map(({ id }) => ({
+        id,
+        label: t(`termsPage.sectionTitles.${id}`),
+      })),
+    [t]
+  );
+
+  const sectionHidden = (id: number) =>
+    visibleSectionIds !== null && !visibleSectionIds.has(id);
+
+  const lastScrolledFirstId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (visibleSectionIds === null) {
+      lastScrolledFirstId.current = null;
+      return;
+    }
+    const firstId = TERMS_SECTION_META.find((m) => visibleSectionIds.has(m.id))?.id;
+    if (firstId === undefined) {
+      lastScrolledFirstId.current = null;
+      return;
+    }
+    if (lastScrolledFirstId.current === firstId) return;
+    lastScrolledFirstId.current = firstId;
+    globalThis.document.getElementById(`terms-section-${firstId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [visibleSectionIds]);
+
+  return (
+    <PageShell>
+      <div className="min-h-screen bg-gray-950 text-gray-300 flex flex-col">
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-orange-600/20 via-orange-500/10 to-transparent border-b border-gray-800">
         <div className="max-w-4xl mx-auto px-4 py-10 flex items-center gap-4">
@@ -26,16 +85,47 @@ export default function TermsOfService() {
             <FileText className="w-8 h-8 text-orange-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">Terms of Service</h1>
-            <p className="text-gray-400 text-sm mt-1">Last updated: March 22, 2026 — Effective immediately upon account creation</p>
+            <h1 className="text-3xl font-bold text-white">{t('termsPage.title')}</h1>
+            <p className="text-gray-400 text-sm mt-1">{t('termsPage.lastUpdated')}</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1">
-        <div className="max-w-4xl mx-auto px-4 py-12 text-sm leading-relaxed">
-        <section className="mb-8">
+        <div className="max-w-6xl mx-auto px-4 py-12 flex gap-10 items-start">
+          <aside
+            className="sticky top-20 shrink-0 w-52 max-lg:hidden"
+            aria-label={t('termsPage.onThisPageAria')}
+          >
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              {t('termsPage.onThisPage')}
+            </p>
+            <nav className="flex flex-col gap-1 text-sm">
+              {tocLinks.map(({ id, label }) => (
+                <a
+                  key={id}
+                  href={`#terms-section-${id}`}
+                  className="text-gray-400 hover:text-orange-400"
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </aside>
+          <div className="flex-1 min-w-0 text-sm leading-relaxed">
+            <label className="sr-only" htmlFor="terms-section-search">
+              {t('termsPage.searchLabel')}
+            </label>
+            <input
+              id="terms-section-search"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('termsPage.searchPlaceholder')}
+              className="w-full mb-8 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-gray-200 placeholder:text-gray-500"
+            />
+        <section id="terms-section-1" hidden={sectionHidden(1)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             1. What OxSteed Is - And Is Not
           </h2>
@@ -69,7 +159,7 @@ export default function TermsOfService() {
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-2" hidden={sectionHidden(2)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             2. Eligibility
           </h2>
@@ -95,7 +185,7 @@ export default function TermsOfService() {
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-3" hidden={sectionHidden(3)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             3. Platform Tiers and Services
           </h2>
@@ -140,7 +230,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </div>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-4" hidden={sectionHidden(4)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             4. Tool Rental Addendum
           </h2>
@@ -191,7 +281,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-5" hidden={sectionHidden(5)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             5. User Roles and Definitions
           </h2>
@@ -203,7 +293,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </ul>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-6" hidden={sectionHidden(6)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             6. Fees and Payment Terms
           </h2>
@@ -225,9 +315,10 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-7" hidden={sectionHidden(7)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
-            Background Checks, Verification, and FCRA Compliance </h2>
+            Background Checks, Verification, and FCRA Compliance
+          </h2>
           <h2 className="mb-3">7.1 Optional Background Screening</h2>
           <p className="mb-3">
             Tier 2 Helpers may elect to complete a background check through <strong>Checkr, Inc.</strong>, OxSteed's third-party consumer reporting agency. Background checks are entirely voluntary. Completion of a background check does not guarantee employment, job awards, or continued platform access.
@@ -272,7 +363,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
             <strong>Do not rely solely on the verified badge when hiring a Helper.</strong> Always independently verify licenses, insurance, and references for any regulated trade or high-value job.
           </p></section>
 
-        <section className="mb-8">
+        <section id="terms-section-8" hidden={sectionHidden(8)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             8. Independent Contractor Status
           </h2>
@@ -292,7 +383,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </ul>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-9" hidden={sectionHidden(9)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             9. Intellectual Property and DMCA
           </h2>
@@ -357,7 +448,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-10" hidden={sectionHidden(10)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             10. Termination and Suspension
           </h2>
@@ -396,7 +487,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-11" hidden={sectionHidden(11)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             11. Disclaimer of Warranties
           </h2>
@@ -426,7 +517,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-12" hidden={sectionHidden(12)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             12. Liability Limitations and Insurance
           </h2>
@@ -464,7 +555,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-13" hidden={sectionHidden(13)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             13. Indemnification
           </h2>
@@ -491,7 +582,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-14" hidden={sectionHidden(14)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             14. Licensing Disclaimer
           </h2>
@@ -527,7 +618,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-                <section className="mb-8">
+                <section id="terms-section-15" hidden={sectionHidden(15)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             15. Tool Rental Listings — Special Terms
           </h2>
@@ -609,7 +700,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-                <section className="mb-8">
+                <section id="terms-section-16" hidden={sectionHidden(16)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             16. OxSteed Pay — Payment Terms
           </h2>
@@ -712,7 +803,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-                <section className="mb-8">
+                <section id="terms-section-17" hidden={sectionHidden(17)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             17. Job Postings and Bid System
           </h2>
@@ -768,7 +859,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-                <section className="mb-8">
+                <section id="terms-section-18" hidden={sectionHidden(18)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             18. Third-Party Services
           </h2>
@@ -792,7 +883,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-                <section className="mb-8">
+                <section id="terms-section-19" hidden={sectionHidden(19)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             19. Consent and Acceptance
           </h2>
@@ -809,7 +900,7 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
           </p>
         </section>
 
-        <section className="mb-8">
+        <section id="terms-section-20" hidden={sectionHidden(20)} className="mb-8">
           <h2 className="text-lg font-bold text-orange-400 mb-3">
             20. Modifications to These Terms
           </h2>
@@ -824,30 +915,10 @@ If both parties choose to use our optional payment service, OxSteed uses Stripe 
         </section>
 
                 </div>
+        </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 bg-gray-950">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Home className="w-4 h-4 text-orange-500" />
-              <span className="text-sm font-semibold text-white">OxSteed</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-              <Link to="/terms" className="hover:text-orange-400 transition-colors">Terms of Service</Link>
-              <Link to="/privacy" className="hover:text-orange-400 transition-colors">Privacy Policy</Link>
-              <Link to="/security" className="hover:text-orange-400 transition-colors">Security</Link>
-              <Link to="/cookie-policy" className="hover:text-orange-400 transition-colors">Cookie Policy</Link>
-              <Link to="/do-not-sell" className="hover:text-orange-400 transition-colors">Do Not Sell My Info</Link>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-gray-600">
-            <p>&copy; {new Date().getFullYear()} OxSteed LLC</p>
-            <p>For questions, contact <a href="mailto:legal@oxsteed.com" className="text-orange-500 hover:text-orange-400 underline">legal@oxsteed.com</a></p>
-          </div>
-        </div>
-      </footer>
     </div>
+    </PageShell>
   );
 }

@@ -397,6 +397,36 @@
     "consulting": "Asesoría",
     "consultingTooltip": "Programa una sesión de asesoría empresarial inicial de $100"
   },
+  "termsPage": {
+    "title": "Condiciones del servicio",
+    "lastUpdated": "Última actualización: 22 de marzo de 2026 — Entran en vigor al crear una cuenta",
+    "onThisPage": "En esta página",
+    "onThisPageAria": "Tabla de contenidos",
+    "searchLabel": "Buscar en las secciones de los términos",
+    "searchPlaceholder": "Buscar secciones…",
+    "sectionTitles": {
+      "1": "1. Qué es OxSteed — y qué no es",
+      "2": "2. Elegibilidad",
+      "3": "3. Niveles de la plataforma y servicios",
+      "4": "4. Anexo de alquiler de herramientas",
+      "5": "5. Roles de usuario y definiciones",
+      "6": "6. Tarifas y condiciones de pago",
+      "7": "Verificación de antecedentes, verificación y cumplimiento de la FCRA",
+      "8": "8. Condición de contratista independiente",
+      "9": "9. Propiedad intelectual y DMCA",
+      "10": "10. Terminación y suspensión",
+      "11": "11. Exención de garantías",
+      "12": "12. Limitaciones de responsabilidad y seguros",
+      "13": "13. Indemnización",
+      "14": "14. Exención sobre licencias",
+      "15": "15. Anuncios de alquiler de herramientas — Condiciones especiales",
+      "16": "16. OxSteed Pay — Condiciones de pago",
+      "17": "17. Publicaciones de trabajos y sistema de ofertas",
+      "18": "18. Servicios de terceros",
+      "19": "19. Consentimiento y aceptación",
+      "20": "20. Modificaciones de estas condiciones"
+    }
+  },
   "howItWorks": {
     "badge": "Descripción de la plataforma",
     "title": "Cómo funciona OxSteed",
