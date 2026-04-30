@@ -4,6 +4,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { withTransaction } = require('../utils/transaction');
 
 // ────────────────────────────────────────────────────────────
 // PUBLIC ENDPOINTS
@@ -309,12 +310,95 @@ const listLegalDocuments = async (req, res, next) => {
 };
 
 /**
- * POST /api/admin/legal/documents
- * Create new legal document
+ * GET /api/legal/admin/documents/:id
+ * Admin: document + sections + section version history
+ */
+const getAdminDocument = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { rows: docRows } = await pool.query(
+      `SELECT d.id, d.category, d.title, d.description, d.current_version, d.status,
+              d.updated_at, d.published_at,
+              u.first_name AS editor_first_name, u.last_name AS editor_last_name
+       FROM legal_documents d
+       LEFT JOIN users u ON u.id = d.updated_by
+       WHERE d.id = $1`,
+      [id]
+    );
+
+    if (!docRows[0]) {
+      throw new AppError('Document not found', 404, 'not_found');
+    }
+
+    const doc = docRows[0];
+
+    const { rows: sections } = await pool.query(
+      `SELECT id, section_key, title, content, section_order, is_critical, updated_at
+       FROM legal_document_sections
+       WHERE document_id = $1
+       ORDER BY section_order ASC, title ASC`,
+      [id]
+    );
+
+    const sectionsOut = [];
+    for (const s of sections) {
+      const { rows: hist } = await pool.query(
+        `SELECT version_number, change_summary, created_at,
+                cu.first_name AS editor_first_name, cu.last_name AS editor_last_name
+         FROM legal_section_versions sv
+         LEFT JOIN users cu ON cu.id = sv.created_by
+         WHERE sv.section_id = $1
+         ORDER BY sv.version_number DESC
+         LIMIT 5`,
+        [s.id]
+      );
+
+      sectionsOut.push({
+        id: s.id,
+        key: s.section_key,
+        title: s.title,
+        content: s.content,
+        order: s.section_order,
+        isCritical: s.is_critical,
+        updatedAt: s.updated_at,
+        history: hist.map((h) => ({
+          version: h.version_number,
+          changeSummary: h.change_summary,
+          createdAt: h.created_at,
+          editorName: [h.editor_first_name, h.editor_last_name].filter(Boolean).join(' ') || 'Admin',
+        })),
+      });
+    }
+
+    const editorName = [doc.editor_first_name, doc.editor_last_name].filter(Boolean).join(' ') || null;
+
+    res.json({
+      document: {
+        id: doc.id,
+        category: doc.category,
+        title: doc.title,
+        description: doc.description,
+        version: doc.current_version,
+        status: doc.status,
+        updatedAt: doc.updated_at,
+        publishedAt: doc.published_at,
+        lastEditedBy: editorName,
+      },
+      sections: sectionsOut,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/legal/admin/documents
+ * Body: { category, title, description, content?, sections?: [{ key, title, content, isCritical? }] }
  */
 const createLegalDocument = async (req, res, next) => {
   try {
-    const { category, title, description, content } = req.body;
+    const { category, title, description, content, sections: sectionPayload } = req.body;
     const userId = req.user.id;
 
     const validCategories = [
@@ -323,7 +407,12 @@ const createLegalDocument = async (req, res, next) => {
       'fcra_compliance', 'incident_response', 'accessibility_policy'
     ];
 
-    if (!validCategories.includes(category) || !title || !content) {
+    let resolvedContent = content;
+    if (!resolvedContent && Array.isArray(sectionPayload) && sectionPayload.length > 0) {
+      resolvedContent = sectionPayload.map((s) => s.content || '').join('\n\n');
+    }
+
+    if (!validCategories.includes(category) || !title || !resolvedContent) {
       throw new AppError('Missing required fields', 400, 'validation_failed');
     }
 
@@ -331,17 +420,40 @@ const createLegalDocument = async (req, res, next) => {
       `INSERT INTO legal_documents (category, title, description, current_content, created_by, updated_by)
        VALUES ($1, $2, $3, $4, $5, $5)
        RETURNING id, status, current_version`,
-      [category, title, description || null, content, userId]
+      [category, title, description || null, resolvedContent, userId]
     );
 
     const doc = rows[0];
 
-    // Create initial version
     await pool.query(
       `INSERT INTO legal_document_versions (document_id, version_number, title, content, status, created_by)
        VALUES ($1, 1, $2, $3, 'draft', $4)`,
-      [doc.id, title, content, userId]
+      [doc.id, title, resolvedContent, userId]
     );
+
+    const sectionsToInsert = Array.isArray(sectionPayload) && sectionPayload.length > 0
+      ? sectionPayload
+      : [{ key: 'introduction', title: 'Introduction', content: resolvedContent, isCritical: false }];
+
+    let order = 0;
+    for (const s of sectionsToInsert) {
+      const sectionKey = (s.key || `section_${order}`).toString().slice(0, 100);
+      const sectionTitle = (s.title || 'Section').toString().slice(0, 255);
+      const sectionContent = (s.content || '').toString();
+      const isCritical = !!s.isCritical;
+      const { rows: ins } = await pool.query(
+        `INSERT INTO legal_document_sections (document_id, section_key, title, content, section_order, is_critical, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+         RETURNING id`,
+        [doc.id, sectionKey, sectionTitle, sectionContent, order, isCritical, userId]
+      );
+      await pool.query(
+        `INSERT INTO legal_section_versions (section_id, document_id, version_number, title, content, status, created_by)
+         VALUES ($1, $2, 1, $3, $4, 'draft', $5)`,
+        [ins[0].id, doc.id, sectionTitle, sectionContent, userId]
+      );
+      order += 1;
+    }
 
     await logAuditEvent(req, 'document_created', 'document', doc.id, null);
 
@@ -358,16 +470,15 @@ const createLegalDocument = async (req, res, next) => {
 };
 
 /**
- * PUT /api/admin/legal/documents/:id
- * Update legal document (saves as draft)
+ * PUT /api/legal/admin/documents/:id
+ * Body: { title, description, content?, changeSummary?, sections?: [...] }
  */
 const updateLegalDocument = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, content, changeSummary } = req.body;
+    const { title, description, content, changeSummary, sections: sectionPayload } = req.body;
     const userId = req.user.id;
 
-    // Get current document
     const { rows: docRows } = await pool.query(
       `SELECT id, current_version, status FROM legal_documents WHERE id = $1`,
       [id]
@@ -380,20 +491,80 @@ const updateLegalDocument = async (req, res, next) => {
     const doc = docRows[0];
     const newVersion = doc.current_version + 1;
 
-    // Update document
-    await pool.query(
-      `UPDATE legal_documents SET title = $2, description = $3, current_content = $4,
-        updated_by = $5, updated_at = NOW(), status = 'draft'
-       WHERE id = $1`,
-      [id, title || req.body.title, description, content, userId]
-    );
+    let resolvedTitle = title || req.body.title;
+    let resolvedContent = content;
+    if (Array.isArray(sectionPayload) && sectionPayload.length > 0) {
+      resolvedContent = sectionPayload.map((s) => s.content || '').join('\n\n');
+    }
+    if (!resolvedContent) {
+      throw new AppError('Content or sections required', 400, 'validation_failed');
+    }
 
-    // Create new version
-    await pool.query(
-      `INSERT INTO legal_document_versions (document_id, version_number, title, content, change_summary, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, 'draft', $6)`,
-      [id, newVersion, title, content, changeSummary, userId]
-    );
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE legal_documents SET title = $2, description = $3, current_content = $4,
+          updated_by = $5, updated_at = NOW(), status = 'draft'
+         WHERE id = $1`,
+        [id, resolvedTitle, description ?? null, resolvedContent, userId]
+      );
+
+      await client.query(
+        `INSERT INTO legal_document_versions (document_id, version_number, title, content, change_summary, status, created_by)
+         VALUES ($1, $2, $3, $4, $5, 'draft', $6)`,
+        [id, newVersion, resolvedTitle, resolvedContent, changeSummary || null, userId]
+      );
+
+      if (Array.isArray(sectionPayload) && sectionPayload.length > 0) {
+        let order = 0;
+        for (const s of sectionPayload) {
+          const sectionKey = (s.key || `section_${order}`).toString().slice(0, 100);
+          const sectionTitle = (s.title || 'Section').toString().slice(0, 255);
+          const sectionContent = (s.content || '').toString();
+          const isCritical = !!s.isCritical;
+          const sectionChange = s.sectionChangeSummary || changeSummary || null;
+
+          let sectionId = s.id;
+          if (sectionId) {
+            const { rows: own } = await client.query(
+              `SELECT id FROM legal_document_sections WHERE id = $1 AND document_id = $2`,
+              [sectionId, id]
+            );
+            if (!own[0]) sectionId = null;
+          }
+
+          if (sectionId) {
+            await client.query(
+              `UPDATE legal_document_sections
+               SET title = $2, content = $3, section_order = $4, is_critical = $5, updated_by = $6, updated_at = NOW()
+               WHERE id = $1`,
+              [sectionId, sectionTitle, sectionContent, order, isCritical, userId]
+            );
+          } else {
+            const { rows: ins } = await client.query(
+              `INSERT INTO legal_document_sections (document_id, section_key, title, content, section_order, is_critical, created_by, updated_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+               RETURNING id`,
+              [id, sectionKey, sectionTitle, sectionContent, order, isCritical, userId]
+            );
+            sectionId = ins[0].id;
+          }
+
+          const { rows: verRows } = await client.query(
+            `SELECT COALESCE(MAX(version_number), 0) AS max_v FROM legal_section_versions WHERE section_id = $1`,
+            [sectionId]
+          );
+          const nextSecVer = (verRows[0]?.max_v || 0) + 1;
+
+          await client.query(
+            `INSERT INTO legal_section_versions (section_id, document_id, version_number, title, content, change_summary, status, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7)`,
+            [sectionId, id, nextSecVer, sectionTitle, sectionContent, sectionChange, userId]
+          );
+
+          order += 1;
+        }
+      }
+    }, 'legal_document_update');
 
     await logAuditEvent(req, 'document_updated', 'document', id, null);
 
@@ -568,6 +739,7 @@ module.exports = {
   acceptDocument,
   getUserAcceptances,
   listLegalDocuments,
+  getAdminDocument,
   createLegalDocument,
   updateLegalDocument,
   requestApproval,

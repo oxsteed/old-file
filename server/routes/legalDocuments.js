@@ -55,6 +55,12 @@ router.get('/my-acceptances', authenticate, termsLimiter, legalController.getUse
 router.get('/admin/documents', authenticate, requireAdmin, legalController.listLegalDocuments);
 
 /**
+ * GET /api/legal/admin/documents/:id
+ * Single document with sections (admin editor)
+ */
+router.get('/admin/documents/:id', authenticate, requireAdmin, legalController.getAdminDocument);
+
+/**
  * POST /api/legal/admin/documents
  * Create new legal document
  * Body: { category, title, description, content }

@@ -1,193 +1,150 @@
-// Admin: Legal Documents Management
-// Create, edit, approve, and publish legal documents
-
+// Admin legal dashboard — layout aligned with oxsteed_admin_legal_documents_dashboard.html
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, CheckCircle, Clock, AlertCircle, Trash2, Eye } from 'lucide-react';
+import { Eye, Plus, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
+import './AdminLegalDocumentsDashboard.css';
+
+const STATUS_LABEL = {
+  draft: 'Draft',
+  pending_review: 'Pending review',
+  scheduled: 'Scheduled',
+  live: 'Live',
+  archived: 'Archived',
+};
 
 export default function AdminLegalDocumentsPage() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => {
-    fetchDocuments();
-  }, [selectedStatus]);
-
-  const fetchDocuments = async () => {
-    try {
-      setLoading(true);
-      const { data } = await api.get('/legal/admin/documents', {
-        params: { status: selectedStatus !== 'all' ? selectedStatus : undefined }
-      });
-      setDocuments(data.documents || []);
-    } catch (err) {
-      console.error('Failed to fetch documents', err);
-      setError('Failed to load documents');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateNew = () => {
-    navigate('/admin/legal/documents/new');
-  };
-
-  const handleEdit = (id) => {
-    navigate(`/admin/legal/documents/${id}/edit`);
-  };
-
-  const handleApprove = (id) => {
-    navigate(`/admin/legal/documents/${id}/approve`);
-  };
-
-  const handlePreview = (id) => {
-    window.open(`/terms?preview=${id}`, '_blank');
-  };
-
-  const getStatusBadge = (status) => {
-    const styles = {
-      draft: { bg: '#6b7280', text: '#f3f4f6' },
-      pending_review: { bg: '#f59e0b', text: '#1f2937' },
-      scheduled: { bg: '#3b82f6', text: '#f3f4f6' },
-      live: { bg: '#10b981', text: '#f3f4f6' },
-      archived: { bg: '#9ca3af', text: '#f3f4f6' }
+    const load = async () => {
+      try {
+        setLoading(true);
+        const { data } = await api.get('/legal/admin/documents');
+        const list = data.documents || [];
+        setDocuments(list);
+        if (list.length && !selectedId) setSelectedId(list[0].id);
+      } catch (err) {
+        setError('Failed to load documents');
+      } finally {
+        setLoading(false);
+      }
     };
-    const style = styles[status] || styles.draft;
-    return (
-      <span className="admin-status-badge" style={{ backgroundColor: style.bg, color: style.text }}>
-        {status.replace('_', ' ')}
-      </span>
-    );
-  };
+    load();
+  }, []);
 
-  const statusOptions = [
-    { value: 'all', label: 'All Documents' },
-    { value: 'draft', label: 'Drafts' },
-    { value: 'pending_review', label: 'Pending Review' },
-    { value: 'scheduled', label: 'Scheduled' },
-    { value: 'live', label: 'Published' },
-    { value: 'archived', label: 'Archived' }
-  ];
+  const selected = documents.find((d) => d.id === selectedId);
+
+  const statusClass = (status) => {
+    if (status === 'live') return 'status-live';
+    if (status === 'draft') return 'status-draft';
+    return 'status-muted';
+  };
 
   if (loading) {
-    return <div className="admin-page-loading">Loading documents...</div>;
+    return <div className="ald-loading">Loading documents…</div>;
   }
 
   return (
-    <div className="admin-legal-page">
-      {/* Header */}
-      <div className="admin-page-header">
-        <div>
-          <h1>Legal Documents</h1>
-          <p>Manage Terms of Service, Privacy Policy, and other legal documents</p>
+    <div className="ald-dashboard">
+      <header className="ald-header">
+        <h1>Legal Documents</h1>
+        <div className="ald-header-actions">
+          <button
+            type="button"
+            className="ald-btn"
+            disabled={!selected}
+            onClick={() => selected && window.open('/terms', '_blank')}
+          >
+            <Eye size={16} aria-hidden />
+            Preview
+          </button>
+          <button type="button" className="ald-btn ald-btn-primary" onClick={() => navigate('/admin/legal/documents/new')}>
+            <Plus size={16} aria-hidden />
+            New Document
+          </button>
         </div>
-        <button className="admin-btn admin-btn-primary" onClick={handleCreateNew}>
-          <Plus size={18} />
-          New Document
-        </button>
-      </div>
+      </header>
 
       {error && (
-        <div className="admin-error-box">
-          <AlertCircle size={20} />
+        <div className="ald-error">
+          <AlertCircle size={18} />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="admin-filters">
-        <div className="admin-filter-group">
-          <label>Status</label>
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="admin-select"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <aside className="ald-sidebar">
+        <span className="ald-sidebar-label">Documents</span>
+        <ul className="ald-doc-list">
+          {documents.length === 0 ? (
+            <li className="ald-empty-hint">No documents yet</li>
+          ) : (
+            documents.map((doc) => (
+              <li key={doc.id}>
+                <button
+                  type="button"
+                  className={`ald-doc-item ${doc.id === selectedId ? 'active' : ''}`}
+                  onClick={() => setSelectedId(doc.id)}
+                >
+                  <span className="ald-doc-title">{doc.title}</span>
+                  <span className={`ald-doc-status ${statusClass(doc.status)}`}>
+                    {STATUS_LABEL[doc.status] || doc.status}
+                  </span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      </aside>
 
-      {/* Documents Table */}
-      {documents.length === 0 ? (
-        <div className="admin-empty-state">
-          <p>No documents yet. Create your first legal document.</p>
-          <button className="admin-btn admin-btn-primary" onClick={handleCreateNew}>
-            <Plus size={18} />
-            Create Document
-          </button>
-        </div>
-      ) : (
-        <div className="admin-table-container">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((doc) => (
-                <tr key={doc.id}>
-                  <td className="admin-doc-title">{doc.title}</td>
-                  <td>
-                    <span className="admin-category-badge">{doc.category.replace('_', ' ')}</span>
-                  </td>
-                  <td className="admin-version">v{doc.version}</td>
-                  <td>{getStatusBadge(doc.status)}</td>
-                  <td className="admin-date">{new Date(doc.updatedAt).toLocaleDateString()}</td>
-                  <td className="admin-actions">
-                    <button
-                      className="admin-action-btn admin-action-preview"
-                      onClick={() => handlePreview(doc.id)}
-                      title="Preview"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button
-                      className="admin-action-btn admin-action-edit"
-                      onClick={() => handleEdit(doc.id)}
-                      title="Edit"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    {doc.status === 'draft' && (
-                      <button
-                        className="admin-action-btn admin-action-approve"
-                        onClick={() => handleApprove(doc.id)}
-                        title="Request Approval"
-                      >
-                        <CheckCircle size={16} />
-                      </button>
-                    )}
-                    {doc.status === 'scheduled' && (
-                      <button
-                        className="admin-action-btn admin-action-publish"
-                        onClick={() => handleApprove(doc.id)}
-                        title="Publish Now"
-                      >
-                        <Clock size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <main className="ald-main">
+        {!selected ? (
+          <div className="ald-empty-state">
+            <p>Select a document or create one</p>
+            <button type="button" className="ald-btn ald-btn-primary" onClick={() => navigate('/admin/legal/documents/new')}>
+              <Plus size={16} />
+              New Document
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="ald-doc-header">
+              <div>
+                <h2>{selected.title}</h2>
+                <div className="ald-doc-meta">
+                  <div>
+                    Version {selected.version} · Updated {new Date(selected.updatedAt).toLocaleDateString()}
+                  </div>
+                  <div className="ald-meta-row">
+                    <span className="ald-category">{selected.category}</span>
+                    <span className={`ald-status-pill ${statusClass(selected.status)}`}>
+                      {STATUS_LABEL[selected.status] || selected.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="ald-actions-row">
+              <button type="button" className="ald-btn" onClick={() => window.open('/terms', '_blank')}>
+                <Eye size={16} />
+                Preview public terms
+              </button>
+              <button type="button" className="ald-btn ald-btn-primary" onClick={() => navigate(`/admin/legal/documents/${selected.id}/edit`)}>
+                Open editor
+              </button>
+              {(selected.status === 'draft' || selected.status === 'pending_review') && (
+                <button type="button" className="ald-btn" onClick={() => navigate(`/admin/legal/documents/${selected.id}/approve`)}>
+                  Approval workflow
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </main>
     </div>
   );
 }

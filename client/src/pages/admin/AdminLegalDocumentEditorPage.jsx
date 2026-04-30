@@ -1,10 +1,9 @@
-// Admin: Legal Document Editor
-// Rich text editing with section-by-section support and approval workflow
-
-import { useState, useEffect } from 'react';
+// Legal document editor — layout aligned with oxsteed_admin_legal_documents_dashboard.html
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, X, Plus, Edit, Trash2, ChevronDown, AlertCircle } from 'lucide-react';
+import { Save, X, Plus, Trash2, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
+import './AdminLegalDocumentEditorPage.css';
 
 export default function AdminLegalDocumentEditorPage() {
   const navigate = useNavigate();
@@ -15,17 +14,20 @@ export default function AdminLegalDocumentEditorPage() {
     title: '',
     category: 'terms_of_service',
     description: '',
-    changeSummary: ''
+    changeSummary: '',
+    status: 'draft',
+    version: 1,
+    lastEditedBy: null,
+    updatedAt: null,
   });
 
-  const [sections, setSections] = useState([
-    { key: 'introduction', title: 'Introduction', content: '' }
-  ]);
-
+  const [sections, setSections] = useState([{ key: 'introduction', title: 'Introduction', content: '', isCritical: false }]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [sectionChangeSummary, setSectionChangeSummary] = useState('');
+  const [previewMode, setPreviewMode] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [expandedSection, setExpandedSection] = useState(0);
 
   const categories = [
     { value: 'terms_of_service', label: 'Terms of Service' },
@@ -34,61 +36,101 @@ export default function AdminLegalDocumentEditorPage() {
     { value: 'seller_agreement', label: 'Seller Agreement' },
     { value: 'payment_terms', label: 'Payment Terms' },
     { value: 'dispute_resolution', label: 'Dispute Resolution' },
-    { value: 'data_retention', label: 'Data Retention' },
-    { value: 'background_check_policy', label: 'Background Check Policy' },
-    { value: 'fcra_compliance', label: 'FCRA Compliance' },
-    { value: 'incident_response', label: 'Incident Response' },
-    { value: 'accessibility_policy', label: 'Accessibility Policy' }
   ];
 
-  // Load document if editing
   useEffect(() => {
-    if (!isNew) {
-      fetchDocument();
-    }
+    if (!isNew) fetchDocument();
   }, [id]);
+
+  useEffect(() => {
+    setSectionChangeSummary('');
+  }, [selectedIndex]);
 
   const fetchDocument = async () => {
     try {
       setLoading(true);
       const { data } = await api.get(`/legal/admin/documents/${id}`);
-      setDocument(data.document);
-      setSections(data.sections || []);
+      const d = data.document;
+      setDocument({
+        title: d.title || '',
+        category: d.category || 'terms_of_service',
+        description: d.description || '',
+        changeSummary: '',
+        status: d.status,
+        version: d.version,
+        lastEditedBy: d.lastEditedBy,
+        updatedAt: d.updatedAt,
+      });
+      const secs = (data.sections || []).map((s) => ({
+        id: s.id,
+        key: s.key,
+        title: s.title,
+        content: s.content || '',
+        isCritical: !!s.isCritical,
+        history: s.history || [],
+        updatedAt: s.updatedAt,
+      }));
+      setSections(secs.length ? secs : [{ key: 'introduction', title: 'Introduction', content: '', isCritical: false }]);
+      setSelectedIndex(0);
     } catch (err) {
-      console.error('Failed to load document', err);
       setError('Failed to load document');
     } finally {
       setLoading(false);
     }
   };
 
+  const buildPayload = () => ({
+    title: document.title,
+    description: document.description,
+    changeSummary: document.changeSummary || null,
+    sections: sections.map((s, i) => ({
+      id: s.id,
+      key: s.key,
+      title: s.title,
+      content: s.content,
+      isCritical: !!s.isCritical,
+      sectionChangeSummary: i === selectedIndex ? sectionChangeSummary || undefined : undefined,
+    })),
+  });
+
   const handleSave = async () => {
     try {
       setSaving(true);
       setError(null);
-
-      const payload = {
-        title: document.title,
-        description: document.description,
-        content: sections.map(s => s.content).join('\n\n'),
-        changeSummary: document.changeSummary
-      };
+      const payload = buildPayload();
 
       if (isNew) {
+        const joined = sections.map((s) => s.content).join('\n\n');
         await api.post('/legal/admin/documents', {
           category: document.category,
-          ...payload
+          title: document.title,
+          description: document.description,
+          content: joined,
+          sections: payload.sections.map(({ id: sid, ...rest }) => rest),
         });
-        console.log('Document created');
       } else {
         await api.put(`/legal/admin/documents/${id}`, payload);
-        console.log('Document updated');
       }
 
-      navigate('/legal/admin/documents');
+      navigate('/admin/legal/documents');
     } catch (err) {
-      console.error('Failed to save document', err);
-      setError(err.response?.data?.message || 'Failed to save document');
+      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to save document');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRequestApproval = async () => {
+    if (isNew) return;
+    try {
+      setSaving(true);
+      await api.post(`/legal/admin/documents/${id}/request-approval`, {
+        changeSummary: document.changeSummary || sectionChangeSummary,
+        changedSections: sections.map((s) => s.key),
+      });
+      navigate('/admin/legal/approvals');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to request approval');
     } finally {
       setSaving(false);
     }
@@ -96,211 +138,304 @@ export default function AdminLegalDocumentEditorPage() {
 
   const handleAddSection = () => {
     const newKey = `section_${Date.now()}`;
-    setSections([
-      ...sections,
-      { key: newKey, title: 'New Section', content: '' }
-    ]);
-    setExpandedSection(sections.length);
+    setSections([...sections, { key: newKey, title: 'New Section', content: '', isCritical: false }]);
+    setSelectedIndex(sections.length);
   };
 
   const handleDeleteSection = (index) => {
-    if (sections.length > 1) {
-      setSections(sections.filter((_, i) => i !== index));
-    }
+    if (sections.length <= 1) return;
+    const next = sections.filter((_, i) => i !== index);
+    setSections(next);
+    setSelectedIndex((prev) => {
+      if (index < prev) return prev - 1;
+      if (index === prev) return Math.min(prev, next.length - 1);
+      return prev;
+    });
   };
 
   const updateSection = (index, field, value) => {
-    const updated = [...sections];
-    updated[index][field] = value;
-    setSections(updated);
+    const next = [...sections];
+    next[index] = { ...next[index], [field]: value };
+    setSections(next);
   };
 
-  const handleRequestApproval = async () => {
+  const textareaRef = useRef(null);
+
+  const wrapSelection = (before, after = before) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const text = sections[selectedIndex]?.content || '';
+    const sel = text.slice(start, end);
+    const nextContent = text.slice(0, start) + before + sel + after + text.slice(end);
+    updateSection(selectedIndex, 'content', nextContent);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(start + before.length, start + before.length + sel.length);
+    });
+  };
+
+  const insertHeading = () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const text = sections[selectedIndex]?.content || '';
+    const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    const nextContent = `${text.slice(0, lineStart)}## ${text.slice(lineStart)}`;
+    updateSection(selectedIndex, 'content', nextContent);
+  };
+
+  const selected = sections[selectedIndex];
+
+  const formatShortDate = (iso) => {
+    if (!iso) return '';
     try {
-      setSaving(true);
-      await api.post(`/legal/admin/documents/${id}/request-approval`, {
-        changeSummary: document.changeSummary,
-        changedSections: sections.map(s => s.key)
-      });
-      console.log('Approval requested');
-      navigate('/admin/legal/approvals');
-    } catch (err) {
-      console.error('Failed to request approval', err);
-      setError(err.response?.data?.message || 'Failed to request approval');
-    } finally {
-      setSaving(false);
+      return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '';
     }
   };
 
   if (loading) {
-    return <div className="admin-editor-loading">Loading document...</div>;
+    return <div className="alde-loading">Loading document…</div>;
   }
 
   return (
-    <div className="admin-editor-page">
-      {/* Header */}
-      <div className="admin-editor-header">
+    <div className="alde-dashboard">
+      <header className="alde-header">
         <div>
-          <h1>{isNew ? 'Create Document' : `Edit: ${document.title}`}</h1>
-          <p>Create and edit legal documents with section management</p>
+          <h1>{isNew ? 'New legal document' : document.title || 'Edit document'}</h1>
+          {!isNew && (
+            <p className="alde-sub">
+              Version {document.version} · {STATUS_LABEL[document.status] || document.status}
+              {document.lastEditedBy && ` · Last edited by ${document.lastEditedBy}`}
+            </p>
+          )}
         </div>
-        <div className="admin-editor-actions">
-          <button
-            className="admin-btn admin-btn-primary"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            <Save size={18} />
-            {saving ? 'Saving...' : 'Save Draft'}
+        <div className="alde-header-actions">
+          <button type="button" className="alde-btn" onClick={() => setPreviewMode((p) => !p)}>
+            Preview
           </button>
           {!isNew && (
-            <button
-              className="admin-btn admin-btn-secondary"
-              onClick={handleRequestApproval}
-              disabled={saving}
-            >
-              Request Approval
+            <button type="button" className="alde-btn alde-btn-primary" onClick={handleSave} disabled={saving}>
+              <Save size={16} />
+              {saving ? 'Saving…' : 'Save changes'}
             </button>
           )}
-          <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/legal/admin/documents')}>
+          {isNew && (
+            <button type="button" className="alde-btn alde-btn-primary" onClick={handleSave} disabled={saving}>
+              <Save size={16} />
+              {saving ? 'Creating…' : 'Create document'}
+            </button>
+          )}
+          {!isNew && (
+            <button type="button" className="alde-btn" onClick={handleRequestApproval} disabled={saving}>
+              Request approval
+            </button>
+          )}
+          <button type="button" className="alde-btn alde-icon" onClick={() => navigate('/admin/legal/documents')} aria-label="Close">
             <X size={18} />
           </button>
         </div>
-      </div>
+      </header>
+
+      {previewMode && (
+        <div className="alde-preview-banner">
+          Preview mode — changes are not saved until you click Save.
+          <button type="button" className="alde-btn alde-btn-inline" onClick={() => setPreviewMode(false)}>
+            Exit preview
+          </button>
+        </div>
+      )}
 
       {error && (
-        <div className="admin-error-box">
-          <AlertCircle size={20} />
+        <div className="alde-error">
+          <AlertCircle size={18} />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Document Settings */}
-      <div className="admin-editor-settings">
-        <div className="admin-editor-field">
-          <label>Title</label>
-          <input
-            type="text"
-            value={document.title}
-            onChange={(e) => setDocument({ ...document, title: e.target.value })}
-            placeholder="e.g., Terms of Service"
-            className="admin-input"
-          />
-        </div>
-
-        {isNew && (
-          <div className="admin-editor-field">
-            <label>Category</label>
-            <select
-              value={document.category}
-              onChange={(e) => setDocument({ ...document, category: e.target.value })}
-              className="admin-select"
-            >
-              {categories.map(cat => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="admin-editor-field">
-          <label>Description</label>
-          <textarea
-            value={document.description}
-            onChange={(e) => setDocument({ ...document, description: e.target.value })}
-            placeholder="Brief description of this document"
-            className="admin-textarea"
-            rows={2}
-          />
-        </div>
-
-        <div className="admin-editor-field">
-          <label>Change Summary</label>
-          <textarea
-            value={document.changeSummary}
-            onChange={(e) => setDocument({ ...document, changeSummary: e.target.value })}
-            placeholder="What changed in this version? (e.g., 'Updated payment terms', 'Added GDPR section')"
-            className="admin-textarea"
-            rows={2}
-          />
-        </div>
-      </div>
-
-      {/* Sections Editor */}
-      <div className="admin-editor-sections">
-        <div className="admin-sections-header">
-          <h2>Sections</h2>
-          <button className="admin-btn admin-btn-sm" onClick={handleAddSection}>
-            <Plus size={16} />
-            Add Section
-          </button>
-        </div>
-
-        <div className="admin-sections-list">
-          {sections.map((section, index) => (
-            <div key={section.key} className="admin-section-item">
-              <div
-                className="admin-section-header"
-                onClick={() => setExpandedSection(expandedSection === index ? -1 : index)}
+      <div className="alde-grid">
+        <aside className="alde-sidebar">
+          {isNew && (
+            <div className="alde-field">
+              <label className="alde-label">Category</label>
+              <select
+                className="alde-input"
+                value={document.category}
+                onChange={(e) => setDocument({ ...document, category: e.target.value })}
               >
-                <ChevronDown
-                  size={20}
-                  style={{ transform: expandedSection === index ? 'rotate(0)' : 'rotate(-90deg)' }}
-                  className="admin-section-toggle"
-                />
-                <input
-                  type="text"
-                  value={section.title}
-                  onChange={(e) => updateSection(index, 'title', e.target.value)}
-                  className="admin-section-title-input"
-                  placeholder="Section title"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                {sections.length > 1 && (
-                  <button
-                    className="admin-section-delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSection(index);
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
+                {categories.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="alde-field">
+            <label className="alde-label">Document title</label>
+            <input
+              className="alde-input"
+              value={document.title}
+              onChange={(e) => setDocument({ ...document, title: e.target.value })}
+              placeholder="e.g. Terms of Service"
+            />
+          </div>
+          <div className="alde-field">
+            <label className="alde-label">Description</label>
+            <textarea
+              className="alde-textarea alde-textarea-sm"
+              value={document.description}
+              onChange={(e) => setDocument({ ...document, description: e.target.value })}
+              rows={2}
+            />
+          </div>
+          <div className="alde-field">
+            <label className="alde-label">Overall change summary (optional)</label>
+            <input
+              className="alde-input"
+              value={document.changeSummary}
+              onChange={(e) => setDocument({ ...document, changeSummary: e.target.value })}
+              placeholder="e.g. Q2 2026 legal refresh"
+            />
+          </div>
+
+          <span className="alde-sidebar-section-label">Sections</span>
+          <button type="button" className="alde-btn alde-btn-block alde-btn-muted" onClick={handleAddSection}>
+            <Plus size={16} />
+            Add section
+          </button>
+          <div className="alde-section-list">
+            {sections.map((sec, index) => (
+              <button
+                key={`${sec.key}-${index}`}
+                type="button"
+                className={`alde-section-row ${index === selectedIndex ? 'active' : ''}`}
+                onClick={() => setSelectedIndex(index)}
+              >
+                <span className="alde-section-row-title">{sec.title || 'Untitled'}</span>
+                <span className="alde-section-row-meta">
+                  v{document.version} · {formatShortDate(sec.updatedAt || document.updatedAt)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <main className="alde-main">
+          {selected ? (
+            <>
+              <div className="alde-toolbar">
+                <span className="alde-toolbar-label">Format</span>
+                <button type="button" className="alde-tool" title="Bold" onClick={() => wrapSelection('**')}>
+                  <strong>B</strong>
+                </button>
+                <button type="button" className="alde-tool" title="Italic" onClick={() => wrapSelection('*')}>
+                  <em>I</em>
+                </button>
+                <button type="button" className="alde-tool" title="Underline (HTML)" onClick={() => wrapSelection('<u>', '</u>')}>
+                  <u>U</u>
+                </button>
+                <span className="alde-toolbar-divider" />
+                <button type="button" className="alde-tool" title="Heading line" onClick={insertHeading}>
+                  H2
+                </button>
               </div>
 
-              {expandedSection === index && (
-                <div className="admin-section-content">
-                  <textarea
-                    value={section.content}
-                    onChange={(e) => updateSection(index, 'content', e.target.value)}
-                    placeholder="Section content (supports markdown)"
-                    className="admin-section-textarea"
-                    rows={10}
+              <div className="alde-field">
+                <label className="alde-label">Section title</label>
+                <input
+                  className="alde-input"
+                  value={selected.title}
+                  onChange={(e) => updateSection(selectedIndex, 'title', e.target.value)}
+                />
+              </div>
+
+              <div className="alde-field">
+                <label className="alde-label">Critical section</label>
+                <label className="alde-check">
+                  <input
+                    type="checkbox"
+                    checked={!!selected.isCritical}
+                    onChange={(e) => updateSection(selectedIndex, 'isCritical', e.target.checked)}
                   />
+                  <span>Mark as critical (highlighted on public terms page)</span>
+                </label>
+              </div>
+
+              <div className="alde-field">
+                <label className="alde-label">Content</label>
+                <textarea
+                  ref={textareaRef}
+                  className="alde-textarea"
+                  value={selected.content}
+                  onChange={(e) => updateSection(selectedIndex, 'content', e.target.value)}
+                  placeholder="Section body (HTML or plain text)"
+                  rows={14}
+                  disabled={previewMode}
+                />
+              </div>
+
+              <div className="alde-field">
+                <label className="alde-label">What changed in this update?</label>
+                <input
+                  className="alde-input"
+                  value={sectionChangeSummary}
+                  onChange={(e) => setSectionChangeSummary(e.target.value)}
+                  placeholder="e.g. Clarified payment dispute timeline"
+                />
+              </div>
+
+              {selected.history?.length > 0 && (
+                <div className="alde-version-history">
+                  <h4>Version history (this section)</h4>
+                  {selected.history.map((h) => (
+                    <div key={`${h.version}-${h.createdAt}`} className="alde-version-item">
+                      <div className="alde-version-item-head">
+                        <strong>v{h.version}</strong>
+                        <span>
+                          {formatShortDate(h.createdAt)} · {h.editorName}
+                        </span>
+                      </div>
+                      {h.changeSummary && <div className="alde-version-sum">{h.changeSummary}</div>}
+                    </div>
+                  ))}
                 </div>
               )}
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="admin-editor-footer">
-        <button
-          className="admin-btn admin-btn-primary"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          <Save size={18} />
-          {saving ? 'Saving...' : 'Save Draft'}
-        </button>
-        <button className="admin-btn admin-btn-ghost" onClick={() => navigate('/legal/admin/documents')}>
-          Cancel
-        </button>
+              <div className="alde-footer-actions">
+                <button type="button" className="alde-btn" onClick={() => navigate('/admin/legal/documents')}>
+                  Discard
+                </button>
+                <div className="alde-footer-right">
+                  {sections.length > 1 && (
+                    <button type="button" className="alde-btn alde-btn-danger" onClick={() => handleDeleteSection(selectedIndex)}>
+                      <Trash2 size={16} />
+                      Remove section
+                    </button>
+                  )}
+                  <button type="button" className="alde-btn alde-btn-primary" onClick={handleSave} disabled={saving}>
+                    <Save size={16} />
+                    {saving ? 'Saving…' : 'Save changes'}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="alde-empty">Select a section</div>
+          )}
+        </main>
       </div>
     </div>
   );
 }
+
+const STATUS_LABEL = {
+  draft: 'Draft',
+  pending_review: 'Pending review',
+  scheduled: 'Scheduled',
+  live: 'Live',
+  archived: 'Archived',
+};
