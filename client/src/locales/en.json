@@ -405,6 +405,8 @@
     "onThisPageAria": "Table of contents",
     "searchLabel": "Search terms sections",
     "searchPlaceholder": "Search sections…",
+    "emailLabel": "Email:",
+    "translationDisclaimer": "This translation is provided for convenience only. The English version is the legally binding document.",
     "sectionTitles": {
       "1": "1. What OxSteed Is - And Is Not",
       "2": "2. Eligibility",

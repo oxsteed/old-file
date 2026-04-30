@@ -47,7 +47,7 @@
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
 **Latest work completed (2026-04-30):**
-- **Static Terms page (`client/src/pages/terms.tsx`):** `PageShell` (shared Navbar + Footer), sticky left "On this page" TOC with `#terms-section-N` anchors, search field that filters sections and smooth-scrolls to the first match, i18n for chrome + TOC via `termsPage.*` in `en` / `es` / `fr` / `ht` (body copy remains English as before).
+- **Static Terms page (`client/src/pages/terms.tsx`):** `PageShell` (shared Navbar + Footer), sticky left "On this page" TOC with `#terms-section-N` anchors, search field that filters sections and smooth-scrolls to the first match. Full body text is loaded per language from `client/src/locales/terms/{en,es,fr,ht}.content.json` (merged into i18n as `termsContent` in `client/src/i18n.js`). UI strings + binding-language disclaimer: `termsPage.*` in `en` / `es` / `fr` / `ht`. Regenerate EN with `python3 client/scripts/build-terms-en-json.py`; regenerate ES/FR/HT with `python3 client/scripts/translate-terms-content.py` (needs `pip install deep-translator`; machine translation — legal review recommended).
 
 **Latest work completed (2026-04-29):**
 - **Support Message Retention & Auto-Deletion System** ✅ COMPLETE (180-day GDPR-compliant message retention)
