@@ -47,6 +47,13 @@ router.get('/my-acceptances', authenticate, rateLimiter, legalController.getUser
 // ────────────────────────────────────────────────────────────
 
 /**
+ * GET /api/legal/admin/documents
+ * List all legal documents with optional status filter
+ * Query: ?status=draft|pending_review|scheduled|live|archived
+ */
+router.get('/admin/documents', authenticate, requireAdmin, legalController.listLegalDocuments);
+
+/**
  * POST /api/legal/admin/documents
  * Create new legal document
  * Body: { category, title, description, content }

@@ -271,6 +271,45 @@ const getUserAcceptances = async (req, res, next) => {
 // ────────────────────────────────────────────────────────────
 
 /**
+ * GET /api/admin/legal/documents
+ * List all legal documents with optional status filter
+ */
+const listLegalDocuments = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+
+    let query = `SELECT id, category, title, description, current_version, status,
+                        updated_at, created_at, created_by, published_at
+                 FROM legal_documents`;
+    const params = [];
+
+    if (status && status !== 'all') {
+      query += ` WHERE status = $1`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY updated_at DESC`;
+
+    const { rows } = await pool.query(query, params);
+
+    res.json({
+      documents: rows.map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        category: doc.category.replace('_', ' '),
+        version: doc.current_version,
+        status: doc.status,
+        updatedAt: doc.updated_at,
+        createdAt: doc.created_at,
+        publishedAt: doc.published_at
+      }))
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * POST /api/admin/legal/documents
  * Create new legal document
  */
@@ -529,6 +568,7 @@ module.exports = {
   getDocumentVersion,
   acceptDocument,
   getUserAcceptances,
+  listLegalDocuments,
   createLegalDocument,
   updateLegalDocument,
   requestApproval,

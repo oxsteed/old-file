@@ -1,0 +1,341 @@
+/* Admin Legal Document Editor Styles */
+
+.admin-editor-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--muted-text);
+  font-size: 16px;
+}
+
+/* Header */
+.admin-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.admin-editor-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--app-text);
+}
+
+.admin-editor-header p {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 14px;
+}
+
+.admin-editor-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Settings */
+.admin-editor-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.admin-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-editor-field label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.admin-input,
+.admin-select,
+.admin-textarea {
+  padding: 10px 12px;
+  background: var(--app-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--app-text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.admin-input:focus,
+.admin-select:focus,
+.admin-textarea:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.admin-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Sections Editor */
+.admin-editor-sections {
+  padding: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.admin-sections-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.admin-sections-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--app-text);
+}
+
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--app-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.admin-btn:hover {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.admin-btn-primary {
+  background: #f97316;
+  color: white;
+  border-color: #f97316;
+}
+
+.admin-btn-primary:hover {
+  background: #ea6a1a;
+  border-color: #ea6a1a;
+  color: white;
+}
+
+.admin-btn-secondary {
+  background: #8b5cf6;
+  color: white;
+  border-color: #8b5cf6;
+}
+
+.admin-btn-secondary:hover {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: white;
+}
+
+.admin-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted-text);
+}
+
+.admin-btn-ghost:hover {
+  background: var(--app-bg);
+  border-color: var(--border-color);
+  color: var(--app-text);
+}
+
+.admin-btn-sm {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sections List */
+.admin-sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-section-item {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.admin-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--app-bg);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.admin-section-header:hover {
+  background: rgba(249, 115, 22, 0.05);
+}
+
+.admin-section-toggle {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  color: var(--muted-text);
+}
+
+.admin-section-title-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.admin-section-title-input:hover {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.admin-section-title-input:focus {
+  outline: none;
+  background: var(--card-bg);
+  border-color: #f97316;
+}
+
+.admin-section-delete {
+  padding: 8px;
+  background: transparent;
+  border: none;
+  color: var(--muted-text);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.admin-section-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Section Content */
+.admin-section-content {
+  padding: 16px;
+  background: var(--app-bg);
+}
+
+.admin-section-textarea {
+  width: 100%;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--app-text);
+  font-size: 14px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.admin-section-textarea:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+/* Error Box */
+.admin-error-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #ef4444;
+}
+
+.admin-error-box svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Footer */
+.admin-editor-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-editor-page {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .admin-editor-header {
+    flex-direction: column;
+  }
+
+  .admin-editor-actions {
+    width: 100%;
+  }
+
+  .admin-editor-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sections-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .admin-section-header {
+    flex-wrap: wrap;
+  }
+}
