@@ -486,7 +486,7 @@ const sendMessage = async (req, res) => {
     const { messagePayload, conv } = await withTransaction(pool, async (client) => {
       // Verify user is part of conversation and fetch metadata
       const convResult = await client.query(
-        `SELECT c.customer_id, c.helper_id, c.business_id, b.business_name
+        `SELECT c.customer_id, c.helper_id, c.business_id, c.job_id, b.business_name
          FROM conversations c
          LEFT JOIN businesses b ON b.id = c.business_id AND b.is_active = TRUE
          WHERE c.id = $1 AND (
@@ -541,10 +541,24 @@ const sendMessage = async (req, res) => {
 
     // Broadcast to the conversation room — both participants see it in real-time
     // if they currently have the thread open.
+    // Check if this is a profile chat (job-less conversation) or a regular conversation
+    const isProfileChat = !conv.job_id; // Profile chats have no associated job
+
+    // Always broadcast message:new for all conversation types
     socketService.broadcastToConversation(conversationId, 'message:new', {
       conversationId,
       message: fullMessagePayload,
     });
+
+    // Additionally, broadcast profile_chat:new_message for profile chats
+    // (some clients like HelperConversationPage listen specifically for this event)
+    if (isProfileChat) {
+      socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', {
+        conversationId,
+        message: fullMessagePayload,
+        senderName: senderName,
+      });
+    }
 
     // Notify the appropriate recipient(s) via their personal room so inbox pages
     // update even when they're not currently in the conversation thread.
@@ -726,7 +740,7 @@ const editMessage = async (req, res) => {
     const updatedMessage = result.rows[0];
 
     // Broadcast edit event to the conversation room
-    socketService.broadcastToConversation(conversationId, 'message:edited', {
+    socketService.broadcastToConversation(conversationId, 'message:updated', {
       conversationId,
       message: updatedMessage,
     });
