@@ -404,6 +404,8 @@
     "onThisPageAria": "Tabla de contenidos",
     "searchLabel": "Buscar en las secciones de los términos",
     "searchPlaceholder": "Buscar secciones…",
+    "emailLabel": "Correo:",
+    "translationDisclaimer": "Esta traducción se ofrece solo como ayuda. La versión en inglés es el documento jurídicamente vinculante.",
     "sectionTitles": {
       "1": "1. Qué es OxSteed — y qué no es",
       "2": "2. Elegibilidad",

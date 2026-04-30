@@ -404,6 +404,8 @@
     "onThisPageAria": "Table des matières",
     "searchLabel": "Rechercher dans les sections des conditions",
     "searchPlaceholder": "Rechercher des sections…",
+    "emailLabel": "E-mail :",
+    "translationDisclaimer": "Cette traduction est fournie à titre indicatif uniquement. La version anglaise fait foi juridiquement.",
     "sectionTitles": {
       "1": "1. Ce qu’est OxSteed — et ce qu’il n’est pas",
       "2": "2. Admissibilité",
