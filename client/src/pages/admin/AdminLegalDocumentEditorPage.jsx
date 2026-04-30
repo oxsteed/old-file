@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X, Plus, Edit, Trash2, ChevronDown, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
-import './AdminLegalDocumentEditorPage.css';
 
 export default function AdminLegalDocumentEditorPage() {
   const navigate = useNavigate();
@@ -56,7 +55,7 @@ export default function AdminLegalDocumentEditorPage() {
       setDocument(data.document);
       setSections(data.sections || []);
     } catch (err) {
-      logger.error('Failed to load document', { err });
+      console.error('Failed to load document', err);
       setError('Failed to load document');
     } finally {
       setLoading(false);
@@ -80,15 +79,15 @@ export default function AdminLegalDocumentEditorPage() {
           category: document.category,
           ...payload
         });
-        logger.info('Document created');
+        console.log('Document created');
       } else {
         await api.put(`/legal/admin/documents/${id}`, payload);
-        logger.info('Document updated');
+        console.log('Document updated');
       }
 
       navigate('/legal/admin/documents');
     } catch (err) {
-      logger.error('Failed to save document', { err });
+      console.error('Failed to save document', err);
       setError(err.response?.data?.message || 'Failed to save document');
     } finally {
       setSaving(false);
@@ -123,10 +122,10 @@ export default function AdminLegalDocumentEditorPage() {
         changeSummary: document.changeSummary,
         changedSections: sections.map(s => s.key)
       });
-      logger.info('Approval requested');
+      console.log('Approval requested');
       navigate('/admin/legal/approvals');
     } catch (err) {
-      logger.error('Failed to request approval', { err });
+      console.error('Failed to request approval', err);
       setError(err.response?.data?.message || 'Failed to request approval');
     } finally {
       setSaving(false);

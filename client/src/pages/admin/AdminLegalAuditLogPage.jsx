@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Download, Filter, X } from 'lucide-react';
 import api from '../../api/axios';
-import './AdminLegalAuditLogPage.css';
 
 export default function AdminLegalAuditLogPage() {
   const [auditLogs, setAuditLogs] = useState([]);
@@ -112,7 +111,7 @@ export default function AdminLegalAuditLogPage() {
       ];
       setAuditLogs(mockLogs);
     } catch (err) {
-      logger.error('Failed to fetch audit logs', { err });
+      console.error('Failed to fetch audit logs', err);
     } finally {
       setLoading(false);
     }

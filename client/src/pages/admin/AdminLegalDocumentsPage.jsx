@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, CheckCircle, Clock, AlertCircle, Trash2, Eye } from 'lucide-react';
 import api from '../../api/axios';
-import './AdminLegalDocumentsPage.css';
 
 export default function AdminLegalDocumentsPage() {
   const navigate = useNavigate();
@@ -26,7 +25,7 @@ export default function AdminLegalDocumentsPage() {
       });
       setDocuments(data.documents || []);
     } catch (err) {
-      logger.error('Failed to fetch documents', { err });
+      console.error('Failed to fetch documents', err);
       setError('Failed to load documents');
     } finally {
       setLoading(false);

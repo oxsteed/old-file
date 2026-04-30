@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Clock, Calendar, AlertCircle, User, MessageSquare } from 'lucide-react';
 import api from '../../api/axios';
-import './AdminLegalApprovalPage.css';
 
 export default function AdminLegalApprovalPage() {
   const navigate = useNavigate();
@@ -52,7 +51,7 @@ export default function AdminLegalApprovalPage() {
         setSelectedApproval(mockApprovals[0]);
       }
     } catch (err) {
-      logger.error('Failed to fetch approvals', { err });
+      console.error('Failed to fetch approvals', err);
       setError('Failed to load approval queue');
     } finally {
       setLoading(false);
@@ -69,13 +68,13 @@ export default function AdminLegalApprovalPage() {
         reviewComments
       });
 
-      logger.info('Document approved');
+      console.log('Document approved');
       setApprovals(approvals.filter(a => a.id !== selectedApproval.id));
       setSelectedApproval(null);
       setReviewComments('');
       setScheduledDate('');
     } catch (err) {
-      logger.error('Failed to approve document', { err });
+      console.error('Failed to approve document', err);
       setError(err.response?.data?.message || 'Failed to approve document');
     } finally {
       setProcessing(false);
@@ -88,13 +87,13 @@ export default function AdminLegalApprovalPage() {
     try {
       setProcessing(true);
       // Mock rejection - would call actual endpoint
-      logger.info('Document rejected');
+      console.log('Document rejected');
       setApprovals(approvals.filter(a => a.id !== selectedApproval.id));
       setSelectedApproval(null);
       setReviewComments('');
       setScheduledDate('');
     } catch (err) {
-      logger.error('Failed to reject document', { err });
+      console.error('Failed to reject document', err);
     } finally {
       setProcessing(false);
     }
