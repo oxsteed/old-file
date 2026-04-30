@@ -36,7 +36,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_payout_methods_one_primary_per_helper
 
 -- Extend affiliate_payouts table with additional fields
 ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS payout_method_id UUID REFERENCES payout_methods(id);
-ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS payment_processor VARCHAR(50), -- 'stripe', 'paypal', 'ach'
+ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS payment_processor VARCHAR(50); -- 'stripe', 'paypal', 'ach'
 ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS processor_fee_cents BIGINT DEFAULT 0;
 ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS net_payout_cents BIGINT; -- gross - fees
 ALTER TABLE IF EXISTS affiliate_payouts ADD COLUMN IF NOT EXISTS notes TEXT;
