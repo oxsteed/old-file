@@ -1,0 +1,639 @@
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.admin-dashboard {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+  background: var(--color-background-tertiary);
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  padding: 20px;
+}
+
+.admin-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-tertiary);
+  margin-bottom: 12px;
+}
+
+.admin-header h1 {
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.admin-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.btn:hover {
+  background: var(--color-background-secondary);
+  border-color: #f97316;
+}
+
+.btn.primary {
+  background: #f97316;
+  color: white;
+  border-color: #f97316;
+}
+
+.btn.primary:hover {
+  background: #e67e2a;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sidebar-docs {
+  background: var(--color-background-primary);
+  border-radius: var(--border-radius-lg);
+  border: 0.5px solid var(--color-border-tertiary);
+  padding: 16px;
+  height: fit-content;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.sidebar-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+  display: block;
+  letter-spacing: 0.5px;
+}
+
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.doc-item {
+  padding: 10px 12px;
+  border-radius: var(--border-radius-md);
+  background: transparent;
+  border: 0.5px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  color: var(--color-text-secondary);
+}
+
+.doc-item:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+}
+
+.doc-item.active {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+  border-color: #f97316;
+  font-weight: 500;
+}
+
+.doc-status {
+  display: inline-block;
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 2px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.status-draft {
+  background: rgba(100, 100, 100, 0.2);
+  color: var(--color-text-secondary);
+}
+
+.status-live {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.main-editor {
+  background: var(--color-background-primary);
+  border-radius: var(--border-radius-lg);
+  border: 0.5px solid var(--color-border-tertiary);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.document-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-tertiary);
+}
+
+.doc-info h2 {
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.doc-meta {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: var(--border-radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.section-item {
+  padding: 12px 14px;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-item:hover {
+  background: #f97316;
+  border-color: #f97316;
+  color: white;
+}
+
+.section-item.active {
+  background: #f97316;
+  border-color: #f97316;
+  color: white;
+  font-weight: 500;
+}
+
+.section-item.active .version-note {
+  color: rgba(255,255,255,0.8);
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.version-note {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.editor-panel {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor-panel.active {
+  display: flex;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  flex-wrap: wrap;
+}
+
+.toolbar-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s;
+  color: var(--color-text-primary);
+}
+
+.toolbar-btn:hover {
+  background: #f97316;
+  color: white;
+  border-color: #f97316;
+}
+
+.editor-divider {
+  width: 1px;
+  background: var(--color-border-tertiary);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+input[type="text"],
+textarea {
+  padding: 10px 12px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background: var(--color-background-secondary);
+}
+
+input[type="text"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+}
+
+textarea {
+  min-height: 200px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-tertiary);
+}
+
+.action-group {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.change-summary {
+  padding: 12px;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.version-history {
+  padding: 16px;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+}
+
+.version-history h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.version-item {
+  padding: 10px;
+  background: var(--color-background-primary);
+  border-radius: var(--border-radius-md);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.version-item-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.version-date {
+  color: var(--color-text-secondary);
+}
+
+.version-summary {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.preview-notice {
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+  border-radius: var(--border-radius-md);
+  font-size: 13px;
+  color: #3b82f6;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+</style>
+
+<div class="admin-dashboard">
+  <div class="admin-header">
+    <h1>Legal Documents</h1>
+    <div class="admin-header-actions">
+      <button class="btn" onclick="togglePreview()">👁️ Preview</button>
+      <button class="btn primary">+ New Document</button>
+    </div>
+  </div>
+
+  <aside class="sidebar-docs">
+    <label class="sidebar-label">Documents</label>
+    <ul class="doc-list" id="docList">
+      <li class="doc-item active" onclick="selectDoc('tos')">
+        Terms of Service
+        <div class="doc-status status-live">Live</div>
+      </li>
+      <li class="doc-item" onclick="selectDoc('privacy')">
+        Privacy Policy
+        <div class="doc-status status-live">Live</div>
+      </li>
+      <li class="doc-item" onclick="selectDoc('helper')">
+        Helper Agreement
+        <div class="doc-status status-draft">Draft</div>
+      </li>
+      <li class="doc-item" onclick="selectDoc('payment')">
+        Payment Terms
+        <div class="doc-status status-live">Live</div>
+      </li>
+      <li class="doc-item" onclick="selectDoc('dispute')">
+        Dispute Resolution
+        <div class="doc-status status-draft">Draft</div>
+      </li>
+    </ul>
+  </aside>
+
+  <main class="main-editor">
+    <div class="document-header">
+      <div class="doc-info">
+        <h2 id="docTitle">Terms of Service</h2>
+        <div class="doc-meta">
+          <div>Last edited by Sarah Chen on April 28, 2026</div>
+          <div>Version 2.3 • Status: <span class="status-badge">Live</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-notice" id="previewNotice" style="display: none;">
+      Preview mode active — changes not saved. <button class="btn" onclick="togglePreview()" style="margin-left: 8px; padding: 4px 8px; font-size: 12px;">Exit Preview</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <label class="sidebar-label">Sections</label>
+        <div class="sections-list" id="sectionsList">
+          <div class="section-item active" onclick="selectSection('intro')">
+            <span class="section-title">Introduction</span>
+            <span class="version-note">v2.3 • Apr 28</span>
+          </div>
+          <div class="section-item" onclick="selectSection('definitions')">
+            <span class="section-title">Definitions</span>
+            <span class="version-note">v2.1 • Apr 10</span>
+          </div>
+          <div class="section-item" onclick="selectSection('helper-terms')">
+            <span class="section-title">Helper Terms</span>
+            <span class="version-note">v2.0 • Mar 15</span>
+          </div>
+          <div class="section-item" onclick="selectSection('customer-terms')">
+            <span class="section-title">Customer Terms</span>
+            <span class="version-note">v2.0 • Mar 15</span>
+          </div>
+          <div class="section-item" onclick="selectSection('payment-terms')">
+            <span class="section-title">Payment Terms</span>
+            <span class="version-note">v2.2 • Apr 20</span>
+          </div>
+          <div class="section-item" onclick="selectSection('liability')">
+            <span class="section-title">Limitation of Liability</span>
+            <span class="version-note">v1.0 • Jan 5</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="editor-panel active" id="editorPanel">
+        <div class="form-group">
+          <label class="form-label">Section Title</label>
+          <input type="text" value="Introduction" id="sectionTitle" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Content (Rich Text)</label>
+          <div class="editor-toolbar">
+            <button class="toolbar-btn" title="Bold"><strong>B</strong></button>
+            <button class="toolbar-btn" title="Italic"><em>I</em></button>
+            <button class="toolbar-btn" title="Underline"><u>U</u></button>
+            <div class="editor-divider"></div>
+            <button class="toolbar-btn" title="Bullet List">◆</button>
+            <button class="toolbar-btn" title="Numbered List">1.</button>
+            <div class="editor-divider"></div>
+            <button class="toolbar-btn" title="Heading 1">H1</button>
+            <button class="toolbar-btn" title="Heading 2">H2</button>
+            <button class="toolbar-btn" title="Quote">"</button>
+            <button class="toolbar-btn" title="Link">🔗</button>
+          </div>
+          <textarea id="sectionContent">Welcome to OxSteed. These terms govern your use of our platform. By accessing OxSteed, you agree to be bound by these terms.
+
+Key points:
+• Please read them carefully
+• If you disagree, do not use our service
+• We may update these terms at any time</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">What changed in this update?</label>
+          <input type="text" placeholder="e.g., Clarified payment dispute timeline" id="changeSummary" />
+        </div>
+
+        <div class="version-history">
+          <h4>Version History (This Section)</h4>
+          <div class="version-item">
+            <div class="version-item-header">
+              <strong>v2.3</strong>
+              <span class="version-date">Apr 28, 2026 • Sarah Chen</span>
+            </div>
+            <div class="version-summary">Updated opening language for clarity</div>
+          </div>
+          <div class="version-item">
+            <div class="version-item-header">
+              <strong>v2.0</strong>
+              <span class="version-date">Mar 15, 2026 • Admin</span>
+            </div>
+            <div class="version-summary">Initial version published</div>
+          </div>
+        </div>
+
+        <div class="editor-actions">
+          <button class="btn" onclick="alert('Changes discarded')">Discard</button>
+          <div class="action-group">
+            <button class="btn" onclick="alert('Previewing section...')">Preview Section</button>
+            <button class="btn primary" onclick="alert('Changes saved! Section updated to v2.4')">Save Changes</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div>
+          <p>Select a section to edit</p>
+          <p style="font-size: 12px; margin-top: 8px;">Click any section in the list to make changes</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const sections = {
+  intro: {
+    title: 'Introduction',
+    version: 'v2.3',
+    date: 'Apr 28, 2026',
+    editor: 'Sarah Chen',
+    content: 'Welcome to OxSteed. These terms govern your use of our platform. By accessing OxSteed, you agree to be bound by these terms.\n\nKey points:\n• Please read them carefully\n• If you disagree, do not use our service\n• We may update these terms at any time',
+    history: [
+      { v: 'v2.3', date: 'Apr 28, 2026', editor: 'Sarah Chen', change: 'Updated opening language for clarity' },
+      { v: 'v2.0', date: 'Mar 15, 2026', editor: 'Admin', change: 'Initial version published' }
+    ]
+  },
+  definitions: {
+    title: 'Definitions',
+    version: 'v2.1',
+    date: 'Apr 10, 2026',
+    editor: 'Marcus Lee',
+    content: '"Helper" means a service provider on OxSteed.\n"Customer" means someone who posts a job.\n"Platform" means the OxSteed website and application.',
+    history: [
+      { v: 'v2.1', date: 'Apr 10, 2026', editor: 'Marcus Lee', change: 'Added "Platform" definition' },
+      { v: 'v2.0', date: 'Mar 15, 2026', editor: 'Admin', change: 'Initial version' }
+    ]
+  },
+  'helper-terms': {
+    title: 'Helper Terms',
+    version: 'v2.0',
+    date: 'Mar 15, 2026',
+    editor: 'Admin',
+    content: 'If you are a Helper, you agree to:\n• Provide accurate information\n• Maintain professional conduct\n• Complete jobs as agreed\n• Comply with all applicable laws',
+    history: [
+      { v: 'v2.0', date: 'Mar 15, 2026', editor: 'Admin', change: 'Initial version published' }
+    ]
+  },
+  'customer-terms': {
+    title: 'Customer Terms',
+    version: 'v2.0',
+    date: 'Mar 15, 2026',
+    editor: 'Admin',
+    content: 'If you are a Customer, you agree to:\n• Provide clear job descriptions\n• Communicate respectfully\n• Pay the agreed-upon price\n• Not misrepresent work scope',
+    history: [
+      { v: 'v2.0', date: 'Mar 15, 2026', editor: 'Admin', change: 'Initial version' }
+    ]
+  },
+  'payment-terms': {
+    title: 'Payment Terms',
+    version: 'v2.2',
+    date: 'Apr 20, 2026',
+    editor: 'Finance Team',
+    content: 'Payment processing via Stripe. Platform fee: 10% per transaction. Tier 3: escrow until completion. All prices exclude applicable taxes. Refunds: 7-10 business days.',
+    history: [
+      { v: 'v2.2', date: 'Apr 20, 2026', editor: 'Finance Team', change: 'Updated refund timeframe to 7-10 days' },
+      { v: 'v2.0', date: 'Mar 15, 2026', editor: 'Admin', change: 'Initial version' }
+    ]
+  },
+  liability: {
+    title: 'Limitation of Liability',
+    version: 'v1.0',
+    date: 'Jan 5, 2026',
+    editor: 'Legal',
+    content: 'OxSteed provided "as is" without warranties. Not liable for indirect or consequential damages. Liability capped at amount paid in last 12 months.',
+    history: [
+      { v: 'v1.0', date: 'Jan 5, 2026', editor: 'Legal', change: 'Initial version' }
+    ]
+  }
+};
+
+let currentDoc = 'tos';
+let currentSection = 'intro';
+
+function selectDoc(doc) {
+  currentDoc = doc;
+  document.querySelectorAll('.doc-item').forEach(el => el.classList.remove('active'));
+  event.target.closest('.doc-item').classList.add('active');
+}
+
+function selectSection(sec) {
+  currentSection = sec;
+  const section = sections[sec];
+  
+  document.querySelectorAll('.section-item').forEach(el => el.classList.remove('active'));
+  event.target.closest('.section-item').classList.add('active');
+  
+  document.getElementById('sectionTitle').value = section.title;
+  document.getElementById('sectionContent').value = section.content;
+  document.getElementById('changeSummary').value = '';
+  
+  const historyHTML = section.history.map(h => `
+    <div class="version-item">
+      <div class="version-item-header">
+        <strong>${h.v}</strong>
+        <span class="version-date">${h.date} • ${h.editor}</span>
+      </div>
+      <div class="version-summary">${h.change}</div>
+    </div>
+  `).join('');
+  
+  document.querySelector('.version-history').innerHTML = `<h4>Version History (This Section)</h4>${historyHTML}`;
+}
+
+function togglePreview() {
+  document.getElementById('previewNotice').style.display = 
+    document.getElementById('previewNotice').style.display === 'none' ? 'block' : 'none';
+}
+</script>

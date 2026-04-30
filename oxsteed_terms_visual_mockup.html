@@ -1,0 +1,514 @@
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--color-background-primary); }
+
+.terms-visual {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+.terms-header {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border-tertiary);
+  margin-bottom: 16px;
+}
+
+.terms-header h1 {
+  font-size: 32px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, #f97316 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.terms-header p {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.terms-sidebar {
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.toc-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.toc-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toc-item {
+  padding: 10px 12px;
+  border-radius: var(--border-radius-md);
+  border-left: 3px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  transition: all 0.15s;
+  font-weight: 400;
+}
+
+.toc-item:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border-left-color: #f97316;
+}
+
+.toc-item.active {
+  background: var(--color-background-secondary);
+  color: #f97316;
+  border-left-color: #f97316;
+  font-weight: 500;
+}
+
+.terms-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  margin-bottom: 8px;
+}
+
+.search-box svg {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  outline: none;
+}
+
+.search-box input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.search-count {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.section {
+  padding: 20px;
+  border-radius: var(--border-radius-lg);
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  scroll-margin-top: 100px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.section.critical {
+  border-left: 4px solid #ef4444;
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.section.highlighted {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.04);
+}
+
+.section.dimmed {
+  opacity: 0.5;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-toggle {
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--border-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.section-toggle:hover {
+  background: #f97316;
+  color: white;
+  border-color: #f97316;
+}
+
+.section-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.15s;
+}
+
+.section.collapsed .section-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.section-title-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.critical-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: rgba(239, 68, 68, 0.2);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ef4444;
+}
+
+.copy-link-btn {
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.copy-link-btn:hover {
+  background: #f97316;
+  color: white;
+  border-color: #f97316;
+}
+
+.copy-link-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.section-content {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  margin-bottom: 12px;
+}
+
+.section.collapsed .section-content {
+  display: none;
+}
+
+.section-content p {
+  margin-bottom: 10px;
+}
+
+.section-content ul {
+  margin-left: 20px;
+  margin-bottom: 10px;
+}
+
+.section-content li {
+  margin-bottom: 6px;
+}
+
+.section-content mark {
+  background: rgba(249, 115, 22, 0.3);
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+.acceptance-section {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--color-border-tertiary);
+}
+
+.acceptance-box {
+  padding: 24px;
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+}
+
+.acceptance-box h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.acceptance-box p {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+}
+
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.checkbox-wrapper input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-wrapper label {
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.scroll-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding: 10px;
+  background: var(--color-background-primary);
+  border-radius: var(--border-radius-md);
+  margin-bottom: 12px;
+}
+
+.scroll-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--color-border-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.scroll-fill {
+  height: 100%;
+  background: #f97316;
+  width: 0%;
+  transition: width 0.1s;
+}
+
+.accepted-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: var(--border-radius-md);
+  color: #22c55e;
+  font-size: 14px;
+}
+
+.hidden { display: none; }
+</style>
+
+<div class="terms-visual">
+  <div class="terms-header">
+    <h1>Terms of Service</h1>
+    <p>Last updated April 30, 2026 • Version 2.3</p>
+  </div>
+
+  <aside class="terms-sidebar">
+    <span class="toc-label">On this page</span>
+    <ul class="toc-list" id="toc"></ul>
+  </aside>
+
+  <main class="terms-main">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Search terms..." />
+      <span class="search-count" id="searchCount"></span>
+    </div>
+
+    <div id="sections"></div>
+
+    <div class="acceptance-section">
+      <div class="acceptance-box">
+        <h3>Do you agree to these terms?</h3>
+        <p>By checking the box below, you acknowledge that you have read and agree to these terms of service.</p>
+        
+        <div class="scroll-indicator" id="scrollIndicator">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12l7-7 7 7"></path>
+          </svg>
+          <span>Scroll to bottom to accept</span>
+        </div>
+        <div class="scroll-bar">
+          <div class="scroll-fill" id="scrollFill"></div>
+        </div>
+
+        <div class="checkbox-wrapper">
+          <input type="checkbox" id="acceptCheckbox" disabled />
+          <label for="acceptCheckbox">I have read and agree to the terms of service</label>
+        </div>
+
+        <div class="accepted-msg hidden" id="acceptedMsg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"></path>
+          </svg>
+          You have accepted these terms
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const docs = [
+  { id: 'intro', title: 'Introduction', critical: false, content: 'Welcome to OxSteed. These terms govern your use of our platform. By accessing OxSteed, you agree to be bound by these terms. Please read them carefully. If you do not agree with any part, you should not use our service.' },
+  { id: 'definitions', title: 'Definitions', critical: false, content: '"Helper" means a service provider on OxSteed. "Customer" means someone who posts a job. "Platform" means the OxSteed website and application. "Services" means the assistance we provide in connecting helpers and customers.' },
+  { id: 'helper-terms', title: 'Helper Terms', critical: true, content: 'If you are a Helper, you agree to: (1) provide accurate information about your skills and experience, (2) maintain professional conduct at all times, (3) complete jobs as agreed or notify the customer promptly of any issues, (4) comply with all applicable laws and regulations.' },
+  { id: 'customer-terms', title: 'Customer Terms', critical: false, content: 'If you are a Customer, you agree to: (1) provide clear and accurate job descriptions, (2) communicate respectfully with Helpers, (3) pay the agreed-upon price in a timely manner, (4) not misrepresent the nature or scope of work.' },
+  { id: 'payment-terms', title: 'Payment Terms', critical: true, content: 'Payment processing is handled via Stripe. OxSteed charges a platform fee of 10% on each transaction. For Tier 3 helpers, we hold payments in escrow until job completion. All prices are exclusive of applicable taxes. Refunds are issued within 7-10 business days.' },
+  { id: 'dispute-resolution', title: 'Dispute Resolution', critical: false, content: 'In case of a dispute, both parties agree to attempt resolution through our support team within 30 days. If unresolved, disputes will be handled through binding arbitration. You agree to waive your right to a jury trial and class action.' },
+  { id: 'liability', title: 'Limitation of Liability', critical: false, content: 'OxSteed is provided "as is" without warranties. We are not liable for indirect, incidental, or consequential damages. Our total liability is limited to the amount you paid in the last 12 months.' },
+  { id: 'termination', title: 'Termination', critical: false, content: 'We may terminate your account if you violate these terms. You may delete your account at any time from settings. Upon termination, your data will be retained for 180 days per our data retention policy, then permanently deleted.' },
+  { id: 'privacy', title: 'Privacy & Data', critical: false, content: 'See our Privacy Policy for details on how we collect and use your data. We comply with GDPR and CCPA. You have the right to access, correct, and delete your personal data at any time.' },
+  { id: 'changes', title: 'Changes to Terms', critical: false, content: 'We may update these terms at any time. Material changes require 30 days notice. Your continued use constitutes acceptance. Critical changes require explicit re-acceptance before using the platform.' }
+];
+
+const mainEl = document.querySelector('#sections');
+const tocEl = document.querySelector('#toc');
+const searchInput = document.querySelector('#searchInput');
+const searchCount = document.querySelector('#searchCount');
+const scrollIndicator = document.querySelector('#scrollIndicator');
+const scrollFill = document.querySelector('#scrollFill');
+const acceptCheckbox = document.querySelector('#acceptCheckbox');
+const acceptedMsg = document.querySelector('#acceptedMsg');
+
+function renderSections(filter = '') {
+  mainEl.innerHTML = docs.map(doc => {
+    const highlighted = filter && (doc.title.toLowerCase().includes(filter) || doc.content.toLowerCase().includes(filter));
+    const dimmed = filter && !highlighted;
+    const content = filter ? doc.content.replace(new RegExp(`(${filter})`, 'gi'), '<mark>$1</mark>') : doc.content;
+    return `
+      <section class="section ${doc.critical ? 'critical' : ''} ${highlighted ? 'highlighted' : ''} ${dimmed ? 'dimmed' : ''}" id="${doc.id}">
+        <div class="section-header" onclick="this.closest('.section').classList.toggle('collapsed')">
+          <div class="section-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
+          <div class="section-title-wrap">
+            <span class="section-title">${doc.title}</span>
+            ${doc.critical ? '<span class="critical-badge">Critical</span>' : ''}
+          </div>
+          <button class="copy-link-btn" onclick="copyLink('${doc.id}'); event.stopPropagation();">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="section-content">${content}</div>
+      </section>
+    `;
+  }).join('');
+}
+
+function renderTOC() {
+  tocEl.innerHTML = docs.map(doc => `
+    <li class="toc-item" onclick="document.getElementById('${doc.id}').scrollIntoView({behavior: 'smooth'}); updateActiveTOC('${doc.id}')">${doc.title}</li>
+  `).join('');
+}
+
+function updateActiveTOC(id) {
+  document.querySelectorAll('.toc-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.toc-item:contains(${id})`);
+  const target = Array.from(document.querySelectorAll('.toc-item')).find(el => {
+    const docId = docs.find(d => d.title === el.textContent.trim())?.id;
+    return docId === id;
+  });
+  if (target) target.classList.add('active');
+}
+
+function copyLink(id) {
+  const url = `${window.location.origin}/terms#${id}`;
+  navigator.clipboard.writeText(url);
+  alert('Link copied!');
+}
+
+function updateScroll() {
+  const scrollPercent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+  scrollFill.style.width = Math.min(scrollPercent, 100) + '%';
+  
+  if (scrollPercent >= 95) {
+    acceptCheckbox.disabled = false;
+    scrollIndicator.classList.add('hidden');
+  }
+}
+
+searchInput.addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase();
+  renderSections(query);
+  const matches = docs.filter(d => d.title.toLowerCase().includes(query) || d.content.toLowerCase().includes(query)).length;
+  searchCount.textContent = query ? `${matches}/${docs.length}` : '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+acceptCheckbox.addEventListener('change', (e) => {
+  if (e.target.checked) {
+    acceptedMsg.classList.remove('hidden');
+  } else {
+    acceptedMsg.classList.add('hidden');
+  }
+});
+
+window.addEventListener('scroll', updateScroll);
+
+renderSections();
+renderTOC();
+</script>
