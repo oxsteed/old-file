@@ -7,19 +7,75 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 
 // ────────────────────────────────────────────────────────────
+// PUBLIC HUB
+// ────────────────────────────────────────────────────────────
+
+const CATEGORY_SLUGS = {
+  terms_of_service: 'terms',
+  privacy_policy: 'privacy',
+  helper_agreement: 'helper-agreement',
+  seller_agreement: 'seller-agreement',
+  payment_terms: 'payment-terms',
+  dispute_resolution: 'dispute-resolution',
+  data_retention: 'data-retention',
+  background_check_policy: 'background-checks',
+  fcra_compliance: 'fcra',
+  incident_response: 'incident-response',
+  accessibility_policy: 'accessibility-policy',
+};
+
+/**
+ * GET /api/legal/hub
+ * List all live legal documents (title + public path slug) for the /legal index
+ */
+const getLegalHub = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT category, title, description, published_at, current_version
+       FROM legal_documents
+       WHERE status = 'live'
+       ORDER BY
+         CASE category
+           WHEN 'terms_of_service' THEN 1
+           WHEN 'privacy_policy' THEN 2
+           WHEN 'helper_agreement' THEN 3
+           WHEN 'seller_agreement' THEN 4
+           WHEN 'payment_terms' THEN 5
+           WHEN 'dispute_resolution' THEN 6
+           ELSE 99
+         END,
+         title ASC`
+    );
+
+    res.json({
+      documents: rows.map((d) => ({
+        category: d.category,
+        title: d.title,
+        description: d.description,
+        version: d.current_version,
+        publishedAt: d.published_at,
+        path: `/legal/${CATEGORY_SLUGS[d.category] || d.category}`,
+        legacyPath: d.category === 'terms_of_service' ? '/terms' : d.category === 'privacy_policy' ? '/privacy' : null,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ────────────────────────────────────────────────────────────
 // PUBLIC ENDPOINTS
 // ────────────────────────────────────────────────────────────
 
 /**
  * GET /api/legal/documents/:category
- * Fetch published legal document in user's language
+ * Fetch published legal document in user's language, or admin draft preview (?preview=uuid)
  */
 const getLegalDocument = async (req, res, next) => {
   try {
     const { category } = req.params;
-    const { language = 'en' } = req.query;
+    const { language = 'en', preview: previewId } = req.query;
 
-    // Validate category
     const validCategories = [
       'terms_of_service', 'privacy_policy', 'helper_agreement', 'seller_agreement',
       'payment_terms', 'dispute_resolution', 'data_retention', 'background_check_policy',
@@ -29,7 +85,85 @@ const getLegalDocument = async (req, res, next) => {
       throw new AppError('Invalid document category', 400, 'invalid_category');
     }
 
-    // Fetch live version
+    const isPreview = typeof previewId === 'string' && previewId.length > 0;
+    if (isPreview) {
+      if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
+        throw new AppError('Preview requires admin authentication', 403, 'forbidden');
+      }
+      const { rows } = await pool.query(
+        `SELECT d.id, d.category, d.title, d.description, d.current_version,
+                d.effective_date, d.published_at, d.status,
+                COALESCE(dt.title, d.title) AS title_localized,
+                COALESCE(dt.content, d.current_content) AS content
+         FROM legal_documents d
+         LEFT JOIN legal_document_translations dt ON d.id = dt.document_id
+           AND dt.language_code = $2 AND dt.status IN ('live', 'draft')
+         WHERE d.id = $1::uuid AND d.category = $3`,
+        [previewId, language, category]
+      );
+      if (!rows[0]) {
+        throw new AppError('Document not found', 404, 'not_found');
+      }
+      const doc = rows[0];
+
+      const { rows: sections } = await pool.query(
+        `SELECT s.id, s.section_key, s.title, s.content, s.section_order,
+                s.is_critical, s.updated_at AS section_row_updated_at,
+                COALESCE(st.title, s.title) AS title_localized,
+                COALESCE(st.content, s.content) AS content_localized,
+                (
+                  SELECT MAX(sv.published_at)
+                  FROM legal_section_versions sv
+                  WHERE sv.section_id = s.id AND sv.status = 'live'
+                ) AS section_last_published_at
+         FROM legal_document_sections s
+         LEFT JOIN legal_section_translations st ON s.id = st.section_id
+           AND st.language_code = $2 AND st.status IN ('live', 'draft')
+         WHERE s.document_id = $1
+         ORDER BY s.section_order`,
+        [doc.id, language]
+      );
+
+      let userAccepted = false;
+      if (req.user && doc.status === 'live') {
+        const { rows: acceptanceRows } = await pool.query(
+          `SELECT accepted_at FROM user_legal_acceptances_latest
+           WHERE user_id = $1 AND document_id = $2 AND version_number = $3`,
+          [req.user.id, doc.id, doc.current_version]
+        );
+        userAccepted = acceptanceRows.length > 0;
+      }
+
+      await logAuditEvent(req, 'document_viewed', 'document', doc.id, doc.id);
+
+      return res.json({
+        document: {
+          id: doc.id,
+          category: doc.category,
+          title: doc.title_localized || doc.title,
+          description: doc.description,
+          version: doc.current_version,
+          effectiveDate: doc.effective_date,
+          publishedAt: doc.published_at,
+          status: doc.status,
+          isPreview: true,
+          userAccepted,
+          lastUpdated: doc.published_at || doc.effective_date
+        },
+        sections: sections.map(s => ({
+          id: s.id,
+          key: s.section_key,
+          title: s.title_localized || s.title,
+          content: s.content_localized || s.content,
+          order: s.section_order,
+          isCritical: s.is_critical,
+          lastUpdatedAt: s.section_row_updated_at || s.section_last_published_at
+        })),
+        language
+      });
+    }
+
+    // Published (live) document
     const { rows } = await pool.query(
       `SELECT d.id, d.category, d.title, d.description, d.current_version,
               d.effective_date, d.published_at,
@@ -39,7 +173,7 @@ const getLegalDocument = async (req, res, next) => {
        LEFT JOIN legal_document_translations dt ON d.id = dt.document_id
          AND dt.language_code = $2 AND dt.status = 'live'
        WHERE d.category = $1 AND d.status = 'live'
-       ORDER BY d.published_at DESC LIMIT 1`,
+       ORDER BY d.published_at DESC NULLS LAST LIMIT 1`,
       [category, language]
     );
 
@@ -49,11 +183,16 @@ const getLegalDocument = async (req, res, next) => {
 
     const doc = rows[0];
 
-    // Fetch sections
     const { rows: sections } = await pool.query(
       `SELECT s.id, s.section_key, s.title, s.content, s.section_order,
-              s.is_critical, COALESCE(st.title, s.title) as title_localized,
-              COALESCE(st.content, s.content) as content_localized
+              s.is_critical, s.updated_at AS section_row_updated_at,
+              COALESCE(st.title, s.title) as title_localized,
+              COALESCE(st.content, s.content) as content_localized,
+              (
+                SELECT MAX(sv.published_at)
+                FROM legal_section_versions sv
+                WHERE sv.section_id = s.id AND sv.status = 'live'
+              ) AS section_last_published_at
        FROM legal_document_sections s
        LEFT JOIN legal_section_translations st ON s.id = st.section_id
          AND st.language_code = $2 AND st.status = 'live'
@@ -62,7 +201,6 @@ const getLegalDocument = async (req, res, next) => {
       [doc.id, language]
     );
 
-    // Check if user has accepted this version
     let userAccepted = false;
     if (req.user) {
       const { rows: acceptanceRows } = await pool.query(
@@ -73,7 +211,6 @@ const getLegalDocument = async (req, res, next) => {
       userAccepted = acceptanceRows.length > 0;
     }
 
-    // Log view
     await logAuditEvent(req, 'document_viewed', 'document', doc.id, doc.id);
 
     res.json({
@@ -85,6 +222,8 @@ const getLegalDocument = async (req, res, next) => {
         version: doc.current_version,
         effectiveDate: doc.effective_date,
         publishedAt: doc.published_at,
+        status: doc.status,
+        isPreview: false,
         userAccepted,
         lastUpdated: doc.published_at
       },
@@ -94,7 +233,8 @@ const getLegalDocument = async (req, res, next) => {
         title: s.title_localized || s.title,
         content: s.content_localized || s.content,
         order: s.section_order,
-        isCritical: s.is_critical
+        isCritical: s.is_critical,
+        lastUpdatedAt: s.section_last_published_at || s.section_row_updated_at
       })),
       language
     });
@@ -296,7 +436,8 @@ const listLegalDocuments = async (req, res, next) => {
       documents: rows.map(doc => ({
         id: doc.id,
         title: doc.title,
-        category: doc.category.replace('_', ' '),
+        category: doc.category,
+        categoryLabel: doc.category.replace(/_/g, ' '),
         version: doc.current_version,
         status: doc.status,
         updatedAt: doc.updated_at,
@@ -709,6 +850,20 @@ const publishDocument = async (req, res, next) => {
       [id, userId, doc.current_version]
     );
 
+    // Publish section versions: mark latest draft snapshot per section as live
+    await pool.query(
+      `UPDATE legal_section_versions sv
+       SET status = 'live', published_by = $2, published_at = NOW()
+       FROM (
+         SELECT DISTINCT ON (section_id) id
+         FROM legal_section_versions
+         WHERE document_id = $1 AND status = 'draft'
+         ORDER BY section_id, version_number DESC
+       ) latest
+       WHERE sv.id = latest.id`,
+      [id, userId]
+    );
+
     // If requires reacceptance, create notification
     if (notifyUsers && doc.requires_reacceptance) {
       // Queue email notifications
@@ -723,6 +878,76 @@ const publishDocument = async (req, res, next) => {
       publishedAt: new Date(),
       version: doc.current_version
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/legal/admin/documents/:id/sections/:sectionId/restore-version/:versionNumber
+ * Copy an older section version into the section body (new draft version row).
+ */
+const restoreSectionVersion = async (req, res, next) => {
+  try {
+    const { id, sectionId, versionNumber } = req.params;
+    const userId = req.user.id;
+    const verNum = parseInt(versionNumber, 10);
+    if (Number.isNaN(verNum)) {
+      throw new AppError('Invalid version number', 400, 'validation_failed');
+    }
+
+    const { rows: secRows } = await pool.query(
+      `SELECT id, section_key, title, content FROM legal_document_sections
+       WHERE id = $1 AND document_id = $2`,
+      [sectionId, id]
+    );
+    if (!secRows[0]) {
+      throw new AppError('Section not found', 404, 'not_found');
+    }
+
+    const { rows: oldRows } = await pool.query(
+      `SELECT title, content FROM legal_section_versions
+       WHERE section_id = $1 AND version_number = $2`,
+      [sectionId, verNum]
+    );
+    if (!oldRows[0]) {
+      throw new AppError('Section version not found', 404, 'not_found');
+    }
+
+    const { title, content } = oldRows[0];
+
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE legal_document_sections
+         SET title = $2, content = $3, updated_by = $4, updated_at = NOW()
+         WHERE id = $1`,
+        [sectionId, title, content, userId]
+      );
+
+      const { rows: verRows } = await client.query(
+        `SELECT COALESCE(MAX(version_number), 0) AS max_v FROM legal_section_versions WHERE section_id = $1`,
+        [sectionId]
+      );
+      const nextSecVer = (verRows[0]?.max_v || 0) + 1;
+
+      await client.query(
+        `INSERT INTO legal_section_versions (section_id, document_id, version_number, title, content, change_summary, status, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7)`,
+        [
+          sectionId,
+          id,
+          nextSecVer,
+          title,
+          content,
+          `Restored from section version ${verNum}`,
+          userId
+        ]
+      );
+    }, 'legal_section_restore');
+
+    await logAuditEvent(req, 'section_updated', 'section', sectionId, id);
+
+    res.json({ ok: true, sectionId, restoredFromVersion: verNum });
   } catch (err) {
     next(err);
   }
@@ -746,6 +971,7 @@ const logAuditEvent = async (req, actionType, resourceType, resourceId, document
 };
 
 module.exports = {
+  getLegalHub,
   getLegalDocument,
   getDocumentHistory,
   getDocumentVersion,
@@ -757,5 +983,6 @@ module.exports = {
   updateLegalDocument,
   requestApproval,
   approveDocument,
-  publishDocument
+  publishDocument,
+  restoreSectionVersion
 };

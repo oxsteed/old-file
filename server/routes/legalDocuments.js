@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
 const { termsLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
@@ -12,12 +12,14 @@ const legalController = require('../controllers/legalDocumentsController');
 // PUBLIC ROUTES
 // ────────────────────────────────────────────────────────────
 
+router.get('/hub', legalController.getLegalHub);
+
 /**
  * GET /api/legal/documents/:category
- * Fetch published legal document
+ * Fetch published legal document (or draft preview for admins via ?preview=documentUuid)
  * Optional: ?language=en (defaults to 'en')
  */
-router.get('/documents/:category', legalController.getLegalDocument);
+router.get('/documents/:category', optionalAuth, legalController.getLegalDocument);
 
 /**
  * GET /api/legal/documents/:id/history
@@ -94,5 +96,16 @@ router.post('/admin/documents/:id/approve', authenticate, requireAdmin, legalCon
  * Body: { notifyUsers? }
  */
 router.post('/admin/documents/:id/publish', authenticate, requireAdmin, legalController.publishDocument);
+
+/**
+ * POST /api/legal/admin/documents/:id/sections/:sectionId/restore-version/:versionNumber
+ * Restore a section's body from a prior section version (creates new draft version row)
+ */
+router.post(
+  '/admin/documents/:id/sections/:sectionId/restore-version/:versionNumber',
+  authenticate,
+  requireAdmin,
+  legalController.restoreSectionVersion
+);
 
 module.exports = router;

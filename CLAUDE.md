@@ -16,9 +16,9 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 247 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage, SupportWidget, WidgetPanel, TicketCreationModal, TicketHistory, LiveChat, ABTestingPage)
+- 253 React components / pages (Legal hub `/legal`, parameterized `LegalDocumentPage`, DB-backed `/privacy`; shared legal route constants)
 - 111 backend controllers (added 7 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts, ABTest)
-- 149 database migrations (includes legal audit fix + default live terms seed: `149_legal_audit_document_viewed_seed_terms.sql`)
+- 150 database migrations (`150_privacy_policy_seed.sql`: optional live privacy seed for hub)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Error Handling Implementation (2026-04-30):**
@@ -47,6 +47,7 @@
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
 **Latest work completed (2026-04-30):**
+- **Legal hub & multi-document public UX (brainstorming.md alignment)** ✅ `GET /api/legal/hub` lists live docs; routes `/legal`, `/legal/:slug` (slug map in `client/src/constants/legalPublicRoutes.js`). `LegalDocumentPage.jsx`: optional `?preview=` for **admin-authenticated** draft preview; scroll-to-agree + acceptance POST only for live `terms_of_service`; per-section **last updated** from latest published `legal_section_versions`. Footer **Legal center** → `/legal`. **`/privacy`** uses same viewer + DB `privacy_policy` (replaces static `privacy.tsx` route). **`publishDocument`**: marks latest draft `legal_section_versions` per section as `live`. **`POST .../sections/:sectionId/restore-version/:versionNumber`** restores clause body. Admin **Preview as user** uses `legalAdminPreviewUrl`; list API returns raw `category` + label for preview routing.
 - **Legal API + `/terms` load failure** ✅ Migration `149_legal_audit_document_viewed_seed_terms.sql`: adds `document_viewed` to `legal_audit_log` CHECK constraint; seeds a minimal **live** `terms_of_service` doc + version + section when none exists (fixes empty prod DB). Controller: `document_viewed` audit passes `document_id`; `approval_approved` logs real approval row id (was passing document id into `resource_id` FK to `legal_document_approvals`).
 - **`/terms` runtime crash (production)** ✅ Fixed state variable shadowing the DOM global: React state was named `document`, so the scroll handler read `document.documentElement` from API state (null/object) and threw inside `Guarded` → generic error boundary. Renamed to `legalDocument`; scroll uses `globalThis.document.documentElement`.
 - **Legal UI redesign (mockup parity)** ✅ Terms public page (`TermsOfServicePage.jsx` / `.css`) matches `oxsteed_terms_visual_mockup.html`: grid header, sticky TOC, search highlight/dim, collapsible sections, scroll-to-accept bar on window scroll, copy-link. Admin list (`AdminLegalDocumentsPage.jsx` + `AdminLegalDocumentsDashboard.css`) matches dashboard mockup (sidebar doc list + detail panel). Editor (`AdminLegalDocumentEditorPage.jsx` / `.css`) uses two-column layout, preview banner, section rows, toolbar wraps selection. **API:** `GET /api/legal/admin/documents/:id` (`getAdminDocument`); `createLegalDocument` / `updateLegalDocument` persist `legal_document_sections` + `legal_section_versions` when `sections[]` is sent.
@@ -60,9 +61,9 @@
 
 - **Terms & Conditions Management System — FINAL INTEGRATION** ✅ COMPLETE
   - **Backend:** Controller (legalDocumentsController.js) + Routes (legalDocuments.js) fully integrated into server/index.js at `/api/legal`
-  - **Migrations 145–149:** Legal documents, sections, multilingual support, audit logging (12 tables with 20+ indexes); migration 149 extends audit CHECK + seeds live terms when missing
+  - **Migrations 145–150:** Legal documents, sections, multilingual support, audit logging (12 tables with 20+ indexes); migrations 149–150 extend audit CHECK + seed live terms/privacy when missing
   - **Admin Pages:** 4 pages complete (documents list, editor, approval workflow, audit log) with API endpoint fixes
-  - **Public Page:** TermsOfServicePage.jsx with API integration, scroll-to-agree, version history, electronic signatures
+  - **Public:** `/legal` hub, `/legal/:slug`, `/terms` and `/privacy` → DB-backed `LegalDocumentPage` (scroll-to-agree only on live terms), admin preview query param
   - **Frontend Routes:** AdminApp.jsx + App.jsx routes configured; sidebar navigation added to AdminLayout
   - **API Endpoints:** 9 endpoints (3 public, 6 admin) with full validation and error handling
   - **Next Steps:** Run migrations (`node migrate.js`), test workflows, schedule deployment

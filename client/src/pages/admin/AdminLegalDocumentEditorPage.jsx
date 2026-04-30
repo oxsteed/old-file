@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, X, Plus, Trash2, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
+import { legalAdminPreviewUrl } from '../../utils/legalAdminPreviewUrl';
 import './AdminLegalDocumentEditorPage.css';
 
 export default function AdminLegalDocumentEditorPage() {
@@ -24,7 +25,6 @@ export default function AdminLegalDocumentEditorPage() {
   const [sections, setSections] = useState([{ key: 'introduction', title: 'Introduction', content: '', isCritical: false }]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [sectionChangeSummary, setSectionChangeSummary] = useState('');
-  const [previewMode, setPreviewMode] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -188,6 +188,27 @@ export default function AdminLegalDocumentEditorPage() {
 
   const selected = sections[selectedIndex];
 
+  const handleRestoreSectionVersion = async (versionNum) => {
+    if (isNew || !id || !selected?.id) return;
+    if (
+      !window.confirm(
+        `Restore this section to version ${versionNum}? The editor will reload and unsaved changes are lost.`
+      )
+    ) {
+      return;
+    }
+    try {
+      setSaving(true);
+      setError(null);
+      await api.post(`/legal/admin/documents/${id}/sections/${selected.id}/restore-version/${versionNum}`);
+      await fetchDocument();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to restore section version');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatShortDate = (iso) => {
     if (!iso) return '';
     try {
@@ -214,8 +235,16 @@ export default function AdminLegalDocumentEditorPage() {
           )}
         </div>
         <div className="alde-header-actions">
-          <button type="button" className="alde-btn" onClick={() => setPreviewMode((p) => !p)}>
-            Preview
+          <button
+            type="button"
+            className="alde-btn"
+            disabled={isNew}
+            title={isNew ? 'Save the document first to open a preview' : 'Open public preview (draft)'}
+            onClick={() => {
+              if (!isNew) window.open(legalAdminPreviewUrl(document.category, id), '_blank');
+            }}
+          >
+            Preview as user
           </button>
           {!isNew && (
             <button type="button" className="alde-btn alde-btn-primary" onClick={handleSave} disabled={saving}>
@@ -239,15 +268,6 @@ export default function AdminLegalDocumentEditorPage() {
           </button>
         </div>
       </header>
-
-      {previewMode && (
-        <div className="alde-preview-banner">
-          Preview mode — changes are not saved until you click Save.
-          <button type="button" className="alde-btn alde-btn-inline" onClick={() => setPreviewMode(false)}>
-            Exit preview
-          </button>
-        </div>
-      )}
 
       {error && (
         <div className="alde-error">
@@ -374,7 +394,6 @@ export default function AdminLegalDocumentEditorPage() {
                   onChange={(e) => updateSection(selectedIndex, 'content', e.target.value)}
                   placeholder="Section body (HTML or plain text)"
                   rows={14}
-                  disabled={previewMode}
                 />
               </div>
 
@@ -400,6 +419,14 @@ export default function AdminLegalDocumentEditorPage() {
                         </span>
                       </div>
                       {h.changeSummary && <div className="alde-version-sum">{h.changeSummary}</div>}
+                      <button
+                        type="button"
+                        className="alde-btn alde-btn-inline alde-restore-btn"
+                        disabled={saving || h.version === undefined}
+                        onClick={() => handleRestoreSectionVersion(h.version)}
+                      >
+                        Restore this version
+                      </button>
                     </div>
                   ))}
                 </div>

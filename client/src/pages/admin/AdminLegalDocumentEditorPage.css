@@ -371,6 +371,10 @@
   color: var(--muted-text);
 }
 
+.alde-restore-btn {
+  margin-top: 8px;
+}
+
 @media (max-width: 960px) {
   .alde-grid {
     grid-template-columns: 1fr;

@@ -37,6 +37,126 @@
   margin: 0;
 }
 
+.terms-header-meta {
+  margin-top: 10px !important;
+  font-size: 12px !important;
+}
+
+.terms-hub-link {
+  color: #f97316;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.terms-hub-link:hover {
+  text-decoration: underline;
+}
+
+.terms-header-slug {
+  color: var(--muted-text);
+  font-weight: 400;
+}
+
+.terms-preview-banner {
+  grid-column: 1 / -1;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.45);
+  color: var(--app-text);
+  font-size: 13px;
+}
+
+.section-updated-badge {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted-text);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+/* Legal hub index (/legal) */
+.legal-hub-page .legal-hub-header {
+  text-align: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.legal-hub-intro {
+  max-width: 52ch;
+  margin: 12px auto 0;
+  font-size: 14px;
+  color: var(--muted-text);
+  line-height: 1.55;
+}
+
+.legal-hub-main {
+  grid-column: 1 / -1;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.legal-hub-empty {
+  text-align: center;
+  color: var(--muted-text);
+}
+
+.legal-hub-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.legal-hub-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+}
+
+.legal-hub-card-icon {
+  flex-shrink: 0;
+  color: #f97316;
+  margin-top: 2px;
+}
+
+.legal-hub-card-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--app-text);
+  text-decoration: none;
+}
+
+.legal-hub-card-title:hover {
+  color: #f97316;
+}
+
+.legal-hub-card-desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted-text);
+  line-height: 1.5;
+}
+
+.legal-hub-card-meta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted-text);
+}
+
 .terms-sidebar {
   position: sticky;
   top: 20px;

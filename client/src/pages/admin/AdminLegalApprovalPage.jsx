@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Clock, Calendar, AlertCircle, User, MessageSquare } from 'lucide-react';
 import api from '../../api/axios';
+import { legalAdminPreviewUrl } from '../../utils/legalAdminPreviewUrl';
 
 export default function AdminLegalApprovalPage() {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export default function AdminLegalApprovalPage() {
         {
           id: '1',
           documentId: 'doc1',
+          documentCategory: 'terms_of_service',
           documentTitle: 'Terms of Service',
           status: 'pending',
           requestedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
@@ -38,6 +40,7 @@ export default function AdminLegalApprovalPage() {
         {
           id: '2',
           documentId: 'doc2',
+          documentCategory: 'privacy_policy',
           documentTitle: 'Privacy Policy',
           status: 'pending',
           requestedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
@@ -247,8 +250,16 @@ export default function AdminLegalApprovalPage() {
             {/* Preview Link */}
             <div className="approval-preview-link">
               <Clock size={16} />
-              <a href={`/terms?preview=${selectedApproval.documentId}`} target="_blank" rel="noopener noreferrer">
-                Preview document in Terms page
+              <a
+                href={
+                  selectedApproval.documentId && selectedApproval.documentCategory
+                    ? legalAdminPreviewUrl(selectedApproval.documentCategory, selectedApproval.documentId)
+                    : `/terms?preview=${selectedApproval.documentId}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Preview document (admin draft view)
               </a>
             </div>
           </div>

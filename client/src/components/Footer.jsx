@@ -129,6 +129,7 @@ export default function Footer() {
           marginBottom: 'var(--space-4)',
           alignItems: 'center',
         }}>
+          <LegalLink to="/legal">{t('footer.legalCenter', 'Legal center')}</LegalLink>
           <LegalLink to="/terms">{t('footer.terms')}</LegalLink>
           <LegalLink to="/privacy">{t('footer.privacy')}</LegalLink>
           <LegalLink to="/security">{t('footer.security')}</LegalLink>

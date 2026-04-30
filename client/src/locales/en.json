@@ -370,6 +370,7 @@
     "about": "About",
     "findHelpers": "Find Helpers",
     "browseProducts": "Browse Products",
+    "legalCenter": "Legal center",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "security": "Security",
@@ -397,6 +398,16 @@
     "qrGenerator": "QR Generator",
     "consulting": "Consulting",
     "consultingTooltip": "Schedule an initial $100 business consulting session"
+  },
+  "legal": {
+    "hubTitle": "Legal documents",
+    "hubIntro": "Policies and agreements for using OxSteed. Open any document to search sections or copy a link to a specific clause.",
+    "hubLoadError": "Could not load legal documents.",
+    "hubEmpty": "No published legal documents yet.",
+    "allDocuments": "All legal documents",
+    "viewAll": "View all legal documents",
+    "previewBanner": "Preview — this draft is visible to admins only. Content is not yet published.",
+    "sectionUpdated": "Section updated"
   },
   "howItWorks": {
     "badge": "Platform Overview",

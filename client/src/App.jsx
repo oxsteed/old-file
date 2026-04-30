@@ -23,7 +23,9 @@ import JobDetailPage from './pages/JobDetailPage';
 import PostJobPage from './pages/PostJobPage';
 import NotFoundPage from './pages/NotFoundPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
-import PrivacyPage from './pages/privacy';
+import PrivacyLegalPage from './pages/PrivacyLegalPage';
+import LegalHubPage from './pages/LegalHubPage';
+import LegalDocumentPageWrapper from './pages/LegalDocumentPageWrapper';
 import DoNotSellPage from './pages/donotsell';
 import SecurityPage from './pages/security';
 import CookiePolicyPage from './pages/cookiepolicy';
@@ -147,8 +149,10 @@ export default function App() {
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
+                    <Route path="/legal"          element={<Guarded><LegalHubPage /></Guarded>} />
+                    <Route path="/legal/:slug"    element={<Guarded><LegalDocumentPageWrapper /></Guarded>} />
                     <Route path="/terms"          element={<Guarded><TermsOfServicePage /></Guarded>} />
-                    <Route path="/privacy"        element={<Guarded><PrivacyPage /></Guarded>} />
+                    <Route path="/privacy"        element={<Guarded><PrivacyLegalPage /></Guarded>} />
                     <Route path="/do-not-sell"    element={<Guarded><DoNotSellPage /></Guarded>} />
                     <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />
                     <Route path="/cookie-policy"  element={<Guarded><CookiePolicyPage /></Guarded>} />

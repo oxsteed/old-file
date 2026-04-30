@@ -369,6 +369,7 @@
     "about": "Nosotros",
     "findHelpers": "Encontrar ayudantes",
     "browseProducts": "Explorar productos",
+    "legalCenter": "Centro legal",
     "terms": "Términos de servicio",
     "privacy": "Política de privacidad",
     "security": "Seguridad",
@@ -396,6 +397,16 @@
     "qrGenerator": "Generador QR",
     "consulting": "Asesoría",
     "consultingTooltip": "Programa una sesión de asesoría empresarial inicial de $100"
+  },
+  "legal": {
+    "hubTitle": "Documentos legales",
+    "hubIntro": "Políticas y acuerdos para usar OxSteed. Abre cualquier documento para buscar secciones o copiar un enlace a una cláusula específica.",
+    "hubLoadError": "No se pudieron cargar los documentos legales.",
+    "hubEmpty": "Aún no hay documentos legales publicados.",
+    "allDocuments": "Todos los documentos legales",
+    "viewAll": "Ver todos los documentos legales",
+    "previewBanner": "Vista previa: este borrador solo es visible para administradores. El contenido aún no está publicado.",
+    "sectionUpdated": "Sección actualizada"
   },
   "howItWorks": {
     "badge": "Descripción de la plataforma",

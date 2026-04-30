@@ -369,6 +369,7 @@
     "about": "À propos",
     "findHelpers": "Trouver des prestataires",
     "browseProducts": "Parcourir les produits",
+    "legalCenter": "Centre juridique",
     "terms": "Conditions d'utilisation",
     "privacy": "Politique de confidentialité",
     "security": "Sécurité",
@@ -396,6 +397,16 @@
     "qrGenerator": "Générateur QR",
     "consulting": "Conseil",
     "consultingTooltip": "Programmer une session de conseil commercial initiale de $100"
+  },
+  "legal": {
+    "hubTitle": "Documents juridiques",
+    "hubIntro": "Politiques et accords pour utiliser OxSteed. Ouvrez un document pour rechercher des sections ou copier un lien vers une clause.",
+    "hubLoadError": "Impossible de charger les documents juridiques.",
+    "hubEmpty": "Aucun document juridique publié pour le moment.",
+    "allDocuments": "Tous les documents juridiques",
+    "viewAll": "Voir tous les documents juridiques",
+    "previewBanner": "Aperçu — ce brouillon est visible uniquement par les administrateurs. Le contenu n’est pas encore publié.",
+    "sectionUpdated": "Section mise à jour"
   },
   "howItWorks": {
     "badge": "Présentation de la plateforme",

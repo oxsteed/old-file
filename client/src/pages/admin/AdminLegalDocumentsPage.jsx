@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Plus, AlertCircle } from 'lucide-react';
 import api from '../../api/axios';
+import { legalAdminPreviewUrl } from '../../utils/legalAdminPreviewUrl';
 import './AdminLegalDocumentsDashboard.css';
 
 const STATUS_LABEL = {
@@ -58,7 +59,10 @@ export default function AdminLegalDocumentsPage() {
             type="button"
             className="ald-btn"
             disabled={!selected}
-            onClick={() => selected && window.open('/terms', '_blank')}
+            onClick={() =>
+              selected &&
+              window.open(legalAdminPreviewUrl(selected.category, selected.id), '_blank')
+            }
           >
             <Eye size={16} aria-hidden />
             Preview
@@ -120,7 +124,7 @@ export default function AdminLegalDocumentsPage() {
                     Version {selected.version} · Updated {new Date(selected.updatedAt).toLocaleDateString()}
                   </div>
                   <div className="ald-meta-row">
-                    <span className="ald-category">{selected.category}</span>
+                    <span className="ald-category">{selected.categoryLabel || selected.category}</span>
                     <span className={`ald-status-pill ${statusClass(selected.status)}`}>
                       {STATUS_LABEL[selected.status] || selected.status}
                     </span>
@@ -129,9 +133,15 @@ export default function AdminLegalDocumentsPage() {
               </div>
             </div>
             <div className="ald-actions-row">
-              <button type="button" className="ald-btn" onClick={() => window.open('/terms', '_blank')}>
+              <button
+                type="button"
+                className="ald-btn"
+                onClick={() =>
+                  window.open(legalAdminPreviewUrl(selected.category, selected.id), '_blank')
+                }
+              >
                 <Eye size={16} />
-                Preview public terms
+                Preview as user
               </button>
               <button type="button" className="ald-btn ald-btn-primary" onClick={() => navigate(`/admin/legal/documents/${selected.id}/edit`)}>
                 Open editor

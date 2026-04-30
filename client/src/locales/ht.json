@@ -452,6 +452,7 @@
     "about": "Apwopo",
     "findHelpers": "Jwenn Pwofesyonèl",
     "browseProducts": "Fouye Pwodwi",
+    "legalCenter": "Sant legal",
     "terms": "Kondisyon Sèvis",
     "privacy": "Règ Konfidansyalite",
     "security": "Sekirite",
@@ -479,6 +480,16 @@
     "qrGenerator": "Jeneratè QR",
     "consulting": "Konsèy",
     "consultingTooltip": "Planifye yon seyans konsèy biznis inisyal $100"
+  },
+  "legal": {
+    "hubTitle": "Dokiman legal",
+    "hubIntro": "Politik ak akò pou itilize OxSteed. Louvri nenpòt dokiman pou chèche seksyon oswa kopye lyen pou yon klòz espesifik.",
+    "hubLoadError": "Pa kapab chaje dokiman legal yo.",
+    "hubEmpty": "Poko gen dokiman legal ki pibliye.",
+    "allDocuments": "Tout dokiman legal yo",
+    "viewAll": "Wè tout dokiman legal yo",
+    "previewBanner": "Apèsi — bouyon sa a visible sèlman pou administratè yo. Kontni an poko pibliye.",
+    "sectionUpdated": "Seksyon mete ajou"
   },
   "howItWorks": {
     "badge": "Apèsi Platfòm",
