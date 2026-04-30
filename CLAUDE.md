@@ -18,7 +18,7 @@
 **Codebase metrics:**
 - 247 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage, SupportWidget, WidgetPanel, TicketCreationModal, TicketHistory, LiveChat, ABTestingPage)
 - 111 backend controllers (added 7 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts, ABTest)
-- 139 database migrations (added 11 new: orders/transactions, API products, affiliate payouts, order management, email/SMS preferences, discount codes, product reviews, payout methods, affiliate analytics, A/B testing)
+- 149 database migrations (includes legal audit fix + default live terms seed: `149_legal_audit_document_viewed_seed_terms.sql`)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Error Handling Implementation (2026-04-30):**
@@ -47,6 +47,7 @@
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
 **Latest work completed (2026-04-30):**
+- **Legal API + `/terms` load failure** ✅ Migration `149_legal_audit_document_viewed_seed_terms.sql`: adds `document_viewed` to `legal_audit_log` CHECK constraint; seeds a minimal **live** `terms_of_service` doc + version + section when none exists (fixes empty prod DB). Controller: `document_viewed` audit passes `document_id`; `approval_approved` logs real approval row id (was passing document id into `resource_id` FK to `legal_document_approvals`).
 - **`/terms` runtime crash (production)** ✅ Fixed state variable shadowing the DOM global: React state was named `document`, so the scroll handler read `document.documentElement` from API state (null/object) and threw inside `Guarded` → generic error boundary. Renamed to `legalDocument`; scroll uses `globalThis.document.documentElement`.
 - **Legal UI redesign (mockup parity)** ✅ Terms public page (`TermsOfServicePage.jsx` / `.css`) matches `oxsteed_terms_visual_mockup.html`: grid header, sticky TOC, search highlight/dim, collapsible sections, scroll-to-accept bar on window scroll, copy-link. Admin list (`AdminLegalDocumentsPage.jsx` + `AdminLegalDocumentsDashboard.css`) matches dashboard mockup (sidebar doc list + detail panel). Editor (`AdminLegalDocumentEditorPage.jsx` / `.css`) uses two-column layout, preview banner, section rows, toolbar wraps selection. **API:** `GET /api/legal/admin/documents/:id` (`getAdminDocument`); `createLegalDocument` / `updateLegalDocument` persist `legal_document_sections` + `legal_section_versions` when `sections[]` is sent.
 - **Coolify deploy crash & migrations (137–144)** ✅ FIXED IN CODE (verify on next deploy)
@@ -59,7 +60,7 @@
 
 - **Terms & Conditions Management System — FINAL INTEGRATION** ✅ COMPLETE
   - **Backend:** Controller (legalDocumentsController.js) + Routes (legalDocuments.js) fully integrated into server/index.js at `/api/legal`
-  - **Migrations 145-148:** Legal documents, sections, multilingual support, audit logging (12 tables with 20+ indexes)
+  - **Migrations 145–149:** Legal documents, sections, multilingual support, audit logging (12 tables with 20+ indexes); migration 149 extends audit CHECK + seeds live terms when missing
   - **Admin Pages:** 4 pages complete (documents list, editor, approval workflow, audit log) with API endpoint fixes
   - **Public Page:** TermsOfServicePage.jsx with API integration, scroll-to-agree, version history, electronic signatures
   - **Frontend Routes:** AdminApp.jsx + App.jsx routes configured; sidebar navigation added to AdminLayout

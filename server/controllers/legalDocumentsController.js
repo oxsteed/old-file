@@ -74,7 +74,7 @@ const getLegalDocument = async (req, res, next) => {
     }
 
     // Log view
-    await logAuditEvent(req, 'document_viewed', 'document', doc.id, null);
+    await logAuditEvent(req, 'document_viewed', 'document', doc.id, doc.id);
 
     res.json({
       document: {
@@ -653,7 +653,20 @@ const approveDocument = async (req, res, next) => {
       [id, publishDate, userId]
     );
 
-    await logAuditEvent(req, 'approval_approved', 'approval', id, null);
+    const { rows: approvedApproval } = await pool.query(
+      `SELECT id FROM legal_document_approvals
+       WHERE document_id = $1 AND status = 'approved'
+       ORDER BY reviewed_at DESC NULLS LAST
+       LIMIT 1`,
+      [id]
+    );
+    await logAuditEvent(
+      req,
+      'approval_approved',
+      'approval',
+      approvedApproval[0]?.id || null,
+      id
+    );
 
     res.json({
       id,
