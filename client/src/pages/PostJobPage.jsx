@@ -939,7 +939,16 @@ export default function PostJobPage() {
       if (form.requiredSkills.length > 0) {
         fd.append('required_skills', JSON.stringify(form.requiredSkills));
       }
-      form.mediaFiles.forEach(f => fd.append('media', f));
+
+      // Validate file sizes before uploading
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      form.mediaFiles.forEach(f => {
+        if (f.size > MAX_FILE_SIZE) {
+          throw new Error(`File "${f.name}" is too large. Maximum file size is 10MB.`);
+        }
+        fd.append('media', f);
+      });
+
       if (directHelperId) fd.append('preferred_helper_id', directHelperId);
 
       const job = await createJob(fd);
@@ -948,8 +957,21 @@ export default function PostJobPage() {
       api.delete('/jobs/draft').catch(() => {});
       set({ submitted: true, submittedJob: job });
     } catch (err) {
-      const msg = err?.response?.data?.error || 'Failed to post job. Please try again.';
-      setErrors({ submit: msg });
+      // Extract field-level validation errors first
+      if (err?.response?.data?.fields) {
+        setErrors(err.response.data.fields);
+      } else {
+        // Fallback to error message
+        const msg = err?.response?.data?.error || err?.message || 'Failed to post job. Please try again.';
+        setErrors({ submit: msg });
+      }
+      // Log error details for debugging
+      console.error('[PostJob] createJob failed:', {
+        status: err?.response?.status,
+        error: err?.response?.data?.error,
+        fields: err?.response?.data?.fields,
+        message: err?.message,
+      });
     } finally {
       set({ submitting: false });
     }

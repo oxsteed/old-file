@@ -54,11 +54,10 @@ export default function useJobs() {
   }, []);
 
   const createJob = async (jobData) => {
-    const isFormData = jobData instanceof FormData;
-    const { data } = await api.post('/jobs', jobData, isFormData ? {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    } : {});
-    return data;
+    return withTokenValidation(async () => {
+      const { data } = await api.post('/jobs', jobData);
+      return data;
+    });
   };
 
   const updateJob = async (id, jobData) => {
