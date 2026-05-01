@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireRole } = require('../middleware/auth');
 const { rateLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
 
@@ -51,41 +51,41 @@ router.get('/my-acceptances', authenticate, rateLimiter, legalController.getUser
  * List all legal documents with optional status filter
  * Query: ?status=draft|pending_review|scheduled|live|archived
  */
-router.get('/admin/documents', authenticate, requireAdmin, legalController.listLegalDocuments);
+router.get('/admin/documents', authenticate, requireRole('admin', 'super_admin'), legalController.listLegalDocuments);
 
 /**
  * POST /api/legal/admin/documents
  * Create new legal document
  * Body: { category, title, description, content }
  */
-router.post('/admin/documents', authenticate, requireAdmin, legalController.createLegalDocument);
+router.post('/admin/documents', authenticate, requireRole('admin', 'super_admin'), legalController.createLegalDocument);
 
 /**
  * PUT /api/legal/admin/documents/:id
  * Update document (saves as draft)
  * Body: { title, description, content, changeSummary }
  */
-router.put('/admin/documents/:id', authenticate, requireAdmin, legalController.updateLegalDocument);
+router.put('/admin/documents/:id', authenticate, requireRole('admin', 'super_admin'), legalController.updateLegalDocument);
 
 /**
  * POST /api/legal/admin/documents/:id/request-approval
  * Submit document for legal review
  * Body: { changeSummary, changedSections }
  */
-router.post('/admin/documents/:id/request-approval', authenticate, requireAdmin, legalController.requestApproval);
+router.post('/admin/documents/:id/request-approval', authenticate, requireRole('admin', 'super_admin'), legalController.requestApproval);
 
 /**
  * POST /api/legal/admin/documents/:id/approve
  * Approve document for publication
  * Body: { scheduledPublishDate?, reviewComments }
  */
-router.post('/admin/documents/:id/approve', authenticate, requireAdmin, legalController.approveDocument);
+router.post('/admin/documents/:id/approve', authenticate, requireRole('admin', 'super_admin'), legalController.approveDocument);
 
 /**
  * POST /api/legal/admin/documents/:id/publish
  * Publish document immediately
  * Body: { notifyUsers? }
  */
-router.post('/admin/documents/:id/publish', authenticate, requireAdmin, legalController.publishDocument);
+router.post('/admin/documents/:id/publish', authenticate, requireRole('admin', 'super_admin'), legalController.publishDocument);
 
 module.exports = router;

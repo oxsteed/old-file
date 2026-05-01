@@ -3,8 +3,18 @@ import { useParams } from 'react-router-dom';
 import adminApi from '../../lib/adminApi';
 import { CheckCircle, ChevronRight, AlertCircle, Save } from 'lucide-react';
 
+const SUPPORT_BUSINESS_STORAGE_KEY = 'oxs:support_business_id';
+
 export default function SupportAgentOnboarding() {
-  const { businessId } = useParams();
+  const { businessId: businessIdFromRoute } = useParams();
+  const [businessIdManual, setBusinessIdManual] = useState(() => {
+    try {
+      return localStorage.getItem(SUPPORT_BUSINESS_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+  const businessId = businessIdFromRoute || businessIdManual.trim() || undefined;
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     first_name: '',
@@ -60,10 +70,22 @@ export default function SupportAgentOnboarding() {
         return;
       }
 
-      const response = await adminApi.post(`/api/support/agents/onboard`, {
+      if (!businessId) {
+        setError('Business ID is required. Enter the business UUID above or open this page from a URL that includes /support/:businessId/...');
+        setLoading(false);
+        return;
+      }
+
+      await adminApi.post(`/api/support/agents/onboard`, {
         ...formData,
         business_id: businessId,
       });
+
+      try {
+        localStorage.setItem(SUPPORT_BUSINESS_STORAGE_KEY, businessId);
+      } catch {
+        /* ignore */
+      }
 
       // Success
       setError(null);
@@ -121,6 +143,22 @@ export default function SupportAgentOnboarding() {
         <h1 className="text-white font-bold text-3xl mb-2">Agent Onboarding</h1>
         <p className="text-gray-400 text-sm">Complete the 4-step process to add a new support agent.</p>
       </div>
+
+      {!businessIdFromRoute && (
+        <div className="mb-6 p-4 bg-gray-800/80 border border-gray-600 rounded-lg">
+          <label className="block text-gray-300 text-sm font-medium mb-2">Business ID (UUID)</label>
+          <input
+            type="text"
+            value={businessIdManual}
+            onChange={(e) => setBusinessIdManual(e.target.value)}
+            placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-orange-500"
+          />
+          <p className="text-gray-500 text-xs mt-2">
+            Saved in this browser after a successful onboard. Support tools that need a business scope use this value when the URL does not include <code className="text-gray-400">:businessId</code>.
+          </p>
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (
