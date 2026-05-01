@@ -6,10 +6,41 @@ import { useAuth } from '../context/AuthContext';
 // in App.jsx — public paths never reach this gate.
 // '/helper-dashboard' is required: HelperRegister navigates there after OTP
 // verification, before onboarding_completed is set to true.
-const ONBOARDING_ALLOWED_PATHS = [
-  '/helper-dashboard',
+//
+// Prefix rules must avoid false positives (e.g. `/consulting-intake` must not
+// match `/consulting`).
+function pathMatchesPrefix(pathname, prefix) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+const HELPER_PRE_ONBOARDING_PREFIXES = [
   '/dashboard',
+  '/helper-dashboard',
+  '/consulting',
+  '/settings',
+  '/messages',
+  '/helper/messages',
+  '/post-job',
+  '/upgrade',
+  '/disputes',
+  '/planned-needs',
+  '/car-care',
+  '/business-hub',
+  '/calendar',
+  '/qr-generator',
+  '/consultant',
+  '/invoices',
+  '/my-bookings',
+  '/support/agent',
+  '/cart',
+  '/tool-rentals',
+  '/verify-email',
+  '/verify-identity',
 ];
+
+function isHelperOnboardingAllowedPath(pathname) {
+  return HELPER_PRE_ONBOARDING_PREFIXES.some((p) => pathMatchesPrefix(pathname, p));
+}
 
 // Paths that are themselves part of the identity-verification flow and must
 // NOT trigger the Didit redirect (would create an infinite loop).
@@ -75,7 +106,7 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
     requireOnboarded &&
     ['helper', 'helper_pro', 'broker'].includes(user.role) &&
     !isOnboardingComplete &&
-    !ONBOARDING_ALLOWED_PATHS.includes(location.pathname)
+    !isHelperOnboardingAllowedPath(location.pathname)
   ) {
     return <Navigate to="/register/helper" replace />;
   }

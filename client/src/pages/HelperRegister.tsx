@@ -13,19 +13,24 @@ type Step = 1 | 2;
 
 export default function HelperRegister() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isOnboardingComplete } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const { t } = useTranslation();
 
   // If the user is already registered + email-verified, skip step 1.
   useEffect(() => {
     if (!user?.email_verified) return;
+    // Do not send incomplete helpers to the dashboard — ProtectedRoute will
+    // bounce them back here and navigation will feel "stuck" on /dashboard.
+    if (!isOnboardingComplete && ['verified', 'skipped'].includes(user?.didit_status ?? '')) {
+      return;
+    }
     if (user && ['verified', 'skipped'].includes(user?.didit_status ?? '')) {
       navigate('/helper-dashboard', { replace: true });
     } else if (user) {
       navigate('/verify-identity', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, isOnboardingComplete, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
