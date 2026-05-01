@@ -4,6 +4,7 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 // Get support settings for a business
 async function getSupportSettings(req, res) {
@@ -11,11 +12,8 @@ async function getSupportSettings(req, res) {
     const { businessId } = req.params;
 
     // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     // Get SLA targets
     const slaTargets = await query(
@@ -69,11 +67,8 @@ async function setSLATarget(req, res) {
     }
 
     // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `INSERT INTO support_sla_targets
@@ -110,11 +105,8 @@ async function createBreakType(req, res) {
     }
 
     // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `INSERT INTO break_types
@@ -152,11 +144,8 @@ async function createRoutingRule(req, res) {
     }
 
     // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `INSERT INTO routing_rules
@@ -243,11 +232,8 @@ async function getSupportStatistics(req, res) {
     const { days = 30 } = req.query;
 
     // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     // Get aggregate stats
     const stats = await query(

@@ -20,7 +20,27 @@
     "openMenu": "Louvri meni",
     "qrGenerator": "Jeneratè QR",
     "resources": "Resous",
-    "businessLaunchStatus": "Lansman Biznis Mwen"
+    "businessLaunchStatus": "Lansman Biznis Mwen",
+    "supportWorkspace": "Espa sipo"
+  },
+  "supportAgentPortal": {
+    "title": "Espa sipo",
+    "subtitle": "Anplwa sipo ou ak disponibilite ou nan òganizasyon yo.",
+    "loading": "Chajman pwofil sipo ou…",
+    "retry": "Eseye ankò",
+    "emptyTitle": "Pa gen anplwa sipo ankò",
+    "emptyBody": "Lè yon biznis oswa OxSteed ajoute ou kòm ajan sipo, li ap parèt isit la.",
+    "employer": "Anplwayè",
+    "serviceContext": "Kontèks sèvis",
+    "status": "Estati",
+    "availability": "Disponibilite",
+    "goOnline": "Monte sou entènèt",
+    "goOffline": "Dekonekte",
+    "saving": "Anrejistre…",
+    "openMessages": "Ouvri mesaj",
+    "kindBusiness": "Biznis",
+    "kindHelper": "Asistan",
+    "kindPlatform": "Platfòm"
   },
   "hero": {
     "title": "Èd Lokal,\nLè Ou Bezwen Li",

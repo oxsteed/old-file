@@ -4,6 +4,7 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 // Agent claims a conversation from queue
 async function claimConversation(req, res) {
@@ -19,10 +20,15 @@ async function claimConversation(req, res) {
 
     const conversation = convResult.rows[0];
 
-    // Get agent record for this user
+    const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
+      conversation.business_id
+    );
     const agentResult = await query(
-      'SELECT * FROM support_agents WHERE user_id = $1 AND business_id = $2',
-      [req.user.id, conversation.business_id]
+      `SELECT sa.* FROM support_agents sa
+       WHERE sa.user_id = $1 AND sa.employer_id = ANY($2::uuid[])
+       ORDER BY sa.created_at ASC
+       LIMIT 1`,
+      [req.user.id, employerIds]
     );
     if (!agentResult.rows.length) return sendError(res, 403, 'Not an agent');
 
@@ -115,17 +121,18 @@ async function assignToAgent(req, res) {
 
     const conversation = convResult.rows[0];
 
-    // Verify requester is admin/manager
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [conversation.business_id, req.user.id, JSON.stringify([req.user.id])]
+    const canManage = await supportEmployerService.userCanManageBusiness(
+      conversation.business_id,
+      req.user.id
     );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    if (!canManage) return sendError(res, 403, 'Access denied');
 
-    // Verify agent exists and belongs to business
+    const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
+      conversation.business_id
+    );
     const agentResult = await query(
-      'SELECT * FROM support_agents WHERE id = $1 AND business_id = $2',
-      [agentId, conversation.business_id]
+      `SELECT * FROM support_agents WHERE id = $1 AND employer_id = ANY($2::uuid[])`,
+      [agentId, employerIds]
     );
     if (!agentResult.rows.length) return sendError(res, 404, 'Agent not found');
 
@@ -219,21 +226,22 @@ async function reassignAgent(req, res) {
 
     const conversation = convResult.rows[0];
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [conversation.business_id, req.user.id, JSON.stringify([req.user.id])]
+    const canManage = await supportEmployerService.userCanManageBusiness(
+      conversation.business_id,
+      req.user.id
     );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    if (!canManage) return sendError(res, 403, 'Access denied');
 
     if (!conversation.agent_id) {
       return sendError(res, 400, 'Conversation not assigned');
     }
 
-    // Verify new agent
+    const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
+      conversation.business_id
+    );
     const newAgentResult = await query(
-      'SELECT * FROM support_agents WHERE id = $1 AND business_id = $2',
-      [newAgentId, conversation.business_id]
+      `SELECT * FROM support_agents WHERE id = $1 AND employer_id = ANY($2::uuid[])`,
+      [newAgentId, employerIds]
     );
     if (!newAgentResult.rows.length) return sendError(res, 404, 'New agent not found');
 
@@ -314,14 +322,21 @@ async function releaseConversation(req, res) {
 
     const conversation = convResult.rows[0];
 
-    // Verify access (agent or admin)
-    if (req.user.id !== conversation.agent_id) {
-      const access = await query(
-        'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-        [conversation.business_id, req.user.id, JSON.stringify([req.user.id])]
+    let allowed = false;
+    if (conversation.agent_id) {
+      const ag = await query(
+        'SELECT 1 FROM support_agents WHERE id = $1 AND user_id = $2',
+        [conversation.agent_id, req.user.id]
       );
-      if (!access.rows.length) return sendError(res, 403, 'Access denied');
+      allowed = ag.rows.length > 0;
     }
+    if (!allowed) {
+      allowed = await supportEmployerService.userCanManageBusiness(
+        conversation.business_id,
+        req.user.id
+      );
+    }
+    if (!allowed) return sendError(res, 403, 'Access denied');
 
     // Complete assignment
     const assignment = await query(

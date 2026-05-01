@@ -37,6 +37,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [joinMenuOpen, setJoinMenuOpen] = useState(false);
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
+  const [showSupportWorkspaceNav, setShowSupportWorkspaceNav] = useState(false);
   const joinMenuRef = useRef(null);
   const resourcesMenuRef = useRef(null);
 
@@ -59,6 +60,27 @@ export default function Navbar() {
       } catch {}
     };
     fetchCounts();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setShowSupportWorkspaceNav(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/support/agent/me');
+        if (cancelled) return;
+        const list = Array.isArray(data?.data) ? data.data : [];
+        setShowSupportWorkspaceNav(list.length > 0);
+      } catch {
+        if (!cancelled) setShowSupportWorkspaceNav(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   // Close mobile menu + join dropdown on route change
@@ -170,6 +192,9 @@ export default function Navbar() {
                 </NavLink>
                 <Divider />
                 <NavLink to="/dashboard" active={isActive('/dashboard')}>{t('nav.dashboard')}</NavLink>
+                {showSupportWorkspaceNav && (
+                  <NavLink to="/support/agent" active={isActive('/support/agent')}>{t('nav.supportWorkspace')}</NavLink>
+                )}
 
                 {/* Resources Dropdown */}
                 <div ref={resourcesMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
@@ -367,6 +392,9 @@ export default function Navbar() {
             {user ? (
               <>
                 <MobileNavLink to="/dashboard" onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
+                {showSupportWorkspaceNav && (
+                  <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
+                )}
                 <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
                 <MobileNavLink to="/tool-rentals" onClick={() => setMobileOpen(false)}>{t('toolRentals.browsePage')}</MobileNavLink>
                 <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>

@@ -1,6 +1,7 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 async function findAgentBySkills(req, res) {
   try {
@@ -10,6 +11,8 @@ async function findAgentBySkills(req, res) {
     if (!requiredSkills || !requiredSkills.length) {
       return sendValidationError(res, { requiredSkills: 'Required array of skills' });
     }
+
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     const result = await query(
       `SELECT
@@ -21,15 +24,15 @@ async function findAgentBySkills(req, res) {
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN agent_skills ag ON sa.id = ag.agent_id
       LEFT JOIN conversation_assignments ca ON sa.id = ca.agent_id AND ca.status = 'active'
-      WHERE sa.business_id = $1
+      WHERE sa.employer_id = $1
       AND sa.status = 'active'
       AND sa.is_available = true
-      AND (ag.skill_name = ANY($2) OR COUNT(ag.skill_name) = 0)
-      GROUP BY sa.id, sa.user_id, u.name
+      AND (ag.skill_name = ANY($2::text[]) OR COUNT(ag.skill_name) = 0)
+      GROUP BY sa.id, sa.user_id, u.name, sa.max_concurrent_chats
       HAVING COUNT(ag.skill_name) > 0
       ORDER BY COUNT(ag.skill_name) DESC, AVG(CAST(CASE ag.proficiency_level WHEN 'expert' THEN 3 WHEN 'intermediate' THEN 2 ELSE 1 END AS FLOAT)) DESC, COUNT(ca.id) ASC
       LIMIT 1`,
-      [businessId, JSON.stringify(requiredSkills)]
+      [employerId, requiredSkills]
     );
 
     if (!result.rows.length) {
@@ -62,12 +65,12 @@ async function findTeamBySkills(req, res) {
       LEFT JOIN team_members tm ON st.id = tm.team_id AND tm.is_active = true
       WHERE st.business_id = $1
       AND st.is_active = true
-      AND (ts.skill_name = ANY($2) OR COUNT(DISTINCT ts.skill_name) = 0)
+      AND (ts.skill_name = ANY($2::text[]) OR COUNT(DISTINCT ts.skill_name) = 0)
       GROUP BY st.id, st.team_name
       HAVING COUNT(DISTINCT ts.skill_name) > 0
       ORDER BY COUNT(DISTINCT ts.skill_name) DESC, COUNT(DISTINCT tm.agent_id) DESC
       LIMIT 1`,
-      [businessId, JSON.stringify(requiredSkills)]
+      [businessId, requiredSkills]
     );
 
     if (!result.rows.length) {
@@ -95,6 +98,10 @@ async function routeBySkills(req, res) {
 
     const conversation = conv.rows[0];
 
+    const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
+      conversation.business_id
+    );
+
     const agent = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
@@ -102,15 +109,15 @@ async function routeBySkills(req, res) {
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN agent_skills ag ON sa.id = ag.agent_id
-      WHERE sa.business_id = $1
+      WHERE sa.employer_id = ANY($1::uuid[])
       AND sa.status = 'active'
       AND sa.is_available = true
-      AND (ag.skill_name = ANY($2) OR COUNT(ag.skill_name) = 0)
+      AND (ag.skill_name = ANY($2::text[]) OR COUNT(ag.skill_name) = 0)
       GROUP BY sa.id, sa.user_id, u.name
       HAVING COUNT(ag.skill_name) > 0
       ORDER BY COUNT(ag.skill_name) DESC, sa.id ASC
       LIMIT 1`,
-      [conversation.business_id, JSON.stringify(requiredSkills)]
+      [employerIds, requiredSkills]
     );
 
     if (!agent.rows.length) {
@@ -152,6 +159,8 @@ async function getAgentSkillMatrix(req, res) {
   try {
     const { businessId } = req.params;
 
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     const result = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
@@ -159,10 +168,10 @@ async function getAgentSkillMatrix(req, res) {
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN agent_skills ag ON sa.id = ag.agent_id
-      WHERE sa.business_id = $1 AND sa.status = 'active'
+      WHERE sa.employer_id = $1 AND sa.status = 'active'
       GROUP BY sa.id, sa.user_id, u.name
       ORDER BY u.name`,
-      [businessId]
+      [employerId]
     );
 
     res.json({ success: true, data: result.rows });
@@ -176,6 +185,8 @@ async function getCoverageBySkill(req, res) {
   try {
     const { businessId } = req.params;
 
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     const result = await query(
       `SELECT
         ag.skill_name,
@@ -185,10 +196,10 @@ async function getCoverageBySkill(req, res) {
         SUM(CASE WHEN ag.proficiency_level = 'beginner' THEN 1 ELSE 0 END) as beginners
       FROM agent_skills ag
       JOIN support_agents sa ON ag.agent_id = sa.id
-      WHERE sa.business_id = $1
+      WHERE sa.employer_id = $1
       GROUP BY ag.skill_name
       ORDER BY COUNT(DISTINCT ag.agent_id) DESC`,
-      [businessId]
+      [employerId]
     );
 
     res.json({ success: true, data: result.rows });

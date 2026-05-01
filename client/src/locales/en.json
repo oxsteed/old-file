@@ -21,7 +21,27 @@
     "qrGenerator": "QR Generator",
     "calendar": "Calendar",
     "resources": "Resources",
-    "businessLaunchStatus": "My Business Launch"
+    "businessLaunchStatus": "My Business Launch",
+    "supportWorkspace": "Support workspace"
+  },
+  "supportAgentPortal": {
+    "title": "Support workspace",
+    "subtitle": "Your support employments and availability across organizations.",
+    "loading": "Loading your support profile…",
+    "retry": "Retry",
+    "emptyTitle": "No support employments yet",
+    "emptyBody": "When a business or OxSteed adds you as a support agent, it will appear here.",
+    "employer": "Employer",
+    "serviceContext": "Service context",
+    "status": "Status",
+    "availability": "Availability",
+    "goOnline": "Go online",
+    "goOffline": "Go offline",
+    "saving": "Saving…",
+    "openMessages": "Open messages",
+    "kindBusiness": "Business",
+    "kindHelper": "Helper",
+    "kindPlatform": "Platform"
   },
   "hero": {
     "title": "Local Help,\nWhen You Need It",

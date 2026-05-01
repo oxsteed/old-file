@@ -1,14 +1,16 @@
 // Agent Onboarding Controller
 // Manages hiring process: applications, reviews, approvals, onboarding
+// Employment is scoped to support_employers (business | helper | platform); business_id on agents is conversation context when set.
 
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
-// User applies to be an agent
 async function applyToBeAgent(req, res) {
   try {
-    const { businessId, jobTitle, experienceLevel, languages, availability, resumeUrl, coverLetter } = req.body;
+    const businessId = req.params.businessId || req.body.businessId;
+    const { jobTitle, experienceLevel, languages, availability, resumeUrl, coverLetter } = req.body;
 
     if (!businessId || !jobTitle) {
       return sendValidationError(res, {
@@ -22,31 +24,32 @@ async function applyToBeAgent(req, res) {
       return sendValidationError(res, { experienceLevel: 'Invalid level' });
     }
 
-    // Check if already applied or hired
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     const existing = await query(
       `SELECT * FROM agent_applications
-       WHERE user_id = $1 AND business_id = $2 AND status != 'rejected'`,
-      [req.user.id, businessId]
+       WHERE user_id = $1 AND employer_id = $2 AND status != 'rejected'`,
+      [req.user.id, employerId]
     );
     if (existing.rows.length) {
-      return sendError(res, 400, 'You have an active application for this business');
+      return sendError(res, 400, 'You have an active application for this employer');
     }
 
     const alreadyAgent = await query(
-      'SELECT id FROM support_agents WHERE user_id = $1 AND business_id = $2',
-      [req.user.id, businessId]
+      'SELECT id FROM support_agents WHERE user_id = $1 AND employer_id = $2',
+      [req.user.id, employerId]
     );
     if (alreadyAgent.rows.length) {
-      return sendError(res, 400, 'You are already an agent for this business');
+      return sendError(res, 400, 'You are already an agent for this employer');
     }
 
-    // Create application
     const result = await query(
       `INSERT INTO agent_applications
-       (business_id, user_id, job_title, experience_level, languages, availability, resume_url, cover_letter, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
+       (employer_id, business_id, user_id, job_title, experience_level, languages, availability, resume_url, cover_letter, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
        RETURNING *`,
       [
+        employerId,
         businessId,
         req.user.id,
         jobTitle,
@@ -61,7 +64,8 @@ async function applyToBeAgent(req, res) {
     logger.info('Agent application created', {
       applicationId: result.rows[0].id,
       userId: req.user.id,
-      businessId
+      businessId,
+      employerId
     });
 
     res.json({ success: true, data: result.rows[0] });
@@ -71,22 +75,17 @@ async function applyToBeAgent(req, res) {
   }
 }
 
-// Get applications for a business (for review)
 async function getApplications(req, res) {
   try {
     const { businessId } = req.params;
     const { status, limit = 50 } = req.query;
 
-    // Verify access (business owner/admin only)
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     let sql = `
       SELECT
-        aa.id, aa.business_id, aa.user_id,
+        aa.id, aa.employer_id, aa.business_id, aa.user_id,
         u.name, u.email, u.avatar_url,
         aa.job_title, aa.experience_level, aa.languages, aa.availability,
         aa.resume_url, aa.cover_letter,
@@ -105,7 +104,7 @@ async function getApplications(req, res) {
     }
 
     sql += ` ORDER BY aa.created_at DESC LIMIT $${params.length + 1}`;
-    params.push(parseInt(limit));
+    params.push(parseInt(limit, 10));
 
     const result = await query(sql, params);
 
@@ -116,7 +115,6 @@ async function getApplications(req, res) {
   }
 }
 
-// Get single application
 async function getApplication(req, res) {
   try {
     const { applicationId } = req.params;
@@ -135,12 +133,12 @@ async function getApplication(req, res) {
 
     const app = result.rows[0];
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [app.business_id, req.user.id, JSON.stringify([req.user.id])]
+    const canManage = await supportEmployerService.userCanManageEmployer(
+      app.employer_id,
+      req.user.id,
+      req.user.role
     );
-    if (!access.rows.length && req.user.id !== app.user_id) {
+    if (!canManage && req.user.id !== app.user_id) {
       return sendError(res, 403, 'Access denied');
     }
 
@@ -151,7 +149,6 @@ async function getApplication(req, res) {
   }
 }
 
-// Review application (approve/reject)
 async function reviewApplication(req, res) {
   try {
     const { applicationId } = req.params;
@@ -166,7 +163,6 @@ async function reviewApplication(req, res) {
       return sendValidationError(res, { status: 'Invalid status' });
     }
 
-    // Get application
     const appResult = await query(
       'SELECT * FROM agent_applications WHERE id = $1',
       [applicationId]
@@ -176,14 +172,13 @@ async function reviewApplication(req, res) {
 
     const app = appResult.rows[0];
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [app.business_id, req.user.id, JSON.stringify([req.user.id])]
+    const canManage = await supportEmployerService.userCanManageEmployer(
+      app.employer_id,
+      req.user.id,
+      req.user.role
     );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    if (!canManage) return sendError(res, 403, 'Access denied');
 
-    // Update application
     const result = await query(
       `UPDATE agent_applications
        SET status = $1, reviewed_by = $2, review_notes = $3, reviewed_at = CURRENT_TIMESTAMP
@@ -205,13 +200,11 @@ async function reviewApplication(req, res) {
   }
 }
 
-// Approve application and hire agent
 async function approveAndHire(req, res) {
   try {
     const { applicationId } = req.params;
     const { role = 'agent', department, maxConcurrentChats = 3 } = req.body;
 
-    // Get application
     const appResult = await query(
       'SELECT * FROM agent_applications WHERE id = $1',
       [applicationId]
@@ -221,36 +214,38 @@ async function approveAndHire(req, res) {
 
     const app = appResult.rows[0];
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [app.business_id, req.user.id, JSON.stringify([req.user.id])]
+    const canManage = await supportEmployerService.userCanManageEmployer(
+      app.employer_id,
+      req.user.id,
+      req.user.role
     );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    if (!canManage) return sendError(res, 403, 'Access denied');
 
     if (app.status !== 'pending') {
       return sendError(res, 400, 'Application already processed');
     }
 
-    // Check if already hired
     const existing = await query(
-      'SELECT id FROM support_agents WHERE user_id = $1 AND business_id = $2',
-      [app.user_id, app.business_id]
+      'SELECT id FROM support_agents WHERE user_id = $1 AND employer_id = $2',
+      [app.user_id, app.employer_id]
     );
     if (existing.rows.length) {
-      return sendError(res, 400, 'User is already an agent');
+      return sendError(res, 400, 'User is already an agent for this employer');
     }
 
-    // Create agent
+    const contextBusinessId =
+      app.business_id ||
+      (await supportEmployerService.getEmployerById(app.employer_id))?.business_id ||
+      null;
+
     const agentResult = await query(
       `INSERT INTO support_agents
-       (business_id, user_id, hire_date, status, role, department, max_concurrent_chats)
-       VALUES ($1, $2, CURRENT_TIMESTAMP, 'active', $3, $4, $5)
+       (employer_id, business_id, user_id, hire_date, status, role, department, max_concurrent_chats)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', $4, $5, $6)
        RETURNING *`,
-      [app.business_id, app.user_id, role, department || null, parseInt(maxConcurrentChats)]
+      [app.employer_id, contextBusinessId, app.user_id, role, department || null, parseInt(maxConcurrentChats, 10)]
     );
 
-    // Update application
     await query(
       `UPDATE agent_applications
        SET status = 'hired', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
@@ -261,7 +256,8 @@ async function approveAndHire(req, res) {
     logger.info('Agent hired from application', {
       agentId: agentResult.rows[0].id,
       userId: app.user_id,
-      applicationId
+      applicationId,
+      employerId: app.employer_id
     });
 
     res.json({
@@ -277,10 +273,9 @@ async function approveAndHire(req, res) {
   }
 }
 
-// Get user's application status
 async function getMyApplicationStatus(req, res) {
   try {
-    const { businessId } = req.params;
+    const businessId = req.params.businessId;
 
     const result = await query(
       `SELECT * FROM agent_applications
@@ -299,17 +294,12 @@ async function getMyApplicationStatus(req, res) {
   }
 }
 
-// Get application statistics for business
 async function getApplicationStats(req, res) {
   try {
     const { businessId } = req.params;
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT
@@ -331,11 +321,20 @@ async function getApplicationStats(req, res) {
   }
 }
 
-// Direct agent onboarding (admin creates agent directly without application)
-async function onboardAgent(req, res, next) {
+/** Employers the current user may hire for (API + admin UI pickers). */
+async function listMySupportEmployers(req, res) {
+  try {
+    const data = await supportEmployerService.listEmployersForUser(req.user.id, req.user.role);
+    res.json({ success: true, data });
+  } catch (err) {
+    logger.error('listMySupportEmployers error', { error: err.message });
+    sendError(res, 500, 'Failed to list employers');
+  }
+}
+
+async function onboardAgent(req, res) {
   try {
     const {
-      business_id,
       first_name,
       last_name,
       email,
@@ -345,13 +344,12 @@ async function onboardAgent(req, res, next) {
       availability_end,
       skills = [],
       languages = [],
-      experience_level = 'junior'
+      experience_level = 'junior',
+      service_business_id,
     } = req.body;
 
-    // Validation
     const validationErrors = {};
 
-    if (!business_id) validationErrors.business_id = 'Business ID is required';
     if (!first_name) validationErrors.first_name = 'First name is required';
     if (!last_name) validationErrors.last_name = 'Last name is required';
     if (!email) validationErrors.email = 'Email is required';
@@ -366,36 +364,48 @@ async function onboardAgent(req, res, next) {
       return sendValidationError(res, validationErrors);
     }
 
-    // Verify business access
-    const businessAccess = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND (owner_id = $2 OR admin_user_ids @> $3)',
-      [business_id, req.user.id, JSON.stringify([req.user.id])]
-    );
-
-    if (!businessAccess.rows.length) {
-      return sendError(res, 403, 'You do not have access to this business');
+    let employerId;
+    try {
+      employerId = await supportEmployerService.resolveEmployerIdFromBody(req.body, req.user.id, req.user.role);
+    } catch (e) {
+      if (e.code === 'FORBIDDEN_EMPLOYER' || e.code === 'FORBIDDEN_BUSINESS' || e.code === 'FORBIDDEN_PLATFORM' || e.code === 'FORBIDDEN_HELPER_EMPLOYER') {
+        return sendError(res, 403, 'You do not have permission to hire for this employer');
+      }
+      if (e.code === 'BUSINESS_ID_REQUIRED') {
+        return sendValidationError(res, { business_id: 'Required when employer_kind is business' });
+      }
+      throw e;
     }
 
-    // Check if email already exists as agent for this business
+    const employer = await supportEmployerService.getEmployerById(employerId);
+    let contextBusinessId = null;
+    if (employer.kind === 'business') {
+      contextBusinessId = employer.business_id;
+    } else if (service_business_id) {
+      const can = await supportEmployerService.userCanManageBusiness(service_business_id, req.user.id);
+      if (!can && req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+        return sendError(res, 403, 'Invalid service_business_id for conversation context');
+      }
+      contextBusinessId = service_business_id;
+    }
+
     const existingAgent = await query(
       `SELECT sa.id FROM support_agents sa
        JOIN users u ON sa.user_id = u.id
-       WHERE sa.business_id = $1 AND u.email = $2`,
-      [business_id, email]
+       WHERE sa.employer_id = $1 AND u.email = $2`,
+      [employerId, email]
     );
 
     if (existingAgent.rows.length) {
-      return sendError(res, 400, 'An agent with this email already exists for this business');
+      return sendError(res, 400, 'An agent with this email already exists for this employer');
     }
 
-    // Check if user exists
     let userResult = await query('SELECT id FROM users WHERE email = $1', [email]);
 
     let userId;
     if (userResult.rows.length) {
       userId = userResult.rows[0].id;
     } else {
-      // Create new user (minimal account for agent)
       const newUserResult = await query(
         `INSERT INTO users (name, email, password_hash, role, is_active)
          VALUES ($1, $2, $3, 'agent', true)
@@ -403,20 +413,20 @@ async function onboardAgent(req, res, next) {
         [
           `${first_name} ${last_name}`,
           email,
-          'PLACEHOLDER' // Agent must set password on first login
+          'PLACEHOLDER'
         ]
       );
       userId = newUserResult.rows[0].id;
     }
 
-    // Create support agent record
     const agentResult = await query(
       `INSERT INTO support_agents
-       (business_id, user_id, hire_date, status, timezone, availability_start, availability_end, skills, languages, experience_level)
-       VALUES ($1, $2, CURRENT_TIMESTAMP, 'active', $3, $4, $5, $6, $7, $8)
+       (employer_id, business_id, user_id, hire_date, status, timezone, availability_start, availability_end, skills, languages, experience_level)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, 'active', $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
-        business_id,
+        employerId,
+        contextBusinessId,
         userId,
         timezone,
         availability_start,
@@ -427,7 +437,6 @@ async function onboardAgent(req, res, next) {
       ]
     );
 
-    // Update user profile with additional details
     await query(
       `UPDATE users SET phone = $1 WHERE id = $2`,
       [phone || null, userId]
@@ -436,8 +445,7 @@ async function onboardAgent(req, res, next) {
     logger.info('Agent onboarded successfully', {
       agentId: agentResult.rows[0].id,
       userId,
-      businessId: business_id,
-      email,
+      employerId,
       adminId: req.user.id
     });
 
@@ -448,7 +456,6 @@ async function onboardAgent(req, res, next) {
         message: 'Agent onboarded successfully'
       }
     });
-
   } catch (err) {
     logger.error('onboardAgent error', {
       error: err.message,
@@ -457,16 +464,30 @@ async function onboardAgent(req, res, next) {
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
 
-    // Handle specific database errors
-    if (err.code === '23505') { // Unique constraint violation
+    if (err.code === '23505') {
       return sendError(res, 400, 'This email is already registered in the system');
     }
 
-    if (err.code === '23503') { // Foreign key violation
+    if (err.code === '23503') {
       return sendError(res, 400, 'Invalid business ID or reference');
     }
 
     sendError(res, 500, 'Failed to onboard agent. Please try again.');
+  }
+}
+
+/** Ensure the current user has a helper-scoped support employer row (idempotent). */
+async function ensureMyHelperEmployer(req, res) {
+  try {
+    const id = await supportEmployerService.ensureHelperEmployer(
+      req.user.id,
+      req.body?.display_name || null
+    );
+    const row = await supportEmployerService.getEmployerById(id);
+    res.json({ success: true, data: row });
+  } catch (err) {
+    logger.error('ensureMyHelperEmployer error', { error: err.message });
+    sendError(res, 500, 'Failed to create employer');
   }
 }
 
@@ -478,5 +499,7 @@ module.exports = {
   approveAndHire,
   getMyApplicationStatus,
   getApplicationStats,
+  listMySupportEmployers,
+  ensureMyHelperEmployer,
   onboardAgent
 };

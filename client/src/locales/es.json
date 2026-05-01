@@ -20,7 +20,27 @@
     "openMenu": "Abrir menú",
     "qrGenerator": "Generador QR",
     "resources": "Recursos",
-    "businessLaunchStatus": "Mi Lanzamiento Empresarial"
+    "businessLaunchStatus": "Mi Lanzamiento Empresarial",
+    "supportWorkspace": "Espacio de soporte"
+  },
+  "supportAgentPortal": {
+    "title": "Espacio de soporte",
+    "subtitle": "Tus empleos de soporte y disponibilidad en las organizaciones.",
+    "loading": "Cargando tu perfil de soporte…",
+    "retry": "Reintentar",
+    "emptyTitle": "Aún no hay empleos de soporte",
+    "emptyBody": "Cuando un negocio u OxSteed te añada como agente de soporte, aparecerá aquí.",
+    "employer": "Empleador",
+    "serviceContext": "Contexto de servicio",
+    "status": "Estado",
+    "availability": "Disponibilidad",
+    "goOnline": "Conectarse",
+    "goOffline": "Desconectarse",
+    "saving": "Guardando…",
+    "openMessages": "Abrir mensajes",
+    "kindBusiness": "Negocio",
+    "kindHelper": "Ayudante",
+    "kindPlatform": "Plataforma"
   },
   "hero": {
     "title": "Ayuda Local,\nCuando la Necesitas",

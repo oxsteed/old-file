@@ -20,15 +20,31 @@ const satisfactionSurveyController = require('../controllers/satisfactionSurveyC
 const escalationPoliciesController = require('../controllers/escalationPoliciesController');
 const supportTeamsController = require('../controllers/supportTeamsController');
 const skillBasedRoutingController = require('../controllers/skillBasedRoutingController');
+const supportAgentPortalController = require('../controllers/supportAgentPortalController');
 
 // All routes require authentication
 router.use(requireAuth);
 
 // ============================================
+// AGENT SELF-SERVICE PORTAL (must precede /:businessId/*)
+// ============================================
+router.get('/agent/me', supportAgentPortalController.getMyEmployments);
+router.patch('/agent/me/availability', supportAgentPortalController.patchMyAvailability);
+
+// ============================================
+// SUPPORT EMPLOYERS (multi-tenant hiring scope)
+// ============================================
+router.get('/employers/me', agentOnboardingController.listMySupportEmployers);
+router.post('/employers/helper', agentOnboardingController.ensureMyHelperEmployer);
+
+// ============================================
 // AGENT ONBOARDING (Hiring Flow)
 // ============================================
 
-// User applies to be an agent
+// User applies to be an agent (body may include businessId; or use legacy path below)
+router.post('/apply', agentOnboardingController.applyToBeAgent);
+
+// User applies to be an agent (legacy: businessId in path)
 router.post('/:businessId/apply', agentOnboardingController.applyToBeAgent);
 
 // Get user's application status
