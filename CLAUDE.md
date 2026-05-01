@@ -18,7 +18,7 @@
 **Codebase metrics:**
 - 247 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage, SupportWidget, WidgetPanel, TicketCreationModal, TicketHistory, LiveChat, ABTestingPage)
 - 111 backend controllers (added 7 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts, ABTest)
-- 140 database migrations (added support_employers multi-tenant hiring)
+- 25 database migrations (squashed chain on branch `cursor/squash-migrations-25-12b0`: `_squashed_01_of_25.sql` … `_squashed_25_of_25.sql`; shard 01 deletes legacy `_migrations` rows then replays former `001`…`151` SQL in lex order — **fresh DBs only**; existing DBs need reset/baseline plan before switching)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Error Handling Implementation (2026-04-30):**
@@ -51,8 +51,9 @@
 **Latest work completed (2026-05-01):**
 - **Business Hub “Could not load analytics”:** `client/src/pages/BusinessHubPage.jsx` treated `analytics === null` as failure; after `bizId` was set there was one render **before** `loadOverview` ran (`analyticsLoading` still false), so the Overview tab showed the error string and fired the toast every load. Fixed with `analyticsError` and showing loading while `bizId` is set but analytics not yet fetched. **Stale `oxs:bh:lastBusinessId`:** when owned+managed list is empty, `bizId` was never cleared so `/api/businesses/2/analytics` still ran → 404; now clear `bizId`/LS and reset finance state; tab `useEffect` waits for `loadingBiz` and requires `bizId` in `businesses`.
 - **Background jobs (42703 / missing column):** `server/jobs/affiliateCommissionBatch.js` no longer references non-existent `affiliate_links_log.program_id`; resolves `affiliate_programs` via order `cart_id` → `shopping_carts.helper_id` and `program_type` from product `source` / affiliate URL (`home_depot` vs `custom`). **`server/jobs/consultingNoShowFollowup.js`** and **`server/jobs/consultingPostSessionFollowup.js`**: consultant names from `users` via `consulting_sessions.consultant_id` → `consultants.id` → `consultants.user_id` (fixes `c.first_name` on `consultants`, which has no name columns).
-- **Support employers (Option A):** Migration `server/migrations/149_support_employers.sql` … **`support_employers.business_id` must be `INTEGER`** to match `businesses.id` (SERIAL); UUID caused FK failure on deploy. Migration prepends type fix for `support_agents` / `agent_applications` if `business_id` was UUID. **`server/migrations/150_support_business_id_integer_align.sql`** applies the same alignment if 149 never completed (149 was not recorded in `_migrations` on failed runs).
+- **Support employers (Option A):** Legacy migrations 149/150: **`support_employers.business_id` must be `INTEGER`** to match `businesses.id` (SERIAL); UUID caused FK failure on deploy. Type alignment for `support_agents` / `agent_applications` when `business_id` was UUID is included in the squashed chain.
 - **Support agent deploy crash + onboarding UX:** `server/routes/supportAgents.js` had imported non-existent `requireAdmin` from `auth.js` (fixed earlier on branch). **Agent onboarding UI:** optional Business UUID when route has no `:businessId`; `localStorage` key `oxs:support_business_id`. Same `requireAdmin` fix in `server/routes/legalDocuments.js`.
+- **Squashed migrations (Option B, max 25 SQL files):** `server/migrations/` now has only `_squashed_01_of_25.sql` … `_squashed_25_of_25.sql` (concatenation of the former 158 `.sql` files in **lexicographic** order, matching `migrate.js`). Shard 01 deletes `_migrations` rows whose filename does not start with `_squashed_`, then replays from `001_initial_schema.sql`. **Not for in-place upgrade of a DB that already ran the old chain** without empty/restore — `001` is not idempotent on a populated schema.
 
 **Latest work completed (2026-04-30):**
 - **Static Terms page (`client/src/pages/terms.tsx`):** Uses shared `LegalPolicyPage` + `PageShell`; TOC anchors `#terms-section-N`; search filters + smooth scroll; full body from `client/src/locales/terms/{en,es,fr,ht}.content.json` merged as `termsContent` in `client/src/i18n.js`; UI via `termsPage.*`. Regenerate EN: `python3 client/scripts/build-terms-en-json.py`; ES/FR/HT: `python3 client/scripts/translate-legal-content.py terms` (or legacy `translate-terms-content.py`).
@@ -196,7 +197,7 @@
 - **Code quality:** Only 2 TODOs in 68K LOC; comprehensive middleware (auth, CSRF, validation, errors)
 - **Testing framework:** 82 Jest tests covering auth, jobs, payments, bids, webhooks
 - **Infrastructure:** Multi-stage Docker build, health checks, graceful shutdown, Coolify deployment
-- **Database:** 132 idempotent migrations, transaction safety, connection pooling
+- **Database:** 25 squashed SQL migrations (`_squashed_*_of_25.sql`), transaction safety, connection pooling
 - **Compliance:** Accessibility (544+ aria attributes), cookie consent, GDPR endpoints, data export
 - **Logging:** Structured NDJSON logging, request middleware, error tracking with Sentry
 - **Accessibility:** Reasonable a11y implementation with components and attributes
@@ -370,7 +371,7 @@
     ├── controllers/      # 81 domain controllers
     ├── routes/           # API route definitions
     ├── middleware/       # auth, rate limiting, error handling
-    ├── migrations/       # 132 SQL migrations
+    ├── migrations/       # 25 squashed SQL migrations (_squashed_*_of_25.sql)
     ├── services/         # shared business logic
     ├── jobs/             # background jobs (crons)
     ├── utils/            # helpers (logger, validation, storage, etc.)
@@ -434,10 +435,11 @@ Dark mode toggled via `html.dark` class (managed by `ThemeContext`). CSS variabl
 
 ## Database Migrations
 
-- Files: `server/migrations/001_*.sql` … `132_*.sql`
+- Files: `server/migrations/_squashed_01_of_25.sql` … `_squashed_25_of_25.sql` (Option B squash; order matches `migrate.js` lexicographic sort)
 - Runner: `server/migrate.js` — applies unapplied migrations tracked in `_migrations` table
 - Automatic: runs at startup before Express server starts
-- **To add:** create `server/migrations/NNN_description.sql`, applied on next startup
+- **Cutover:** shard 01 deletes legacy `_migrations` rows; intended for **fresh** databases or after **dump/restore to empty**. Do not run on a live DB that already applied the old per-file chain without a migration plan.
+- **To add:** append a new shard or add an idempotent `NNN_feature.sql` and bump the squash in a follow-up PR (keep ≤25 files if retaining the cap)
 
 ---
 
