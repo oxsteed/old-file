@@ -20,9 +20,16 @@ const satisfactionSurveyController = require('../controllers/satisfactionSurveyC
 const escalationPoliciesController = require('../controllers/escalationPoliciesController');
 const supportTeamsController = require('../controllers/supportTeamsController');
 const skillBasedRoutingController = require('../controllers/skillBasedRoutingController');
+const supportAgentPortalController = require('../controllers/supportAgentPortalController');
 
 // All routes require authentication
 router.use(requireAuth);
+
+// ============================================
+// AGENT SELF-SERVICE PORTAL (must precede /:businessId/*)
+// ============================================
+router.get('/agent/me', supportAgentPortalController.getMyEmployments);
+router.patch('/agent/me/availability', supportAgentPortalController.patchMyAvailability);
 
 // ============================================
 // SUPPORT EMPLOYERS (multi-tenant hiring scope)

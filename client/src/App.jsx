@@ -66,6 +66,7 @@ import ProductMarketplacePage from './pages/ProductMarketplacePage';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 import SharedCartPage from './pages/SharedCartPage';
 import SupportEscalationPage from './pages/SupportEscalationPage';
+import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -145,6 +146,7 @@ export default function App() {
 
                     {/* ── Support & Help ───────────────────────────────────── */}
                     <Route path="/support/escalation"     element={<Guarded><SupportEscalationPage /></Guarded>} />
+                    <Route path="/support/agent" element={<Guarded><ProtectedRoute><SupportAgentPortalPage /></ProtectedRoute></Guarded>} />
 
                     {/* ── Legal / policy pages ─────────────────────────────── */}
                     <Route path="/terms"          element={<Guarded><TermsPage /></Guarded>} />
