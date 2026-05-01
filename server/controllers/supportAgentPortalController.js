@@ -7,6 +7,14 @@ const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 
+/** True when DB is missing migration 149 (support_employers / employer_id). Avoid 500 on every page load. */
+function isSupportEmployersSchemaMissing(err) {
+  if (!err) return false;
+  if (err.code === '42P01') return true; // PostgreSQL undefined_table
+  const msg = String(err.message || '');
+  return msg.includes('support_employers') && msg.includes('does not exist');
+}
+
 function employerLabel(row) {
   if (row.employer_kind === 'platform') {
     return row.employer_display_name || 'OxSteed Platform';
@@ -63,6 +71,18 @@ async function getMyEmployments(req, res) {
 
     res.json({ success: true, data: employments });
   } catch (err) {
+    if (isSupportEmployersSchemaMissing(err)) {
+      logger.warn('getMyEmployments: support employers schema not migrated; returning empty list', {
+        code: err.code,
+        message: err.message,
+      });
+      return res.json({
+        success: true,
+        data: [],
+        degraded: true,
+        degradedReason: 'support_employers_migration_pending',
+      });
+    }
     logger.error('getMyEmployments error', { error: err.message });
     sendError(res, 500, 'Failed to load support agent profile');
   }
@@ -107,6 +127,18 @@ async function patchMyAvailability(req, res) {
       data: { updated: upd.rows.length, rows: upd.rows },
     });
   } catch (err) {
+    if (isSupportEmployersSchemaMissing(err)) {
+      logger.warn('patchMyAvailability: support employers schema not migrated; no-op', {
+        code: err.code,
+        message: err.message,
+      });
+      return res.json({
+        success: true,
+        data: { updated: 0, rows: [] },
+        degraded: true,
+        degradedReason: 'support_employers_migration_pending',
+      });
+    }
     logger.error('patchMyAvailability error', { error: err.message });
     sendError(res, 500, 'Failed to update availability');
   }
