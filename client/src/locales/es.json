@@ -19,6 +19,7 @@
     "closeMenu": "Cerrar menú",
     "openMenu": "Abrir menú",
     "qrGenerator": "Generador QR",
+    "calendar": "Calendario",
     "resources": "Recursos",
     "businessLaunchStatus": "Mi Lanzamiento Empresarial",
     "supportWorkspace": "Espacio de soporte"
@@ -4390,7 +4391,11 @@
         "selectAllLabel": "Seleccionar Todo"
       },
       "setupItemsRequired": "Selecciona al menos un elemento",
-      "urgency": "¿Cuál es tu cronograma?",
+      "urgency": {
+        "exploring": "Solo explorando",
+        "twoWeeks": "Listo para comenzar dentro de 2 semanas",
+        "asap": "Necesito esto hecho lo antes posible"
+      },
       "urgencyASAP": "ASAP (comenzar inmediatamente)",
       "urgencyThisMonth": "Este mes",
       "urgencyTwoMonths": "Dentro de 2 meses",
