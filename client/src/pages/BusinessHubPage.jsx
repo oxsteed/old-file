@@ -103,6 +103,8 @@ function BusinessHubInner() {
   // tab data
   const [analytics, setAnalytics]   = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  /** True only after GET /analytics fails — avoids flashing error while bizId is set but fetch has not started yet */
+  const [analyticsError, setAnalyticsError] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [taxData, setTaxData]       = useState(null);
@@ -181,9 +183,16 @@ function BusinessHubInner() {
   const loadOverview = useCallback(async () => {
     if (!bizId) return;
     setAnalyticsLoading(true);
-    try { setAnalytics(await getAnalytics(bizId)); }
-    catch { toast.error(t('businessHub.errorAnalytics')); }
-    finally { setAnalyticsLoading(false); }
+    setAnalyticsError(false);
+    try {
+      setAnalytics(await getAnalytics(bizId));
+    } catch {
+      setAnalytics(null);
+      setAnalyticsError(true);
+      toast.error(t('businessHub.errorAnalytics'));
+    } finally {
+      setAnalyticsLoading(false);
+    }
   }, [bizId, t]);
 
   const loadInvoices = useCallback(async () => {
@@ -397,7 +406,7 @@ function BusinessHubInner() {
     setBizId(id);
     localStorage.setItem(LS_KEY, id);
     setAnalyticsLoading(true);
-    setAnalytics(null); setInvoiceData(null); setTaxData(null); setGoals([]);
+    setAnalytics(null); setAnalyticsError(false); setInvoiceData(null); setTaxData(null); setGoals([]);
     setMembersLoading(true);
     setMembers([]);
   }
@@ -985,9 +994,13 @@ function BusinessHubInner() {
 
             {/* ── Overview tab ────────────────────────────────────── */}
             {tab === 'overview' && (
-              analyticsLoading ? <p className="bh-loading">{t('businessHub.loadingAnalytics')}</p> :
-              !analytics ? <p className="bh-error">{t('businessHub.errorAnalytics')}</p> :
-              <OverviewTab analytics={analytics} />
+              analyticsLoading || (bizId && !analytics && !analyticsError) ? (
+                <p className="bh-loading">{t('businessHub.loadingAnalytics')}</p>
+              ) : analyticsError ? (
+                <p className="bh-error">{t('businessHub.errorAnalytics')}</p>
+              ) : (
+                <OverviewTab analytics={analytics} />
+              )
             )}
 
             {/* ── Invoices tab ─────────────────────────────────────── */}
