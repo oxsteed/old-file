@@ -166,7 +166,18 @@ function BusinessHubInner() {
         ...managedTagged.filter(b => !seen.has(String(b.id))),
       ];
       setBusinesses(merged);
-      if (merged.length > 0) {
+      if (merged.length === 0) {
+        // Stale oxs:bh:lastBusinessId would otherwise keep tab effects calling /api/businesses/:id/* → 404
+        setBizId('');
+        localStorage.removeItem(LS_KEY);
+        setAnalytics(null);
+        setAnalyticsError(false);
+        setInvoiceData(null);
+        setTaxData(null);
+        setGoals([]);
+        setMembers([]);
+        setVortexTokens([]);
+      } else {
         const saved = localStorage.getItem(LS_KEY);
         const valid = saved && merged.find(b => String(b.id) === String(saved));
         const chosen = valid ? saved : String(merged[0].id);
@@ -383,7 +394,9 @@ function BusinessHubInner() {
   }, [bizId, t]);
 
   useEffect(() => {
+    if (loadingBiz) return;
     if (!bizId) return;
+    if (!businesses.some((b) => String(b.id) === String(bizId))) return;
     if (tab === 'profile') loadProfile();
     else if (tab === 'services') loadServices();
     else if (tab === 'gallery') loadGallery();
@@ -399,7 +412,7 @@ function BusinessHubInner() {
       loadOverview();
     }
     else if (tab === 'team') loadTeam();
-  }, [bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
+  }, [loadingBiz, businesses, bizId, tab, loadProfile, loadServices, loadGallery, loadPolicies, loadFAQs, loadHours, loadSkills, loadOverview, loadInvoices, loadTax, loadGoals, loadTeam]);
 
   // ── switcher ──────────────────────────────────────────────────────────────
   function handleSwitchBiz(id) {
