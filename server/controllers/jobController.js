@@ -34,6 +34,24 @@ exports.createJob = async (req, res, next) => {
       required_skills,
     } = req.body;
 
+    // Multipart (FormData) sends JSON fields as strings
+    let parsedRequiredSkills = required_skills;
+    if (typeof parsedRequiredSkills === 'string' && parsedRequiredSkills.trim()) {
+      try {
+        parsedRequiredSkills = JSON.parse(parsedRequiredSkills);
+      } catch {
+        parsedRequiredSkills = [];
+      }
+    }
+    let parsedRequirements = requirements;
+    if (typeof parsedRequirements === 'string' && parsedRequirements.trim()) {
+      try {
+        parsedRequirements = JSON.parse(parsedRequirements);
+      } catch {
+        parsedRequirements = [];
+      }
+    }
+
     // ── Validate required fields ────────────────────────────────────────────────────────────────────
     const errs = {};
     if (!title || title.trim().length < 10)       errs.title       = 'Title must be at least 10 characters';
@@ -60,9 +78,13 @@ exports.createJob = async (req, res, next) => {
       const failed = uploads.filter(r => r.status === 'rejected' || !r.value).length;
       if (failed > 0) logger.warn(`[createJob] ${failed}/${req.files.length} media files not uploaded (S3 not configured?)`);
     } else if (media_urls) {
-      mediaArr = typeof media_urls === 'string'
-        ? JSON.parse(media_urls)
-        : (Array.isArray(media_urls) ? media_urls : []);
+      try {
+        mediaArr = typeof media_urls === 'string'
+          ? JSON.parse(media_urls)
+          : (Array.isArray(media_urls) ? media_urls : []);
+      } catch {
+        mediaArr = [];
+      }
     }
 
     // ── Resolve budget ────────────────────────────────────────────────────────────────────────────
@@ -76,23 +98,28 @@ exports.createJob = async (req, res, next) => {
 
     // ── Serialise requirements ─────────────────────────────────────────────────────────────────────────
     let reqJson = '[]';
-    if (requirements) {
-      reqJson = typeof requirements === 'string' ? requirements : JSON.stringify(requirements);
+    if (parsedRequirements) {
+      reqJson = typeof parsedRequirements === 'string'
+        ? parsedRequirements
+        : JSON.stringify(parsedRequirements);
     }
 
     // ── Process required skills ────────────────────────────────────────────────────────────────────────
     let skillsJson = '[]';
     let skillIds = '{}';
-    if (required_skills && Array.isArray(required_skills) && required_skills.length > 0) {
+    if (parsedRequiredSkills && Array.isArray(parsedRequiredSkills) && parsedRequiredSkills.length > 0) {
       // Validate skill count
-      if (required_skills.length > 20) {
+      if (parsedRequiredSkills.length > 20) {
         throw new AppError('Validation failed', 400, 'validation_failed', {
           required_skills: 'Maximum 20 skills allowed'
         });
       }
-      // Extract IDs for efficient filtering and store full objects
-      skillIds = `{${required_skills.map(s => s.id || s.skill_id).join(',')}}`;
-      skillsJson = JSON.stringify(required_skills);
+      const numericIds = parsedRequiredSkills
+        .map((s) => s && (s.id ?? s.skill_id))
+        .filter((id) => id !== undefined && id !== null && String(id).trim() !== '' && Number.isFinite(Number(id)));
+      // Extract IDs for efficient filtering and store full objects (INT[] must be integers only)
+      skillIds = numericIds.length ? `{${numericIds.map((id) => Math.trunc(Number(id))).join(',')}}` : '{}';
+      skillsJson = JSON.stringify(parsedRequiredSkills);
     }
 
     // ── Build location_point expression ─────────────────────────────────────────────────────────────
