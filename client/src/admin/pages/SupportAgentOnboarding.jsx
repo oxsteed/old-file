@@ -19,6 +19,7 @@ export default function SupportAgentOnboarding() {
     experience_level: 'junior',
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const skills = ['billing', 'technical', 'account', 'general', 'escalations'];
   const languages = ['English', 'Spanish', 'French', 'German', 'Portuguese'];
@@ -43,11 +44,29 @@ export default function SupportAgentOnboarding() {
 
   const handleSubmit = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      await adminApi.post(`/api/support/agents/onboard`, {
+      // Validate required fields before submission
+      if (!formData.first_name || !formData.last_name || !formData.email) {
+        setError('First name, last name, and email are required');
+        setLoading(false);
+        return;
+      }
+
+      if (formData.skills.length === 0) {
+        setError('Please select at least one skill');
+        setLoading(false);
+        return;
+      }
+
+      const response = await adminApi.post(`/api/support/agents/onboard`, {
         ...formData,
         business_id: businessId,
       });
+
+      // Success
+      setError(null);
       alert('Agent onboarded successfully!');
       setStep(1);
       setFormData({
@@ -63,8 +82,35 @@ export default function SupportAgentOnboarding() {
         experience_level: 'junior',
       });
     } catch (err) {
-      console.error('Failed to onboard agent:', err);
-      alert('Error onboarding agent');
+      // Extract meaningful error message from response or error object
+      let errorMessage = 'Error onboarding agent';
+
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.status === 404) {
+        errorMessage = 'Server endpoint not found. Please contact support.';
+      } else if (err.response?.status === 400) {
+        errorMessage = 'Invalid data provided. Please check the form and try again.';
+      } else if (err.response?.status === 401) {
+        errorMessage = 'You are not authorized to perform this action.';
+      } else if (err.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (err.message === 'Network Error') {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      console.error('Agent onboarding failed:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+        fullError: err
+      });
+
+      setError(errorMessage);
     }
     setLoading(false);
   };
@@ -75,6 +121,20 @@ export default function SupportAgentOnboarding() {
         <h1 className="text-white font-bold text-3xl mb-2">Agent Onboarding</h1>
         <p className="text-gray-400 text-sm">Complete the 4-step process to add a new support agent.</p>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg flex items-start gap-3">
+          <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="text-red-300 font-medium">Error</p>
+            <p className="text-red-200 text-sm mt-1">{error}</p>
+            <p className="text-red-400 text-xs mt-2">
+              Check the browser console (F12) for more details if this error persists.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Step Indicator */}
       <div className="flex gap-4 mb-8">

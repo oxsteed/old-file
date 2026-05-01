@@ -331,6 +331,145 @@ async function getApplicationStats(req, res) {
   }
 }
 
+// Direct agent onboarding (admin creates agent directly without application)
+async function onboardAgent(req, res, next) {
+  try {
+    const {
+      business_id,
+      first_name,
+      last_name,
+      email,
+      phone,
+      timezone,
+      availability_start,
+      availability_end,
+      skills = [],
+      languages = [],
+      experience_level = 'junior'
+    } = req.body;
+
+    // Validation
+    const validationErrors = {};
+
+    if (!business_id) validationErrors.business_id = 'Business ID is required';
+    if (!first_name) validationErrors.first_name = 'First name is required';
+    if (!last_name) validationErrors.last_name = 'Last name is required';
+    if (!email) validationErrors.email = 'Email is required';
+    if (!timezone) validationErrors.timezone = 'Timezone is required';
+    if (!availability_start) validationErrors.availability_start = 'Start time is required';
+    if (!availability_end) validationErrors.availability_end = 'End time is required';
+    if (!Array.isArray(skills) || skills.length === 0) {
+      validationErrors.skills = 'At least one skill must be selected';
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      return sendValidationError(res, validationErrors);
+    }
+
+    // Verify business access
+    const businessAccess = await query(
+      'SELECT id FROM businesses WHERE id = $1 AND (owner_id = $2 OR admin_user_ids @> $3)',
+      [business_id, req.user.id, JSON.stringify([req.user.id])]
+    );
+
+    if (!businessAccess.rows.length) {
+      return sendError(res, 403, 'You do not have access to this business');
+    }
+
+    // Check if email already exists as agent for this business
+    const existingAgent = await query(
+      `SELECT sa.id FROM support_agents sa
+       JOIN users u ON sa.user_id = u.id
+       WHERE sa.business_id = $1 AND u.email = $2`,
+      [business_id, email]
+    );
+
+    if (existingAgent.rows.length) {
+      return sendError(res, 400, 'An agent with this email already exists for this business');
+    }
+
+    // Check if user exists
+    let userResult = await query('SELECT id FROM users WHERE email = $1', [email]);
+
+    let userId;
+    if (userResult.rows.length) {
+      userId = userResult.rows[0].id;
+    } else {
+      // Create new user (minimal account for agent)
+      const newUserResult = await query(
+        `INSERT INTO users (name, email, password_hash, role, is_active)
+         VALUES ($1, $2, $3, 'agent', true)
+         RETURNING id`,
+        [
+          `${first_name} ${last_name}`,
+          email,
+          'PLACEHOLDER' // Agent must set password on first login
+        ]
+      );
+      userId = newUserResult.rows[0].id;
+    }
+
+    // Create support agent record
+    const agentResult = await query(
+      `INSERT INTO support_agents
+       (business_id, user_id, hire_date, status, timezone, availability_start, availability_end, skills, languages, experience_level)
+       VALUES ($1, $2, CURRENT_TIMESTAMP, 'active', $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        business_id,
+        userId,
+        timezone,
+        availability_start,
+        availability_end,
+        JSON.stringify(skills),
+        JSON.stringify(languages),
+        experience_level
+      ]
+    );
+
+    // Update user profile with additional details
+    await query(
+      `UPDATE users SET phone = $1 WHERE id = $2`,
+      [phone || null, userId]
+    );
+
+    logger.info('Agent onboarded successfully', {
+      agentId: agentResult.rows[0].id,
+      userId,
+      businessId: business_id,
+      email,
+      adminId: req.user.id
+    });
+
+    res.json({
+      success: true,
+      data: {
+        agent: agentResult.rows[0],
+        message: 'Agent onboarded successfully'
+      }
+    });
+
+  } catch (err) {
+    logger.error('onboardAgent error', {
+      error: err.message,
+      code: err.code,
+      detail: err.detail,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+
+    // Handle specific database errors
+    if (err.code === '23505') { // Unique constraint violation
+      return sendError(res, 400, 'This email is already registered in the system');
+    }
+
+    if (err.code === '23503') { // Foreign key violation
+      return sendError(res, 400, 'Invalid business ID or reference');
+    }
+
+    sendError(res, 500, 'Failed to onboard agent. Please try again.');
+  }
+}
+
 module.exports = {
   applyToBeAgent,
   getApplications,
@@ -338,5 +477,6 @@ module.exports = {
   reviewApplication,
   approveAndHire,
   getMyApplicationStatus,
-  getApplicationStats
+  getApplicationStats,
+  onboardAgent
 };
