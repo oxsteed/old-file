@@ -18,6 +18,7 @@ import {
   JOB_BUDGET_PRESETS,
   countActiveJobFilters,
 } from '../../types/jobDirectory';
+import { translateJobCategory } from '../../utils/jobsTaxonomy';
 
 interface FilterPanelProps {
   filters: JobFilters;
@@ -243,7 +244,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
               <RadioRow
                 key={cat}
                 name="job-cat"
-                label={cat}
+                label={translateJobCategory(t, cat)}
                 checked={filters.category === cat}
                 onChange={() => onChange({ category: cat })}
               />
