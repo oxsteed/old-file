@@ -4,6 +4,7 @@
 const { query, withTransaction } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 // Create a new support conversation/ticket
 async function createConversation(req, res) {
@@ -92,12 +93,8 @@ async function listConversations(req, res) {
     const { businessId } = req.params;
     const { status, priority, agentId, limit = 50, offset = 0 } = req.query;
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     let sql = `
       SELECT
@@ -165,14 +162,16 @@ async function getConversation(req, res) {
 
     const conversation = result.rows[0];
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [conversation.business_id, req.user.id, JSON.stringify([req.user.id])]
+    const canBiz = await supportEmployerService.userCanManageBusiness(
+      conversation.business_id,
+      req.user.id
     );
-    // Also allow if user is the customer or the assigned agent
-    if (!access.rows.length && req.user.id !== conversation.customer_id &&
-        req.user.id !== conversation.agent_id) {
+    let isAssignedAgent = false;
+    if (conversation.agent_id) {
+      const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
+      isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
+    }
+    if (!canBiz && req.user.id !== conversation.customer_id && !isAssignedAgent) {
       return sendError(res, 403, 'Access denied');
     }
 
@@ -224,12 +223,11 @@ async function updateConversationStatus(req, res) {
 
     const conversation = convResult.rows[0];
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [conversation.business_id, req.user.id, JSON.stringify([req.user.id])]
+    const can = await supportEmployerService.userCanManageBusiness(
+      conversation.business_id,
+      req.user.id
     );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    if (!can) return sendError(res, 403, 'Access denied');
 
     // Update status
     let updateSql = `
@@ -281,16 +279,20 @@ async function addMessage(req, res) {
 
     const conversation = convResult.rows[0];
 
-    // Verify access (customer or assigned agent)
-    if (req.user.id !== conversation.customer_id && req.user.id !== conversation.agent_id) {
-      const access = await query(
-        'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-        [conversation.business_id, req.user.id, JSON.stringify([req.user.id])]
+    let isAssignedAgent = false;
+    if (conversation.agent_id) {
+      const ag = await query('SELECT user_id FROM support_agents WHERE id = $1', [conversation.agent_id]);
+      isAssignedAgent = ag.rows.length && ag.rows[0].user_id === req.user.id;
+    }
+    if (req.user.id !== conversation.customer_id && !isAssignedAgent) {
+      const can = await supportEmployerService.userCanManageBusiness(
+        conversation.business_id,
+        req.user.id
       );
-      if (!access.rows.length) return sendError(res, 403, 'Access denied');
+      if (!can) return sendError(res, 403, 'Access denied');
     }
 
-    const isAgent = conversation.agent_id && req.user.id === conversation.agent_id;
+    const isAgent = isAssignedAgent;
 
     // Add message
     const result = await query(
@@ -336,12 +338,8 @@ async function getConversationStats(req, res) {
   try {
     const { businessId } = req.params;
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     const result = await query(
       `SELECT

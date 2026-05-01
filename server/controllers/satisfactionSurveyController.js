@@ -1,6 +1,7 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 async function createSurvey(req, res) {
   try {
@@ -106,6 +107,8 @@ async function getAgentRatings(req, res) {
     const { businessId } = req.params;
     const { days = 30 } = req.query;
 
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     const result = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
@@ -117,11 +120,11 @@ async function getAgentRatings(req, res) {
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN satisfaction_surveys ss ON sa.id = ss.agent_id AND ss.responded_at > CURRENT_TIMESTAMP - INTERVAL '1 day' * $2
-      WHERE sa.business_id = $1
+      WHERE sa.employer_id = $1
       GROUP BY sa.id, sa.user_id, u.name
       HAVING COUNT(ss.id) > 0
       ORDER BY ROUND(AVG(ss.rating), 2) DESC`,
-      [businessId, parseInt(days)]
+      [employerId, parseInt(days, 10)]
     );
 
     res.json({ success: true, data: result.rows });

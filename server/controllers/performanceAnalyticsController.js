@@ -1,11 +1,14 @@
 const { query } = require('../db');
 const { sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 async function getAgentLeaderboard(req, res) {
   try {
     const { businessId } = req.params;
     const { orderBy = 'csat', days = 30 } = req.query;
+
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     let orderClause = 'adp.avg_csat_score DESC';
     if (orderBy === 'response_time') orderClause = 'adp.avg_first_response_seconds ASC';
@@ -24,11 +27,11 @@ async function getAgentLeaderboard(req, res) {
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN agent_daily_performance adp ON sa.id = adp.agent_id
-      WHERE sa.business_id = $1
+      WHERE sa.employer_id = $1
       AND adp.performance_date > CURRENT_DATE - INTERVAL '1 day' * $2
       GROUP BY sa.id, sa.user_id, u.name, u.avatar_url
       ORDER BY ${orderClause}`,
-      [businessId, parseInt(days)]
+      [employerId, parseInt(days, 10)]
     );
 
     res.json({ success: true, data: result.rows });
@@ -198,6 +201,8 @@ async function getAgentUtilization(req, res) {
     const { businessId } = req.params;
     const { days = 30 } = req.query;
 
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     const result = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
@@ -208,10 +213,10 @@ async function getAgentUtilization(req, res) {
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN agent_daily_performance adp ON sa.id = adp.agent_id
-      WHERE sa.business_id = $1 AND adp.performance_date > CURRENT_DATE - INTERVAL '1 day' * $2
+      WHERE sa.employer_id = $1 AND adp.performance_date > CURRENT_DATE - INTERVAL '1 day' * $2
       GROUP BY sa.id, sa.user_id, u.name
       ORDER BY ROUND(100.0 * SUM(adp.total_chat_minutes) / NULLIF(SUM(adp.total_worked_minutes), 0), 2) DESC`,
-      [businessId, parseInt(days)]
+      [employerId, parseInt(days, 10)]
     );
 
     res.json({ success: true, data: result.rows });

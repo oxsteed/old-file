@@ -4,18 +4,17 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 // Get queue status for a business
 async function getQueueStatus(req, res) {
   try {
     const { businessId } = req.params;
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
+
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
     // Get queue stats
     const queueStats = await query(
@@ -38,8 +37,8 @@ async function getQueueStatus(req, res) {
         SUM(CASE WHEN is_available = true THEN 1 ELSE 0 END) as available_agents,
         SUM(CASE WHEN is_available = false THEN 1 ELSE 0 END) as busy_agents
       FROM support_agents
-      WHERE business_id = $1 AND status = 'active'`,
-      [businessId]
+      WHERE employer_id = $1 AND status = 'active'`,
+      [employerId]
     );
 
     // Get next items in queue
@@ -82,8 +81,8 @@ async function getQueueStatus(req, res) {
 async function getNextAvailableAgent(req, res) {
   try {
     const { businessId } = req.params;
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
 
-    // Find next available agent (priority-based)
     const agents = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
@@ -91,14 +90,14 @@ async function getNextAvailableAgent(req, res) {
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN conversation_assignments ca ON sa.id = ca.agent_id AND ca.status = 'active'
-      WHERE sa.business_id = $1
+      WHERE sa.employer_id = $1
       AND sa.status = 'active'
       AND sa.is_available = true
       GROUP BY sa.id, sa.user_id, u.name, sa.max_concurrent_chats
       HAVING COUNT(ca.id) < sa.max_concurrent_chats
       ORDER BY COUNT(ca.id) ASC, sa.id ASC
       LIMIT 1`,
-      [businessId]
+      [employerId]
     );
 
     if (!agents.rows.length) {
@@ -148,7 +147,8 @@ async function routeNextConversation(req, res) {
 
     const { conversation_id } = convResult.rows[0];
 
-    // Get next available agent
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     const agents = await query(
       `SELECT
         sa.id, sa.user_id, u.name,
@@ -156,14 +156,14 @@ async function routeNextConversation(req, res) {
       FROM support_agents sa
       LEFT JOIN users u ON sa.user_id = u.id
       LEFT JOIN conversation_assignments ca ON sa.id = ca.agent_id AND ca.status = 'active'
-      WHERE sa.business_id = $1
+      WHERE sa.employer_id = $1
       AND sa.status = 'active'
       AND sa.is_available = true
       GROUP BY sa.id, sa.user_id, u.name, sa.max_concurrent_chats
       HAVING COUNT(ca.id) < sa.max_concurrent_chats
       ORDER BY COUNT(ca.id) ASC, sa.id ASC
       LIMIT 1`,
-      [businessId]
+      [employerId]
     );
 
     if (!agents.rows.length) {
@@ -252,12 +252,8 @@ async function getQueueAnalytics(req, res) {
     const { businessId } = req.params;
     const { hours = 24 } = req.query;
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
+    if (!can) return sendError(res, 403, 'Access denied');
 
     // Get analytics
     const analytics = await query(

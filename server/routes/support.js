@@ -25,10 +25,19 @@ const skillBasedRoutingController = require('../controllers/skillBasedRoutingCon
 router.use(requireAuth);
 
 // ============================================
+// SUPPORT EMPLOYERS (multi-tenant hiring scope)
+// ============================================
+router.get('/employers/me', agentOnboardingController.listMySupportEmployers);
+router.post('/employers/helper', agentOnboardingController.ensureMyHelperEmployer);
+
+// ============================================
 // AGENT ONBOARDING (Hiring Flow)
 // ============================================
 
-// User applies to be an agent
+// User applies to be an agent (body may include businessId; or use legacy path below)
+router.post('/apply', agentOnboardingController.applyToBeAgent);
+
+// User applies to be an agent (legacy: businessId in path)
 router.post('/:businessId/apply', agentOnboardingController.applyToBeAgent);
 
 // Get user's application status

@@ -1,6 +1,7 @@
 const { query } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 async function createPolicy(req, res) {
   try {
@@ -176,9 +177,12 @@ async function triggerEscalation(req, res) {
         escalatedToId = team.rows[0].manager_id;
       }
     } else if (firstStep.escalate_to_manager) {
+      const employerIds = await supportEmployerService.employerIdsForConversationBusiness(
+        conversation.business_id
+      );
       const team = await query(
-        'SELECT sa.id FROM support_agents sa WHERE sa.role = $1 AND sa.business_id = $2 LIMIT 1',
-        ['manager', conversation.business_id]
+        'SELECT sa.id FROM support_agents sa WHERE sa.role = $1 AND sa.employer_id = ANY($2::uuid[]) LIMIT 1',
+        ['manager', employerIds]
       );
       if (team.rows.length) {
         escalatedToId = team.rows[0].id;

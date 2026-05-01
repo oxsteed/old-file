@@ -1,13 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, requireRole } = require('../middleware/auth');
-const { onboardAgent } = require('../controllers/agentOnboardingController');
+const { authenticate } = require('../middleware/auth');
+const {
+  onboardAgent,
+  listMySupportEmployers,
+  ensureMyHelperEmployer,
+} = require('../controllers/agentOnboardingController');
+
+/**
+ * GET /api/support/agents/employers/me
+ */
+router.get('/employers/me', authenticate, listMySupportEmployers);
+
+/**
+ * POST /api/support/agents/employers/helper
+ */
+router.post('/employers/helper', authenticate, ensureMyHelperEmployer);
 
 /**
  * POST /api/support/agents/onboard
- * Admin directly onboards a new support agent
- * Requires: business_id, first_name, last_name, email, timezone, availability_start, availability_end, skills[]
  */
-router.post('/onboard', authenticate, requireRole('admin', 'super_admin'), onboardAgent);
+router.post('/onboard', authenticate, onboardAgent);
 
 module.exports = router;

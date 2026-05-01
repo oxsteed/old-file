@@ -4,6 +4,7 @@
 const { query, withTransaction } = require('../db');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const supportEmployerService = require('../services/supportEmployerService');
 
 // Get agent's shifts for a date range
 async function getAgentShifts(req, res) {
@@ -49,19 +50,15 @@ async function createShift(req, res) {
       });
     }
 
-    // Verify agent belongs to business
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     const agent = await query(
-      'SELECT * FROM support_agents WHERE id = $1 AND business_id = $2',
-      [agentId, businessId]
+      'SELECT * FROM support_agents WHERE id = $1 AND employer_id = $2',
+      [agentId, employerId]
     );
     if (!agent.rows.length) return sendError(res, 404, 'Agent not found');
 
-    // Verify access
-    const access = await query(
-      'SELECT id FROM businesses WHERE id = $1 AND owner_id = $2 OR admin_user_ids @> $3',
-      [businessId, req.user.id, JSON.stringify([req.user.id])]
-    );
-    if (!access.rows.length) return sendError(res, 403, 'Access denied');
+    const can = await supportEmployerService.userCanManageBusiness(businessId, req.user.id);
 
     // Create shift
     const result = await query(
@@ -89,20 +86,28 @@ async function clockIn(req, res) {
     // Get or create today's shift
     const today = new Date().toISOString().split('T')[0];
 
+    const agentRowResult = await query(
+      'SELECT business_id FROM support_agents WHERE id = $1',
+      [agentId]
+    );
+    if (!agentRowResult.rows.length) return sendError(res, 404, 'Agent not found');
+    const contextBizId = agentRowResult.rows[0].business_id;
+
     let shift = await query(
       'SELECT * FROM agent_shifts WHERE agent_id = $1 AND shift_date = $2',
       [agentId, today]
     );
 
     if (!shift.rows.length) {
-      // Create shift if doesn't exist
+      if (!contextBizId) {
+        return sendError(res, 400, 'Agent has no service business context; cannot create shift');
+      }
       shift = await query(
         `INSERT INTO agent_shifts
          (agent_id, business_id, shift_date, status, actual_clock_in)
-         SELECT id, business_id, $2, 'clocked_in', CURRENT_TIMESTAMP
-         FROM support_agents WHERE id = $1
+         VALUES ($1, $2, $3, 'clocked_in', CURRENT_TIMESTAMP)
          RETURNING *`,
-        [agentId, today]
+        [agentId, contextBizId, today]
       );
     } else if (shift.rows[0].actual_clock_in) {
       return sendError(res, 400, 'Agent already clocked in');
@@ -323,10 +328,12 @@ async function setShiftTemplate(req, res) {
       return sendValidationError(res, { dayOfWeek: 'Must be 0-6' });
     }
 
+    const employerId = await supportEmployerService.ensureBusinessEmployer(businessId);
+
     // Verify agent
     const agent = await query(
-      'SELECT id FROM support_agents WHERE id = $1 AND business_id = $2',
-      [agentId, businessId]
+      'SELECT id FROM support_agents WHERE id = $1 AND employer_id = $2',
+      [agentId, employerId]
     );
     if (!agent.rows.length) return sendError(res, 404, 'Agent not found');
 
