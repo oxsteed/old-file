@@ -335,7 +335,7 @@ async function listHelpers(req, res, next) {
     let businesses = [];
     if (pageNum === 1) {
       const bizConditions = [
-        'TRUE = TRUE',
+        'b.is_active = TRUE',
         "b.business_name IS NOT NULL",
         "b.business_name != ''",
       ];
