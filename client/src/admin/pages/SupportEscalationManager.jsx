@@ -261,7 +261,7 @@ export default function SupportEscalationManager() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/escalation/rules`, {
+      const res = await adminApi.get('/support/escalation/rules', {
         params: { business_id: businessId },
       });
       setData(res.data);
@@ -283,9 +283,9 @@ export default function SupportEscalationManager() {
   const handleSave = async (formData) => {
     try {
       if (editingRule) {
-        await adminApi.put(`/api/support/escalation/rules/${editingRule.id}`, formData);
+        await adminApi.put(`/support/escalation/rules/${editingRule.id}`, formData);
       } else {
-        await adminApi.post(`/api/support/escalation/rules`, {
+        await adminApi.post('/support/escalation/rules', {
           ...formData,
           business_id: businessId,
         });
@@ -301,7 +301,7 @@ export default function SupportEscalationManager() {
   const handleDelete = async (ruleId) => {
     if (!window.confirm('Are you sure you want to delete this escalation rule?')) return;
     try {
-      await adminApi.delete(`/api/support/escalation/rules/${ruleId}`);
+      await adminApi.delete(`/support/escalation/rules/${ruleId}`);
       loadData();
     } catch (err) {
       console.error('Failed to delete rule:', err);
@@ -310,7 +310,7 @@ export default function SupportEscalationManager() {
 
   const handleToggle = async (ruleId) => {
     try {
-      await adminApi.patch(`/api/support/escalation/rules/${ruleId}/toggle`);
+      await adminApi.patch(`/support/escalation/rules/${ruleId}/toggle`);
       loadData();
     } catch (err) {
       console.error('Failed to toggle rule:', err);

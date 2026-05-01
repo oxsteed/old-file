@@ -76,7 +76,7 @@ export default function SupportAgentOnboarding() {
         return;
       }
 
-      await adminApi.post(`/api/support/agents/onboard`, {
+      await adminApi.post('/support/agents/onboard', {
         ...formData,
         business_id: businessId,
       });

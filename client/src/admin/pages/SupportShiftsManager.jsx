@@ -19,7 +19,7 @@ export default function SupportShiftsManager() {
   const loadShifts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/shifts`, {
+      const res = await adminApi.get('/support/shifts', {
         params: { business_id: businessId },
       });
       setShifts(res.data.shifts || []);
@@ -35,7 +35,7 @@ export default function SupportShiftsManager() {
 
   const handleSave = async () => {
     try {
-      await adminApi.post(`/api/support/shifts`, {
+      await adminApi.post('/support/shifts', {
         ...formData,
         business_id: businessId,
       });
@@ -50,7 +50,7 @@ export default function SupportShiftsManager() {
   const handleDelete = async (shiftId) => {
     if (!window.confirm('Delete this shift?')) return;
     try {
-      await adminApi.delete(`/api/support/shifts/${shiftId}`);
+      await adminApi.delete(`/support/shifts/${shiftId}`);
       loadShifts();
     } catch (err) {
       console.error('Failed to delete shift:', err);

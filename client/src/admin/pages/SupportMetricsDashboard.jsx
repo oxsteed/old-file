@@ -12,7 +12,7 @@ export default function SupportMetricsDashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/metrics`, {
+      const res = await adminApi.get('/support/metrics', {
         params: { business_id: businessId },
       });
       setData(res.data);

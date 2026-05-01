@@ -491,7 +491,7 @@ export default function SupportSettingsPage() {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/settings`, {
+      const res = await adminApi.get('/support/settings', {
         params: { business_id: businessId },
       });
       setSettings(res.data);
@@ -507,7 +507,7 @@ export default function SupportSettingsPage() {
 
   const handleUpdate = async (section, data) => {
     try {
-      await adminApi.post(`/api/support/settings/${section}`, {
+      await adminApi.post(`/support/settings/${section}`, {
         ...data,
         business_id: businessId,
       });

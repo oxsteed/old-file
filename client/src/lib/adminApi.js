@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+/** API root for admin requests (must end with `/api` — same convention as `client/src/api/axios.js`). */
+function adminApiBaseURL() {
+  const raw = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+  if (!raw) return '/api';
+  return raw.endsWith('/api') ? raw : `${raw}/api`;
+}
+
 const adminApi = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api',
+    baseURL: adminApiBaseURL(),
     withCredentials: true
 });
 

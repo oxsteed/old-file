@@ -13,7 +13,7 @@ export default function SupportAgentManagement() {
   const loadAgents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/agents`, {
+      const res = await adminApi.get('/support/agents', {
         params: { business_id: businessId, search },
       });
       setAgents(res.data.agents || []);
@@ -29,7 +29,7 @@ export default function SupportAgentManagement() {
 
   const handleToggleStatus = async (agentId) => {
     try {
-      await adminApi.patch(`/api/support/agents/${agentId}/toggle-status`);
+      await adminApi.patch(`/support/agents/${agentId}/toggle-status`);
       loadAgents();
     } catch (err) {
       console.error('Failed to toggle status:', err);
@@ -39,7 +39,7 @@ export default function SupportAgentManagement() {
   const handleDelete = async (agentId) => {
     if (!window.confirm('Delete this agent?')) return;
     try {
-      await adminApi.delete(`/api/support/agents/${agentId}`);
+      await adminApi.delete(`/support/agents/${agentId}`);
       loadAgents();
     } catch (err) {
       console.error('Failed to delete agent:', err);

@@ -144,7 +144,7 @@ export default function SupportCSATAnalytics() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/csat/analytics`, {
+      const res = await adminApi.get('/support/csat/analytics', {
         params: { business_id: businessId, range: dateRange },
       });
       setData(res.data);

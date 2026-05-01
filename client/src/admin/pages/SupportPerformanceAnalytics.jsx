@@ -16,7 +16,7 @@ export default function SupportPerformanceAnalytics() {
   const loadAgents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/performance`, {
+      const res = await adminApi.get('/support/performance', {
         params: { business_id: businessId, search, sort_by: sortBy },
       });
       setAgents(res.data.agents || []);
@@ -32,7 +32,7 @@ export default function SupportPerformanceAnalytics() {
 
   const loadAgentDetails = useCallback(async (agentId) => {
     try {
-      const res = await adminApi.get(`/api/support/performance/${agentId}`, {
+      const res = await adminApi.get(`/support/performance/${agentId}`, {
         params: { business_id: businessId },
       });
       setAgentDetails(res.data);

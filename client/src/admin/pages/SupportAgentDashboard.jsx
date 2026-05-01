@@ -13,7 +13,7 @@ export default function SupportAgentDashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/agents/dashboard`, {
+      const res = await adminApi.get('/support/agents/dashboard', {
         params: { business_id: businessId },
       });
       setData(res.data);
