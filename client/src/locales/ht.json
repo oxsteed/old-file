@@ -2301,7 +2301,23 @@
     "trySimilarSkill": "Eseye yon konpetans similè:",
     "dontSeeWhat": "Ou pa wè sa ou bezwen?",
     "postForFree": "Pibliye yon travay gratis",
-    "postForFreeTrailing": "epi aidant ki kvalifye yo pral kontakte ou."
+    "postForFreeTrailing": "epi aidant ki kvalifye yo pral kontakte ou.",
+    "heroEyebrow": "Aidè OxSteed",
+    "profileCardAria": "{{name}} - kat pwofil {{type}}",
+    "profileTypeHelper": "aidè",
+    "profileTypeBusiness": "biznis",
+    "verifiedIdentityTitle": "Idantite verifye pa OxSteed",
+    "verifiedIdentityAria": "Idantite verifye",
+    "topServicesAria": "Pi bon sèvis yo",
+    "openFiltersAria": "Ouvè filt yo{{details}}",
+    "openFiltersActiveDetails": " ({{count}} aktif)",
+    "filterAsideAria": "Filtre aidè yo",
+    "loadingHelpersAria": "Ap chaje aidè yo",
+    "helpersFoundAria": "{{count}} aidè jwenn",
+    "loadMoreHelpersAria": "Chaje plis aidè ({{count}} ki rete)",
+    "messageHelperAria": "Mesaj bay {{name}}",
+    "viewProfileAria": "Gade pwofil {{name}}",
+    "priceStartingAt": "Depi {{amount}}"
   },
   "jobsDir": {
     "metaTitle": "Gade travay ki disponib",
@@ -2612,6 +2628,29 @@
           "label": "Leson patikilye",
           "desc": "Matematik, lekti, preparasyon egzamen an"
         }
+      },
+      "licenses": {
+        "general_contractor_license": "Lisans Jeneral Kontraktè",
+        "electrical_license_master": "Lisans elektrik (Mèt)",
+        "electrical_license_journeyman": "Lisans elektrik (Journeyman)",
+        "plumbing_license": "Lisans plonbri",
+        "hvac_certification_epa_608": "Sètifikasyon HVAC (EPA 608)",
+        "pesticide_applicator_license": "Lisans Aplikatè Pestisid",
+        "home_inspector_license": "Lisans Enspektè Kay",
+        "real_estate_license": "Lisans Imobilye",
+        "cosmetology_license": "Lisans Kosmetoloji",
+        "childcare_license": "Lisans pou gadri",
+        "locksmith_license": "Lisans Locksmith",
+        "roofing_license": "Lisans twati"
+      },
+      "insurance": {
+        "general_liability_1m": "Responsablite jeneral ($1M)",
+        "general_liability_2m": "Responsablite jeneral ($2M+)",
+        "workers_compensation": "Konpansasyon Travayè",
+        "commercial_auto": "Oto Komèsyal",
+        "professional_liability_e_o": "Responsablite Pwofesyonèl (E&O)",
+        "bonded": "Kole",
+        "umbrella_policy": "Règleman parapli"
       }
     },
     "budgetFrom": "Depi {{amount}}",

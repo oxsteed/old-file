@@ -22,6 +22,12 @@ import {
   DISTANCE_OPTIONS,
   countActiveFilters,
 } from '../../types/helperDirectory';
+import {
+  translateJobCategory,
+  translateJobSkill,
+  translateJobLicense,
+  translateJobInsurance,
+} from '../../utils/jobsTaxonomy';
 
 interface FilterPanelProps {
   filters: DirectoryFilters;
@@ -99,6 +105,7 @@ const SkillGroup: React.FC<{
   selected: string[];
   onToggle: (skill: string) => void;
 }> = ({ category, skills, selected, onToggle }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const activeCount = skills.filter((s) => selected.includes(s)).length;
 
@@ -110,7 +117,7 @@ const SkillGroup: React.FC<{
         aria-expanded={open}
       >
         <span className="flex items-center gap-1.5">
-          {category}
+          {translateJobCategory(t, category)}
           {activeCount > 0 && (
             <span className="w-4 h-4 rounded-full bg-brand-500/80 text-white text-xs flex items-center justify-center">
               {activeCount}
@@ -124,7 +131,7 @@ const SkillGroup: React.FC<{
           {skills.map((sk) => (
             <CheckboxRow
               key={sk}
-              label={sk}
+              label={translateJobSkill(t, sk)}
               checked={selected.includes(sk)}
               onChange={() => onToggle(sk)}
             />
@@ -298,7 +305,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
             {CATEGORIES.map((cat) => (
               <CheckboxRow
                 key={cat}
-                label={cat}
+                label={translateJobCategory(t, cat)}
                 checked={filters.categories.includes(cat)}
                 onChange={() => toggleArrayItem(filters.categories, cat, 'categories')}
               />
@@ -337,7 +344,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
             {LICENSES.map((lic) => (
               <CheckboxRow
                 key={lic}
-                label={lic}
+                label={translateJobLicense(t, lic)}
                 checked={filters.licenses.includes(lic)}
                 onChange={() => toggleArrayItem(filters.licenses as string[], lic, 'licenses')}
               />
@@ -356,7 +363,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
             {INSURANCE_TYPES.map((ins) => (
               <CheckboxRow
                 key={ins}
-                label={ins}
+                label={translateJobInsurance(t, ins)}
                 checked={filters.insurance.includes(ins)}
                 onChange={() => toggleArrayItem(filters.insurance as string[], ins, 'insurance')}
               />
@@ -420,7 +427,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
                     const min = filters.priceRange?.[0] ?? 0;
                     onChange({ priceRange: max > 0 ? [min, max] : null });
                   }}
-                  placeholder="Any"
+                  placeholder={t('helpersDir.priceAny')}
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>

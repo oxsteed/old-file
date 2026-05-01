@@ -9,7 +9,7 @@
  *   Mobile        - FilterPanel in a slide-up drawer, triggered by a sticky bar
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
@@ -26,6 +26,10 @@ import HelperCard from '../components/helperDirectory/HelperCard';
 
 import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';
 import { DEFAULT_FILTERS, countActiveFilters, SKILL_TILES, CATEGORIES } from '../types/helperDirectory';
+import {
+  getSkillTilesTranslated,
+  translateJobCategory,
+} from '../utils/jobsTaxonomy';
 import { getPublicSiteUrl } from '../utils/seoDescription';
 import { fetchHelpers } from '../api/helpers';
 import PageMeta from '../components/PageMeta';
@@ -217,9 +221,10 @@ const FilterDrawer: React.FC<{
 
 // ── Skill tile grid ───────────────────────────────────────────────────────────
 const SkillTileGrid: React.FC<{
+  tiles: ReturnType<typeof getSkillTilesTranslated>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-}> = ({ selectedId, onSelect }) => {
+}> = ({ tiles, selectedId, onSelect }) => {
   const { t } = useTranslation();
   return (
   <section className="bg-gray-900 border-b border-gray-800" aria-label={t('helpersDir.browseBySkill')}>
@@ -228,7 +233,7 @@ const SkillTileGrid: React.FC<{
         {t('helpersDir.browseBySkill')}
       </p>
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-        {SKILL_TILES.map((tile) => {
+        {tiles.map((tile) => {
           const active = selectedId === tile.id;
           return (
             <button
@@ -257,12 +262,14 @@ const SkillTileGrid: React.FC<{
 
 // ── Sub-skill chips strip (shown when a skill tile is selected) ────────────────
 const SubSkillStrip: React.FC<{
-  tile: (typeof SKILL_TILES)[number];
+  tile: ReturnType<typeof getSkillTilesTranslated>[number];
   selectedSkills: string[];
   onToggleSkill: (skill: string) => void;
   onClearTile: () => void;
 }> = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => {
   const { t } = useTranslation();
+  const rawTile = SKILL_TILES.find((tt) => tt.id === tile.id);
+  const englishSubSkills = rawTile?.subSkills ?? [];
   return (
   <div className="bg-gray-950 border-b border-gray-800">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3 flex-wrap">
@@ -273,12 +280,13 @@ const SubSkillStrip: React.FC<{
       <span className="text-gray-700 text-xs" aria-hidden="true">-</span>
       <p className="text-xs text-gray-500">{t('helpersDir.filterByJob')}</p>
       <div className="flex flex-wrap gap-2">
-        {tile.subSkills.map((sk) => {
-          const active = selectedSkills.includes(sk);
+        {englishSubSkills.map((skEn, idx) => {
+          const displayLabel = tile.subSkills[idx] ?? skEn;
+          const active = selectedSkills.includes(skEn);
           return (
             <button
-              key={sk}
-              onClick={() => onToggleSkill(sk)}
+              key={skEn}
+              onClick={() => onToggleSkill(skEn)}
               aria-pressed={active}
               className={`
                 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors
@@ -288,7 +296,7 @@ const SubSkillStrip: React.FC<{
                 }
               `}
             >
-              {sk}
+              {displayLabel}
             </button>
           );
         })}
@@ -296,7 +304,7 @@ const SubSkillStrip: React.FC<{
       <button
         onClick={onClearTile}
         className="ml-auto text-xs text-gray-600 hover:text-gray-400 flex items-center gap-1 transition-colors whitespace-nowrap"
-        aria-label="Clear skill filter"
+        aria-label={t('helpersDir.clearFilter')}
       >
         <X className="w-3 h-3" aria-hidden="true" />
         {t('helpersDir.clearFilter')}
@@ -307,9 +315,14 @@ const SubSkillStrip: React.FC<{
 };
 
 // ── Hero banner ───────────────────────────────────────────────────────────────
-const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => void }> = ({
+const DirectoryHero: React.FC<{
+  searchValue: string;
+  onSearch: (v: string) => void;
+  categoryLabels: { key: string; label: string }[];
+}> = ({
   searchValue,
   onSearch,
+  categoryLabels,
 }) => {
   const { t } = useTranslation();
   return (
@@ -332,7 +345,7 @@ const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => vo
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-4 h-4 text-brand-400" aria-hidden="true" />
           <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">
-            OxSteed Helpers
+            {t('helpersDir.heroEyebrow')}
           </span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
@@ -353,14 +366,14 @@ const DirectoryHero: React.FC<{ searchValue: string; onSearch: (v: string) => vo
 
         {/* Popular categories */}
         <div className="mt-4 flex flex-wrap gap-2">
-          {CATEGORIES.slice(0, 8).map((cat) => (
+          {categoryLabels.map(({ key, label }) => (
             <button
-              key={cat}
+              key={key}
               type="button"
-              onClick={() => onSearch(cat)}
+              onClick={() => onSearch(key)}
               className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
             >
-              {cat}
+              {label}
             </button>
           ))}
         </div>
@@ -441,7 +454,7 @@ function mergeGridItems(
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 const HelpersDirectoryPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   // Parse URL params exactly once - destructure for both derived states.
   const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
@@ -519,7 +532,22 @@ const HelpersDirectoryPage: React.FC = () => {
     });
   }, []);
 
-  const selectedTile    = selectedTileId ? SKILL_TILES.find((t) => t.id === selectedTileId) ?? null : null;
+  const translatedTiles = useMemo(
+    () => getSkillTilesTranslated(t),
+    [t, i18n.language],
+  );
+
+  const categoryHeroChips = useMemo(
+    () => CATEGORIES.slice(0, 8).map((cat) => ({
+      key: cat,
+      label: translateJobCategory(t, cat),
+    })),
+    [t, i18n.language],
+  );
+
+  const selectedTile = selectedTileId
+    ? translatedTiles.find((tt) => tt.id === selectedTileId) ?? null
+    : null;
   const boostedCategory = selectedTile?.category;
 
   // Client-side: float exact-category matches to the top, then mix in businesses
@@ -575,10 +603,11 @@ const HelpersDirectoryPage: React.FC = () => {
       <DirectoryHero
         searchValue={filters.query}
         onSearch={(q) => updateFilters({ query: q })}
+        categoryLabels={categoryHeroChips}
       />
 
       {/* Skill tile grid */}
-      <SkillTileGrid selectedId={selectedTileId} onSelect={handleTileSelect} />
+      <SkillTileGrid tiles={translatedTiles} selectedId={selectedTileId} onSelect={handleTileSelect} />
 
       {/* Sub-skill chips - shown when a tile is selected */}
       {selectedTile && (
@@ -605,7 +634,13 @@ const HelpersDirectoryPage: React.FC = () => {
         <button
           onClick={() => setDrawerOpen(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
-          aria-label={`Open filters${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
+          aria-label={
+            activeFilterCount > 0
+              ? t('helpersDir.openFiltersAria', {
+                  details: t('helpersDir.openFiltersActiveDetails', { count: activeFilterCount }),
+                })
+              : t('helpersDir.openFiltersAria', { details: '' })
+          }
         >
           <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
           {t('helpersDir.filters')}
@@ -634,7 +669,7 @@ const HelpersDirectoryPage: React.FC = () => {
           {/* ── Desktop sidebar ──────────────────────────────── */}
           <aside
             className="hidden lg:block w-72 flex-shrink-0"
-            aria-label="Filter helpers"
+            aria-label={t('helpersDir.filterAsideAria')}
           >
             <div className="sticky top-6">
               <FilterPanel
@@ -668,7 +703,7 @@ const HelpersDirectoryPage: React.FC = () => {
               <div
                 className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
                 aria-busy="true"
-                aria-label="Loading helpers"
+                aria-label={t('helpersDir.loadingHelpersAria')}
               >
                 {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <CardSkeleton key={i} />
@@ -691,6 +726,7 @@ const HelpersDirectoryPage: React.FC = () => {
                 hasFilters={activeFilterCount > 0}
                 onReset={resetFilters}
                 selectedCategory={selectedTile?.category}
+                translatedTiles={translatedTiles}
                 maxDistance={filters.maxDistance}
                 onExpandRadius={() => updateFilters({ maxDistance: Math.min((filters.maxDistance || 25) * 2, 100) })}
               />
@@ -699,7 +735,7 @@ const HelpersDirectoryPage: React.FC = () => {
                 <div
                   className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
                   role="list"
-                  aria-label={`${total} helpers found`}
+                  aria-label={t('helpersDir.helpersFoundAria', { count: total })}
                 >
                   {displayed.map((helper) => (
                     <div key={helper.id} role="listitem">
@@ -719,7 +755,9 @@ const HelpersDirectoryPage: React.FC = () => {
                       onClick={handleShowMore}
                       disabled={loadState === 'loading'}
                       className="flex items-center gap-2 px-8 py-3 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors text-sm font-medium disabled:opacity-50"
-                      aria-label={`Load more helpers (${total - displayed.length} remaining)`}
+                      aria-label={t('helpersDir.loadMoreHelpersAria', {
+                        count: total - displayed.length,
+                      })}
                     >
                       {loadState === 'loading' ? t('common.loading') : t('helpersDir.showMore')}
                       <ChevronDown className="w-4 h-4" aria-hidden="true" />
