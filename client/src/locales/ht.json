@@ -19,6 +19,7 @@
     "closeMenu": "Fèmen meni",
     "openMenu": "Louvri meni",
     "qrGenerator": "Jeneratè QR",
+    "calendar": "Kalandriye",
     "resources": "Resous",
     "businessLaunchStatus": "Lansman Biznis Mwen",
     "supportWorkspace": "Espa sipo"
@@ -3100,6 +3101,7 @@
       "saving": "Ap anrejistre...",
       "errorPhone": "Antre yon nimewo telefòn ameriken ki valab (10 chif)",
       "errorZip": "Antre yon kòd postal ki valab (5 chif)",
+      "errorSkills": "Chwazi omwen yon konpetans",
       "errorPhotoNotImage": "Tanpri chwazi yon fichye imaj",
       "errorPhotoSize": "Image must be under 5MB",
       "errorPhotoUpload": "Photo upload failed",
@@ -4384,7 +4386,11 @@
         "launchSupport": "Sipò 30 Jou Apre Lansman"
       },
       "setupItemsRequired": "Chwazi omwen yon atik",
-      "urgency": "Kisa jadwal ou ye?",
+      "urgency": {
+        "exploring": "M just ap esplorè",
+        "twoWeeks": "Prè pou komanse nan 2 semèn",
+        "asap": "Mwen bezwen sa a fèt dèske posib"
+      },
       "urgencyASAP": "ASAP (komanse imedyatman)",
       "urgencyThisMonth": "Mwa sa a",
       "urgencyTwoMonths": "Nan 2 mwa",
@@ -4464,9 +4470,6 @@
         "firstNameLabel": "Premye Non *",
         "lastNameLabel": "Non Fanmi *",
         "phoneLabel": "Nimewo Telefòn *",
-        "businessNameLabel": "Non Biznis",
-        "businessNameRequiredLabel": "Kisa li ye? *",
-        "preferredBusinessNamePlaceholder": "Fè antre non biznis ou.",
         "countryLabel": "Ki peyi biznis sa a pral fè operasyon? *",
         "selectCountry": "Chwazi yon peyi",
         "cityLabel": "Vil",
@@ -4588,15 +4591,14 @@
         "allItems": "Tout atik",
         "showingFirstFive": "{{count}} atik (montre premye 5):",
         "showingItems": "{{count}} atik:",
+        "items": "atik",
         "whatHappensNext": "Sa Ki Pral Fèt Apre",
-        "nextSteps": [
-          "Nou revize demann ou (nòmalman nan 24 èdonn)",
-          "Ou pral resevwa yon lyen planifikasyon pou rezerve apèl lansman ou",
-          "Nou voye ou yon kestonnè pre-lansman pou konplete",
-          "Travay konfigirasyon ou kòmanse apre apèl lansman"
-        ],
-        "importantDisclaimer": "Enpòtan: OxSteed Business Launch bay jis sipò imlemantasyon konfigirasyon biznis. Nou pa bay konsèy legal, taks, oswa finansye. Pou kesyon ki envòlv seleksyon antite legal, obligasyon taks, oswa zafè finansye règle, tanpri konsilte yon pwofesyonèl otorize.",
-        "packageHelper": "Pa sûr ki pakèt ki pi bon? Chwazi yonn ki sanble pi prè epi nou pral konfime ki sa ki pi bon pou ou pandan apèl lansman ou."
+        "step1": "Nou revize demann ou (nòmalman nan 24 èdonn)",
+        "step2": "Ou pral resevwa yon lyen planifikasyon pou rezerve apèl lansman ou",
+        "step3": "Nou voye ou yon kestonnè pre-lansman pou konplete",
+        "step4": "Travay konfigirasyon ou kòmanse apre apèl lansman",
+        "importantLabel": "Enpòtan",
+        "disclaimer": "OxSteed Business Launch bay sèlman sipò pou mete an plas konfigirasyon biznis ou. Nou pa bay konsèy legal, taks, oswa finansye. Pou kesyon ki gen rapò ak chwa antite legal, obligasyon taks, oswa zafè finansye ki reglemante, tanpri konsilte yon pwofesyonèl ki otorize."
       },
       "packageHelper": "Èske ou pa sèten ki pake ki apwopriye? Chwazi youn ki sanble pi prè a nou va konfime bon yon pandan apèl lansman ou. Tout pake yo gen yon apèl lansman 30 minit.",
       "progressContact": "Kontak",

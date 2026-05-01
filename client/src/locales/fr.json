@@ -19,6 +19,7 @@
     "closeMenu": "Fermer le menu",
     "openMenu": "Ouvrir le menu",
     "qrGenerator": "Générateur QR",
+    "calendar": "Calendrier",
     "resources": "Ressources",
     "businessLaunchStatus": "Mon Lancement Commercial",
     "supportWorkspace": "Espace d’assistance"
@@ -4390,7 +4391,11 @@
         "launchSupport": "Support de 30 Jours Après le Lancement"
       },
       "setupItemsRequired": "Sélectionnez au moins un élément",
-      "urgency": "Quel est votre calendrier?",
+      "urgency": {
+        "exploring": "Je m'informe juste",
+        "twoWeeks": "Prêt à commencer dans 2 semaines",
+        "asap": "J'ai besoin que ce soit fait dès que possible"
+      },
       "urgencyASAP": "ASAP (commencer immédiatement)",
       "urgencyThisMonth": "Ce mois-ci",
       "urgencyTwoMonths": "Dans 2 mois",
@@ -4470,9 +4475,6 @@
         "firstNameLabel": "Prénom *",
         "lastNameLabel": "Nom de famille *",
         "phoneLabel": "Numéro de téléphone *",
-        "businessNameLabel": "Nom de l'entreprise",
-        "businessNameRequiredLabel": "Lequel ? *",
-        "preferredBusinessNamePlaceholder": "Entrez le nom d'entreprise préféré",
         "countryLabel": "Dans quel pays cette entreprise opérera-t-elle ? *",
         "selectCountry": "Sélectionnez un pays",
         "cityLabel": "Ville",
@@ -4594,15 +4596,14 @@
         "allItems": "Tous les éléments",
         "showingFirstFive": "{{count}} éléments (affichage des 5 premiers) :",
         "showingItems": "{{count}} éléments :",
+        "items": "éléments",
         "whatHappensNext": "Ce qui se Passe Ensuite",
-        "nextSteps": [
-          "Nous examinons votre demande (généralement dans les 24 heures)",
-          "Vous recevrez un lien de planification pour réserver votre appel de lancement",
-          "Nous vous envoyons un questionnaire préalable au lancement à compléter",
-          "Votre travail de configuration commence après l'appel de lancement"
-        ],
-        "importantDisclaimer": "Important : OxSteed Business Launch fournit uniquement un support de mise en œuvre de configuration commerciale. Nous ne fournissons pas de conseils juridiques, fiscaux ou financiers. Pour les questions relatives à la sélection des entités légales, aux obligations fiscales ou aux questions financières réglementées, veuillez consulter un professionnel autorisé.",
-        "packageHelper": "Vous n'êtes pas sûr de quel forfait correspond ? Sélectionnez celui qui semble le plus proche et nous confirmerons le bon ajustement lors de votre appel de lancement."
+        "step1": "Nous examinons votre demande (généralement dans les 24 heures)",
+        "step2": "Vous recevrez un lien de planification pour réserver votre appel de lancement",
+        "step3": "Nous vous envoyons un questionnaire préalable au lancement à compléter",
+        "step4": "Votre travail de configuration commence après l'appel de lancement",
+        "importantLabel": "Important",
+        "disclaimer": "OxSteed Business Launch fournit uniquement un support de mise en œuvre pour la configuration de votre entreprise. Nous ne fournissons pas de conseils juridiques, fiscaux ou financiers. Pour les questions relatives au choix de la forme juridique, aux obligations fiscales ou aux matières financières réglementées, veuillez consulter un professionnel agréé."
       },
       "packageHelper": "Vous n'êtes pas sûr du forfait qui convient? Sélectionnez celui qui semble le plus proche et nous confirmerons le bon choix lors de votre appel de lancement. Tous les forfaits incluent un appel de lancement de 30 minutes.",
       "referralOptions": {
