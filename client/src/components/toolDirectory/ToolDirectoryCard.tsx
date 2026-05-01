@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ToolCardData, ToolCondition } from '../../types/toolDirectory';
+import { translateToolDirectoryCategory } from '../../utils/toolRentalsTaxonomy';
 import ToolFavoriteButton from '../ToolFavoriteButton';
 
 interface ToolDirectoryCardProps {
@@ -22,12 +23,6 @@ interface ToolDirectoryCardProps {
   onMessage?: (ownerId: number) => void;
   /** When set, highlights the matching category on this card */
   highlightCategory?: string;
-}
-
-function translateToolCategory(t: (k: string, opts?: any) => string, cat: string): string {
-  const key = `toolRentalsDir.taxonomy.categories.${cat}`;
-  const translated = t(key);
-  return translated === key ? cat : translated;
 }
 
 function normalizeCondition(c: string | undefined | null): ToolCondition | null {
@@ -129,7 +124,7 @@ const ToolDirectoryCard: React.FC<ToolDirectoryCardProps> = ({
               {tool.name}
             </button>
             <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">
-              {translateToolCategory(t, tool.category)}
+              {translateToolDirectoryCategory(t, tool.category)}
               {tool.brand ? ` - ${tool.brand}` : ''}
             </p>
           </div>
