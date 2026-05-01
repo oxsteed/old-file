@@ -6,7 +6,7 @@
 
 import { SKILL_TILES, CATEGORIES, ADJACENT_SKILLS } from './helperDirectory';
 
-// Re-export shared constants — the job and helper directories use the same
+// Re-export shared constants - the job and helper directories use the same
 // skill taxonomy so customers can browse jobs by category and helpers by
 // category in the same way.
 export { SKILL_TILES, CATEGORIES, ADJACENT_SKILLS };
@@ -36,7 +36,7 @@ export const SERVER_SORT: Record<JobSortOption, string> = {
   urgent:       'urgent',
   budget_high:  'budget_high',
   budget_low:   'budget_low',
-  // Bid-count sorts don't have a backend equivalent yet — fall back to newest
+  // Bid-count sorts don't have a backend equivalent yet - fall back to newest
   // and let the client sort what it has after fetching.
   most_bids:    'newest',
   fewest_bids:  'newest',
@@ -71,9 +71,9 @@ export type JobPriority = 'urgent' | 'high' | 'normal' | 'low';
 
 export interface JobFilters {
   query: string;
-  /** Single category — driven by skill-tile selection (matches j.category_name) */
+  /** Single category - driven by skill-tile selection (matches j.category_name) */
   category: string;
-  /** Sub-skill chips (active when a tile is selected) — folded into `q` server-side */
+  /** Sub-skill chips (active when a tile is selected) - folded into `q` server-side */
   skills: string[];
   city: string;
   state: string;
@@ -134,7 +134,7 @@ export interface JobCardData {
   priority?: JobPriority;
   city?: string | null;
   state?: string | null;
-  /** ISO date — used for "posted N days ago" */
+  /** ISO date - used for "posted N days ago" */
   createdAt: string;
   expiresAt?: string | null;
   bidCount: number;

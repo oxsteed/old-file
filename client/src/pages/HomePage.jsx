@@ -86,7 +86,7 @@ const CLEAR_ICON = (
 );
 
 /**
- * Homepage search bar — v2
+ * Homepage search bar - v2
  *
  * Features:
  *  1. Mode toggle: "Find a Helper" navigates /helpers; "Browse Jobs" navigates /jobs
@@ -370,7 +370,7 @@ function HomeSearch() {
           )}
         </div>
 
-        {/* Location field — helpers + discover (60 mi radius) */}
+        {/* Location field - helpers + discover (60 mi radius) */}
         {(mode === 'helpers' || mode === 'discover') && (
           <div className="hp-search-field hp-search-field--loc">
             <span className="hp-search-icon">{PIN_ICON}</span>
@@ -408,7 +408,7 @@ function HomeSearch() {
           </div>
         )}
 
-        {/* Available today toggle — helpers mode only */}
+        {/* Available today toggle - helpers mode only */}
         {mode === 'helpers' && (
           <button
             type="button"
@@ -475,7 +475,7 @@ export default function HomePage() {
     <PageShell>
     <div className="hp-root">
       <PageMeta
-        title="OxSteed — Hire Local Help Today"
+        title="OxSteed - Hire Local Help Today"
         description="Post a job, compare bids from verified local helpers, and pay securely via OxSteed. Free to start."
         url="https://oxsteed.com"
       />
@@ -486,7 +486,7 @@ export default function HomePage() {
       <section className="hp-hero">
         <Hero search={<HomeSearch />} />
 
-        {/* Hero live helpers near you card — now interactive infinite scroll */}
+        {/* Hero live helpers near you card - now interactive infinite scroll */}
         <LiveHelpersHeroCard />
       </section>
 

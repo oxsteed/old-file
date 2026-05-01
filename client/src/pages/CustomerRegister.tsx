@@ -88,7 +88,7 @@ export default function CustomerRegister() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-900/20 border border-violet-700/40">
               <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
               <span className="text-xs text-violet-300 font-medium">
-                90-day Pro trial included — all features unlocked, no card needed
+                90-day Pro trial included - all features unlocked, no card needed
               </span>
             </div>
           </div>

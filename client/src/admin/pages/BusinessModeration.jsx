@@ -221,13 +221,13 @@ export default function BusinessModeration() {
                     </p>
                   </td>
                   <td className={`${col}`}>
-                    <p className="text-gray-300">{b.owner_name || '—'}</p>
-                    <p className="text-gray-500 text-xs">{b.owner_email || '—'}</p>
+                    <p className="text-gray-300">{b.owner_name || '-'}</p>
+                    <p className="text-gray-500 text-xs">{b.owner_email || '-'}</p>
                   </td>
                   <td className={`${col} text-gray-400`}>
                     {b.address_city && b.address_state
                       ? `${b.address_city}, ${b.address_state}`
-                      : b.address_city || b.address_state || '—'}
+                      : b.address_city || b.address_state || '-'}
                   </td>
                   <td className={col}>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusBadge(b.is_active)}`}>
@@ -236,7 +236,7 @@ export default function BusinessModeration() {
                   </td>
                   <td className={`${col} text-gray-400 text-center`}>{b.member_count ?? 0}</td>
                   <td className={`${col} text-gray-400`}>
-                    {b.created_at ? new Date(b.created_at).toLocaleDateString() : '—'}
+                    {b.created_at ? new Date(b.created_at).toLocaleDateString() : '-'}
                   </td>
                   <td className={col}>
                     <button

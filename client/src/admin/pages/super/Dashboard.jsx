@@ -84,7 +84,7 @@ export default function SuperDashboard() {
         )}
       </div>
 
-      {/* Revenue highlight — super_admin only */}
+      {/* Revenue highlight - super_admin only */}
       {isSuper && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="sm:col-span-1 bg-gradient-to-br from-orange-500
@@ -156,7 +156,7 @@ export default function SuperDashboard() {
         ))}
       </div>
 
-      {/* Revenue chart — super_admin only (endpoint is requireSuperAdmin gated) */}
+      {/* Revenue chart - super_admin only (endpoint is requireSuperAdmin gated) */}
       {isSuper && <RevenueChart period={period} />}
 
       {/* Alerts row */}

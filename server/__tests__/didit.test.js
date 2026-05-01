@@ -14,7 +14,7 @@ const { handleWebhook } = require('../controllers/diditController');
 function buildApp() {
   const app = express();
   // Mirror production (index.js): mount the webhook handler directly with
-  // express.raw() so the body arrives as a Buffer — exactly like the real app.
+  // express.raw() so the body arrives as a Buffer - exactly like the real app.
   app.post('/api/didit/webhook', express.raw({ type: 'application/json' }), handleWebhook);
   return app;
 }
@@ -39,7 +39,7 @@ function sendWebhook(app, body, signature) {
 beforeEach(() => resetMocks());
 
 // ── Signature verification ─────────────────────────────────────────────────────
-describe('POST /api/didit/webhook — signature', () => {
+describe('POST /api/didit/webhook - signature', () => {
   test('returns 401 when signature header is missing', async () => {
     const res = await request(buildApp())
       .post('/api/didit/webhook')
@@ -60,7 +60,7 @@ describe('POST /api/didit/webhook — signature', () => {
 });
 
 // ── Input validation ───────────────────────────────────────────────────────────
-describe('POST /api/didit/webhook — validation', () => {
+describe('POST /api/didit/webhook - validation', () => {
   test('returns 400 when session_id is missing', async () => {
     const body = { status: 'approved' };
     const res = await sendWebhook(buildApp(), body);
@@ -77,7 +77,7 @@ describe('POST /api/didit/webhook — validation', () => {
 });
 
 // ── Verification outcomes ──────────────────────────────────────────────────────
-describe('POST /api/didit/webhook — outcomes', () => {
+describe('POST /api/didit/webhook - outcomes', () => {
   test('sets didit_status=failed when status is declined', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 7, didit_status: 'pending' }] }) // SELECT user

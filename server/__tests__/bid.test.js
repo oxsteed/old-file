@@ -2,7 +2,7 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
-// helperOnboardingMiddleware requires DB + tier checks — mock it to pass
+// helperOnboardingMiddleware requires DB + tier checks - mock it to pass
 jest.mock('../middleware/helperOnboardingMiddleware', () => ({
   requireOnboardingStep: () => (req, res, next) => next(),
   requireTier:           () => (req, res, next) => next(),

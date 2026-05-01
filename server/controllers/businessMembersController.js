@@ -69,7 +69,7 @@ async function inviteMember(req, res) {
     );
     const invitee = userRes.rows[0] || null;
 
-    // Insert — partial unique index prevents duplicate pending invites
+    // Insert - partial unique index prevents duplicate pending invites
     const { rows: [record] } = await pool.query(
       `INSERT INTO business_members
          (business_id, owner_id, member_id, role, invite_email, status)

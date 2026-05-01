@@ -30,7 +30,7 @@ api.interceptors.request.use((config) => {
 // NOTE: Token refresh on 401 is handled by the response interceptor in
 // api/auth.js (which imports this same `api` instance and adds its own
 // interceptor that correctly sends the refresh token from localStorage).
-// Do NOT add a response interceptor here — it would fire first and break
+// Do NOT add a response interceptor here - it would fire first and break
 // the refresh flow by sending an empty body to /auth/refresh.
 
 export default api;

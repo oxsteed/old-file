@@ -3,7 +3,7 @@ import Dashboard from './Dashboard';
 import HelperDashboard from './HelperDashboard';
 
 /**
- * SmartDashboard — renders the correct dashboard based on user role.
+ * SmartDashboard - renders the correct dashboard based on user role.
  * This replaces the need for separate /dashboard and /helper-dashboard routes.
  * Both URLs now work: /dashboard shows the right thing automatically.
  */

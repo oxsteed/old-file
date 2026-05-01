@@ -2,7 +2,7 @@
  * Shared international helpers.
  *
  * Single source of truth for country / region / postal-code metadata across
- * the entire client. Mirrors `server/utils/countries.js` — keep them in sync.
+ * the entire client. Mirrors `server/utils/countries.js` - keep them in sync.
  *
  * The seed data was extracted from the consultation-intake page and extended
  * with postal-code conventions, dial codes, and default currencies.
@@ -50,7 +50,7 @@ export const COUNTRIES_WITH_REGIONS = {
 
 // ── Countries served by the platform ────────────────────────────────────────
 // Excludes countries under US sanctions. Expand as the platform launches in
-// new markets — the existing `users.country` column is just an ISO-2 string
+// new markets - the existing `users.country` column is just an ISO-2 string
 // so adding entries here is the only required step.
 const COUNTRIES_WITHOUT_REGIONS_NAMES = {
   AR: 'Argentina',
@@ -133,7 +133,7 @@ const POSTAL_RULES = {
   IE: { label: 'Eircode',   regex: /^[A-Z]\d{2}\s?[A-Z\d]{4}$/i,           example: 'D02 X285' },
   PL: { label: 'Kod pocztowy', regex: /^\d{2}-\d{3}$/,                     example: '00-001' },
   CZ: { label: 'PSČ',       regex: /^\d{3}\s?\d{2}$/,                      example: '110 00' },
-  // No mandatory postal code — we still allow free text but skip validation.
+  // No mandatory postal code - we still allow free text but skip validation.
   HT: { label: 'Postal code (optional)', regex: null,                      example: 'HT6110' },
   HK: { label: 'Postal code (optional)', regex: null,                      example: '' },
 };

@@ -1,4 +1,4 @@
-// Phase 2 — Encryption utility for W-9 TIN storage
+// Phase 2 - Encryption utility for W-9 TIN storage
 // OxSteed v2
 const crypto = require('crypto');
 const logger = require('./logger');

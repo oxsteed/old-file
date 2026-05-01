@@ -31,14 +31,14 @@ export function detectLocale() {
  *   formatMoney(1234.5)                          // '$1,234.50' (US locale)
  *   formatMoney(1234.5, { currency: 'EUR' })     // '€1,234.50' (US locale)
  *   formatMoney(1234.5, { currency: 'EUR', locale: 'fr-FR' })  // '1 234,50 €'
- *   formatMoney(null)                            // '—'
+ *   formatMoney(null)                            // '-'
  *
  * Options:
  *   currency           – ISO-4217 code. Default 'USD'.
  *   country            – ISO-2 code (used to derive currency if not set).
  *   locale             – BCP 47 tag. Default = detectLocale().
  *   minimumFractionDigits / maximumFractionDigits – override decimals.
- *   fallback           – string returned for null/undefined/NaN. Default '—'.
+ *   fallback           – string returned for null/undefined/NaN. Default '-'.
  */
 export function formatMoney(value, opts = {}) {
   const {
@@ -47,7 +47,7 @@ export function formatMoney(value, opts = {}) {
     locale = detectLocale(),
     minimumFractionDigits = 2,
     maximumFractionDigits = 2,
-    fallback = '—',
+    fallback = '-',
   } = opts;
 
   if (value === null || value === undefined || value === '') return fallback;
@@ -66,7 +66,7 @@ export function formatMoney(value, opts = {}) {
       maximumFractionDigits,
     }).format(n);
   } catch (_err) {
-    // Some unusual currency codes / locale combos throw — fall back to USD.
+    // Some unusual currency codes / locale combos throw - fall back to USD.
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: DEFAULT_CURRENCY,
@@ -92,7 +92,7 @@ export function formatMoneyForUser(value, user, opts = {}) {
  * Format a plain number with locale separators (no currency).
  */
 export function formatNumber(value, opts = {}) {
-  const { locale = detectLocale(), minimumFractionDigits = 0, maximumFractionDigits = 0, fallback = '—' } = opts;
+  const { locale = detectLocale(), minimumFractionDigits = 0, maximumFractionDigits = 0, fallback = '-' } = opts;
   if (value === null || value === undefined || value === '') return fallback;
   const n = typeof value === 'number' ? value : parseFloat(value);
   if (!Number.isFinite(n)) return fallback;

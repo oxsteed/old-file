@@ -1,5 +1,5 @@
 // server/routes/toolRentals.js
-// Tool Rental listings — any authenticated user can manage their tools for rent
+// Tool Rental listings - any authenticated user can manage their tools for rent
 // GET    /api/tool-rentals/me         → list my tools
 // POST   /api/tool-rentals            → create tool listing
 // PUT    /api/tool-rentals/:id        → update tool listing
@@ -43,7 +43,7 @@ const SEED_TOOL_CATEGORIES = [
 ];
 
 // GET /api/tool-rentals/categories?q=pow&limit=20
-// Public — returns merged list of seeded + DB categories for autocomplete
+// Public - returns merged list of seeded + DB categories for autocomplete
 router.get('/categories', async (req, res) => {
   try {
     const { q = '', limit = 25 } = req.query;
@@ -108,7 +108,7 @@ router.get('/browse', async (req, res) => {
   }
 });
 
-// GET /api/tool-rentals/public/:id — single listing for deep links (Discover, etc.)
+// GET /api/tool-rentals/public/:id - single listing for deep links (Discover, etc.)
 router.get('/public/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

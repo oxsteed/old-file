@@ -198,7 +198,7 @@ export default function Dashboard() {
   const [vinResult,      setVinResult]       = useState(null);   // decoded data
   const [vinError,       setVinError]        = useState('');
 
-  // Money tab — individual planned needs for sinking fund card
+  // Money tab - individual planned needs for sinking fund card
   const [moneyPlannedNeeds, setMoneyPlannedNeeds] = useState([]);
 
   // My Jobs filter
@@ -527,7 +527,7 @@ export default function Dashboard() {
     if (!vinResult?.make) return;
     setGarageAdding(true);
     try {
-      // We need make_id — look it up from allMakes, or fall back to 0
+      // We need make_id - look it up from allMakes, or fall back to 0
       await loadMakesForGarage();
       const matchedMake = allMakes.find(m => m.name.toLowerCase() === vinResult.make.toLowerCase());
       const res = await api.post('/vehicles/my', {
@@ -848,10 +848,10 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Life Pulse Score — powered by the unified engine (30-day horizon) */}
+          {/* Life Pulse Score - powered by the unified engine (30-day horizon) */}
           {life.financialPulse && (() => {
             const fp = life.financialPulse;
-            // No data entered yet — show onboarding prompt instead of a fabricated score
+            // No data entered yet - show onboarding prompt instead of a fabricated score
             if (fp.no_data) {
               return (
                 <div className="bg-gradient-to-r from-gray-900/80 to-gray-900/40 border border-gray-700/40 rounded-2xl p-6 mb-6">
@@ -866,7 +866,7 @@ export default function Dashboard() {
                   )}
                   <div className="flex flex-col items-center justify-center py-6 gap-3 text-center">
                     <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-gray-700">—</span>
+                      <span className="text-2xl font-bold text-gray-700">-</span>
                     </div>
                     <p className="text-sm font-semibold text-gray-400">{t('dashboard.pulse.noData')}</p>
                     <p className="text-xs text-gray-600 max-w-xs">
@@ -971,7 +971,7 @@ export default function Dashboard() {
                         { l: t('dashboard.pulse.obligations'), v: breakdown.obligations, c: 'text-orange-400'  },
                       ].map((d, i) => (
                         <div key={i} className="text-center">
-                          <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '—'}</p>
+                          <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '-'}</p>
                           <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
                         </div>
                       ))}
@@ -1086,7 +1086,7 @@ export default function Dashboard() {
                     <p className="text-sm font-bold text-gray-300">
                       {s.planned_needs.next_due_date
                         ? new Date(s.planned_needs.next_due_date + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})
-                        : '—'}
+                        : '-'}
                     </p>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.plannedNeeds.nextDue')}</p>
                   </div>
@@ -1172,7 +1172,7 @@ export default function Dashboard() {
                 {(() => {
                   const income = life.expenseSummary?.total_income ?? 0;
                   const net = life.expenseSummary?.net ?? 0;
-                  if (income <= 0) return <p className="text-xl font-bold text-gray-600">—</p>;
+                  if (income <= 0) return <p className="text-xl font-bold text-gray-600">-</p>;
                   const rate = (net / income) * 100;
                   return <p className={`text-xl font-bold ${rate >= 20 ? 'text-emerald-400' : rate >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>{Math.round(rate)}%</p>;
                 })()}

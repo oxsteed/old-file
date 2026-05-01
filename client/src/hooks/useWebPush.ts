@@ -42,7 +42,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 function subscriptionToJSON(sub: PushSubscription) {
-  // Spec method exists but TS lib types it as opaque — normalize ourselves.
+  // Spec method exists but TS lib types it as opaque - normalize ourselves.
   const json = sub.toJSON() as {
     endpoint?: string;
     expirationTime?: number | null;
@@ -77,7 +77,7 @@ export function useWebPush(): UseWebPushResult {
 
   const initRan = useRef(false);
 
-  // Initial probe — fetch VAPID public key + check current subscription state.
+  // Initial probe - fetch VAPID public key + check current subscription state.
   useEffect(() => {
     if (!isSupported || initRan.current) {
       if (!isSupported) setReady(true);
@@ -95,14 +95,14 @@ export function useWebPush(): UseWebPushResult {
         const existing = await reg.pushManager.getSubscription();
         setIsSubscribed(!!existing);
       } catch (err) {
-        // Non-fatal — UI just shows the panel as disabled.
+        // Non-fatal - UI just shows the panel as disabled.
       } finally {
         setReady(true);
       }
     })();
   }, [isSupported]);
 
-  // Re-subscribe path — SW broadcasts when the browser rotates the endpoint.
+  // Re-subscribe path - SW broadcasts when the browser rotates the endpoint.
   useEffect(() => {
     if (!isSupported) return;
     const handler = (event: MessageEvent) => {

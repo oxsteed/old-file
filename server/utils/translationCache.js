@@ -12,7 +12,7 @@ const { translateTexts, detectLanguage } = require('./translateService');
 const logger = require('./logger');
 
 const TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
-/** `/detect` results — same short text queried often from chat UI */
+/** `/detect` results - same short text queried often from chat UI */
 const DETECT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 /**

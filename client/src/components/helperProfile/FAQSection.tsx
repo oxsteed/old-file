@@ -53,7 +53,7 @@ const FAQItem: React.FC<{ faq: FAQ; isOpen: boolean; onToggle: () => void }> = (
 
 const FAQSection: React.FC<FAQSectionProps> = ({ faqs }) => {
   const { t } = useTranslation();
-  // All items collapsed by default — users reveal on demand.
+  // All items collapsed by default - users reveal on demand.
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (!faqs || faqs.length === 0) return null;

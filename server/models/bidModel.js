@@ -16,7 +16,7 @@ const BidModel = {
       [jobId, helperId, amount, message, etaHours]
     );
 
-    // NOTE: bid_count is auto-incremented by DB trigger trg_bid_count — no manual update needed
+    // NOTE: bid_count is auto-incremented by DB trigger trg_bid_count - no manual update needed
 
     return result.rows[0];
   },

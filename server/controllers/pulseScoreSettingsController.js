@@ -44,7 +44,7 @@ exports.getSettings = async (req, res) => {
 };
 
 // PUT /api/life/pulse/settings
-// Body: partial or full settings object — only valid keys are applied.
+// Body: partial or full settings object - only valid keys are applied.
 exports.updateSettings = async (req, res) => {
   try {
     const updates = {};

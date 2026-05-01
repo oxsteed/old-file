@@ -143,7 +143,7 @@ exports.submitSupportRequest = async (req, res, next) => {
                 <td style="text-transform:capitalize;">${ticket.priority}</td></tr>
           </table>
           <p style="color:#6b7280;font-size:13px;">
-            Keep this email — ticket #${ticket.ticket_number} is your reference if you need to follow up.
+            Keep this email - ticket #${ticket.ticket_number} is your reference if you need to follow up.
           </p>
         </div>`,
     }).catch(() => { /* non-fatal */ });
@@ -498,7 +498,7 @@ exports.unclaimTicket = async (req, res) => {
   }
 };
 
-/** PUT /api/admin/support/tickets/:ticketId/status  — body: { status } */
+/** PUT /api/admin/support/tickets/:ticketId/status  - body: { status } */
 exports.updateStatus = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   const allowed = ['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'];
@@ -550,7 +550,7 @@ exports.updateStatus = async (req, res) => {
   }
 };
 
-/** PUT /api/admin/support/tickets/:ticketId/priority  — body: { priority } */
+/** PUT /api/admin/support/tickets/:ticketId/priority  - body: { priority } */
 exports.updatePriority = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   const allowed = ['low', 'normal', 'high', 'urgent'];

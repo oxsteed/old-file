@@ -4,7 +4,7 @@ const consultingPaymentController = require('../controllers/consultingPaymentCon
 const { authenticate } = require('../middleware/auth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
-// Public packages list — rate-limited to prevent enumeration / DoS.
+// Public packages list - rate-limited to prevent enumeration / DoS.
 router.get('/packages', generalLimiter, consultingPaymentController.getPackages);
 
 // Authenticated payment endpoints. Strict rate limit on intent creation to

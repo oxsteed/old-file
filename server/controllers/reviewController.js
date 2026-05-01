@@ -25,7 +25,7 @@ exports.submitReview = async (req, res, next) => {
       throw new AppError('Rating must be between 1 and 5', 400, 'validation_failed', { rating: 'Rating must be between 1 and 5' });
     }
 
-    // Get job — verify reviewer was involved
+    // Get job - verify reviewer was involved
     const { rows: jobRows } = await dbClient.query(`
       SELECT j.*,
              u_c.first_name AS client_first,

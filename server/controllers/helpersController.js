@@ -1,5 +1,5 @@
 // server/controllers/helpersController.js
-// Public helper discovery endpoints — no authentication required.
+// Public helper discovery endpoints - no authentication required.
 // Powers /helpers (directory) and /helpers/:id (profile page).
 
 const pool          = require('../db');
@@ -35,10 +35,10 @@ function sanitizeServicePriceUnit(u) {
 // ── GET /api/helpers ──────────────────────────────────────────────────────────
 // Query params (all optional):
 //   query, categories (comma-separated), skills (comma-separated, skill names),
-//   requiredSkillIds (comma-separated, skill IDs — from job requirements),
+//   requiredSkillIds (comma-separated, skill IDs - from job requirements),
 //   verified, backgroundChecked, availableToday,
 //   minRating, minPrice, maxPrice,
-//   lat, lng, radius (miles, default 60) — haversine distance filter,
+//   lat, lng, radius (miles, default 60) - haversine distance filter,
 //   sort (best_match|highest_rated|most_reviews|lowest_price|fastest_response|newest),
 //   page, limit
 async function listHelpers(req, res, next) {
@@ -785,7 +785,7 @@ async function searchLicenses(req, res, next) {
   }
 }
 
-// GET /api/helpers/:id/status — real-time online status (no auth required)
+// GET /api/helpers/:id/status - real-time online status (no auth required)
 async function getHelperStatus(req, res, next) {
   try {
     const { id } = req.params;
@@ -1007,7 +1007,7 @@ async function toggleListing(req, res, next) {
     );
 
     if (!rows[0]) {
-      throw new AppError('Helper profile not found — switch to helper mode first', 404, 'not_found');
+      throw new AppError('Helper profile not found - switch to helper mode first', 404, 'not_found');
     }
 
     return res.json({ success: true, is_listed: rows[0].is_listed });

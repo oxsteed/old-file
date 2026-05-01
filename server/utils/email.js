@@ -21,12 +21,12 @@ let emailConfigured = false;
 if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
   emailConfigured = true;
 } else {
-  logger.warn('Resend API key not set or invalid — email features disabled');
+  logger.warn('Resend API key not set or invalid - email features disabled');
 }
 
 async function sendEmail({ to, subject, text, html, from, fromName }) {
   if (!emailConfigured) {
-    logger.debug('Email not sent — Resend not configured', { to });
+    logger.debug('Email not sent - Resend not configured', { to });
     return { success: false, error: 'Email not configured' };
   }
 

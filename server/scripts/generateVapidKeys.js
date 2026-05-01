@@ -9,7 +9,7 @@
  *   VAPID_PRIVATE_KEY=...
  *   VAPID_SUBJECT=mailto:ops@oxsteed.com
  *
- * Keys persist forever — only generate once per environment.
+ * Keys persist forever - only generate once per environment.
  * Rotating them invalidates every existing browser subscription.
  */
 const webpush = require('web-push');

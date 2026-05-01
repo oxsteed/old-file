@@ -15,7 +15,7 @@ const EMPTY_FILTERS = {
 };
 
 function ts(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d).toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
@@ -47,7 +47,7 @@ export default function AuditLogUserActions() {
     [total]
   );
 
-  // Load regions for filter dropdown (super admins only — silently fail otherwise)
+  // Load regions for filter dropdown (super admins only - silently fail otherwise)
   useEffect(() => {
     adminApi.get('/admin/super/regions')
       .then(({ data }) => setRegions(data.regions || []))
@@ -171,11 +171,11 @@ export default function AuditLogUserActions() {
                       {ts(l.created_at)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-gray-100">{l.admin_name || '—'}</div>
+                      <div className="text-gray-100">{l.admin_name || '-'}</div>
                       <div className="text-xs text-gray-500">{l.admin_email}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-gray-100">{l.target_name || '—'}</div>
+                      <div className="text-gray-100">{l.target_name || '-'}</div>
                       <div className="text-xs text-gray-500">{l.target_email}</div>
                     </td>
                     <td className="px-4 py-3">
@@ -184,18 +184,18 @@ export default function AuditLogUserActions() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-300 font-mono text-xs">
-                      {l.field_name || '—'}
+                      {l.field_name || '-'}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <div className="text-red-300 line-through max-w-xs truncate">
-                        {l.old_value ?? '—'}
+                        {l.old_value ?? '-'}
                       </div>
                       <div className="text-green-300 max-w-xs truncate">
-                        {l.new_value ?? '—'}
+                        {l.new_value ?? '-'}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-400">
-                      {l.region_name || (l.region_id ? `#${l.region_id}` : '—')}
+                      {l.region_name || (l.region_id ? `#${l.region_id}` : '-')}
                     </td>
                     <td className="px-4 py-3">
                       {l.user_notified ? (

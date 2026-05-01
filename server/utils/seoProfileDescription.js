@@ -16,7 +16,7 @@ function buildPublicProfileDescription({
   const t = String(tagline || '').trim();
   if (t) {
     const lead = t.length > 140 ? `${t.slice(0, 137)}…` : t;
-    return `${lead} — Book ${name} on OxSteed in ${area}.`.slice(0, 320);
+    return `${lead} - Book ${name} on OxSteed in ${area}.`.slice(0, 320);
   }
 
   const b = String(bio || '')
@@ -24,7 +24,7 @@ function buildPublicProfileDescription({
     .trim();
   if (b) {
     const excerpt = b.length > 130 ? `${b.slice(0, 127)}…` : b;
-    return `${excerpt} — Hire ${name} (${area}) on OxSteed.`.slice(0, 320);
+    return `${excerpt} - Hire ${name} (${area}) on OxSteed.`.slice(0, 320);
   }
 
   if (entityLabel === 'business') {

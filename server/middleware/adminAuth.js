@@ -68,7 +68,7 @@ exports.requireSuperAdmin = async (req, res, next) => {
 // includes the requested permission scope.
 
 exports.requirePermission = (permission) => async (req, res, next) => {
-  // requireAdmin must run before this — req.user and req.isSuper are already set.
+  // requireAdmin must run before this - req.user and req.isSuper are already set.
   if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
 
   // Super-admins always pass

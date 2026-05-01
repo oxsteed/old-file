@@ -186,7 +186,7 @@ export default function AdminDisputes() {
                     Evidence deadline:{' '}
                     {new Date(dispute.evidence_deadline).toLocaleString()}
                     {new Date(dispute.evidence_deadline) < new Date() &&
-                      ' — EXPIRED'
+                      ' - EXPIRED'
                     }
                   </p>
                 </div>

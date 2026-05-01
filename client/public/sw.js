@@ -118,7 +118,7 @@ async function navigationHandler(request) {
 // Payload shape (sent by server/services/webPushService.js):
 //   { id, type, title, body, data, action_url }
 //
-// We always show a notification — Chrome enforces this for push events on
+// We always show a notification - Chrome enforces this for push events on
 // userVisibleOnly subscriptions. Failing to call showNotification() can cause
 // the browser to revoke the subscription.
 
@@ -150,7 +150,7 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  // Validate action_url is same-origin or a simple path — never javascript: or data: URIs.
+  // Validate action_url is same-origin or a simple path - never javascript: or data: URIs.
   const rawTarget = (event.notification.data && event.notification.data.action_url) || '/';
   let target = '/';
   try {
@@ -159,7 +159,7 @@ self.addEventListener('notificationclick', event => {
       target = parsed.pathname + parsed.search + parsed.hash;
     }
   } catch {
-    // rawTarget was already a relative path (URL constructor threw) — use it directly
+    // rawTarget was already a relative path (URL constructor threw) - use it directly
     // only if it looks safe (starts with /).
     if (typeof rawTarget === 'string' && rawTarget.startsWith('/')) {
       target = rawTarget;
@@ -183,7 +183,7 @@ self.addEventListener('notificationclick', event => {
           }
           return;
         }
-      } catch { /* invalid url — skip */ }
+      } catch { /* invalid url - skip */ }
     }
 
     // Otherwise open a new tab.
@@ -205,7 +205,7 @@ self.addEventListener('pushsubscriptionchange', event => {
       const allClients = await self.clients.matchAll({ type: 'window' });
       allClients.forEach(c => c.postMessage({ type: 'webpush:resubscribe' }));
     } catch {
-      /* swallow — page will re-subscribe on next load */
+      /* swallow - page will re-subscribe on next load */
     }
   })());
 });

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io }                                       from 'socket.io-client';
 import { useAuth }                                  from './useAuth';
 
-// Module-level singleton — one socket per browser tab regardless of how many
+// Module-level singleton - one socket per browser tab regardless of how many
 // components call useSocket(). Re-created only on explicit disconnect/logout.
 let socketInstance = null;
 
@@ -44,7 +44,7 @@ export const useSocket = () => {
 
     console.log('[useSocket] Setting up socket connection for user:', user.id);
 
-    // Reuse existing connected socket — update ref and reflect current state.
+    // Reuse existing connected socket - update ref and reflect current state.
     if (socketInstance?.connected) {
       console.log('[useSocket] Socket already connected, reusing instance');
       socketRef.current = socketInstance;

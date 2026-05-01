@@ -47,7 +47,7 @@ export default function PostalCodeInput({
     if (onValidityChange) onValidityChange(isValidPostal(country, v));
   };
 
-  // Hide entirely when the country is unknown — caller should not render us
+  // Hide entirely when the country is unknown - caller should not render us
   // until a country is selected, but we degrade gracefully if they do.
   if (!country) {
     return (

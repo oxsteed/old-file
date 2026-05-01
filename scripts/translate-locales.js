@@ -16,7 +16,7 @@
  *
  * The script:
  *   1. Fetches the language list from LibreTranslate (skips 'en')
- *   2. Loads existing locale files — only translates missing/new keys
+ *   2. Loads existing locale files - only translates missing/new keys
  *      (pass --force to retranslate everything)
  *   3. Translates in batches of 50 (LibreTranslate array API)
  *   4. Writes client/public/locales/<lang>.json
@@ -138,11 +138,11 @@ async function translateLanguage(lang, enKeys, enValues) {
   });
 
   if (toTranslate.keys.length === 0) {
-    console.log(`  ✅  ${lang} — already up to date (${enKeys.length} keys)`);
+    console.log(`  ✅  ${lang} - already up to date (${enKeys.length} keys)`);
     return;
   }
 
-  console.log(`  🔄  ${lang} — translating ${toTranslate.keys.length} keys…`);
+  console.log(`  🔄  ${lang} - translating ${toTranslate.keys.length} keys…`);
 
   const batches      = chunk(toTranslate.values, BATCH_SIZE);
   const translated   = [];
@@ -153,7 +153,7 @@ async function translateLanguage(lang, enKeys, enValues) {
       const results = await translateBatch(batch, lang);
       translated.push(...results);
     } catch (err) {
-      console.warn(`    ⚠️  batch ${i + 1}/${batches.length} failed (${err.message}) — keeping English`);
+      console.warn(`    ⚠️  batch ${i + 1}/${batches.length} failed (${err.message}) - keeping English`);
       translated.push(...batch);
     }
   }
@@ -169,7 +169,7 @@ async function translateLanguage(lang, enKeys, enValues) {
   enKeys.forEach(k => { if (output[k] !== undefined) ordered[k] = output[k]; });
 
   fs.writeFileSync(outFile, JSON.stringify(ordered, null, 2) + '\n', 'utf8');
-  console.log(`  ✅  ${lang} — written ${Object.keys(ordered).length} keys to ${path.basename(outFile)}`);
+  console.log(`  ✅  ${lang} - written ${Object.keys(ordered).length} keys to ${path.basename(outFile)}`);
 }
 
 async function pool(tasks, concurrency) {
@@ -191,14 +191,14 @@ async function main() {
   console.log(`    Force retranslate: ${force}\n`);
 
   if (!fs.existsSync(EN_FILE)) {
-    console.error(`❌  ${EN_FILE} not found — create it first`);
+    console.error(`❌  ${EN_FILE} not found - create it first`);
     process.exit(1);
   }
 
   const en       = JSON.parse(fs.readFileSync(EN_FILE, 'utf8'));
   const enKeys   = Object.keys(en);
   const enValues = Object.values(en);
-  console.log(`📖  Loaded en.json — ${enKeys.length} keys\n`);
+  console.log(`📖  Loaded en.json - ${enKeys.length} keys\n`);
 
   console.log('🌐  Fetching language list from LibreTranslate…');
   let languages;

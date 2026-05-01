@@ -1,5 +1,5 @@
 // client/src/api/helpers.ts
-// Public helper discovery API — no auth token required.
+// Public helper discovery API - no auth token required.
 
 import api from './axios';
 import type { HelperCardData, DirectoryFilters, SortOption } from '../types/helperDirectory';

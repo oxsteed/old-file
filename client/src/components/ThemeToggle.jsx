@@ -11,7 +11,7 @@ export default function ThemeToggle() {
       className="ox-theme-toggle"
     >
       {isDark ? (
-        /* Sun icon — shown in dark mode (click to go light) */
+        /* Sun icon - shown in dark mode (click to go light) */
         <svg
           width="18"
           height="18"
@@ -34,7 +34,7 @@ export default function ThemeToggle() {
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       ) : (
-        /* Moon icon — shown in light mode (click to go dark) */
+        /* Moon icon - shown in light mode (click to go dark) */
         <svg
           width="18"
           height="18"

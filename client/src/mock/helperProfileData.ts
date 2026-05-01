@@ -7,7 +7,7 @@ export const mockHelperProfileData: HelperProfileData = {
     businessName: 'Martinez Home & Garden Services',
     ownerName: 'Carlos Martinez',
     tagline: 'Your trusted neighbor for home care, landscaping & repairs.',
-    bio: `With over 12 years of hands-on experience serving the Austin area, I treat every home like my own. Whether it's a quick fix or a full seasonal overhaul, I bring the same level of care and professionalism to every job. Licensed, insured, and background checked — your peace of mind is my first priority.`,
+    bio: `With over 12 years of hands-on experience serving the Austin area, I treat every home like my own. Whether it's a quick fix or a full seasonal overhaul, I bring the same level of care and professionalism to every job. Licensed, insured, and background checked - your peace of mind is my first priority.`,
     avatar:
       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
     coverImage:
@@ -97,42 +97,42 @@ export const mockHelperProfileData: HelperProfileData = {
       id: 'g1',
       url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop',
       alt: 'Beautifully manicured lawn after mowing and edging',
-      caption: 'Lawn & edging service — Pflugerville, TX',
+      caption: 'Lawn & edging service - Pflugerville, TX',
       type: 'photo',
     },
     {
       id: 'g2',
       url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=400&fit=crop',
       alt: 'Garden flower bed after seasonal maintenance',
-      caption: 'Spring garden refresh — Cedar Park, TX',
+      caption: 'Spring garden refresh - Cedar Park, TX',
       type: 'photo',
     },
     {
       id: 'g3',
       url: 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?w=600&h=400&fit=crop',
       alt: 'Freshly painted interior bedroom walls',
-      caption: 'Interior painting — master bedroom & trim',
+      caption: 'Interior painting - master bedroom & trim',
       type: 'photo',
     },
     {
       id: 'g4',
       url: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&h=400&fit=crop',
       alt: 'Handyman work in progress on kitchen fixtures',
-      caption: 'Handyman — kitchen fixture install',
+      caption: 'Handyman - kitchen fixture install',
       type: 'photo',
     },
     {
       id: 'g5',
       url: 'https://images.unsplash.com/photo-1527515637462-cff94ebb81f8?w=600&h=400&fit=crop',
       alt: 'Pressure washing a residential driveway',
-      caption: 'Pressure wash — driveway & walkway',
+      caption: 'Pressure wash - driveway & walkway',
       type: 'photo',
     },
     {
       id: 'g6',
       url: 'https://images.unsplash.com/photo-1584622781564-1d987f7333c1?w=600&h=400&fit=crop',
       alt: 'Sparkling clean home interior after deep clean',
-      caption: 'Deep clean — move-in ready result',
+      caption: 'Deep clean - move-in ready result',
       type: 'photo',
     },
   ],
@@ -230,7 +230,7 @@ export const mockHelperProfileData: HelperProfileData = {
       date: '2025-01-15',
       serviceUsed: 'Deep Home Cleaning',
       content:
-        'The deep clean was incredibly thorough. I was moving in and needed the place spotless. Carlos went above and beyond — even cleaned inside the oven and the window tracks. Highly recommend.',
+        'The deep clean was incredibly thorough. I was moving in and needed the place spotless. Carlos went above and beyond - even cleaned inside the oven and the window tracks. Highly recommend.',
       helpfulCount: 22,
       verified: true,
     },
@@ -241,11 +241,11 @@ export const mockHelperProfileData: HelperProfileData = {
       date: '2024-12-10',
       serviceUsed: 'Interior House Painting',
       content:
-        'Great paint job on our living room and hallway. Took a bit longer than estimated but the quality was worth it. Very clean work — no drips, crisp edges. Would hire again.',
+        'Great paint job on our living room and hallway. Took a bit longer than estimated but the quality was worth it. Very clean work - no drips, crisp edges. Would hire again.',
       helpfulCount: 5,
       helperReply: {
         content:
-          'Thanks David! The extra time was for the trim detail work — glad you appreciate it.',
+          'Thanks David! The extra time was for the trim detail work - glad you appreciate it.',
         date: '2024-12-11',
       },
       verified: true,
@@ -258,7 +258,7 @@ export const mockHelperProfileData: HelperProfileData = {
       id: 'f1',
       question: 'Do you bring your own supplies and equipment?',
       answer:
-        'Yes — I bring all equipment and supplies needed for lawn care, cleaning, and most handyman jobs. For painting, I supply all tools; you choose the paint brand and color, or I can source it for a materials fee.',
+        'Yes - I bring all equipment and supplies needed for lawn care, cleaning, and most handyman jobs. For painting, I supply all tools; you choose the paint brand and color, or I can source it for a materials fee.',
     },
     {
       id: 'f2',
@@ -270,13 +270,13 @@ export const mockHelperProfileData: HelperProfileData = {
       id: 'f3',
       question: 'How do I pay?',
       answer:
-        'All payments are handled securely through OxSteed after the job is marked complete. You are only charged the agreed amount — no surprise fees. Any add-ons discovered on-site are always discussed before work begins.',
+        'All payments are handled securely through OxSteed after the job is marked complete. You are only charged the agreed amount - no surprise fees. Any add-ons discovered on-site are always discussed before work begins.',
     },
     {
       id: 'f4',
       question: 'What areas do you serve?',
       answer:
-        'I serve all of Austin and surrounding areas within 25 miles — including Cedar Park, Round Rock, Pflugerville, Buda, and Kyle. Outside that range? Reach out; I may still be able to help.',
+        'I serve all of Austin and surrounding areas within 25 miles - including Cedar Park, Round Rock, Pflugerville, Buda, and Kyle. Outside that range? Reach out; I may still be able to help.',
     },
     {
       id: 'f5',
@@ -330,7 +330,7 @@ export const mockHelperProfileData: HelperProfileData = {
         id: 'e1',
         itemType: 'booking_event',
         eventType: 'quote_sent',
-        content: 'Quote sent — Weekly Lawn Mowing · $65/visit',
+        content: 'Quote sent - Weekly Lawn Mowing · $65/visit',
         timestamp: '2025-04-06T10:02:50Z',
         metadata: { service: 'Lawn Mowing & Edging', price: 65, frequency: 'weekly' },
       },
@@ -360,7 +360,7 @@ export const mockHelperProfileData: HelperProfileData = {
         id: 'e3',
         itemType: 'booking_event',
         eventType: 'booking_confirmed',
-        content: 'Booking confirmed — Thu, Apr 10 · 8:00 AM · Lawn Mowing & Edging',
+        content: 'Booking confirmed - Thu, Apr 10 · 8:00 AM · Lawn Mowing & Edging',
         timestamp: '2025-04-06T10:05:30Z',
         metadata: { date: '2025-04-10', time: '8:00 AM', service: 'Lawn Mowing & Edging' },
       },

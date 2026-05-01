@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 const GOOGLE_MAPS_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GEOCODE_BASE    = 'https://maps.googleapis.com/maps/api/geocode/json';
 
-// Simple in-memory cache — avoids billing repeat queries within a session
+// Simple in-memory cache - avoids billing repeat queries within a session
 const cache = new Map();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
 
@@ -100,7 +100,7 @@ exports.suggest = async (req, res) => {
     });
 
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      // Log status only — never log error_message as it may contain quota/key hints
+      // Log status only - never log error_message as it may contain quota/key hints
       logger.warn('Google Maps API non-OK status', { status: data.status });
       return res.json(parseFallback(q));
     }
@@ -126,7 +126,7 @@ exports.suggest = async (req, res) => {
     return res.json(results);
   } catch (err) {
     logger.error('Geocode suggest error', { message: err.message });
-    // Graceful degradation — return manual parse
+    // Graceful degradation - return manual parse
     return res.json(parseFallback(req.query.q || ''));
   }
 };

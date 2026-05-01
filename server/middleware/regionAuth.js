@@ -4,12 +4,12 @@
  * Regional admin scope enforcement.
  *
  * Three layers:
- *   1. `loadAssignedRegions`     — express middleware that hydrates
+ *   1. `loadAssignedRegions`     - express middleware that hydrates
  *                                  `req.user.assigned_regions` (array of region rows)
  *                                  for the current admin from active permission grants.
- *   2. `userMatchesAnyRegion`    — pure helper: does a target user match
+ *   2. `userMatchesAnyRegion`    - pure helper: does a target user match
  *                                  any of the supplied regions?
- *   3. `requireRegionAccessForUser` — middleware factory that asserts the
+ *   3. `requireRegionAccessForUser` - middleware factory that asserts the
  *                                  admin can act on `req.params[paramName]`.
  *
  * Super-admins bypass all checks. Admins with no region restriction on
@@ -153,7 +153,7 @@ async function loadAssignedRegions(req, res, next) {
 /**
  * Middleware factory: enforces that the current admin can act on the user
  * whose id is in `req.params[paramName]`. Super-admins bypass. Admins with
- * no region scope (no region_id grants) are treated as full admins —
+ * no region scope (no region_id grants) are treated as full admins -
  * region scoping is opt-in and only applies once a region is assigned.
  */
 function requireRegionAccessForUser(paramName = 'userId') {
@@ -161,7 +161,7 @@ function requireRegionAccessForUser(paramName = 'userId') {
     try {
       if (req.isSuper) return next();
 
-      // Admin with no scoped region grants — fall through (legacy admins)
+      // Admin with no scoped region grants - fall through (legacy admins)
       const regions = req.assigned_regions;
       if (regions === null || regions === undefined) return next();
       if (!Array.isArray(regions) || regions.length === 0) return next();

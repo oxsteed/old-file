@@ -1,5 +1,5 @@
 // Auto-run pending migrations on server startup
-// Safe to run multiple times — all statements use IF NOT EXISTS / IF NOT EXISTS checks
+// Safe to run multiple times - all statements use IF NOT EXISTS / IF NOT EXISTS checks
 
 const pool = require('../db');
 const logger = require('../utils/logger');

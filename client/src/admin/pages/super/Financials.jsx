@@ -184,7 +184,7 @@ export default function Financials() {
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-white text-xs font-medium">
-                      {entry.user_name || '—'}
+                      {entry.user_name || '-'}
                     </p>
                     <p className="text-gray-500 text-xs">
                       {entry.user_email || ''}
@@ -192,7 +192,7 @@ export default function Financials() {
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-xs
                                  max-w-32 truncate">
-                    {entry.job_title || '—'}
+                    {entry.job_title || '-'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className={`font-bold font-mono text-sm ${
@@ -207,7 +207,7 @@ export default function Financials() {
                   </td>
                   <td className="px-4 py-3 text-gray-500 text-xs
                                  max-w-xs truncate">
-                    {entry.description || '—'}
+                    {entry.description || '-'}
                   </td>
                 </tr>
               ))}

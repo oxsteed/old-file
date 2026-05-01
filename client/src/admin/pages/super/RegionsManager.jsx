@@ -4,7 +4,7 @@ import adminApi from '../../../lib/adminApi';
 import RegionForm from '../../../components/RegionForm';
 
 function summarizeBoundary(def) {
-  if (!def || !def.type) return '—';
+  if (!def || !def.type) return '-';
   switch (def.type) {
     case 'zip_range':
       return `${def.ranges?.length || 0} ZIP range(s)`;
@@ -127,13 +127,13 @@ export default function RegionsManager() {
                 <tr key={r.id} className="hover:bg-gray-900/40">
                   <td className="px-4 py-3 font-medium text-gray-100">{r.name}</td>
                   <td className="px-4 py-3 text-gray-400">
-                    {r.boundary_definition?.type || '—'}
+                    {r.boundary_definition?.type || '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-300">
                     {summarizeBoundary(r.boundary_definition)}
                   </td>
                   <td className="px-4 py-3 text-gray-400 max-w-xs truncate">
-                    {r.description || '—'}
+                    {r.description || '-'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

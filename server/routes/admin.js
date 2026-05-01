@@ -15,7 +15,7 @@ const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 
 // ══════════════════════════════════════════════════════════════
-// REGULAR ADMIN — both admin and super_admin can access
+// REGULAR ADMIN - both admin and super_admin can access
 // ══════════════════════════════════════════════════════════════
 
 // Dashboard
@@ -26,21 +26,21 @@ router.get('/reports',           requireAdmin, adminCtrl.getReports);
 router.put('/reports/:reportId', requireAdmin, adminCtrl.reviewReport);
 router.get('/moderation-queue',  requireAdmin, adminCtrl.getModerationQueue);
 
-// Jobs (read + moderate — all admins)
+// Jobs (read + moderate - all admins)
 router.get('/jobs',                    requireAdmin,      superCtrl.getJobs);
 router.get('/jobs/:jobId',             requireAdmin,      superCtrl.getJobDetail);
 router.post('/jobs/:jobId/action',     requireAdmin,      superCtrl.forceJobAction);
-// Hard delete — delegatable via delete_jobs grant
+// Hard delete - delegatable via delete_jobs grant
 router.delete('/jobs/:jobId',          requireAdmin, requirePermission('delete_jobs'), superCtrl.deleteJob);
 
-// Content removal — bids and reviews (always logged for super-admin review)
+// Content removal - bids and reviews (always logged for super-admin review)
 router.get('/content',                         requireAdmin, adminCtrl.getContent);
 router.post('/bids/:bidId/remove',             requireAdmin, adminCtrl.removeBid);
 router.post('/reviews/:reviewId/remove',       requireAdmin, adminCtrl.removeReview);
 router.post('/reviews/:reviewId/restore',      requireAdmin, adminCtrl.restoreReview);
 
 // ══════════════════════════════════════════════════════════════
-// ENTITY MODERATION — admin + super_admin
+// ENTITY MODERATION - admin + super_admin
 // ══════════════════════════════════════════════════════════════
 
 // Businesses
@@ -59,7 +59,7 @@ router.post('/planned-needs/:id/force-cancel',       requireAdmin, bizModCtrl.fo
 // Payments list (read-only)
 router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
 
-// Users — read + write actions (ban/unban logged; admins cannot ban other admins)
+// Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, superCtrl.getUsers);
 router.get('/users/:userId',    requireAdmin, superCtrl.getUserDetail);
 router.put('/users/:userId/name',  requireAdmin, superCtrl.updateUserName);
@@ -87,26 +87,26 @@ router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
 
-// Conversations (super-admin only — every read is audited)
+// Conversations (super-admin only - every read is audited)
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
 router.get('/super/conversations/:id',          requireSuperAdmin, convAdminCtrl.getThread);
 router.put('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
 router.post('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
 
-// Admin account management — delegatable via manage_admin_accounts grant
+// Admin account management - delegatable via manage_admin_accounts grant
 router.get('/super/admin-accounts',             requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminAccounts);
 router.post('/super/admin-accounts',            requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.createAdminAccount);
 router.put('/super/admin-accounts/:id/status',  requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.toggleAdminAccountStatus);
 router.get('/super/admin-activity/:adminId',    requireAdmin, requirePermission('manage_admin_accounts'), superCtrl.getAdminActivity);
 
-// Financials — super-admin direct, or admin with view_financials grant
+// Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
 router.get('/payouts',               requireAdmin, requirePermission('view_financials'), superCtrl.getPayouts);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
 router.post('/jobs/:jobId/refund',   requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
 
-// Platform settings — super-admin direct, or admin with manage_settings grant
+// Platform settings - super-admin direct, or admin with manage_settings grant
 router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);
 router.put('/settings/:key',         requireAdmin, requirePermission('manage_settings'), superCtrl.updateSetting);
 router.put('/feature-flags/:key',    requireAdmin, requirePermission('manage_settings'), superCtrl.updateFeatureFlag);
@@ -132,10 +132,10 @@ router.post('/support/tickets/:ticketId/reply',       requireAdmin, supportCtrl.
 // SEARCH ENGINE (admin + super_admin)
 // ══════════════════════════════════════════════════════════════
 
-// Global search — all admins (results logged automatically)
+// Global search - all admins (results logged automatically)
 router.get('/search',                  requireAdmin, searchCtrl.search);
 
-// Search audit log — super-admin or admins with view_search_logs permission
+// Search audit log - super-admin or admins with view_search_logs permission
 router.get('/super/search-logs',       requireAdmin, requirePermission('view_search_logs'), searchCtrl.getSearchLogs);
 router.get('/super/search-stats',      requireAdmin, requirePermission('view_search_logs'), searchCtrl.getSearchStats);
 
@@ -149,11 +149,11 @@ router.get('/permission-scopes',          requireAdmin,      permCtrl.getScopes)
 router.post('/super/permission-grants',   requireSuperAdmin, permCtrl.createGrant);
 router.delete('/super/permission-grants/:id', requireSuperAdmin, permCtrl.revokeGrant);
 
-// Create regular user — super-admin, or admin with create_users grant
+// Create regular user - super-admin, or admin with create_users grant
 router.post('/super/users', requireSuperAdmin, superCtrl.createUser);
 
 // ══════════════════════════════════════════════════════════════
-// SUPER-ADMIN / REGIONAL-ADMIN — FULL USER MANAGEMENT
+// SUPER-ADMIN / REGIONAL-ADMIN - FULL USER MANAGEMENT
 // ══════════════════════════════════════════════════════════════
 // Full user create + edit, regional scoping, region CRUD, structured
 // per-field audit log. Regional admins are gated by `loadAssignedRegions`
@@ -183,13 +183,13 @@ router.put(
   superUserCtrl.editUserFull
 );
 
-// Region CRUD — super-admin only
+// Region CRUD - super-admin only
 router.get(   '/super/regions',             requireSuperAdmin, regionCtrl.listRegions);
 router.post(  '/super/regions',             requireSuperAdmin, regionCtrl.createRegion);
 router.put(   '/super/regions/:regionId',   requireSuperAdmin, regionCtrl.updateRegion);
 router.delete('/super/regions/:regionId',   requireSuperAdmin, regionCtrl.deleteRegion);
 
-// User-action audit log — super-admin or admins with view_audit_log grant
+// User-action audit log - super-admin or admins with view_audit_log grant
 router.get(
   '/super/audit-log/user-actions',
   requireAdmin,
@@ -271,7 +271,7 @@ router.post('/skills-lookup', requireAdmin, async (req, res) => {
        RETURNING *`,
       [name.trim(), category?.trim() || null, is_active]
     ).catch(async () => {
-      // updated_at may not exist — try without it
+      // updated_at may not exist - try without it
       return pool.query(
         `INSERT INTO skills_lookup (name, category, is_active)
          VALUES ($1, $2, $3)
@@ -306,8 +306,8 @@ router.put('/skills-lookup/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/skills-lookup/:id  — soft delete (sets is_active=false)
-// ?hard=true is a permanent hard delete — super-admin only
+// DELETE /api/admin/skills-lookup/:id  - soft delete (sets is_active=false)
+// ?hard=true is a permanent hard delete - super-admin only
 router.delete('/skills-lookup/:id', requireAdmin, async (req, res) => {
   try {
     const { hard } = req.query;
@@ -418,8 +418,8 @@ router.put('/licenses-lookup/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/licenses-lookup/:id  — soft delete (sets is_active=false)
-// ?hard=true is a permanent hard delete — super-admin only
+// DELETE /api/admin/licenses-lookup/:id  - soft delete (sets is_active=false)
+// ?hard=true is a permanent hard delete - super-admin only
 router.delete('/licenses-lookup/:id', requireAdmin, async (req, res) => {
   try {
     const { hard } = req.query;

@@ -24,7 +24,7 @@ const PaymentModel = {
     return result.rows;
   },
 
-  // Returns only user-facing payment fields — excludes internal fee breakdowns
+  // Returns only user-facing payment fields - excludes internal fee breakdowns
   // and raw Stripe IDs that should not be surfaced to clients (M-45)
   async findByUserId(userId) {
     const result = await db.query(

@@ -200,7 +200,7 @@ export interface DirectoryFilters {
   availableToday: boolean;
   backgroundChecked: boolean;
   verified: boolean;
-  /** Skill IDs from job requirements — separate ALL-of filter from skills (name-based) */
+  /** Skill IDs from job requirements - separate ALL-of filter from skills (name-based) */
   requiredSkillIds?: number[];
 }
 
@@ -251,9 +251,9 @@ export interface HelperCardData {
   id: string;
   /** 'helper' (default) or 'business' for business cards mixed into the grid */
   type?: 'helper' | 'business';
-  /** For business cards — the numeric DB id of the business */
+  /** For business cards - the numeric DB id of the business */
   businessId?: number;
-  /** For business cards — the URL to link the card to (e.g. /business/:id) */
+  /** For business cards - the URL to link the card to (e.g. /business/:id) */
   profileUrl?: string;
   businessName: string;
   ownerName: string;

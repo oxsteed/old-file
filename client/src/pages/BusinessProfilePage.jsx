@@ -1,7 +1,7 @@
 // client/src/pages/BusinessProfilePage.jsx
 //
 // Public-facing business profile page.
-// URL: /business/:id  — no auth required to view.
+// URL: /business/:id  - no auth required to view.
 //
 // Layout is intentionally identical to HelperBusinessProfilePage.tsx.
 // Business API data is mapped to the HelperProfileData shape so all the
@@ -173,7 +173,7 @@ function mapToHelperProfileData(profile, t) {
     location,
     hours:       mappedHours,
     chatSession,
-    // Extras not in HelperProfileData — kept for supplementary sections
+    // Extras not in HelperProfileData - kept for supplementary sections
     team:    profile.team || [],
     bizId:   business.id,
     phone:   business.phone,
@@ -410,7 +410,7 @@ export default function BusinessProfilePage() {
       />
       <Navbar />
 
-      {/* Business hero header — identical component to helper profile */}
+      {/* Business hero header - identical component to helper profile */}
       <BusinessHeader
         helper={helper}
         onBookNow={handleBookNow}
@@ -467,7 +467,7 @@ export default function BusinessProfilePage() {
             <PoliciesSection policies={policies} />
 
             {/*
-              Dynamic blocks — use owner_id as helperId so these endpoints
+              Dynamic blocks - use owner_id as helperId so these endpoints
               resolve against the business owner's helper profile data.
               Each block silently renders null if the fetch fails.
             */}

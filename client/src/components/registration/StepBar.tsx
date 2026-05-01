@@ -1,5 +1,5 @@
 // client/src/components/registration/StepBar.tsx
-// Minimal step progress bar — 2 segments with label + count
+// Minimal step progress bar - 2 segments with label + count
 
 import { useTranslation } from 'react-i18next';
 

@@ -58,7 +58,7 @@ function RemoveModal({ item, type, onConfirm, onClose }) {
         <form onSubmit={handleSubmit}>
           <label className="block text-sm text-gray-400 mb-1">
             Reason <span className="text-red-400">*</span>
-            <span className="text-gray-500 font-normal"> — logged to audit trail</span>
+            <span className="text-gray-500 font-normal"> - logged to audit trail</span>
           </label>
           <textarea
             value={reason}
@@ -291,7 +291,7 @@ export default function ContentRemovals() {
                     {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}
                   </td>
                   <td className="px-4 py-3 text-gray-400 max-w-[200px] truncate text-xs italic">
-                    {item.comment || '—'}
+                    {item.comment || '-'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${

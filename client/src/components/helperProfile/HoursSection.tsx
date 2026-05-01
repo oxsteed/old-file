@@ -10,7 +10,7 @@ interface HoursSectionProps {
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// Jan 1, 2023 was a Sunday — used as a stable reference date for day formatting
+// Jan 1, 2023 was a Sunday - used as a stable reference date for day formatting
 const DAY_REFERENCE_DATE = new Date(2023, 0, 1);
 
 const HoursSection: React.FC<HoursSectionProps> = ({ hours }) => {

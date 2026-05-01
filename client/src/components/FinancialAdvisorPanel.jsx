@@ -6,8 +6,8 @@ import { DollarSign, X, Send, AlertTriangle, ChevronDown, ChevronUp } from 'luci
  * Floating financial-advisor chat panel.
  *
  * Props:
- *   isOpen   — boolean controlling visibility
- *   onClose  — called when user dismisses the panel
+ *   isOpen   - boolean controlling visibility
+ *   onClose  - called when user dismisses the panel
  */
 export default function FinancialAdvisorPanel({ isOpen, onClose }) {
   const { t } = useTranslation();
@@ -101,7 +101,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
         >
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" aria-hidden="true" />
           <span className="text-xs text-amber-300 font-medium flex-1">
-            {t('financialAdvisor.disclaimerTitle') || 'AI Disclaimer — Not Financial Advice'}
+            {t('financialAdvisor.disclaimerTitle') || 'AI Disclaimer - Not Financial Advice'}
           </span>
           {disclaimerOpen
             ? <ChevronUp className="w-3.5 h-3.5 text-amber-400" />
@@ -124,7 +124,7 @@ export default function FinancialAdvisorPanel({ isOpen, onClose }) {
         {messages.length === 0 && (
           <p className="text-xs text-gray-500 text-center mt-4">
             {t('financialAdvisor.emptyPrompt') ||
-              'Ask me anything about your finances — income, expenses, goals, or planned needs.'}
+              'Ask me anything about your finances - income, expenses, goals, or planned needs.'}
           </p>
         )}
         {messages.map((msg, i) => (

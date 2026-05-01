@@ -10,7 +10,7 @@ interface EmptyStateProps {
   onReset: () => void;
   /** The category the user was filtering by (from skill tile selection) */
   selectedCategory?: string;
-  /** Active state filter — if set, we suggest clearing it. */
+  /** Active state filter - if set, we suggest clearing it. */
   state?: string;
   onClearState?: () => void;
 }

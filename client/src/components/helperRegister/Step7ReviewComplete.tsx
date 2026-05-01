@@ -101,9 +101,9 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
       </Section>
 
       <Section title={t('helperRegister.step7.sectionProfile')} step={4}>
-        <p>{t('helperRegister.step7.phoneRow', { value: formData.phone ? `(${formData.phone.slice(0,3)}) ${formData.phone.slice(3,6)}-${formData.phone.slice(6)}` : '—' })}</p>
-        <p>{t('helperRegister.step7.locationRow', { value: formData.city && formData.state ? `${formData.city}, ${formData.state} ${formData.zip}` : formData.zip || '—' })}</p>
-        <p>{t('helperRegister.step7.skillsRow', { value: formData.skills.length > 0 ? formData.skills.join(', ') : '—' })}</p>
+        <p>{t('helperRegister.step7.phoneRow', { value: formData.phone ? `(${formData.phone.slice(0,3)}) ${formData.phone.slice(3,6)}-${formData.phone.slice(6)}` : '-' })}</p>
+        <p>{t('helperRegister.step7.locationRow', { value: formData.city && formData.state ? `${formData.city}, ${formData.state} ${formData.zip}` : formData.zip || '-' })}</p>
+        <p>{t('helperRegister.step7.skillsRow', { value: formData.skills.length > 0 ? formData.skills.join(', ') : '-' })}</p>
         {formData.bio && <p>{t('helperRegister.step7.bioRow', { value: formData.bio.slice(0, 80) + (formData.bio.length > 80 ? '...' : '') })}</p>}
       </Section>
 
@@ -115,9 +115,9 @@ export default function Step7ReviewComplete({ token: _token, formData, selectedT
 
       {selectedTier !== 'free' && (
         <Section title={t('helperRegister.step7.sectionTax')} step={6}>
-          <p>{t('helperRegister.step7.legalNameRow', { value: formData.legalName || '—' })}</p>
+          <p>{t('helperRegister.step7.legalNameRow', { value: formData.legalName || '-' })}</p>
           <p>{t('helperRegister.step7.taxIdRow', { value: maskedTaxId })}</p>
-          <p>{t('helperRegister.step7.addressRow', { value: formData.mailingAddress.street ? `${formData.mailingAddress.street}, ${formData.mailingAddress.city}, ${formData.mailingAddress.state} ${formData.mailingAddress.zip}` : '—' })}</p>
+          <p>{t('helperRegister.step7.addressRow', { value: formData.mailingAddress.street ? `${formData.mailingAddress.street}, ${formData.mailingAddress.city}, ${formData.mailingAddress.state} ${formData.mailingAddress.zip}` : '-' })}</p>
         </Section>
       )}
 

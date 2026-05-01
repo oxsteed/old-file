@@ -119,7 +119,7 @@ exports.getThread = async (req, res) => {
     );
 
     if (!convRows.length) {
-      // No conversation yet — return empty thread with user info
+      // No conversation yet - return empty thread with user info
       return res.json({
         conversation_id: null,
         user:            targetRows[0],

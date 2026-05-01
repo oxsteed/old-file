@@ -38,7 +38,7 @@ function fmt$(n, currency = 'USD') {
   return formatMoney(n, { currency });
 }
 function fmtDate(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   const dateOnly = String(d).split('T')[0];
   return new Date(dateOnly + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -103,7 +103,7 @@ function BusinessHubInner() {
   // tab data
   const [analytics, setAnalytics]   = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  /** True only after GET /analytics fails — avoids flashing error while bizId is set but fetch has not started yet */
+  /** True only after GET /analytics fails - avoids flashing error while bizId is set but fetch has not started yet */
   const [analyticsError, setAnalyticsError] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
@@ -146,7 +146,7 @@ function BusinessHubInner() {
   const [coverPreview, setCoverPreview]   = useState(null);
   const [logoFile, setLogoFile]           = useState(null);
   const [coverFile, setCoverFile]         = useState(null);
-  // Snapshot of helper-linked fields from last loadProfile — omit from PUT when unchanged
+  // Snapshot of helper-linked fields from last loadProfile - omit from PUT when unchanged
   // so the server skips helper_profiles UPSERT (see businessController updateBusiness).
   const profileFieldsBaselineRef = useRef(null);
 
@@ -1850,7 +1850,7 @@ function OverviewTab({ analytics }) {
           sub={t('businessHub.kpiInvoicesSent', { count: a?.invoices?.sent || 0 })} />
         <KPI label={t('businessHub.kpiOverdue')}        value={fmt$(a?.invoices?.overdue_total, currency)}     cls="negative"
           sub={t('businessHub.kpiInvoicesCount', { count: a?.invoices?.overdue_count || 0 })} />
-        <KPI label={t('businessHub.kpiJobs6m')}      value={a?.jobs?.completed_6m ?? '—'} />
+        <KPI label={t('businessHub.kpiJobs6m')}      value={a?.jobs?.completed_6m ?? '-'} />
         <KPI label={t('businessHub.kpiAvgJobValue')}  value={fmt$(a?.jobs?.avg_value, currency)} />
       </div>
 
@@ -2306,7 +2306,7 @@ function TeamTab({
                 <tr key={m.id}>
                   <td>
                     <div className="bh-team-member-name">
-                      {m.first_name ? `${m.first_name} ${m.last_name}` : '—'}
+                      {m.first_name ? `${m.first_name} ${m.last_name}` : '-'}
                     </div>
                     <div className="bh-team-member-email">{m.member_email || m.invite_email}</div>
                   </td>
@@ -2517,7 +2517,7 @@ function HoursTab({ hours, businessId, onEdit }) {
                 <span className="text-gray-500 italic">{t('businessHub.closed')}</span>
               ) : (
                 <span className="text-gray-300">
-                  {dayHours?.start_time || '—'} – {dayHours?.end_time || '—'}
+                  {dayHours?.start_time || '-'} – {dayHours?.end_time || '-'}
                 </span>
               )}
             </div>

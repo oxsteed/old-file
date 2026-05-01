@@ -8,10 +8,10 @@ const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 // Public endpoint - submit feedback (anonymous allowed); rate-limited to deter spam.
 router.post('/:sessionId', strictLimiter, feedbackController.submitFeedback);
 
-// Get feedback for a specific session — requires auth (feedback may include PII).
+// Get feedback for a specific session - requires auth (feedback may include PII).
 router.get('/sessions/:sessionId', authenticate, feedbackController.getSessionFeedback);
 
-// Get all feedback for a consultant — admin only (BI / consultant performance data).
+// Get all feedback for a consultant - admin only (BI / consultant performance data).
 router.get(
   '/consultant/:consultantId',
   generalLimiter,

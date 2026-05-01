@@ -1,5 +1,5 @@
 /**
- * Public "Discover" unified search — helpers, jobs, businesses, tools, products.
+ * Public "Discover" unified search - helpers, jobs, businesses, tools, products.
  * GET /api/discover  (no auth)
  * Saved alerts: GET/POST/DELETE /api/discover/alerts (auth)
  */
@@ -553,7 +553,7 @@ exports.discoverSearch = async (req, res) => {
 };
 
 /**
- * Popular listings near optional lat/lng (no text query) — homepage /discover empty state.
+ * Popular listings near optional lat/lng (no text query) - homepage /discover empty state.
  */
 exports.discoverPopular = async (req, res) => {
   try {
@@ -806,7 +806,7 @@ exports.runDiscoverDigestTick = async () => {
       }
       if (a.last_signature === contentSignature) continue;
 
-      const lines = results.slice(0, 12).map((r) => `• ${r.title} (${r.type}) — ${r.url}`);
+      const lines = results.slice(0, 12).map((r) => `• ${r.title} (${r.type}) - ${r.url}`);
       const subject = `OxSteed: new matches for "${a.query}"`;
       const text = `Hi ${a.first_name},
 
@@ -816,7 +816,7 @@ ${lines.join('\n')}
 
 Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/discover?q=${encodeURIComponent(a.query)}
 
-— OxSteed`;
+- OxSteed`;
 
       const mail = await sendEmail({
         to: a.email,

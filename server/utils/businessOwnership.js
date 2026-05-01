@@ -56,7 +56,7 @@ async function canAccessBusinessTeam(userId, bizId) {
 }
 
 /**
- * Owner OR active manager — Business Hub financials (analytics, invoices, tax, goals).
+ * Owner OR active manager - Business Hub financials (analytics, invoices, tax, goals).
  * Representatives must not use finance APIs (they handle chat / jobs only).
  * Returns the same shape as ownedBusiness plus owner_id for queries keyed on the owner account.
  */

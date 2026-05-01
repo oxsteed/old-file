@@ -217,11 +217,11 @@ export default function PlannedNeedsAdmin() {
                     <p className="text-white font-medium truncate">{n.title}</p>
                   </td>
                   <td className={col}>
-                    <p className="text-gray-300">{n.owner_name || '—'}</p>
-                    <p className="text-gray-500 text-xs">{n.owner_email || '—'}</p>
+                    <p className="text-gray-300">{n.owner_name || '-'}</p>
+                    <p className="text-gray-500 text-xs">{n.owner_email || '-'}</p>
                   </td>
                   <td className={`${col} text-gray-400 capitalize`}>
-                    {(n.category || '—').replace(/_/g, ' ')}
+                    {(n.category || '-').replace(/_/g, ' ')}
                   </td>
                   <td className={col}>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusBadge(n.status)}`}>
@@ -229,10 +229,10 @@ export default function PlannedNeedsAdmin() {
                     </span>
                   </td>
                   <td className={`${col} text-gray-400`}>
-                    {n.due_date ? new Date(n.due_date).toLocaleDateString() : '—'}
+                    {n.due_date ? new Date(n.due_date).toLocaleDateString() : '-'}
                   </td>
                   <td className={`${col} text-white`}>
-                    {n.estimated_cost != null ? `$${Number(n.estimated_cost).toLocaleString()}` : '—'}
+                    {n.estimated_cost != null ? `$${Number(n.estimated_cost).toLocaleString()}` : '-'}
                   </td>
                   <td className={`${col} text-gray-400 capitalize`}>
                     {n.recurrence_type || 'one-time'}

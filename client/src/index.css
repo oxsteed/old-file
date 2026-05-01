@@ -6,7 +6,7 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════
-   OxSteed Design System — Semantic Tokens
+   OxSteed Design System - Semantic Tokens
    Dark mode is the default (.dark class + data-theme="dark").
    Light mode removes .dark and sets data-theme="light".
    ═══════════════════════════════════════════════════════════════ */
@@ -198,7 +198,7 @@ html:not(.dark),
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Component Classes — Buttons
+   Component Classes - Buttons
    ═══════════════════════════════════════════════════════════════ */
 .ox-btn {
   display: inline-flex;
@@ -299,7 +299,7 @@ html:not(.dark),
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Component Classes — Form Controls
+   Component Classes - Form Controls
    ═══════════════════════════════════════════════════════════════ */
 .ox-input,
 .ox-select,
@@ -347,7 +347,7 @@ html:not(.dark),
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Component Classes — Chips / Pills
+   Component Classes - Chips / Pills
    ═══════════════════════════════════════════════════════════════ */
 .ox-chip {
   display: inline-flex;
@@ -383,7 +383,7 @@ html:not(.dark),
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Component Classes — Cards
+   Component Classes - Cards
    ═══════════════════════════════════════════════════════════════ */
 .ox-card {
   background: var(--color-card-bg);
@@ -404,7 +404,7 @@ html:not(.dark),
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Component Classes — Badges
+   Component Classes - Badges
    ═══════════════════════════════════════════════════════════════ */
 .ox-badge {
   display: inline-flex;
@@ -600,7 +600,7 @@ html:not(.dark) .text-slate-300 { color: #1e293b !important; }
 
 html:not(.dark) input, html:not(.dark) select, html:not(.dark) textarea { color-scheme: light; }
 
-/* Status badge text colours — WCAG */
+/* Status badge text colours - WCAG */
 html:not(.dark) .text-green-400  { color: #15803d !important; }
 html:not(.dark) .text-blue-400   { color: #1d4ed8 !important; }
 html:not(.dark) .text-yellow-400 { color: #a16207 !important; }
@@ -615,7 +615,7 @@ html:not(.dark) .focus\:border-orange-500:focus { border-color: #ea580c !importa
 html:not(.dark) ::placeholder { color: #94a3b8 !important; }
 html:not(.dark) .placeholder-gray-500::placeholder { color: #94a3b8 !important; }
 
-/* Admin panel — extra overrides for classes not covered above */
+/* Admin panel - extra overrides for classes not covered above */
 html:not(.dark) .bg-gray-700  { background-color: #e2e8f0 !important; }
 html:not(.dark) .border-gray-600 { border-color: #cbd5e1 !important; }
 html:not(.dark) .hover\:bg-gray-600:hover { background-color: #cbd5e1 !important; }
@@ -631,7 +631,7 @@ html:not(.dark) .border-green-700  { border-color: #86efac !important; }
 html:not(.dark) .border-red-700    { border-color: #fca5a5 !important; }
 html:not(.dark) .border-red-800    { border-color: #fca5a5 !important; }
 html:not(.dark) .border-yellow-800 { border-color: #fde047 !important; }
-/* Badge text — WCAG contrast on light backgrounds */
+/* Badge text - WCAG contrast on light backgrounds */
 html:not(.dark) .text-green-300  { color: #15803d !important; }
 html:not(.dark) .text-red-300    { color: #b91c1c !important; }
 html:not(.dark) .text-blue-300   { color: #1d4ed8 !important; }
@@ -654,7 +654,7 @@ html:not(.dark) .hover\:bg-blue-800:hover  { background-color: #bfdbfe !importan
    Accessibility (WCAG 2.1 AA)
    ═══════════════════════════════════════════════════════════════ */
 
-/* Skip Navigation — WCAG 2.4.1 */
+/* Skip Navigation - WCAG 2.4.1 */
 .skip-nav {
   position: absolute;
   top: -9999px;
@@ -676,14 +676,14 @@ html:not(.dark) .hover\:bg-blue-800:hover  { background-color: #bfdbfe !importan
   outline: 3px solid #fff;
 }
 
-/* Focus indicator — WCAG 2.4.7 */
+/* Focus indicator - WCAG 2.4.7 */
 *:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 *:focus:not(:focus-visible) { outline: none; }
 
-/* Reduced motion — WCAG 2.3.3 */
+/* Reduced motion - WCAG 2.3.3 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -79,9 +79,9 @@ export default function CookiePolicyPage() {
           When you first visit OxSteed, a cookie banner will ask for your consent. You can:
         </p>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li><strong>Accept All</strong> — Enable all cookie categories</li>
-          <li><strong>Reject All</strong> — Only essential cookies will be used</li>
-          <li><strong>Customize</strong> — Choose which categories to enable</li>
+          <li><strong>Accept All</strong> - Enable all cookie categories</li>
+          <li><strong>Reject All</strong> - Only essential cookies will be used</li>
+          <li><strong>Customize</strong> - Choose which categories to enable</li>
         </ul>
         <p className="mb-3">
           You can change your preferences at any time by clicking "Cookie Settings" in the footer.
@@ -108,7 +108,7 @@ export default function CookiePolicyPage() {
         </p>
         <ul className="list-disc ml-5 space-y-2 mb-3">
           <li>Google Analytics (not currently in use)</li>
-          <li>Stripe (payment processing — essential)</li>
+          <li>Stripe (payment processing - essential)</li>
         </ul>
       </section>
 

@@ -11,7 +11,7 @@ try {
       process.env.TWILIO_AUTH_TOKEN
     );
   } else {
-    logger.warn('Twilio credentials not set — SMS features disabled');
+    logger.warn('Twilio credentials not set - SMS features disabled');
   }
 } catch (err) {
   logger.warn('Twilio initialization failed', { error: err.message });
@@ -21,7 +21,7 @@ const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
 async function sendSMS(to, body) {
   if (!client) {
-    logger.debug('SMS not sent — Twilio not configured', { to });
+    logger.debug('SMS not sent - Twilio not configured', { to });
     return { success: false, error: 'Twilio not configured' };
   }
   try {
@@ -39,7 +39,7 @@ async function sendSMS(to, body) {
 
 async function sendOTPSMS(phone, otp) {
   if (!client) {
-    logger.debug('OTP SMS not sent — Twilio not configured', { phone });
+    logger.debug('OTP SMS not sent - Twilio not configured', { phone });
     return { success: false, error: 'Twilio not configured' };
   }
   // 15 minutes to match email OTP expiry (sendOTPEmail in email.js)
@@ -49,7 +49,7 @@ async function sendOTPSMS(phone, otp) {
 
 async function sendJobAlertSMS(phone, jobTitle, jobId) {
   if (!client) {
-    logger.debug('Job alert SMS not sent — Twilio not configured', { phone, jobId });
+    logger.debug('Job alert SMS not sent - Twilio not configured', { phone, jobId });
     return { success: false, error: 'Twilio not configured' };
   }
   // Strip control characters and cap length to prevent SMS injection

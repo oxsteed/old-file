@@ -44,7 +44,7 @@ const STATUS_MAP = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatBudget(job) {
-  if (!job) return '—';
+  if (!job) return '-';
   if (job.budget_type === 'open' || (!job.budget_min && !job.budget_max)) return 'Open to bids';
   if (job.budget_type === 'hourly') return `$${Number(job.budget_min).toLocaleString()}/hr`;
   const lo = Number(job.budget_min).toLocaleString();

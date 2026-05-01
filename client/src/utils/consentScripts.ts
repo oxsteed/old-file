@@ -7,7 +7,7 @@
  *
  * Usage:
  *   import { initAnalytics, initMarketing, initFunctional } from '../utils/consentScripts';
- *   initAnalytics();   // safe to call any time — no-ops if already loaded
+ *   initAnalytics();   // safe to call any time - no-ops if already loaded
  */
 
 type ScriptEntry = { id: string; src: string; async?: boolean; defer?: boolean };
@@ -31,7 +31,7 @@ function injectInlineScript(id: string, code: string): void {
 }
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
-// Google Analytics 4 — replace GA_MEASUREMENT_ID with your real ID via env var.
+// Google Analytics 4 - replace GA_MEASUREMENT_ID with your real ID via env var.
 // If the env var is absent the function is a no-op (safe in all environments).
 export function initAnalytics(): void {
   const gaId = (import.meta as Record<string, unknown> & { env: Record<string, string> })
@@ -64,7 +64,7 @@ export function disableAnalytics(): void {
 }
 
 // ─── Marketing ────────────────────────────────────────────────────────────────
-// Meta Pixel — replace with VITE_META_PIXEL_ID env var.
+// Meta Pixel - replace with VITE_META_PIXEL_ID env var.
 export function initMarketing(): void {
   const pixelId = (import.meta as Record<string, unknown> & { env: Record<string, string> })
     .env?.VITE_META_PIXEL_ID;

@@ -1,4 +1,4 @@
-// Dynamic XML sitemap — static pages + public helper profiles + public business profiles.
+// Dynamic XML sitemap - static pages + public helper profiles + public business profiles.
 // Loc uses APP_URL / CLIENT_URL (publicSiteUrl).
 
 const express = require('express');

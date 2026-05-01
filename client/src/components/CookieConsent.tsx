@@ -24,7 +24,7 @@ export default function CookieConsent() {
 
   // Seed the local toggle state from saved preferences each time the settings
   // panel opens, so returning users see their existing choices rather than
-  // all-false — which would silently revoke prior consent on "Save".
+  // all-false - which would silently revoke prior consent on "Save".
   useEffect(() => {
     if (showSettings && preferences) {
       setLocal({

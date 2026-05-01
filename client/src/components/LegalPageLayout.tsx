@@ -10,7 +10,7 @@ interface LegalPageLayoutProps {
 }
 
 /**
- * LegalPageLayout — WCAG 2.1 AA compliant wrapper for all legal/policy pages.
+ * LegalPageLayout - WCAG 2.1 AA compliant wrapper for all legal/policy pages.
  * Now uses the shared PageShell for consistent header/footer.
  * Provides:
  *  - Skip-to-content link (via PageShell)

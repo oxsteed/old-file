@@ -25,7 +25,7 @@ interface ChatPanelProps {
   helperId: string;
   /** When set, the chat is scoped to a business (used on /business/:id pages). */
   businessId?: string;
-  /** Visitor without an account — collect name/email and POST to guest session endpoint */
+  /** Visitor without an account - collect name/email and POST to guest session endpoint */
   isGuest?: boolean;
   /** When false, disables live chat mode; user can only use AI assistant */
   allowLiveChat?: boolean;
@@ -136,7 +136,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [sending,          setSending]          = useState(false);
   const [guestName,        setGuestName]        = useState('');
   const [guestEmail,       setGuestEmail]       = useState('');
-  /** Guest saved contact locally — send button sends message + this contact */
+  /** Guest saved contact locally - send button sends message + this contact */
   const [guestContactSaved, setGuestContactSaved] = useState(false);
   const [conversationId,   setConversationId]   = useState<string | null>(null);
   // threadId ties this chat session to server-side Redis history (AI mode only).
@@ -458,7 +458,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
       if (data.type === 'live') {
         if (data.conversationId) setConversationId(data.conversationId);
-        // Live replies don't use thread memory — clear any stale threadId so
+        // Live replies don't use thread memory - clear any stale threadId so
         // a subsequent switch back to AI mode starts a fresh Redis thread.
         setThreadId(null);
         const waiting: TimelineEvent = {
@@ -563,7 +563,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     return [welcome];
   }, [session.timeline, session.destination, helperName, t]);
 
-  // Whether to show the close button — always show it when variant is 'modal',
+  // Whether to show the close button - always show it when variant is 'modal',
   // even if onClose is undefined (fall back to a no-op so the button is never invisible)
   const showCloseButton = variant === 'modal';
   const handleClose = onClose ?? (() => {});

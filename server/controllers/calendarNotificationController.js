@@ -2,7 +2,7 @@
 //
 // Three responsibilities:
 //   * HTTP endpoints: list / mark-read / stats for the current user.
-//   * Cron worker: processReminderNotifications() — fired by jobs/calendarReminders.
+//   * Cron worker: processReminderNotifications() - fired by jobs/calendarReminders.
 //   * Helper: respect quiet-hours and notification_preferences.
 
 const pool = require('../db');
@@ -189,11 +189,11 @@ async function dispatchNotification(row) {
     quiet_hours_start, quiet_hours_end, timezone,
   } = row;
 
-  // Quiet hours — return without sending; we leave status as 'pending' so the
+  // Quiet hours - return without sending; we leave status as 'pending' so the
   // notification fires on the next cron tick after the quiet window ends.
   if (quiet_hours_start && quiet_hours_end) {
     if (isInQuietHours(timezone || 'UTC', quiet_hours_start, quiet_hours_end)) {
-      logger.debug('Calendar notification deferred — quiet hours', {
+      logger.debug('Calendar notification deferred - quiet hours', {
         notification_id, user_id, timezone,
       });
       return;

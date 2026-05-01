@@ -59,7 +59,7 @@ exports.getMyReferral = async (req, res, next) => {
 };
 
 // ── POST /api/referrals/validate ───────────────────────────────────────────────
-// Public endpoint — validate a referral code before registration.
+// Public endpoint - validate a referral code before registration.
 exports.validateCode = async (req, res, next) => {
   try {
     const { code } = req.body;

@@ -30,7 +30,7 @@ function fmt$(n, currency = 'USD') {
   return formatMoney(n, { currency });
 }
 function fmtDate(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 }
 function daysLabel(days, t) {
@@ -203,7 +203,7 @@ export default function PlannedNeedsPage() {
   return (
     <PageShell>
       <PageMeta
-        title={`${t('plannedNeeds.title')} — OxSteed`}
+        title={`${t('plannedNeeds.title')} - OxSteed`}
         description={t('plannedNeeds.subtitle')}
       />
       <div className="pn-page">
@@ -246,7 +246,7 @@ export default function PlannedNeedsPage() {
                       <svg width="56" height="56" viewBox="0 0 56 56" style={{ transform:'rotate(-90deg)' }}>
                         <circle cx="28" cy="28" r="23" fill="none" stroke="var(--border-color)" strokeWidth="4" strokeDasharray="4 4"/>
                       </svg>
-                      <span className="pn-pulse-ring-score" style={{ color:'var(--muted-text)' }}>—</span>
+                      <span className="pn-pulse-ring-score" style={{ color:'var(--muted-text)' }}>-</span>
                     </div>
                     <div style={{ flex:1 }}>
                       <p style={{ fontWeight:600, color:'var(--app-text)', fontSize:'0.85rem' }}>{t('plannedNeeds.noDataYet')}</p>
@@ -314,7 +314,7 @@ export default function PlannedNeedsPage() {
                           { l: t('plannedNeeds.scoreObligations'), v: bd.obligations },
                         ].map((d, i) => (
                           <div key={i} className="pn-pulse-bd-item">
-                            <span className="pn-pulse-bd-val">{d.v ?? '—'}</span>
+                            <span className="pn-pulse-bd-val">{d.v ?? '-'}</span>
                             <span className="pn-pulse-bd-label">{d.l}</span>
                           </div>
                         ))}
@@ -386,7 +386,7 @@ export default function PlannedNeedsPage() {
                     : projection.coverage_ratio >= 1.2  ? 'positive'
                     : projection.coverage_ratio >= 0.9  ? 'warn'
                     : 'negative'}`}>
-                    {projection?.coverage_ratio != null ? `${projection.coverage_ratio}x` : '—'}
+                    {projection?.coverage_ratio != null ? `${projection.coverage_ratio}x` : '-'}
                   </div>
                 </div>
                 <div className="pn-proj-stat">
@@ -509,7 +509,7 @@ export default function PlannedNeedsPage() {
                 </div>
               </div>
 
-              {/* Vehicle picker — shown when category is car_care */}
+              {/* Vehicle picker - shown when category is car_care */}
               {form.category === 'car_care' && vehicles.length > 0 && (
                 <div className="pn-form-group">
                   <label>{t('plannedNeeds.vehicleOpt')} <span style={{ fontWeight:400, color:'var(--muted-text)' }}>({t('common.optional')})</span></label>
@@ -524,7 +524,7 @@ export default function PlannedNeedsPage() {
                 </div>
               )}
 
-              {/* Property picker — shown for all categories */}
+              {/* Property picker - shown for all categories */}
               {homes.length > 0 && (
                 <div className="pn-form-group">
                   <label>{t('plannedNeeds.propertyOpt')} <span style={{ fontWeight:400, color:'var(--muted-text)' }}>({t('common.optional')})</span></label>

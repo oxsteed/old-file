@@ -86,7 +86,7 @@ api.interceptors.response.use(
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       clearStoredSession();
-      // Don't hard-redirect — let ProtectedRoute handle navigation
+      // Don't hard-redirect - let ProtectedRoute handle navigation
       return Promise.reject(error);
     }
 
@@ -129,7 +129,7 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       clearStoredSession();
-      // Don't hard-redirect — let ProtectedRoute handle navigation
+      // Don't hard-redirect - let ProtectedRoute handle navigation
       return Promise.reject(refreshError);
     } finally {
       refreshPromise = null;

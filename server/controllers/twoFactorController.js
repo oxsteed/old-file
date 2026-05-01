@@ -42,7 +42,7 @@ async function log2FAAction(userId, action, req, success) {
   }
 }
 
-// POST /api/2fa/setup — Generate TOTP secret + QR code
+// POST /api/2fa/setup - Generate TOTP secret + QR code
 async function setup2FA(req, res, next) {
   try {
     const userId = req.user.id;
@@ -77,7 +77,7 @@ async function setup2FA(req, res, next) {
   }
 }
 
-// POST /api/2fa/verify-setup — Confirm TOTP setup with a code from the app
+// POST /api/2fa/verify-setup - Confirm TOTP setup with a code from the app
 async function verifySetup(req, res, next) {
   try {
     const userId = req.user.id;
@@ -129,7 +129,7 @@ async function verifySetup(req, res, next) {
   }
 }
 
-// POST /api/2fa/validate — Validate a TOTP code during login
+// POST /api/2fa/validate - Validate a TOTP code during login
 async function validate2FA(req, res, next) {
   try {
     const { userId, token, isBackupCode } = req.body;
@@ -186,7 +186,7 @@ async function validate2FA(req, res, next) {
   }
 }
 
-// POST /api/2fa/disable — Disable 2FA (requires current TOTP code)
+// POST /api/2fa/disable - Disable 2FA (requires current TOTP code)
 async function disable2FA(req, res, next) {
   try {
     const userId = req.user.id;
@@ -226,7 +226,7 @@ async function disable2FA(req, res, next) {
   }
 }
 
-// GET /api/2fa/status — Check if 2FA is enabled
+// GET /api/2fa/status - Check if 2FA is enabled
 async function get2FAStatus(req, res, next) {
   try {
     const userId = req.user.id;
@@ -247,7 +247,7 @@ async function get2FAStatus(req, res, next) {
   }
 }
 
-// POST /api/2fa/regenerate-backup — Generate new backup codes (requires TOTP)
+// POST /api/2fa/regenerate-backup - Generate new backup codes (requires TOTP)
 async function regenerateBackupCodes(req, res, next) {
   try {
     const userId = req.user.id;

@@ -33,7 +33,7 @@ exports.logAdminAction = async ({
       after  ? JSON.stringify(after)  : null
     ]);
   } catch (err) {
-    // Non-fatal — never let audit failure block the operation
+    // Non-fatal - never let audit failure block the operation
     console.error('[Audit] Failed to log admin action:', err.message);
   }
 };

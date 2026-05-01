@@ -1,5 +1,5 @@
 /**
- * Web Push service — self-hosted via the W3C Push API + VAPID.
+ * Web Push service - self-hosted via the W3C Push API + VAPID.
  *
  * Decoupled from Expo (mobile native) and Socket.IO (in-app).
  * Sends to every active subscription a user has registered through
@@ -23,13 +23,13 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     logger.error('[WebPush] Invalid VAPID keys', { error: err.message });
   }
 } else {
-  logger.warn('[WebPush] VAPID keys not configured — web push disabled');
+  logger.warn('[WebPush] VAPID keys not configured - web push disabled');
 }
 
 exports.isConfigured = () => configured;
 exports.getPublicKey = () => VAPID_PUBLIC_KEY;
 
-// Hard caps — protects pool when fanning out to many devices.
+// Hard caps - protects pool when fanning out to many devices.
 const MAX_FANOUT = 50;
 
 /**
@@ -61,7 +61,7 @@ exports.sendToUser = async (userId, payload) => {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           body,
-          { TTL: 60 * 60 * 24 } // 24h — drop if the device is offline that long
+          { TTL: 60 * 60 * 24 } // 24h - drop if the device is offline that long
         );
         sent++;
         // Touch last_used_at without blocking the response.

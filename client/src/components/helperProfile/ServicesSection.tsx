@@ -83,7 +83,7 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({ services, onSelectSer
                   <button
                     onClick={() => onSelectService?.(service)}
                     className="w-full text-left group flex items-start gap-3 p-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 border border-gray-700/50 hover:border-gray-600 transition-all"
-                    aria-label={`${service.name} — ${formatPrice(service.price, service.priceUnit, t)}`}
+                    aria-label={`${service.name} - ${formatPrice(service.price, service.priceUnit, t)}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

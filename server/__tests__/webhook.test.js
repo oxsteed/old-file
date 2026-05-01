@@ -16,7 +16,7 @@ const webhookRoutes = require('../routes/webhook');
 
 function buildApp() {
   const app = express();
-  // Webhook routes use express.raw() internally — mount as-is
+  // Webhook routes use express.raw() internally - mount as-is
   app.use('/api/webhooks', webhookRoutes);
   return app;
 }

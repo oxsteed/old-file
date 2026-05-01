@@ -26,12 +26,12 @@ const TOP_N_NOTIFY       = 20;   // notify this many via push (future)
 async function scoreAndMatch(job) {
   try {
     if (!job.location_point && !job.location_lat) {
-      // No location — cannot geo-match; skip silently
+      // No location - cannot geo-match; skip silently
       return 0;
     }
 
   // ── 1. Fetch eligible helper pool within radius ─────────────────────────
-  // We deliberately do NOT hard-filter on credential columns here —
+  // We deliberately do NOT hard-filter on credential columns here -
   // soft-gate means we score them lower but still include them.
   const { rows: helpers } = await db.query(
     `SELECT
@@ -122,7 +122,7 @@ async function scoreAndMatch(job) {
     const tierScore = h.tier === 'pro' ? 10 : 5;
     breakdown.tier = tierScore;
 
-    // Completed jobs — log scale, max 10 pts
+    // Completed jobs - log scale, max 10 pts
     const jobs       = parseInt(h.completed_jobs_count) || 0;
     const jobScore   = Math.min(10, Math.round(Math.log1p(jobs) * 2.5));
     breakdown.completed_jobs = jobScore;
@@ -139,7 +139,7 @@ async function scoreAndMatch(job) {
     breakdown.urgency = urgencyScore;
 
     // Credential penalty (soft-gate): deduct points for missing required creds
-    // Does NOT exclude helper — just lowers score and sets warning flags
+    // Does NOT exclude helper - just lowers score and sets warning flags
     let credPenalty = 0;
     const warnings  = [];
     if (requiresLicense   && !h.is_licensed)          { credPenalty += 15; warnings.push('license'); }

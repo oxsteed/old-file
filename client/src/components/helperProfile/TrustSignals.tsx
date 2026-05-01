@@ -8,7 +8,7 @@ interface TrustSignalsProps {
 }
 
 /**
- * TrustSignals — renders 8 self-reported trust indicators.
+ * TrustSignals - renders 8 self-reported trust indicators.
  * All data is helper-provided (not verified by OxSteed, no liability).
  * Graceful fallbacks for missing values.
  */

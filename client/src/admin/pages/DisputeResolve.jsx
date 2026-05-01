@@ -287,7 +287,7 @@ export default function DisputeResolve() {
             >
               {submitting
                 ? 'Processing resolution...'
-                : 'Confirm Resolution — Irreversible'
+                : 'Confirm Resolution - Irreversible'
               }
             </button>
           </form>

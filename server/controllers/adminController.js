@@ -190,7 +190,7 @@ exports.reviewReport = async (req, res) => {
         }
       } catch (e) {
         logger.warn('reviewReport: failed to send warn_user notification', { err: e });
-        // Do not re-throw — notification failure must not abort the report review.
+        // Do not re-throw - notification failure must not abort the report review.
       }
     }
 
@@ -211,7 +211,7 @@ exports.reviewReport = async (req, res) => {
       return res.json({
         message: notificationSent
           ? 'Report reviewed and warning notification sent.'
-          : 'Report reviewed. Warning notification could not be sent — content may have been deleted or the user was not found.',
+          : 'Report reviewed. Warning notification could not be sent - content may have been deleted or the user was not found.',
         notificationSent,
       });
     }
@@ -266,7 +266,7 @@ exports.getModerationQueue = async (req, res) => {
   }
 };
 
-// —— Market Zip Code Management ————————————————————————————
+// -- Market Zip Code Management ----------------------------
 exports.getMarkets = async (req, res) => {
   try {
     if (!(await tableExists('markets'))) {
@@ -460,7 +460,7 @@ exports.removeBid = async (req, res) => {
       );
 
       if (!updateRows.length) {
-        throw new Error('Bid status changed during removal — already removed by another admin');
+        throw new Error('Bid status changed during removal - already removed by another admin');
       }
 
       // Log admin action
@@ -522,7 +522,7 @@ exports.removeReview = async (req, res) => {
       );
 
       if (!updateRows.length) {
-        throw new Error('Review visibility status changed during removal — already hidden by another admin');
+        throw new Error('Review visibility status changed during removal - already hidden by another admin');
       }
 
       // Log admin action
@@ -582,7 +582,7 @@ exports.restoreReview = async (req, res) => {
       );
 
       if (!updateRows.length) {
-        throw new Error('Review visibility status changed during restoration — already restored by another admin');
+        throw new Error('Review visibility status changed during restoration - already restored by another admin');
       }
 
       // Log admin action

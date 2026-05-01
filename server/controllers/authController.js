@@ -642,7 +642,7 @@ async function startRegistration(req, res) {
       }
       formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
     } else {
-      // For non-US, accept whatever the user sent — prefix with the country's
+      // For non-US, accept whatever the user sent - prefix with the country's
       // dial code if they didn't include one. Always store in E.164-ish form.
       const dial = countriesUtil.getDialCode(countryCode);
       formattedPhone = String(normalized.phone).startsWith('+')
@@ -1075,7 +1075,7 @@ async function switchRole(req, res) {
         return res.status(409).json({ error: 'Role changed during switch. Please try again.' });
       }
     } else {
-      // Switching back to customer — preserve the helper_profiles row.
+      // Switching back to customer - preserve the helper_profiles row.
       const { rows: updateRows } = await pool.query(
         `UPDATE users SET role = 'customer', updated_at = NOW() WHERE id = $1 AND role = $2 RETURNING id`,
         [userId, currentRole],

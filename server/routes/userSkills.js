@@ -1,5 +1,5 @@
 // server/routes/userSkills.js
-// User skills listings — any authenticated user can manage their own skills
+// User skills listings - any authenticated user can manage their own skills
 // GET    /api/user-skills/me          → list my skills
 // POST   /api/user-skills             → create skill listing
 // PUT    /api/user-skills/:id         → update skill listing
@@ -12,7 +12,7 @@ const { authenticate } = require('../middleware/auth');
 const pool    = require('../db');
 
 // GET /api/user-skills/categories?q=elec&limit=20
-// Public — returns distinct categories from skills_lookup for autocomplete
+// Public - returns distinct categories from skills_lookup for autocomplete
 router.get('/categories', async (req, res) => {
   try {
     const { q = '', limit = 20 } = req.query;
@@ -35,7 +35,7 @@ router.get('/categories', async (req, res) => {
 });
 
 // GET /api/user-skills/lookup?q=plumb&limit=20&offset=0
-// Public — no auth required (needed for job-post autocomplete)
+// Public - no auth required (needed for job-post autocomplete)
 router.get('/lookup', async (req, res) => {
   try {
     const { q = '', limit = 20, offset = 0 } = req.query;

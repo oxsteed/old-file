@@ -1,5 +1,5 @@
 /**
- * Support employers — distinct orgs that employ support agents (business, helper-as-org, platform).
+ * Support employers - distinct orgs that employ support agents (business, helper-as-org, platform).
  * Conversations/queue remain keyed by businesses.id (customer-facing context); employment is per employer_id.
  */
 

@@ -90,7 +90,7 @@ export default function HelperGuestInquiryPage() {
   const mailto =
     guestEmail && guestName
       ? `mailto:${guestEmail}?subject=${encodeURIComponent(
-          `${t('messages.guestInquiryReplySubject')} — OxSteed`
+          `${t('messages.guestInquiryReplySubject')} - OxSteed`
         )}&body=${encodeURIComponent(
           `${t('messages.guestInquiryReplyBody', { name: guestName })}\n\n`
         )}`

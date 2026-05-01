@@ -309,7 +309,7 @@ export default function HowItWorks() {
               alignItems: 'start',
             }}>
 
-              {/* Left column — title */}
+              {/* Left column - title */}
               <div style={{ position: 'sticky', top: '5rem' }}>
                 <h2 style={{
                   fontSize: 'clamp(1.5rem, 2.75vw, 2rem)',
@@ -328,7 +328,7 @@ export default function HowItWorks() {
                 </p>
               </div>
 
-              {/* Right column — accordion */}
+              {/* Right column - accordion */}
               <div style={{
                 border: '1px solid rgba(255,255,255,0.08)',
                 borderRadius: '16px',

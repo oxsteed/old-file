@@ -4,7 +4,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 
-// ——— Get all fee config values ———————————————————————
+// --- Get all fee config values -----------------------
 exports.getFeeConfig = async (req, res, next) => {
   try {
     const { rows } = await db.query(
@@ -20,7 +20,7 @@ exports.getFeeConfig = async (req, res, next) => {
   }
 };
 
-// ——— Get fee change history —————————————————————————
+// --- Get fee change history -------------------------
 exports.getFeeHistory = async (req, res, next) => {
   try {
     const { rows } = await db.query(
@@ -38,7 +38,7 @@ exports.getFeeHistory = async (req, res, next) => {
   }
 };
 
-// ——— Update a single fee config value ——————————————————
+// --- Update a single fee config value ------------------
 exports.updateFeeConfig = async (req, res, next) => {
   const { key, value, reason } = req.body;
   const adminId = req.user.id;
@@ -106,7 +106,7 @@ exports.updateFeeConfig = async (req, res, next) => {
   }
 };
 
-// ——— Sync subscription price to Stripe —————————————————
+// --- Sync subscription price to Stripe -----------------
 async function syncSubscriptionToStripe(key, newCents) {
   try {
     const planSlug = key === 'tier2_subscription_cents' ? 'pro' : 'broker';
@@ -156,7 +156,7 @@ async function syncSubscriptionToStripe(key, newCents) {
   }
 }
 
-// ——— Preview fee calculation at new rates ———————————————
+// --- Preview fee calculation at new rates ---------------
 exports.previewFees = async (req, res, next) => {
   try {
     const {
@@ -190,7 +190,7 @@ exports.previewFees = async (req, res, next) => {
   }
 };
 
-// ——— Reset all fees to defaults ———————————————————————
+// --- Reset all fees to defaults -----------------------
 exports.resetToDefaults = async (req, res, next) => {
   const adminId = req.user.id;
   const { reason } = req.body;

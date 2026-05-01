@@ -34,7 +34,7 @@ function wrap(title, bodyHtml) {
     <h2 style="margin-top:0">${escape(title)}</h2>
     ${bodyHtml}
     <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-    <p style="font-size:12px;color:#666">OxSteed — local trades marketplace</p>
+    <p style="font-size:12px;color:#666">OxSteed - local trades marketplace</p>
   </body></html>`;
 }
 
@@ -80,7 +80,7 @@ function renderAppointmentEmail(type, data = {}) {
     case 'reminder_24h':
       return wrap('Reminder: appointment tomorrow',
         `<p>Hi ${name},</p>
-         <p>Reminder — your appointment${when ? ` is on <strong>${escape(when)}</strong>` : ''}.</p>`
+         <p>Reminder - your appointment${when ? ` is on <strong>${escape(when)}</strong>` : ''}.</p>`
       );
     case 'reminder_same_day':
       return wrap('Reminder: appointment today',
@@ -109,11 +109,11 @@ function renderAppointmentSms(type, data = {}) {
   const when = fmtDate(data.when);
   switch (type) {
     case 'reminder_24h':
-      return `Hi ${name}, reminder: your appointment is on ${when}. — OxSteed`;
+      return `Hi ${name}, reminder: your appointment is on ${when}. - OxSteed`;
     case 'reminder_same_day':
-      return `Hi ${name}, your appointment is today at ${when}. — OxSteed`;
+      return `Hi ${name}, your appointment is today at ${when}. - OxSteed`;
     case 'reminder_2h':
-      return `Hi ${name}, your appointment is in ~2 hours (${when}). — OxSteed`;
+      return `Hi ${name}, your appointment is in ~2 hours (${when}). - OxSteed`;
     case 'appointment_confirmed':
       return `Your OxSteed appointment is confirmed for ${when}.`;
     case 'appointment_cancelled':

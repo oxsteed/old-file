@@ -254,7 +254,7 @@ exports.upsertBudget = async (req, res) => {
       monthly_limit,
     } = req.body;
 
-    // Determine the raw amount — prefer period_amount over the legacy field
+    // Determine the raw amount - prefer period_amount over the legacy field
     const rawAmount = period_amount !== undefined ? parseFloat(period_amount) : parseFloat(monthly_limit);
 
     if (!category || isNaN(rawAmount) || rawAmount < 0) {

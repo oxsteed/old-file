@@ -51,7 +51,7 @@ function validateBoundary(def) {
       }
       return null;
 
-    // country_region: explicit (country, region) pairs — e.g. give a regional
+    // country_region: explicit (country, region) pairs - e.g. give a regional
     // admin authority over Ontario (CA) and New York (US) at the same time.
     case 'country_region':
       if (!Array.isArray(def.entries) || def.entries.length === 0) {
@@ -72,7 +72,7 @@ function validateBoundary(def) {
       }
       return null;
 
-    // country_only: territory is the entire country/countries — useful for
+    // country_only: territory is the entire country/countries - useful for
     // launch markets that don't yet have a finer-grained breakdown.
     case 'country_only':
       if (!Array.isArray(def.countries) || def.countries.length === 0) {

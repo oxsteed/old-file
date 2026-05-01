@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 if (!process.env.STRIPE_SECRET_KEY) {
-  logger.error('[FATAL] STRIPE_SECRET_KEY is not set — subscription features will fail.');
+  logger.error('[FATAL] STRIPE_SECRET_KEY is not set - subscription features will fail.');
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');

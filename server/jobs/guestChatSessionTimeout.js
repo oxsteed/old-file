@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
  * Check for guest chat sessions in "waiting_for_helper" state that have exceeded their 5-minute response deadline.
  * Transition them to "ai_fallback_pending" state and notify available helpers.
  *
- * This cron job ensures reliability across server restarts — timeouts are database-driven, not in-memory.
+ * This cron job ensures reliability across server restarts - timeouts are database-driven, not in-memory.
  */
 const startGuestChatSessionTimeoutJob = () => {
   cron.schedule('* * * * *', async () => {

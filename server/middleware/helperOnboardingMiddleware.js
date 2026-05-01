@@ -26,7 +26,7 @@ function requireOnboardingStep(minimumStep) {
     const userIdx  = STEP_ORDER.indexOf(userStep);
     const minIdx   = STEP_ORDER.indexOf(minimumStep);
 
-    // If the required step is unknown, deny — never fail open on unknown requirements
+    // If the required step is unknown, deny - never fail open on unknown requirements
     if (minIdx === -1) {
       return res.status(403).json({ error: 'Onboarding step check failed.' });
     }
@@ -55,7 +55,7 @@ function requireTier(minimumTier) {
     const userIdx  = TIER_ORDER.indexOf(userTier);
     const minIdx   = TIER_ORDER.indexOf(minimumTier);
 
-    // If the required tier is unknown, deny — never fail open on unknown requirements
+    // If the required tier is unknown, deny - never fail open on unknown requirements
     if (minIdx === -1) {
       return res.status(403).json({ error: 'Tier check failed.' });
     }

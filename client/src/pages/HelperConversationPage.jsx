@@ -37,7 +37,7 @@ export default function HelperConversationPage() {
       await api.delete(`/messages/conversations/${conversationId}/${messageId}`);
       // Socket event message:deleted will update the list in real-time
     } catch {
-      // silent — socket event won't fire so the message stays, which is correct
+      // silent - socket event won't fire so the message stays, which is correct
     }
   };
 
@@ -61,7 +61,7 @@ export default function HelperConversationPage() {
       setEditingId(null);
       setEditText('');
     } catch {
-      // silent — message stays unchanged on failure
+      // silent - message stays unchanged on failure
     }
   };
 
@@ -203,7 +203,7 @@ export default function HelperConversationPage() {
                       {isLastFromMe && (
                         <span className="text-[11px] text-orange-400 font-medium">{t('messages.seen')}</span>
                       )}
-                      {/* Message action buttons — visible on hover */}
+                      {/* Message action buttons - visible on hover */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                         <button
                           onClick={() => navigator.clipboard.writeText(msg.content)}

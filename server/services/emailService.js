@@ -2,12 +2,12 @@
 //
 // Supports two sending modes:
 //
-//  1. Per-user SMTP — when a `smtpConfig` object is passed, a transporter is
+//  1. Per-user SMTP - when a `smtpConfig` object is passed, a transporter is
 //     created on-the-fly using the owner's own credentials.  This is the
 //     intended path for tool-rental booking emails so they appear to come from
 //     the owner's own address.
 //
-//  2. Platform fallback — when no `smtpConfig` is supplied the service falls
+//  2. Platform fallback - when no `smtpConfig` is supplied the service falls
 //     back to the platform-level SMTP env vars (SMTP_HOST, SMTP_USER, etc.).
 //     If those are also absent the send is skipped with a warning so the app
 //     never crashes at startup or at runtime due to missing mail config.
@@ -84,7 +84,7 @@ async function send({ to, subject, html, from, smtpConfig }) {
     // --- platform fallback path ---
     transporter = getPlatformTransport();
     if (!transporter) {
-      logger.warn('emailService: no SMTP config available — email skipped', { to, subject });
+      logger.warn('emailService: no SMTP config available - email skipped', { to, subject });
       return null;
     }
     fromAddress = from ||

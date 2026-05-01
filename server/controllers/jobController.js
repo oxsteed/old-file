@@ -65,7 +65,7 @@ exports.createJob = async (req, res, next) => {
     const finalCategoryId   = category_id   || null;
     const finalCategoryName = category_name || category || null;
 
-    // ── Resolve media — upload files to S3 ─────────────────────────────────────────────────────
+    // ── Resolve media - upload files to S3 ─────────────────────────────────────────────────────
     let mediaArr = [];
     if (req.files && req.files.length > 0) {
       const uploads = await Promise.allSettled(
@@ -169,7 +169,7 @@ exports.createJob = async (req, res, next) => {
       ]
     );
 
-    // Strip exact GPS coordinates from the response — helpers see only fuzzy coords
+    // Strip exact GPS coordinates from the response - helpers see only fuzzy coords
     // eslint-disable-next-line no-unused-vars
     const { location_lat: _rlat, location_lng: _rlng, location_point: _rpt, ...safeJob } = rows[0];
 
@@ -493,7 +493,7 @@ exports.assignHelper = async (req, res, next) => {
         throw new AppError('Job is not in a state that allows bid acceptance', 409, 'invalid_job_state');
       }
 
-      // 2. Accept the bid atomically — only succeeds if it is still pending
+      // 2. Accept the bid atomically - only succeeds if it is still pending
       const acceptResult = await client.query(
         `UPDATE bids SET status = 'accepted', updated_at = NOW()
          WHERE id = $1 AND status = 'pending'
@@ -587,7 +587,7 @@ exports.startJob = async (req, res, next) => {
       `, [id]);
 
       if (!rows.length) {
-        throw new AppError('Job start failed — state changed during processing', 400, 'state_conflict');
+        throw new AppError('Job start failed - state changed during processing', 400, 'state_conflict');
       }
       return rows[0];
     }, 'start_job');
@@ -714,7 +714,7 @@ exports.closeJob = async (req, res) => {
         RETURNING *
       `, [id]);
       if (!rows.length) {
-        throw new Error('Job state changed during closing — job is no longer completed');
+        throw new Error('Job state changed during closing - job is no longer completed');
       }
       return rows[0];
     }, 'close_job');

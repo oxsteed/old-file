@@ -1,5 +1,5 @@
 // client/src/api/businesses.js
-// Business Hub API helpers — businesses, analytics, invoices, tax, goals.
+// Business Hub API helpers - businesses, analytics, invoices, tax, goals.
 import api from './axios';
 
 // ── Businesses ────────────────────────────────────────────────────────────────
@@ -16,9 +16,9 @@ export const uploadBusinessPhotos  = (id, logoFile, coverFile) => {
   // Let the browser set multipart boundary (manual Content-Type breaks uploads).
   return api.put(`/businesses/${id}/photos`, fd).then(r => r.data);
 };
-// Public — no auth required
+// Public - no auth required
 export const getBusinessPublicProfile = (id)         => api.get(`/businesses/${id}/public`).then(r => r.data);
-// Owner/manager — full address for Business Hub editor
+// Owner/manager - full address for Business Hub editor
 export const getBusinessProfileForEditor = (id)      => api.get(`/businesses/${id}/profile-edit`).then(r => r.data);
 
 // ── Analytics ─────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 /**
  * vehicleController.js
- * Car Care — Vehicle Search (NHTSA vPIC) + User Garage CRUD
+ * Car Care - Vehicle Search (NHTSA vPIC) + User Garage CRUD
  *
  * NHTSA vPIC API: completely free, no API key required.
  * https://vpic.nhtsa.dot.gov/api/
@@ -13,7 +13,7 @@ const db     = require('../db');
 const logger = require('../utils/logger');
 
 const NHTSA_BASE = 'https://vpic.nhtsa.dot.gov/api/vehicles';
-const CACHE_TTL  = 24 * 60 * 60 * 1000; // 24 h — NHTSA data rarely changes
+const CACHE_TTL  = 24 * 60 * 60 * 1000; // 24 h - NHTSA data rarely changes
 
 // ── Simple in-process cache (same pattern as geoController) ───────────────
 const cache = new Map();
@@ -29,7 +29,7 @@ function cacheSet(key, value) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// NHTSA PROXY — no auth required (public data)
+// NHTSA PROXY - no auth required (public data)
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
@@ -94,7 +94,7 @@ exports.getModels = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────
-// USER GARAGE CRUD — authenticated
+// USER GARAGE CRUD - authenticated
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
@@ -214,7 +214,7 @@ exports.deleteVehicle = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────
-// VIN DECODE — no auth required (public data)
+// VIN DECODE - no auth required (public data)
 // ─────────────────────────────────────────────────────────────────────────
 
 const VIN_FIELDS = [
@@ -227,15 +227,15 @@ const VIN_FIELDS = [
 /**
  * GET /api/vehicles/vin/:vin
  * Decodes a 17-char VIN via NHTSA vPIC and returns a clean summary.
- * Cached 24 h — same VIN always returns same data.
+ * Cached 24 h - same VIN always returns same data.
  */
 exports.decodeVin = async (req, res) => {
   try {
     const vin = (req.params.vin || '').trim().toUpperCase();
 
-    // Basic format check — 17 alphanumeric chars, no I/O/Q
+    // Basic format check - 17 alphanumeric chars, no I/O/Q
     if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
-      return res.status(400).json({ error: 'Invalid VIN — must be 17 characters (letters A–Z except I, O, Q and digits 0–9).' });
+      return res.status(400).json({ error: 'Invalid VIN - must be 17 characters (letters A–Z except I, O, Q and digits 0–9).' });
     }
 
     const cacheKey = `nhtsa:vin:${vin}`;

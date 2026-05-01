@@ -10,7 +10,7 @@ router.put('/preferences',       authenticate, notifCtrl.updatePreferences);
 router.post('/push-token',       authenticate, notifCtrl.registerPushToken);
 
 // ─── Web Push (W3C Push API + VAPID) ─────────────────────────
-// Public — needed before the browser can call pushManager.subscribe()
+// Public - needed before the browser can call pushManager.subscribe()
 router.get('/webpush/public-key',     webPushCtrl.getPublicKey);
 
 router.post('/webpush/subscribe',     authenticate, webPushCtrl.subscribe);
