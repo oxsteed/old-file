@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { TermsBlock, TextSeg } from './termsTypes';
 
 function renderSegments(segments: TextSeg[]): ReactNode[] {
@@ -13,6 +14,17 @@ function renderSegments(segments: TextSeg[]): ReactNode[] {
         >
           {seg.mailto}
         </a>
+      );
+    }
+    if ('routeLink' in seg) {
+      return (
+        <Link
+          key={i}
+          to={seg.routeLink.to}
+          className="text-orange-500 underline"
+        >
+          {seg.routeLink.label}
+        </Link>
       );
     }
     return <strong key={i}>{seg.strong}</strong>;

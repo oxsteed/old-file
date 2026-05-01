@@ -429,6 +429,31 @@
       "20": "20. Modifications des présentes conditions"
     }
   },
+  "privacyPage": {
+    "title": "Politique de confidentialité",
+    "lastUpdated": "Dernière mise à jour : 22 mars 2026 — Effective dès la création du compte",
+    "onThisPage": "Sur cette page",
+    "onThisPageAria": "Table des matières",
+    "searchLabel": "Rechercher dans les sections de la politique de confidentialité",
+    "searchPlaceholder": "Rechercher des sections…",
+    "emailLabel": "E-mail :",
+    "translationDisclaimer": "Cette traduction est fournie à titre indicatif uniquement. La version anglaise fait foi juridiquement.",
+    "sectionTitles": {
+      "1": "1. Introduction",
+      "2": "2. Informations que nous collectons",
+      "3": "3. Comment nous utilisons vos informations",
+      "4": "4. Comment nous partageons vos informations",
+      "5": "5. Confidentialité des adresses et masquage des données",
+      "6": "6. Conservation des données",
+      "7": "7. Vos droits",
+      "8": "8. Cookies et technologies de suivi",
+      "9": "9. Sécurité des données et notification des violations",
+      "10": "10. Suppression du compte",
+      "11": "11. Confidentialité des enfants",
+      "12": "12. Modifications de cette politique de confidentialité",
+      "13": "13. Nous contacter"
+    }
+  },
   "howItWorks": {
     "badge": "Présentation de la plateforme",
     "title": "Comment fonctionne OxSteed",

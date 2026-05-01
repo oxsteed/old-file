@@ -9,6 +9,10 @@ import enTerms from './locales/terms/en.content.json';
 import esTerms from './locales/terms/es.content.json';
 import frTerms from './locales/terms/fr.content.json';
 import htTerms from './locales/terms/ht.content.json';
+import enPrivacy from './locales/privacy/en.content.json';
+import esPrivacy from './locales/privacy/es.content.json';
+import frPrivacy from './locales/privacy/fr.content.json';
+import htPrivacy from './locales/privacy/ht.content.json';
 
 export const LANGUAGES = [
   { code: 'en', name: 'English',  flag: '🇬🇧' },
@@ -21,10 +25,34 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      en: { translation: { ...en, termsContent: enTerms } },
-      es: { translation: { ...es, termsContent: esTerms } },
-      fr: { translation: { ...fr, termsContent: frTerms } },
-      ht: { translation: { ...ht, termsContent: htTerms } },
+      en: {
+        translation: {
+          ...en,
+          termsContent: enTerms,
+          privacyContent: enPrivacy,
+        },
+      },
+      es: {
+        translation: {
+          ...es,
+          termsContent: esTerms,
+          privacyContent: esPrivacy,
+        },
+      },
+      fr: {
+        translation: {
+          ...fr,
+          termsContent: frTerms,
+          privacyContent: frPrivacy,
+        },
+      },
+      ht: {
+        translation: {
+          ...ht,
+          termsContent: htTerms,
+          privacyContent: htPrivacy,
+        },
+      },
     },
     lng: localStorage.getItem('oxs:language') || 'en',
     fallbackLng: 'en',

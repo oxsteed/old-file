@@ -47,7 +47,8 @@
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
 **Latest work completed (2026-04-30):**
-- **Static Terms page (`client/src/pages/terms.tsx`):** `PageShell` (shared Navbar + Footer), sticky left "On this page" TOC with `#terms-section-N` anchors, search field that filters sections and smooth-scrolls to the first match. Full body text is loaded per language from `client/src/locales/terms/{en,es,fr,ht}.content.json` (merged into i18n as `termsContent` in `client/src/i18n.js`). UI strings + binding-language disclaimer: `termsPage.*` in `en` / `es` / `fr` / `ht`. Regenerate EN with `python3 client/scripts/build-terms-en-json.py`; regenerate ES/FR/HT with `python3 client/scripts/translate-terms-content.py` (needs `pip install deep-translator`; machine translation — legal review recommended).
+- **Static Terms page (`client/src/pages/terms.tsx`):** Uses shared `LegalPolicyPage` + `PageShell`; TOC anchors `#terms-section-N`; search filters + smooth scroll; full body from `client/src/locales/terms/{en,es,fr,ht}.content.json` merged as `termsContent` in `client/src/i18n.js`; UI via `termsPage.*`. Regenerate EN: `python3 client/scripts/build-terms-en-json.py`; ES/FR/HT: `python3 client/scripts/translate-legal-content.py terms` (or legacy `translate-terms-content.py`).
+- **Static Privacy page (`client/src/pages/privacy.tsx`):** Same UX as Terms (`#privacy-section-1`…`13`); content from `client/src/locales/privacy/{en,es,fr,ht}.content.json` as `privacyContent`; UI `privacyPage.*`. Regenerate EN: `python3 client/scripts/build-privacy-en-json.py`; ES/FR/HT: `python3 client/scripts/translate-legal-content.py privacy`. Machine translations should be legally reviewed.
 
 **Latest work completed (2026-04-29):**
 - **Support Message Retention & Auto-Deletion System** ✅ COMPLETE (180-day GDPR-compliant message retention)

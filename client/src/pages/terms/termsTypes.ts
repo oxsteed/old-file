@@ -1,5 +1,9 @@
-/** Segment: plain string, bold, or mailto link */
-export type TextSeg = string | { strong: string } | { mailto: string };
+/** Segment: plain string, bold, mailto, or in-app route link */
+export type TextSeg =
+  | string
+  | { strong: string }
+  | { mailto: string }
+  | { routeLink: { to: string; label: string } };
 
 export type TermsBlock =
   | { type: 'h2'; text: string; sub?: boolean }
