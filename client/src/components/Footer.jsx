@@ -174,6 +174,33 @@ export default function Footer() {
           >
             {t('footer.vortex')}
           </button>
+          {user && (
+            <Link
+              to="/support/agent"
+              style={{
+                display: 'inline-block',
+                textDecoration: 'none',
+                background: 'none',
+                border: '1px solid var(--color-primary)',
+                borderRadius: '999px',
+                padding: '0.15rem 0.7rem',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                cursor: 'pointer',
+                letterSpacing: '0.04em',
+                transition: 'background var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(249,115,22,0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'none';
+              }}
+            >
+              {t('nav.supportWorkspace')}
+            </Link>
+          )}
           {/* Consulting button */}
           <button
             type="button"
