@@ -22,11 +22,12 @@ const startConsultingNoShowFollowup = () => {
           cs.email,
           cs.first_name,
           cs.business_name,
-          c.first_name as consultant_first_name,
-          c.last_name as consultant_last_name
+          cons_u.first_name as consultant_first_name,
+          cons_u.last_name as consultant_last_name
         FROM consulting_sessions_scheduled css
         JOIN consulting_sessions cs ON css.session_id = cs.id
-        LEFT JOIN consultants c ON cs.consultant_assigned_id = c.user_id
+        LEFT JOIN consultants c ON cs.consultant_id = c.id
+        LEFT JOIN users cons_u ON c.user_id = cons_u.id
         WHERE css.status = 'no_show'
           AND NOT EXISTS (
             SELECT 1 FROM consulting_session_followups
