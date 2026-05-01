@@ -1,11 +1,63 @@
 -- Migration 149: Support employers (multi-tenant hiring)
 -- Each support employer is a distinct org that can employ agents (business, helper-as-org, or platform).
 -- support_agents.employer_id references support_employers; business_id remains the conversation/customer context (OxSteed style).
+--
+-- NOTE: businesses.id is SERIAL (INTEGER). Some support migrations declared business_id as UUID; align before FKs.
+
+ALTER TABLE support_agents DROP CONSTRAINT IF EXISTS support_agents_business_id_fkey;
+ALTER TABLE agent_applications DROP CONSTRAINT IF EXISTS agent_applications_business_id_fkey;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'support_agents'
+      AND column_name = 'business_id' AND udt_name = 'uuid'
+  ) THEN
+    UPDATE support_agents SET business_id = NULL WHERE business_id IS NOT NULL;
+    ALTER TABLE support_agents ALTER COLUMN business_id TYPE INTEGER USING (NULL::integer);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'agent_applications'
+      AND column_name = 'business_id' AND udt_name = 'uuid'
+  ) THEN
+    UPDATE agent_applications SET business_id = NULL WHERE business_id IS NOT NULL;
+    ALTER TABLE agent_applications ALTER COLUMN business_id TYPE INTEGER USING (NULL::integer);
+  END IF;
+END $$;
+
+-- Restore FK to businesses(id) after type alignment (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'support_agents_business_id_fkey'
+  ) THEN
+    ALTER TABLE support_agents
+      ADD CONSTRAINT support_agents_business_id_fkey
+      FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'agent_applications_business_id_fkey'
+  ) THEN
+    ALTER TABLE agent_applications
+      ADD CONSTRAINT agent_applications_business_id_fkey
+      FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS support_employers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   kind VARCHAR(20) NOT NULL CHECK (kind IN ('business', 'helper', 'platform')),
-  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE,
   helper_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   display_name VARCHAR(200),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
