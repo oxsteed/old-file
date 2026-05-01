@@ -432,4 +432,203 @@ function DetailModal({ request, onClose }) {
         }}>
           {t('businessLaunchStatus.contactSupport', { defaultValue: 'Questions? Email us at' })}{' '}
           <a href="mailto:support@oxsteed.com" style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}>
-            sup
+            support@oxsteed.com
+          </a>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default function BusinessLaunchStatusPage() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState(null);
+  const [emailQuery, setEmailQuery] = useState('');
+  const [selected, setSelected] = useState(null);
+
+  const loadMine = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const { data } = await api.get('/consulting/business-launch/my-requests');
+      setRequests(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || 'Failed to load');
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMine();
+  }, [loadMine]);
+
+  useEffect(() => {
+    if (user?.email) setEmailQuery(user.email);
+  }, [user?.email]);
+
+  const handleSearch = async e => {
+    e.preventDefault();
+    const email = emailQuery.trim();
+    if (!email) {
+      toast.error(t('businessLaunchStatus.enterEmail', { defaultValue: 'Please enter an email address to search' }));
+      return;
+    }
+    setSearching(true);
+    setError(null);
+    try {
+      const { data } = await api.get('/consulting/business-launch/search', {
+        params: { email },
+      });
+      setRequests(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length === 0) {
+        toast(t('businessLaunchStatus.noRequests', { defaultValue: 'No intake forms found for this email' }));
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || t('businessLaunchStatus.searchError', { defaultValue: 'Error searching for intake forms. Please try again.' });
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  return (
+    <PageShell>
+      <PageMeta
+        title={t('businessLaunchStatus.trackYourBusiness', { defaultValue: 'Track Your Business Launch' })}
+        description={t('businessLaunchStatus.checkStatus', { defaultValue: 'Check the status of your intake form and upcoming milestones' })}
+      />
+      <div style={{ maxWidth: '720px', margin: '0 auto', padding: '1.25rem' }}>
+        <h1 style={{ margin: '0 0 0.5rem', fontSize: '1.75rem', fontWeight: 700 }}>
+          {t('businessLaunchStatus.trackYourBusiness', { defaultValue: 'Track Your Business Launch' })}
+        </h1>
+        <p style={{ margin: '0 0 1.5rem', color: 'var(--muted-text)', fontSize: '1rem', lineHeight: 1.5 }}>
+          {t('businessLaunchStatus.checkStatus', { defaultValue: 'Check the status of your intake form and upcoming milestones' })}
+        </p>
+
+        <form
+          onSubmit={handleSearch}
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+            alignItems: 'center',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <input
+            id="bls-email-search"
+            type="email"
+            autoComplete="email"
+            aria-label={t('businessLaunchStatus.emailPlaceholder', { defaultValue: 'Enter your email address' })}
+            value={emailQuery}
+            onChange={e => setEmailQuery(e.target.value)}
+            placeholder={t('businessLaunchStatus.emailPlaceholder', { defaultValue: 'Enter your email address' })}
+            style={{
+              flex: '1 1 220px',
+              minWidth: 0,
+              padding: '0.65rem 0.9rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--card-bg)',
+              color: 'var(--app-text)',
+              fontSize: '1rem',
+            }}
+          />
+          <button
+            type="submit"
+            disabled={searching}
+            style={{
+              padding: '0.65rem 1.25rem',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#4F46E5',
+              color: 'white',
+              fontWeight: 600,
+              cursor: searching ? 'wait' : 'pointer',
+            }}
+          >
+            {searching
+              ? t('common.loading', { defaultValue: 'Loading…' })
+              : t('businessLaunchStatus.search', { defaultValue: 'Check Status' })}
+          </button>
+          <button
+            type="button"
+            onClick={() => loadMine()}
+            disabled={loading}
+            style={{
+              padding: '0.65rem 1rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--app-bg)',
+              color: 'var(--app-text)',
+              fontWeight: 500,
+              cursor: loading ? 'wait' : 'pointer',
+            }}
+          >
+            {t('common.retry', { defaultValue: 'Retry' })}
+          </button>
+        </form>
+
+        {error && (
+          <p style={{ color: '#DC2626', marginBottom: '1rem', fontSize: '0.95rem' }} role="alert">
+            {error}
+          </p>
+        )}
+
+        {loading ? (
+          <p style={{ color: 'var(--muted-text)' }}>{t('common.loading', { defaultValue: 'Loading…' })}</p>
+        ) : requests.length === 0 ? (
+          <div
+            style={{
+              padding: '1.5rem',
+              borderRadius: '10px',
+              border: '1px dashed var(--border-color)',
+              textAlign: 'center',
+              color: 'var(--muted-text)',
+            }}
+          >
+            <p style={{ margin: '0 0 1rem' }}>
+              {t('businessLaunchStatus.noRequests', { defaultValue: 'No intake forms found for this email' })}
+            </p>
+            <Link
+              to="/consulting-intake"
+              style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}
+            >
+              {t('businessLaunchStatus.startLaunch', { defaultValue: 'Start Your Business Launch →' })}
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {requests.map(req => (
+              <RequestCard key={req.id} request={req} onClick={() => setSelected(req)} />
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
+          <p style={{ margin: '0 0 0.75rem', color: 'var(--muted-text)', fontSize: '0.95rem' }}>
+            {t('businessLaunchStatus.wantAnother', { defaultValue: 'Want to start another business?' })}
+          </p>
+          <Link
+            to="/consulting-intake"
+            style={{ color: '#4F46E5', fontWeight: 600, textDecoration: 'none' }}
+          >
+            {t('businessLaunchStatus.submitNew', { defaultValue: 'Submit a New Intake Form' })}
+          </Link>
+        </div>
+      </div>
+
+      {selected && (
+        <DetailModal request={selected} onClose={() => setSelected(null)} />
+      )}
+    </PageShell>
+  );
+}
