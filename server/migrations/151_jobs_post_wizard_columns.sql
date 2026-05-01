@@ -3,6 +3,7 @@
 -- later wizard columns live in 036, 044, 080, etc. This migration is idempotent
 -- so createJob never hits "column does not exist" (500) on partial migration order.
 
+
 ALTER TABLE jobs
   ADD COLUMN IF NOT EXISTS budget_type VARCHAR(20) DEFAULT 'open',
   ADD COLUMN IF NOT EXISTS urgency VARCHAR(20) DEFAULT 'flexible',
