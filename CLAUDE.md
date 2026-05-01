@@ -1,6 +1,6 @@
 # OxSteed — AI Contributor Guide
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-01
 
 ## Instructions for Every Session
 
@@ -45,6 +45,9 @@
   - Monitoring alerts
 
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
+
+**Latest work completed (2026-05-01):**
+- **Support agent deploy crash + onboarding UX:** `server/routes/supportAgents.js` imported `requireAdmin` from `middleware/auth.js`, which does not export it — Express threw `Route.post() requires a callback function but got a [object Undefined]` and the container failed healthcheck. Fixed by using `requireRole('admin', 'super_admin')` after `authenticate`. Same bug fixed in `server/routes/legalDocuments.js`. **Agent onboarding UI** (`client/src/admin/pages/SupportAgentOnboarding.jsx`): route `/admin/support/agent-onboarding` has no `:businessId` param; added optional Business UUID field (persisted to `localStorage` key `oxs:support_business_id` after success) so `POST /api/support/agents/onboard` receives `business_id`.
 
 **Latest work completed (2026-04-30):**
 - **Static Terms page (`client/src/pages/terms.tsx`):** Uses shared `LegalPolicyPage` + `PageShell`; TOC anchors `#terms-section-N`; search filters + smooth scroll; full body from `client/src/locales/terms/{en,es,fr,ht}.content.json` merged as `termsContent` in `client/src/i18n.js`; UI via `termsPage.*`. Regenerate EN: `python3 client/scripts/build-terms-en-json.py`; ES/FR/HT: `python3 client/scripts/translate-legal-content.py terms` (or legacy `translate-terms-content.py`).
