@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Shield, Ban, CheckCircle,
          ExternalLink, AlertCircle,
          ChevronLeft, MessageSquare,
-         X, Loader2, Trash2, FileCheck, AlertTriangle } from 'lucide-react';
+         X, Loader2, Trash2, FileCheck, AlertTriangle, KeyRound } from 'lucide-react';
 import adminApi                 from '../../../lib/adminApi';
 import { useAuth }              from '../../../hooks/useAuth';
 
@@ -31,6 +31,10 @@ export default function UserDetail() {
   const [credentialReason, setCredentialReason] = useState('');
   const [credentialNotes, setCredentialNotes] = useState('');
   const [credentialSaving, setCredentialSaving] = useState(false);
+  const [showPwReset, setShowPwReset] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
 
   const fetchUser = async () => {
     setLoading(true);
@@ -152,6 +156,40 @@ export default function UserDetail() {
       });
     } finally {
       setWorking(false);
+    }
+  };
+
+  const submitSuperAdminPassword = async (e) => {
+    e.preventDefault();
+    if (newPw.length < 8) {
+      setMessage({ type: 'error', text: t('admin.setPasswordTooShort') });
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setMessage({ type: 'error', text: t('admin.setPasswordMismatch') });
+      return;
+    }
+    if (!window.confirm(t('admin.setPasswordPrompt'))) return;
+    setPwSaving(true);
+    setMessage(null);
+    try {
+      const { data: res } = await adminApi.post(`/admin/users/${userId}/password`, {
+        password: newPw,
+      });
+      setMessage({
+        type: 'success',
+        text: res.message || t('admin.setPasswordSuccess'),
+      });
+      setShowPwReset(false);
+      setNewPw('');
+      setConfirmPw('');
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.error || t('admin.setPasswordFailed'),
+      });
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -460,6 +498,78 @@ export default function UserDetail() {
             : 'bg-red-900 border border-red-700 text-red-300'
         }`}>
           {message.text}
+        </div>
+      )}
+
+      {isSuper && (
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-5 mb-6">
+          <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+            <KeyRound size={18} />
+            {t('admin.setPasswordSectionTitle')}
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">{t('admin.setPasswordSectionHint')}</p>
+          {!showPwReset ? (
+            <button
+              type="button"
+              onClick={() => {
+                setShowPwReset(true);
+                setNewPw('');
+                setConfirmPw('');
+                setMessage(null);
+              }}
+              className="px-4 py-2 bg-amber-900/80 text-amber-100 hover:bg-amber-800
+                         rounded-lg text-sm font-semibold border border-amber-700 transition"
+            >
+              {t('admin.setPasswordOpen')}
+            </button>
+          ) : (
+            <form onSubmit={submitSuperAdminPassword} className="space-y-3 max-w-md">
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={newPw}
+                onChange={e => setNewPw(e.target.value)}
+                placeholder={t('admin.setPasswordNew')}
+                required
+                minLength={8}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg
+                           text-white text-sm focus:outline-none focus:border-orange-500"
+              />
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={confirmPw}
+                onChange={e => setConfirmPw(e.target.value)}
+                placeholder={t('admin.setPasswordRepeat')}
+                required
+                minLength={8}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg
+                           text-white text-sm focus:outline-none focus:border-orange-500"
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={pwSaving}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white
+                             rounded-lg text-sm font-semibold transition disabled:opacity-50"
+                >
+                  {pwSaving ? t('admin.setPasswordSaving') : t('admin.setPasswordSubmit')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPwReset(false);
+                    setNewPw('');
+                    setConfirmPw('');
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300
+                             rounded-lg text-sm transition"
+                >
+                  {t('admin.setPasswordCancel')}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 

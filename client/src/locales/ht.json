@@ -3879,7 +3879,20 @@
     "deleteUserTypeEmail": "Tape imèl itilizatè a pou konfime:",
     "deleteUserEmailMismatch": "Imèl la pa matche — efase anile.",
     "deleteUserReasonPrompt": "Nòt odit opsyonèl (rezon):",
-    "deleteUserFailed": "Pa t kapab efase itilizatè a."
+    "deleteUserFailed": "Pa t kapab efase itilizatè a.",
+    "setPasswordSectionTitle": "Reyinisyalize modpas (super admin)",
+    "setPasswordSectionHint": "Mete yon nouvo modpas pou itilizatè sa a epi femen tout sesyon li yo.",
+    "setPasswordOpen": "Mete nouvo modpas",
+    "setPasswordNew": "Nouvo modpas",
+    "setPasswordRepeat": "Konfime nouvo modpas",
+    "setPasswordTooShort": "Modpas la dwe gen omwen 8 karaktè.",
+    "setPasswordMismatch": "Modpas yo pa matche.",
+    "setPasswordPrompt": "Mete yon nouvo modpas pou itilizatè sa a? Yo pral femen sesyon ki egziste deja.",
+    "setPasswordSuccess": "Modpas mete ajou. Sesyon yo envalidasyon.",
+    "setPasswordFailed": "Pa t kapab mete ajou modpas la.",
+    "setPasswordSubmit": "Anrejistre modpas",
+    "setPasswordCancel": "Anile",
+    "setPasswordSaving": "Anrejistre…"
   },
   "businessSkills": {
     "addExperience": "Ajoute Eksperyans",

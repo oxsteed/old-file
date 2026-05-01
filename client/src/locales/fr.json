@@ -3880,7 +3880,20 @@
     "deleteUserTypeEmail": "Saisissez l'e-mail de l'utilisateur pour confirmer :",
     "deleteUserEmailMismatch": "L'e-mail ne correspond pas — suppression annulée.",
     "deleteUserReasonPrompt": "Note d'audit facultative (motif) :",
-    "deleteUserFailed": "Échec de la suppression de l'utilisateur."
+    "deleteUserFailed": "Échec de la suppression de l'utilisateur.",
+    "setPasswordSectionTitle": "Réinitialiser le mot de passe (super admin)",
+    "setPasswordSectionHint": "Définit un nouveau mot de passe pour cet utilisateur et déconnecte toutes ses sessions.",
+    "setPasswordOpen": "Définir un nouveau mot de passe",
+    "setPasswordNew": "Nouveau mot de passe",
+    "setPasswordRepeat": "Confirmer le nouveau mot de passe",
+    "setPasswordTooShort": "Le mot de passe doit comporter au moins 8 caractères.",
+    "setPasswordMismatch": "Les mots de passe ne correspondent pas.",
+    "setPasswordPrompt": "Définir un nouveau mot de passe pour cet utilisateur ? Ses sessions existantes seront fermées.",
+    "setPasswordSuccess": "Mot de passe mis à jour. Sessions invalidées.",
+    "setPasswordFailed": "Échec de la mise à jour du mot de passe.",
+    "setPasswordSubmit": "Enregistrer le mot de passe",
+    "setPasswordCancel": "Annuler",
+    "setPasswordSaving": "Enregistrement…"
   },
   "businessSkills": {
     "addExperience": "Ajouter Expérience",

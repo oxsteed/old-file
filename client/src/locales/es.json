@@ -3880,7 +3880,20 @@
     "deleteUserTypeEmail": "Escribe el correo del usuario para confirmar:",
     "deleteUserEmailMismatch": "El correo no coincide — eliminación cancelada.",
     "deleteUserReasonPrompt": "Nota de auditoría opcional (motivo):",
-    "deleteUserFailed": "No se pudo eliminar el usuario."
+    "deleteUserFailed": "No se pudo eliminar el usuario.",
+    "setPasswordSectionTitle": "Restablecer contraseña (superadmin)",
+    "setPasswordSectionHint": "Establece una nueva contraseña de acceso para este usuario y cierra todas sus sesiones.",
+    "setPasswordOpen": "Establecer nueva contraseña",
+    "setPasswordNew": "Nueva contraseña",
+    "setPasswordRepeat": "Confirmar nueva contraseña",
+    "setPasswordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+    "setPasswordMismatch": "Las contraseñas no coinciden.",
+    "setPasswordPrompt": "¿Establecer una nueva contraseña para este usuario? Se cerrarán sus sesiones existentes.",
+    "setPasswordSuccess": "Contraseña actualizada. Sesiones invalidadas.",
+    "setPasswordFailed": "No se pudo actualizar la contraseña.",
+    "setPasswordSubmit": "Guardar contraseña",
+    "setPasswordCancel": "Cancelar",
+    "setPasswordSaving": "Guardando…"
   },
   "businessSkills": {
     "addExperience": "Agregar Experiencia",

@@ -85,6 +85,7 @@ router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
 router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
+router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
 
 // Conversations (super-admin only — every read is audited)
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);

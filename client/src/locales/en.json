@@ -3881,7 +3881,20 @@
     "deleteUserTypeEmail": "Type the user's email address to confirm:",
     "deleteUserEmailMismatch": "Email does not match — deletion cancelled.",
     "deleteUserReasonPrompt": "Optional audit note (reason):",
-    "deleteUserFailed": "Failed to delete user."
+    "deleteUserFailed": "Failed to delete user.",
+    "setPasswordSectionTitle": "Reset password (super admin)",
+    "setPasswordSectionHint": "Sets a new login password for this user and signs them out everywhere.",
+    "setPasswordOpen": "Set new password",
+    "setPasswordNew": "New password",
+    "setPasswordRepeat": "Confirm new password",
+    "setPasswordTooShort": "Password must be at least 8 characters.",
+    "setPasswordMismatch": "Passwords do not match.",
+    "setPasswordPrompt": "Set a new password for this user? Their existing sessions will be signed out.",
+    "setPasswordSuccess": "Password updated. Sessions invalidated.",
+    "setPasswordFailed": "Failed to update password.",
+    "setPasswordSubmit": "Save password",
+    "setPasswordCancel": "Cancel",
+    "setPasswordSaving": "Saving…"
   },
   "businessSkills": {
     "addExperience": "Add Experience",
