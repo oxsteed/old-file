@@ -1,5 +1,5 @@
 const db = require('../db');
-const { logAdminAction } = require('../services/auditService');
+const { logAdminAction, logUserAction } = require('../services/auditService');
 const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
@@ -1311,5 +1311,64 @@ exports.sendAdminMessage = async (req, res) => {
   } catch (err) {
     logger.error('sendAdminMessage error', { err });
     res.status(500).json({ error: 'Failed to send message.' });
+  }
+};
+
+// POST /admin/users/:userId/password — super-admin sets a new password for any user
+exports.setUserPasswordBySuperAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { password } = req.body || {};
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'password is required.' });
+    }
+    if (password.length < 8 || password.length > 128) {
+      return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
+    }
+
+    const { rows } = await db.query('SELECT id, email FROM users WHERE id = $1', [userId]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+
+    const bcrypt = require('bcrypt');
+    const passwordHash = await bcrypt.hash(password, 12);
+    await db.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [passwordHash, userId],
+    );
+
+    try {
+      await tokenRevocationService.revokeAllUserTokens(userId);
+    } catch (e) {
+      /* non-fatal */
+    }
+    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+    socketService.disconnectUserSockets(userId);
+
+    await logUserAction({
+      adminId: req.user.id,
+      targetUserId: userId,
+      actionType: 'edit_password',
+      fieldName: 'password',
+      oldValue: '[REDACTED]',
+      newValue: '[HASHED]',
+      ipAddress: req.ip || null,
+    });
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'super_admin_set_password',
+      targetType: 'user',
+      targetId: userId,
+      description: `Password set by super admin for ${rows[0].email}`,
+      req,
+    });
+
+    res.json({
+      message:
+        'Password updated successfully. All sessions for this user were signed out.',
+    });
+  } catch (err) {
+    logger.error('setUserPasswordBySuperAdmin error', { err });
+    res.status(500).json({ error: 'Failed to update password.' });
   }
 };
