@@ -512,6 +512,31 @@
       "20": "20. Modifye Kondisyon Sa Yo"
     }
   },
+  "privacyPage": {
+    "title": "Politik Konfidansyalite",
+    "lastUpdated": "Dènye aktyalizasyon: 22 mas 2026 — Efikas imedyatman lè ou kreye yon kont",
+    "onThisPage": "Sou paj sa a",
+    "onThisPageAria": "Tablo kontni",
+    "searchLabel": "Chèche nan seksyon politik konfidansyalite a",
+    "searchPlaceholder": "Chèche seksyon…",
+    "emailLabel": "Imèl:",
+    "translationDisclaimer": "Tradiksyon sa a bay pou fasilite sèlman. Vèsyon an Angle se dokiman ki legalman obligatwa.",
+    "sectionTitles": {
+      "1": "1. Entwodiksyon",
+      "2": "2. Enfòmasyon Nou Ranmase",
+      "3": "3. Kijan Nou Itilize Enfòmasyon Ou",
+      "4": "4. Kijan Nou Pataje Enfòmasyon Ou",
+      "5": "5. Konfidansyalite Adrès ak Mask Done",
+      "6": "6. Kenbe Done",
+      "7": "7. Dwa Ou",
+      "8": "8. Cookie ak Teknoloji Swivi",
+      "9": "9. Sekirite Done ak Notifikasyon Kraze",
+      "10": "10. Efase Kont",
+      "11": "11. Konfidansyalite Timoun",
+      "12": "12. Chanjman nan Politik Konfidansyalite Sa a",
+      "13": "13. Kontakte Nou"
+    }
+  },
   "howItWorks": {
     "badge": "Apèsi Platfòm",
     "title": "Kijan OxSteed Mache",

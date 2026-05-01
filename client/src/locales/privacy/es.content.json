@@ -1,0 +1,586 @@
+{
+  "sections": {
+    "1": {
+      "search": "1 introducción recopilación de información personal de Oxsteed",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Introducción"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC (\"OxSteed\", \"nosotros\", \"nos\" o \"nuestro\") opera la plataforma OxSteed en oxsteed.com. Esta Política de Privacidad explica qué información personal recopilamos, cómo la usamos, cómo la compartimos y sus derechos con respecto a sus datos."
+        },
+        {
+          "type": "p",
+          "text": "Al crear una cuenta o utilizar OxSteed, usted acepta la recopilación y el uso de su información como se describe en esta Política de Privacidad. Si no está de acuerdo, no utilice la plataforma."
+        }
+      ]
+    },
+    "2": {
+      "search": "2 información recopilar registro franja checkr dispositivo de cookies",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Información que recopilamos"
+        },
+        {
+          "type": "h3",
+          "text": "2.1 Información que usted proporciona"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Registro de cuenta:"
+              },
+              "Nombre, dirección de correo electrónico, número de teléfono, contraseña, función (Cliente o Ayudante) y ubicación (ciudad, estado, código postal)."
+            ],
+            [
+              {
+                "strong": "Información del perfil:"
+              },
+              "Foto de perfil, biografía, habilidades, categorías de servicios, tarifas por hora y disponibilidad."
+            ],
+            [
+              {
+                "strong": "Información de pago:"
+              },
+              "Stripe procesa todos los pagos. OxSteed no almacena números de tarjetas de crédito. Almacenamos los ID de clientes de Stripe y los ID de cuentas conectadas."
+            ],
+            [
+              {
+                "strong": "Datos de verificación de antecedentes:"
+              },
+              "Si elige una verificación de antecedentes, Checkr, Inc. recopila y procesa sus datos personales según su propia política de privacidad. OxSteed solo recibe el estado de aprobado/reprobado y elegibilidad para la insignia."
+            ],
+            [
+              {
+                "strong": "Comunicaciones:"
+              },
+              "Mensajes enviados a través de la plataforma, solicitudes de soporte y comentarios."
+            ],
+            [
+              {
+                "strong": "Datos del trabajo y de la oferta:"
+              },
+              "Descripciones de trabajo, montos de oferta, estado de finalización y revisiones."
+            ],
+            [
+              {
+                "strong": "Información fiscal:"
+              },
+              "Datos del formulario W-9 del IRS (nombre, dirección, SSN/EIN) para los ayudantes que ganan más de $600 al año hasta el nivel 3."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "2.2 Información recopilada automáticamente"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Datos del dispositivo y del navegador:"
+              },
+              "Dirección IP, tipo de navegador, sistema operativo, identificadores de dispositivo y resolución de pantalla."
+            ],
+            [
+              {
+                "strong": "Datos de uso:"
+              },
+              "Páginas vistas, funciones utilizadas, consultas de búsqueda, patrones de clics y duración de la sesión."
+            ],
+            [
+              {
+                "strong": "Datos de ubicación:"
+              },
+              "Ubicación aproximada derivada de la dirección IP y el código postal proporcionados durante el registro."
+            ],
+            [
+              {
+                "strong": "Cookies y seguimiento:"
+              },
+              "Utilizamos cookies esenciales para la autenticación y la gestión de sesiones. Consulte la Sección 8 para obtener más detalles."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "2.3 Información de Terceros"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Raya:"
+              },
+              "Estado de pago, ID de transacción y estado de cuenta conectada."
+            ],
+            [
+              {
+                "strong": "Comprobador:"
+              },
+              "Estado de finalización de la verificación de antecedentes y elegibilidad para la insignia (no los detalles del informe subyacente)."
+            ]
+          ]
+        }
+      ]
+    },
+    "3": {
+      "search": "3 cómo utilizamos la información pagos de cuentas impuestos publicidad venta",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Cómo utilizamos su información"
+        },
+        {
+          "type": "p",
+          "text": "Utilizamos la información que recopilamos para los siguientes propósitos:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Para crear, mantener y proteger su cuenta;"
+            ],
+            [
+              "Para conectar a los Clientes con los Ayudantes y facilitar las transacciones de servicios;"
+            ],
+            [
+              "Para procesar pagos a través de Stripe (depósito de garantía de nivel 3);"
+            ],
+            [
+              "Facilitar la verificación de antecedentes a través de Checkr;"
+            ],
+            [
+              "Para enviar correos electrónicos transaccionales (alertas de empleo, confirmaciones de pago, notificaciones de cuenta);"
+            ],
+            [
+              "Para cumplir con las obligaciones de declaración de impuestos (formulario 1099-NEC del IRS);"
+            ],
+            [
+              "Para hacer cumplir nuestros Términos de servicio y prevenir fraudes;"
+            ],
+            [
+              "Mejorar y desarrollar la plataforma;"
+            ],
+            [
+              "Para responder a solicitudes legales y prevenir daños;"
+            ],
+            [
+              "Para enviar comunicaciones relacionadas con el servicio (no puede optar por no recibirlas mientras su cuenta esté activa)."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "No vendemos su información personal."
+            },
+            "No utilizamos sus datos para publicidad dirigida. No compartimos sus datos con corredores de datos."
+          ]
+        }
+      ]
+    },
+    "4": {
+      "search": "4 compartir información raya checkr reenviar dirección de aplicación de la ley",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Cómo compartimos su información"
+        },
+        {
+          "type": "p",
+          "text": "Compartimos su información personal sólo en las siguientes circunstancias:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Con otros usuarios:"
+              },
+              "La información de su perfil (nombre, foto, habilidades, reseñas, estado de la insignia) es visible para otros usuarios. Su dirección completa se comparte solo con los Ayudantes que aceptaron un trabajo y solo dentro de las 12 horas posteriores a la hora de inicio del trabajo."
+            ],
+            [
+              {
+                "strong": "Con Stripe, Inc.:"
+              },
+              "Datos de pago e identidad necesarios para procesar transacciones y administrar cuentas conectadas."
+            ],
+            [
+              {
+                "strong": "Con Checkr, Inc.:"
+              },
+              "Datos personales necesarios para realizar verificaciones de antecedentes (solo con su consentimiento afirmativo por separado según la FCRA)."
+            ],
+            [
+              {
+                "strong": "Con reenvío:"
+              },
+              "Dirección de correo electrónico y nombre para la entrega de correo electrónico transaccional."
+            ],
+            [
+              {
+                "strong": "Con las fuerzas del orden:"
+              },
+              "Cuando lo exija la ley, citación, orden judicial o para proteger los derechos, la propiedad o la seguridad de OxSteed, sus usuarios o el público."
+            ],
+            [
+              {
+                "strong": "En una transferencia de negocio:"
+              },
+              "Si OxSteed adquiere, fusiona o vende activos, los datos del usuario pueden transferirse a la entidad sucesora. Le notificaremos por correo electrónico antes de que sus datos estén sujetos a una política de privacidad diferente."
+            ]
+          ]
+        }
+      ]
+    },
+    "5": {
+      "search": "5 dirección privacidad enmascaramiento calle 12 horas trabajo de ayudante",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Abordar la privacidad y el enmascaramiento de datos"
+        },
+        {
+          "type": "p",
+          "text": "Cuando un Cliente publica un trabajo, su dirección completa nunca se muestra públicamente. Un Ayudante recibe la dirección completa del Cliente sólo después de:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "El Ayudante ha sido aceptado para el trabajo; Y"
+            ],
+            [
+              "Está previsto que el trabajo comience dentro de 12 horas."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Todas las revelaciones de direcciones se registran con marcas de tiempo, ID de usuario y direcciones IP por motivos de seguridad y auditoría."
+        }
+      ]
+    },
+    "6": {
+      "search": "6 retención de datos w-9 1099 registros de auditoría de depósito de garantía cuenta cerrada",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Retención de datos"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Cuentas activas:"
+              },
+              "Los datos se conservan mientras su cuenta esté activa."
+            ],
+            [
+              {
+                "strong": "Cuentas cerradas:"
+              },
+              "Los datos de la cuenta se conservan durante 3 años después del cierre de la cuenta para fines de cumplimiento tributario, obligaciones legales y resolución de disputas."
+            ],
+            [
+              {
+                "strong": "Registros de impuestos (W-9, 1099-NEC):"
+              },
+              "Retenido durante 7 años según lo exigen las regulaciones del IRS."
+            ],
+            [
+              {
+                "strong": "Registros de transacciones de depósito en garantía:"
+              },
+              "Retenido durante 5 años después de la fecha de la transacción."
+            ],
+            [
+              {
+                "strong": "Registros de auditoría:"
+              },
+              "Los registros de seguridad y acceso se conservan durante 2 años."
+            ],
+            [
+              {
+                "strong": "Estado de la verificación de antecedentes:"
+              },
+              "La caducidad de la insignia es de 12 meses. Checkr conserva los datos de cheques subyacentes según su propia política de retención."
+            ]
+          ]
+        }
+      ]
+    },
+    "7": {
+      "search": "7 sus derechos eliminar correcto california ccpa cpra optar por no participar",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Tus derechos"
+        },
+        {
+          "type": "p",
+          "text": "Dependiendo de su estado de residencia, puede tener los siguientes derechos con respecto a su información personal:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Derecho a saber:"
+              },
+              "Solicite una copia de la información personal que tenemos sobre usted."
+            ],
+            [
+              {
+                "strong": "Derecho a eliminar:"
+              },
+              "Solicitar la eliminación de su información personal, sujeto a obligaciones legales de retención."
+            ],
+            [
+              {
+                "strong": "Derecho a corregir:"
+              },
+              "Solicitar la corrección de información personal inexacta."
+            ],
+            [
+              {
+                "strong": "Derecho a optar por no participar en la venta:"
+              },
+              "No vendemos información personal. No se necesita ninguna acción."
+            ],
+            [
+              {
+                "strong": "Derecho a la no discriminación:"
+              },
+              "No lo discriminaremos por ejercer sus derechos de privacidad."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            "Para ejercer cualquiera de estos derechos, envíe un correo electrónico",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            "con el asunto \"Solicitud de derechos de privacidad\". Le responderemos dentro de los 30 días. Es posible que necesitemos verificar su identidad antes de procesar su solicitud."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "yellow",
+          "strong": "Residentes de California (CCPA/CPRA):",
+          "segments": [
+            "Tiene derechos adicionales según la Ley de Privacidad del Consumidor de California y la Ley de Derechos de Privacidad de California. Vea nuestro",
+            {
+              "routeLink": {
+                "to": "/do-not-sell",
+                "label": "No venda ni comparta mi información personal"
+              }
+            },
+            "página para más detalles."
+          ]
+        }
+      ]
+    },
+    "8": {
+      "search": "8 cookies de seguimiento de publicidad funcional esencial",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Cookies y tecnologías de seguimiento"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed utiliza las siguientes categorías de cookies:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Galletas esenciales:"
+              },
+              "Requerido para autenticación, administración de sesiones y seguridad. Estos no se pueden desactivar."
+            ],
+            [
+              {
+                "strong": "Cookies funcionales:"
+              },
+              "Recuerde sus preferencias (por ejemplo, modo oscuro, ubicación). Puede desactivarlos en la configuración de su navegador."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed lo hace",
+            {
+              "strong": "no"
+            },
+            "utilizar cookies publicitarias, píxeles de retargeting o scripts de seguimiento de terceros. No participamos en redes publicitarias ni vendemos datos a anunciantes."
+          ]
+        }
+      ]
+    },
+    "9": {
+      "search": "9 notificación de violación de seguridad tls bcrypt jwt 72 horas",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Seguridad de los datos y notificación de infracciones"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed implementa medidas de seguridad comercialmente razonables para proteger su información personal, que incluyen:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Cifrado en tránsito (TLS/HTTPS) y en reposo para datos confidenciales;"
+            ],
+            [
+              "Hashing de contraseñas de Bcrypt con salado;"
+            ],
+            [
+              "Autenticación basada en JWT con cookies seguras solo HTTP;"
+            ],
+            [
+              "Limitación de velocidad en puntos finales de autenticación;"
+            ],
+            [
+              "Controles de acceso basados ​​en roles;"
+            ],
+            [
+              "Registro de auditoría de acciones sensibles a la seguridad."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Notificación de incumplimiento:"
+            },
+            "En caso de una violación de datos que comprometa su información personal, OxSteed notificará a los usuarios afectados por correo electrónico dentro de las 72 horas posteriores al descubrimiento de la violación y notificará a los fiscales generales estatales correspondientes según lo exige la ley."
+          ]
+        }
+      ]
+    },
+    "10": {
+      "search": "10 perfil de eliminación de cuenta depósito de garantía anónimo nivel 3",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Eliminación de cuenta"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "Puede solicitar la eliminación de su cuenta en cualquier momento a través de la configuración de su cuenta o enviando un correo electrónico",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            null
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Al eliminar:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Su perfil, mensajes y datos personales se eliminarán permanentemente dentro de los 30 días;"
+            ],
+            [
+              "Las reseñas que hayas dejado para otras personas se anonimizarán pero no se eliminarán;"
+            ],
+            [
+              "Los registros fiscales (W-9, 1099-NEC) se conservarán durante el período legalmente requerido;"
+            ],
+            [
+              "Los registros de transacciones en depósito en garantía se conservarán para fines de auditoría;"
+            ],
+            [
+              "Las transacciones activas de depósito en garantía de Nivel 3 deben completarse o resolverse antes de que se pueda proceder a la eliminación."
+            ]
+          ]
+        }
+      ]
+    },
+    "11": {
+      "search": "11 niños privacidad menores de 18 menores",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Privacidad de los niños"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed no está diseñado para que lo utilicen menores de 18 años. No recopilamos intencionalmente información personal de niños menores de 18 años. Si descubrimos que hemos recopilado información personal de un niño menor de 18 años, la eliminaremos de inmediato. Si cree que un niño menor de 18 años nos ha proporcionado información personal, contáctenos en",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            null
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 cambios política de privacidad correo electrónico 14 días actualizado",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Cambios a esta Política de Privacidad"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed puede actualizar esta Política de Privacidad en cualquier momento. Notificaremos a los usuarios sobre cambios materiales por correo electrónico al menos 14 días antes de que los cambios entren en vigor. La fecha de \"Última actualización\" en la parte superior de esta página refleja la revisión más reciente."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 contáctenos springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Contáctenos"
+        },
+        {
+          "type": "p",
+          "text": "Si tiene preguntas sobre esta Política de privacidad o para ejercer sus derechos de privacidad, contáctenos en:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

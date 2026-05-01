@@ -1,0 +1,586 @@
+{
+  "sections": {
+    "1": {
+      "search": "1 entwodiksyon enfòmasyon pèsonèl oxsteed kolekte",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Entwodiksyon"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC (\"OxSteed,\" \"nou,\" \"nou,\" oswa \"nou\") opere platfòm OxSteed nan oxsteed.com. Règleman sou enfòmasyon prive sa a eksplike ki enfòmasyon pèsonèl nou kolekte, ki jan nou itilize yo, ki jan nou pataje li, ak dwa ou konsènan done ou yo."
+        },
+        {
+          "type": "p",
+          "text": "Lè w kreye yon kont oswa lè w sèvi ak OxSteed, ou dakò pou kolekte epi itilize enfòmasyon w yo jan sa dekri nan Règleman sou enfòmasyon prive sa a. Si ou pa dakò, pa sèvi ak platfòm la."
+        }
+      ]
+    },
+    "2": {
+      "search": "2 enfòmasyon kolekte enskripsyon stripe checkr cookies aparèy",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Enfòmasyon nou kolekte"
+        },
+        {
+          "type": "h3",
+          "text": "2.1 Enfòmasyon ou bay"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Enskripsyon kont:"
+              },
+              "Non, adrès imel, nimewo telefòn, modpas, wòl (Kliyan oswa Èd), ak kote (vil, eta, kòd postal)."
+            ],
+            [
+              {
+                "strong": "Enfòmasyon sou pwofil:"
+              },
+              "Foto pwofil, biyo, konpetans, kategori sèvis, tarif èdtan, ak disponiblite."
+            ],
+            [
+              {
+                "strong": "Enfòmasyon sou peman:"
+              },
+              "Stripe trete tout peman yo. OxSteed pa sere nimewo kat kredi. Nou estoke ID kliyan Stripe ak ID kont konekte."
+            ],
+            [
+              {
+                "strong": "Done pou tcheke background:"
+              },
+              "Si w chwazi yon chèk background, Checkr, Inc. kolekte epi trete done pèsonèl ou dapre pwòp règleman sou enfòmasyon prive pa li. OxSteed resevwa sèlman estati pas/echèk ak kalifikasyon badj."
+            ],
+            [
+              {
+                "strong": "Kominikasyon:"
+              },
+              "Mesaj yo voye atravè platfòm la, demann sipò, ak fidbak."
+            ],
+            [
+              {
+                "strong": "Done travay ak òf:"
+              },
+              "Deskripsyon travay, kantite òf, estati fini, ak revizyon."
+            ],
+            [
+              {
+                "strong": "Enfòmasyon taks:"
+              },
+              "Done Fòm W-9 IRS (non, adrès, SSN/EIN) pou Èd k ap touche $600+ chak ane jiska Nivo 3."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "2.2 Enfòmasyon yo kolekte otomatikman"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Aparèy ak done navigatè:"
+              },
+              "Adrès IP, kalite navigatè, sistèm opere, idantifyan aparèy, ak rezolisyon ekran."
+            ],
+            [
+              {
+                "strong": "Done itilizasyon:"
+              },
+              "Paj yo wè, karakteristik yo itilize, rechèch rechèch, modèl klike sou, ak dire sesyon yo."
+            ],
+            [
+              {
+                "strong": "Done kote yo ye:"
+              },
+              "Kote apwoksimatif ki sòti nan adrès IP ak kòd postal yo bay pandan enskripsyon an."
+            ],
+            [
+              {
+                "strong": "Bonbon ak swiv:"
+              },
+              "Nou itilize bonbon esansyèl pou otantifikasyon ak jesyon sesyon yo. Gade Seksyon 8 pou plis detay."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "2.3 Enfòmasyon ki soti nan Twazyèm Pati"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Stripe:"
+              },
+              "Estati peman, ID tranzaksyon yo, ak estati kont konekte."
+            ],
+            [
+              {
+                "strong": "Checkr:"
+              },
+              "Sitiyasyon fini tcheke background ak kalifikasyon badj (pa detay rapò ki kache)."
+            ]
+          ]
+        }
+      ]
+    },
+    "3": {
+      "search": "3 kijan nou itilize enfòmasyon kont peman taks piblisite vann",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. How We Use Your Information"
+        },
+        {
+          "type": "p",
+          "text": "We use the information we collect for the following purposes:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Pou kreye, kenbe, ak an sekirite kont ou;"
+            ],
+            [
+              "Pou konekte Kliyan ak Helpers epi fasilite tranzaksyon sèvis yo;"
+            ],
+            [
+              "Pou trete peman atravè Stripe (Tier 3 escrow);"
+            ],
+            [
+              "Pou fasilite chèk background atravè Checkr;"
+            ],
+            [
+              "Pou voye imèl tranzaksyon (alèt travay, konfimasyon peman, notifikasyon kont);"
+            ],
+            [
+              "Pou respekte obligasyon rapò taks (IRS Fòm 1099-NEC);"
+            ],
+            [
+              "Pou aplike Kondisyon Sèvis nou yo ak anpeche fwod;"
+            ],
+            [
+              "Pou amelyore ak devlope platfòm la;"
+            ],
+            [
+              "Pou reponn a demann legal epi anpeche domaj;"
+            ],
+            [
+              "Pou voye kominikasyon ki gen rapò ak sèvis (ou pa ka patisipe nan sa yo pandan kont ou a aktif)."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Nou pa vann enfòmasyon pèsonèl ou."
+            },
+            "Nou pa sèvi ak done ou yo pou piblisite vize. Nou pa pataje done ou yo ak koutye done yo."
+          ]
+        }
+      ]
+    },
+    "4": {
+      "search": "4 pataje enfòmasyon stripe checkr renmèt adrès ki fè respekte lalwa",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Kijan nou pataje enfòmasyon ou yo"
+        },
+        {
+          "type": "p",
+          "text": "Nou pataje enfòmasyon pèsonèl ou sèlman nan sikonstans sa yo:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Avèk lòt itilizatè:"
+              },
+              "Enfòmasyon sou pwofil ou a (non, foto, konpetans, revize, estati badj) vizib pou lòt itilizatè. Yo pataje adrès konplè ou sèlman ak Helpers ki te aksepte yon travay, epi sèlman nan 12 èdtan apre lè travay la kòmanse."
+            ],
+            [
+              {
+                "strong": "Avèk Stripe, Inc.:"
+              },
+              "Done peman ak idantite ki nesesè pou trete tranzaksyon yo ak jere kont ki konekte yo."
+            ],
+            [
+              {
+                "strong": "Avèk Checkr, Inc.:"
+              },
+              "Done pèsonèl ki nesesè pou fè chèk background (sèlman avèk konsantman afimatif ou separe dapre FCRA)."
+            ],
+            [
+              {
+                "strong": "Avèk renvoie:"
+              },
+              "Adrès imèl ak non pou livrezon imel tranzaksyon."
+            ],
+            [
+              {
+                "strong": "Avèk lapolis:"
+              },
+              "Lè lalwa mande, sitasyon, lòd tribinal, oswa pou pwoteje dwa, pwopriyete, oswa sekirite OxSteed, itilizatè li yo, oswa piblik la."
+            ],
+            [
+              {
+                "strong": "Nan yon transfè biznis:"
+              },
+              "Si OxSteed akeri, fizyone, oswa vann byen, done itilizatè yo ka transfere bay antite siksesè a. Nou pral fè w konnen pa imèl anvan done w yo sijè a yon règleman sou enfòmasyon prive diferan."
+            ]
+          ]
+        }
+      ]
+    },
+    "5": {
+      "search": "5 adrès vi prive masking lari 12 èdtan travay asistan",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Adrese Konfidansyalite ak Maske Done yo"
+        },
+        {
+          "type": "p",
+          "text": "Lè yon Kliyan afiche yon travay, adrès konplè yo pa janm parèt piblikman. Yon Asistan resevwa adrès konplè Kliyan an sèlman apre:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Yo te aksepte Helper la pou travay la; AK"
+            ],
+            [
+              "Travay la pwograme pou kòmanse nan 12 èdtan."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Tout adrès revele yo konekte ak timestamps, ID itilizatè, ak adrès IP pou rezon sekirite ak odit."
+        }
+      ]
+    },
+    "6": {
+      "search": "6 retansyon done w-9 1099 mòso bwa odit escrow kont fèmen",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Retansyon Done"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Kont aktif:"
+              },
+              "Done yo konsève pou toutotan kont ou aktif."
+            ],
+            [
+              {
+                "strong": "Kont fèmen:"
+              },
+              "Done kont yo konsève pou 3 ane apre fèmen kont pou konfòmite taks, obligasyon legal, ak rezon rezolisyon konfli."
+            ],
+            [
+              {
+                "strong": "Dosye taks (W-9, 1099-NEC):"
+              },
+              "Kenbe pou 7 ane jan règleman IRS egzije sa."
+            ],
+            [
+              {
+                "strong": "Dosye tranzaksyon escrow:"
+              },
+              "Kenbe pou 5 ane apre dat tranzaksyon an."
+            ],
+            [
+              {
+                "strong": "Jounal odit:"
+              },
+              "Yo konsève mòso bwa sekirite ak aksè pou 2 zan."
+            ],
+            [
+              {
+                "strong": "Estati tcheke background:"
+              },
+              "Badj ekspirasyon se 12 mwa. Done chèk ki kache yo kenbe pa Checkr anba pwòp règleman retansyon li yo."
+            ]
+          ]
+        }
+      ]
+    },
+    "7": {
+      "search": "7 dwa w yo efase kòrèk California ccpa cpra opt out",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. Dwa Ou"
+        },
+        {
+          "type": "p",
+          "text": "Tou depan de eta rezidans ou, ou ka gen dwa sa yo konsènan enfòmasyon pèsonèl ou:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Dwa pou konnen:"
+              },
+              "Mande yon kopi enfòmasyon pèsonèl nou genyen sou ou."
+            ],
+            [
+              {
+                "strong": "Dwa pou efase:"
+              },
+              "Mande efase enfòmasyon pèsonèl ou, sijè a obligasyon legal pou kenbe."
+            ],
+            [
+              {
+                "strong": "Dwa pou korije:"
+              },
+              "Mande koreksyon enfòmasyon pèsonèl ki pa kòrèk."
+            ],
+            [
+              {
+                "strong": "Dwa pou refize vann:"
+              },
+              "Nou pa vann enfòmasyon pèsonèl. Pa gen okenn aksyon ki nesesè."
+            ],
+            [
+              {
+                "strong": "Dwa pou pa diskriminasyon:"
+              },
+              "Nou p ap fè diskriminasyon kont ou paske w ap egzèse dwa w sou vi prive."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            "Pou egzèse nenpòt nan dwa sa yo, voye yon imèl",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            "ak liy sijè \"Demann dwa pou konfidansyalite.\" Nou pral reponn nan lespas 30 jou. Nou ka bezwen verifye idantite w anvan ou trete demann ou an."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "yellow",
+          "strong": "Rezidan Kalifòni (CCPA/CPRA):",
+          "segments": [
+            "Ou gen dwa adisyonèl dapre Lwa sou Konfidansyalite Konsomatè Kalifòni ak Lwa sou Dwa Konfidansyalite Kalifòni. Gade nou",
+            {
+              "routeLink": {
+                "to": "/do-not-sell",
+                "label": "Pa vann oswa pataje enfòmasyon pèsonèl mwen"
+              }
+            },
+            "paj pou plis detay."
+          ]
+        }
+      ]
+    },
+    "8": {
+      "search": "8 bonbon swiv piblisite fonksyonèl esansyèl",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Bonbon ak Teknoloji Suivi"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed sèvi ak kategori sa yo nan bonbon:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              {
+                "strong": "Bonbon esansyèl:"
+              },
+              "Obligatwa pou otantifikasyon, jesyon sesyon, ak sekirite. Sa yo pa ka enfim."
+            ],
+            [
+              {
+                "strong": "Bonbon fonksyonèl:"
+              },
+              "Sonje preferans ou yo (pa egzanp, mòd nwa, kote). Ou ka enfim sa yo nan paramèt navigatè w la."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed fè sa",
+            {
+              "strong": "pa"
+            },
+            "sèvi ak bonbon piblisite, piksèl retargeting, oswa scripts swiv twazyèm pati. Nou pa patisipe nan rezo anons oswa vann done bay piblisite."
+          ]
+        }
+      ]
+    },
+    "9": {
+      "search": "9 notifikasyon vyolasyon sekirite tls bcrypt jwt 72 èdtan",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Sekirite Done ak Notifikasyon Vyolasyon"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed aplike mezi sekirite komèsyal ki rezonab pou pwoteje enfòmasyon pèsonèl ou, tankou:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Chidere nan transpò piblik (TLS/HTTPS) ak nan rès pou done sansib;"
+            ],
+            [
+              "Bcrypt modpas hashing ak sèl;"
+            ],
+            [
+              "Otantifikasyon ki baze sou JWT ak bonbon ki an sekirite, HTTP sèlman;"
+            ],
+            [
+              "Limitasyon pousantaj sou pwen final otantifikasyon;"
+            ],
+            [
+              "Kontwòl aksè ki baze sou wòl;"
+            ],
+            [
+              "Odit antre nan aksyon sekirite-sansib."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Notifikasyon vyolasyon:"
+            },
+            "Nan ka yon vyolasyon done ki konpwomèt enfòmasyon pèsonèl ou, OxSteed pral avize itilizatè ki afekte yo pa imel nan lespas 72 èdtan apre yo dekouvri vyolasyon an epi li pral avize avoka jeneral eta ki aplikab jan lalwa egzije sa."
+          ]
+        }
+      ]
+    },
+    "10": {
+      "search": "10 pwofil efase kont anonymize nivo 3",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Efase Kont"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "Ou ka mande pou efase kont ou a nenpòt ki lè atravè paramèt kont ou oswa pa imèl",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            null
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Lè yo efase:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Pwofil ou, mesaj, ak done pèsonèl yo pral retire nèt ale nan 30 jou;"
+            ],
+            [
+              "Revizyon ou te kite pou lòt moun yo pral anonim, men yo pa efase;"
+            ],
+            [
+              "Dosye taks (W-9, 1099-NEC) yo pral konsève pou peryòd legalman obligatwa a;"
+            ],
+            [
+              "Yo pral konsève dosye tranzaksyon yo pou rezon odit;"
+            ],
+            [
+              "Tranzaksyon escrow aktif Tier 3 dwe konplete oswa rezoud anvan efase ka kontinye."
+            ]
+          ]
+        }
+      ]
+    },
+    "11": {
+      "search": "11 timoun vi prive ki poko gen 18 minè",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Konfidansyalite Timoun yo"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed pa fèt pou itilize pa nenpòt moun ki poko gen 18 an. Nou pa fè espre kolekte enfòmasyon pèsonèl nan men timoun ki poko gen 18 an. Si nou dekouvri ke nou te kolekte enfòmasyon pèsonèl nan men yon timoun ki poko gen 18 an, nou pral efase li imedyatman. Si ou kwè yon timoun ki poko gen 18 an te ba nou enfòmasyon pèsonèl, kontakte nou nan",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            null
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 chanjman imel politik konfidansyalite 14 jou mete ajou",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Chanjman nan Règleman sou enfòmasyon prive sa a"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed ka mete ajou Règleman sou enfòmasyon prive sa a nenpòt ki lè. Nou pral fè itilizatè yo konnen chanjman materyèl yo pa imèl omwen 14 jou anvan chanjman yo pran efè. Dat \"Dènye mete ajou\" ki anlè paj sa a reflete revizyon ki pi resan an."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 kontakte nou springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Kontakte nou"
+        },
+        {
+          "type": "p",
+          "text": "Pou kesyon sou Règ sou Konfidansyalite sa a oswa pou w egzèse dwa w sou enfòmasyon prive, kontakte nou nan:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

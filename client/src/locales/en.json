@@ -430,6 +430,31 @@
       "20": "20. Modifications to These Terms"
     }
   },
+  "privacyPage": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: March 22, 2026 — Effective immediately upon account creation",
+    "onThisPage": "On this page",
+    "onThisPageAria": "Table of contents",
+    "searchLabel": "Search privacy policy sections",
+    "searchPlaceholder": "Search sections…",
+    "emailLabel": "Email:",
+    "translationDisclaimer": "This translation is provided for convenience only. The English version is the legally binding document.",
+    "sectionTitles": {
+      "1": "1. Introduction",
+      "2": "2. Information We Collect",
+      "3": "3. How We Use Your Information",
+      "4": "4. How We Share Your Information",
+      "5": "5. Address Privacy and Data Masking",
+      "6": "6. Data Retention",
+      "7": "7. Your Rights",
+      "8": "8. Cookies and Tracking Technologies",
+      "9": "9. Data Security and Breach Notification",
+      "10": "10. Account Deletion",
+      "11": "11. Children's Privacy",
+      "12": "12. Changes to This Privacy Policy",
+      "13": "13. Contact Us"
+    }
+  },
   "howItWorks": {
     "badge": "Platform Overview",
     "title": "How OxSteed Works",
