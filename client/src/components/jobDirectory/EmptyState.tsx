@@ -2,7 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { SearchX, RotateCcw, ArrowRight, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ADJACENT_SKILLS, SKILL_TILES } from '../../types/jobDirectory';
+
+import { ADJACENT_SKILLS } from '../../types/jobDirectory';
+import type { SkillTile } from '../../types/helperDirectory';
 
 interface EmptyStateProps {
   query: string;
@@ -10,6 +12,8 @@ interface EmptyStateProps {
   onReset: () => void;
   /** The category the user was filtering by (from skill tile selection) */
   selectedCategory?: string;
+  /** Tiles with translated labels (same order as SKILL_TILES ids). */
+  translatedTiles: Array<SkillTile & { label: string; desc: string; subSkills: string[] }>;
   /** Active state filter - if set, we suggest clearing it. */
   state?: string;
   onClearState?: () => void;
@@ -20,14 +24,19 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   hasFilters,
   onReset,
   selectedCategory,
+  translatedTiles,
   state,
   onClearState,
 }) => {
   const { t } = useTranslation();
   const adjacentCategories = selectedCategory ? (ADJACENT_SKILLS[selectedCategory] ?? []) : [];
   const adjacentTiles = adjacentCategories
-    .map((cat) => SKILL_TILES.find((tile) => tile.category === cat))
-    .filter(Boolean) as (typeof SKILL_TILES)[number][];
+    .map((cat) => translatedTiles.find((tile) => tile.category === cat))
+    .filter(Boolean) as typeof translatedTiles;
+
+  const categoryLabel =
+    selectedCategory &&
+    (translatedTiles.find((x) => x.category === selectedCategory)?.label ?? selectedCategory);
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 py-16 px-6 text-center col-span-full">
@@ -41,7 +50,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           {query
             ? t('jobsDir.noResultsQuery', { query })
             : selectedCategory
-            ? t('jobsDir.noJobsCat', { category: selectedCategory })
+            ? t('jobsDir.noJobsCat', { category: categoryLabel })
             : t('jobsDir.noJobsFiltered')}
         </p>
       </div>

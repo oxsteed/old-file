@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { JobFilters } from '../../types/jobDirectory';
+import { translateJobCategory, translateJobSkill } from '../../utils/jobsTaxonomy';
 
 interface TagItem {
   key: string;
@@ -58,14 +59,14 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
   if (filters.category) {
     tags.push({
       key: `cat-${filters.category}`,
-      label: filters.category,
+      label: translateJobCategory(t, filters.category),
       onRemove: () => onChange({ category: '' }),
     });
   }
   filters.skills.forEach((sk) =>
     tags.push({
       key: `sk-${sk}`,
-      label: sk,
+      label: translateJobSkill(t, sk),
       onRemove: () => onChange({ skills: filters.skills.filter((s) => s !== sk) }),
     }),
   );

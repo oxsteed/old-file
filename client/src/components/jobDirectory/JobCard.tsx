@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import type { JobCardData } from '../../types/jobDirectory';
+import { translateJobCategory } from '../../utils/jobsTaxonomy';
 
 interface JobCardProps {
   job: JobCardData;
@@ -17,15 +18,33 @@ interface JobCardProps {
 }
 
 /** Format a budget range with safe fallbacks */
-function formatBudget(min?: number | null, max?: number | null, t?: (k: string) => string): string {
+function formatBudget(
+  min?: number | null,
+  max?: number | null,
+  t?: (key: string, opts?: Record<string, unknown>) => string,
+): string {
   const hasMin = min != null && !Number.isNaN(Number(min)) && Number(min) > 0;
   const hasMax = max != null && !Number.isNaN(Number(max)) && Number(max) > 0;
 
   if (!hasMin && !hasMax) return t ? t('jobsDir.budgetTBD') : 'Budget TBD';
-  if (hasMin && !hasMax) return `From $${Number(min).toLocaleString()}`;
-  if (!hasMin && hasMax) return `Up to $${Number(max).toLocaleString()}`;
-  if (Number(min) === Number(max)) return `$${Number(min).toLocaleString()}`;
-  return `$${Number(min).toLocaleString()} – $${Number(max).toLocaleString()}`;
+  if (hasMin && !hasMax) {
+    const amount = `$${Number(min).toLocaleString()}`;
+    return t ? t('jobsDir.budgetFrom', { amount }) : `From ${amount}`;
+  }
+  if (!hasMin && hasMax) {
+    const amount = `$${Number(max).toLocaleString()}`;
+    return t ? t('jobsDir.budgetUpTo', { amount }) : `Up to ${amount}`;
+  }
+  if (Number(min) === Number(max)) {
+    const amount = `$${Number(min).toLocaleString()}`;
+    return t ? t('jobsDir.budgetExact', { amount }) : amount;
+  }
+  return t
+    ? t('jobsDir.budgetBetween', {
+        min: `$${Number(min).toLocaleString()}`,
+        max: `$${Number(max).toLocaleString()}`,
+      })
+    : `$${Number(min).toLocaleString()} – $${Number(max).toLocaleString()}`;
 }
 
 function formatLocation(city?: string | null, state?: string | null, t?: (k: string) => string): string {
@@ -65,7 +84,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, highlightCategory }) => {
       <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-800 border border-gray-700 text-xs font-medium text-gray-300">
           <Briefcase className="w-3.5 h-3.5 text-brand-400" aria-hidden="true" />
-          {job.category || t('jobsDir.generalCategory')}
+          {job.category ? translateJobCategory(t, job.category) : t('jobsDir.generalCategory')}
         </span>
         {job.isUrgent && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-900/40 border border-amber-700/40 text-amber-200 text-[10px] font-semibold uppercase tracking-wide">

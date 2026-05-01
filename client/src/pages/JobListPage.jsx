@@ -47,6 +47,10 @@ import {
   countActiveJobFilters,
   toJobCardData,
 } from '../types/jobDirectory';
+import {
+  getSkillTilesTranslated,
+  translateJobCategory,
+} from '../utils/jobsTaxonomy';
 
 const PAGE_SIZE = 12;
 
@@ -171,7 +175,7 @@ const FilterDrawer = ({ open, onClose, children, activeCount }) => {
 };
 
 // ── Skill tile grid ───────────────────────────────────────────────────────────
-const SkillTileGrid = ({ selectedId, onSelect }) => {
+const SkillTileGrid = ({ tiles, selectedId, onSelect }) => {
   const { t } = useTranslation();
   return (
     <section className="bg-gray-900 border-b border-gray-800" aria-label={t('jobsDir.browseByCategory')}>
@@ -180,7 +184,7 @@ const SkillTileGrid = ({ selectedId, onSelect }) => {
           {t('jobsDir.browseByCategory')}
         </p>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-          {SKILL_TILES.map((tile) => {
+          {tiles.map((tile) => {
             const active = selectedId === tile.id;
             return (
               <button
@@ -208,6 +212,8 @@ const SkillTileGrid = ({ selectedId, onSelect }) => {
 // ── Sub-skill chip strip ──────────────────────────────────────────────────────
 const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => {
   const { t } = useTranslation();
+  const rawTile = SKILL_TILES.find((tt) => tt.id === tile.id);
+  const englishSubSkills = rawTile?.subSkills ?? [];
   return (
     <div className="bg-gray-950 border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3 flex-wrap">
@@ -218,12 +224,13 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
         <span className="text-gray-700 text-xs" aria-hidden="true">-</span>
         <p className="text-xs text-gray-500">{t('jobsDir.filterByJobType')}</p>
         <div className="flex flex-wrap gap-2">
-          {tile.subSkills.map((sk) => {
-            const active = selectedSkills.includes(sk);
+          {englishSubSkills.map((skEn, idx) => {
+            const displayLabel = tile.subSkills[idx] ?? skEn;
+            const active = selectedSkills.includes(skEn);
             return (
               <button
-                key={sk}
-                onClick={() => onToggleSkill(sk)}
+                key={skEn}
+                onClick={() => onToggleSkill(skEn)}
                 aria-pressed={active}
                 className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                   active
@@ -231,7 +238,7 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
                     : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'
                 }`}
               >
-                {sk}
+                {displayLabel}
               </button>
             );
           })}
@@ -250,7 +257,7 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
 };
 
 // ── Hero banner ───────────────────────────────────────────────────────────────
-const DirectoryHero = ({ searchValue, onSearch }) => {
+const DirectoryHero = ({ searchValue, onSearch, categoryLabels }) => {
   const { t } = useTranslation();
   return (
     <div className="relative bg-gray-900 border-b border-gray-800 overflow-hidden">
@@ -290,14 +297,14 @@ const DirectoryHero = ({ searchValue, onSearch }) => {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {CATEGORIES.slice(0, 8).map((cat) => (
+            {categoryLabels.map(({ key, label }) => (
               <button
-                key={cat}
+                key={key}
                 type="button"
-                onClick={() => onSearch(cat)}
+                onClick={() => onSearch(key)}
                 className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
               >
-                {cat}
+                {label}
               </button>
             ))}
           </div>
@@ -309,7 +316,7 @@ const DirectoryHero = ({ searchValue, onSearch }) => {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function JobListPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { jobs, loading, error, pagination, fetchJobs } = useJobs();
   const [, setSearchParams] = useSearchParams();
@@ -426,7 +433,22 @@ export default function JobListPage() {
     });
   }, []);
 
-  const selectedTile = selectedTileId ? SKILL_TILES.find((tt) => tt.id === selectedTileId) : null;
+  const translatedTiles = useMemo(
+    () => getSkillTilesTranslated(t),
+    [t, i18n.language],
+  );
+
+  const categoryHeroChips = useMemo(
+    () => CATEGORIES.slice(0, 8).map((cat) => ({
+      key: cat,
+      label: translateJobCategory(t, cat),
+    })),
+    [t, i18n.language],
+  );
+
+  const selectedTile = selectedTileId
+    ? translatedTiles.find((tt) => tt.id === selectedTileId)
+    : null;
 
   // Client-side post-filtering for things the backend doesn't yet support
   // (urgent flag, has-bids vs no-bids, posted-within window).
@@ -486,10 +508,11 @@ export default function JobListPage() {
       <DirectoryHero
         searchValue={filters.query}
         onSearch={(q) => updateFilters({ query: q })}
+        categoryLabels={categoryHeroChips}
       />
 
       {/* Skill tile grid */}
-      <SkillTileGrid selectedId={selectedTileId} onSelect={handleTileSelect} />
+      <SkillTileGrid tiles={translatedTiles} selectedId={selectedTileId} onSelect={handleTileSelect} />
 
       {/* Sub-skill chips - shown when a tile is selected */}
       {selectedTile && (
@@ -608,6 +631,7 @@ export default function JobListPage() {
                 hasFilters={activeFilterCount > 0}
                 onReset={resetFilters}
                 selectedCategory={selectedTile?.category}
+                translatedTiles={translatedTiles}
                 state={filters.state}
                 onClearState={() => updateFilters({ state: '' })}
               />
