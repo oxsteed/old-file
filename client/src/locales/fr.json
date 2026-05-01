@@ -2218,7 +2218,23 @@
     "trySimilarSkill": "Essayez une compétence similaire :",
     "dontSeeWhat": "Vous ne trouvez pas ce que vous cherchez ?",
     "postForFree": "Publiez une mission gratuitement",
-    "postForFreeTrailing": "et des prestataires qualifiés vous contacteront."
+    "postForFreeTrailing": "et des prestataires qualifiés vous contacteront.",
+    "heroEyebrow": "Prestataires OxSteed",
+    "profileCardAria": "{{name}} - carte de profil {{type}}",
+    "profileTypeHelper": "prestataire",
+    "profileTypeBusiness": "entreprise",
+    "verifiedIdentityTitle": "Identité vérifiée par OxSteed",
+    "verifiedIdentityAria": "Identité vérifiée",
+    "topServicesAria": "Services principaux",
+    "openFiltersAria": "Ouvrir les filtres{{details}}",
+    "openFiltersActiveDetails": " ({{count}} actifs)",
+    "filterAsideAria": "Filtrer les prestataires",
+    "loadingHelpersAria": "Chargement des prestataires",
+    "helpersFoundAria": "{{count}} prestataires trouvés",
+    "loadMoreHelpersAria": "Charger plus de prestataires ({{count}} restants)",
+    "messageHelperAria": "Message à {{name}}",
+    "viewProfileAria": "Voir le profil de {{name}}",
+    "priceStartingAt": "À partir de {{amount}}"
   },
   "jobsDir": {
     "metaTitle": "Parcourir les missions ouvertes",
@@ -2529,6 +2545,29 @@
           "label": "Tutorat",
           "desc": "Mathématiques, lecture, préparation aux examens"
         }
+      },
+      "licenses": {
+        "general_contractor_license": "Licence d'entrepreneur général",
+        "electrical_license_master": "Licence Électrique (Master)",
+        "electrical_license_journeyman": "Licence électrique (compagnon)",
+        "plumbing_license": "Permis de plomberie",
+        "hvac_certification_epa_608": "Certification CVC (EPA 608)",
+        "pesticide_applicator_license": "Permis d'applicateur de pesticides",
+        "home_inspector_license": "Permis d'inspecteur en bâtiment",
+        "real_estate_license": "Licence immobilière",
+        "cosmetology_license": "Licence Cosmétologie",
+        "childcare_license": "Permis de garde d'enfants",
+        "locksmith_license": "Licence de serrurier",
+        "roofing_license": "Permis de toiture"
+      },
+      "insurance": {
+        "general_liability_1m": "Responsabilité générale (1 M$)",
+        "general_liability_2m": "Responsabilité générale (2 M$+)",
+        "workers_compensation": "Indemnisation des accidents du travail",
+        "commercial_auto": "Véhicules commerciaux",
+        "professional_liability_e_o": "Responsabilité professionnelle (E&O)",
+        "bonded": "Collé",
+        "umbrella_policy": "Politique générale"
       }
     },
     "budgetFrom": "À partir de {{amount}}",

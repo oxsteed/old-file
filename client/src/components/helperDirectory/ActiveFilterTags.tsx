@@ -2,6 +2,12 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DirectoryFilters } from '../../types/helperDirectory';
+import {
+  translateJobCategory,
+  translateJobSkill,
+  translateJobLicense,
+  translateJobInsurance,
+} from '../../utils/jobsTaxonomy';
 
 interface TagItem {
   key: string;
@@ -58,19 +64,35 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
   }
 
   filters.categories.forEach((cat) =>
-    tags.push({ key: `cat-${cat}`, label: cat, onRemove: () => onChange({ categories: filters.categories.filter((c) => c !== cat) }) })
+    tags.push({
+      key: `cat-${cat}`,
+      label: translateJobCategory(t, cat),
+      onRemove: () => onChange({ categories: filters.categories.filter((c) => c !== cat) }),
+    }),
   );
 
   filters.skills.forEach((sk) =>
-    tags.push({ key: `sk-${sk}`, label: sk, onRemove: () => onChange({ skills: filters.skills.filter((s) => s !== sk) }) })
+    tags.push({
+      key: `sk-${sk}`,
+      label: translateJobSkill(t, sk),
+      onRemove: () => onChange({ skills: filters.skills.filter((s) => s !== sk) }),
+    }),
   );
 
   filters.licenses.forEach((lic) =>
-    tags.push({ key: `lic-${lic}`, label: lic, onRemove: () => onChange({ licenses: filters.licenses.filter((l) => l !== lic) }) })
+    tags.push({
+      key: `lic-${lic}`,
+      label: translateJobLicense(t, lic),
+      onRemove: () => onChange({ licenses: filters.licenses.filter((l) => l !== lic) }),
+    }),
   );
 
   filters.insurance.forEach((ins) =>
-    tags.push({ key: `ins-${ins}`, label: ins, onRemove: () => onChange({ insurance: filters.insurance.filter((i) => i !== ins) }) })
+    tags.push({
+      key: `ins-${ins}`,
+      label: translateJobInsurance(t, ins),
+      onRemove: () => onChange({ insurance: filters.insurance.filter((i) => i !== ins) }),
+    }),
   );
 
   if (tags.length === 0) return null;

@@ -2,7 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { SearchX, RotateCcw, MapPin, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ADJACENT_SKILLS, SKILL_TILES } from '../../types/helperDirectory';
+
+import { ADJACENT_SKILLS } from '../../types/helperDirectory';
+import type { SkillTile } from '../../types/helperDirectory';
 
 interface EmptyStateProps {
   query: string;
@@ -10,6 +12,8 @@ interface EmptyStateProps {
   onReset: () => void;
   /** The category the user was filtering by (from skill tile selection) */
   selectedCategory?: string;
+  /** Tiles with translated labels (same ids as SKILL_TILES). */
+  translatedTiles: Array<SkillTile & { label: string; desc: string; subSkills: string[] }>;
   /** Current max distance filter value */
   maxDistance?: number;
   /** Called when user wants to expand the search radius */
@@ -21,17 +25,22 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   hasFilters,
   onReset,
   selectedCategory,
+  translatedTiles,
   maxDistance,
   onExpandRadius,
 }) => {
   const { t } = useTranslation();
   const adjacentCategories = selectedCategory ? (ADJACENT_SKILLS[selectedCategory] ?? []) : [];
   const adjacentTiles = adjacentCategories
-    .map((cat) => SKILL_TILES.find((t) => t.category === cat))
-    .filter(Boolean) as (typeof SKILL_TILES)[number][];
+    .map((cat) => translatedTiles.find((tile) => tile.category === cat))
+    .filter(Boolean) as typeof translatedTiles;
 
   const canExpandRadius = onExpandRadius && maxDistance && maxDistance < 100;
   const nextRadius = maxDistance ? Math.min(maxDistance * 2, 100) : null;
+
+  const categoryLabel =
+    selectedCategory &&
+    (translatedTiles.find((x) => x.category === selectedCategory)?.label ?? selectedCategory);
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 py-16 px-6 text-center col-span-full">
@@ -45,7 +54,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           {query
             ? t('helpersDir.noResultsQuery', { query })
             : selectedCategory
-            ? t('helpersDir.noHelpersCat', { category: selectedCategory })
+            ? t('helpersDir.noHelpersCat', { category: categoryLabel })
             : t('helpersDir.noHelpersFiltered')}
         </p>
       </div>

@@ -2218,7 +2218,23 @@
     "trySimilarSkill": "Prueba una habilidad similar:",
     "dontSeeWhat": "¿No encuentras lo que necesitas?",
     "postForFree": "Publica un trabajo gratis",
-    "postForFreeTrailing": "y los ayudantes calificados se pondrán en contacto contigo."
+    "postForFreeTrailing": "y los ayudantes calificados se pondrán en contacto contigo.",
+    "heroEyebrow": "Ayudantes OxSteed",
+    "profileCardAria": "{{name}} - tarjeta de perfil de {{type}}",
+    "profileTypeHelper": "ayudante",
+    "profileTypeBusiness": "negocio",
+    "verifiedIdentityTitle": "Identidad verificada por OxSteed",
+    "verifiedIdentityAria": "Identidad verificada",
+    "topServicesAria": "Servicios destacados",
+    "openFiltersAria": "Abrir filtros{{details}}",
+    "openFiltersActiveDetails": " ({{count}} activos)",
+    "filterAsideAria": "Filtrar ayudantes",
+    "loadingHelpersAria": "Cargando ayudantes",
+    "helpersFoundAria": "{{count}} ayudantes encontrados",
+    "loadMoreHelpersAria": "Cargar más ayudantes ({{count}} restantes)",
+    "messageHelperAria": "Enviar mensaje a {{name}}",
+    "viewProfileAria": "Ver perfil de {{name}}",
+    "priceStartingAt": "Desde {{amount}}"
   },
   "jobsDir": {
     "metaTitle": "Explorar trabajos abiertos",
@@ -2529,6 +2545,29 @@
           "label": "Tutoría",
           "desc": "Matemáticas, lectura, preparación para exámenes."
         }
+      },
+      "licenses": {
+        "general_contractor_license": "Licencia de contratista general",
+        "electrical_license_master": "Licencia Eléctrica (Maestría)",
+        "electrical_license_journeyman": "Licencia eléctrica (jornalero)",
+        "plumbing_license": "Licencia de plomería",
+        "hvac_certification_epa_608": "Certificación HVAC (EPA 608)",
+        "pesticide_applicator_license": "Licencia de aplicador de pesticidas",
+        "home_inspector_license": "Licencia de inspector de viviendas",
+        "real_estate_license": "Licencia Inmobiliaria",
+        "cosmetology_license": "Licencia de cosmetología",
+        "childcare_license": "Licencia de cuidado de niños",
+        "locksmith_license": "Licencia de cerrajero",
+        "roofing_license": "Licencia de techado"
+      },
+      "insurance": {
+        "general_liability_1m": "Responsabilidad general ($1 millón)",
+        "general_liability_2m": "Responsabilidad general ($2 millones+)",
+        "workers_compensation": "Compensación de trabajadores",
+        "commercial_auto": "Auto comercial",
+        "professional_liability_e_o": "Responsabilidad Profesional (E&O)",
+        "bonded": "Garantizado",
+        "umbrella_policy": "Política general"
       }
     },
     "budgetFrom": "Desde {{amount}}",

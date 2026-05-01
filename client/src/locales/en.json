@@ -2218,7 +2218,23 @@
     "badgeBackgroundChecked": "Background Checked",
     "badgeIdVerified": "ID Verified",
     "badgeLicensed": "Licensed",
-    "badgeInsured": "Insured"
+    "badgeInsured": "Insured",
+    "heroEyebrow": "OxSteed Helpers",
+    "profileCardAria": "{{name}} - {{type}} profile card",
+    "profileTypeHelper": "helper",
+    "profileTypeBusiness": "business",
+    "verifiedIdentityTitle": "Identity verified by OxSteed",
+    "verifiedIdentityAria": "Verified identity",
+    "topServicesAria": "Top services",
+    "openFiltersAria": "Open filters{{details}}",
+    "openFiltersActiveDetails": " ({{count}} active)",
+    "filterAsideAria": "Filter helpers",
+    "loadingHelpersAria": "Loading helpers",
+    "helpersFoundAria": "{{count}} helpers found",
+    "loadMoreHelpersAria": "Load more helpers ({{count}} remaining)",
+    "messageHelperAria": "Message {{name}}",
+    "viewProfileAria": "View {{name}} profile",
+    "priceStartingAt": "From {{amount}}"
   },
   "jobsDir": {
     "metaTitle": "Browse Open Jobs",
@@ -2529,6 +2545,29 @@
           "label": "Tutoring",
           "desc": "Math, reading, test prep"
         }
+      },
+      "licenses": {
+        "general_contractor_license": "General Contractor License",
+        "electrical_license_master": "Electrical License (Master)",
+        "electrical_license_journeyman": "Electrical License (Journeyman)",
+        "plumbing_license": "Plumbing License",
+        "hvac_certification_epa_608": "HVAC Certification (EPA 608)",
+        "pesticide_applicator_license": "Pesticide Applicator License",
+        "home_inspector_license": "Home Inspector License",
+        "real_estate_license": "Real Estate License",
+        "cosmetology_license": "Cosmetology License",
+        "childcare_license": "Childcare License",
+        "locksmith_license": "Locksmith License",
+        "roofing_license": "Roofing License"
+      },
+      "insurance": {
+        "general_liability_1m": "General Liability ($1M)",
+        "general_liability_2m": "General Liability ($2M+)",
+        "workers_compensation": "Workers' Compensation",
+        "commercial_auto": "Commercial Auto",
+        "professional_liability_e_o": "Professional Liability (E&O)",
+        "bonded": "Bonded",
+        "umbrella_policy": "Umbrella Policy"
       }
     },
     "budgetFrom": "From {{amount}}",

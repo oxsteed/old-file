@@ -28,6 +28,16 @@ export function translateJobSkill(t: TFunction, skillEn: string): string {
   return t(key, { defaultValue: skillEn });
 }
 
+export function translateJobLicense(t: TFunction, licenseEn: string): string {
+  const key = `jobsDir.taxonomy.licenses.${slugify(licenseEn)}`;
+  return t(key, { defaultValue: licenseEn });
+}
+
+export function translateJobInsurance(t: TFunction, insuranceEn: string): string {
+  const key = `jobsDir.taxonomy.insurance.${slugify(insuranceEn)}`;
+  return t(key, { defaultValue: insuranceEn });
+}
+
 export function translateSkillTileLabel(t: TFunction, tileId: string): string {
   return t(`jobsDir.taxonomy.tiles.${tileId}.label`, {
     defaultValue: SKILL_TILES.find((x) => x.id === tileId)?.label ?? tileId,
