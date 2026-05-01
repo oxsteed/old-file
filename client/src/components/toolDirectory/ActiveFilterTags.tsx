@@ -2,6 +2,10 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ToolDirectoryFilters, ToolCondition } from '../../types/toolDirectory';
+import {
+  translateToolDirectoryCategory,
+  translateToolDirectorySubType,
+} from '../../utils/toolRentalsTaxonomy';
 
 interface TagItem {
   key: string;
@@ -29,23 +33,6 @@ const Tag: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemov
     </span>
   );
 };
-
-/** Look up a translated label for a canonical (English) category. */
-function translateToolCategory(t: (k: string, opts?: any) => string, cat: string): string {
-  const key = `toolRentalsDir.taxonomy.categories.${cat}`;
-  const translated = t(key);
-  return translated === key ? cat : translated;
-}
-
-function translateToolSubType(t: (k: string, opts?: any) => string, st: string): string {
-  const key = `toolRentalsDir.taxonomy.subTypes.${st}`;
-  const translated = t(key);
-  return translated === key ? st : translated;
-}
-
-function translateToolCondition(t: (k: string, opts?: any) => string, cond: ToolCondition): string {
-  return t(`toolRentalsDir.condition.${cond}`);
-}
 
 const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }) => {
   const { t } = useTranslation();
@@ -78,7 +65,7 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
   filters.categories.forEach((cat) =>
     tags.push({
       key: `cat-${cat}`,
-      label: translateToolCategory(t, cat),
+      label: translateToolDirectoryCategory(t, cat),
       onRemove: () => onChange({ categories: filters.categories.filter((c) => c !== cat) }),
     }),
   );
@@ -86,7 +73,7 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
   filters.subTypes.forEach((st) =>
     tags.push({
       key: `st-${st}`,
-      label: translateToolSubType(t, st),
+      label: translateToolDirectorySubType(t, st),
       onRemove: () => onChange({ subTypes: filters.subTypes.filter((s) => s !== st) }),
     }),
   );
@@ -94,7 +81,7 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
   filters.conditions.forEach((cond) =>
     tags.push({
       key: `cond-${cond}`,
-      label: translateToolCondition(t, cond),
+      label: t(`toolRentalsDir.condition.${cond}`),
       onRemove: () => onChange({ conditions: filters.conditions.filter((c) => c !== cond) }),
     }),
   );

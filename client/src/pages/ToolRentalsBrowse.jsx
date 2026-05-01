@@ -40,6 +40,7 @@ import {
   DEFAULT_TOOL_FILTERS,
   countActiveToolFilters,
 } from '../types/toolDirectory';
+import { getToolTilesTranslated } from '../utils/toolRentalsTaxonomy';
 import { getPublicSiteUrl } from '../utils/seoDescription';
 import { toolRentalsApi } from '../api/toolRentals';
 import './ToolRentalsBrowse.css';
@@ -271,32 +272,6 @@ const DirectoryHero = ({ searchValue, onSearch, categoryChips }) => {
   );
 };
 
-// ── Translate tile labels for current language ───────────────────────────────
-function getTilesTranslated(t) {
-  return TOOL_TILES.map((tile) => {
-    const labelKey = `toolRentalsDir.taxonomy.tiles.${tile.id}.label`;
-    const descKey  = `toolRentalsDir.taxonomy.tiles.${tile.id}.desc`;
-    const labelTr  = t(labelKey);
-    const descTr   = t(descKey);
-    return {
-      ...tile,
-      label: labelTr === labelKey ? tile.label : labelTr,
-      desc:  descTr  === descKey  ? tile.desc  : descTr,
-      subTypes: tile.subTypes.map((st) => {
-        const k = `toolRentalsDir.taxonomy.subTypes.${st}`;
-        const tr = t(k);
-        return tr === k ? st : tr;
-      }),
-    };
-  });
-}
-
-function translateToolCategory(t, cat) {
-  const key = `toolRentalsDir.taxonomy.categories.${cat}`;
-  const translated = t(key);
-  return translated === key ? cat : translated;
-}
-
 // ── URL → initial state ──────────────────────────────────────────────────────
 function getInitialState() {
   const params = new URLSearchParams(window.location.search);
@@ -488,11 +463,11 @@ const ToolRentalsBrowse = () => {
     });
   }, []);
 
-  const translatedTiles = useMemo(() => getTilesTranslated(t), [t, i18n.language]);
+  const translatedTiles = useMemo(() => getToolTilesTranslated(t), [t, i18n.language]);
 
   const categoryHeroChips = useMemo(
     () => TOOL_TILES.slice(0, 8).map((tile) => ({
-      key: tile.label,
+      key: tile.category,
       label: translatedTiles.find((tt) => tt.id === tile.id)?.label ?? tile.label,
     })),
     [translatedTiles],

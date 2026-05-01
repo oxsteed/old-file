@@ -19,6 +19,7 @@ import {
   TOOL_PRICE_PRESETS,
   countActiveToolFilters,
 } from '../../types/toolDirectory';
+import { translateToolDirectoryCategory } from '../../utils/toolRentalsTaxonomy';
 
 interface FilterPanelProps {
   filters: ToolDirectoryFilters;
@@ -86,13 +87,6 @@ const CheckboxRow: React.FC<{
     </span>
   </label>
 );
-
-/** Look up a translated label for a canonical (English) category. */
-function translateToolCategory(t: (k: string, opts?: any) => string, cat: string): string {
-  const key = `toolRentalsDir.taxonomy.categories.${cat}`;
-  const translated = t(key);
-  return translated === key ? cat : translated;
-}
 
 // ── Main FilterPanel ──────────────────────────────────────────────────────────
 const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset }) => {
@@ -206,7 +200,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
             {TOOL_CATEGORIES.map((cat) => (
               <CheckboxRow
                 key={cat}
-                label={translateToolCategory(t, cat)}
+                label={translateToolDirectoryCategory(t, cat)}
                 checked={filters.categories.includes(cat)}
                 onChange={() => toggleArrayItem(filters.categories, cat, 'categories')}
               />
