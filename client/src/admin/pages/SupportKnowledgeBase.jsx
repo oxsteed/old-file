@@ -23,7 +23,7 @@ export default function SupportKnowledgeBase() {
   const loadArticles = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/kb`, {
+      const res = await adminApi.get('/support/kb', {
         params: { business_id: businessId, search, category },
       });
       setArticles(res.data.articles || []);
@@ -40,12 +40,12 @@ export default function SupportKnowledgeBase() {
   const handleSave = async () => {
     try {
       if (selectedArticle) {
-        await adminApi.patch(`/api/support/kb/${selectedArticle.id}`, {
+        await adminApi.patch(`/support/kb/${selectedArticle.id}`, {
           ...formData,
           business_id: businessId,
         });
       } else {
-        await adminApi.post(`/api/support/kb`, {
+        await adminApi.post('/support/kb', {
           ...formData,
           business_id: businessId,
         });
@@ -62,7 +62,7 @@ export default function SupportKnowledgeBase() {
   const handleDelete = async (articleId) => {
     if (!window.confirm('Delete this article?')) return;
     try {
-      await adminApi.delete(`/api/support/kb/${articleId}`);
+      await adminApi.delete(`/support/kb/${articleId}`);
       loadArticles();
     } catch (err) {
       console.error('Failed to delete article:', err);

@@ -23,7 +23,7 @@ export default function SupportTemplates() {
   const loadTemplates = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/templates`, {
+      const res = await adminApi.get('/support/templates', {
         params: { business_id: businessId, search },
       });
       setTemplates(res.data.templates || []);
@@ -40,12 +40,12 @@ export default function SupportTemplates() {
   const handleSave = async () => {
     try {
       if (selectedTemplate) {
-        await adminApi.patch(`/api/support/templates/${selectedTemplate.id}`, {
+        await adminApi.patch(`/support/templates/${selectedTemplate.id}`, {
           ...formData,
           business_id: businessId,
         });
       } else {
-        await adminApi.post(`/api/support/templates`, {
+        await adminApi.post('/support/templates', {
           ...formData,
           business_id: businessId,
         });
@@ -62,7 +62,7 @@ export default function SupportTemplates() {
   const handleDelete = async (templateId) => {
     if (!window.confirm('Delete this template?')) return;
     try {
-      await adminApi.delete(`/api/support/templates/${templateId}`);
+      await adminApi.delete(`/support/templates/${templateId}`);
       loadTemplates();
     } catch (err) {
       console.error('Failed to delete template:', err);

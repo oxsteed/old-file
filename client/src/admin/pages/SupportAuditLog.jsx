@@ -143,7 +143,7 @@ export default function SupportAuditLog() {
   const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/audit/logs`, {
+      const res = await adminApi.get('/support/audit/logs', {
         params: {
           business_id: businessId,
           ...filters,
@@ -163,7 +163,7 @@ export default function SupportAuditLog() {
 
   const handleExport = async () => {
     try {
-      const response = await adminApi.get(`/api/support/audit/export`, {
+      const response = await adminApi.get('/support/audit/export', {
         params: {
           business_id: businessId,
           ...filters,

@@ -12,7 +12,7 @@ export default function SupportSLADashboard() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/sla`, {
+      const res = await adminApi.get('/support/sla', {
         params: { business_id: businessId },
       });
       setData(res.data);

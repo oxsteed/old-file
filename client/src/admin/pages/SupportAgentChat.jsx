@@ -14,7 +14,7 @@ export default function SupportAgentChat() {
   const loadConversations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/conversations`, {
+      const res = await adminApi.get('/support/conversations', {
         params: { business_id: businessId },
       });
       setConversations(res.data.conversations || []);
@@ -37,7 +37,7 @@ export default function SupportAgentChat() {
   const handleSendMessage = async () => {
     if (!messageText.trim()) return;
     try {
-      await adminApi.post(`/api/support/conversations/${selectedConv.id}/message`, {
+      await adminApi.post(`/support/conversations/${selectedConv.id}/message`, {
         message: messageText,
       });
       setMessageText('');

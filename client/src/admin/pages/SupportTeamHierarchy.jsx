@@ -238,7 +238,7 @@ export default function SupportTeamHierarchy() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.get(`/api/support/team/hierarchy`, {
+      const res = await adminApi.get('/support/team/hierarchy', {
         params: { business_id: businessId },
       });
       setData(res.data);
@@ -255,9 +255,9 @@ export default function SupportTeamHierarchy() {
   const handleSaveMember = async (formData) => {
     try {
       if (editingMember) {
-        await adminApi.put(`/api/support/team/members/${editingMember.id}`, formData);
+        await adminApi.put(`/support/team/members/${editingMember.id}`, formData);
       } else {
-        await adminApi.post(`/api/support/team/members`, {
+        await adminApi.post('/support/team/members', {
           ...formData,
           business_id: businessId,
         });
@@ -273,7 +273,7 @@ export default function SupportTeamHierarchy() {
   const handleRemoveMember = async (memberId) => {
     if (!window.confirm('Remove this team member?')) return;
     try {
-      await adminApi.delete(`/api/support/team/members/${memberId}`);
+      await adminApi.delete(`/support/team/members/${memberId}`);
       loadData();
     } catch (err) {
       console.error('Failed to remove member:', err);
