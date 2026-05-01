@@ -150,7 +150,7 @@ export default function AdminMessages() {
 
   return (
     <div className="h-[calc(100vh-64px)] flex bg-gray-900 text-white overflow-hidden">
-      {/* Left pane — conversation list */}
+      {/* Left pane - conversation list */}
       <div className={`w-full sm:w-80 flex-shrink-0 border-r border-gray-800 flex flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
         <div className="p-4 border-b border-gray-800 flex items-center gap-2">
           <h1 className="text-base font-semibold flex-1">Admin Messages</h1>
@@ -212,7 +212,7 @@ export default function AdminMessages() {
         </div>
       </div>
 
-      {/* Right pane — thread */}
+      {/* Right pane - thread */}
       <div className={`flex-1 flex flex-col ${selected ? 'flex' : 'hidden sm:flex'}`}>
         {!selected ? (
           <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
@@ -273,7 +273,7 @@ export default function AdminMessages() {
                         {formatTime(msg.created_at)}
                         {isAdmin && (
                           <span className="ml-1.5">
-                            — {msg.sender_first_name} ({msg.sender_role === 'super_admin' ? 'Super Admin' : 'Admin'})
+                            - {msg.sender_first_name} ({msg.sender_role === 'super_admin' ? 'Super Admin' : 'Admin'})
                           </span>
                         )}
                       </p>

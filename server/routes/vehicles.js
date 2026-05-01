@@ -1,6 +1,6 @@
 /**
  * routes/vehicles.js
- * Car Care — Vehicle routes
+ * Car Care - Vehicle routes
  * OxSteed v2
  */
 
@@ -9,12 +9,12 @@ const { authenticate } = require('../middleware/auth');
 const { geoLimiter }   = require('../middleware/rateLimiter');
 const ctrl = require('../controllers/vehicleController');
 
-// ── NHTSA proxy — public, rate-limited same as geo ────────────────────────
+// ── NHTSA proxy - public, rate-limited same as geo ────────────────────────
 router.get('/makes',      geoLimiter, ctrl.getMakes);
 router.get('/models',     geoLimiter, ctrl.getModels);
 router.get('/vin/:vin',   geoLimiter, ctrl.decodeVin);
 
-// ── User garage — authenticated ───────────────────────────────────────────
+// ── User garage - authenticated ───────────────────────────────────────────
 router.get   ('/my',     authenticate, ctrl.listMyVehicles);
 router.post  ('/my',     authenticate, ctrl.addVehicle);
 router.patch ('/my/:id', authenticate, ctrl.updateVehicle);

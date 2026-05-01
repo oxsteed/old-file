@@ -41,7 +41,7 @@ exports.setAvailability = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
-    // users.id is a UUID — compare as strings, not via parseInt.
+    // users.id is a UUID - compare as strings, not via parseInt.
     if (req.user.id !== consultantId && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized' });
     }
@@ -104,7 +104,7 @@ exports.addBlockedDate = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
-    // users.id is a UUID — compare as strings, not via parseInt.
+    // users.id is a UUID - compare as strings, not via parseInt.
     if (req.user.id !== consultantId && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized' });
     }
@@ -145,7 +145,7 @@ exports.removeBlockedDate = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
-    // users.id is a UUID — compare as strings, not via parseInt.
+    // users.id is a UUID - compare as strings, not via parseInt.
     if (req.user.id !== consultantId && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized' });
     }
@@ -232,7 +232,7 @@ exports.bookTimeSlot = async (req, res) => {
       return res.status(400).json({ error: 'Cannot book more than 6 months in advance' });
     }
 
-    // Resolve session + owner via JOIN — consulting_sessions_scheduled does not have customer_id
+    // Resolve session + owner via JOIN - consulting_sessions_scheduled does not have customer_id
     const { rows: sessions } = await db.query(
       `SELECT css.id, css.session_id, cs.user_id, cs.email, cs.first_name
        FROM consulting_sessions_scheduled css

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 
-// Source keys grouped by category — labels/descs come from i18n
+// Source keys grouped by category - labels/descs come from i18n
 const GROUPS = [
   {
     groupKey: 'income',

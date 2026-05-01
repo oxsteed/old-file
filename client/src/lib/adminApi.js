@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-/** API root for admin requests (must end with `/api` — same convention as `client/src/api/axios.js`). */
+/** API root for admin requests (must end with `/api` - same convention as `client/src/api/axios.js`). */
 function adminApiBaseURL() {
   const raw = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
   if (!raw) return '/api';
@@ -12,7 +12,7 @@ const adminApi = axios.create({
     withCredentials: true
 });
 
-// Attach token automatically — uses the same key as the main app
+// Attach token automatically - uses the same key as the main app
 adminApi.interceptors.request.use(config => {
     const token = localStorage.getItem('accessToken');
     if (token) config.headers.Authorization = `Bearer ${token}`;

@@ -155,11 +155,11 @@ export interface FAQ {
 export type ChatDestination = 'oxsteed' | 'helper';
 
 /**
- * live          — human online and responding
- * ai_assistant  — bot handling the conversation
- * offline       — no one available
- * message_mode  — async / leave a message
- * connecting    — establishing connection
+ * live          - human online and responding
+ * ai_assistant  - bot handling the conversation
+ * offline       - no one available
+ * message_mode  - async / leave a message
+ * connecting    - establishing connection
  */
 export type ChatStatus =
   | 'live'
@@ -170,11 +170,11 @@ export type ChatStatus =
 
 /**
  * Who authored a message bubble.
- * user            — the visiting customer
- * oxsteed_ai      — platform bot
- * oxsteed_human   — platform support agent
- * helper_ai       — helper's bot
- * helper_human    — the helper / business owner
+ * user            - the visiting customer
+ * oxsteed_ai      - platform bot
+ * oxsteed_human   - platform support agent
+ * helper_ai       - helper's bot
+ * helper_human    - the helper / business owner
  */
 export type MessageAuthorType =
   | 'user'
@@ -223,7 +223,7 @@ export interface TimelineEvent {
   metadata?: Record<string, unknown>;
 }
 
-/** Discriminated union — use itemType to narrow */
+/** Discriminated union - use itemType to narrow */
 export type TimelineItem = ChatMessage | TimelineEvent;
 
 export interface TypingIndicator {

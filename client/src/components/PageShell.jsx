@@ -2,7 +2,7 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 
 /**
- * PageShell — Shared layout wrapper for all OxSteed pages.
+ * PageShell - Shared layout wrapper for all OxSteed pages.
  * Provides consistent header, footer, semantic <main> landmark,
  * and skip-to-content link.
  *
@@ -11,8 +11,8 @@ import Footer from './Footer';
  *     <YourPageContent />
  *   </PageShell>
  *
- * @param {boolean} hideNav  — hide the navbar (e.g. for pages with custom nav)
- * @param {boolean} hideFooter — hide the footer
+ * @param {boolean} hideNav  - hide the navbar (e.g. for pages with custom nav)
+ * @param {boolean} hideFooter - hide the footer
  */
 export default function PageShell({ children, hideNav = false, hideFooter = false }) {
   return (

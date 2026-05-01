@@ -5,7 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 // Middleware: attach user if token present and valid; continue as unauthenticated otherwise.
-// Never sends 401/403 — an expired or invalid token simply means req.user stays undefined,
+// Never sends 401/403 - an expired or invalid token simply means req.user stays undefined,
 // which the profileChatMessage handler treats as "AI mode".
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
@@ -23,24 +23,24 @@ const optionalAuth = async (req, res, next) => {
     const user = rows[0];
     if (user && user.is_active) req.user = user;
   } catch {
-    // Expired, invalid, or DB error — continue as unauthenticated
+    // Expired, invalid, or DB error - continue as unauthenticated
   }
   next();
 };
 
-// Public — no auth required for support chat
+// Public - no auth required for support chat
 router.post('/message', chatLimiter, chatMessage);
 
 // POST /api/chat/financial-advisor
-// Personalized financial advice — requires authentication
+// Personalized financial advice - requires authentication
 router.post('/financial-advisor', chatLimiter, authenticate, financialAdvisor);
 
 // POST /api/chat/profile-message
-// Auth optional — authenticated users get live routing when helper is online;
+// Auth optional - authenticated users get live routing when helper is online;
 // unauthenticated users get AI-only mode.
 router.post('/profile-message', chatLimiter, profileChatLimiter, optionalAuth, profileChatMessage);
 
-// POST /api/chat/sessions/guest — public guest inquiry (helper must allow guest contact)
+// POST /api/chat/sessions/guest - public guest inquiry (helper must allow guest contact)
 router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);
 
 // POST /api/chat/transcribe
@@ -48,11 +48,11 @@ router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);
 // Requires authentication.
 router.post('/transcribe', chatLimiter, authenticate, transcribeAudio);
 
-// POST /api/chat/feedback — thumbs up/down on AI replies (best-effort logging)
+// POST /api/chat/feedback - thumbs up/down on AI replies (best-effort logging)
 router.post('/feedback', chatLimiter, (req, res) => {
   const { value, messageContent, pageContext } = req.body;
   if (value === 'up' || value === 'down') {
-    // Sanitize path — only accept relative paths to prevent log injection
+    // Sanitize path - only accept relative paths to prevent log injection
     const rawPath = String(pageContext?.path || '');
     const safePath = rawPath.startsWith('/') ? rawPath.slice(0, 200) : null;
     logger.info('[Chat] Feedback received', {

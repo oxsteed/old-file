@@ -43,7 +43,7 @@ async function isBusinessMember(userId, bizId) {
 // Owner or manager generates a new single-use Vortex token.
 // Privilege restriction: only the real business owner may issue manager-role
 // tokens. A manager is silently capped to 'representative' regardless of the
-// role value they supply — preventing privilege self-replication.
+// role value they supply - preventing privilege self-replication.
 async function generateToken(req, res) {
   try {
     const biz = await ownedOrManagedBusiness(req.user.id, req.params.id);
@@ -70,8 +70,8 @@ async function generateToken(req, res) {
 
     const token = crypto.randomBytes(32).toString('hex'); // 64-char hex
 
-    // owner_id      = real business owner (biz.user_id) — for redemption guard & notifications
-    // created_by_id = actual requester (may be a manager) — for listTokens visibility
+    // owner_id      = real business owner (biz.user_id) - for redemption guard & notifications
+    // created_by_id = actual requester (may be a manager) - for listTokens visibility
     const { rows: [record] } = await pool.query(
       `INSERT INTO business_invite_tokens
          (business_id, owner_id, created_by_id, token, role, expires_at)
@@ -153,7 +153,7 @@ async function listTokens(req, res) {
 //   • Manager → may only revoke tokens they personally created
 //               (created_by_id = req.user.id)
 //
-// A manager cannot revoke a token whose secret they cannot see — keeping
+// A manager cannot revoke a token whose secret they cannot see - keeping
 // revoke permissions consistent with listTokens visibility.
 async function revokeToken(req, res) {
   try {
@@ -191,7 +191,7 @@ async function redeemToken(req, res) {
   try {
     const { token } = req.body;
     if (!token || token.length !== 64) {
-      return res.status(400).json({ error: 'Invalid token format — must be exactly 64 characters' });
+      return res.status(400).json({ error: 'Invalid token format - must be exactly 64 characters' });
     }
 
     const { rows: [record] } = await client.query(
@@ -211,7 +211,7 @@ async function redeemToken(req, res) {
     }
 
     if (new Date(record.expires_at) < new Date()) {
-      return res.status(400).json({ error: 'Token has expired — ask the business owner for a new one' });
+      return res.status(400).json({ error: 'Token has expired - ask the business owner for a new one' });
     }
 
     if (!record.is_active) {
@@ -246,7 +246,7 @@ async function redeemToken(req, res) {
     // 2. DELETE stale pending invite BEFORE inserting the active membership.
     //    If a pending row exists for the same (business_id, invite_email) unique
     //    constraint, the INSERT below would silently do nothing (ON CONFLICT DO
-    //    NOTHING), and a subsequent DELETE would remove the only row — leaving
+    //    NOTHING), and a subsequent DELETE would remove the only row - leaving
     //    the user with no membership while the token is already consumed.
     if (req.user.email) {
       await client.query(
@@ -258,7 +258,7 @@ async function redeemToken(req, res) {
       );
     }
 
-    // 3. Insert the active membership — pending row is already gone so the
+    // 3. Insert the active membership - pending row is already gone so the
     //    unique constraint will not block this insert.
     await client.query(
       `INSERT INTO business_members

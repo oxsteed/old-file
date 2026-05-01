@@ -113,7 +113,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
                 <p className="text-gray-400 text-sm mt-0.5">{helper.tagline}</p>
               )}
 
-              {/* Meta — 2-column grid on mobile, single row on sm+ */}
+              {/* Meta - 2-column grid on mobile, single row on sm+ */}
               <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1.5 text-sm text-gray-400 justify-center sm:justify-start">
                 <span className="flex items-center justify-center sm:justify-start gap-1 col-span-2 sm:col-auto">
                   <StarRating rating={helper.rating} size="sm" />
@@ -140,7 +140,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
               </div>
             </div>
 
-            {/* CTA — desktop only */}
+            {/* CTA - desktop only */}
             <div className="hidden lg:flex items-center gap-3 pb-1">
               <button
                 onClick={onOpenChat}
@@ -200,7 +200,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
               {helper.reviewCount > 0 ? (
                 <p className="text-xl font-bold text-white">{helper.rating.toFixed(1)}</p>
               ) : (
-                <p className="text-xl font-bold text-gray-500">—</p>
+                <p className="text-xl font-bold text-gray-500">-</p>
               )}
               <p className="text-xs text-gray-400 mt-0.5">{t('helperProfile.header.rating')}</p>
             </div>
@@ -218,7 +218,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
             </div>
           </div>
 
-          {/* Mobile CTA strip — visible below lg where header buttons are hidden */}
+          {/* Mobile CTA strip - visible below lg where header buttons are hidden */}
           <div className="flex gap-3 mt-4 lg:hidden">
             <button
               onClick={onOpenChat}

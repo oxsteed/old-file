@@ -3,7 +3,7 @@
  *
  * Lightweight structured logger.
  *
- * In production: emits newline-delimited JSON (NDJSON) — parseable by log
+ * In production: emits newline-delimited JSON (NDJSON) - parseable by log
  * aggregators (Datadog, Logtail, Papertrail, etc.).
  *
  * In development: pretty-prints colored output to the console.

@@ -27,7 +27,7 @@ function generateTokens(user) {
 }
 
 /**
- * Derive onboarding_step from DB flags — mirrors formatAuthUser() in authController.
+ * Derive onboarding_step from DB flags - mirrors formatAuthUser() in authController.
  * Order matters: most-complete wins.
  */
 function computeOnboardingStep(user) {
@@ -214,7 +214,7 @@ const optionalAuth = async (req, res, next) => {
     const user = rows[0];
     if (user && user.is_active) req.user = user;
   } catch {
-    // Expired, invalid, or DB error — continue as unauthenticated
+    // Expired, invalid, or DB error - continue as unauthenticated
   }
   next();
 };

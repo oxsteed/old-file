@@ -27,7 +27,7 @@ export default function Footer() {
       /* ignore */
     }
   }, [user]);
-  // Reads from the shared CookieConsentProvider — openSettings() here will
+  // Reads from the shared CookieConsentProvider - openSettings() here will
   // update the same showSettings state that <CookieConsent> is listening to.
   const { openSettings } = useCookieConsentContext();
   const { t } = useTranslation();
@@ -252,7 +252,7 @@ export default function Footer() {
       </div>
 
     </footer>
-    {/* Vortex redeem modal — portalled to body to avoid footer stacking context */}
+    {/* Vortex redeem modal - portalled to body to avoid footer stacking context */}
     {vortexOpen && createPortal(
       <VortexModal
         initialToken={vortexPrefill}

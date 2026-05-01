@@ -142,7 +142,7 @@ async function updateBusiness(req, res, next) {
     const isOwner = req.user.id === ownerId;
     const logoExplicitNull = clear_logo_url === true;
     const coverExplicitNull = clear_cover_photo_url === true;
-    // Managers may edit marketing/contact/address only — not tax identity or lifecycle flags.
+    // Managers may edit marketing/contact/address only - not tax identity or lifecycle flags.
     const sensitiveEin = isOwner ? ein : undefined;
     const sensitiveTax = isOwner ? tax_rate : undefined;
     const sensitiveActive = isOwner && is_active != null ? is_active : null;
@@ -182,7 +182,7 @@ async function updateBusiness(req, res, next) {
         isOwner,
         logoExplicitNull,
         coverExplicitNull,
-        // $19 — only update country when the client sent a normalized value
+        // $19 - only update country when the client sent a normalized value
         countriesUtil.normalizeCountry(address_country) || null,
       ]
     );
@@ -190,7 +190,7 @@ async function updateBusiness(req, res, next) {
     if (!biz) throw new AppError('Business not found', 404, 'not_found');
 
     // Update profile_headline / service_radius_miles on the OWNER's helper_profiles
-    // row (keyed by ownerId, not the requester — a manager editing profile must not
+    // row (keyed by ownerId, not the requester - a manager editing profile must not
     // overwrite their own helper_profiles row).
     const helperCols   = [];
     const helperVals   = [];
@@ -259,7 +259,7 @@ async function uploadBusinessPhotos(req, res, next) {
     if (Object.keys(updates).length === 0)
       throw new AppError('No files uploaded', 400, 'validation_failed');
 
-    // Access already verified above — update by id only (no user_id guard needed here).
+    // Access already verified above - update by id only (no user_id guard needed here).
     const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
     const values = [...Object.values(updates), id];
     const { rows: [updated] } = await pool.query(
@@ -381,7 +381,7 @@ async function getBusinessAnalytics(req, res, next) {
           `, [ownerId])
         : Promise.resolve({ rows: [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }] }),
 
-      // Outstanding invoices summary — include per-status counts for the Overview KPIs
+      // Outstanding invoices summary - include per-status counts for the Overview KPIs
       pool.query(`
         SELECT
           COALESCE(SUM(total - amount_paid) FILTER (WHERE status IN ('sent','overdue')), 0) AS outstanding,
@@ -447,8 +447,8 @@ async function getBusinessAnalytics(req, res, next) {
 }
 
 // ── Tax estimates ─────────────────────────────────────────────────────────────
-// GET /api/businesses/:id/tax  — returns current + future estimates
-// POST /api/businesses/:id/tax/refresh — recalculate based on latest data
+// GET /api/businesses/:id/tax  - returns current + future estimates
+// POST /api/businesses/:id/tax/refresh - recalculate based on latest data
 async function getBusinessTax(req, res) {
   try {
     const access = await canManageBusinessFinance(req.user.id, req.params.id);
@@ -677,7 +677,7 @@ function generateLast6Months() {
 }
 
 // ── Public business profile ───────────────────────────────────────────────────
-// GET /api/businesses/:id/public — no auth required.
+// GET /api/businesses/:id/public - no auth required.
 // Returns everything a customer needs to see the business profile page.
 async function getBusinessPublicProfile(req, res) {
   try {
@@ -757,7 +757,7 @@ async function getBusinessPublicProfile(req, res) {
          WHERE business_id = $1 ORDER BY day_of_week`,
         [bizId]
       ),
-      // Active team members (name + role only — no email exposed publicly)
+      // Active team members (name + role only - no email exposed publicly)
       pool.query(
         `SELECT bm.role, u.first_name, u.last_name
          FROM business_members bm
@@ -792,13 +792,13 @@ async function getBusinessPublicProfile(req, res) {
         avg_rating:              biz.avg_rating,
         total_reviews:           biz.total_reviews,
         completed_jobs_count:    biz.completed_jobs_count,
-        // Owner context — needed for chat initiation
+        // Owner context - needed for chat initiation
         owner_id:        ownerId,
         owner_name:      `${biz.owner_first_name} ${biz.owner_last_name}`.trim(),
         owner_photo:     biz.profile_photo_url,
         profile_headline: biz.profile_headline,
         bio_short:       biz.bio_short,
-        /** Same gate as `/helpers/:id` guest chat — owner's helper_profiles.allow_guest_contact */
+        /** Same gate as `/helpers/:id` guest chat - owner's helper_profiles.allow_guest_contact */
         allow_guest_contact: biz.owner_allow_guest_contact !== false,
       },
       services:  svcRes.rows,
@@ -816,7 +816,7 @@ async function getBusinessPublicProfile(req, res) {
 }
 
 // ── Authenticated profile editor payload ──────────────────────────────────────
-// GET /api/businesses/:id/profile-edit — owner or active manager; includes full address.
+// GET /api/businesses/:id/profile-edit - owner or active manager; includes full address.
 async function getBusinessProfileForEditor(req, res) {
   try {
     const { id } = req.params;

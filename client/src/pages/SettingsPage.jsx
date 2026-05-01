@@ -472,7 +472,7 @@ export default function SettingsPage() {
           <div className="flex gap-3 flex-wrap">
             {plans.filter(p => p.slug !== 'free').map(plan => (
               <button key={plan.id} onClick={() => createCheckout(plan.slug)} className="sp-btn sp-btn-primary">
-                {t('settings.subscription.upgradeTo', { name: plan.name })} — ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? t('settings.subscription.year') : t('settings.subscription.mo')}
+                {t('settings.subscription.upgradeTo', { name: plan.name })} - ${(plan.price / 100).toFixed(2)}/{plan.slug?.includes('yearly') ? t('settings.subscription.year') : t('settings.subscription.mo')}
               </button>
             ))}
           </div>
@@ -593,7 +593,7 @@ export default function SettingsPage() {
     </div>
   );
 
-  // NotificationPreferences renders its own card wrapper with heading — render directly
+  // NotificationPreferences renders its own card wrapper with heading - render directly
   const tabNotifications = <NotificationPreferences />;
 
   const tabReferral = (

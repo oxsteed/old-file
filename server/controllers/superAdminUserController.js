@@ -529,7 +529,7 @@ exports.getUsersInRegion = async (req, res) => {
       return res.json({ users: [], scoped: true, regions: [] });
     }
 
-    // Build SQL fragments per region — keeps the query in one DB roundtrip.
+    // Build SQL fragments per region - keeps the query in one DB roundtrip.
     const orFragments = [];
     for (const r of regions) {
       const def = typeof r.boundary_definition === 'string'
@@ -553,7 +553,7 @@ exports.getUsersInRegion = async (req, res) => {
         }
       } else if (def.type === 'country_region' && Array.isArray(def.entries)) {
         // Country + region (state/province) match. State casing is normalized
-        // to uppercase here — matches the regionAuth fixed-list rule.
+        // to uppercase here - matches the regionAuth fixed-list rule.
         for (const e of def.entries) {
           if (!e || !e.country || !e.region) continue;
           orFragments.push(
@@ -577,7 +577,7 @@ exports.getUsersInRegion = async (req, res) => {
       const def = typeof r.boundary_definition === 'string' ? JSON.parse(r.boundary_definition) : r.boundary_definition;
       return def.type === 'geo_radius';
     })) {
-      // Pure geo_radius — fetch a wider set then filter in JS
+      // Pure geo_radius - fetch a wider set then filter in JS
       const whereSql = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
       const { rows } = await db.query(
         `SELECT u.id, u.email, u.first_name, u.last_name, u.role,

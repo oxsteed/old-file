@@ -93,7 +93,7 @@ const calendarRoutes = require('./routes/calendar');
 const marketplaceProductsRoutes = require('./routes/marketplaceProducts');
 const shoppingCartsRoutes = require('./routes/shoppingCarts');
 const sharedCartsRoutes = require('./routes/sharedCarts');
-// roleToggleRoutes removed — use POST /api/auth/switch-role instead (authController.switchRole)
+// roleToggleRoutes removed - use POST /api/auth/switch-role instead (authController.switchRole)
 // The old /api/role-toggle endpoint had no session invalidation, no helper_profiles row
 // creation, and no fresh JWT issuance, causing inconsistent auth state.
 
@@ -295,7 +295,7 @@ app.use(cors({
 
 // ── WEBHOOK ROUTES (before rate limiting AND body parsing) ───
 // Stripe needs raw body for signature verification.
-// Webhooks must skip the rate limiter — Stripe/Didit IPs can burst
+// Webhooks must skip the rate limiter - Stripe/Didit IPs can burst
 // during batch events and a 429 can cause Stripe to disable the endpoint.
 app.use('/api/webhooks', webhookRoutes);
 
@@ -420,9 +420,9 @@ app.use('/api/consulting/business-launch', businessLaunchRoutes);
 app.use('/api/consulting/analytics', consultingAnalyticsRoutes);
 app.use('/api/consulting', consultingActionItemsRoutes);
 app.use('/api/scheduling', consultantSchedulingRoutes);
-// NOTE: /api/role-toggle intentionally removed — see comment near top of file
+// NOTE: /api/role-toggle intentionally removed - see comment near top of file
 
-// Sentry wizard "Verify" route — development/staging only (omit in production)
+// Sentry wizard "Verify" route - development/staging only (omit in production)
 if (process.env.NODE_ENV !== 'production') {
   app.get('/debug-sentry', function mainHandler(req, res) {
     throw new Error('My first Sentry error!');
@@ -457,7 +457,7 @@ app.use('/api/notifications/sms', smsNotificationsRoutes);
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
-// Sitemap + robots — works in all environments, no auth required
+// Sitemap + robots - works in all environments, no auth required
 app.use('/robots.txt', robotsRoutes);
 app.use('/sitemap.xml', sitemapRoutes);
 

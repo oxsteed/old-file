@@ -55,7 +55,7 @@ exports.toggleBusiness = async (req, res) => {
     const newActive = !rows[0].is_active;
     const oldActive = rows[0].is_active;
 
-    // Update with safeguard to prevent race conditions — only update if current state matches
+    // Update with safeguard to prevent race conditions - only update if current state matches
     const updateResult = await db.query(
       'UPDATE businesses SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id',
       [newActive, id, oldActive]

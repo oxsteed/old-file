@@ -1,4 +1,4 @@
-// Phase 2 — File storage utility (S3-compatible)
+// Phase 2 - File storage utility (S3-compatible)
 // OxSteed v2
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
@@ -18,7 +18,7 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
     },
   });
 } else {
-  require('./logger').warn('AWS credentials not set — file storage disabled');
+  require('./logger').warn('AWS credentials not set - file storage disabled');
 }
 
 function generateKey(folder, originalName) {
@@ -29,7 +29,7 @@ function generateKey(folder, originalName) {
 
 async function uploadFile(buffer, folder, originalName, contentType) {
   if (!s3) {
-    require('./logger').warn('File not uploaded — S3 not configured');
+    require('./logger').warn('File not uploaded - S3 not configured');
     return null;
   }
   const key = generateKey(folder, originalName);
@@ -44,7 +44,7 @@ async function uploadFile(buffer, folder, originalName, contentType) {
 
 async function getSignedDownloadUrl(key, expiresIn = 3600) {
   if (!s3) {
-    require('./logger').warn('Signed URL not generated — S3 not configured');
+    require('./logger').warn('Signed URL not generated - S3 not configured');
     return null;
   }
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
@@ -53,7 +53,7 @@ async function getSignedDownloadUrl(key, expiresIn = 3600) {
 
 async function deleteFile(key) {
   if (!s3) {
-    require('./logger').warn('File not deleted — S3 not configured');
+    require('./logger').warn('File not deleted - S3 not configured');
     return;
   }
   await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
@@ -61,7 +61,7 @@ async function deleteFile(key) {
 
 // WARNING: Returns a permanent public URL. Only use for truly public assets
 // (e.g. public profile photos). NEVER use for W-9 docs, background checks,
-// or any private user files — use getSignedDownloadUrl() instead.
+// or any private user files - use getSignedDownloadUrl() instead.
 function getPublicUrl(key) {
   return `https://${BUCKET}.s3.amazonaws.com/${key}`;
 }

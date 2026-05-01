@@ -8,7 +8,7 @@ const { createSession, getStatus, skipVerification } = require('../controllers/d
 router.post('/session',  authenticate, createSession);
 router.get('/status',    authenticate, getStatus);
 
-// Skip verification — only succeeds when DIDIT_API_KEY is absent (dev/staging).
+// Skip verification - only succeeds when DIDIT_API_KEY is absent (dev/staging).
 // Returns 403 when Didit is configured (production).
 router.post('/skip', authenticate, skipVerification);
 

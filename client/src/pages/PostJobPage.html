@@ -10,10 +10,10 @@
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
 <style>
 /* ============================================================
-   ART DIRECTION: OxSteed — local trades marketplace
+   ART DIRECTION: OxSteed - local trades marketplace
    Palette: warm earth (beige surfaces, teal accent, amber status)
    Typography: Instrument Serif (display) + Work Sans (body)
-   Density: balanced — functional but warm
+   Density: balanced - functional but warm
    ============================================================ */
 
 :root, [data-theme="light"] {
@@ -423,12 +423,12 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
       <div class="card" id="step-1">
         <div class="section-label">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          Step 1 of 4 — Job Details
+          Step 1 of 4 - Job Details
         </div>
 
         <div class="field">
           <label for="job-title">Job Title <span class="req" aria-label="required">*</span></label>
-          <input type="text" id="job-title" class="input" placeholder="e.g. Full kitchen rewire — breakers keep tripping" maxlength="80" oninput="updateSummary()">
+          <input type="text" id="job-title" class="input" placeholder="e.g. Full kitchen rewire - breakers keep tripping" maxlength="80" oninput="updateSummary()">
           <div class="char-count"><span id="title-count">0</span>/80</div>
         </div>
 
@@ -437,17 +437,17 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           <select id="job-category" class="select" onchange="updateSummary()">
             <option value="">Select a category…</option>
             <optgroup label="Electrical">
-              <option value="electrical-full">Electrical — Full Rewire</option>
-              <option value="electrical-repair">Electrical — Repair / Panel</option>
-              <option value="electrical-install">Electrical — Installation</option>
+              <option value="electrical-full">Electrical - Full Rewire</option>
+              <option value="electrical-repair">Electrical - Repair / Panel</option>
+              <option value="electrical-install">Electrical - Installation</option>
             </optgroup>
             <optgroup label="Plumbing">
-              <option value="plumbing-general">Plumbing — General</option>
-              <option value="plumbing-drain">Plumbing — Drain / Sewer</option>
+              <option value="plumbing-general">Plumbing - General</option>
+              <option value="plumbing-drain">Plumbing - Drain / Sewer</option>
             </optgroup>
             <optgroup label="HVAC">
-              <option value="hvac-install">HVAC — Install</option>
-              <option value="hvac-repair">HVAC — Repair</option>
+              <option value="hvac-install">HVAC - Install</option>
+              <option value="hvac-repair">HVAC - Repair</option>
             </optgroup>
             <optgroup label="Other Trades">
               <option value="carpentry">Carpentry</option>
@@ -463,7 +463,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
 
         <div class="field">
           <label for="job-desc">Describe the Work <span class="req" aria-label="required">*</span>
-            <span class="hint">Be specific — what's broken, what outcome you want</span>
+            <span class="hint">Be specific - what's broken, what outcome you want</span>
           </label>
           <textarea id="job-desc" class="textarea" rows="5" maxlength="1000" placeholder="e.g. Kitchen keeps tripping the 20A breaker. Need a licensed electrician to inspect the panel, replace outdated wiring in the kitchen circuit (approx. 18 ft run), install 2 new dedicated circuits for appliances, and ensure work passes inspection." oninput="updateSummary()"></textarea>
           <div class="char-count"><span id="desc-count">0</span>/1000</div>
@@ -477,7 +477,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
           <div class="field" style="margin-bottom:0">
             <label for="job-access">Site Access</label>
             <select id="job-access" class="select">
-              <option value="easy">Easy — I'll be home</option>
+              <option value="easy">Easy - I'll be home</option>
               <option value="lockbox">Lockbox available</option>
               <option value="schedule">Must schedule access</option>
             </select>
@@ -489,14 +489,14 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
       <div class="card" id="step-2">
         <div class="section-label">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          Step 2 of 4 — Your Requirements
+          Step 2 of 4 - Your Requirements
         </div>
 
         <p class="section-desc">Select what you require from any helper who bids on this job. Only helpers who confirm every requirement can submit a bid.</p>
 
         <div class="callout" role="note">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <p><strong>License &amp; insurance</strong> — when a helper provides credentials, OxSteed will attempt to verify them. All other requirements are <strong>self-confirmed</strong> by the helper before bidding.</p>
+          <p><strong>License &amp; insurance</strong> - when a helper provides credentials, OxSteed will attempt to verify them. All other requirements are <strong>self-confirmed</strong> by the helper before bidding.</p>
         </div>
 
         <div class="req-grid" role="group" aria-label="Job requirements">
@@ -575,9 +575,9 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
               <div class="req-detail-label">Minimum skill level</div>
               <select class="select" onclick="e=>e.stopPropagation()" onchange="updateSummary()">
                 <option value="">Select level…</option>
-                <option value="beginner">Beginner — basic tasks</option>
-                <option value="intermediate">Intermediate — 2+ years</option>
-                <option value="advanced" selected>Advanced — 5+ years</option>
+                <option value="beginner">Beginner - basic tasks</option>
+                <option value="intermediate">Intermediate - 2+ years</option>
+                <option value="advanced" selected>Advanced - 5+ years</option>
                 <option value="expert">Expert / Master level</option>
               </select>
             </div>
@@ -654,7 +654,7 @@ hr { border: none; border-top: 1px solid var(--color-divider); margin: var(--spa
       <div class="card" id="step-3">
         <div class="section-label">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Step 3 of 4 — Budget &amp; Timeline
+          Step 3 of 4 - Budget &amp; Timeline
         </div>
 
         <div class="budget-type-tabs" role="group" aria-label="Budget type">

@@ -7,7 +7,7 @@ function readTheme() {
     const saved = localStorage.getItem('theme');
     return saved ? saved === 'dark' : true; // default dark
   } catch {
-    return true; // incognito / SecurityError — fall back to dark
+    return true; // incognito / SecurityError - fall back to dark
   }
 }
 
@@ -15,7 +15,7 @@ function writeTheme(value) {
   try {
     localStorage.setItem('theme', value);
   } catch {
-    // incognito or storage quota — silently ignore
+    // incognito or storage quota - silently ignore
   }
 }
 

@@ -3,7 +3,7 @@ const logger      = require('../utils/logger');
 const webPush     = require('../services/webPushService');
 
 // ─── GET /api/notifications/webpush/public-key ───────────────
-// Public endpoint — the browser needs this BEFORE it can call
+// Public endpoint - the browser needs this BEFORE it can call
 // pushManager.subscribe(). No auth required, no PII exposed.
 exports.getPublicKey = (_req, res) => {
   return res.json({
@@ -60,7 +60,7 @@ exports.subscribe = async (req, res) => {
 
 // ─── DELETE /api/notifications/webpush/subscribe ─────────────
 // Body: { endpoint }
-// Soft-disables — keeps the row for audit, drops it from fan-out.
+// Soft-disables - keeps the row for audit, drops it from fan-out.
 exports.unsubscribe = async (req, res) => {
   try {
     const userId   = req.user.id;
@@ -91,7 +91,7 @@ exports.listDevices = async (req, res) => {
         ORDER BY last_used_at DESC NULLS LAST`,
       [req.user.id]
     );
-    // Don't leak full endpoints — they're effectively bearer tokens.
+    // Don't leak full endpoints - they're effectively bearer tokens.
     return res.json({
       devices: rows.map(d => ({
         id:           d.id,
@@ -109,7 +109,7 @@ exports.listDevices = async (req, res) => {
 };
 
 // ─── POST /api/notifications/webpush/test ────────────────────
-// Sends a test push to all of the caller's active subscriptions —
+// Sends a test push to all of the caller's active subscriptions -
 // useful for the settings UI ("Send a test notification" button).
 exports.sendTest = async (req, res) => {
   try {

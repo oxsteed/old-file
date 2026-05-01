@@ -704,11 +704,11 @@ export default function HelperDashboard() {
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [showHomeTaskModal, setShowHomeTaskModal] = useState(false);
 
-  // Budget modal — replaces window.prompt
+  // Budget modal - replaces window.prompt
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [budgetForm, setBudgetForm] = useState({ category:'', period_amount:'', period:'monthly' });
 
-  // Goal update modal — replaces window.prompt
+  // Goal update modal - replaces window.prompt
   const [showGoalUpdateModal, setShowGoalUpdateModal] = useState(false);
   const [updatingGoal, setUpdatingGoal] = useState(null);
   const [goalUpdateValue, setGoalUpdateValue] = useState('');
@@ -730,7 +730,7 @@ export default function HelperDashboard() {
   const [homeAdding,        setHomeAdding]        = useState(false);
   const [homeDeleteTarget,  setHomeDeleteTarget]  = useState(null);
 
-  // ── Money tab — sinking funds snapshot ───────────────────────────────────
+  // ── Money tab - sinking funds snapshot ───────────────────────────────────
   const [moneyPlannedNeeds, setMoneyPlannedNeeds] = useState([]);
 
   // ── Unread messages / socket ───────────────────────────────────────────
@@ -972,7 +972,7 @@ export default function HelperDashboard() {
     setLiveAvailLoading(false);
   };
 
-  /** True until helper finishes onboarding — dims pulse-dependent UI and gates some blocks */
+  /** True until helper finishes onboarding - dims pulse-dependent UI and gates some blocks */
   const showOnboarding = !isOnboardingComplete;
 
     // ── Derived ───────────────────────────────────────────────────────────
@@ -1099,7 +1099,7 @@ export default function HelperDashboard() {
               </div>
             )}
 
-          {/* Financial Pulse Score — upgraded to match customer dashboard */}
+          {/* Financial Pulse Score - upgraded to match customer dashboard */}
           {!showOnboarding && fp && (() => {
             const score = fp.pulse_score;
             const scoreColor = score >= 80 ? '#34d399' : score >= 60 ? '#F97316' : score >= 40 ? '#facc15' : '#f87171';
@@ -1138,7 +1138,7 @@ export default function HelperDashboard() {
                       { l:t('dashboard.pulse.obligations'), v:breakdown.obligations, c:'text-orange-400'  },
                     ].map((d,i) => (
                       <div key={i} className="text-center">
-                        <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '—'}</p>
+                        <p className={`text-lg font-bold ${d.c}`}>{d.v ?? '-'}</p>
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider">{d.l}</p>
                       </div>
                     ))}
@@ -1259,7 +1259,7 @@ export default function HelperDashboard() {
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
                 {(life.expenseSummary?.total_income||0) > 0
                   ? <p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
-                  : <p className="text-xl font-bold text-gray-600">—</p>
+                  : <p className="text-xl font-bold text-gray-600">-</p>
                 }
               </div>
             </div>
@@ -1320,7 +1320,7 @@ export default function HelperDashboard() {
               <div><p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{t('dashboard.money.savingsRate')}</p>
                 {(life.expenseSummary?.total_income||0)>0
                   ?<p className={`text-xl font-bold ${((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=20?'text-emerald-400':((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)>=0?'text-yellow-400':'text-red-400'}`}>{Math.round((life.expenseSummary?.net||0)/(life.expenseSummary?.total_income||1)*100)}%</p>
-                  :<p className="text-xl font-bold text-gray-600">—</p>
+                  :<p className="text-xl font-bold text-gray-600">-</p>
                 }
               </div>
             </div>
@@ -1966,7 +1966,7 @@ export default function HelperDashboard() {
 
       {/* ════════════════════ MODALS ════════════════════ */}
 
-      {/* Log Transaction — with recurring support */}
+      {/* Log Transaction - with recurring support */}
       <Modal open={showExpenseModal} onClose={()=>setShowExpenseModal(false)} title={t('dashboard.money.modalLogTransaction')}>
         <form onSubmit={handleAddExpense} className="space-y-4">
           <Select label={t('dashboard.money.typeLabel')} value={expenseForm.type} onChange={e=>setExpenseForm(p=>({...p,type:e.target.value}))}>
@@ -2015,7 +2015,7 @@ export default function HelperDashboard() {
         </form>
       </Modal>
 
-      {/* Goal Update Modal — replaces window.prompt */}
+      {/* Goal Update Modal - replaces window.prompt */}
       <Modal open={showGoalUpdateModal} onClose={()=>{setShowGoalUpdateModal(false);setUpdatingGoal(null);}} title={t('dashboard.goals.modalUpdateProgress')}>
         {updatingGoal&&(
           <form onSubmit={async(e)=>{e.preventDefault();await updateGoalProgress(updatingGoal,goalUpdateValue);setShowGoalUpdateModal(false);setUpdatingGoal(null);}} className="space-y-4">
@@ -2095,7 +2095,7 @@ export default function HelperDashboard() {
         </form>
       </Modal>
 
-      {/* Budget Modal — replaces window.prompt */}
+      {/* Budget Modal - replaces window.prompt */}
       <Modal open={showBudgetModal} onClose={()=>{setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'})}} title={t('dashboard.money.modalSetBudget')}>
         <form onSubmit={async(e)=>{e.preventDefault();try{await life.upsertBudget({category:budgetForm.category,period_amount:parseFloat(budgetForm.period_amount),period:budgetForm.period});life.fetchBudgets();toast.success(t('dashboard.money.budgetSaved'));setShowBudgetModal(false);setBudgetForm({category:'',period_amount:'',period:'monthly'});}catch{toast.error(t('dashboard.money.budgetSaveFailed'));}}} className="space-y-4">
           <Select label={t('dashboard.money.categoryLabel')} required value={budgetForm.category} onChange={e=>setBudgetForm(p=>({...p,category:e.target.value}))}>
@@ -2258,7 +2258,7 @@ export default function HelperDashboard() {
         </form>
       </Modal>
 
-      {/* Add / Edit Tool Modal — upgraded with richer fields */}
+      {/* Add / Edit Tool Modal - upgraded with richer fields */}
       <Modal open={showToolModal} onClose={()=>{setShowToolModal(false);setEditingTool(null);setToolCatLookup([]);}} title={editingTool ? t('dashboard.skillsTools.modalEditTool') : t('dashboard.skillsTools.modalAddTool')}>
         <form onSubmit={handleSaveTool} className="space-y-4">
           <Input label={t('dashboard.skillsTools.toolNameLabel')} required placeholder={t('dashboard.skillsTools.toolNamePlaceholder')} value={toolForm.name} onChange={e=>setToolForm(p=>({...p,name:e.target.value}))}/>

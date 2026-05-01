@@ -255,15 +255,15 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Contact Information</div>
             <p><strong>Email:</strong> {request.email}</p>
-            <p><strong>Phone:</strong> {request.phone || '—'}</p>
-            <p><strong>Referral Source:</strong> {request.referral_source || '—'}</p>
+            <p><strong>Phone:</strong> {request.phone || '-'}</p>
+            <p><strong>Referral Source:</strong> {request.referral_source || '-'}</p>
           </div>
 
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Business Details</div>
             <p><strong>Skill:</strong> {request.skill_description}</p>
             <p><strong>Target Market:</strong> {request.target_market}</p>
-            <p><strong>State:</strong> {request.operating_state || '—'}</p>
+            <p><strong>State:</strong> {request.operating_state || '-'}</p>
             <p><strong>Current Phase:</strong> {request.current_phase || 'Not specified'} / 25</p>
             {request.business_name && <p><strong>Business Name:</strong> {request.business_name}</p>}
           </div>
@@ -376,7 +376,7 @@ export default function BusinessLaunchRequestDetail({ request, onClose, onStatus
                 onChange={e => setSelectedTemplate(e.target.value)}
                 style={inputStyle}
               >
-                <option value="">— Create Custom Message —</option>
+                <option value="">- Create Custom Message -</option>
                 {templates.map(template => (
                   <option key={template.id} value={template.id}>
                     {template.name}

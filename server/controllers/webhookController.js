@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 
 if (!process.env.STRIPE_SECRET_KEY) {
-  logger.error('[FATAL] STRIPE_SECRET_KEY is not set — Stripe webhooks will fail.');
+  logger.error('[FATAL] STRIPE_SECRET_KEY is not set - Stripe webhooks will fail.');
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
@@ -63,7 +63,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // Subscriptions created through Checkout are already handled by
         // checkout.session.completed (which fires first and creates the row).
         // This case exists for subscriptions created via the Stripe dashboard
-        // or API — without it, those subscriptions are invisible to the app.
+        // or API - without it, those subscriptions are invisible to the app.
         const sub = event.data.object;
         const { rows: existing } = await db.query(
           'SELECT id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
@@ -185,7 +185,7 @@ exports.stripeWebhook = async (req, res, next) => {
       // endpoint in the Stripe dashboard (listen for "Events on connected accounts").
 
       case 'payment_intent.amount_capturable_updated': {
-        // Authorization succeeded — PaymentIntent is ready to capture after job completion.
+        // Authorization succeeded - PaymentIntent is ready to capture after job completion.
         const pi = event.data.object;
         const jobId = pi.metadata?.job_id;
         if (jobId) {
@@ -194,13 +194,13 @@ exports.stripeWebhook = async (req, res, next) => {
              updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'`,
             [pi.id]
           );
-          logger.info(`[Stripe] PaymentIntent ${pi.id} authorized — job ${jobId} funds held`);
+          logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
         }
         break;
       }
 
       case 'payment_intent.succeeded': {
-        // Capture completed — money is on its way to the helper or order is complete.
+        // Capture completed - money is on its way to the helper or order is complete.
         const pi = event.data.object;
         const jobId = pi.metadata?.job_id;
         const orderId = pi.metadata?.orderId;
@@ -217,7 +217,7 @@ exports.stripeWebhook = async (req, res, next) => {
             `UPDATE jobs SET escrow_status = 'released', updated_at = NOW() WHERE id = $1`,
             [jobId]
           );
-          logger.info(`[Stripe] PaymentIntent ${pi.id} captured — funds released for job ${jobId}`);
+          logger.info(`[Stripe] PaymentIntent ${pi.id} captured - funds released for job ${jobId}`);
         } else if (orderId) {
           // Marketplace order payment succeeded
           await db.query(
@@ -230,7 +230,7 @@ exports.stripeWebhook = async (req, res, next) => {
              WHERE payment_intent_id = $2`,
             ['succeeded', pi.id]
           );
-          logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded — order ${orderId} marked as paid`);
+          logger.info(`[Stripe] PaymentIntent ${pi.id} succeeded - order ${orderId} marked as paid`);
         }
         break;
       }
@@ -462,7 +462,7 @@ exports.diditWebhook = async (req, res, next) => {
         }
 
         if (!identityHash) {
-          logger.warn('[Didit] No document_number — skipping dedup', { userId });
+          logger.warn('[Didit] No document_number - skipping dedup', { userId });
           await db.query(
             `UPDATE users
              SET identity_verified = TRUE,

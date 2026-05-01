@@ -13,7 +13,7 @@ function isAsyncPaymentCapture() {
 }
 
 /**
- * Payment Controller — Stripe Connect Direct Charges
+ * Payment Controller - Stripe Connect Direct Charges
  *
  * All Tier 3 payments are direct charges on the helper's connected Stripe account.
  * The helper is the merchant of record. OxSteed collects revenue via application_fee.
@@ -86,7 +86,7 @@ exports.getConnectStatus = async (req, res) => {
  *   1. Customer selects a helper for a Tier 3 job.
  *   2. OxSteed creates a PaymentIntent as a DIRECT CHARGE on the helper's account.
  *   3. application_fee_amount = 7.1% of job value (or $5 min).
- *   4. capture_method: 'manual' — authorize now, capture after job completion.
+ *   4. capture_method: 'manual' - authorize now, capture after job completion.
  *   5. Stripe processing fees are deducted from the helper's charge.
  *   6. On capture, helper gets paid and OxSteed receives its application_fee.
  */
@@ -247,7 +247,7 @@ exports.capturePayment = async (req, res, next) => {
   }
 };
 
-// Refund payment (on helper's connected account — admin only)
+// Refund payment (on helper's connected account - admin only)
 // ATOMIC: Stripe refund + DB update happen together
 exports.refundPayment = async (req, res, next) => {
   try {
@@ -350,7 +350,7 @@ exports.refundPayment = async (req, res, next) => {
   }
 };
 
-// Get payment for a job — only payer or payee may view
+// Get payment for a job - only payer or payee may view
 exports.getJobPayment = async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM payments WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1', [req.params.job_id]);

@@ -1,7 +1,7 @@
 /**
  * CarCarePage.jsx
  * Search NHTSA vehicle data + manage user's garage.
- * Data: NHTSA vPIC API — free U.S. government data, no API key required.
+ * Data: NHTSA vPIC API - free U.S. government data, no API key required.
  * OxSteed v2
  */
 
@@ -79,7 +79,7 @@ export default function CarCarePage() {
     })();
   }, []);
 
-  // ── Load makes (lazy — on first focus of make input) ─────────────────
+  // ── Load makes (lazy - on first focus of make input) ─────────────────
   const loadMakes = useCallback(async () => {
     if (makesLoaded) return;
     setLoadingMakes(true);
@@ -227,7 +227,7 @@ export default function CarCarePage() {
   return (
     <PageShell>
       <PageMeta
-        title={`${t('dashboard.carCare.pageTitle')} — OxSteed`}
+        title={`${t('dashboard.carCare.pageTitle')} - OxSteed`}
         description={t('dashboard.carCare.pageDesc')}
       />
 

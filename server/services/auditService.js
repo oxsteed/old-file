@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 /**
  * Log every admin action for compliance and audit (general action log).
  *
- * Writes to `admin_audit_log` — the legacy, free-form action log used by
+ * Writes to `admin_audit_log` - the legacy, free-form action log used by
  * existing controllers (permission grants, user bans, etc.). This is kept
  * unchanged for backward compatibility.
  */
@@ -50,7 +50,7 @@ exports.logAdminAction = async ({
  * before/after capture for compliance and export.
  *
  * Pass an existing `client` when running inside a transaction; otherwise
- * the shared `db` pool is used. Errors are swallowed and logged — audit
+ * the shared `db` pool is used. Errors are swallowed and logged - audit
  * failures must never break the main action.
  *
  * @param {Object}   options

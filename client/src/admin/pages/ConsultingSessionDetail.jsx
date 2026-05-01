@@ -269,8 +269,8 @@ export default function ConsultingSessionDetail({ session, onClose, onStatusUpda
           <div style={sectionStyle}>
             <div style={sectionTitleStyle}>Contact Information</div>
             <p><strong>Email:</strong> {session.email}</p>
-            <p><strong>Phone:</strong> {session.phone || '—'}</p>
-            <p><strong>Business Name:</strong> {session.business_name || '—'}</p>
+            <p><strong>Phone:</strong> {session.phone || '-'}</p>
+            <p><strong>Business Name:</strong> {session.business_name || '-'}</p>
           </div>
 
           <div style={sectionStyle}>

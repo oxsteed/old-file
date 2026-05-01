@@ -75,9 +75,9 @@ function CreateAdminModal({ onCreated, onClose }) {
               <label className="block text-xs text-gray-400 mb-1">Role</label>
               <select value={form.role} onChange={e => setF('role', e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none">
-                <option value="admin">Admin — content moderation + user management</option>
+                <option value="admin">Admin - content moderation + user management</option>
                 {me?.role === 'super_admin' && (
-                  <option value="super_admin">Super Admin — full platform access</option>
+                  <option value="super_admin">Super Admin - full platform access</option>
                 )}
               </select>
             </div>
@@ -296,7 +296,7 @@ export default function AdminAccounts() {
                   </td>
                   <td className="px-4 py-3 text-gray-300">{admin.action_count || 0}</td>
                   <td className="px-4 py-3 text-gray-400 text-xs">
-                    {admin.last_action_at ? new Date(admin.last_action_at).toLocaleDateString() : '—'}
+                    {admin.last_action_at ? new Date(admin.last_action_at).toLocaleDateString() : '-'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">

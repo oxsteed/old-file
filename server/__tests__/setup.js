@@ -9,7 +9,7 @@
  *
  * The express app is imported WITHOUT starting the HTTP server (the server
  * calls httpServer.listen inside index.js, which we deliberately avoid in
- * tests — instead we export a separate `createApp` factory).
+ * tests - instead we export a separate `createApp` factory).
  */
 
 'use strict';

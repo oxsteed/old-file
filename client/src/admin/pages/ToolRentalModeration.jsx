@@ -209,16 +209,16 @@ export default function ToolRentalModeration() {
                     </p>
                   </td>
                   <td className={col}>
-                    <p className="text-gray-300">{t.owner_name || '—'}</p>
-                    <p className="text-gray-500 text-xs">{t.owner_email || '—'}</p>
+                    <p className="text-gray-300">{t.owner_name || '-'}</p>
+                    <p className="text-gray-500 text-xs">{t.owner_email || '-'}</p>
                   </td>
                   <td className={`${col} text-gray-400`}>
                     {t.location_city && t.location_state
                       ? `${t.location_city}, ${t.location_state}`
-                      : t.location_city || t.location_state || '—'}
+                      : t.location_city || t.location_state || '-'}
                   </td>
                   <td className={`${col} text-white`}>
-                    {t.daily_rate != null ? `$${Number(t.daily_rate).toFixed(2)}/day` : '—'}
+                    {t.daily_rate != null ? `$${Number(t.daily_rate).toFixed(2)}/day` : '-'}
                   </td>
                   <td className={col}>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -230,7 +230,7 @@ export default function ToolRentalModeration() {
                     </span>
                   </td>
                   <td className={`${col} text-gray-400`}>
-                    {t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
+                    {t.created_at ? new Date(t.created_at).toLocaleDateString() : '-'}
                   </td>
                   <td className={col}>
                     <button

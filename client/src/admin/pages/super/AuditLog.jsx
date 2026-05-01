@@ -50,7 +50,7 @@ export default function AuditLog() {
         <div>
           <h1 className="text-2xl font-bold text-white">Audit Log</h1>
           <p className="text-gray-400 text-sm mt-1">
-            Full record of all admin actions — immutable.
+            Full record of all admin actions - immutable.
           </p>
         </div>
       </div>
@@ -127,7 +127,7 @@ export default function AuditLog() {
                         {entry.admin_name || 'System'}
                       </p>
                       <p className="text-gray-500 text-xs">
-                        {entry.admin_email || '—'}
+                        {entry.admin_email || '-'}
                       </p>
                     </div>
                   </td>
@@ -151,10 +151,10 @@ export default function AuditLog() {
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-xs
                                  max-w-xs truncate">
-                    {entry.description || '—'}
+                    {entry.description || '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-600 text-xs font-mono">
-                    {entry.ip_address || '—'}
+                    {entry.ip_address || '-'}
                   </td>
                 </tr>
               ))}

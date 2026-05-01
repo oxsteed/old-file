@@ -1,1129 +1,1129 @@
 {
   "sections": {
-    "1": {
-      "search": "1 sa oxsteed se pa kliyan asistan anyè cda 230",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "1. Ki sa ki OxSteed se - epi li pa"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed LLC (\"OxSteed,\" \"nou,\" \"nou,\" oswa \"nou\") opere yon platfòm entwodiksyon sou entènèt ki konekte moun k ap chèche asistans lokal (\"Kliyan\") ak moun endepandan ki ofri konpetans yo ak travay yo (\"Ed\"). OxSteed se yon platfòm netral twazyèm pati ki bay yon sèvis anyè. OxSteed se pa yon anplwayè, yon ajans anplwaye, oswa yon kontraktè jeneral."
-        },
-        {
-          "type": "p",
-          "text": "OxSteed pa anplwaye Helpers, pa kontwole fason Helpers fè travay yo, pa fikse pri Helpers yo mande yo, epi li pa voye Helpers nan okenn travay. Tout akò pou sèvis yo fèt dirèkteman ant Kliyan ak Èd yo."
-        },
-        {
-          "type": "p",
-          "text": "OxSteed se yon platfòm, pa yon pati nan nenpòt akò sèvis ant yon Kliyan ak yon Èd. Lè w sèvi ak OxSteed, ou rekonèt epi dakò ke OxSteed pa gen okenn kontwòl sou, epi li pa gen okenn responsablite pou, kalite, sekirite, legalite, oswa rezilta nenpòt sèvis yo fè."
-        },
-        {
-          "type": "note",
-          "variant": "yellow",
-          "strong": "Enpòtan:",
-          "text": "OxSteed opere dapre Lwa sou Desans Kominikasyon, 47 U.S.C. § 230. OxSteed se pa piblikatè oswa oratè nenpòt kontni ki te kreye pa itilizatè li yo epi li pa gen responsablite pou kontni sa a nan limit lalwa federal bay la."
-        }
-      ]
-    },
-    "2": {
-      "search": "2 kalifikasyon 18 kont etazini",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "2. Elijiblite"
-        },
-        {
-          "type": "p",
-          "text": "Ou dwe gen omwen 18 an pou kreye yon kont oswa itilize OxSteed. Lè w kreye yon kont, ou reprezante ak garanti ke:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Ou gen omwen 18 an;"
-            ],
-            [
-              "Ou gen kapasite legal pou antre nan yon akò obligatwa;"
-            ],
-            [
-              "Lalwa pa entèdi w itilize platfòm la;"
-            ],
-            [
-              "Tout enfòmasyon ou bay pandan enskripsyon an egzat, aktyèl e konplè;"
-            ],
-            [
-              "Ou pral kenbe presizyon nan enfòmasyon kont ou."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "OxSteed rezève dwa pou mande prèv laj oswa idantite nenpòt ki lè. Kont nenpòt moun ki poko gen 18 an ki kreye yo pral sispann imedyatman."
-        },
-        {
-          "type": "note",
-          "variant": "yellow",
-          "strong": "Enpòtan:",
-          "text": "OxSteed disponib kounye a nan peyi Etazini."
-        }
-      ]
-    },
-    "3": {
-      "search": "3 nivo platfòm nivo 1 nivo 2 abònman stripe pro",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "3. Platfòm Nivo ak Sèvis"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed opere 2 nivo sèvis diferan. Chak nivo gen diferan karakteristik, frè, ak enplikasyon legal."
-        },
-        {
-          "type": "tier",
-          "title": "Nivo 1 - Lis Anyè gratis",
-          "paragraphs": [
-            {
-              "segments": [
-                "Èd yo ka kreye yon pwofil gratis. Kliyan yo ka browse pwofil yo epi poste lis travay yo. OxSteed fasilite entwodiksyon sèlman.",
-                {
-                  "strong": "Pa gen lajan pase nan OxSteed."
-                },
-                "Kliyan ak Èd fè tranzaksyon antyèman andeyò platfòm la. OxSteed pa gen okenn responsablite pou nenpòt tranzaksyon, rezilta, aksidan, oswa diskisyon ki rive nan koneksyon Tier 1."
-              ]
-            }
-          ]
-        },
-        {
-          "type": "tier",
-          "title": "Nivo 2 - Abònman verifye (Pro, $14.99/mwa)",
-          "paragraphs": [
-            "Èd ki abònman nan Nivo 2 jwenn aksè nan: plasman priyorite nan rezilta rechèch la, yon badj verifye pou manm, sètifikasyon si ou vle pou tcheke background, soumèt òf sou travay ki afiche, ak alèt notifikasyon pouse pou travay matche.",
-            "Abònman Tier 2 yo faktire chak mwa atravè Stripe epi renouvle otomatikman jiskaske yo anile. Nan nivo sa a, peman kliyan-a-èd nòmalman fèt dirèkteman ant pati yo, epi OxSteed pa dirije oswa kontwole lajan sa yo.",
-            "Si toulède pati yo chwazi sèvi ak sèvis peman opsyonèl nou an, OxSteed sèvi ak Stripe Connect pou mete yon otorizasyon tanporè oswa chaj sou metòd peman kliyan an epi pou kowòdone lage lajan bay asistan an, ki rete machann nan dosye. Tou de kliyan an ak èd la dwe konfime ke travay la fini anvan lajan yo lage, epi OxSteed pral trete liberasyon sa a nan 12 èdtan apre konfimasyon, dedwi yon frè platfòm 7.1% nan kantite lajan travay la plis èd yo peye frè pwosesis peman yo.",
-            "Peye via pa fè OxSteed yon pati nan akò sèvis la. OxSteed aji sèlman kòm yon entèmedyè peman ak yon ajan net. Stripe, Inc. trete tout peman yo kòm yon transmetè lajan ki gen lisans."
-          ]
-        }
-      ]
-    },
-    "4": {
-      "search": "4 zouti lokasyon adisyon pwopriyetè lokatè domaj sekirite",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "4. Addendum pou lokasyon zouti"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed pèmèt Helpers yo fè lis zouti ak ekipman pou lwe atravè platfòm la. Kondisyon adisyonèl sa yo aplike pou tout tranzaksyon lokasyon zouti:"
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Responsablite Pwopriyetè Zouti."
-            },
-            "Èd ki bay lis zouti pou lwe yo reprezante epi garanti ke: (a) se pwopriyetè legal zouti a oswa yo gen otorizasyon pou lwe l; (b) zouti a an sekirite, kondisyon travay; (c) lis la dekri avèk presizyon kondisyon zouti a, kapasite, ak nenpòt defo li te ye; epi (d) yo kenbe nenpòt asirans obligatwa pou ekipman an."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Responsablite Lokatè."
-            },
-            "Kliyan ki lwe zouti yo dakò pou: (a) sèvi ak zouti a sèlman pou objektif li; (b) retounen zouti a nan menm kondisyon ke li te resevwa a, eksepte mete nòmal; (c) pa soulwe, prete, oswa transfere zouti a bay okenn twazyèm pati; (d) imedyatman notifye pwopriyetè zouti a ak OxSteed sou nenpòt domaj, fonksyone byen, oswa pèt; epi (e) pran tout responsablite pou domaj oswa pèt zouti a pandan li nan posesyon yo."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Domaj ak Pèt."
-            },
-            "Lokatè a responsab finansyèman pou valè ranplasman konplè nenpòt zouti ki pèdi, yo vòlè li, oswa domaje pi lwen pase nòmal mete ak chire pandan li nan posesyon lokatè a. Diskisyon sou kondisyon zouti yo pral swiv pwosesis rezolisyon dispit ki nan Seksyon 16 la."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Wòl OxSteed a."
-            },
-            "OxSteed pa enspekte, sètifye, oswa garanti kondisyon, sekirite, oswa kondisyon fizik nenpòt zouti ki nan lis sou platfòm la. OxSteed pa responsab pou okenn blesi, domaj pwopriyete, oswa pèt ki rive nan itilizasyon zouti lwe. Tranzaksyon lokasyon zouti ant itilizatè yo gouvène pa menm estrikti nivo ki dekri nan Seksyon 3."
-          ]
-        },
-        {
-          "type": "note",
-          "variant": "red",
-          "strong": "Avètisman sekirite:",
-          "text": "Toujou enspekte nenpòt zouti lwe anvan ou itilize. Pa sèvi ak nenpòt zouti ki parèt domaje, modifye, oswa danjere. OxSteed pa responsab pou blesi ki te koze pa ekipman ki defektye oswa ki pa byen konsève."
-        }
-      ]
-    },
-    "5": {
-      "search": "5 wòl itilizatè kliyan asistan kontraktè endepandan",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "5. Wòl itilizatè ak Definisyon"
-        },
-        {
-          "type": "ul",
-          "className": "espas-y-3",
-          "items": [
-            [
-              {
-                "strong": "Kliyan:"
-              },
-              "Nenpòt moun oswa antite ki kreye yon kont OxSteed nan bi pou yo afiche lis travay oswa kontakte Helpers pou fè aranjman pou sèvis yo."
-            ],
-            [
-              {
-                "strong": "Èd (Niveau 1 - Gratis):"
-              },
-              "Yon moun endepandan ki kreye yon pwofil OxSteed gratis pou fè piblisite pou konpetans yo ak disponiblite yo. Asistan yo pa anplwaye, ajan, oswa kontraktè OxSteed."
-            ],
-            [
-              {
-                "strong": "Èd (Niveau 2 - Pro Subscriber):"
-              },
-              "Yon Asistan ki kenbe yon abònman Pro aktif, ki te konplete idantite ak verifikasyon background si ou vle, epi ki ka soumèt òf sou travay ki afiche."
-            ],
-            [
-              {
-                "strong": "Estati kontraktè endepandan:"
-              },
-              "Tout Helpers, kèlkeswa nivo, se kontraktè endepandan. OxSteed pa fikse lè travay yo, li pa egzije disponiblite minimòm, li pa kontwole metòd yo oswa zouti yo, li pa bay ekipman yo, li pa bay tarif espesifik yo, oswa li pa garanti nenpòt volim travay."
-            ]
-          ]
-        }
-      ]
-    },
-    "6": {
-      "search": "6 frè peman abònman w-9 1099 ranbousman diskisyon 16",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "6. Frè ak Kondisyon Peman"
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Frè abònman."
-            },
-            "Tier 2 (Pro) yo faktire chak mwa. Frè abònman yo pa ranbousab eksepte jan lalwa aplikab egzije sa. Ou ka anile nenpòt ki lè atravè tablodbò kont ou a."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Konfòmite taks."
-            },
-            "Èd k ap touche $600 oswa plis atravè platfòm la nan yon ane kalandriye yo oblije bay yon Fòm W-9 IRS ranpli. OxSteed pral bay Asistan ki kalifye IRS Fòm 1099-NEC jan lalwa egzije sa."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Ranbousman."
-            },
-            "Lajan ki gen konteste yo pral libere dapre pwosesis rezolisyon dispit ki dekri nan Seksyon 16 la."
-          ]
-        }
-      ]
-    },
-    "7": {
-      "search": "7 background tcheke fcra checkr badj aksyon negatif verifye",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "Verifikasyon Fondasyon, Verifikasyon, ak Konfòmite FCRA"
-        },
-        {
-          "type": "h2",
-          "text": "7.1 Depistaj si ou vle",
-          "sub": true
-        },
-        {
-          "type": "p",
-          "segments": [
-            "Asistan Nivo 2 yo ka chwazi pou yo konplete yon chèk background",
-            {
-              "strong": "Checkr, Inc."
-            },
-            ", Twazyèm pati ajans rapò konsomatè OxSteed a. Verifikasyon background yo se totalman volontè. Konplete yon chèk background pa garanti travay, prim travay, oswa aksè kontinye platfòm."
-          ]
-        },
-        {
-          "type": "h2",
-          "text": "7.2 Divilgasyon Lwa sou Rapò sou Kredi Ekitab (FCRA).",
-          "sub": true
-        },
-        {
-          "type": "p",
-          "text": "OxSteed respekte Lwa sou Rapò sou Kredi Ekitab, 15 U.S.C. § 1681 et seq. (\"FCRA\"). Anvan ou kòmanse yon chèk background, OxSteed ap ba ou:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "A",
-              {
-                "strong": "otonòm ekri divilgasyon FCRA"
-              },
-              "enfòme w ke yo ka jwenn yon rapò konsomatè pou rezon aksè platfòm; epi"
-            ],
-            [
-              "Yon demann pou ou",
-              {
-                "strong": "otorizasyon ekri"
-              },
-              "pou jwenn rapò a."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "Ou dwe konsantman afimativman anvan nenpòt tcheke background yo inisye. Konsantman ou separe de akseptasyon kondisyon sa yo."
-        },
-        {
-          "type": "h2",
-          "text": "7.3 Pwosedi pou aksyon negatif",
-          "sub": true
-        },
-        {
-          "type": "p",
-          "text": "Si OxSteed pran yon aksyon negatif ki baze an antye oswa an pati sou enfòmasyon ki nan yon rapò konsomatè - pou egzanp, refize oswa anile badj verifye ou a - OxSteed pral:"
-        },
-        {
-          "type": "ol",
-          "items": [
-            [
-              "Bay ou ak yon",
-              {
-                "strong": "avi aksyon pre-adverse"
-              },
-              "ak yon kopi rapò konsomatè a ak yon rezime dwa FCRA ou anvan aksyon an fini;"
-            ],
-            [
-              "Pèmèt ou yon peryòd rezonab (anjeneral 5 jou ouvrab) pou diskite sou nenpòt ki erè dirèkteman ak Checkr;"
-            ],
-            [
-              "Bay yon final",
-              {
-                "strong": "avi aksyon negatif"
-              },
-              "si yo kenbe desizyon an, enkli enfòmasyon pou kontakte Checkr ak enfòmasyon sou dwa w genyen pou w jwenn yon kopi rapò a gratis."
-            ]
-          ]
-        },
-        {
-          "type": "h2",
-          "text": "7.4 Limit responsabilite nou sou presizyon",
-          "sub": true
-        },
-        {
-          "type": "p",
-          "segments": [
-            "Rezilta tcheke background yo bay sèlman pa",
-            {
-              "strong": "Checkr, Inc."
-            },
-            ", ki sijè a pwòp kondisyon sèvis li yo ak règleman sou enfòmasyon prive.",
-            {
-              "strong": "OxSteed pa fè okenn reprezantasyon oswa garanti ke nenpòt rezilta tcheke background konplè, egzat, oswa aktyèl."
-            },
-            "OxSteed pa responsab pou erè oswa omisyon nan rapò Checkr yo. Kliyan yo se sèl responsab pou fè pwòp dilijans endepandan yo anvan yo angaje nenpòt ki Èd, kèlkeswa estati badj yo."
-          ]
-        },
-        {
-          "type": "h2",
-          "text": "7.5 Tcheke background ekspirasyon ak renouvèlman",
-          "sub": true
-        },
-        {
-          "type": "p",
-          "text": "Badj pou tcheke background yo ekspire 12 mwa apre dat rapò ki kache a epi yo dwe renouvle pou kenbe estati verifye. OxSteed ap fè w konnen omwen 30 jou anvan badj ou a ekspire."
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Yon chèk backgroung pa konstitye OxSteed andòsman nenpòt ki konpetans, kalite travay, oswa karaktè;"
-            ],
-            [
-              "Yon chèk background pa garanti ke yon Asistan gen nenpòt lisans pwofesyonèl oswa asirans obligatwa;"
-            ],
-            [
-              "Yon chèk background pa reflete aktivite kriminèl, chanjman lisans, oswa lòt evènman ki rive apre dat chèk la;"
-            ],
-            [
-              "Yon chèk backgroung pa kreye okenn garanti oswa garanti pa OxSteed konsènan kapasite Helper a pou nenpòt travay patikilye."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Pa konte sèlman sou badj verifye a lè w ap anboche yon Asistan."
-            },
-            "Toujou verifye endepandamman lisans, asirans, ak referans pou nenpòt komès reglemante oswa travay ki gen anpil valè."
-          ]
-        }
-      ]
-    },
-    "8": {
-      "search": "8 kontraktè endepandan taks travay asirans",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "8. Estati Kontraktè Endepandan"
-        },
-        {
-          "type": "p",
-          "text": "Pa gen anyen nan Kondisyon sa yo ki kreye yon relasyon travay, patenarya, antrepriz, ajans, franchiz, oswa relasyon anplwayè-anplwaye ant OxSteed ak nenpòt ki Èd."
-        },
-        {
-          "type": "p",
-          "text": "Èd yo rekonèt ekspreseman ke:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Yo ap opere yon biznis endepandan"
-            ],
-            [
-              "Yo responsab sèlman pou tout taks federal, leta ak lokal sou revni ou touche atravè platfòm la"
-            ],
-            [
-              "Yo dwe genyen nenpòt asirans lalwa mande pou sèvis yo"
-            ],
-            [
-              "Yo responsab sèlman pou jwenn nenpòt lisans oswa pèmi lalwa egzije"
-            ],
-            [
-              "OxSteed pa bay konpansasyon travayè, asirans chomaj, benefis sante, oswa nenpòt lòt benefis travay."
-            ],
-            [
-              "Yo ka travay pou nenpòt lòt platfòm, kliyan, oswa anplwayè nenpòt ki lè san restriksyon"
-            ]
-          ]
-        }
-      ]
-    },
-    "9": {
-      "search": "9 pwopriyete entelektyèl dmca copyright trademark legal@oxsteed.com",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "9. Pwopriyete Entelektyèl ak DMCA"
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Kontni OxSteed."
-            },
-            "Tout kontni, konsepsyon, logo, mak, kòd, ak materyèl sou platfòm OxSteed (\"OxSteed Content\") se posede oswa lisansye OxSteed LLC epi yo pwoteje pa Ozetazini ak entènasyonal copyright, mak, ak lòt lwa sou pwopriyete entelektyèl. Ou pa gen dwa kopye, repwodui, distribye, modifye, kreye travay derive, montre piblikman, oswa eksplwate nenpòt kontni OxSteed san konsantman alekri anvan OxSteed."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Lisans kontni itilizatè."
-            },
-            "Lè w afiche kontni sou OxSteed (ki gen ladan men pa limite a enfòmasyon sou pwofil, foto, revize, deskripsyon travay, ak mesaj), ou bay OxSteed yon lisans ki pa eksklizif, atravè lemond, gratis, transfere, sou-lisans pou itilize, montre, repwodui, ak distribye kontni ou sèlman an koneksyon avèk opere ak pwomosyon platfòm la. Ou kenbe pwopriyetè kontni ou. Lisans sa a fini lè ou efase kontni ou oswa kont ou, eksepte pou kontni ki te pataje ak lòt itilizatè oswa ke OxSteed oblije kenbe pou rezon legal oswa konfòmite."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Avi DMCA ak Takedown."
-            },
-            "OxSteed respekte dwa pwopriyete entelektyèl epi li konfòme ak Digital Millennium Copyright Act (\"DMCA\"), 17 U.S.C. § 512. Si ou kwè ke kontni sou OxSteed vyole copyright ou, ou ka soumèt yon avi retire DMCA bay ajan deziyen nou an:"
-          ]
-        },
-        {
-          "type": "dmcaBox",
-          "title": "Ajan Deziyen DMCA:",
-          "lines": [
-            "OxSteed LLC",
-            "Atansyon: Ajan DMCA",
-            "Springfield, Ohio"
-          ],
-          "email": "legal@oxsteed.com"
-        },
-        {
-          "type": "p",
-          "text": "Avi DMCA ou a dwe genyen: (1) idantifikasyon travay ki gen dwadotè a; (2) idantifikasyon materyèl vyole a ak kote li sou platfòm la; (3) enfòmasyon kontak ou; (4) yon deklarasyon bòn fwa kwè ke itilizasyon an pa otorize; (5) yon deklarasyon anba penalite pou fo temwayaj ke enfòmasyon an egzat epi ou se pwopriyetè copyright oswa ajan otorize; epi (6) siyati fizik oswa elektwonik ou."
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Kont-avi."
-            },
-            "Si ou kwè yo te retire kontni ou an nan yon erè, ou ka soumèt yon kont-avi ki genyen: (1) idantifikasyon materyèl yo retire; (2) yon deklarasyon anba penalite pou fo temwayaj ke retire elèv la se te yon erè; (3) non w, adrès ou ak nimewo telefòn ou; (4) konsanti sou jiridiksyon tribinal federal la nan distri w la; epi (5) siyati fizik oswa elektwonik ou."
-          ]
-        },
-        {
-          "type": "note",
-          "variant": "red",
-          "strong": "Avètisman:",
-          "text": "Si w voye yon fo avi DMCA oswa yon kont-avi ka lakòz responsablite legal anba 17 U.S.C. § 512(f), ki enkli domaj ak frè avoka."
-        }
-      ]
-    },
-    "10": {
-      "search": "10 revokasyon sispansyon dezaktive apèl escrow legal",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "10. Revokasyon ak Sispansyon"
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Pa OxSteed."
-            },
-            "OxSteed ka sispann oswa sispann kont ou a nenpòt ki lè, avèk oswa san rezon, ak avèk oswa san avètisman. Rezon ki fè pou revokasyon yo enkli, men yo pa limite a: vyolasyon kondisyon sa yo, aktivite fwod oswa ilegal, pa peman frè, resevwa plizyè plent nan men lòt itilizatè, oswa nenpòt konduit ke OxSteed detèmine ki danjere pou platfòm la, lòt itilizatè, oswa twazyèm pati."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Pa Ou."
-            },
-            "Ou ka dezaktive kont ou a nenpòt ki lè atravè paramèt kont ou a. Dezaktivasyon pa libere ou anba okenn obligasyon ou te fè anvan dezaktivasyon, tankou tranzaksyon dekonpozan Tier 3 ki annatant oswa frè ki pa gen anpil."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Efè Revokasyon."
-            },
-            "Lè revokasyon:"
-          ]
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Dwa ou genyen aksè ak itilize OxSteed sispann imedyatman;"
-            ],
-            [
-              "Nenpòt lajan ki annatant kenbe yo pral jere dapre pwosesis rezolisyon konfli ki nan Seksyon 16 la;"
-            ],
-            [
-              "OxSteed ka kenbe done ou jan lalwa egzije sa oswa pou rezon biznis lejitim (pa egzanp, dosye taks, prèv diskisyon);"
-            ],
-            [
-              "Dispozisyon ki pa nati yo ta dwe siviv revokasyon ap siviv, tankou Seksyon 8, 9, 11, 12, 13, 16, ak 20."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Apèl."
-            },
-            "Si kont ou sispann oswa sispann, ou ka fè apèl lè w kontakte",
-            {
-              "mailto": "legal@oxsteed.com"
-            },
-            "nan lespas 30 jou. OxSteed pral revize kontestasyon w la epi reponn nan 10 jou ouvrab. Desizyon OxSteed sou apèl la se final."
-          ]
-        }
-      ]
-    },
-    "11": {
-      "search": "11 egzijans responsablite jan sa disponib nan komèsan",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "11. Limit responsabilite nou sou Garanti"
-        },
-        {
-          "type": "p",
-          "uppercase": true,
-          "text": "PLAFÒM OXSTEED LA, KI ENKLI TOUT KONTINI, CARACTÉRISTIQUES, AK SÈVIS, SOU YON BAZ \"KÒM YO\" AK \"KÒM DISPONIB\" SAN YON KALITE GARANTI, SWA EXPRESSO OSWA IMPLICITE. JAN LWA OPTIMÈ, OXSTEED REJETE TOUT GARANTI, AK GARANTI ENPLIKE MEN PA LIMITE POU MARCHANDABILITE, APTITE POU YON OBJEKTIF PARTICULIER, KI PA VOLANS, AK TIT."
-        },
-        {
-          "type": "p",
-          "text": "San yo pa limite sa ki pi wo a, OxSteed pa garanti ke:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Platfòm lan pral san enteripsyon, alè, an sekirite, oswa san erè;"
-            ],
-            [
-              "Rezilta yo jwenn nan platfòm la pral egzat oswa serye;"
-            ],
-            [
-              "Nenpòt Asistan oswa Kliyan pral fè obligasyon yo;"
-            ],
-            [
-              "Nenpòt kontni sou platfòm la egzat, konplè oswa aktyèl;"
-            ],
-            [
-              "Platfòm nan pral satisfè kondisyon espesifik ou oswa atant."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "Ou sèvi ak platfòm la sou pwòp risk ou. Okenn konsèy oswa enfòmasyon, kit se oral oswa ekri, jwenn nan men OxSteed oswa atravè platfòm la kreye okenn garanti ki pa endike ekspreseman nan Kondisyon sa yo."
-        }
-      ]
-    },
-    "12": {
-      "search": "12 limitasyon asirans responsablite domaj ohio 4113",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "12. Limitasyon responsablite ak Asirans"
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Pa gen Asirans Bay."
-            },
-            "OxSteed pa bay okenn kouvèti asirans pou okenn Asistan, Kliyan, oswa twazyèm pati."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Limitasyon nan responsablite."
-            },
-            "NAN MAKSIMOS LA LWA APLIKAB YO OBLÈ, RESPONSABILITÉ TOTAL OXSTEED POU NENPÒT REKLAMASYON KI KI DEZÈY KI KI GEN PWOFESYON SOU KONDISYON SA YO OSWA PLATÒM LA PA PRAL DEPÈSI PI PI GWO: (A) $100 USD, OSWA (B) FRÈ TOTAL YO PREMONT POU YO PEYE 12 OXSTEBY REKLAMEN."
-          ]
-        },
-        {
-          "type": "p",
-          "text": "OXSTEED PA PWA RESPONSYON POU OKENN DOGAJ ENDRÈK, AK ENDIKTAN, ESPESYAL, KONSEKANSYÈ, PINITIF, OSWA EKZANPLÈ."
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Domaj Pwopriyete."
-            },
-            "OxSteed pa responsab pou nenpòt domaj pwopriyete ki te koze pa yon Asistan pandan pèfòmans sèvis yo."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Blesi Pèsonèl."
-            },
-            "OxSteed pa responsab pou okenn blesi pèsonèl, lanmò, oswa domaj kòporèl ki rive nan sèvis ki ranje atravè platfòm la."
-          ]
-        },
-        {
-          "type": "note",
-          "variant": "red",
-          "strong": "Avi Espesifik pou Ohio:",
-          "text": "Ohio Revised Code § 4113.15 et seq. gouvène diskisyon peman salè ant kontraktè endepandan ak pati ki angaje yo. OxSteed se pa yon \"anplwayè\" jan sa defini anba lwa Ohio."
-        }
-      ]
-    },
-    "13": {
-      "search": "13 endemnizasyon reklamasyon frè avoka zouti",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "13. Endemnizasyon"
-        },
-        {
-          "type": "p",
-          "text": "Ou dakò pou dedomaje, defann, epi kenbe OxSteed LLC, ofisye yo, direktè yo, anplwaye yo, ajan yo, ak afilye li yo kont nenpòt ak tout reklamasyon, domaj, pèt, responsablite, depans, ak depans (ki gen ladan frè rezonab avoka) ki soti nan oswa ki gen rapò ak:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Itilizasyon oswa aksè nan platfòm OxSteed la;"
-            ],
-            [
-              "Vyolasyon ou nan Kondisyon Sèvis sa yo;"
-            ],
-            [
-              "Vyolasyon ou nenpòt lwa, règ, oswa règleman ki aplikab;"
-            ],
-            [
-              "Nenpòt kontni ou poste, telechaje, oswa transmèt atravè platfòm la;"
-            ],
-            [
-              "Nenpòt sèvis ou fè oswa resevwa atravè platfòm la;"
-            ],
-            [
-              "Nenpòt diskisyon ant ou menm ak yon lòt itilizatè;"
-            ],
-            [
-              "Neglijans ou oswa move konduit volontè ou;"
-            ],
-            [
-              "Nenpòt reklamasyon yon twazyèm pati ki soti nan itilizasyon zouti oswa ekipman ki lwe sou platfòm la."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "Obligasyon endemnizasyon sa a siviv nan revokasyon kont ou ak Kondisyon sa yo."
-        }
-      ]
-    },
-    "14": {
-      "search": "14 lisans lisans lisans verifye elektrisyen badj",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "14. Limit responsabilite nou sou lisans"
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Pa gen Verifikasyon Lisans."
-            },
-            "OxSteed pa verifye, valide, oswa garanti ke nenpòt ki Helper gen nenpòt lisans pwofesyonèl, pèmi, sètifikasyon, oswa asirans ke lwa federal, eta, oswa lokal yo mande pou fè sèvis yo fè piblisite sou platfòm la."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Responsablite Kliyan."
-            },
-            "Kliyan yo se sèlman responsab pou verifye poukont yo ke nenpòt Asistan yo angaje yo genyen tout lisans, pèmi, sètifikasyon, ak asirans ke lalwa aplikab egzije pou sèvis espesifik yo dwe fè. Sa gen ladann, men se pa sa sèlman: elektrisyen, plonbye, teknisyen HVAC, kontraktè jeneral, twati, ak nenpòt lòt komès ki mande lisans leta oswa lokal."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Responsablite Èd."
-            },
-            "Moun k ap ede yo reprezante ak garanti yo genyen tout lisans, pèmi, ak sètifikasyon lalwa aplikab yo mande pou sèvis yo fè reklam yo. Lis sèvis ki mande pou lisans san yo pa kenbe lisans apwopriye a se yon vyolasyon kondisyon sa yo epi yo ka lakòz revokasyon imedya kont."
-          ]
-        },
-        {
-          "type": "note",
-          "variant": "yellow",
-          "strong": "Enpòtan:",
-          "text": "Yon badj verifye sou OxSteed endike sèlman ke yo te konplete yon chèk background. Li PA endike ke yon Asistan gen lisans, asirans, oswa estokaj pou nenpòt komès patikilye."
-        }
-      ]
-    },
-    "15": {
-      "search": "15 zouti lokasyon lis bailment niveau 3 escrow lokatè pwopriyetè",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "15. Anons pou lokasyon zouti — Kondisyon espesyal"
-        },
-        {
-          "type": "h3",
-          "text": "15.1 Nati lis pou lokasyon zouti yo"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed pèmèt itilizatè yo poste lis ki ofri zouti ak ekipman pou lòt itilizatè yo itilize tanporè (\"Tool Rental\"). Lis lokasyon zouti yo se yon kategori diferan de lis sèvis travay. Lè yon tranzaksyon pou Lwe Zouti fèt, pwopriyetè lis la (\"Propriyetè Zouti\") ak itilizatè ki lwe a (\"Lokatè\") antre nan yon akò sou kosyon dirèk ki gouvène pa lwa eta ki aplikab."
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "OxSteed pa pati nan okenn akò pou lokasyon zouti."
-            },
-            "OxSteed pa posede, enspekte, sètifye, kenbe, oswa asire nenpòt zouti oswa ekipman ki nan lis sou platfòm la. OxSteed fasilite entwodiksyon an sèlman."
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "15.2 Responsablite Pwopriyetè Zouti yo"
-        },
-        {
-          "type": "p",
-          "text": "Kòm yon Pwopriyetè Zouti ki bay lis ekipman sou OxSteed, ou reprezante, garanti epi dakò ke:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Ou se pwopriyetè legal, oswa ou gen otorizasyon pou lwe tout zouti ki nan lis la;"
-            ],
-            [
-              "Tout zouti ki nan lis yo an sekirite, fonksyonèl kondisyon travay epi yo pa gen defo ki ta ka lakòz blesi oswa domaj pwopriyete;"
-            ],
-            [
-              "Ou pral divilge nenpòt limit li te ye, danje sekirite, oswa kondisyon fonksyònman bay Lokatè a anvan lokasyon an kòmanse;"
-            ],
-            [
-              "Ou se sèl responsab pou respekte nenpòt òdonans oswa règleman lokal ki aplikab ki gouvène lokasyon zouti oswa ekipman;"
-            ],
-            [
-              "Asirans pwopriyetè kay ou, lokatè, oswa biznis ou ka pa kouvri prete zouti komèsyal epi ou ta dwe konsilte konpayi asirans ou anvan ou mete zouti yo;"
-            ],
-            [
-              "Ou se sèl responsab pou detèmine pri lokasyon an, kondisyon depo, ak kondisyon retounen;"
-            ],
-            [
-              "Nenpòt evalyasyon domaj, diskisyon depo, oswa reklamasyon pèt se antyèman ant ou menm ak Lokatè a."
-            ]
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "15.3 Responsablite Lokatè"
-        },
-        {
-          "type": "p",
-          "text": "Kòm yon Lokatè zouti oswa ekipman ki nan lis OxSteed, ou dakò ke:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Ou pral sèvi ak tout zouti lwe sèlman pou rezon legal yo, epi an akò ak tout enstriksyon manifakti ak gid sekirite yo;"
-            ],
-            [
-              "Ou asime tout risk pou blesi pèsonèl, domaj pwopriyete, ak domaj yon twazyèm pati ki rive lè w sèvi ak nenpòt zouti lwe;"
-            ],
-            [
-              "Ou responsab pou retounen zouti yo nan menm kondisyon yo te resevwa yo, eksepte mete nòmal;"
-            ],
-            [
-              "Ou responsab devan Pwopriyetè Zouti a pou nenpòt domaj, pèt, oswa vòl zouti lwe ki fèt pandan w nan posesyon w;"
-            ],
-            [
-              "Ou p ap lwe, prete, oswa transfere posesyon nenpòt zouti lwe bay yon twazyèm pati san konsantman alekri Pwopriyetè Zouti a."
-            ]
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "15.4 Limitasyon responsablite OxSteed pou lokasyon zouti"
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "OxSteed ekspreseman refize tout responsablite"
-            },
-            "ki soti oswa ki gen rapò ak tranzaksyon lokasyon zouti, ki gen ladan men pa limite a: blesi pèsonèl oswa lanmò ki te koze pa yon zouti ki defektye oswa ki mal itilize; domaj pwopriyete ki te koze pandan itilizasyon zouti; pèt, vòl, oswa domaj nan zouti lwe; diskisyon ant Pwopriyetè Zouti ak Lokatè konsènan kondisyon, depo, oswa retounen; ak nenpòt reklamasyon yon twazyèm pati blese nan yon zouti lwe."
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            "OxSteed pa enspekte, sètifye, oswa garanti sekirite oswa kondisyon nenpòt zouti ki nan lis sou platfòm la.",
-            {
-              "strong": "Lokatè ak Pwopriyetè Zouti yo itilize karakteristik Lwaye Zouti a nèt sou pwòp risk yo."
-            }
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "15.5 Tier 3 Escrow pou lokasyon zouti"
-        },
-        {
-          "type": "p",
-          "text": "Tranzaksyon lokasyon zouti yo ka itilize pwoteksyon peman Nivo 3 pou frè lokasyon an. Sepandan, escrow Nivo 3 kouvri sèlman montan peman lokasyon yo te dakò a. Diskisyon sou depo, reklamasyon domaj, ak rekiperasyon pèt yo antyèman andeyò pwosesis diskisyon Tier 3 la epi yo dwe rezoud dirèkteman ant Pwopriyetè Zouti ak Lokatè oswa atravè chanèl legal ki aplikab yo."
-        }
-      ]
-    },
-    "16": {
-      "search": "16 oxsteed pay stripe konekte escrow ki te fèt fon ranbousman bann eksprime diskisyon",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "16. OxSteed Pay — Kondisyon Peman"
-        },
-        {
-          "type": "h3",
-          "text": "16.1 Egzijans pou Enskripsyon Mityèl"
-        },
-        {
-          "type": "p",
-          "segments": [
-            "OxSteed Pay se",
-            {
-              "strong": "pa janm otomatik"
-            },
-            ". Li aktive sèlman lè tou de Kliyan an ak Èd la poukont yo chwazi pou sèvi ak li pou yon travay espesifik, idantifye. Okenn pati pa ka aktive li inilateralman sou non lòt la. Eleksyon peman OxSteed se yon travay ki espesifik epi li pa aplike pou pwochen travay ant menm pati yo."
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "16.2 Nati Fon ki kenbe yo"
-        },
-        {
-          "type": "p",
-          "segments": [
-            "Lè Kliyan an soumèt peman bay moun k ap ede yo atravè OxSteed atravè Stripe Connect nan objektif limite pou kenbe lajan sa yo annatant fini travay la. Lajan sa yo fèt nan yon balans dédié Et",
-            {
-              "strong": "rete pwopriyete Kliyan an jiskaske yo lage yo an akò ak Kondisyon sa yo."
-            },
-            "Lajan kenbe yo pa byen OxSteed yo epi yo pa melanje ak fon fonksyònman OxSteed yo."
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "16.3 Deklanche Lage Fon"
-        },
-        {
-          "type": "p",
-          "text": "Lajan ki kenbe yo pral lage bay Asistan an lè:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Tou de Kliyan an",
-              {
-                "strong": "epi"
-              },
-              "Èd la konfime travay fini atravè platfòm la nan 12 èdtan; oswa"
-            ],
-            [
-              "OxSteed bay yon desizyon rezolisyon an favè Èd la apre yon pwosesis diskisyon; oswa"
-            ],
-            [
-              "Kliyan an pa reponn a yon demann konfimasyon fini nan 48 èdtan apre Èd la make travay la fini (lajan oto-liberasyon apre fenèt sa a)."
-            ]
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "16.4 Deklanche ranbousman"
-        },
-        {
-          "type": "p",
-          "text": "Lajan ki te kenbe yo pral ranbouse kliyan an lè:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Tou de pati yo dakò pou yo anile travay la anvan travay la kòmanse;"
-            ],
-            [
-              "Èd la pa parèt oswa abandone travay la, jan Kliyan an dokimante;"
-            ],
-            [
-              "OxSteed bay yon desizyon rezolisyon an favè Kliyan an apre yon pwosesis diskisyon;"
-            ],
-            [
-              "Nenpòt pati anile travay la omwen 24 èdtan anvan lè kòmanse pwograme a."
-            ]
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "16.5 Frè Platfòm yo Dedwi nan Escrow"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed dedwi frè sa yo nan lajan anbake anvan li lage montan nèt la bay Asistan an:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Frè sèvis platfòm:"
-              },
-              "7.1% nan valè travay yo dakò (minimòm $5.00)"
-            ]
-          ]
-        },
-        {
-          "type": "feesNote",
-          "strong": "Tout frè yo divilge bay tou de pati yo.",
-          "text": "Pa gen okenn frè kache yo pral chaje."
-        },
-        {
-          "type": "h3",
-          "text": "16.6 Pa gen Enterè sou Fon Kite yo"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed pa peye enterè sou lajan ki te kenbe yo bay okenn pati. OxSteed kenbe nenpòt enterè oswa flote ki akimile sou balans escrow akòz delè pwosesis peman Stripe a kòm yon frè administratif."
-        },
-        {
-          "type": "h3",
-          "text": "16.7 Akò Stripe Konekte Kont"
-        },
-        {
-          "type": "stripeLinkP",
-          "before": "Asistan yo dwe konekte yon kont Stripe Express kòm yon kondisyon pou yo kalifye pou resevwa peman. Lè w konekte yon kont Stripe Express, ou dakò ak Stripe a",
-          "linkLabel": "Akò Konekte Kont",
-          "href": "https://stripe.com/legal/connect-account",
-          "after": ", ki gen ladan pwòp kondisyon Stripe yo, règleman sou enfòmasyon prive, ak obligasyon konfòmite. OxSteed pa yon pati nan akò ou ak Stripe epi li pa responsab aksyon, erè, oswa entèripsyon sèvis Stripe."
-        },
-        {
-          "type": "h3",
-          "text": "16.9 Kontinwite platfòm"
-        },
-        {
-          "type": "p",
-          "text": "Nan ka OxSteed sispann operasyon, akeri, oswa sibi yon chanjman nan kontwòl, OxSteed pral fè efò komèsyal rezonab pou swa lage lajan ki te kenbe yo bay pati ki apwopriye a, transfere obligasyon escrow bay yon antite siksesè, oswa ranbouse tout kantite lajan ki te kenbe nan 30 jou apre evènman an deklanche. Itilizatè yo pral avize pa imel."
-        }
-      ]
-    },
-    "17": {
-      "search": "17 afiche travay òf anile volim abònman",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "17. Afichaj travay ak sistèm òf"
-        },
-        {
-          "type": "h3",
-          "text": "17.1 Afich Travay Kliyan yo"
-        },
-        {
-          "type": "p",
-          "text": "Kliyan yo ka poste lis travay ki dekri travay yo bezwen fè. Lè w afiche yon lis travay, ou reprezante travay ki dekri a legal, ou gen otorite pou angaje yon moun pou fè li, epi lis la egzat epi li pa twonpe. OxSteed rezève dwa pou retire nenpòt lis travay pou nenpòt rezon san avètisman oswa responsablite."
-        },
-        {
-          "type": "p",
-          "text": "Afiche yon lis travay pa kreye okenn obligasyon pou aksepte okenn òf oswa angaje nenpòt ki Èd. Kliyan yo ka fèmen yon lis, modifye li, oswa refize tout òf nan sèl diskresyon yo."
-        },
-        {
-          "type": "h3",
-          "text": "17.2 Òf Èd yo"
-        },
-        {
-          "type": "p",
-          "text": "Asistan yo ka soumèt òf sou lis travay ki afiche. Lè w soumèt yon òf, ou reprezante ke:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Ou vrèman disponib ak kalifye pou fè travay ki dekri a;"
-            ],
-            [
-              "Pri òf ou an egzat epi li reflete pri total ou pou Kliyan an;"
-            ],
-            [
-              "Ou genyen nenpòt lisans, pèmi, oswa sètifikasyon ki nesesè pou fè travay la legalman nan jiridiksyon ki aplikab la."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "Soumèt yon òf se yon òf, pa yon kontra."
-        },
-        {
-          "type": "h3",
-          "text": "17.3 Anile òf aktif yo"
-        },
-        {
-          "type": "p",
-          "text": "Si yon Kliyan retire yon lis travay oswa anile li apre òf yo te soumèt men anvan yo aksepte yon òf, tout òf ki annatant yo anile otomatikman. Asistan yo pa gen okenn reklamasyon kont OxSteed oswa Kliyan an pou anilasyon òf yo."
-        },
-        {
-          "type": "h3",
-          "text": "17.4 Pa gen Garanti Volim Travay"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed pa fè okenn reprezantasyon, garanti, oswa garanti ke nenpòt ki Èd nan nenpòt nivo pral resevwa òf, plon, òf travay, oswa revni nenpòt ki kantite. Frè abònman yo se pou aksè ak karakteristik platfòm, pa pou volim travay garanti."
-        }
-      ]
-    },
-    "18": {
-      "search": "18 twazyèm pati stripe checkr resend sèvis",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "18. Sèvis Twazyèm Pati"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed entegre ak oswa depann sou sèvis twazyèm pati sa yo, yo chak sijè a pwòp kondisyon ak règleman sou enfòmasyon prive:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Stripe, Inc."
-              },
-              "— Pwosesis peman ak kont konekte"
-            ],
-            [
-              {
-                "strong": "Checkr, Inc."
-              },
-              "— Verifikasyon background ak sèvis rapò konsomatè yo"
-            ],
-            [
-              {
-                "strong": "Revoye"
-              },
-              "- Livrezon imel tranzaksyon"
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "OxSteed pa responsab pou disponiblite, presizyon, sekirite, oswa pèfòmans nenpòt sèvis twazyèm pati. Itilizasyon sèvis twazyèm pati ou atravè OxSteed se sijè a kondisyon twazyèm pati ki aplikab yo. OxSteed pa dwe responsab pou okenn pèt oswa domaj ki te koze pa aksyon, omisyon, oswa entèripsyon sèvis yon founisè sèvis twazyèm pati."
-        }
-      ]
-    },
-    "19": {
-      "search": "19 akseptasyon konsantman e-siy kreye kont kontinye",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "19. Konsantman ak Akseptasyon"
-        },
-        {
-          "type": "p",
-          "text": "Lè w kreye yon kont OxSteed, ou konfime ke ou te li, konprann, epi ou dakò pou w respekte Kondisyon Sèvis sa yo. Klike ou sou \"Kreye Kont\" oswa \"Kontinye\" reprezante yon siyati elektwonik legalman obligatwa dapre E-SIGN Act, 15 U.S.C. § 7001 et seq."
-        },
-        {
-          "type": "p",
-          "text": "Si ou pa dakò ak kondisyon sa yo, pa kreye yon kont oswa itilize platfòm OxSteed."
-        }
-      ]
-    },
-    "20": {
-      "search": "20 modifikasyon tèm aktyalizasyon avi imel dezaktive",
-      "blocks": [
-        {
-          "type": "h2",
-          "text": "20. Modifikasyon nan Kondisyon sa yo"
-        },
-        {
-          "type": "p",
-          "text": "OxSteed ka mete ajou kondisyon sa yo nenpòt ki lè. Nou pral fè itilizatè yo konnen chanjman materyèl yo pa imèl omwen 14 jou anvan chanjman yo pran efè. Kontinye sèvi ak platfòm la apre dat efektif aktyalizasyon Kondisyon yo reprezante akseptasyon nouvo Kondisyon yo. Si ou pa dakò ak kondisyon yo mete ajou, ou dwe sispann sèvi ak platfòm la epi dezaktive kont ou."
-        }
-      ]
-    }
+  "1": {
+  "search": "1 sa oxsteed se pa kliyan asistan anyè cda 230",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "1. Ki sa ki OxSteed se - epi li pa"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed LLC (\"OxSteed,\" \"nou,\" \"nou,\" oswa \"nou\") opere yon platfòm entwodiksyon sou entènèt ki konekte moun k ap chèche asistans lokal (\"Kliyan\") ak moun endepandan ki ofri konpetans yo ak travay yo (\"Ed\"). OxSteed se yon platfòm netral twazyèm pati ki bay yon sèvis anyè. OxSteed se pa yon anplwayè, yon ajans anplwaye, oswa yon kontraktè jeneral."
+  },
+  {
+  "type": "p",
+  "text": "OxSteed pa anplwaye Helpers, pa kontwole fason Helpers fè travay yo, pa fikse pri Helpers yo mande yo, epi li pa voye Helpers nan okenn travay. Tout akò pou sèvis yo fèt dirèkteman ant Kliyan ak Èd yo."
+  },
+  {
+  "type": "p",
+  "text": "OxSteed se yon platfòm, pa yon pati nan nenpòt akò sèvis ant yon Kliyan ak yon Èd. Lè w sèvi ak OxSteed, ou rekonèt epi dakò ke OxSteed pa gen okenn kontwòl sou, epi li pa gen okenn responsablite pou, kalite, sekirite, legalite, oswa rezilta nenpòt sèvis yo fè."
+  },
+  {
+  "type": "note",
+  "variant": "yellow",
+  "strong": "Enpòtan:",
+  "text": "OxSteed opere dapre Lwa sou Desans Kominikasyon, 47 U.S.C. § 230. OxSteed se pa piblikatè oswa oratè nenpòt kontni ki te kreye pa itilizatè li yo epi li pa gen responsablite pou kontni sa a nan limit lalwa federal bay la."
+  }
+  ]
+  },
+  "2": {
+  "search": "2 kalifikasyon 18 kont etazini",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "2. Elijiblite"
+  },
+  {
+  "type": "p",
+  "text": "Ou dwe gen omwen 18 an pou kreye yon kont oswa itilize OxSteed. Lè w kreye yon kont, ou reprezante ak garanti ke:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Ou gen omwen 18 an;"
+  ],
+  [
+  "Ou gen kapasite legal pou antre nan yon akò obligatwa;"
+  ],
+  [
+  "Lalwa pa entèdi w itilize platfòm la;"
+  ],
+  [
+  "Tout enfòmasyon ou bay pandan enskripsyon an egzat, aktyèl e konplè;"
+  ],
+  [
+  "Ou pral kenbe presizyon nan enfòmasyon kont ou."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "OxSteed rezève dwa pou mande prèv laj oswa idantite nenpòt ki lè. Kont nenpòt moun ki poko gen 18 an ki kreye yo pral sispann imedyatman."
+  },
+  {
+  "type": "note",
+  "variant": "yellow",
+  "strong": "Enpòtan:",
+  "text": "OxSteed disponib kounye a nan peyi Etazini."
+  }
+  ]
+  },
+  "3": {
+  "search": "3 nivo platfòm nivo 1 nivo 2 abònman stripe pro",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "3. Platfòm Nivo ak Sèvis"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed opere 2 nivo sèvis diferan. Chak nivo gen diferan karakteristik, frè, ak enplikasyon legal."
+  },
+  {
+  "type": "tier",
+  "title": "Nivo 1 - Lis Anyè gratis",
+  "paragraphs": [
+  {
+  "segments": [
+  "Èd yo ka kreye yon pwofil gratis. Kliyan yo ka browse pwofil yo epi poste lis travay yo. OxSteed fasilite entwodiksyon sèlman.",
+  {
+  "strong": "Pa gen lajan pase nan OxSteed."
+  },
+  "Kliyan ak Èd fè tranzaksyon antyèman andeyò platfòm la. OxSteed pa gen okenn responsablite pou nenpòt tranzaksyon, rezilta, aksidan, oswa diskisyon ki rive nan koneksyon Tier 1."
+  ]
+  }
+  ]
+  },
+  {
+  "type": "tier",
+  "title": "Nivo 2 - Abònman verifye (Pro, $14.99/mwa)",
+  "paragraphs": [
+  "Èd ki abònman nan Nivo 2 jwenn aksè nan: plasman priyorite nan rezilta rechèch la, yon badj verifye pou manm, sètifikasyon si ou vle pou tcheke background, soumèt òf sou travay ki afiche, ak alèt notifikasyon pouse pou travay matche.",
+  "Abònman Tier 2 yo faktire chak mwa atravè Stripe epi renouvle otomatikman jiskaske yo anile. Nan nivo sa a, peman kliyan-a-èd nòmalman fèt dirèkteman ant pati yo, epi OxSteed pa dirije oswa kontwole lajan sa yo.",
+  "Si toulède pati yo chwazi sèvi ak sèvis peman opsyonèl nou an, OxSteed sèvi ak Stripe Connect pou mete yon otorizasyon tanporè oswa chaj sou metòd peman kliyan an epi pou kowòdone lage lajan bay asistan an, ki rete machann nan dosye. Tou de kliyan an ak èd la dwe konfime ke travay la fini anvan lajan yo lage, epi OxSteed pral trete liberasyon sa a nan 12 èdtan apre konfimasyon, dedwi yon frè platfòm 7.1% nan kantite lajan travay la plis èd yo peye frè pwosesis peman yo.",
+  "Peye via pa fè OxSteed yon pati nan akò sèvis la. OxSteed aji sèlman kòm yon entèmedyè peman ak yon ajan net. Stripe, Inc. trete tout peman yo kòm yon transmetè lajan ki gen lisans."
+  ]
+  }
+  ]
+  },
+  "4": {
+  "search": "4 zouti lokasyon adisyon pwopriyetè lokatè domaj sekirite",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "4. Addendum pou lokasyon zouti"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed pèmèt Helpers yo fè lis zouti ak ekipman pou lwe atravè platfòm la. Kondisyon adisyonèl sa yo aplike pou tout tranzaksyon lokasyon zouti:"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Responsablite Pwopriyetè Zouti."
+  },
+  "Èd ki bay lis zouti pou lwe yo reprezante epi garanti ke: (a) se pwopriyetè legal zouti a oswa yo gen otorizasyon pou lwe l; (b) zouti a an sekirite, kondisyon travay; (c) lis la dekri avèk presizyon kondisyon zouti a, kapasite, ak nenpòt defo li te ye; epi (d) yo kenbe nenpòt asirans obligatwa pou ekipman an."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Responsablite Lokatè."
+  },
+  "Kliyan ki lwe zouti yo dakò pou: (a) sèvi ak zouti a sèlman pou objektif li; (b) retounen zouti a nan menm kondisyon ke li te resevwa a, eksepte mete nòmal; (c) pa soulwe, prete, oswa transfere zouti a bay okenn twazyèm pati; (d) imedyatman notifye pwopriyetè zouti a ak OxSteed sou nenpòt domaj, fonksyone byen, oswa pèt; epi (e) pran tout responsablite pou domaj oswa pèt zouti a pandan li nan posesyon yo."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Domaj ak Pèt."
+  },
+  "Lokatè a responsab finansyèman pou valè ranplasman konplè nenpòt zouti ki pèdi, yo vòlè li, oswa domaje pi lwen pase nòmal mete ak chire pandan li nan posesyon lokatè a. Diskisyon sou kondisyon zouti yo pral swiv pwosesis rezolisyon dispit ki nan Seksyon 16 la."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Wòl OxSteed a."
+  },
+  "OxSteed pa enspekte, sètifye, oswa garanti kondisyon, sekirite, oswa kondisyon fizik nenpòt zouti ki nan lis sou platfòm la. OxSteed pa responsab pou okenn blesi, domaj pwopriyete, oswa pèt ki rive nan itilizasyon zouti lwe. Tranzaksyon lokasyon zouti ant itilizatè yo gouvène pa menm estrikti nivo ki dekri nan Seksyon 3."
+  ]
+  },
+  {
+  "type": "note",
+  "variant": "red",
+  "strong": "Avètisman sekirite:",
+  "text": "Toujou enspekte nenpòt zouti lwe anvan ou itilize. Pa sèvi ak nenpòt zouti ki parèt domaje, modifye, oswa danjere. OxSteed pa responsab pou blesi ki te koze pa ekipman ki defektye oswa ki pa byen konsève."
+  }
+  ]
+  },
+  "5": {
+  "search": "5 wòl itilizatè kliyan asistan kontraktè endepandan",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "5. Wòl itilizatè ak Definisyon"
+  },
+  {
+  "type": "ul",
+  "className": "espas-y-3",
+  "items": [
+  [
+  {
+  "strong": "Kliyan:"
+  },
+  "Nenpòt moun oswa antite ki kreye yon kont OxSteed nan bi pou yo afiche lis travay oswa kontakte Helpers pou fè aranjman pou sèvis yo."
+  ],
+  [
+  {
+  "strong": "Èd (Niveau 1 - Gratis):"
+  },
+  "Yon moun endepandan ki kreye yon pwofil OxSteed gratis pou fè piblisite pou konpetans yo ak disponiblite yo. Asistan yo pa anplwaye, ajan, oswa kontraktè OxSteed."
+  ],
+  [
+  {
+  "strong": "Èd (Niveau 2 - Pro Subscriber):"
+  },
+  "Yon Asistan ki kenbe yon abònman Pro aktif, ki te konplete idantite ak verifikasyon background si ou vle, epi ki ka soumèt òf sou travay ki afiche."
+  ],
+  [
+  {
+  "strong": "Estati kontraktè endepandan:"
+  },
+  "Tout Helpers, kèlkeswa nivo, se kontraktè endepandan. OxSteed pa fikse lè travay yo, li pa egzije disponiblite minimòm, li pa kontwole metòd yo oswa zouti yo, li pa bay ekipman yo, li pa bay tarif espesifik yo, oswa li pa garanti nenpòt volim travay."
+  ]
+  ]
+  }
+  ]
+  },
+  "6": {
+  "search": "6 frè peman abònman w-9 1099 ranbousman diskisyon 16",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "6. Frè ak Kondisyon Peman"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Frè abònman."
+  },
+  "Tier 2 (Pro) yo faktire chak mwa. Frè abònman yo pa ranbousab eksepte jan lalwa aplikab egzije sa. Ou ka anile nenpòt ki lè atravè tablodbò kont ou a."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Konfòmite taks."
+  },
+  "Èd k ap touche $600 oswa plis atravè platfòm la nan yon ane kalandriye yo oblije bay yon Fòm W-9 IRS ranpli. OxSteed pral bay Asistan ki kalifye IRS Fòm 1099-NEC jan lalwa egzije sa."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Ranbousman."
+  },
+  "Lajan ki gen konteste yo pral libere dapre pwosesis rezolisyon dispit ki dekri nan Seksyon 16 la."
+  ]
+  }
+  ]
+  },
+  "7": {
+  "search": "7 background tcheke fcra checkr badj aksyon negatif verifye",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "Verifikasyon Fondasyon, Verifikasyon, ak Konfòmite FCRA"
+  },
+  {
+  "type": "h2",
+  "text": "7.1 Depistaj si ou vle",
+  "sub": true
+  },
+  {
+  "type": "p",
+  "segments": [
+  "Asistan Nivo 2 yo ka chwazi pou yo konplete yon chèk background",
+  {
+  "strong": "Checkr, Inc."
+  },
+  ", Twazyèm pati ajans rapò konsomatè OxSteed a. Verifikasyon background yo se totalman volontè. Konplete yon chèk background pa garanti travay, prim travay, oswa aksè kontinye platfòm."
+  ]
+  },
+  {
+  "type": "h2",
+  "text": "7.2 Divilgasyon Lwa sou Rapò sou Kredi Ekitab (FCRA).",
+  "sub": true
+  },
+  {
+  "type": "p",
+  "text": "OxSteed respekte Lwa sou Rapò sou Kredi Ekitab, 15 U.S.C. § 1681 et seq. (\"FCRA\"). Anvan ou kòmanse yon chèk background, OxSteed ap ba ou:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "A",
+  {
+  "strong": "otonòm ekri divilgasyon FCRA"
+  },
+  "enfòme w ke yo ka jwenn yon rapò konsomatè pou rezon aksè platfòm; epi"
+  ],
+  [
+  "Yon demann pou ou",
+  {
+  "strong": "otorizasyon ekri"
+  },
+  "pou jwenn rapò a."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "Ou dwe konsantman afimativman anvan nenpòt tcheke background yo inisye. Konsantman ou separe de akseptasyon kondisyon sa yo."
+  },
+  {
+  "type": "h2",
+  "text": "7.3 Pwosedi pou aksyon negatif",
+  "sub": true
+  },
+  {
+  "type": "p",
+  "text": "Si OxSteed pran yon aksyon negatif ki baze an antye oswa an pati sou enfòmasyon ki nan yon rapò konsomatè - pou egzanp, refize oswa anile badj verifye ou a - OxSteed pral:"
+  },
+  {
+  "type": "ol",
+  "items": [
+  [
+  "Bay ou ak yon",
+  {
+  "strong": "avi aksyon pre-adverse"
+  },
+  "ak yon kopi rapò konsomatè a ak yon rezime dwa FCRA ou anvan aksyon an fini;"
+  ],
+  [
+  "Pèmèt ou yon peryòd rezonab (anjeneral 5 jou ouvrab) pou diskite sou nenpòt ki erè dirèkteman ak Checkr;"
+  ],
+  [
+  "Bay yon final",
+  {
+  "strong": "avi aksyon negatif"
+  },
+  "si yo kenbe desizyon an, enkli enfòmasyon pou kontakte Checkr ak enfòmasyon sou dwa w genyen pou w jwenn yon kopi rapò a gratis."
+  ]
+  ]
+  },
+  {
+  "type": "h2",
+  "text": "7.4 Limit responsabilite nou sou presizyon",
+  "sub": true
+  },
+  {
+  "type": "p",
+  "segments": [
+  "Rezilta tcheke background yo bay sèlman pa",
+  {
+  "strong": "Checkr, Inc."
+  },
+  ", ki sijè a pwòp kondisyon sèvis li yo ak règleman sou enfòmasyon prive.",
+  {
+  "strong": "OxSteed pa fè okenn reprezantasyon oswa garanti ke nenpòt rezilta tcheke background konplè, egzat, oswa aktyèl."
+  },
+  "OxSteed pa responsab pou erè oswa omisyon nan rapò Checkr yo. Kliyan yo se sèl responsab pou fè pwòp dilijans endepandan yo anvan yo angaje nenpòt ki Èd, kèlkeswa estati badj yo."
+  ]
+  },
+  {
+  "type": "h2",
+  "text": "7.5 Tcheke background ekspirasyon ak renouvèlman",
+  "sub": true
+  },
+  {
+  "type": "p",
+  "text": "Badj pou tcheke background yo ekspire 12 mwa apre dat rapò ki kache a epi yo dwe renouvle pou kenbe estati verifye. OxSteed ap fè w konnen omwen 30 jou anvan badj ou a ekspire."
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Yon chèk backgroung pa konstitye OxSteed andòsman nenpòt ki konpetans, kalite travay, oswa karaktè;"
+  ],
+  [
+  "Yon chèk background pa garanti ke yon Asistan gen nenpòt lisans pwofesyonèl oswa asirans obligatwa;"
+  ],
+  [
+  "Yon chèk background pa reflete aktivite kriminèl, chanjman lisans, oswa lòt evènman ki rive apre dat chèk la;"
+  ],
+  [
+  "Yon chèk backgroung pa kreye okenn garanti oswa garanti pa OxSteed konsènan kapasite Helper a pou nenpòt travay patikilye."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Pa konte sèlman sou badj verifye a lè w ap anboche yon Asistan."
+  },
+  "Toujou verifye endepandamman lisans, asirans, ak referans pou nenpòt komès reglemante oswa travay ki gen anpil valè."
+  ]
+  }
+  ]
+  },
+  "8": {
+  "search": "8 kontraktè endepandan taks travay asirans",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "8. Estati Kontraktè Endepandan"
+  },
+  {
+  "type": "p",
+  "text": "Pa gen anyen nan Kondisyon sa yo ki kreye yon relasyon travay, patenarya, antrepriz, ajans, franchiz, oswa relasyon anplwayè-anplwaye ant OxSteed ak nenpòt ki Èd."
+  },
+  {
+  "type": "p",
+  "text": "Èd yo rekonèt ekspreseman ke:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Yo ap opere yon biznis endepandan"
+  ],
+  [
+  "Yo responsab sèlman pou tout taks federal, leta ak lokal sou revni ou touche atravè platfòm la"
+  ],
+  [
+  "Yo dwe genyen nenpòt asirans lalwa mande pou sèvis yo"
+  ],
+  [
+  "Yo responsab sèlman pou jwenn nenpòt lisans oswa pèmi lalwa egzije"
+  ],
+  [
+  "OxSteed pa bay konpansasyon travayè, asirans chomaj, benefis sante, oswa nenpòt lòt benefis travay."
+  ],
+  [
+  "Yo ka travay pou nenpòt lòt platfòm, kliyan, oswa anplwayè nenpòt ki lè san restriksyon"
+  ]
+  ]
+  }
+  ]
+  },
+  "9": {
+  "search": "9 pwopriyete entelektyèl dmca copyright trademark legal@oxsteed.com",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "9. Pwopriyete Entelektyèl ak DMCA"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Kontni OxSteed."
+  },
+  "Tout kontni, konsepsyon, logo, mak, kòd, ak materyèl sou platfòm OxSteed (\"OxSteed Content\") se posede oswa lisansye OxSteed LLC epi yo pwoteje pa Ozetazini ak entènasyonal copyright, mak, ak lòt lwa sou pwopriyete entelektyèl. Ou pa gen dwa kopye, repwodui, distribye, modifye, kreye travay derive, montre piblikman, oswa eksplwate nenpòt kontni OxSteed san konsantman alekri anvan OxSteed."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Lisans kontni itilizatè."
+  },
+  "Lè w afiche kontni sou OxSteed (ki gen ladan men pa limite a enfòmasyon sou pwofil, foto, revize, deskripsyon travay, ak mesaj), ou bay OxSteed yon lisans ki pa eksklizif, atravè lemond, gratis, transfere, sou-lisans pou itilize, montre, repwodui, ak distribye kontni ou sèlman an koneksyon avèk opere ak pwomosyon platfòm la. Ou kenbe pwopriyetè kontni ou. Lisans sa a fini lè ou efase kontni ou oswa kont ou, eksepte pou kontni ki te pataje ak lòt itilizatè oswa ke OxSteed oblije kenbe pou rezon legal oswa konfòmite."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Avi DMCA ak Takedown."
+  },
+  "OxSteed respekte dwa pwopriyete entelektyèl epi li konfòme ak Digital Millennium Copyright Act (\"DMCA\"), 17 U.S.C. § 512. Si ou kwè ke kontni sou OxSteed vyole copyright ou, ou ka soumèt yon avi retire DMCA bay ajan deziyen nou an:"
+  ]
+  },
+  {
+  "type": "dmcaBox",
+  "title": "Ajan Deziyen DMCA:",
+  "lines": [
+  "OxSteed LLC",
+  "Atansyon: Ajan DMCA",
+  "Springfield, Ohio"
+  ],
+  "email": "legal@oxsteed.com"
+  },
+  {
+  "type": "p",
+  "text": "Avi DMCA ou a dwe genyen: (1) idantifikasyon travay ki gen dwadotè a; (2) idantifikasyon materyèl vyole a ak kote li sou platfòm la; (3) enfòmasyon kontak ou; (4) yon deklarasyon bòn fwa kwè ke itilizasyon an pa otorize; (5) yon deklarasyon anba penalite pou fo temwayaj ke enfòmasyon an egzat epi ou se pwopriyetè copyright oswa ajan otorize; epi (6) siyati fizik oswa elektwonik ou."
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Kont-avi."
+  },
+  "Si ou kwè yo te retire kontni ou an nan yon erè, ou ka soumèt yon kont-avi ki genyen: (1) idantifikasyon materyèl yo retire; (2) yon deklarasyon anba penalite pou fo temwayaj ke retire elèv la se te yon erè; (3) non w, adrès ou ak nimewo telefòn ou; (4) konsanti sou jiridiksyon tribinal federal la nan distri w la; epi (5) siyati fizik oswa elektwonik ou."
+  ]
+  },
+  {
+  "type": "note",
+  "variant": "red",
+  "strong": "Avètisman:",
+  "text": "Si w voye yon fo avi DMCA oswa yon kont-avi ka lakòz responsablite legal anba 17 U.S.C. § 512(f), ki enkli domaj ak frè avoka."
+  }
+  ]
+  },
+  "10": {
+  "search": "10 revokasyon sispansyon dezaktive apèl escrow legal",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "10. Revokasyon ak Sispansyon"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Pa OxSteed."
+  },
+  "OxSteed ka sispann oswa sispann kont ou a nenpòt ki lè, avèk oswa san rezon, ak avèk oswa san avètisman. Rezon ki fè pou revokasyon yo enkli, men yo pa limite a: vyolasyon kondisyon sa yo, aktivite fwod oswa ilegal, pa peman frè, resevwa plizyè plent nan men lòt itilizatè, oswa nenpòt konduit ke OxSteed detèmine ki danjere pou platfòm la, lòt itilizatè, oswa twazyèm pati."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Pa Ou."
+  },
+  "Ou ka dezaktive kont ou a nenpòt ki lè atravè paramèt kont ou a. Dezaktivasyon pa libere ou anba okenn obligasyon ou te fè anvan dezaktivasyon, tankou tranzaksyon dekonpozan Tier 3 ki annatant oswa frè ki pa gen anpil."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Efè Revokasyon."
+  },
+  "Lè revokasyon:"
+  ]
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Dwa ou genyen aksè ak itilize OxSteed sispann imedyatman;"
+  ],
+  [
+  "Nenpòt lajan ki annatant kenbe yo pral jere dapre pwosesis rezolisyon konfli ki nan Seksyon 16 la;"
+  ],
+  [
+  "OxSteed ka kenbe done ou jan lalwa egzije sa oswa pou rezon biznis lejitim (pa egzanp, dosye taks, prèv diskisyon);"
+  ],
+  [
+  "Dispozisyon ki pa nati yo ta dwe siviv revokasyon ap siviv, tankou Seksyon 8, 9, 11, 12, 13, 16, ak 20."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Apèl."
+  },
+  "Si kont ou sispann oswa sispann, ou ka fè apèl lè w kontakte",
+  {
+  "mailto": "legal@oxsteed.com"
+  },
+  "nan lespas 30 jou. OxSteed pral revize kontestasyon w la epi reponn nan 10 jou ouvrab. Desizyon OxSteed sou apèl la se final."
+  ]
+  }
+  ]
+  },
+  "11": {
+  "search": "11 egzijans responsablite jan sa disponib nan komèsan",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "11. Limit responsabilite nou sou Garanti"
+  },
+  {
+  "type": "p",
+  "uppercase": true,
+  "text": "PLAFÒM OXSTEED LA, KI ENKLI TOUT KONTINI, CARACTÉRISTIQUES, AK SÈVIS, SOU YON BAZ \"KÒM YO\" AK \"KÒM DISPONIB\" SAN YON KALITE GARANTI, SWA EXPRESSO OSWA IMPLICITE. JAN LWA OPTIMÈ, OXSTEED REJETE TOUT GARANTI, AK GARANTI ENPLIKE MEN PA LIMITE POU MARCHANDABILITE, APTITE POU YON OBJEKTIF PARTICULIER, KI PA VOLANS, AK TIT."
+  },
+  {
+  "type": "p",
+  "text": "San yo pa limite sa ki pi wo a, OxSteed pa garanti ke:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Platfòm lan pral san enteripsyon, alè, an sekirite, oswa san erè;"
+  ],
+  [
+  "Rezilta yo jwenn nan platfòm la pral egzat oswa serye;"
+  ],
+  [
+  "Nenpòt Asistan oswa Kliyan pral fè obligasyon yo;"
+  ],
+  [
+  "Nenpòt kontni sou platfòm la egzat, konplè oswa aktyèl;"
+  ],
+  [
+  "Platfòm nan pral satisfè kondisyon espesifik ou oswa atant."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "Ou sèvi ak platfòm la sou pwòp risk ou. Okenn konsèy oswa enfòmasyon, kit se oral oswa ekri, jwenn nan men OxSteed oswa atravè platfòm la kreye okenn garanti ki pa endike ekspreseman nan Kondisyon sa yo."
+  }
+  ]
+  },
+  "12": {
+  "search": "12 limitasyon asirans responsablite domaj ohio 4113",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "12. Limitasyon responsablite ak Asirans"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Pa gen Asirans Bay."
+  },
+  "OxSteed pa bay okenn kouvèti asirans pou okenn Asistan, Kliyan, oswa twazyèm pati."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Limitasyon nan responsablite."
+  },
+  "NAN MAKSIMOS LA LWA APLIKAB YO OBLÈ, RESPONSABILITÉ TOTAL OXSTEED POU NENPÒT REKLAMASYON KI KI DEZÈY KI KI GEN PWOFESYON SOU KONDISYON SA YO OSWA PLATÒM LA PA PRAL DEPÈSI PI PI GWO: (A) $100 USD, OSWA (B) FRÈ TOTAL YO PREMONT POU YO PEYE 12 OXSTEBY REKLAMEN."
+  ]
+  },
+  {
+  "type": "p",
+  "text": "OXSTEED PA PWA RESPONSYON POU OKENN DOGAJ ENDRÈK, AK ENDIKTAN, ESPESYAL, KONSEKANSYÈ, PINITIF, OSWA EKZANPLÈ."
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Domaj Pwopriyete."
+  },
+  "OxSteed pa responsab pou nenpòt domaj pwopriyete ki te koze pa yon Asistan pandan pèfòmans sèvis yo."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Blesi Pèsonèl."
+  },
+  "OxSteed pa responsab pou okenn blesi pèsonèl, lanmò, oswa domaj kòporèl ki rive nan sèvis ki ranje atravè platfòm la."
+  ]
+  },
+  {
+  "type": "note",
+  "variant": "red",
+  "strong": "Avi Espesifik pou Ohio:",
+  "text": "Ohio Revised Code § 4113.15 et seq. gouvène diskisyon peman salè ant kontraktè endepandan ak pati ki angaje yo. OxSteed se pa yon \"anplwayè\" jan sa defini anba lwa Ohio."
+  }
+  ]
+  },
+  "13": {
+  "search": "13 endemnizasyon reklamasyon frè avoka zouti",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "13. Endemnizasyon"
+  },
+  {
+  "type": "p",
+  "text": "Ou dakò pou dedomaje, defann, epi kenbe OxSteed LLC, ofisye yo, direktè yo, anplwaye yo, ajan yo, ak afilye li yo kont nenpòt ak tout reklamasyon, domaj, pèt, responsablite, depans, ak depans (ki gen ladan frè rezonab avoka) ki soti nan oswa ki gen rapò ak:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Itilizasyon oswa aksè nan platfòm OxSteed la;"
+  ],
+  [
+  "Vyolasyon ou nan Kondisyon Sèvis sa yo;"
+  ],
+  [
+  "Vyolasyon ou nenpòt lwa, règ, oswa règleman ki aplikab;"
+  ],
+  [
+  "Nenpòt kontni ou poste, telechaje, oswa transmèt atravè platfòm la;"
+  ],
+  [
+  "Nenpòt sèvis ou fè oswa resevwa atravè platfòm la;"
+  ],
+  [
+  "Nenpòt diskisyon ant ou menm ak yon lòt itilizatè;"
+  ],
+  [
+  "Neglijans ou oswa move konduit volontè ou;"
+  ],
+  [
+  "Nenpòt reklamasyon yon twazyèm pati ki soti nan itilizasyon zouti oswa ekipman ki lwe sou platfòm la."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "Obligasyon endemnizasyon sa a siviv nan revokasyon kont ou ak Kondisyon sa yo."
+  }
+  ]
+  },
+  "14": {
+  "search": "14 lisans lisans lisans verifye elektrisyen badj",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "14. Limit responsabilite nou sou lisans"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Pa gen Verifikasyon Lisans."
+  },
+  "OxSteed pa verifye, valide, oswa garanti ke nenpòt ki Helper gen nenpòt lisans pwofesyonèl, pèmi, sètifikasyon, oswa asirans ke lwa federal, eta, oswa lokal yo mande pou fè sèvis yo fè piblisite sou platfòm la."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Responsablite Kliyan."
+  },
+  "Kliyan yo se sèlman responsab pou verifye poukont yo ke nenpòt Asistan yo angaje yo genyen tout lisans, pèmi, sètifikasyon, ak asirans ke lalwa aplikab egzije pou sèvis espesifik yo dwe fè. Sa gen ladann, men se pa sa sèlman: elektrisyen, plonbye, teknisyen HVAC, kontraktè jeneral, twati, ak nenpòt lòt komès ki mande lisans leta oswa lokal."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Responsablite Èd."
+  },
+  "Moun k ap ede yo reprezante ak garanti yo genyen tout lisans, pèmi, ak sètifikasyon lalwa aplikab yo mande pou sèvis yo fè reklam yo. Lis sèvis ki mande pou lisans san yo pa kenbe lisans apwopriye a se yon vyolasyon kondisyon sa yo epi yo ka lakòz revokasyon imedya kont."
+  ]
+  },
+  {
+  "type": "note",
+  "variant": "yellow",
+  "strong": "Enpòtan:",
+  "text": "Yon badj verifye sou OxSteed endike sèlman ke yo te konplete yon chèk background. Li PA endike ke yon Asistan gen lisans, asirans, oswa estokaj pou nenpòt komès patikilye."
+  }
+  ]
+  },
+  "15": {
+  "search": "15 zouti lokasyon lis bailment niveau 3 escrow lokatè pwopriyetè",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "15. Anons pou lokasyon zouti - Kondisyon espesyal"
+  },
+  {
+  "type": "h3",
+  "text": "15.1 Nati lis pou lokasyon zouti yo"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed pèmèt itilizatè yo poste lis ki ofri zouti ak ekipman pou lòt itilizatè yo itilize tanporè (\"Tool Rental\"). Lis lokasyon zouti yo se yon kategori diferan de lis sèvis travay. Lè yon tranzaksyon pou Lwe Zouti fèt, pwopriyetè lis la (\"Propriyetè Zouti\") ak itilizatè ki lwe a (\"Lokatè\") antre nan yon akò sou kosyon dirèk ki gouvène pa lwa eta ki aplikab."
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "OxSteed pa pati nan okenn akò pou lokasyon zouti."
+  },
+  "OxSteed pa posede, enspekte, sètifye, kenbe, oswa asire nenpòt zouti oswa ekipman ki nan lis sou platfòm la. OxSteed fasilite entwodiksyon an sèlman."
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "15.2 Responsablite Pwopriyetè Zouti yo"
+  },
+  {
+  "type": "p",
+  "text": "Kòm yon Pwopriyetè Zouti ki bay lis ekipman sou OxSteed, ou reprezante, garanti epi dakò ke:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Ou se pwopriyetè legal, oswa ou gen otorizasyon pou lwe tout zouti ki nan lis la;"
+  ],
+  [
+  "Tout zouti ki nan lis yo an sekirite, fonksyonèl kondisyon travay epi yo pa gen defo ki ta ka lakòz blesi oswa domaj pwopriyete;"
+  ],
+  [
+  "Ou pral divilge nenpòt limit li te ye, danje sekirite, oswa kondisyon fonksyònman bay Lokatè a anvan lokasyon an kòmanse;"
+  ],
+  [
+  "Ou se sèl responsab pou respekte nenpòt òdonans oswa règleman lokal ki aplikab ki gouvène lokasyon zouti oswa ekipman;"
+  ],
+  [
+  "Asirans pwopriyetè kay ou, lokatè, oswa biznis ou ka pa kouvri prete zouti komèsyal epi ou ta dwe konsilte konpayi asirans ou anvan ou mete zouti yo;"
+  ],
+  [
+  "Ou se sèl responsab pou detèmine pri lokasyon an, kondisyon depo, ak kondisyon retounen;"
+  ],
+  [
+  "Nenpòt evalyasyon domaj, diskisyon depo, oswa reklamasyon pèt se antyèman ant ou menm ak Lokatè a."
+  ]
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "15.3 Responsablite Lokatè"
+  },
+  {
+  "type": "p",
+  "text": "Kòm yon Lokatè zouti oswa ekipman ki nan lis OxSteed, ou dakò ke:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Ou pral sèvi ak tout zouti lwe sèlman pou rezon legal yo, epi an akò ak tout enstriksyon manifakti ak gid sekirite yo;"
+  ],
+  [
+  "Ou asime tout risk pou blesi pèsonèl, domaj pwopriyete, ak domaj yon twazyèm pati ki rive lè w sèvi ak nenpòt zouti lwe;"
+  ],
+  [
+  "Ou responsab pou retounen zouti yo nan menm kondisyon yo te resevwa yo, eksepte mete nòmal;"
+  ],
+  [
+  "Ou responsab devan Pwopriyetè Zouti a pou nenpòt domaj, pèt, oswa vòl zouti lwe ki fèt pandan w nan posesyon w;"
+  ],
+  [
+  "Ou p ap lwe, prete, oswa transfere posesyon nenpòt zouti lwe bay yon twazyèm pati san konsantman alekri Pwopriyetè Zouti a."
+  ]
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "15.4 Limitasyon responsablite OxSteed pou lokasyon zouti"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "OxSteed ekspreseman refize tout responsablite"
+  },
+  "ki soti oswa ki gen rapò ak tranzaksyon lokasyon zouti, ki gen ladan men pa limite a: blesi pèsonèl oswa lanmò ki te koze pa yon zouti ki defektye oswa ki mal itilize; domaj pwopriyete ki te koze pandan itilizasyon zouti; pèt, vòl, oswa domaj nan zouti lwe; diskisyon ant Pwopriyetè Zouti ak Lokatè konsènan kondisyon, depo, oswa retounen; ak nenpòt reklamasyon yon twazyèm pati blese nan yon zouti lwe."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  "OxSteed pa enspekte, sètifye, oswa garanti sekirite oswa kondisyon nenpòt zouti ki nan lis sou platfòm la.",
+  {
+  "strong": "Lokatè ak Pwopriyetè Zouti yo itilize karakteristik Lwaye Zouti a nèt sou pwòp risk yo."
+  }
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "15.5 Tier 3 Escrow pou lokasyon zouti"
+  },
+  {
+  "type": "p",
+  "text": "Tranzaksyon lokasyon zouti yo ka itilize pwoteksyon peman Nivo 3 pou frè lokasyon an. Sepandan, escrow Nivo 3 kouvri sèlman montan peman lokasyon yo te dakò a. Diskisyon sou depo, reklamasyon domaj, ak rekiperasyon pèt yo antyèman andeyò pwosesis diskisyon Tier 3 la epi yo dwe rezoud dirèkteman ant Pwopriyetè Zouti ak Lokatè oswa atravè chanèl legal ki aplikab yo."
+  }
+  ]
+  },
+  "16": {
+  "search": "16 oxsteed pay stripe konekte escrow ki te fèt fon ranbousman bann eksprime diskisyon",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "16. OxSteed Pay - Kondisyon Peman"
+  },
+  {
+  "type": "h3",
+  "text": "16.1 Egzijans pou Enskripsyon Mityèl"
+  },
+  {
+  "type": "p",
+  "segments": [
+  "OxSteed Pay se",
+  {
+  "strong": "pa janm otomatik"
+  },
+  ". Li aktive sèlman lè tou de Kliyan an ak Èd la poukont yo chwazi pou sèvi ak li pou yon travay espesifik, idantifye. Okenn pati pa ka aktive li inilateralman sou non lòt la. Eleksyon peman OxSteed se yon travay ki espesifik epi li pa aplike pou pwochen travay ant menm pati yo."
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "16.2 Nati Fon ki kenbe yo"
+  },
+  {
+  "type": "p",
+  "segments": [
+  "Lè Kliyan an soumèt peman bay moun k ap ede yo atravè OxSteed atravè Stripe Connect nan objektif limite pou kenbe lajan sa yo annatant fini travay la. Lajan sa yo fèt nan yon balans dédié Et",
+  {
+  "strong": "rete pwopriyete Kliyan an jiskaske yo lage yo an akò ak Kondisyon sa yo."
+  },
+  "Lajan kenbe yo pa byen OxSteed yo epi yo pa melanje ak fon fonksyònman OxSteed yo."
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "16.3 Deklanche Lage Fon"
+  },
+  {
+  "type": "p",
+  "text": "Lajan ki kenbe yo pral lage bay Asistan an lè:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Tou de Kliyan an",
+  {
+  "strong": "epi"
+  },
+  "Èd la konfime travay fini atravè platfòm la nan 12 èdtan; oswa"
+  ],
+  [
+  "OxSteed bay yon desizyon rezolisyon an favè Èd la apre yon pwosesis diskisyon; oswa"
+  ],
+  [
+  "Kliyan an pa reponn a yon demann konfimasyon fini nan 48 èdtan apre Èd la make travay la fini (lajan oto-liberasyon apre fenèt sa a)."
+  ]
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "16.4 Deklanche ranbousman"
+  },
+  {
+  "type": "p",
+  "text": "Lajan ki te kenbe yo pral ranbouse kliyan an lè:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Tou de pati yo dakò pou yo anile travay la anvan travay la kòmanse;"
+  ],
+  [
+  "Èd la pa parèt oswa abandone travay la, jan Kliyan an dokimante;"
+  ],
+  [
+  "OxSteed bay yon desizyon rezolisyon an favè Kliyan an apre yon pwosesis diskisyon;"
+  ],
+  [
+  "Nenpòt pati anile travay la omwen 24 èdtan anvan lè kòmanse pwograme a."
+  ]
+  ]
+  },
+  {
+  "type": "h3",
+  "text": "16.5 Frè Platfòm yo Dedwi nan Escrow"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed dedwi frè sa yo nan lajan anbake anvan li lage montan nèt la bay Asistan an:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  {
+  "strong": "Frè sèvis platfòm:"
+  },
+  "7.1% nan valè travay yo dakò (minimòm $5.00)"
+  ]
+  ]
+  },
+  {
+  "type": "feesNote",
+  "strong": "Tout frè yo divilge bay tou de pati yo.",
+  "text": "Pa gen okenn frè kache yo pral chaje."
+  },
+  {
+  "type": "h3",
+  "text": "16.6 Pa gen Enterè sou Fon Kite yo"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed pa peye enterè sou lajan ki te kenbe yo bay okenn pati. OxSteed kenbe nenpòt enterè oswa flote ki akimile sou balans escrow akòz delè pwosesis peman Stripe a kòm yon frè administratif."
+  },
+  {
+  "type": "h3",
+  "text": "16.7 Akò Stripe Konekte Kont"
+  },
+  {
+  "type": "stripeLinkP",
+  "before": "Asistan yo dwe konekte yon kont Stripe Express kòm yon kondisyon pou yo kalifye pou resevwa peman. Lè w konekte yon kont Stripe Express, ou dakò ak Stripe a",
+  "linkLabel": "Akò Konekte Kont",
+  "href": "https://stripe.com/legal/connect-account",
+  "after": ", ki gen ladan pwòp kondisyon Stripe yo, règleman sou enfòmasyon prive, ak obligasyon konfòmite. OxSteed pa yon pati nan akò ou ak Stripe epi li pa responsab aksyon, erè, oswa entèripsyon sèvis Stripe."
+  },
+  {
+  "type": "h3",
+  "text": "16.9 Kontinwite platfòm"
+  },
+  {
+  "type": "p",
+  "text": "Nan ka OxSteed sispann operasyon, akeri, oswa sibi yon chanjman nan kontwòl, OxSteed pral fè efò komèsyal rezonab pou swa lage lajan ki te kenbe yo bay pati ki apwopriye a, transfere obligasyon escrow bay yon antite siksesè, oswa ranbouse tout kantite lajan ki te kenbe nan 30 jou apre evènman an deklanche. Itilizatè yo pral avize pa imel."
+  }
+  ]
+  },
+  "17": {
+  "search": "17 afiche travay òf anile volim abònman",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "17. Afichaj travay ak sistèm òf"
+  },
+  {
+  "type": "h3",
+  "text": "17.1 Afich Travay Kliyan yo"
+  },
+  {
+  "type": "p",
+  "text": "Kliyan yo ka poste lis travay ki dekri travay yo bezwen fè. Lè w afiche yon lis travay, ou reprezante travay ki dekri a legal, ou gen otorite pou angaje yon moun pou fè li, epi lis la egzat epi li pa twonpe. OxSteed rezève dwa pou retire nenpòt lis travay pou nenpòt rezon san avètisman oswa responsablite."
+  },
+  {
+  "type": "p",
+  "text": "Afiche yon lis travay pa kreye okenn obligasyon pou aksepte okenn òf oswa angaje nenpòt ki Èd. Kliyan yo ka fèmen yon lis, modifye li, oswa refize tout òf nan sèl diskresyon yo."
+  },
+  {
+  "type": "h3",
+  "text": "17.2 Òf Èd yo"
+  },
+  {
+  "type": "p",
+  "text": "Asistan yo ka soumèt òf sou lis travay ki afiche. Lè w soumèt yon òf, ou reprezante ke:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Ou vrèman disponib ak kalifye pou fè travay ki dekri a;"
+  ],
+  [
+  "Pri òf ou an egzat epi li reflete pri total ou pou Kliyan an;"
+  ],
+  [
+  "Ou genyen nenpòt lisans, pèmi, oswa sètifikasyon ki nesesè pou fè travay la legalman nan jiridiksyon ki aplikab la."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "Soumèt yon òf se yon òf, pa yon kontra."
+  },
+  {
+  "type": "h3",
+  "text": "17.3 Anile òf aktif yo"
+  },
+  {
+  "type": "p",
+  "text": "Si yon Kliyan retire yon lis travay oswa anile li apre òf yo te soumèt men anvan yo aksepte yon òf, tout òf ki annatant yo anile otomatikman. Asistan yo pa gen okenn reklamasyon kont OxSteed oswa Kliyan an pou anilasyon òf yo."
+  },
+  {
+  "type": "h3",
+  "text": "17.4 Pa gen Garanti Volim Travay"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed pa fè okenn reprezantasyon, garanti, oswa garanti ke nenpòt ki Èd nan nenpòt nivo pral resevwa òf, plon, òf travay, oswa revni nenpòt ki kantite. Frè abònman yo se pou aksè ak karakteristik platfòm, pa pou volim travay garanti."
+  }
+  ]
+  },
+  "18": {
+  "search": "18 twazyèm pati stripe checkr resend sèvis",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "18. Sèvis Twazyèm Pati"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed entegre ak oswa depann sou sèvis twazyèm pati sa yo, yo chak sijè a pwòp kondisyon ak règleman sou enfòmasyon prive:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  {
+  "strong": "Stripe, Inc."
+  },
+  " - Pwosesis peman ak kont konekte"
+  ],
+  [
+  {
+  "strong": "Checkr, Inc."
+  },
+  " - Verifikasyon background ak sèvis rapò konsomatè yo"
+  ],
+  [
+  {
+  "strong": "Revoye"
+  },
+  "- Livrezon imel tranzaksyon"
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "OxSteed pa responsab pou disponiblite, presizyon, sekirite, oswa pèfòmans nenpòt sèvis twazyèm pati. Itilizasyon sèvis twazyèm pati ou atravè OxSteed se sijè a kondisyon twazyèm pati ki aplikab yo. OxSteed pa dwe responsab pou okenn pèt oswa domaj ki te koze pa aksyon, omisyon, oswa entèripsyon sèvis yon founisè sèvis twazyèm pati."
+  }
+  ]
+  },
+  "19": {
+  "search": "19 akseptasyon konsantman e-siy kreye kont kontinye",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "19. Konsantman ak Akseptasyon"
+  },
+  {
+  "type": "p",
+  "text": "Lè w kreye yon kont OxSteed, ou konfime ke ou te li, konprann, epi ou dakò pou w respekte Kondisyon Sèvis sa yo. Klike ou sou \"Kreye Kont\" oswa \"Kontinye\" reprezante yon siyati elektwonik legalman obligatwa dapre E-SIGN Act, 15 U.S.C. § 7001 et seq."
+  },
+  {
+  "type": "p",
+  "text": "Si ou pa dakò ak kondisyon sa yo, pa kreye yon kont oswa itilize platfòm OxSteed."
+  }
+  ]
+  },
+  "20": {
+  "search": "20 modifikasyon tèm aktyalizasyon avi imel dezaktive",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "20. Modifikasyon nan Kondisyon sa yo"
+  },
+  {
+  "type": "p",
+  "text": "OxSteed ka mete ajou kondisyon sa yo nenpòt ki lè. Nou pral fè itilizatè yo konnen chanjman materyèl yo pa imèl omwen 14 jou anvan chanjman yo pran efè. Kontinye sèvi ak platfòm la apre dat efektif aktyalizasyon Kondisyon yo reprezante akseptasyon nouvo Kondisyon yo. Si ou pa dakò ak kondisyon yo mete ajou, ou dwe sispann sèvi ak platfòm la epi dezaktive kont ou."
+  }
+  ]
+  }
   }
 }

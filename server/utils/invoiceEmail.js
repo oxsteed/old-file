@@ -69,7 +69,7 @@ function renderInvoiceHTML(invoice, qrCodeDataUrl) {
             </div>
             <div class="invoice-row">
               <span class="invoice-label">Rental Period:</span>
-              <span class="invoice-value">${new Date(invoice.start_date).toLocaleDateString()} — ${new Date(invoice.end_date).toLocaleDateString()}</span>
+              <span class="invoice-value">${new Date(invoice.start_date).toLocaleDateString()} - ${new Date(invoice.end_date).toLocaleDateString()}</span>
             </div>
             <div class="invoice-row">
               <span class="invoice-label">Daily Rate:</span>
@@ -135,7 +135,7 @@ ${invoice.owner_email}
 
 RENTAL DETAILS:
 Tool: ${invoice.tool_name}
-Rental Period: ${new Date(invoice.start_date).toLocaleDateString()} — ${new Date(invoice.end_date).toLocaleDateString()}
+Rental Period: ${new Date(invoice.start_date).toLocaleDateString()} - ${new Date(invoice.end_date).toLocaleDateString()}
 Daily Rate: $${parseFloat(invoice.daily_rate).toFixed(2)}/day
 
 TOTAL: $${parseFloat(invoice.total_amount).toFixed(2)}

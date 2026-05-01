@@ -3,7 +3,7 @@ import i18next from 'i18next';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
-  // Injected by RouterAwareErrorBoundary — kept optional so the class
+  // Injected by RouterAwareErrorBoundary - kept optional so the class
   // component can be unit-tested in isolation without a router context.
   navigateHome?: () => void;
 }
@@ -14,7 +14,7 @@ interface ErrorBoundaryState {
 }
 
 /**
- * ErrorBoundary — Catches unhandled React rendering errors
+ * ErrorBoundary - Catches unhandled React rendering errors
  * and displays a user-friendly fallback UI instead of a blank page.
  * Includes a retry button and contact information.
  *

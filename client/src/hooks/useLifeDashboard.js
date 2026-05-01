@@ -34,7 +34,7 @@ export default function useLifeDashboard() {
     }
   }, []);
 
-  // Pulse score settings — what sources are active
+  // Pulse score settings - what sources are active
   const [pulseSettings, setPulseSettings] = useState(null);
 
   const fetchPulseSettings = useCallback(async () => {

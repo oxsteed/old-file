@@ -1,5 +1,5 @@
 /**
- * Support agent self-service portal (authenticated agent — not admin shell).
+ * Support agent self-service portal (authenticated agent - not admin shell).
  * Aggregates employments from support_agents + support_employers (OxSteed multi-employer model).
  */
 
@@ -25,7 +25,7 @@ function employerLabel(row) {
   return row.employer_business_name || row.employer_display_name || 'Business';
 }
 
-/** GET /api/support/agent/me — all support employments for the current user */
+/** GET /api/support/agent/me - all support employments for the current user */
 async function getMyEmployments(req, res) {
   try {
     const userId = req.user.id;
@@ -90,7 +90,7 @@ async function getMyEmployments(req, res) {
 
 /**
  * PATCH /api/support/agent/me/availability
- * Body: { is_available: boolean, agent_id?: uuid } — if agent_id set, only that row (must belong to user); else all employments.
+ * Body: { is_available: boolean, agent_id?: uuid } - if agent_id set, only that row (must belong to user); else all employments.
  */
 async function patchMyAvailability(req, res) {
   try {

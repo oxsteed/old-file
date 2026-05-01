@@ -143,7 +143,7 @@ export default function JobsList() {
                 <td className={`${col} text-white`}>
                   {job.budget_type === 'open' ? <span className="text-gray-400 italic">Open</span>
                     : job.budget_min ? `$${Number(job.budget_min).toLocaleString()}`
-                    : '—'}
+                    : '-'}
                 </td>
                 <td className={col}>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusStyle(job.status)}`}>

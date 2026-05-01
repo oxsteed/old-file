@@ -8,10 +8,10 @@ const SALT_ROUNDS = 12;
 
 // ─── Hash Helpers ─────────────────────────────────────────────
 const hashPassword = (plain) => bcrypt.hash(plain, SALT_ROUNDS);
-// hashIP imported from encryption.js — normalizes ::ffff: IPv6-mapped IPv4 before hashing (L-40)
+// hashIP imported from encryption.js - normalizes ::ffff: IPv6-mapped IPv4 before hashing (L-40)
 
 // ─── Find by ID ───────────────────────────────────────────────
-// Returns safe user fields — never includes password_hash, reset tokens,
+// Returns safe user fields - never includes password_hash, reset tokens,
 // or email verification tokens (M-42)
 exports.findById = async (id) => {
   const { rows } = await db.query(
@@ -85,7 +85,7 @@ exports.findByEmailSafe = async (email) => {
 };
 
 // ─── Find by Username ─────────────────────────────────────────
-// Returns only safe fields — excludes credentials (M-44)
+// Returns only safe fields - excludes credentials (M-44)
 exports.findByUsername = async (username) => {
   const { rows } = await db.query(
     `SELECT id, email, first_name, last_name, phone, role,
@@ -112,7 +112,7 @@ exports.create = async ({
   userAgent = null,
   language  = 'en',
 }) => {
-  // Validate role — cannot self-assign admin roles
+  // Validate role - cannot self-assign admin roles
   const allowedSelfRoles = [
     ROLES.CUSTOMER,
     ROLES.HELPER_FREE,
@@ -204,7 +204,7 @@ exports.verifyEmail = async (token) => {
 };
 
 // ─── Update Role ──────────────────────────────────────────────
-// Used only by admin/super_admin — never called from user-facing routes
+// Used only by admin/super_admin - never called from user-facing routes
 exports.updateRole = async (userId, newRole, adminId) => {
   const validRoles = Object.values(ROLES);
   if (!validRoles.includes(newRole)) {

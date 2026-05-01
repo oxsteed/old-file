@@ -55,7 +55,7 @@ beforeEach(() => resetMocks());
 
 // ── GET /api/jobs ─────────────────────────────────────────────────────────────
 describe('GET /api/jobs', () => {
-  test('returns job list (public — no auth required)', async () => {
+  test('returns job list (public - no auth required)', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [
         { id: 10, title: 'Fix my fence', status: 'published', location_city: 'Austin' },

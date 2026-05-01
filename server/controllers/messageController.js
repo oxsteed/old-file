@@ -9,7 +9,7 @@ const { verifyConversationAccess } = require('../utils/conversationAccess');
 const { AppError } = require('../middleware/errorHandler');
 
 /**
- * Guest profile inquiries (visitors without accounts) — guest_profile_chat_inbound.
+ * Guest profile inquiries (visitors without accounts) - guest_profile_chat_inbound.
  */
 function mapGuestInquiryRow(r) {
   return {
@@ -92,7 +92,7 @@ const getGuestInquiries = async (req, res) => {
 };
 
 /**
- * GET /api/messages/guest-inquiries/:id — one guest inquiry (owner or active business rep).
+ * GET /api/messages/guest-inquiries/:id - one guest inquiry (owner or active business rep).
  */
 const getGuestInquiryById = async (req, res) => {
   try {
@@ -545,7 +545,7 @@ const sendMessage = async (req, res, next) => {
       : `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim();
     const fullMessagePayload = { ...messagePayload, sender_name: senderName };
 
-    // Broadcast to the conversation room — both participants see it in real-time
+    // Broadcast to the conversation room - both participants see it in real-time
     // if they currently have the thread open.
     // Check if this is a profile chat (job-less conversation) or a regular conversation
     const isProfileChat = !conv.job_id; // Profile chats have no associated job
@@ -581,13 +581,13 @@ const sendMessage = async (req, res, next) => {
     }
 
     if (userId === customer_id) {
-      // Customer sent — notify the helper/owner
+      // Customer sent - notify the helper/owner
       socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: fullMessagePayload });
     } else if (userId === helper_id) {
-      // Owner sent — notify the customer
+      // Owner sent - notify the customer
       socketService.broadcastToUser(customer_id, 'message:new', { conversationId, message: fullMessagePayload });
     } else {
-      // Rep sent — notify the customer; also ping the owner so they see it in their inbox
+      // Rep sent - notify the customer; also ping the owner so they see it in their inbox
       socketService.broadcastToUser(customer_id, 'message:new', { conversationId, message: fullMessagePayload });
       socketService.broadcastToUser(helper_id, 'message:new', { conversationId, message: fullMessagePayload });
     }
@@ -619,7 +619,7 @@ const sendMessage = async (req, res, next) => {
         } else if (userId === helper_id) {
           toNotify.push(customer_id);
         } else {
-          // Rep sent — notify customer and owner
+          // Rep sent - notify customer and owner
           toNotify.push(customer_id, helper_id);
         }
 
@@ -672,7 +672,7 @@ const deleteMessage = async (req, res) => {
       return res.status(400).json({ error: 'Message is already deleted' });
     }
 
-    // Soft delete the message (set deleted_at timestamp) — safeguard sender_id
+    // Soft delete the message (set deleted_at timestamp) - safeguard sender_id
     const delResult = await pool.query(
       'UPDATE messages SET deleted_at = NOW() WHERE id = $1 AND sender_id = $2 RETURNING id',
       [messageId, userId]
@@ -729,7 +729,7 @@ const editMessage = async (req, res) => {
       return res.status(400).json({ error: 'Cannot edit a deleted message' });
     }
 
-    // Update the message with edited_at timestamp — safeguard sender_id
+    // Update the message with edited_at timestamp - safeguard sender_id
     const result = await pool.query(
       `UPDATE messages SET content = $1, edited_at = NOW() WHERE id = $2 AND sender_id = $3 AND deleted_at IS NULL RETURNING *`,
       [content, messageId, userId]
@@ -1113,7 +1113,7 @@ async function uploadAttachment(req, res) {
     const key = await uploadFile(buffer, 'chat-attachments', originalname, mimetype);
 
     if (!key) {
-      // S3 not configured — return a base64 data-URL fallback (dev only)
+      // S3 not configured - return a base64 data-URL fallback (dev only)
       const b64 = buffer.toString('base64');
       return res.json({
         url:      `data:${mimetype};base64,${b64}`,

@@ -2,7 +2,7 @@ const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 
-// Shared Redis client — created once in utils/redis.js, reused here.
+// Shared Redis client - created once in utils/redis.js, reused here.
 // Falls back gracefully to in-memory when Redis is unavailable.
 const redisClient = require('../utils/redis');
 let RedisStore = null;
@@ -12,10 +12,10 @@ if (redisClient) {
     RedisStore = require('rate-limit-redis').default;
     logger.info('Rate limiter: using Redis store');
   } catch (err) {
-    logger.warn('Rate limiter: rate-limit-redis unavailable — falling back to memory', { message: err.message });
+    logger.warn('Rate limiter: rate-limit-redis unavailable - falling back to memory', { message: err.message });
   }
 } else {
-  logger.info('Rate limiter: Redis not available — using in-memory store (not suitable for multi-instance)');
+  logger.info('Rate limiter: Redis not available - using in-memory store (not suitable for multi-instance)');
 }
 
 // Helper to create a unique RedisStore per limiter
@@ -36,7 +36,7 @@ const generalLimiter = rateLimit({
   ...createStoreOption('rl:general:'),
   windowMs: 15 * 60 * 1000,
   max: 200,
-  // Skip requests that carry a Bearer token — those are handled by authenticatedLimiter.
+  // Skip requests that carry a Bearer token - those are handled by authenticatedLimiter.
   skip: (req) => !!req.headers.authorization?.startsWith('Bearer '),
   standardHeaders: true,
   legacyHeaders: false,
@@ -61,7 +61,7 @@ const authenticatedLimiter = rateLimit({
       const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
       return `user:${decoded.id}`;
     } catch {
-      // Expired / invalid token — fall back to IP so the request still gets limited.
+      // Expired / invalid token - fall back to IP so the request still gets limited.
       return req.ip;
     }
   },
@@ -152,7 +152,7 @@ const profileChatLimiter = rateLimit({
   },
 });
 
-// Public Discover unified search — stricter than generalLimiter for anonymous scraping
+// Public Discover unified search - stricter than generalLimiter for anonymous scraping
 const discoverLimiter = rateLimit({
   ...createStoreOption('rl:discover:'),
   windowMs: 15 * 60 * 1000,
@@ -166,7 +166,7 @@ const discoverLimiter = rateLimit({
   },
 });
 
-// Authenticated Discover — separate bucket so signed-in users are not capped at guest limits
+// Authenticated Discover - separate bucket so signed-in users are not capped at guest limits
 const discoverAuthLimiter = rateLimit({
   ...createStoreOption('rl:discover_auth:'),
   windowMs: 15 * 60 * 1000,

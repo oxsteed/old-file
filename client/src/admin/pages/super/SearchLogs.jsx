@@ -3,7 +3,7 @@ import { Search, BarChart2, Loader2 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
 function ts(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d).toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
@@ -24,7 +24,7 @@ function StatsBar({ stats }) {
       {items.map(({ label, value }) => (
         <div key={label}
           className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-          <p className="text-xl font-bold text-white">{value ?? '—'}</p>
+          <p className="text-xl font-bold text-white">{value ?? '-'}</p>
           <p className="text-xs text-gray-500 mt-0.5">{label}</p>
         </div>
       ))}
@@ -80,7 +80,7 @@ export default function SearchLogs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset, filters]);
 
-  // Debounce text filter input — only commit to `filters` after 400ms idle
+  // Debounce text filter input - only commit to `filters` after 400ms idle
   const handleFilterChange = (key, val) => {
     setInputFilters(f => ({ ...f, [key]: val }));
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -102,7 +102,7 @@ export default function SearchLogs() {
             Search Audit Log
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Every admin search is recorded here — who searched, what, and when.
+            Every admin search is recorded here - who searched, what, and when.
           </p>
         </div>
         <button

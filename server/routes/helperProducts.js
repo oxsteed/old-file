@@ -1,12 +1,12 @@
 // server/routes/helperProducts.js
 // Products a helper lists for sale (food, supplies, gear, etc.)
-// OxSteed keeps a minimal role — products are self-declared, not verified.
+// OxSteed keeps a minimal role - products are self-declared, not verified.
 //
-// GET    /api/helper-products/:helperId   — public: available products for a helper
-// GET    /api/helper-products/me          — auth: own full list
-// POST   /api/helper-products             — auth: create product
-// PATCH  /api/helper-products/:id         — auth + ownership: update
-// DELETE /api/helper-products/:id         — auth + ownership: delete
+// GET    /api/helper-products/:helperId   - public: available products for a helper
+// GET    /api/helper-products/me          - auth: own full list
+// POST   /api/helper-products             - auth: create product
+// PATCH  /api/helper-products/:id         - auth + ownership: update
+// DELETE /api/helper-products/:id         - auth + ownership: delete
 
 const express = require('express');
 const router  = express.Router();
@@ -16,7 +16,7 @@ const logger  = require('../utils/logger');
 
 const VALID_CATEGORIES = ['food', 'supply', 'gear', 'other'];
 
-// GET /api/helper-products/me  — own full list (must be before /:helperId)
+// GET /api/helper-products/me  - own full list (must be before /:helperId)
 router.get('/me', authenticate, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -33,7 +33,7 @@ router.get('/me', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/helper-products/:helperId  — public
+// GET /api/helper-products/:helperId  - public
 router.get('/:helperId', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -50,7 +50,7 @@ router.get('/:helperId', async (req, res) => {
   }
 });
 
-// POST /api/helper-products  — create
+// POST /api/helper-products  - create
 router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description = '', price_cents, category = 'food', image_url, is_available = true } = req.body;
@@ -74,7 +74,7 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// PATCH /api/helper-products/:id  — update (ownership check)
+// PATCH /api/helper-products/:id  - update (ownership check)
 router.patch('/:id', authenticate, async (req, res) => {
   try {
     // Ownership check
@@ -123,7 +123,7 @@ router.patch('/:id', authenticate, async (req, res) => {
   }
 });
 
-// DELETE /api/helper-products/:id  — delete (ownership check)
+// DELETE /api/helper-products/:id  - delete (ownership check)
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { rows } = await pool.query(

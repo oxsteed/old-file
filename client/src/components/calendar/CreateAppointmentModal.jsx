@@ -77,7 +77,7 @@ export default function CreateAppointmentModal({ onClose, onCreated }) {
     try {
       setLoading(true);
       await api.post('/calendar/appointments', {
-        // helper_id is a UUID string — never parseInt it
+        // helper_id is a UUID string - never parseInt it
         helper_id: form.helper_id,
         service_description: form.service_description,
         scheduled_start_time: startTime.toISOString(),

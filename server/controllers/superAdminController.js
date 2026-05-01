@@ -240,7 +240,7 @@ exports.setUserDiditEnforcement = async (req, res) => {
       [userId, required]
     );
     if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'Didit enforcement status unchanged — operation may have been concurrent.' });
+      return res.status(409).json({ error: 'Didit enforcement status unchanged - operation may have been concurrent.' });
     }
 
     if (required) {
@@ -286,7 +286,7 @@ exports.toggleUserBan = async (req, res) => {
     const newStatus = !before[0].is_active;
     const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, userId, before[0].is_active]);
     if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'User status changed during ban operation — concurrent modification detected.' });
+      return res.status(409).json({ error: 'User status changed during ban operation - concurrent modification detected.' });
     }
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
@@ -297,7 +297,7 @@ exports.toggleUserBan = async (req, res) => {
 };
 
 /**
- * POST /admin/users/:userId/verify — super-admin only (route).
+ * POST /admin/users/:userId/verify - super-admin only (route).
  * Body: { field: 'is_identity_verified' | 'is_background_checked' }
  * Confirms ID or background at the platform level (users + helper_profiles).
  */
@@ -333,7 +333,7 @@ exports.verifyUser = async (req, res) => {
         [userId]
       );
       if (idVerifyRows.length === 0) {
-        return res.status(409).json({ error: 'User state changed during verification — operation may have been concurrent.' });
+        return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
       }
       if (isHelperRole && (await tableExists('helper_profiles'))) {
         await db.query(
@@ -357,7 +357,7 @@ exports.verifyUser = async (req, res) => {
         [userId]
       );
       if (bgCheckRows.length === 0) {
-        return res.status(409).json({ error: 'User state changed during verification — operation may have been concurrent.' });
+        return res.status(409).json({ error: 'User state changed during verification - operation may have been concurrent.' });
       }
       if (isHelperRole && (await tableExists('helper_profiles'))) {
         await db.query(
@@ -401,7 +401,7 @@ exports.updateUserRole = async (req, res) => {
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     const { rows: updateRows } = await db.query('UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 AND role = $3 RETURNING id', [role, userId, before[0].role]);
     if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'User role changed during update — concurrent modification detected.' });
+      return res.status(409).json({ error: 'User role changed during update - concurrent modification detected.' });
     }
     try { await logAdminAction({ adminId, action: 'user_role_changed', targetType: 'user', targetId: userId, before: { role: before[0].role }, after: { role }, req }); } catch(e) {}
     res.json({ message: `User role updated to ${role}.` });
@@ -421,7 +421,7 @@ exports.updateUserName = async (req, res) => {
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     const { rows: updateRows } = await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id', [trimFirst, trimLast, userId]);
     if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'User not found during update — concurrent deletion detected.' });
+      return res.status(409).json({ error: 'User not found during update - concurrent deletion detected.' });
     }
     try { await logAdminAction({ adminId, action: 'user_name_changed', targetType: 'user', targetId: userId, before: { first_name: before[0].first_name, last_name: before[0].last_name }, after: { first_name: trimFirst, last_name: trimLast }, req }); } catch(e) {}
     res.json({ message: 'User name updated successfully.' });
@@ -501,10 +501,10 @@ exports.deleteJob = async (req, res) => {
     if (!deletableStatuses.includes(rows[0].status)) {
       return res.status(400).json({ error: `Cannot delete job in '${rows[0].status}' status. Only jobs in ${deletableStatuses.join(', ')} status can be deleted.` });
     }
-    // Hard delete — cascades to bids, payments if FK'd with ON DELETE CASCADE; otherwise clean up first
+    // Hard delete - cascades to bids, payments if FK'd with ON DELETE CASCADE; otherwise clean up first
     const { rows: deleteRows } = await db.query('DELETE FROM jobs WHERE id = $1 AND status IN ($2, $3, $4) RETURNING id', [jobId, 'published', 'cancelled', 'closed']);
     if (deleteRows.length === 0) {
-      return res.status(409).json({ error: 'Job status changed during deletion — concurrent modification detected.' });
+      return res.status(409).json({ error: 'Job status changed during deletion - concurrent modification detected.' });
     }
     try {
       await logAdminAction({
@@ -512,7 +512,7 @@ exports.deleteJob = async (req, res) => {
         action: 'job_deleted',
         targetType: 'job',
         targetId: jobId,
-        description: `[HARD DELETE] "${rows[0].title}" — ${reason.trim()}`,
+        description: `[HARD DELETE] "${rows[0].title}" - ${reason.trim()}`,
         req,
       });
     } catch(e) {}
@@ -927,7 +927,7 @@ exports.exportData = async (req, res) => {
   } catch (err) { logger.error('exportData error', { err }); res.status(500).json({ error: 'Export failed.' }); }
 };
 
-// DELETE USER ACCOUNT (super_admin only — route guard)
+// DELETE USER ACCOUNT (super_admin only - route guard)
 exports.deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -1061,7 +1061,7 @@ exports.getAdminAccounts = async (req, res) => {
   }
 };
 
-// POST /admin/super/admin-accounts  — create a new admin account
+// POST /admin/super/admin-accounts  - create a new admin account
 exports.createAdminAccount = async (req, res) => {
   try {
     const bcrypt = require('bcrypt');
@@ -1105,7 +1105,7 @@ exports.createAdminAccount = async (req, res) => {
   }
 };
 
-// PUT /admin/super/admin-accounts/:id/status  — enable or disable an admin
+// PUT /admin/super/admin-accounts/:id/status  - enable or disable an admin
 exports.toggleAdminAccountStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1121,7 +1121,7 @@ exports.toggleAdminAccountStatus = async (req, res) => {
     const newStatus = !rows[0].is_active;
     const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, id, rows[0].is_active]);
     if (updateRows.length === 0) {
-      return res.status(409).json({ error: 'Admin status changed during update — concurrent modification detected.' });
+      return res.status(409).json({ error: 'Admin status changed during update - concurrent modification detected.' });
     }
     // Invalidate all sessions for this admin and kick any live WebSocket connection
     await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [id]);
@@ -1143,7 +1143,7 @@ exports.toggleAdminAccountStatus = async (req, res) => {
   }
 };
 
-// GET /admin/super/admin-activity/:adminId  — audit log filtered to one admin
+// GET /admin/super/admin-activity/:adminId  - audit log filtered to one admin
 exports.getAdminActivity = async (req, res) => {
   try {
     const { adminId } = req.params;
@@ -1169,7 +1169,7 @@ exports.getAdminActivity = async (req, res) => {
   }
 };
 
-// POST /admin/super/force-logout/:userId  — invalidate all sessions for any user
+// POST /admin/super/force-logout/:userId  - invalidate all sessions for any user
 exports.forceLogout = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -1192,7 +1192,7 @@ exports.forceLogout = async (req, res) => {
   }
 };
 
-// POST /admin/super/users/:userId/message  — send a direct message to any user
+// POST /admin/super/users/:userId/message  - send a direct message to any user
 // Creates or re-uses a job-less conversation between the admin and the target user.
 exports.sendAdminMessage = async (req, res) => {
   const socketService = require('../services/socketService');
@@ -1314,7 +1314,7 @@ exports.sendAdminMessage = async (req, res) => {
   }
 };
 
-// POST /admin/users/:userId/password — super-admin sets a new password for any user
+// POST /admin/users/:userId/password - super-admin sets a new password for any user
 exports.setUserPasswordBySuperAdmin = async (req, res) => {
   try {
     const { userId } = req.params;

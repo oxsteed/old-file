@@ -1,7 +1,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 
-// In-memory cache — refreshed by admin setting changes
+// In-memory cache - refreshed by admin setting changes
 let FEES = {
   starter:    0.18,
   pro:        0.14,
@@ -43,7 +43,7 @@ exports.reloadFeeConfig = async () => {
     _staleWarnedAt = 0; // reset so the warning can fire again if it goes stale
     logger.info('[FeeService] Config reloaded', { fees: FEES });
   } catch (err) {
-    logger.error('[FeeService] Reload failed — using defaults', { message: err.message });
+    logger.error('[FeeService] Reload failed - using defaults', { message: err.message });
     // Do NOT update _lastLoadAt on failure so staleness warning still fires
   }
 };
@@ -51,11 +51,11 @@ exports.reloadFeeConfig = async () => {
 // Called explicitly by server/index.js after startup (not at import time)
 
 exports.calculatePlatformFee = (amount, isBrokerMediated = false, planSlug = 'starter') => {
-  // Warn if cache is stale — throttled to at most once per hour to avoid log floods
+  // Warn if cache is stale - throttled to at most once per hour to avoid log floods
   const now = Date.now();
   if (_loadedFromDb && now - _lastLoadAt > STALE_WARN_MS && now - _staleWarnedAt > STALE_WARN_THROTTLE_MS) {
     _staleWarnedAt = now;
-    logger.warn('[FeeService] Fee config cache is stale — consider triggering a reload');
+    logger.warn('[FeeService] Fee config cache is stale - consider triggering a reload');
   }
   const rate = isBrokerMediated
     ? FEES.broker

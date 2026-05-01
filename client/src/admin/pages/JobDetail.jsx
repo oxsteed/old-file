@@ -10,14 +10,14 @@ import adminApi from '../../lib/adminApi';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function ts(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   });
 }
 
 function money(val) {
-  if (val == null) return '—';
+  if (val == null) return '-';
   return `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -237,7 +237,7 @@ export default function JobDetail() {
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* LEFT — main content */}
+        {/* LEFT - main content */}
         <div className="lg:col-span-2 space-y-6">
 
           {/* Description */}
@@ -293,11 +293,11 @@ export default function JobDetail() {
                   ['Status',        <Badge key="s" text={payment.status} colorClass={STATUS_COLOR[payment.status] || 'bg-gray-700 text-gray-300'} />],
                   ['Total Amount',  money(payment.amount)],
                   ['Helper Payout', money(payment.helper_payout)],
-                  ['Platform Fee',  payment.platform_fee != null ? money(payment.platform_fee) : '—'],
+                  ['Platform Fee',  payment.platform_fee != null ? money(payment.platform_fee) : '-'],
                   ['Date',          ts(payment.created_at)],
                   ['Stripe PI',     payment.stripe_payment_intent_id
                     ? <span key="pi" className="font-mono text-xs text-gray-400 truncate">{payment.stripe_payment_intent_id}</span>
-                    : '—'],
+                    : '-'],
                 ].map(([label, val]) => (
                   <div key={label}>
                     <dt className="text-gray-500 text-xs">{label}</dt>
@@ -309,7 +309,7 @@ export default function JobDetail() {
           )}
         </div>
 
-        {/* RIGHT — sidebar */}
+        {/* RIGHT - sidebar */}
         <div className="space-y-6">
 
           {/* Job details */}
@@ -317,14 +317,14 @@ export default function JobDetail() {
             <dl className="space-y-3 text-sm">
               {[
                 [<MapPin key="loc" size={13} className="text-gray-500" />, 'Location',
-                  [job.location_city, job.location_state].filter(Boolean).join(', ') || '—'],
+                  [job.location_city, job.location_state].filter(Boolean).join(', ') || '-'],
                 [<DollarSign key="bud" size={13} className="text-gray-500" />, 'Budget',
                   job.budget_min != null
                     ? `${money(job.budget_min)}${job.budget_max ? ` – ${money(job.budget_max)}` : ''}`
-                    : '—'],
-                [<Tag key="cat" size={13} className="text-gray-500" />, 'Category', job.category_name || '—'],
+                    : '-'],
+                [<Tag key="cat" size={13} className="text-gray-500" />, 'Category', job.category_name || '-'],
                 [<Briefcase key="val" size={13} className="text-gray-500" />, 'Job Value',
-                  job.job_value != null ? money(job.job_value) : '—'],
+                  job.job_value != null ? money(job.job_value) : '-'],
                 [<Calendar key="cr" size={13} className="text-gray-500" />, 'Created', ts(job.created_at)],
                 [<Calendar key="up" size={13} className="text-gray-500" />, 'Updated', ts(job.updated_at)],
               ].map(([icon, label, val]) => (

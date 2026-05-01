@@ -367,7 +367,7 @@ export default function UsersList() {
                   <td className="px-4 py-3 text-gray-300 text-xs">
                     {user.earnings_total
                       ? `$${parseFloat(user.earnings_total).toFixed(2)}`
-                      : <span className="text-gray-600">—</span>
+                      : <span className="text-gray-600">-</span>
                     }
                   </td>
                   <td className="px-4 py-3">

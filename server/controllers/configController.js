@@ -19,7 +19,7 @@ const DEFAULT_PRICES = {
   tier3_label: 'per transaction',
 };
 
-// GET /api/config/pricing — public, no auth needed
+// GET /api/config/pricing - public, no auth needed
 exports.getPricing = async (req, res, next) => {
   try {
     if (!(await hasPlatformConfigTable())) {
@@ -35,13 +35,13 @@ exports.getPricing = async (req, res, next) => {
     rows.forEach(r => { pricing[r.key] = r.value; });
     res.json({ ...DEFAULT_PRICES, ...pricing });
   } catch (err) {
-    // Table might not exist yet — return defaults
+    // Table might not exist yet - return defaults
     logger.error('Config pricing error:', { err: err.message });
     res.json(DEFAULT_PRICES);
   }
 };
 
-// PUT /api/config/pricing — super_admin only
+// PUT /api/config/pricing - super_admin only
 exports.updatePricing = async (req, res, next) => {
   try {
     if (!(await hasPlatformConfigTable())) {

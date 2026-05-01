@@ -45,7 +45,7 @@ const {
 // ── Public invoice by token (no auth required) ────────────────────────────────
 router.get('/invoices/public/:token', getPublicInvoice);
 
-// ── Vortex redeem (no business id — must be before /:id routes) ───────────────
+// ── Vortex redeem (no business id - must be before /:id routes) ───────────────
 router.post('/vortex/redeem',                authenticate, redeemToken);
 
 // ── Member invitations (must come before /:id routes) ─────────────────────────
@@ -54,7 +54,7 @@ router.post('/invitations/:id/accept',       authenticate, acceptInvitation);
 router.post('/invitations/:id/decline',      authenticate, declineInvitation);
 router.get('/managed',                       authenticate, listManagedBusinesses);
 
-// ── Public profile (no auth) — must be before authenticated /:id routes ───────
+// ── Public profile (no auth) - must be before authenticated /:id routes ───────
 router.get('/:id/public',  getBusinessPublicProfile);
 
 // ── Authenticated profile editor (before generic PUT /:id) ───────────────────

@@ -14,7 +14,7 @@ function convStatusBadge(status) {
 }
 
 function timeAgo(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1)  return 'just now';

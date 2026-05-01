@@ -11,7 +11,7 @@ import '../index.css';
 function sentryAdminFallback({ error, resetError }) {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-200 flex flex-col items-center justify-center px-6 py-16">
-      <p className="text-lg font-semibold text-white mb-2">Admin — something went wrong</p>
+      <p className="text-lg font-semibold text-white mb-2">Admin - something went wrong</p>
       <p className="text-sm text-gray-500 text-center max-w-md mb-6">
         {error instanceof Error ? error.message : 'An unexpected error occurred.'}
       </p>

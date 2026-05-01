@@ -31,9 +31,9 @@ export default function AboutPage() {
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">How It Works</h2>
         <ul className="list-disc ml-5 space-y-2 mb-3">
-          <li><strong>Tier 1 — Free Directory:</strong> Helpers list services for free. Customers browse and coordinate directly.</li>
-          <li><strong>Tier 2 — Pro Subscription:</strong> Helpers subscribe for priority placement, a verified badge, and bid alerts.</li>
-          <li><strong>Tier 3 — Payment Protection:</strong> When both parties opt in, OxSteed holds funds in escrow via Stripe until the job is confirmed complete.</li>
+          <li><strong>Tier 1 - Free Directory:</strong> Helpers list services for free. Customers browse and coordinate directly.</li>
+          <li><strong>Tier 2 - Pro Subscription:</strong> Helpers subscribe for priority placement, a verified badge, and bid alerts.</li>
+          <li><strong>Tier 3 - Payment Protection:</strong> When both parties opt in, OxSteed holds funds in escrow via Stripe until the job is confirmed complete.</li>
         </ul>
       </section>
 

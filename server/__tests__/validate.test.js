@@ -1,7 +1,7 @@
 /**
  * __tests__/validate.test.js
  *
- * Pure unit tests for server/utils/validate.js — no DB or HTTP needed.
+ * Pure unit tests for server/utils/validate.js - no DB or HTTP needed.
  */
 
 'use strict';
@@ -70,7 +70,7 @@ describe('validate utility', () => {
   });
 
   test('optional field with no value skips further rules', () => {
-    // phone is optional — empty string should not trigger phone format error
+    // phone is optional - empty string should not trigger phone format error
     const schema = { phone: [rules.phone] };
     const result = validate({ phone: '' }, schema);
     expect(result).toBeNull();

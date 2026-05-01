@@ -1,7 +1,7 @@
 // server/controllers/availabilityController.js
 //
 // Availability blocks: helper opt-in time windows (and unavailability blocks).
-// Notification preference CRUD lives here too — it's the only thing that
+// Notification preference CRUD lives here too - it's the only thing that
 // touches the same notification_preferences table.
 
 const pool = require('../db');
@@ -264,7 +264,7 @@ exports.getNotificationPreferences = async (req, res, next) => {
       [userId]
     );
     if (r.rows.length === 0) {
-      // Create default row using DB-level defaults — let Postgres fill them
+      // Create default row using DB-level defaults - let Postgres fill them
       r = await pool.query(
         `INSERT INTO notification_preferences (user_id)
          VALUES ($1)
@@ -301,7 +301,7 @@ exports.updateNotificationPreferences = async (req, res, next) => {
   } = req.body || {};
 
   try {
-    // Sanitize each channel array (TEXT[] in DB — pg accepts JS arrays directly)
+    // Sanitize each channel array (TEXT[] in DB - pg accepts JS arrays directly)
     const confirmed = sanitizeChannelArray(appointment_confirmed_channels);
     const cancelled = sanitizeChannelArray(appointment_cancelled_channels);
     const r24 = sanitizeChannelArray(reminder_24h_channels);

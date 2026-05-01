@@ -91,7 +91,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
       if (resp?.fields) {
         setErrors(resp.fields);
       }
-      // Backend may return { error, detail } — show the underlying detail to
+      // Backend may return { error, detail } - show the underlying detail to
       // super-admins so schema/enum/validation problems are debuggable.
       const baseMsg = resp?.error || 'Failed to create user.';
       const detail  = resp?.detail;
@@ -216,7 +216,7 @@ export default function CreateUserForm({ onCreated, onCancel }) {
               onChange={(code) => setForm(f => ({
                 ...f,
                 country: code,
-                // Reset state/zip when the country changes — they're
+                // Reset state/zip when the country changes - they're
                 // country-specific.
                 state: '',
                 zip_code: '',

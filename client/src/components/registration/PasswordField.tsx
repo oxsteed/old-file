@@ -82,7 +82,7 @@ export default function PasswordField({ value, onChange, error }: Props) {
         </button>
       </div>
 
-      {/* Strength meter — shows on focus */}
+      {/* Strength meter - shows on focus */}
       {(focused || value.length > 0) && (
         <div className="flex flex-col gap-1.5 mt-1">
           {/* Bars */}

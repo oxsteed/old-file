@@ -25,7 +25,7 @@ async function authorizeSessionAccess(req, sessionId) {
   return rows.length > 0 && rows[0].user_id === req.user.id;
 }
 
-// Map DB row to API response — derives boolean `completed` from `status`
+// Map DB row to API response - derives boolean `completed` from `status`
 // for backward compatibility with the frontend that reads item.completed.
 function rowToResponse(row) {
   if (!row) return row;
@@ -57,7 +57,7 @@ exports.getSessionActionItems = async (req, res) => {
   }
 };
 
-// Create action item — admin/consultant only.
+// Create action item - admin/consultant only.
 exports.createActionItem = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -119,7 +119,7 @@ exports.createActionItem = async (req, res) => {
   }
 };
 
-// Update action item — admin only.
+// Update action item - admin only.
 exports.updateActionItem = async (req, res) => {
   try {
     const { sessionId, itemId } = req.params;
@@ -133,7 +133,7 @@ exports.updateActionItem = async (req, res) => {
       return res.status(403).json({ error: 'Admin access required to update action items' });
     }
 
-    // Verify the item exists and belongs to the session — explicit field list, no SELECT *.
+    // Verify the item exists and belongs to the session - explicit field list, no SELECT *.
     const { rows: existingItems } = await db.query(
       `SELECT id, session_id, title, description, due_date, priority, assigned_to_type,
               client_visible, status, created_at, updated_at
@@ -215,7 +215,7 @@ exports.updateActionItem = async (req, res) => {
   }
 };
 
-// Delete action item — admin only.
+// Delete action item - admin only.
 exports.deleteActionItem = async (req, res) => {
   try {
     const { sessionId, itemId } = req.params;
@@ -245,7 +245,7 @@ exports.deleteActionItem = async (req, res) => {
   }
 };
 
-// Mark action item as complete — admin only.
+// Mark action item as complete - admin only.
 exports.completeActionItem = async (req, res) => {
   try {
     const { sessionId, itemId } = req.params;

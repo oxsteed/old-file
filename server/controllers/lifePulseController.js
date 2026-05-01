@@ -16,7 +16,7 @@ const WINDOW_LABELS = {
 };
 
 // ── scoring helpers ───────────────────────────────────────────────────────────
-// All helpers operate on true values only — no fake neutral defaults.
+// All helpers operate on true values only - no fake neutral defaults.
 // The caller is responsible for detecting the no-data case before invoking these.
 
 /**
@@ -50,7 +50,7 @@ function scoreBuffer(runwayMonths) {
  * No drop → 100 | < 15% drop → 82 | 15–30% → 65 | 30–50% → 45 | > 50% → 20.
  */
 function scoreReliability(dropPct, hasPriorIncome) {
-  if (!hasPriorIncome) return 0; // no history to judge — not assumed good
+  if (!hasPriorIncome) return 0; // no history to judge - not assumed good
   if (dropPct > 0.50)  return 20;
   if (dropPct > 0.30)  return 45;
   if (dropPct > 0.15)  return 65;
@@ -115,7 +115,7 @@ exports.getLifePulse = async (req, res) => {
           AND (is_recurring IS NOT TRUE)
       `, [userId]),
 
-      // 2. Reliability: last 30d vs prior 60d (days 31–90) income — all entries
+      // 2. Reliability: last 30d vs prior 60d (days 31–90) income - all entries
       db.query(`
         SELECT
           COALESCE(SUM(amount) FILTER (
@@ -157,7 +157,7 @@ exports.getLifePulse = async (req, res) => {
         ORDER BY due_date ASC
       `, [userId]),
 
-      // 5. Recurring expenses/income — deduplicated to the most recent entry per
+      // 5. Recurring expenses/income - deduplicated to the most recent entry per
       //    (type, category, description, frequency), then normalised to a monthly
       //    equivalent. Including description prevents two distinct recurring entries
       //    in the same category (e.g. Netflix + Spotify both in "Subscriptions")
@@ -191,11 +191,11 @@ exports.getLifePulse = async (req, res) => {
         ) r
       `, [userId]),
 
-      // 6. Recurring home-task costs — split by section so each plan type can be
+      // 6. Recurring home-task costs - split by section so each plan type can be
       //    toggled independently via pulse_score_settings.
       //    Sections: 'home' and 'home_maintenance' are the same concept ('home' is
       //    the value stored by the dashboard form; 'home_maintenance' was the original
-      //    intent — both are treated identically here).
+      //    intent - both are treated identically here).
       db.query(`
         SELECT
           COALESCE(SUM(monthly_eq) FILTER (WHERE section IN ('home', 'home_maintenance')), 0) AS home_monthly,
@@ -235,7 +235,7 @@ exports.getLifePulse = async (req, res) => {
           AND bi.paid_at >= NOW() - INTERVAL '90 days'
       `, [userId]),
 
-      // 8. Outstanding invoices (sent/overdue) within this window — expected income
+      // 8. Outstanding invoices (sent/overdue) within this window - expected income
       db.query(`
         SELECT COALESCE(SUM(bi.total - bi.amount_paid), 0) AS pending_invoice_total,
                COUNT(*) AS pending_count
@@ -260,7 +260,7 @@ exports.getLifePulse = async (req, res) => {
 
       // 10. Predicted income: authorized escrow payments the user has signed up for
       //     but not yet completed (payment held, will be released on job completion).
-      //     These are future values — known, committed, but not yet realized.
+      //     These are future values - known, committed, but not yet realized.
       db.query(`
         SELECT COALESCE(SUM(helper_payout), 0) AS predicted_job_income
         FROM payments
@@ -284,7 +284,7 @@ exports.getLifePulse = async (req, res) => {
       `, [userId]),
 
       // 12. Monthly debt obligations: recurring expenses in debt / loan / mortgage /
-      //     credit categories — deduplicated the same way as other recurring expenses.
+      //     credit categories - deduplicated the same way as other recurring expenses.
       db.query(`
         SELECT COALESCE(SUM(monthly_eq), 0) AS debt_monthly
         FROM (
@@ -358,7 +358,7 @@ exports.getLifePulse = async (req, res) => {
 
     const oxsteedIncome = cfg('include_oxsteed_income') ? parseFloat(oxsteed.oxsteed_income_90d) : 0;
 
-    // Recurring income/expense — gated per direction
+    // Recurring income/expense - gated per direction
     const recurringIncomeMonthly_raw  = parseFloat(recurringRow.recurring_income_monthly);
     const recurringExpenseMonthly_raw = parseFloat(recurringRow.recurring_expense_monthly);
 
@@ -375,7 +375,7 @@ exports.getLifePulse = async (req, res) => {
       recurringExpenseMonthly = debtMonthly_raw;
     }
 
-    // Home task costs — split by section so each plan type can be toggled
+    // Home task costs - split by section so each plan type can be toggled
     const taskExpMonthly_home     = cfg('include_home_maintenance') ? parseFloat(taskRow.home_monthly     || 0) : 0;
     const taskExpMonthly_car      = cfg('include_car_care')         ? parseFloat(taskRow.car_monthly      || 0) : 0;
     const taskExpMonthly_personal = cfg('include_personal_care')    ? parseFloat(taskRow.personal_monthly || 0) : 0;
@@ -402,7 +402,7 @@ exports.getLifePulse = async (req, res) => {
       const daysToFund   = Math.max(daysUntilDue, 1);
       const dailyContrib = remaining / daysToFund;
       // Only count the portion of the sinking fund that falls within this horizon.
-      // Use daysToFund (floored to 1) so needs due today aren't zeroed out —
+      // Use daysToFund (floored to 1) so needs due today aren't zeroed out -
       // a need due today has its full remaining balance due immediately.
       const daysInWindow = Math.min(windowDays, daysToFund);
       const windowCost   = dailyContrib * daysInWindow;
@@ -439,7 +439,7 @@ exports.getLifePulse = async (req, res) => {
     //   past    = projectedIncome (historical baseline extrapolated over the window)
     //   future  = predictedJobIncome (authorized escrow jobs signed up for)
     //           + predictedInvoiceIncome (pending invoices at 80% confidence)
-    //   present = past + future — the projected reality if everything holds
+    //   present = past + future - the projected reality if everything holds
     //
     // This means a user earning $200/mo who signs up for a $150 job sees a
     // present-value income of $350 for the window, not just $200.
@@ -525,7 +525,7 @@ exports.getLifePulse = async (req, res) => {
     // Reliability alert
     if (incomeDropPct > 0.15) {
       alerts.push(
-        `Income dropped ${Math.round(incomeDropPct * 100)}% last month — reliability score reduced.`
+        `Income dropped ${Math.round(incomeDropPct * 100)}% last month - reliability score reduced.`
       );
     }
 
@@ -540,7 +540,7 @@ exports.getLifePulse = async (req, res) => {
 
     // Runway alert
     if (runwayMonths !== null && runwayMonths < 1 && monthlyBurn > 0) {
-      alerts.push('Less than 1 month of financial runway — consider reducing discretionary spending.');
+      alerts.push('Less than 1 month of financial runway - consider reducing discretionary spending.');
     }
 
     // Business alerts
@@ -551,7 +551,7 @@ exports.getLifePulse = async (req, res) => {
             .toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
         : 'soon';
       alerts.push(
-        `Estimated tax payment of $${taxFmt} is due ${dueDateFmt} — included in your obligations.`
+        `Estimated tax payment of $${taxFmt} is due ${dueDateFmt} - included in your obligations.`
       );
     }
 
@@ -559,7 +559,7 @@ exports.getLifePulse = async (req, res) => {
       const pendingFmt         = pendingInvoiceTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
       const pendingCountedFmt  = predictedInvoiceIncome.toLocaleString('en-US', { maximumFractionDigits: 0 });
       alerts.push(
-        `$${pendingFmt} in outstanding invoices — $${pendingCountedFmt} counted as predicted income in your score.`
+        `$${pendingFmt} in outstanding invoices - $${pendingCountedFmt} counted as predicted income in your score.`
       );
     }
 
@@ -597,7 +597,7 @@ exports.getLifePulse = async (req, res) => {
       window:      windowKey,
       window_days: windowDays,
 
-      // Score — null means no data has been entered yet ("No Data Yet" in UI)
+      // Score - null means no data has been entered yet ("No Data Yet" in UI)
       no_data:     !hasAnyData,
       pulse_score: pulseScore,
       score_breakdown: !hasAnyData ? null : {

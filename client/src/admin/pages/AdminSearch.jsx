@@ -18,14 +18,14 @@ function Badge({ text, colorClass }) {
 }
 
 function ts(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   });
 }
 
 function money(val) {
-  if (val == null) return '—';
+  if (val == null) return '-';
   return `$${parseFloat(val).toFixed(2)}`;
 }
 
@@ -395,7 +395,7 @@ export default function AdminSearch() {
     try {
       // Fan out one request per type that needs a non-default page,
       // or a single combined request when all active pages are 1.
-      // Only check active (included) types — deactivated types may retain
+      // Only check active (included) types - deactivated types may retain
       // a stale page > 1 from a previous session without affecting this query.
       const allPage1 = entityTypes.every(t => (pageMap[t] || 1) === 1);
 

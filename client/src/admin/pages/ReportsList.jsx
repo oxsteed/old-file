@@ -140,13 +140,13 @@ export default function ReportsList() {
                   <p className="text-xs text-gray-500 mt-2">
                     Reported by:{' '}
                     <span className="text-gray-400">
-                      {report.reporter_name || 'Anonymous'} —{' '}
+                      {report.reporter_name || 'Anonymous'} -{' '}
                       {report.reporter_email || ''}
                     </span>
                   </p>
                 </div>
 
-                {/* Actions — only for pending */}
+                {/* Actions - only for pending */}
                 {tab === 'pending' && (
                   <div className="flex flex-col gap-2 shrink-0">
                     {[

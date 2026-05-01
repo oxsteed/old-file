@@ -1,8 +1,8 @@
 /**
  * houseController.js
- * Home Profile — Address Lookup
+ * Home Profile - Address Lookup
  *
- * The "VIN decode for houses" — chains 3 free government + open-data APIs:
+ * The "VIN decode for houses" - chains 3 free government + open-data APIs:
  *
  *  1. US Census Geocoder  → validates address, returns lat/lng + ZIP
  *     https://geocoding.geo.census.gov  (free, no key, 500 req/IP/day)
@@ -15,7 +15,7 @@
  *     https://hazards.fema.gov/gis/nfhl  (free, no key, US government)
  *
  * All three combined in a single /api/house/lookup?address=... call.
- * Results cached 7 days — addresses don't change often.
+ * Results cached 7 days - addresses don't change often.
  *
  * OxSteed v2
  */
@@ -44,14 +44,14 @@ function cacheSet(key, value) {
 
 // ── Flood zone human labels ───────────────────────────────────────────────
 const FLOOD_LABELS = {
-  'A':    { label: 'High Risk (Zone A)',      detail: 'Special Flood Hazard Area — no base flood elevation determined.' },
-  'AE':   { label: 'High Risk (Zone AE)',     detail: 'Special Flood Hazard Area — base flood elevation determined.' },
+  'A':    { label: 'High Risk (Zone A)',      detail: 'Special Flood Hazard Area - no base flood elevation determined.' },
+  'AE':   { label: 'High Risk (Zone AE)',     detail: 'Special Flood Hazard Area - base flood elevation determined.' },
   'AH':   { label: 'High Risk (Zone AH)',     detail: 'Flood depths 1–3 ft, usually ponding.' },
   'AO':   { label: 'High Risk (Zone AO)',     detail: 'River or stream flood with shallow depths.' },
   'AR':   { label: 'High Risk (Zone AR)',     detail: 'SFHA with flood control restoration in progress.' },
   'A99':  { label: 'High Risk (Zone A99)',    detail: 'SFHA protected by federal levee system under construction.' },
-  'V':    { label: 'High Risk Coastal (V)',   detail: 'Coastal flood with wave action — no base elevation.' },
-  'VE':   { label: 'High Risk Coastal (VE)',  detail: 'Coastal flood with wave action — base elevation determined.' },
+  'V':    { label: 'High Risk Coastal (V)',   detail: 'Coastal flood with wave action - no base elevation.' },
+  'VE':   { label: 'High Risk Coastal (VE)',  detail: 'Coastal flood with wave action - base elevation determined.' },
   'X':    { label: 'Low to Moderate Risk',    detail: 'Outside the 1% annual chance floodplain.' },
   'B':    { label: 'Moderate Risk (Zone B)',  detail: 'Area between 1% and 0.2% annual chance flood.' },
   'C':    { label: 'Low Risk (Zone C)',        detail: 'Area of minimal flood hazard.' },
@@ -76,7 +76,7 @@ async function geocodeAddress(address) {
   };
 }
 
-// ── 2. OSM Overpass — building data ──────────────────────────────────────
+// ── 2. OSM Overpass - building data ──────────────────────────────────────
 async function getBuildingData(lat, lng) {
   const query = `[out:json][timeout:20];way["building"](around:60,${lat},${lng});out tags;`;
   const encoded = encodeURIComponent(query);
@@ -137,7 +137,7 @@ async function getFloodZone(lat, lng) {
       ...info,
     };
   } catch {
-    // FEMA unavailable — return graceful null rather than failing whole request
+    // FEMA unavailable - return graceful null rather than failing whole request
     return null;
   }
 }
@@ -163,7 +163,7 @@ exports.lookupAddress = async (req, res) => {
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
 
-    // Step 1 — geocode (required; if this fails the rest can't run)
+    // Step 1 - geocode (required; if this fails the rest can't run)
     let geo;
     try {
       geo = await geocodeAddress(address);
@@ -171,10 +171,10 @@ exports.lookupAddress = async (req, res) => {
       logger.warn('Census geocode failed', { message: err.message });
     }
     if (!geo) {
-      return res.status(422).json({ error: 'Address not found — try including city and state.' });
+      return res.status(422).json({ error: 'Address not found - try including city and state.' });
     }
 
-    // Steps 2 & 3 — run in parallel, fail gracefully
+    // Steps 2 & 3 - run in parallel, fail gracefully
     const [building, flood] = await Promise.allSettled([
       getBuildingData(geo.lat, geo.lng),
       getFloodZone(geo.lat, geo.lng),
@@ -207,12 +207,12 @@ exports.lookupAddress = async (req, res) => {
     return res.json(result);
   } catch (err) {
     logger.error('houseController.lookupAddress error', { message: err.message });
-    return res.status(500).json({ error: 'Lookup failed — please try again.' });
+    return res.status(500).json({ error: 'Lookup failed - please try again.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────
-// USER HOME PROFILES — CRUD
+// USER HOME PROFILES - CRUD
 // ─────────────────────────────────────────────────────────────────────────
 
 /**

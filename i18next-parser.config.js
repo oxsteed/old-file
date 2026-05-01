@@ -26,7 +26,7 @@ module.exports = {
   // Missing keys fall back to the key string (which is English).
   defaultValue: '',
 
-  // Keep existing translations — only add missing keys
+  // Keep existing translations - only add missing keys
   keepRemoved: false,
 
   // Warn but don't fail on dynamic keys like t(`key_${var}`)

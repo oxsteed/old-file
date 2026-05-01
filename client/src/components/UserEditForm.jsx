@@ -162,7 +162,7 @@ export default function UserEditForm({ user, onSaved }) {
               onChange={(code) => setForm(f => ({
                 ...f,
                 country: code,
-                // Reset state/zip when the country changes — they're
+                // Reset state/zip when the country changes - they're
                 // country-specific.
                 state: '',
                 zip_code: '',

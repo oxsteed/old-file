@@ -11,7 +11,7 @@ export default function StatCard({ label, value, icon: Icon, color }) {
       <p className="text-2xl font-bold text-white">
         {typeof value === 'number'
           ? value.toLocaleString()
-          : value ?? '—'
+          : value ?? '-'
         }
       </p>
     </div>

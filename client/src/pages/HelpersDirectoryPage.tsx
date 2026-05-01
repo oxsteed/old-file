@@ -5,8 +5,8 @@
  * Route: /helpers
  *
  * Layout:
- *   Desktop (lg+) — left sidebar with FilterPanel, right 3/4 with results grid
- *   Mobile        — FilterPanel in a slide-up drawer, triggered by a sticky bar
+ *   Desktop (lg+) - left sidebar with FilterPanel, right 3/4 with results grid
+ *   Mobile        - FilterPanel in a slide-up drawer, triggered by a sticky bar
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -58,7 +58,7 @@ function applyFilters(helpers: HelperCardData[], f: DirectoryFilters): HelperCar
       if (!f.categories.some((cat) => (h.categories || []).includes(cat))) return false;
     }
 
-    // Skills (all-of — every selected skill must exist on helper)
+    // Skills (all-of - every selected skill must exist on helper)
     if (f.skills.length > 0) {
       if (!f.skills.every((sk) => (h.skills || []).includes(sk))) return false;
     }
@@ -270,7 +270,7 @@ const SubSkillStrip: React.FC<{
         <span aria-hidden="true">{tile.icon}</span>
         {tile.label}
       </span>
-      <span className="text-gray-700 text-xs" aria-hidden="true">—</span>
+      <span className="text-gray-700 text-xs" aria-hidden="true">-</span>
       <p className="text-xs text-gray-500">{t('helpersDir.filterByJob')}</p>
       <div className="flex flex-wrap gap-2">
         {tile.subSkills.map((sk) => {
@@ -443,7 +443,7 @@ function mergeGridItems(
 const HelpersDirectoryPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  // Parse URL params exactly once — destructure for both derived states.
+  // Parse URL params exactly once - destructure for both derived states.
   const [{ filters: _initFilters, tileId: _initTileId }] = useState(getInitialState);
   const [filters, setFilters]           = useState<DirectoryFilters>(_initFilters);
   const [sort, setSort]                 = useState<SortOption>('best_match');
@@ -528,7 +528,7 @@ const HelpersDirectoryPage: React.FC = () => {
   // Filter businesses by active category/skill filters before merging.
   // FIX (Bugbot #4): when sub-skills are active, businesses (which the server returns
   // with skills: []) were always filtered out. Now businesses pass the skill filter
-  // if they match the parent category — sub-skill chips are a refinement for helpers,
+  // if they match the parent category - sub-skill chips are a refinement for helpers,
   // not a reason to hide entire businesses from the grid.
   const filteredBusinesses = (() => {
     const activeCategories = filters.categories ?? [];
@@ -539,7 +539,7 @@ const HelpersDirectoryPage: React.FC = () => {
       if (activeCategories.length > 0 && !biz.categories.some((c: string) => activeCategories.includes(c))) return false;
       // Sub-skill gate: skip for businesses since the server never populates biz.skills.
       // A business matching the parent category is considered relevant even when
-      // sub-skill chips are active — the customer can still choose to contact them.
+      // sub-skill chips are active - the customer can still choose to contact them.
       return true;
     });
   })();
@@ -580,7 +580,7 @@ const HelpersDirectoryPage: React.FC = () => {
       {/* Skill tile grid */}
       <SkillTileGrid selectedId={selectedTileId} onSelect={handleTileSelect} />
 
-      {/* Sub-skill chips — shown when a tile is selected */}
+      {/* Sub-skill chips - shown when a tile is selected */}
       {selectedTile && (
         <SubSkillStrip
           tile={selectedTile}
@@ -590,7 +590,7 @@ const HelpersDirectoryPage: React.FC = () => {
         />
       )}
 
-      {/* ZIP notice — shown when a skill is selected but no zip is entered */}
+      {/* ZIP notice - shown when a skill is selected but no zip is entered */}
       {selectedTile && !filters.zipCode && (
         <div className="bg-gray-900/60 border-b border-gray-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-2 text-xs text-gray-500">
@@ -648,7 +648,7 @@ const HelpersDirectoryPage: React.FC = () => {
           {/* ── Results column ───────────────────────────────── */}
           <div className="flex-1 min-w-0 space-y-5">
 
-            {/* Sort + active tags — desktop */}
+            {/* Sort + active tags - desktop */}
             <div className="hidden lg:flex flex-col gap-3">
               <SortControls
                 value={sort}
@@ -658,7 +658,7 @@ const HelpersDirectoryPage: React.FC = () => {
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>
 
-            {/* Active tags — mobile */}
+            {/* Active tags - mobile */}
             <div className="lg:hidden">
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>
@@ -779,7 +779,7 @@ export default HelpersDirectoryPage;
  *
  * 3. GEO DISTANCE      Server computes haversine distance from zip code centroid.
  *    Returns: distanceMiles on each HelperCardData.
- *    Client just displays it — no geo logic needed in the browser.
+ *    Client just displays it - no geo logic needed in the browser.
  *
  * 4. SKILLS / LICENSE / INSURANCE options: GET /api/helpers/filter-options
  *    Returns dynamic lists so new skills / licenses appear without frontend deploys.

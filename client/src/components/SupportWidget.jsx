@@ -195,7 +195,7 @@ export default function SupportWidget() {
       if (!proactiveTriggered.current && !open) {
         proactiveTriggered.current = true;
         const msg = path.startsWith('/post-job')
-          ? "Need help posting your first job? I can walk you through it — just ask!"
+          ? "Need help posting your first job? I can walk you through it - just ask!"
           : "Looking for the right helper? I can help you understand how OxSteed works!";
         setMessages(prev => [...prev, { role: 'assistant', content: msg, ts: new Date().toISOString() }]);
         setOpen(true);
@@ -306,7 +306,7 @@ export default function SupportWidget() {
     });
   };
 
-  // 2. Thumbs feedback — toggle off if same value clicked again
+  // 2. Thumbs feedback - toggle off if same value clicked again
   const handleFeedback = async (idx, value) => {
     const next = messages[idx]?.feedback === value ? null : value;
     setMessages(prev => prev.map((m, i) => i === idx ? { ...m, feedback: next } : m));
@@ -464,7 +464,7 @@ export default function SupportWidget() {
               </div>
             </div>
 
-            {/* Body — hidden when minimized */}
+            {/* Body - hidden when minimized */}
             {!minimized && (
               <>
                 {/* Messages */}

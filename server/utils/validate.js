@@ -1,5 +1,5 @@
 // server/utils/validate.js
-// Lightweight schema validation — no extra deps needed.
+// Lightweight schema validation - no extra deps needed.
 // Usage:
 //   const { validate, rules } = require('../utils/validate');
 //   const errs = validate(req.body, { email: [rules.required, rules.email], password: [rules.required, rules.minLen(8)] });

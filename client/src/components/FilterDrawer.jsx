@@ -69,7 +69,7 @@ export default function FilterDrawer({
                 className="fd-input fd-input-min"
                 min="0"
               />
-              <span className="fd-separator">—</span>
+              <span className="fd-separator">-</span>
               <input
                 type="number"
                 placeholder={t('marketplace.maxPrice')}

@@ -1,7 +1,7 @@
 /**
  * OxSteed Fee Calculator
  * Single source of truth for all platform fees.
- * Import this anywhere fees are calculated — never hardcode fees elsewhere.
+ * Import this anywhere fees are calculated - never hardcode fees elsewhere.
  *
  * Payment model: Stripe Connect direct charges on helper's connected account.
  * Helper is merchant of record. OxSteed collects revenue via application_fee.
@@ -11,28 +11,28 @@
 // ─── Fee Constants ────────────────────────────────────────────
 const FEES = {
 
-  // Tier 1 — Free directory. No platform fees ever.
+  // Tier 1 - Free directory. No platform fees ever.
   TIER_1: {
     platform_pct: 0,
     platform_min: 0,
-    description:  'No platform fee — off-platform transaction',
+    description:  'No platform fee - off-platform transaction',
   },
 
-  // Tier 2 — Subscription only. If parties voluntarily use
+  // Tier 2 - Subscription only. If parties voluntarily use
   // platform payment, Tier 3 rates apply automatically.
   TIER_2_SUBSCRIPTION: {
     monthly_cents: 1499,   // $14.99/month
     description:   'Pro helper subscription',
   },
 
-  // Tier 3 — OxSteed Protection (optional paid protection, NOT legal escrow)
+  // Tier 3 - OxSteed Protection (optional paid protection, NOT legal escrow)
   // Customer pays agreed job value via direct charge on helper's Stripe account.
   // OxSteed's entire cut is the application_fee: 7.1% or $5 minimum.
-  // That's it — one simple fee to run the platform.
+  // That's it - one simple fee to run the platform.
   TIER_3: {
-    platform_pct: 0.071,  // 7.1% — OxSteed's total platform fee
+    platform_pct: 0.071,  // 7.1% - OxSteed's total platform fee
     platform_min: 500,    // $5.00 minimum (cents)
-    description:  'OxSteed Protection — coordinated card payment with dispute mediation',
+    description:  'OxSteed Protection - coordinated card payment with dispute mediation',
   },
 };
 
@@ -82,7 +82,7 @@ exports.calculateTier3Fees = (jobValueCents) => {
   return {
     job_value_cents:         jobValueCents,
     platform_fee_cents:      platformFeeCents,
-    application_fee_cents:   platformFeeCents,  // same thing — platform fee IS the application fee
+    application_fee_cents:   platformFeeCents,  // same thing - platform fee IS the application fee
     customer_charged_cents:  jobValueCents,
     effective_take_rate_pct: parseFloat(effectiveTakeRatePct.toFixed(2)),
 
@@ -111,7 +111,7 @@ exports.getSubscriptionPrice = (planSlug) => {
 
 /**
  * Validate a fee breakdown returned from the database matches
- * what the calculator expects — used before capturing payment.
+ * what the calculator expects - used before capturing payment.
  */
 exports.validateFeeBreakdown = (storedBreakdown, jobValueCents) => {
   const expected = exports.calculateTier3Fees(jobValueCents);

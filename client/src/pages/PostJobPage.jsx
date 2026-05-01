@@ -12,29 +12,29 @@ import { useTranslation } from 'react-i18next';
 // ─── Category taxonomy ───────────────────────────────────────────────────────
 const CATEGORIES = [
   { group: 'Electrical', options: [
-    { id: 'electrical-full',      name: 'Electrical — Full Rewire',       suggested: ['license','insurance','skillLevel','backgroundCheck'], defaults: { licenseType:'oh-electrician', minCoverage:'1m', minLevel:'advanced' } },
-    { id: 'electrical-repair',    name: 'Electrical — Repair / Panel',    suggested: ['license','insurance','skillLevel'],                    defaults: { licenseType:'oh-electrician', minCoverage:'1m', minLevel:'advanced' } },
-    { id: 'electrical-install',   name: 'Electrical — Installation',      suggested: ['license','insurance'],                                defaults: { licenseType:'oh-electrician', minCoverage:'1m' } },
-    { id: 'electrical-ev',        name: 'Electrical — EV Charger',        suggested: ['license','insurance'],                                defaults: { licenseType:'oh-electrician', minCoverage:'1m' } },
-    { id: 'electrical-solar',     name: 'Electrical — Solar Panels',      suggested: ['license','insurance','skillLevel'],                    defaults: { licenseType:'oh-electrician', minCoverage:'2m', minLevel:'advanced' } },
-    { id: 'electrical-generator', name: 'Electrical — Generator Install', suggested: ['license','insurance'],                                defaults: { licenseType:'oh-electrician', minCoverage:'1m' } },
+    { id: 'electrical-full',      name: 'Electrical - Full Rewire',       suggested: ['license','insurance','skillLevel','backgroundCheck'], defaults: { licenseType:'oh-electrician', minCoverage:'1m', minLevel:'advanced' } },
+    { id: 'electrical-repair',    name: 'Electrical - Repair / Panel',    suggested: ['license','insurance','skillLevel'],                    defaults: { licenseType:'oh-electrician', minCoverage:'1m', minLevel:'advanced' } },
+    { id: 'electrical-install',   name: 'Electrical - Installation',      suggested: ['license','insurance'],                                defaults: { licenseType:'oh-electrician', minCoverage:'1m' } },
+    { id: 'electrical-ev',        name: 'Electrical - EV Charger',        suggested: ['license','insurance'],                                defaults: { licenseType:'oh-electrician', minCoverage:'1m' } },
+    { id: 'electrical-solar',     name: 'Electrical - Solar Panels',      suggested: ['license','insurance','skillLevel'],                    defaults: { licenseType:'oh-electrician', minCoverage:'2m', minLevel:'advanced' } },
+    { id: 'electrical-generator', name: 'Electrical - Generator Install', suggested: ['license','insurance'],                                defaults: { licenseType:'oh-electrician', minCoverage:'1m' } },
   ]},
   { group: 'Plumbing', options: [
-    { id: 'plumbing-general',  name: 'Plumbing — General',          suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'1m' } },
-    { id: 'plumbing-drain',    name: 'Plumbing — Drain / Sewer',    suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'1m' } },
-    { id: 'plumbing-heater',   name: 'Plumbing — Water Heater',     suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'1m' } },
-    { id: 'plumbing-fixture',  name: 'Plumbing — Fixture Install',  suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'500k' } },
-    { id: 'plumbing-remodel',  name: 'Plumbing — Bathroom Remodel', suggested: ['license','insurance','skillLevel'], defaults: { licenseType:'oh-plumber', minCoverage:'1m', minLevel:'advanced' } },
+    { id: 'plumbing-general',  name: 'Plumbing - General',          suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'1m' } },
+    { id: 'plumbing-drain',    name: 'Plumbing - Drain / Sewer',    suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'1m' } },
+    { id: 'plumbing-heater',   name: 'Plumbing - Water Heater',     suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'1m' } },
+    { id: 'plumbing-fixture',  name: 'Plumbing - Fixture Install',  suggested: ['license','insurance'], defaults: { licenseType:'oh-plumber', minCoverage:'500k' } },
+    { id: 'plumbing-remodel',  name: 'Plumbing - Bathroom Remodel', suggested: ['license','insurance','skillLevel'], defaults: { licenseType:'oh-plumber', minCoverage:'1m', minLevel:'advanced' } },
   ]},
   { group: 'HVAC', options: [
-    { id: 'hvac-install',    name: 'HVAC — Full System Install', suggested: ['license','insurance','ownTools'], defaults: { licenseType:'oh-hvac', minCoverage:'1m' } },
-    { id: 'hvac-repair',     name: 'HVAC — Repair / Service',    suggested: ['license','insurance'],           defaults: { licenseType:'oh-hvac', minCoverage:'1m' } },
-    { id: 'hvac-duct',       name: 'HVAC — Duct Work',           suggested: ['license','insurance'],           defaults: { licenseType:'oh-hvac', minCoverage:'500k' } },
-    { id: 'hvac-minisplit',  name: 'HVAC — Mini-Split Install',  suggested: ['license','insurance'],           defaults: { licenseType:'oh-hvac', minCoverage:'1m' } },
+    { id: 'hvac-install',    name: 'HVAC - Full System Install', suggested: ['license','insurance','ownTools'], defaults: { licenseType:'oh-hvac', minCoverage:'1m' } },
+    { id: 'hvac-repair',     name: 'HVAC - Repair / Service',    suggested: ['license','insurance'],           defaults: { licenseType:'oh-hvac', minCoverage:'1m' } },
+    { id: 'hvac-duct',       name: 'HVAC - Duct Work',           suggested: ['license','insurance'],           defaults: { licenseType:'oh-hvac', minCoverage:'500k' } },
+    { id: 'hvac-minisplit',  name: 'HVAC - Mini-Split Install',  suggested: ['license','insurance'],           defaults: { licenseType:'oh-hvac', minCoverage:'1m' } },
   ]},
   { group: 'Construction', options: [
     { id: 'roofing',        name: 'Roofing',                  suggested: ['insurance','skillLevel'],       defaults: { minCoverage:'1m', minLevel:'intermediate' } },
-    { id: 'roofing-repair', name: 'Roofing — Repair',         suggested: ['insurance'],                    defaults: { minCoverage:'500k' } },
+    { id: 'roofing-repair', name: 'Roofing - Repair',         suggested: ['insurance'],                    defaults: { minCoverage:'500k' } },
     { id: 'drywall',        name: 'Drywall',                  suggested: ['skillLevel'],                   defaults: { minLevel:'beginner' } },
     { id: 'framing',        name: 'Framing',                  suggested: ['skillLevel','ownTools'],        defaults: { minLevel:'intermediate' } },
     { id: 'concrete',       name: 'Concrete Work',            suggested: ['skillLevel','ownTools'],        defaults: { minLevel:'intermediate' } },
@@ -46,15 +46,15 @@ const CATEGORIES = [
     { id: 'windows-doors',  name: 'Windows & Doors',          suggested: ['skillLevel'],                   defaults: { minLevel:'intermediate' } },
   ]},
   { group: 'Interior Finishes', options: [
-    { id: 'painting-interior', name: 'Painting — Interior',    suggested: [],                       defaults: {} },
-    { id: 'painting-exterior', name: 'Painting — Exterior',    suggested: ['insurance'],            defaults: { minCoverage:'300k' } },
-    { id: 'flooring-hardwood', name: 'Flooring — Hardwood',    suggested: ['skillLevel','ownTools'],defaults: { minLevel:'intermediate' } },
-    { id: 'flooring-tile',     name: 'Flooring — Tile',        suggested: ['skillLevel','ownTools'],defaults: { minLevel:'intermediate' } },
-    { id: 'flooring-carpet',   name: 'Flooring — Carpet',      suggested: ['skillLevel'],           defaults: { minLevel:'beginner' } },
-    { id: 'carpentry-trim',    name: 'Carpentry — Trim',        suggested: ['skillLevel','ownTools'],defaults: { minLevel:'intermediate' } },
-    { id: 'carpentry-cabinets',name: 'Carpentry — Cabinets',    suggested: ['skillLevel','ownTools'],defaults: { minLevel:'advanced' } },
-    { id: 'carpentry-custom',  name: 'Carpentry — Custom',      suggested: ['skillLevel','ownTools'],defaults: { minLevel:'advanced' } },
-    { id: 'tile-backsplash',   name: 'Tile — Backsplash',       suggested: ['skillLevel'],           defaults: { minLevel:'intermediate' } },
+    { id: 'painting-interior', name: 'Painting - Interior',    suggested: [],                       defaults: {} },
+    { id: 'painting-exterior', name: 'Painting - Exterior',    suggested: ['insurance'],            defaults: { minCoverage:'300k' } },
+    { id: 'flooring-hardwood', name: 'Flooring - Hardwood',    suggested: ['skillLevel','ownTools'],defaults: { minLevel:'intermediate' } },
+    { id: 'flooring-tile',     name: 'Flooring - Tile',        suggested: ['skillLevel','ownTools'],defaults: { minLevel:'intermediate' } },
+    { id: 'flooring-carpet',   name: 'Flooring - Carpet',      suggested: ['skillLevel'],           defaults: { minLevel:'beginner' } },
+    { id: 'carpentry-trim',    name: 'Carpentry - Trim',        suggested: ['skillLevel','ownTools'],defaults: { minLevel:'intermediate' } },
+    { id: 'carpentry-cabinets',name: 'Carpentry - Cabinets',    suggested: ['skillLevel','ownTools'],defaults: { minLevel:'advanced' } },
+    { id: 'carpentry-custom',  name: 'Carpentry - Custom',      suggested: ['skillLevel','ownTools'],defaults: { minLevel:'advanced' } },
+    { id: 'tile-backsplash',   name: 'Tile - Backsplash',       suggested: ['skillLevel'],           defaults: { minLevel:'intermediate' } },
   ]},
   { group: 'Home Services', options: [
     { id: 'home-cleaning',    name: 'Home Cleaning',         suggested: ['backgroundCheck'], defaults: {} },
@@ -74,8 +74,8 @@ const CATEGORIES = [
     { id: 'pool-service',      name: 'Pool Service / Repair',    suggested: ['license','insurance'], defaults: { licenseType:'other', minCoverage:'500k' } },
   ]},
   { group: 'Moving & Hauling', options: [
-    { id: 'moving-local',  name: 'Moving — Local',          suggested: ['crewSize'],                    defaults: { minCrew:2 } },
-    { id: 'moving-long',   name: 'Moving — Long Distance',  suggested: ['license','insurance','crewSize'], defaults: { licenseType:'other', minCoverage:'500k', minCrew:2 } },
+    { id: 'moving-local',  name: 'Moving - Local',          suggested: ['crewSize'],                    defaults: { minCrew:2 } },
+    { id: 'moving-long',   name: 'Moving - Long Distance',  suggested: ['license','insurance','crewSize'], defaults: { licenseType:'other', minCoverage:'500k', minCrew:2 } },
     { id: 'junk-removal',  name: 'Junk Removal / Hauling',  suggested: [],                              defaults: {} },
     { id: 'furniture',     name: 'Furniture Assembly',       suggested: [],                              defaults: {} },
   ]},
@@ -333,7 +333,7 @@ function CategorySelect({ value, onChange, error, t }) {
 
 // ─── Requirement metadata ─────────────────────────────────────────────────────
 // Keys used: t('postJob.license'), t('postJob.licenseDesc'), etc.
-// Labels are now i18n'd — see PostJobPage component render logic
+// Labels are now i18n'd - see PostJobPage component render logic
 const REQ_META = {
   license:         { key: 'license' },
   insurance:       { key: 'insurance' },
@@ -916,7 +916,7 @@ export default function PostJobPage() {
     try {
       const fd = new FormData();
       fd.append('title',         form.title.trim());
-      // category_id is a DB integer FK — frontend uses string slugs, so only send category_name
+      // category_id is a DB integer FK - frontend uses string slugs, so only send category_name
       fd.append('category_name', form.categoryName || form.categoryId);
       fd.append('description',   form.description.trim());
       fd.append('location_city', form.locationCity || form.locationInput.split(',')[0]?.trim() || '');
@@ -1016,7 +1016,7 @@ export default function PostJobPage() {
           {directHelperId && (
             <div style={{ display:'flex', alignItems:'center', gap:'10px', marginTop:'12px', padding:'12px 16px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.25)', borderRadius:'12px', fontSize:'13px', color:'#fb923c' }}>
               <span>⚡</span>
-              <span>Direct request to <strong style={{ color:'#fff' }}>{directHelperName || 'this helper'}</strong> — they'll be notified when your job is posted.</span>
+              <span>Direct request to <strong style={{ color:'#fff' }}>{directHelperName || 'this helper'}</strong> - they'll be notified when your job is posted.</span>
               <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>View profile</a>
             </div>
           )}
@@ -1045,12 +1045,12 @@ export default function PostJobPage() {
           {/* ── Steps column ──────────────────────────────────────────────── */}
           <div>
 
-            {/* ═══ STEP 1 — Job Details ═════════════════════════════════ */}
+            {/* ═══ STEP 1 - Job Details ═════════════════════════════════ */}
             {form.step === 1 && (
               <div className="pjw-card">
                 <div className="pjw-section-label">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  Step 1 of 4 — Job Details
+                  Step 1 of 4 - Job Details
                 </div>
 
                 {/* Title */}
@@ -1165,12 +1165,12 @@ export default function PostJobPage() {
                     </span>
                   </div>
 
-                  {/* Hidden file inputs — upload */}
+                  {/* Hidden file inputs - upload */}
                   <input ref={photoInputRef}  type="file" accept="image/*"       multiple style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
                   <input ref={videoInputRef}  type="file" accept="video/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
                   <input ref={audioInputRef}  type="file" accept="audio/*"                style={{ display:'none' }} onChange={e => handleMediaFiles(e.target.files)} />
 
-                  {/* Live capture buttons — use real getUserMedia */}
+                  {/* Live capture buttons - use real getUserMedia */}
                   {form.mediaTab === 'photos' && (
                     <button type="button" className="pjw-camera-btn" onClick={() => setLiveCapture('photo')}>
                       📷 Take a Live Photo
@@ -1204,7 +1204,7 @@ export default function PostJobPage() {
               </div>
             )}
 
-            {/* ═══ STEP 2 — Requirements ════════════════════════════════ */}
+            {/* ═══ STEP 2 - Requirements ════════════════════════════════ */}
             {form.step === 2 && (
               <div className="pjw-card">
                 <div className="pjw-section-label">
@@ -1216,7 +1216,7 @@ export default function PostJobPage() {
                 {/* Info callout */}
                 <div className="pjw-callout" role="note">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <p><strong>License &amp; insurance</strong> — when a helper provides credentials, OxSteed will attempt to verify them. All other requirements are <strong>self-confirmed</strong> by the helper before bidding.</p>
+                  <p><strong>License &amp; insurance</strong> - when a helper provides credentials, OxSteed will attempt to verify them. All other requirements are <strong>self-confirmed</strong> by the helper before bidding.</p>
                 </div>
 
                 {/* Category suggestion callout */}
@@ -1285,9 +1285,9 @@ export default function PostJobPage() {
                     <div className={`pjw-req-detail${form.requirements.skillLevel.enabled?' is-open':''}`} aria-hidden={!form.requirements.skillLevel.enabled}>
                       <label>{t('postJob.minimumSkillLevel')}</label>
                       <select className="pjw-select" value={form.requirements.skillLevel.minLevel} onClick={e=>e.stopPropagation()} onChange={e=>setReq('skillLevel',{minLevel:e.target.value})}>
-                        <option value="beginner">Beginner — basic tasks</option>
-                        <option value="intermediate">Intermediate — 2+ years</option>
-                        <option value="advanced">Advanced — 5+ years</option>
+                        <option value="beginner">Beginner - basic tasks</option>
+                        <option value="intermediate">Intermediate - 2+ years</option>
+                        <option value="advanced">Advanced - 5+ years</option>
                         <option value="expert">Expert / Master level</option>
                       </select>
                     </div>
@@ -1399,12 +1399,12 @@ export default function PostJobPage() {
               </div>
             )}
 
-            {/* ═══ STEP 3 — Budget & Timeline ══════════════════════════ */}
+            {/* ═══ STEP 3 - Budget & Timeline ══════════════════════════ */}
             {form.step === 3 && (
               <div className="pjw-card">
                 <div className="pjw-section-label">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                  Step 3 of 4 — Budget &amp; Timeline
+                  Step 3 of 4 - Budget &amp; Timeline
                 </div>
 
                 {/* Budget type tabs */}
@@ -1542,12 +1542,12 @@ export default function PostJobPage() {
               </div>
             )}
 
-            {/* ═══ STEP 4 — Review & Post ══════════════════════════════ */}
+            {/* ═══ STEP 4 - Review & Post ══════════════════════════════ */}
             {form.step === 4 && (
               <div className="pjw-card">
                 <div className="pjw-section-label">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  Step 4 of 4 — Review &amp; Post
+                  Step 4 of 4 - Review &amp; Post
                 </div>
                 <p className="pjw-section-desc">Check everything looks right before going live.</p>
 

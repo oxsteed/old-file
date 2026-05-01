@@ -39,13 +39,13 @@ exports.releaseEscrow = async (jobId) => {
 
     const { final_price, payment_intent_id, stripe_account_id, plan_slug } = rows[0];
 
-    // Use live fee rate from feeService — not hardcoded
+    // Use live fee rate from feeService - not hardcoded
     const platformFeeDecimal = calculatePlatformFee(1, false, plan_slug || 'starter');
     const platformFee = Math.round(final_price * platformFeeDecimal * 100);
     const transferAmount = Math.round(final_price * 100) - platformFee;
 
     if (transferAmount <= 0) {
-      throw new Error(`Transfer amount is ${transferAmount} cents — cannot transfer`);
+      throw new Error(`Transfer amount is ${transferAmount} cents - cannot transfer`);
     }
 
     const transfer = await stripe.transfers.create({

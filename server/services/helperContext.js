@@ -5,8 +5,8 @@
  * Called by chatController on every profile-message when in AI mode.
  *
  * Cache keys:
- *   helper-context:{helperId}    — JSON { systemPrompt }
- *   business-context:{businessId} — JSON { systemPrompt }
+ *   helper-context:{helperId}    - JSON { systemPrompt }
+ *   business-context:{businessId} - JSON { systemPrompt }
  *
  * TTL: 5 minutes (CONTEXT_TTL). Busted immediately when the helper updates
  * their profile via PUT /api/helper-profile/core (call invalidateHelperContext).
@@ -28,7 +28,7 @@ function buildHelperSystemPrompt(helper, skills) {
         .join(', ')
     : 'Not listed yet';
 
-  return `You are an AI assistant representing ${helper.first_name} ${helper.last_name}, a helper on the OxSteed local services marketplace. Answer questions as if you are their assistant — knowledgeable, helpful, and professional.
+  return `You are an AI assistant representing ${helper.first_name} ${helper.last_name}, a helper on the OxSteed local services marketplace. Answer questions as if you are their assistant - knowledgeable, helpful, and professional.
 
 ## About This Helper
 - Name: ${helper.first_name} ${helper.last_name}
@@ -57,7 +57,7 @@ function buildBusinessSystemPrompt(business, skills) {
         .join(', ')
     : 'Not listed yet';
 
-  return `You are an AI assistant representing ${business.business_name}, a business on the OxSteed local services marketplace. Answer questions as if you are the business's virtual assistant — knowledgeable, helpful, and professional.
+  return `You are an AI assistant representing ${business.business_name}, a business on the OxSteed local services marketplace. Answer questions as if you are the business's virtual assistant - knowledgeable, helpful, and professional.
 
 ## About This Business
 - Business name: ${business.business_name}

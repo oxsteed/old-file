@@ -2,7 +2,7 @@
 // Server-side mirror of `client/src/lib/countries.js`.
 //
 // This is the *single source of truth* for the backend's view of the
-// international metadata. Keep the two files in sync — same country codes,
+// international metadata. Keep the two files in sync - same country codes,
 // same region lists, same postal regexes, same default currencies.
 //
 // Used by:
@@ -139,7 +139,7 @@ function isValidCountry(code) {
 function isValidRegion(country, region) {
   if (!country || !region) return false;
   const meta = COUNTRIES_WITH_REGIONS[String(country).toUpperCase()];
-  if (!meta) return true; // free-text region — anything non-empty is acceptable
+  if (!meta) return true; // free-text region - anything non-empty is acceptable
   return meta.regions.includes(String(region).trim());
 }
 

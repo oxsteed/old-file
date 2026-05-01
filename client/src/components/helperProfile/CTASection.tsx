@@ -96,7 +96,7 @@ const CTASection: React.FC<CTASectionProps> = ({
         </button>
       </div>
 
-      {/* Trust signals — expanded only */}
+      {/* Trust signals - expanded only */}
       {isExpanded && (
         <>
           <TrustSignals helper={helper} />

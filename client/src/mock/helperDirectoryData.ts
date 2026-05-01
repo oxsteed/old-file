@@ -254,7 +254,7 @@ export const mockHelpers: HelperCardData[] = [
     state: 'TX',
     serviceRadius: 30,
     availableToday: true,
-    shortBio: 'Licensed landscaper and pest control pro. Eco-safe treatments, beautiful lawns, and a pest-free home — all in one call.',
+    shortBio: 'Licensed landscaper and pest control pro. Eco-safe treatments, beautiful lawns, and a pest-free home - all in one call.',
   },
 
   // ── 9. Tom Williams ───────────────────────────────────────────────────────
@@ -382,6 +382,6 @@ export const mockHelpers: HelperCardData[] = [
     state: 'TX',
     serviceRadius: 20,
     availableToday: true,
-    shortBio: 'Mobile auto care that comes to you. Full detailing, oil changes, and basic repairs — wherever your car is parked.',
+    shortBio: 'Mobile auto care that comes to you. Full detailing, oil changes, and basic repairs - wherever your car is parked.',
   },
 ];

@@ -198,7 +198,7 @@ async function startRegistration(req, res) {
   }
 }
 
-// ── 2. Verify OTP — creates the helper user and returns auth tokens ──
+// ── 2. Verify OTP - creates the helper user and returns auth tokens ──
 // POST /api/helper-registration/verify-otp
 async function verifyOTP(req, res) {
   const { token, otp } = req.body;
@@ -310,7 +310,7 @@ async function verifyOTP(req, res) {
 
     await client.query('COMMIT');
 
-    // Fetch the full user row (outside txn — data is committed)
+    // Fetch the full user row (outside txn - data is committed)
     const { rows: fullRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
               onboarding_status, onboarding_completed, contact_completed, profile_completed,
@@ -382,7 +382,7 @@ async function resendOTP(req, res) {
   }
 }
 
-// ── 4. DEPRECATED — completeRegistration ─────────────────
+// ── 4. DEPRECATED - completeRegistration ─────────────────
 async function completeRegistration(req, res) {
   const { email, token } = req.body;
   if (!email && !token) return res.status(400).json({ error: 'Email or token required' });
@@ -449,7 +449,7 @@ async function submitOnboardingProfile(req, res) {
     if (!phone || !city || !state || !zip_code)
       return res.status(400).json({ error: 'Required profile fields missing' });
 
-    // Update contact fields on users table (no bio/skills — those live in helper_profiles)
+    // Update contact fields on users table (no bio/skills - those live in helper_profiles)
     await pool.query(`
       UPDATE users SET
         phone             = $1,
@@ -592,7 +592,7 @@ async function submitProfile(req, res) {
     `, [userId]);
 
     // Upsert bio and service info into helper_profiles
-    // Note: profile_headline column does not exist in this DB — omitted
+    // Note: profile_headline column does not exist in this DB - omitted
     await pool.query(`
       INSERT INTO helper_profiles (user_id, bio_long, service_radius_miles, rate_preference)
       VALUES ($1, $2, $3, $4)
@@ -657,7 +657,7 @@ async function uploadProfilePhoto(req, res) {
     if (s3Key) {
       photoUrl = getPublicUrl(s3Key);
     } else {
-      // S3 not configured — store compact base64 for dev/staging only
+      // S3 not configured - store compact base64 for dev/staging only
       photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
 
@@ -765,7 +765,7 @@ async function saveW9(req, res) {
       return res.status(400).json({ error: 'TIN must be at least 9 digits' });
     }
 
-    // Note: tin_verified column does not exist in this DB — omitted from INSERT
+    // Note: tin_verified column does not exist in this DB - omitted from INSERT
     await pool.query(
       `INSERT INTO w9_records
        (user_id, legal_name, business_name, tax_classification, ssn_last4, tin_encrypted,

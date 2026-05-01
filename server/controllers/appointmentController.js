@@ -3,7 +3,7 @@
 // Calendar appointment lifecycle: create / list / fetch / confirm / cancel.
 //
 // Notes for future maintainers:
-//   * users.id and jobs.id are UUID — never parseInt them.
+//   * users.id and jobs.id are UUID - never parseInt them.
 //   * Conflict-checks must run inside the same transaction as the INSERT
 //     and lock the helper's existing rows; otherwise two simultaneous
 //     requests can both pass the check then both insert.

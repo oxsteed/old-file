@@ -10,7 +10,7 @@ export const Card = ({ children, className = '' }) => (
   <div className={`bg-gray-900/60 border border-gray-700/40 rounded-2xl p-5 ${className}`}>{children}</div>
 );
 
-// icon and right are optional — omitting them renders a plain title header.
+// icon and right are optional - omitting them renders a plain title header.
 export const CardHeader = ({ icon: Ic, title, right }) => (
   <div className="flex items-center justify-between mb-4">
     <div className="flex items-center gap-2.5">

@@ -1,13 +1,13 @@
-# OxSteed — AI Contributor Guide
+# OxSteed - AI Contributor Guide
 
 **Last updated:** 2026-05-01
 
 ## Instructions for Every Session
 
-1. **Read this file first** — It is the authoritative source of truth for what exists and what needs to be done.
-2. **After completing meaningful work**, update this file — revise "Current Status", "Remaining Work", update file paths.
+1. **Read this file first** - It is the authoritative source of truth for what exists and what needs to be done.
+2. **After completing meaningful work**, update this file - revise "Current Status", "Remaining Work", update file paths.
 3. **Commit CLAUDE.md changes** in the same commit as the work it documents.
-4. **Keep it accurate and terse** — do not pad with summaries of work you didn't personally verify.
+4. **Keep it accurate and terse** - do not pad with summaries of work you didn't personally verify.
 
 ---
 
@@ -49,9 +49,10 @@
 - **Support agent self-service portal:** Plan `docs/superpowers/plans/2026-05-01-support-agent-portal-dashboard.md`. API `GET /api/support/agent/me` and `PATCH /api/support/agent/me/availability` (`server/controllers/supportAgentPortalController.js`, registered first in `server/routes/support.js`). **Degraded mode:** if migration 149 (`support_employers`) is not applied, these endpoints return **200** with `data: []` (and `degraded: true`) instead of 500 so global layout (Navbar) does not crash. Main app route `/support/agent` → `client/src/pages/SupportAgentPortalPage.jsx` (PageShell, employments from `support_employers` model, global go online/offline for active rows). Navbar shows **Support workspace** when `GET /api/support/agent/me` returns employments. **Footer:** same pill style as Vortex, link next to Vortex when signed in (`client/src/components/Footer.jsx`). i18n: `nav.supportWorkspace`, `supportAgentPortal.*` in en/es/fr/ht.
 
 **Latest work completed (2026-05-01):**
+- **Typography / copy:** Unicode em dash (U+2014) removed from user-facing app strings: replaced with spaced hyphen-minus (` - `) or hyphen for compounds across `client/src/locales/*.json`, `client/src/locales/terms/*.content.json`, client pages/components (incl. admin), server controllers/utils/emails, `client/public/offline.html`, `client/public/sw.js`, and related tooling comments where em dash appeared. Placeholders like `- Select -` kept readable spacing after cleanup.
 - **i18n parity (EN/ES/FR/HT):** Flattened translation keys in `client/src/locales/es.json`, `fr.json`, and `ht.json` now match `en.json` (scriptable check: flatten JSON objects and diff key paths). Fixes included `nav.calendar`; `consulting.intake.urgency` as nested keys (not a string colliding with `urgencyOptions`); consulting intake confirmation keys aligned with `ConsultingIntakePage.jsx` (`step1`–`step4`, `importantLabel`, `disclaimer`, `items`); HT `helperRegister.step4.errorSkills`; removal of duplicate `consulting.intake.formFields` keys in FR/HT that broke parity.
 - **Helper discovery / deactivated businesses:** `GET /api/helpers` mixed business cards queried `businesses` without `b.is_active`; admin/super-admin deactivation (`businesses.is_active = false` via `PUT /api/admin/businesses/:id/toggle`) still left those rows in the directory. Fixed: `listHelpers` business subquery now requires `b.is_active = TRUE` (`server/controllers/helpersController.js`).
-- **Super-admin set user password:** `POST /api/admin/users/:userId/password` (`server/controllers/superAdminController.js`, `server/routes/admin.js`) — `requireSuperAdmin`; hashes password, revokes tokens + invalidates DB sessions + disconnects sockets; logs `admin_user_action_log` + `admin_audit_log`. Admin user detail `client/src/admin/pages/super/UserDetail.jsx`; i18n `admin.setPassword*` (en/es/fr/ht).
+- **Super-admin set user password:** `POST /api/admin/users/:userId/password` (`server/controllers/superAdminController.js`, `server/routes/admin.js`) - `requireSuperAdmin`; hashes password, revokes tokens + invalidates DB sessions + disconnects sockets; logs `admin_user_action_log` + `admin_audit_log`. Admin user detail `client/src/admin/pages/super/UserDetail.jsx`; i18n `admin.setPassword*` (en/es/fr/ht).
 - **Business Hub “Could not load analytics”:** `client/src/pages/BusinessHubPage.jsx` treated `analytics === null` as failure; after `bizId` was set there was one render **before** `loadOverview` ran (`analyticsLoading` still false), so the Overview tab showed the error string and fired the toast every load. Fixed with `analyticsError` and showing loading while `bizId` is set but analytics not yet fetched. **Stale `oxs:bh:lastBusinessId`:** when owned+managed list is empty, `bizId` was never cleared so `/api/businesses/2/analytics` still ran → 404; now clear `bizId`/LS and reset finance state; tab `useEffect` waits for `loadingBiz` and requires `bizId` in `businesses`.
 - **Background jobs (42703 / missing column):** `server/jobs/affiliateCommissionBatch.js` no longer references non-existent `affiliate_links_log.program_id`; resolves `affiliate_programs` via order `cart_id` → `shopping_carts.helper_id` and `program_type` from product `source` / affiliate URL (`home_depot` vs `custom`). **`server/jobs/consultingNoShowFollowup.js`** and **`server/jobs/consultingPostSessionFollowup.js`**: consultant names from `users` via `consulting_sessions.consultant_id` → `consultants.id` → `consultants.user_id` (fixes `c.first_name` on `consultants`, which has no name columns).
 - **Support employers (Option A):** Migration `server/migrations/149_support_employers.sql` … **`support_employers.business_id` must be `INTEGER`** to match `businesses.id` (SERIAL); UUID caused FK failure on deploy. Migration prepends type fix for `support_agents` / `agent_applications` if `business_id` was UUID. **`server/migrations/150_support_business_id_integer_align.sql`** applies the same alignment if 149 never completed (149 was not recorded in `_migrations` on failed runs).
@@ -90,7 +91,7 @@
   - **Documentation:** WIDGET_INTEGRATION_GUIDE.md with setup, configuration, API endpoints, data models, customization, troubleshooting
   - **Size & Performance:** ~30KB (minified), no external dependencies (uses React hooks only), efficient polling strategy
   - **Status:** Production ready, can be embedded in any React app or exported as UMD for non-React sites
-- **Enterprise Support System Frontend — Phases 1-4** ✅ COMPLETE (15 pages built, 21 routes added)
+- **Enterprise Support System Frontend - Phases 1-4** ✅ COMPLETE (15 pages built, 21 routes added)
   - **Phase 1 (Agent Infrastructure):** 4 pages complete
     - SupportAgentDashboard.jsx: Real-time agent status, shift tracking, active conversations, performance metrics
     - SupportAgentOnboarding.jsx: 4-step guided onboarding flow (basic info → availability → skills → review)
@@ -192,7 +193,7 @@
 
 ## Production Readiness Status (Audit: 2026-04-29)
 
-**Overall Score: 49% — NEEDS WORK BEFORE PRODUCTION**
+**Overall Score: 49% - NEEDS WORK BEFORE PRODUCTION**
 
 ### ✓ STRENGTHS (What's Done Well)
 - **Security foundation:** bcrypt, JWT, SSL/TLS, rate limiting, CSRF, input validation, SQL injection prevention
@@ -332,7 +333,7 @@
 
 ## Project Overview
 
-**OxSteed** — a full-stack local trades marketplace.
+**OxSteed** - a full-stack local trades marketplace.
 
 - Customers post jobs, helpers bid, payments are handled with optional Stripe escrow.
 - Helpers have tiered memberships (Free / Pro) with trial periods.
@@ -418,7 +419,7 @@ STRIPE_WEBHOOK_SECRET   # Stripe webhook signature secret
 Dark mode toggled via `html.dark` class (managed by `ThemeContext`). CSS variables in `client/src/index.css`:
 
 - **App palette** (cool grays): `--app-bg`, `--nav-bg`, `--app-text`, `--card-bg`, `--border-color`, `--muted-text`
-- **Homepage palette** (warm earth tones): defined in `client/src/styles/HomePage.css` — intentionally distinct from app
+- **Homepage palette** (warm earth tones): defined in `client/src/styles/HomePage.css` - intentionally distinct from app
 - **Light mode overrides**: 50+ Tailwind overrides under `html:not(.dark)` ensure correct rendering
 
 `ThemeToggle.jsx` appears in `Navbar.jsx` and `HomePage.jsx`.
@@ -438,7 +439,7 @@ Dark mode toggled via `html.dark` class (managed by `ThemeContext`). CSS variabl
 ## Database Migrations
 
 - Files: `server/migrations/001_*.sql` … `132_*.sql`
-- Runner: `server/migrate.js` — applies unapplied migrations tracked in `_migrations` table
+- Runner: `server/migrate.js` - applies unapplied migrations tracked in `_migrations` table
 - Automatic: runs at startup before Express server starts
 - **To add:** create `server/migrations/NNN_description.sql`, applied on next startup
 
@@ -447,7 +448,7 @@ Dark mode toggled via `html.dark` class (managed by `ThemeContext`). CSS variabl
 ## Payment Architecture
 
 - **Tier 1/2 (standard):** Stripe Checkout or Payment Intent with platform fee (`application_fee_amount`)
-- **Tier 3 (escrow):** `capture_method: 'manual'` — funds authorized at checkout, captured when job completes
+- **Tier 3 (escrow):** `capture_method: 'manual'` - funds authorized at checkout, captured when job completes
 - **Webhook events** handled: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_failed`, `payment_intent.*`, `charge.refunded`
 - **Note:** Stripe Connect must be enabled on the Stripe dashboard for Tier 3 direct charges
 
@@ -466,7 +467,7 @@ Dark mode toggled via `html.dark` class (managed by `ThemeContext`). CSS variabl
 
 ## Logging
 
-`server/utils/logger.js` — structured logger, no dependencies.
+`server/utils/logger.js` - structured logger, no dependencies.
 
 - **Production:** NDJSON to stdout (info/debug) and stderr (warn/error). Compatible with Datadog, Logtail, Papertrail.
 - **Development:** colored pretty-print to console
@@ -479,7 +480,7 @@ All critical operations should use structured logging instead of `console.*`.
 
 ## Rate Limiting
 
-`server/middleware/rateLimiter.js` — Redis-backed with in-memory fallback.
+`server/middleware/rateLimiter.js` - Redis-backed with in-memory fallback.
 
 - `generalLimiter`: 100 req / 15 min / IP on `/api/*`
 - `authLimiter`: 15 req / 15 min / IP on `/api/auth`
@@ -508,7 +509,7 @@ All user-visible strings must use i18n keys; never hardcode English text.
 
 ## Test Suite
 
-`server/__tests__/` — 82 Jest tests covering auth, jobs, payments, bids, reviews, webhooks.
+`server/__tests__/` - 82 Jest tests covering auth, jobs, payments, bids, reviews, webhooks.
 
 **Status:** Tests pass locally but cannot run in current environment (missing jest setup).
 
@@ -520,12 +521,12 @@ npm test
 ```
 
 **Key files:**
-- `setup.js` — mocks (pg, stripe, redis, socket.io, JWT)
-- `auth.test.js` — register, login, refresh, logout
-- `job.test.js` — list, get, create, complete, cancel
-- `payment.test.js` — payment intents, captures, refunds
-- `bid.test.js` — bid lifecycle
-- `webhook.test.js` — Stripe event handling
+- `setup.js` - mocks (pg, stripe, redis, socket.io, JWT)
+- `auth.test.js` - register, login, refresh, logout
+- `job.test.js` - list, get, create, complete, cancel
+- `payment.test.js` - payment intents, captures, refunds
+- `bid.test.js` - bid lifecycle
+- `webhook.test.js` - Stripe event handling
 
 ---
 
@@ -607,42 +608,42 @@ Complete payment processing, affiliate tracking, and API product management syst
 ### Features Implemented
 
 **1. Stripe Checkout & Order Management**
-- `POST /api/carts/{cartId}/session` — Get cart summary with tax/totals
-- `POST /api/carts/{cartId}/payment-intent` — Create Stripe PaymentIntent, create marketplace_orders row
-- `POST /api/carts/{cartId}/confirm` — Confirm payment, mark order as paid
-- `GET/POST /api/orders` — Fetch orders with filtering (pending, paid, completed, etc.)
-- `GET /api/orders/{orderId}` — Full order details with items, transaction, shipping address
-- `POST /api/orders/{orderId}/cancel` — Cancel pending/paid orders
-- `GET /api/orders/stats` — Total orders, completed count, pending count, total spent
+- `POST /api/carts/{cartId}/session` - Get cart summary with tax/totals
+- `POST /api/carts/{cartId}/payment-intent` - Create Stripe PaymentIntent, create marketplace_orders row
+- `POST /api/carts/{cartId}/confirm` - Confirm payment, mark order as paid
+- `GET/POST /api/orders` - Fetch orders with filtering (pending, paid, completed, etc.)
+- `GET /api/orders/{orderId}` - Full order details with items, transaction, shipping address
+- `POST /api/orders/{orderId}/cancel` - Cancel pending/paid orders
+- `GET /api/orders/stats` - Total orders, completed count, pending count, total spent
 
 **Database Tables:**
-- `marketplace_orders` — Order metadata (19 cols: status, totals, shipping_address, created_at)
-- `marketplace_order_items` — Line items per order with product ID, quantity, unit price
-- `marketplace_transactions` — Stripe PaymentIntent records with client_secret, status, metadata
+- `marketplace_orders` - Order metadata (19 cols: status, totals, shipping_address, created_at)
+- `marketplace_order_items` - Line items per order with product ID, quantity, unit price
+- `marketplace_transactions` - Stripe PaymentIntent records with client_secret, status, metadata
 
 **Frontend Pages:**
-- `CheckoutPage.jsx` — Stripe Payment Element form with Stripe.js integration, order summary
-- `OrderHistoryPage.jsx` — Orders list with filtering, stats dashboard (total/completed/pending/spent)
-- `OrderDetailsPage.jsx` — Full order details with items, shipping, payment info, cancel button
+- `CheckoutPage.jsx` - Stripe Payment Element form with Stripe.js integration, order summary
+- `OrderHistoryPage.jsx` - Orders list with filtering, stats dashboard (total/completed/pending/spent)
+- `OrderDetailsPage.jsx` - Full order details with items, shipping, payment info, cancel button
 
 ---
 
 **2. Affiliate Marketing & Commission Payouts**
-- `POST /api/affiliate` — Create affiliate program (helper_id, program_type, commission_rate)
-- `GET /api/affiliate` — List all affiliate programs for user
-- `GET /api/affiliate/{programId}/commissions` — Fetch pending/confirmed commissions
-- `POST /api/affiliate/calculate` — Calculate payout for date range, create affiliate_payouts row
-- `POST /api/affiliate/{payoutId}/process` — Process payout via Stripe Direct (ACH/bank transfer)
-- `GET /api/affiliate/schedule` — View payout history
-- `GET /api/affiliate/stats/all` — Lifetime commission stats
+- `POST /api/affiliate` - Create affiliate program (helper_id, program_type, commission_rate)
+- `GET /api/affiliate` - List all affiliate programs for user
+- `GET /api/affiliate/{programId}/commissions` - Fetch pending/confirmed commissions
+- `POST /api/affiliate/calculate` - Calculate payout for date range, create affiliate_payouts row
+- `POST /api/affiliate/{payoutId}/process` - Process payout via Stripe Direct (ACH/bank transfer)
+- `GET /api/affiliate/schedule` - View payout history
+- `GET /api/affiliate/stats/all` - Lifetime commission stats
 
 **Database Tables:**
-- `affiliate_programs` — Helper's affiliate programs (program_type, commission_rate, total_commission_cents, pending_cents)
-- `affiliate_commissions` — Per-order commission records (status: pending→confirmed→paid)
-- `affiliate_links_log` — (Enhanced) Product affiliate links with click/conversion tracking
-- `affiliate_clicks` — Click tracking, user_id, session_id, conversion linking
-- `affiliate_payouts` — Monthly payout batches (period_start, period_end, payout_reference, status)
-- `affiliate_metrics` — Daily cached metrics (clicks, conversions, conversion_rate, avg_order_value)
+- `affiliate_programs` - Helper's affiliate programs (program_type, commission_rate, total_commission_cents, pending_cents)
+- `affiliate_commissions` - Per-order commission records (status: pending→confirmed→paid)
+- `affiliate_links_log` - (Enhanced) Product affiliate links with click/conversion tracking
+- `affiliate_clicks` - Click tracking, user_id, session_id, conversion linking
+- `affiliate_payouts` - Monthly payout batches (period_start, period_end, payout_reference, status)
+- `affiliate_metrics` - Daily cached metrics (clicks, conversions, conversion_rate, avg_order_value)
 
 **Workflow:**
 1. Helper creates affiliate program (e.g., Home Depot) with commission_rate (e.g., 2.5%)
@@ -655,19 +656,19 @@ Complete payment processing, affiliate tracking, and API product management syst
 ---
 
 **3. API Products & Digital Licensing**
-- `POST /api/api-products` — Create API product (name, description, pricing_type, webhook_url)
-- `POST /api/api-products/{id}/publish` — Publish to marketplace
-- `POST /api/api-products/{id}/keys/generate` — Generate API key (apk_xxxxx), return once
-- `GET /api/api-products/{id}/keys` — List active keys (key_prefix, requests_this_month, expires_at)
-- `POST /api/api-products/{keyId}/revoke` — Revoke key immediately
-- `GET /api/api-products/{id}/usage` — Usage analytics (daily stats for last 30 days)
-- `POST /api/api-products/{id}/subscribe` — Create subscription from paid order
+- `POST /api/api-products` - Create API product (name, description, pricing_type, webhook_url)
+- `POST /api/api-products/{id}/publish` - Publish to marketplace
+- `POST /api/api-products/{id}/keys/generate` - Generate API key (apk_xxxxx), return once
+- `GET /api/api-products/{id}/keys` - List active keys (key_prefix, requests_this_month, expires_at)
+- `POST /api/api-products/{keyId}/revoke` - Revoke key immediately
+- `GET /api/api-products/{id}/usage` - Usage analytics (daily stats for last 30 days)
+- `POST /api/api-products/{id}/subscribe` - Create subscription from paid order
 
 **Database Tables:**
-- `api_products` — (9 cols) creator_id, pricing_type (one_time/recurring), monthly_price_cents, max_requests_per_month, webhook_url, status (draft/published)
-- `api_product_keys` — API keys with hashing (key_hash), rate limits, expiry, revocation
-- `api_product_subscriptions` — Active subscriptions (status: active/paused/cancelled, current_period_end)
-- `api_product_usage_logs` — Request logging (endpoint, method, response_time_ms, error_message)
+- `api_products` - (9 cols) creator_id, pricing_type (one_time/recurring), monthly_price_cents, max_requests_per_month, webhook_url, status (draft/published)
+- `api_product_keys` - API keys with hashing (key_hash), rate limits, expiry, revocation
+- `api_product_subscriptions` - Active subscriptions (status: active/paused/cancelled, current_period_end)
+- `api_product_usage_logs` - Request logging (endpoint, method, response_time_ms, error_message)
 
 **Key Security Features:**
 - Keys hashed with SHA-256 (only prefix returned in GET /keys)
@@ -678,11 +679,11 @@ Complete payment processing, affiliate tracking, and API product management syst
 ---
 
 **4. Admin Product Management**
-- `POST /api/admin/products` — Create marketplace product
-- `PUT /api/admin/products/{id}` — Update product (price, description, image_url, affiliate_url)
-- `DELETE /api/admin/products/{id}` — Delete (only if no active orders)
-- `POST /api/admin/products/bulk-create` — Bulk import from CSV/JSON (Home Depot sync)
-- `GET /api/admin/products/stats` — Product stats (total_products, avg_price, avg_rating, total_in_carts)
+- `POST /api/admin/products` - Create marketplace product
+- `PUT /api/admin/products/{id}` - Update product (price, description, image_url, affiliate_url)
+- `DELETE /api/admin/products/{id}` - Delete (only if no active orders)
+- `POST /api/admin/products/bulk-create` - Bulk import from CSV/JSON (Home Depot sync)
+- `GET /api/admin/products/stats` - Product stats (total_products, avg_price, avg_rating, total_in_carts)
 
 **Notes:**
 - All routes require `requireAuth` + `requireAdmin` middleware
@@ -700,7 +701,7 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 ```
 
 **Webhook Events Handled:**
-- `payment_intent.succeeded` — Dual-mode: job escrow OR marketplace order (checks metadata.orderId vs metadata.job_id)
+- `payment_intent.succeeded` - Dual-mode: job escrow OR marketplace order (checks metadata.orderId vs metadata.job_id)
 - Existing events (subscription, invoice, charge.refunded) still work unchanged
 
 **PaymentIntent Metadata:**
@@ -844,32 +845,32 @@ STRIPE_PUBLISHABLE_KEY     # Frontend key (VITE_STRIPE_PUBLISHABLE_KEY in .env)
 - [ ] Testing with real data (requires database setup)
 
 ### CRITICAL (Block Production Launch)
-1. **Monitoring & Alerting Setup** — Set up Datadog, Sentry, or Logtail; configure alerts; create runbooks
-2. **Database Backup & Recovery** — Implement backup automation; test restoration; document procedures
-3. **Incident Response Runbooks** — Document on-call procedures, escalation paths, common incidents
-4. **Load Testing** — Test at 100, 500, 1000 concurrent users; identify breaking points; scale infrastructure
-5. **Deployment Procedures** — Document pre/post deploy checks; implement rollback procedures
+1. **Monitoring & Alerting Setup** - Set up Datadog, Sentry, or Logtail; configure alerts; create runbooks
+2. **Database Backup & Recovery** - Implement backup automation; test restoration; document procedures
+3. **Incident Response Runbooks** - Document on-call procedures, escalation paths, common incidents
+4. **Load Testing** - Test at 100, 500, 1000 concurrent users; identify breaking points; scale infrastructure
+5. **Deployment Procedures** - Document pre/post deploy checks; implement rollback procedures
 
 ### HIGH (Launch Soon After)
-1. **Operations Documentation** — RUNBOOK.md, DEPLOYMENT.md, TROUBLESHOOTING.md, on-call guide
-2. **Security Policies** — Data protection, key rotation, incident response, compliance checklists
-3. **Test Coverage Measurement** — Run coverage analysis; aim for >80%; add missing unit tests
-4. **E2E Test Suite** — Build Cypress/Playwright tests for critical user flows
-5. **API Documentation** — Generate or manually document all endpoints (OpenAPI/Swagger)
+1. **Operations Documentation** - RUNBOOK.md, DEPLOYMENT.md, TROUBLESHOOTING.md, on-call guide
+2. **Security Policies** - Data protection, key rotation, incident response, compliance checklists
+3. **Test Coverage Measurement** - Run coverage analysis; aim for >80%; add missing unit tests
+4. **E2E Test Suite** - Build Cypress/Playwright tests for critical user flows
+5. **API Documentation** - Generate or manually document all endpoints (OpenAPI/Swagger)
 
 ### MEDIUM (Post-Launch, First 60 Days)
-1. **Advanced Monitoring** — APM setup (New Relic, Datadog); database monitoring; custom metrics
-2. **Race Condition Prevention** (continuation) — 22+ controllers remain; complete systematic audit
-3. **Per-Route Error Boundaries** — Wrap each page/component to prevent app-wide crashes
-4. **Performance Optimization** — Query optimization, caching strategy, CDN for static assets
-5. **Accessibility Audit** — Third-party WCAG audit; implement findings
+1. **Advanced Monitoring** - APM setup (New Relic, Datadog); database monitoring; custom metrics
+2. **Race Condition Prevention** (continuation) - 22+ controllers remain; complete systematic audit
+3. **Per-Route Error Boundaries** - Wrap each page/component to prevent app-wide crashes
+4. **Performance Optimization** - Query optimization, caching strategy, CDN for static assets
+5. **Accessibility Audit** - Third-party WCAG audit; implement findings
 
 ### LOW (Nice to Have)
-1. **Bundle Size Optimization** — Analyze Vite build; implement code splitting; tree-shake unused code
-2. **Data Retention Policies** — Define retention periods; implement automatic cleanup; archive old data
-3. **Advanced Deployment** — Blue-green, canary, or rolling deployment strategies
-4. **PWA / Service Worker** — Offline support, installability (planned but not started)
-5. **Logger Cleanup** — Migrate remaining ~150 `console.*` calls to structured logger
+1. **Bundle Size Optimization** - Analyze Vite build; implement code splitting; tree-shake unused code
+2. **Data Retention Policies** - Define retention periods; implement automatic cleanup; archive old data
+3. **Advanced Deployment** - Blue-green, canary, or rolling deployment strategies
+4. **PWA / Service Worker** - Offline support, installability (planned but not started)
+5. **Logger Cleanup** - Migrate remaining ~150 `console.*` calls to structured logger
 
 ---
 

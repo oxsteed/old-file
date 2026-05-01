@@ -84,7 +84,7 @@ export default function AuditLogFilter({ value, onChange, regions = [] }) {
             onChange={e => setField('action_type', e.target.value)}
           >
             {ACTION_TYPES.map(a => (
-              <option key={a} value={a}>{a || '— any —'}</option>
+              <option key={a} value={a}>{a || '- any -'}</option>
             ))}
           </select>
         </div>
@@ -95,7 +95,7 @@ export default function AuditLogFilter({ value, onChange, regions = [] }) {
             value={draft.region_id || ''}
             onChange={e => setField('region_id', e.target.value)}
           >
-            <option value="">— any —</option>
+            <option value="">- any -</option>
             {regions.map(r => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}

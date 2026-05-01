@@ -87,7 +87,7 @@ const queryClient = new QueryClient({
 });
 
 // Wraps each route element in its own error boundary so a crash in one page
-// doesn't blank the entire app — only that route shows an error.
+// doesn't blank the entire app - only that route shows an error.
 // Plain ErrorBoundary is fine here: these are already inside <Router>.
 function Guarded({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
@@ -102,11 +102,11 @@ export default function App() {
           {/*
             Root boundary: RouterAwareErrorBoundary must sit INSIDE <Router> so
             useNavigate() is available. The outer ThemeProvider/HelmetProvider
-            layer is stateless — catastrophic failures there are vanishingly rare
+            layer is stateless - catastrophic failures there are vanishingly rare
             and would prevent the Router from mounting anyway.
           */}
           <Router>
-            {/* Single shared cookie-consent state — Footer and CookieConsent
+            {/* Single shared cookie-consent state - Footer and CookieConsent
                 both consume this via useCookieConsentContext(). */}
             <CookieConsentProvider>
               <RouterAwareErrorBoundary>

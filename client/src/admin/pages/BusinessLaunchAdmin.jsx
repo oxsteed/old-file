@@ -278,13 +278,13 @@ export default function BusinessLaunchAdmin() {
                     <strong>{req.first_name} {req.last_name}</strong>
                   </td>
                   <td style={tdStyle}>{req.email}</td>
-                  <td style={tdStyle}>{req.phone || '—'}</td>
+                  <td style={tdStyle}>{req.phone || '-'}</td>
                   <td style={tdStyle}>
                     <span style={badgeStyle('#8B5CF6')}>
                       {req.package_selected}
                     </span>
                   </td>
-                  <td style={tdStyle}>{req.operating_state || '—'}</td>
+                  <td style={tdStyle}>{req.operating_state || '-'}</td>
                   <td style={tdStyle}>
                     <span style={badgeStyle(URGENT_COLORS[req.urgency] || '#6B7280')}>
                       {req.urgency}

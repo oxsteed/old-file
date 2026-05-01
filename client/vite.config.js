@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
 
   // Strip most console.* calls from the production bundle so internal paths
   // and API shapes aren't visible in browser DevTools.
-  // console.error is intentionally kept — ErrorBoundary relies on it to
+  // console.error is intentionally kept - ErrorBoundary relies on it to
   // surface uncaught render errors, and it carries no sensitive internals.
   // esbuild must be a TOP-LEVEL key; build.esbuild is not recognised by Vite.
   esbuild: mode === 'production'

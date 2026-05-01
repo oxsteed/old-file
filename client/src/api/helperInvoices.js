@@ -1,5 +1,5 @@
 // client/src/api/helperInvoices.js
-// Helper-scoped invoice API helpers — for helpers without a business
+// Helper-scoped invoice API helpers - for helpers without a business
 
 import api from './axios';
 

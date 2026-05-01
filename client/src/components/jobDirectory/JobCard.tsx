@@ -61,7 +61,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, highlightCategory }) => {
         isExactMatch ? 'border-brand-500/40 ring-1 ring-brand-500/20' : 'border-gray-800'
       }`}
     >
-      {/* Top strip — category + urgency */}
+      {/* Top strip - category + urgency */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-800 border border-gray-700 text-xs font-medium text-gray-300">
           <Briefcase className="w-3.5 h-3.5 text-brand-400" aria-hidden="true" />
@@ -103,7 +103,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, highlightCategory }) => {
         )}
       </div>
 
-      {/* Footer — budget + CTA */}
+      {/* Footer - budget + CTA */}
       <div className="mt-auto px-4 py-3 border-t border-gray-800 flex items-center justify-between gap-3 bg-gray-900/40">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">

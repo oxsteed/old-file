@@ -79,7 +79,7 @@ exports.getJobBids = async (req, res, next) => {
     const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
     const isClient = jobCheck.rows[0].client_id === req.user.id;
 
-    // Pagination — cap at 100 to prevent DoS on jobs with many bids
+    // Pagination - cap at 100 to prevent DoS on jobs with many bids
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit)  || 50));
     const offset = Math.max(0,              parseInt(req.query.offset) || 0);
 
@@ -169,7 +169,7 @@ exports.updateBid = async (req, res, next) => {
       );
 
       if (!rows.length) {
-        throw new Error('Bid state changed during update — status is no longer pending');
+        throw new Error('Bid state changed during update - status is no longer pending');
       }
 
       return rows[0];
@@ -228,7 +228,7 @@ exports.withdrawBid = async (req, res, next) => {
       );
 
       if (!rows.length) {
-        throw new Error('Bid state changed during withdrawal — status is no longer pending');
+        throw new Error('Bid state changed during withdrawal - status is no longer pending');
       }
 
       return rows[0];

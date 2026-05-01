@@ -34,7 +34,7 @@ exports.createPaymentIntent = async (req, res) => {
       return res.status(400).json({ error: 'Session and package ID required' });
     }
 
-    // Get session details — uses cs.user_id (the canonical column on consulting_sessions)
+    // Get session details - uses cs.user_id (the canonical column on consulting_sessions)
     const { rows: sessionRows } = await db.query(
       `SELECT cs.id, cs.user_id, cs.email, cs.first_name, cs.last_name,
               cs.service_tier, css.id as scheduled_id
@@ -169,7 +169,7 @@ exports.confirmPayment = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      // Already completed — return current state idempotently.
+      // Already completed - return current state idempotently.
       const { rows: current } = await db.query(
         `SELECT id, session_scheduled_id, amount_cents, service_tier, status, created_at, updated_at
          FROM consulting_payments WHERE id = $1`,
@@ -191,7 +191,7 @@ exports.confirmPayment = async (req, res) => {
   }
 };
 
-// Get payment status — restricted to payment owner or admin.
+// Get payment status - restricted to payment owner or admin.
 exports.getPaymentStatus = async (req, res) => {
   try {
     if (!req.user) {
@@ -219,7 +219,7 @@ exports.getPaymentStatus = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized for this payment' });
     }
 
-    // Strip user_id from response — internal field, not for client.
+    // Strip user_id from response - internal field, not for client.
     const { user_id: _omit, ...paymentResponse } = rows[0];
     res.json(paymentResponse);
   } catch (err) {
@@ -228,7 +228,7 @@ exports.getPaymentStatus = async (req, res) => {
   }
 };
 
-// Refund payment — admin only.
+// Refund payment - admin only.
 exports.refundPayment = async (req, res) => {
   try {
     if (!req.user) {
@@ -280,7 +280,7 @@ exports.refundPayment = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      // Another concurrent refund won — but Stripe call already succeeded.
+      // Another concurrent refund won - but Stripe call already succeeded.
       // Stripe itself enforces idempotency on the refund; surface as no-op success.
       return res.json({ id: paymentId, status: 'refunded', note: 'concurrent refund detected' });
     }

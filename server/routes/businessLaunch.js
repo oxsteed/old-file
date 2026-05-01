@@ -34,7 +34,7 @@ router.get(
   getUserBusinessLaunchRequests
 );
 
-// Authenticated route: Search requests by email — leaks PII (skill_description,
+// Authenticated route: Search requests by email - leaks PII (skill_description,
 // target_market, urgency, package_price), so requires login + strict rate limit.
 // The controller additionally enforces that non-admins can only search their own email.
 router.get(

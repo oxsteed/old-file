@@ -2,7 +2,7 @@
 // Socket helper + online-presence tracking.
 //
 // Presence uses Map<userId, Set<socketId>> so multiple tabs/devices are
-// handled correctly — user goes "offline" only when ALL their sockets
+// handled correctly - user goes "offline" only when ALL their sockets
 // disconnect.
 
 let io = null;

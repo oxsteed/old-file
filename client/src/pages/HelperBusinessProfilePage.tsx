@@ -45,7 +45,7 @@ import CTASection from '../components/helperProfile/CTASection';
 // Chat
 import ChatPanel from '../components/helperProfile/chat/ChatPanel';
 
-// Dynamic blocks (Issue #35) — fetched client-side after static shell renders
+// Dynamic blocks (Issue #35) - fetched client-side after static shell renders
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
 
 // Types & API
@@ -106,7 +106,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     loadProfile();
   }, [loadProfile]);
 
-  // Service selection — placeholder for routing to booking flow
+  // Service selection - placeholder for routing to booking flow
   const handleSelectService = useCallback((service: Service) => {
     /**
      * API INTEGRATION POINT:
@@ -247,7 +247,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8">
           {/* ── Left column: profile sections ──────────────── */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Bio callout — only render if bio exists */}
+            {/* Bio callout - only render if bio exists */}
             {helper.bio && (
               <section
                 aria-labelledby="bio-heading"
@@ -260,7 +260,7 @@ const HelperBusinessProfilePage: React.FC = () => {
               </section>
             )}
 
-            {/* CTA Section — moved from right sidebar */}
+            {/* CTA Section - moved from right sidebar */}
             <CTASection
               helper={helper}
               onBookNow={handleBookNow}

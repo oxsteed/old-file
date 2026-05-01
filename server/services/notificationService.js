@@ -1,7 +1,7 @@
 const db                = require('../db');
 const logger            = require('../utils/logger');
 const { broadcastToUser } = require('./socketService');
-const { sendEmail }     = require('../utils/email');  // Resend — single email system
+const { sendEmail }     = require('../utils/email');  // Resend - single email system
 const { Expo }          = require('expo-server-sdk');
 const escapeHtml        = require('../utils/escapeHtml');
 const webPushService    = require('./webPushService');
@@ -56,7 +56,7 @@ exports.sendNotification = async ({
       });
     }
 
-    // ── 3. Push notification (Expo — native mobile) ───────────
+    // ── 3. Push notification (Expo - native mobile) ───────────
     const pushKey     = `push_${type.replace(':', '_')}`;
     const pushEnabled = prefs[pushKey] !== false;
     if (token && pushEnabled && Expo.isExpoPushToken(token)) {
@@ -124,7 +124,7 @@ exports.sendNotification = async ({
     }
   } catch (err) {
     logger.error('Send notification failed', { userId, type, error: err.message });
-    // Never throw — notification failure should never block business logic
+    // Never throw - notification failure should never block business logic
   }
 };
 

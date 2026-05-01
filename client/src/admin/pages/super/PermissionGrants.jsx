@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Shield, Plus, X, Check, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
 
-function ts(d, fallback = '—') {
+function ts(d, fallback = '-') {
   if (!d) return fallback;
   return new Date(d).toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
@@ -11,7 +11,7 @@ function ts(d, fallback = '—') {
 }
 
 function dateOnly(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   return new Date(d).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   });

@@ -10,7 +10,7 @@ function kindLabel(kind, t) {
   if (kind === 'business') return t('supportAgentPortal.kindBusiness');
   if (kind === 'helper') return t('supportAgentPortal.kindHelper');
   if (kind === 'platform') return t('supportAgentPortal.kindPlatform');
-  return kind || '—';
+  return kind || '-';
 }
 
 export default function SupportAgentPortalPage() {

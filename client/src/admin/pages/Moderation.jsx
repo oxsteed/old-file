@@ -66,7 +66,7 @@ export default function Moderation() {
         ) : items.length === 0 ? (
           <div className="text-center py-16">
             <CheckCircle className="mx-auto mb-3 text-green-400" size={48} />
-            <p className="text-gray-400 font-medium">Queue is clear — no flagged or reported jobs.</p>
+            <p className="text-gray-400 font-medium">Queue is clear - no flagged or reported jobs.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-700">
@@ -101,7 +101,7 @@ export default function Moderation() {
                     <button
                       onClick={() => handleAction(item.id, 'unflag')}
                       disabled={!!acting}
-                      title="Dismiss — remove admin flag"
+                      title="Dismiss - remove admin flag"
                       className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
                     >
                       <CheckCircle size={14} /> Dismiss
@@ -117,7 +117,7 @@ export default function Moderation() {
                     <button
                       onClick={() => handleAction(item.id, 'cancel')}
                       disabled={!!acting}
-                      title="Cancel job — removes from marketplace"
+                      title="Cancel job - removes from marketplace"
                       className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 text-xs font-medium disabled:opacity-50 transition-colors"
                     >
                       <XCircle size={14} /> Remove

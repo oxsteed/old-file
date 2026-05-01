@@ -21,7 +21,7 @@ function statusBadge(status) {
 }
 
 function fmt(dollars) {
-  if (dollars == null) return '—';
+  if (dollars == null) return '-';
   return `$${Number(dollars).toFixed(2)}`;
 }
 
@@ -156,12 +156,12 @@ export default function PaymentsList() {
               ) : payments.map(p => (
                 <tr key={p.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
                   <td className={col}>
-                    <p className="text-white text-sm">{p.payer_name || '—'}</p>
-                    <p className="text-gray-500 text-xs">{p.payer_email || '—'}</p>
+                    <p className="text-white text-sm">{p.payer_name || '-'}</p>
+                    <p className="text-gray-500 text-xs">{p.payer_email || '-'}</p>
                   </td>
                   <td className={col}>
-                    <p className="text-white text-sm">{p.payee_name || '—'}</p>
-                    <p className="text-gray-500 text-xs">{p.payee_email || '—'}</p>
+                    <p className="text-white text-sm">{p.payee_name || '-'}</p>
+                    <p className="text-gray-500 text-xs">{p.payee_email || '-'}</p>
                   </td>
                   <td className={`${col} max-w-[160px]`}>
                     {p.job_id ? (
@@ -180,11 +180,11 @@ export default function PaymentsList() {
                   <td className={`${col} text-gray-400`}>{fmt(p.helper_payout)}</td>
                   <td className={col}>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusBadge(p.status)}`}>
-                      {p.status || '—'}
+                      {p.status || '-'}
                     </span>
                   </td>
                   <td className={`${col} text-gray-400`}>
-                    {p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}
+                    {p.created_at ? new Date(p.created_at).toLocaleDateString() : '-'}
                   </td>
                 </tr>
               ))}

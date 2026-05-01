@@ -4,18 +4,18 @@ const logger            = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 
 /**
- * Planned Needs Scheduler — runs daily at 6 AM Eastern.
+ * Planned Needs Scheduler - runs daily at 6 AM Eastern.
  *
- * Pass 1 — Mark "activating_soon"
+ * Pass 1 - Mark "activating_soon"
  *   Needs where activation day is tomorrow get a heads-up status.
  *
- * Pass 2 — Auto-publish
+ * Pass 2 - Auto-publish
  *   Needs where (due_date − lead_time_days) <= today get a job post.
  *   • No preferred helper → job published immediately to all.
  *   • Preferred helper set → job created as 'published' with held_for_helper_id.
  *     Helper can bid immediately; after 72h hold expires, all helpers can bid.
  *
- * Pass 3 — 72-hour preferred-helper expiry
+ * Pass 3 - 72-hour preferred-helper expiry
  *   Jobs whose hold_expires_at has passed: clear held_for_helper_id,
  *   notify customer.
  */
@@ -164,7 +164,7 @@ const startPlannedNeedsScheduler = () => {
 
       for (const row of expiredJobs) {
         try {
-          // Clear the hold — job stays published, now open to everyone
+          // Clear the hold - job stays published, now open to everyone
           await db.query(`
             UPDATE jobs
             SET held_for_helper_id = NULL,

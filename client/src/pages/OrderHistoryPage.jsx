@@ -167,7 +167,7 @@ function OrderHistoryPageContent() {
                           {new Date(order.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {order.item_count || '—'}
+                          {order.item_count || '-'}
                         </td>
                         <td className="px-6 py-4 font-semibold">
                           ${(order.total_cents / 100).toFixed(2)}

@@ -215,7 +215,7 @@ const SubSkillStrip = ({ tile, selectedSkills, onToggleSkill, onClearTile }) => 
           <span aria-hidden="true">{tile.icon}</span>
           {tile.label}
         </span>
-        <span className="text-gray-700 text-xs" aria-hidden="true">—</span>
+        <span className="text-gray-700 text-xs" aria-hidden="true">-</span>
         <p className="text-xs text-gray-500">{t('jobsDir.filterByJobType')}</p>
         <div className="flex flex-wrap gap-2">
           {tile.subSkills.map((sk) => {
@@ -336,7 +336,7 @@ export default function JobListPage() {
 
   // Build server-side params from current filters + sort + page.
   const buildServerParams = useCallback((f, s, p) => {
-    // Server `q` accepts a free-text needle — we fold sub-skills into it so the
+    // Server `q` accepts a free-text needle - we fold sub-skills into it so the
     // existing backend doesn't need a new column. Skill names match against
     // title/description/category_name (ILIKE).
     const qParts = [f.query, ...f.skills].filter(Boolean);
@@ -491,7 +491,7 @@ export default function JobListPage() {
       {/* Skill tile grid */}
       <SkillTileGrid selectedId={selectedTileId} onSelect={handleTileSelect} />
 
-      {/* Sub-skill chips — shown when a tile is selected */}
+      {/* Sub-skill chips - shown when a tile is selected */}
       {selectedTile && (
         <SubSkillStrip
           tile={selectedTile}
@@ -565,7 +565,7 @@ export default function JobListPage() {
           {/* Results column */}
           <div className="flex-1 min-w-0 space-y-5">
 
-            {/* Sort + active tags — desktop */}
+            {/* Sort + active tags - desktop */}
             <div className="hidden lg:flex flex-col gap-3">
               <SortControls
                 value={sort}
@@ -575,7 +575,7 @@ export default function JobListPage() {
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>
 
-            {/* Active tags — mobile */}
+            {/* Active tags - mobile */}
             <div className="lg:hidden">
               <ActiveFilterTags filters={filters} onChange={updateFilters} />
             </div>

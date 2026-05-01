@@ -170,7 +170,7 @@ export default function PasswordResetForm({ user, onSaved }) {
       <div className="rounded-md bg-yellow-950/50 border border-yellow-800 p-3 text-xs text-yellow-300">
         <strong>Heads up:</strong> The password is hashed before storage. The
         plaintext is never written to logs and will not be retrievable after this
-        action — share it with the user via a secure channel before leaving this page.
+        action - share it with the user via a secure channel before leaving this page.
       </div>
 
       <div className="flex items-center justify-end pt-2 border-t border-gray-800">

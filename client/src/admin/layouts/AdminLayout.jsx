@@ -92,7 +92,7 @@ export default function AdminLayout() {
     closeSidebar();
   };
 
-  // Plain function (not a component) — avoids remount on every render
+  // Plain function (not a component) - avoids remount on every render
   const renderSidebar = () => (
     <>
       {/* Logo */}
@@ -109,7 +109,7 @@ export default function AdminLayout() {
             </p>
           </div>
         </div>
-        {/* Close button — mobile only */}
+        {/* Close button - mobile only */}
         <button
           onClick={closeSidebar}
           className="lg:hidden text-gray-500 hover:text-white transition p-1"

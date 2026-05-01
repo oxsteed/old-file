@@ -582,7 +582,7 @@ export default function UserDetail() {
           { label: 'Jobs Completed',  value: user.completed_jobs ?? 0          },
           { label: 'Total Earnings',  value: user.earnings_total
               ? `$${parseFloat(user.earnings_total).toFixed(2)}`
-              : '—' },
+              : '-' },
           { label: 'Status',          value: user.background_check_status || 'pending' },
         ].map(({ label, value }) => (
           <div key={label}
@@ -722,7 +722,7 @@ export default function UserDetail() {
                         ? new Date(item.period_start).toLocaleDateString(
                             'en-US', { month: 'short', day: 'numeric' }
                           )
-                        : '—'
+                        : '-'
                       }
                     </p>
                   </div>
@@ -788,15 +788,15 @@ export default function UserDetail() {
             <h3 className="font-semibold text-white mb-4">Stripe Account</h3>
             <div className="space-y-3 text-sm">
               {[
-                { label: 'Account ID',       value: user.stripe_account_id || '—' },
+                { label: 'Account ID',       value: user.stripe_account_id || '-' },
                 { label: 'Onboarding',       value: user.onboarding_complete
                     ? '✓ Complete' : '✗ Incomplete' },
                 { label: 'Charges Enabled',  value: user.charges_enabled
                     ? '✓ Yes' : '✗ No' },
                 { label: 'Payouts Enabled',  value: user.payouts_enabled
                     ? '✓ Yes' : '✗ No' },
-                { label: 'Subscription ID',  value: user.stripe_subscription_id || '—' },
-                { label: 'Sub Status',       value: user.sub_status || user.subscription_status || '—' },
+                { label: 'Subscription ID',  value: user.stripe_subscription_id || '-' },
+                { label: 'Sub Status',       value: user.sub_status || user.subscription_status || '-' },
               ].map(({ label, value }) => (
                 <div key={label}
                      className="flex items-center justify-between

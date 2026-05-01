@@ -2,7 +2,7 @@
  * OxSteed Role Definitions
  * ─────────────────────────────────────────────────────────────
  * These are the canonical role definitions for the entire
- * platform. Import from here — never hardcode role strings.
+ * platform. Import from here - never hardcode role strings.
  *
  * Legal basis for each role is documented inline.
  * These definitions align exactly with Section 3 of the T&C.
@@ -39,7 +39,7 @@ const ROLES = {
    * is a SaaS product purchase, not a fee for work dispatched.
    * Platform liability: Zero for job outcomes. Platform liable
    * only for subscription billing disputes.
-   * Additional: Optional background check — does not change
+   * Additional: Optional background check - does not change
    * IC classification. A plumber paying for a business listing
    * in Yellow Pages is still an independent plumber.
    */
@@ -63,7 +63,7 @@ const ROLES = {
    * access. Can view jobs, users, and basic reports.
    * Cannot access: financials, system config, user PII exports.
    * Employment status: W-2 employee or 1099 contractor of
-   * OxSteed LLC — distinct from Helper independent contractors.
+   * OxSteed LLC - distinct from Helper independent contractors.
    */
   ADMIN: 'admin',
 
@@ -142,7 +142,7 @@ const ROLE_GROUPS = {
 };
 
 // ─── Role Capabilities Map ────────────────────────────────────
-// What each role CAN do — used for feature gating in frontend
+// What each role CAN do - used for feature gating in frontend
 const ROLE_CAPABILITIES = {
 
   [ROLES.CUSTOMER]: {

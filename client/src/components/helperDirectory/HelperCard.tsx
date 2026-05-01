@@ -53,7 +53,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           ? 'border-brand-700/70 hover:border-brand-500'
           : 'border-gray-800 hover:border-gray-600'
       }`}
-      aria-label={`${helper.businessName} — ${isBusiness ? 'business' : 'helper'} profile card`}
+      aria-label={`${helper.businessName} - ${isBusiness ? 'business' : 'helper'} profile card`}
     >
       {/* ── Top colour band + avatar ─────────────────────── */}
       <div className={`relative h-20 overflow-hidden flex-shrink-0 ${isBusiness ? 'bg-gradient-to-r from-indigo-950 to-gray-900' : 'bg-gradient-to-r from-gray-800 to-gray-750'}`}>
@@ -97,7 +97,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
         )}
       </div>
 
-      {/* Avatar — overlaps band */}
+      {/* Avatar - overlaps band */}
       <div className="px-4 -mt-8 flex items-end justify-between mb-3 flex-shrink-0">
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl border-4 border-gray-900 overflow-hidden bg-gray-800 shadow-lg">
@@ -119,7 +119,7 @@ const HelperCard: React.FC<HelperCardProps> = ({ helper, onMessage, highlightCat
           )}
         </div>
 
-        {/* Right — starting price */}
+        {/* Right - starting price */}
         <div className="text-right pb-1">
           <p className="text-xs text-gray-500 leading-none">{t('helpersDir.startingFrom')}</p>
           <p className="text-lg font-bold text-white leading-tight">

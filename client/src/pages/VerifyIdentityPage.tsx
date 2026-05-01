@@ -31,7 +31,7 @@ export default function VerifyIdentityPage() {
       <div className="flex-1 flex flex-col items-center px-4 py-8 md:py-12">
         <div className="w-full max-w-[480px]">
           <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg shadow-black/30 overflow-hidden">
-            {/* Step indicator — always step 2 for this page */}
+            {/* Step indicator - always step 2 for this page */}
             <div className="flex border-b border-gray-800">
               <div className="flex-1 py-3 text-center text-xs font-semibold text-gray-500">
                 {t('verifyIdentity.step1')}
@@ -43,7 +43,7 @@ export default function VerifyIdentityPage() {
 
             <DiditPanel
               onVerified={() => navigate(destination, { replace: true })}
-              // No previous step — the user is already registered; send them to dashboard.
+              // No previous step - the user is already registered; send them to dashboard.
               onBack={() => navigate(destination)}
             />
           </div>

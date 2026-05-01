@@ -64,7 +64,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({ location }) => {
               {t('helperProfile.location.servesUpTo', { radius: location.serviceRadius, unit: location.radiusUnit })}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Austin metro area — Cedar Park, Round Rock, Pflugerville, Buda & Kyle
+              Austin metro area - Cedar Park, Round Rock, Pflugerville, Buda & Kyle
             </p>
           </div>
         </div>

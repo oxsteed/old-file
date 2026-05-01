@@ -26,10 +26,10 @@ const {
 // All routes require authentication
 router.use(authenticate);
 
-// GET /api/messages/guest-inquiries — profile visitors without accounts (helper inbox)
+// GET /api/messages/guest-inquiries - profile visitors without accounts (helper inbox)
 router.get('/guest-inquiries', getGuestInquiries);
 
-// GET /api/messages/guest-inquiries/:id — single inquiry (UUID)
+// GET /api/messages/guest-inquiries/:id - single inquiry (UUID)
 router.get('/guest-inquiries/:id', getGuestInquiryById);
 
 // GET /api/messages/conversations - Get all conversations

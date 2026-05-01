@@ -382,7 +382,7 @@ exports.completePlannedNeed = async (req, res) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DELETE (hard delete — only allowed for planned/funding)
+// DELETE (hard delete - only allowed for planned/funding)
 // ═══════════════════════════════════════════════════════════════════════════
 
 exports.deletePlannedNeed = async (req, res) => {

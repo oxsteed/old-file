@@ -6,7 +6,7 @@ jest.mock('../services/notificationService', () => ({
   sendNotification: jest.fn().mockResolvedValue(true),
 }));
 
-// db.connect() returns a client with query/release — mock it separately from pool.query
+// db.connect() returns a client with query/release - mock it separately from pool.query
 const { Pool } = require('pg');
 const mockConnect = Pool.mockConnect;
 const mockRelease = Pool.mockRelease;

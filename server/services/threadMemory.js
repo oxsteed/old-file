@@ -6,7 +6,7 @@
  * keyed by a randomly generated threadId. TTL is refreshed on every append.
  *
  * Cache key: chat:{threadId}
- * TTL: 1 hour (THREAD_TTL), sliding — reset on every message so active
+ * TTL: 1 hour (THREAD_TTL), sliding - reset on every message so active
  *      conversations don't expire mid-session.
  *
  * When Redis is unavailable the functions degrade gracefully:
@@ -22,7 +22,7 @@ const crypto = require('crypto');
 const redis  = require('../utils/redis');
 const logger = require('../utils/logger');
 
-const THREAD_TTL = 60 * 60;   // seconds — 1 hour sliding window
+const THREAD_TTL = 60 * 60;   // seconds - 1 hour sliding window
 const MAX_MESSAGES = 20;       // 10 user + 10 assistant = 10 "turns"
 const THREAD_ID_PREFIX = 'th_';
 
@@ -78,7 +78,7 @@ async function appendToThread(threadId, newMessages) {
   try {
     const existing = await getThread(threadId);
     const updated  = [...existing, ...newMessages].slice(-MAX_MESSAGES);
-    // SETEX resets the TTL (sliding window — active sessions stay alive)
+    // SETEX resets the TTL (sliding window - active sessions stay alive)
     await redis.setex(threadKey(threadId), THREAD_TTL, JSON.stringify(updated));
   } catch (err) {
     logger.warn('[ThreadMemory] Append failed', { threadId, message: err.message });
