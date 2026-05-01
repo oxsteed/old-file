@@ -19,18 +19,34 @@ async function processAffiliateCommissionBatch() {
         mo.customer_id,
         mo.created_at as order_date,
         mp.affiliate_url,
+        mp.source as product_source,
         al.id as affiliate_link_id,
         ap.id as affiliate_program_id,
         ap.commission_rate
       FROM marketplace_order_items oi
       JOIN marketplace_orders mo ON oi.order_id = mo.id
       JOIN marketplace_products mp ON oi.product_id = mp.id
+      LEFT JOIN shopping_carts sc ON mo.cart_id = sc.id
       LEFT JOIN affiliate_links_log al ON mp.affiliate_url = al.affiliate_url
-      LEFT JOIN affiliate_programs ap ON al.program_id = ap.id
+      LEFT JOIN LATERAL (
+        SELECT ap2.*
+        FROM affiliate_programs ap2
+        WHERE ap2.helper_id = sc.helper_id
+          AND ap2.status = 'active'
+          AND ap2.program_type = CASE
+            WHEN lower(COALESCE(mp.source, '')) LIKE '%depot%'
+              OR lower(COALESCE(mp.affiliate_url, '')) LIKE '%homedepot%'
+              OR lower(COALESCE(mp.affiliate_url, '')) LIKE '%home%depot%'
+            THEN 'home_depot'
+            ELSE 'custom'
+          END
+        LIMIT 1
+      ) ap ON true
       WHERE
         mo.status = 'paid'
         AND mo.completed_at IS NOT NULL
         AND mp.affiliate_url IS NOT NULL
+        AND sc.helper_id IS NOT NULL
         AND NOT EXISTS (
           SELECT 1 FROM affiliate_commissions ac
           WHERE ac.order_id = oi.order_id AND ac.product_id = oi.product_id
