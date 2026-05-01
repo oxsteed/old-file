@@ -28,6 +28,8 @@ import {
   listBusinessHours, updateBusinessHours,
   listBusinessSkills,
 } from '../api/businesses';
+import { formatMoney } from '../lib/format';
+import { getDefaultCurrency } from '../lib/countries';
 import '../styles/BusinessHubPage.css';
 
 const LS_KEY = 'oxs:bh:lastBusinessId';
@@ -63,11 +65,6 @@ export default function BusinessHubPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
 
-  // The user's preferred currency drives every fmt$ call below.
-  const currency = user?.preferred_currency
-    || (user?.country ? getDefaultCurrency(user.country) : null)
-    || 'USD';
-
   // guard
   if (!user || !HELPER_ROLES.includes(user.role)) {
     return (
@@ -88,6 +85,10 @@ export default function BusinessHubPage() {
 
 function BusinessHubInner() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const currency = user?.preferred_currency
+    || (user?.country ? getDefaultCurrency(user.country) : null)
+    || 'USD';
   const [businesses, setBusinesses]   = useState([]);
   const [bizId, setBizId]             = useState(() => localStorage.getItem(LS_KEY) || '');
   const [tab, setTab]                 = useState('overview');
@@ -1012,7 +1013,7 @@ function BusinessHubInner() {
               ) : analyticsError ? (
                 <p className="bh-error">{t('businessHub.errorAnalytics')}</p>
               ) : (
-                <OverviewTab analytics={analytics} />
+                <OverviewTab analytics={analytics} currency={currency} />
               )
             )}
 
@@ -1021,6 +1022,7 @@ function BusinessHubInner() {
               invoicesLoading ? <p className="bh-loading">{t('businessHub.loadingInvoices')}</p> :
               <InvoicesTab
                 data={invoiceData}
+                currency={currency}
                 onNew={() => { setForm(DEFAULT_INV_FORM); setFormErr(''); setModal('add-inv'); }}
                 onEdit={inv => {
                   setSelected(inv);
@@ -1048,6 +1050,7 @@ function BusinessHubInner() {
               taxLoading ? <p className="bh-loading">{t('businessHub.loadingTax')}</p> :
               <TaxTab
                 data={taxData}
+                currency={currency}
                 onRefresh={handleRefreshTax}
                 onPay={est => { setSelected(est); setForm({ amount: est.estimated_tax || '' }); setFormErr(''); setModal('pay-tax'); }}
               />
@@ -1059,6 +1062,7 @@ function BusinessHubInner() {
               <GoalsTab
                 goals={goals}
                 analytics={analytics}
+                currency={currency}
                 onNew={() => { setForm(DEFAULT_GOAL_FORM); setFormErr(''); setModal('add-goal'); }}
                 onEdit={g => {
                   setSelected(g);
@@ -1821,7 +1825,7 @@ function ProfileTab({ form, logoPreview, coverPreview, saving, err, currentRole,
 }
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ analytics }) {
+function OverviewTab({ analytics, currency }) {
   const { t } = useTranslation();
   const a = analytics;
   const monthly = a?.monthly || [];
@@ -1907,7 +1911,7 @@ function KPI({ label, value, cls, sub }) {
 }
 
 // ── Invoices tab ──────────────────────────────────────────────────────────────
-function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend }) {
+function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend, currency }) {
   const { t } = useTranslation();
   const invoices = data?.invoices || [];
   const summary  = data?.summary  || {};
@@ -1985,7 +1989,7 @@ function InvoicesTab({ data, onNew, onEdit, onPay, onDelete, onSend }) {
 }
 
 // ── Tax tab ───────────────────────────────────────────────────────────────────
-function TaxTab({ data, onRefresh, onPay }) {
+function TaxTab({ data, onRefresh, onPay, currency }) {
   const { t } = useTranslation();
   const estimates = data?.estimates || [];
 
@@ -2044,7 +2048,7 @@ function TaxTab({ data, onRefresh, onPay }) {
 }
 
 // ── Goals tab ─────────────────────────────────────────────────────────────────
-function GoalsTab({ goals, analytics, onNew, onEdit, onDelete }) {
+function GoalsTab({ goals, analytics, onNew, onEdit, onDelete, currency }) {
   const { t } = useTranslation();
 
   const goalTypeLabel = (gt) => {
