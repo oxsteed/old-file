@@ -442,6 +442,7 @@ function round2(n) {
   return Math.round(Number(n) * 100) / 100;
 }
 
+function buildNeedsProjectionRows(needs, windowDays) {
   let totalSinkingFundForWindow = 0;
   let autoPublishingCount = 0;
   const autoPublishingList = [];
