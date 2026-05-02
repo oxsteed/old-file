@@ -1,255 +1,345 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
-import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
+const PACKAGE_TIERS = [
+  { tier: 'initial', label: 'Initial', price: 10000, description: 'One 60-minute consultation session to assess your needs and map next steps.', sessions: 1 },
+  { tier: 'foundation', label: 'Foundation', price: 75000, description: 'Three sessions plus a written business plan and market analysis.', sessions: 3 },
+  { tier: 'implementation', label: 'Implementation', price: 150000, description: 'Six sessions with full setup of legal, financial, and operational systems.', sessions: 6 },
+  { tier: 'transformation', label: 'Transformation', price: 300000, description: 'Twelve sessions with deep coaching, branding, and growth roadmap.', sessions: 12 },
+];
+
+const INVOICE_STATUS_COLORS = {
+  sent: '#0EA5E9',
+  paid: '#10B981',
+  overdue: '#EF4444',
+  pending: '#FFA500',
+  cancelled: '#6B7280',
+};
+
+function formatMoney(cents) {
+  return `$${((cents || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function PackageCard({ pkg, onEdit, onToggle }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: pkg.package_name || pkg.name || pkg.tier, description: pkg.description || '', base_price: pkg.base_price || 0, session_count: pkg.session_count || pkg.duration_hours || 1, is_active: pkg.is_active !== false });
+  const [saving, setSaving] = useState(false);
+
+  async function saveEdit() {
+    try {
+      setSaving(true);
+      await onEdit(pkg.id, form);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.9rem', boxSizing: 'border-box', marginBottom: '0.5rem' };
+
+  return (
+    <div style={{ background: 'var(--color-surface)', border: `2px solid ${form.is_active ? 'var(--color-primary)' : 'var(--color-border)'}`, borderRadius: '10px', padding: '1.5rem', position: 'relative', opacity: form.is_active ? 1 : 0.7 }}>
+      {!form.is_active && (
+        <span style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#6B7280', color: 'white', fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>Inactive</span>
+      )}
+      {editing ? (
+        <div>
+          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.25rem' }}>Name</label>
+          <input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.25rem' }}>Price (cents)</label>
+          <input type="number" style={inputStyle} value={form.base_price} onChange={e => setForm({ ...form, base_price: parseInt(e.target.value) || 0 })} />
+          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.25rem' }}>Sessions</label>
+          <input type="number" style={inputStyle} value={form.session_count} onChange={e => setForm({ ...form, session_count: parseInt(e.target.value) || 1 })} />
+          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.25rem' }}>Description</label>
+          <textarea style={{ ...inputStyle, minHeight: '70px', resize: 'vertical', fontFamily: 'inherit' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <button onClick={saveEdit} disabled={saving} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer', flex: 1 }}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+            <button onClick={() => setEditing(false)} style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{pkg.package_name || pkg.name || pkg.tier}</h3>
+            <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-primary)' }}>{formatMoney(pkg.base_price)}</span>
+          </div>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: '0.25rem 0 0.75rem' }}>
+            {pkg.duration_hours || pkg.session_count || 1} session{(pkg.duration_hours || pkg.session_count) !== 1 ? 's' : ''}
+          </p>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', lineHeight: 1.5 }}>{pkg.description || 'No description provided.'}</p>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {pkg.id && (
+              <button onClick={() => setEditing(true)} style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                Edit
+              </button>
+            )}
+            <button onClick={() => { setForm(f => ({ ...f, is_active: !f.is_active })); onToggle(pkg.id, !form.is_active); }} style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', border: `1px solid ${form.is_active ? '#EF4444' : '#10B981'}`, background: 'none', color: form.is_active ? '#EF4444' : '#10B981', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+              {form.is_active ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManualInvoiceModal({ onClose, onCreated }) {
+  const [form, setForm] = useState({ client_email: '', client_name: '', package_tier: 'initial', amount_cents: 10000, notes: '' });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.client_email || !form.client_name) { toast.error('Client name and email are required'); return; }
+    try {
+      setSaving(true);
+      await axios.post('/consulting/admin/invoices/generate-manual', form);
+      toast.success('Invoice generated and sent');
+      onCreated();
+      onClose();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to generate invoice');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle = { width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.9rem', boxSizing: 'border-box' };
+  const labelStyle = { display: 'block', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.85rem' };
+  const fieldStyle = { marginBottom: '1rem' };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+      <div style={{ background: 'var(--color-surface)', borderRadius: '10px', padding: '2rem', maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.3rem', fontWeight: 700 }}>Generate Manual Invoice</h2>
+        <form onSubmit={handleSubmit}>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Client Name *</label>
+            <input style={inputStyle} value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} required />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Client Email *</label>
+            <input type="email" style={inputStyle} value={form.client_email} onChange={e => setForm({ ...form, client_email: e.target.value })} required />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Package</label>
+            <select style={inputStyle} value={form.package_tier} onChange={e => {
+              const pkg = PACKAGE_TIERS.find(p => p.tier === e.target.value);
+              setForm({ ...form, package_tier: e.target.value, amount_cents: pkg?.price || form.amount_cents });
+            }}>
+              {PACKAGE_TIERS.map(p => <option key={p.tier} value={p.tier}>{p.label} ({formatMoney(p.price)})</option>)}
+            </select>
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Amount (cents)</label>
+            <input type="number" style={inputStyle} value={form.amount_cents} onChange={e => setForm({ ...form, amount_cents: parseInt(e.target.value) || 0 })} />
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>= {formatMoney(form.amount_cents)}</p>
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Notes (optional)</label>
+            <textarea style={{ ...inputStyle, minHeight: '70px', resize: 'vertical', fontFamily: 'inherit' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>Cancel</button>
+            <button type="submit" disabled={saving} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+              {saving ? 'Generating...' : 'Generate & Send'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ConsultingPayments() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
   const [packages, setPackages] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [revenueStats, setRevenueStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('packages');
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [pkgRes, purchaseRes, invoiceRes] = await Promise.all([
+      const [pkgRes, dashRes] = await Promise.all([
         axios.get('/consulting/packages'),
-        axios.get('/consulting/my-purchases'),
-        axios.get('/consulting/invoices'),
+        axios.get('/consulting/admin/dashboard-stats'),
       ]);
       setPackages(pkgRes.data || []);
-      setPurchases(purchaseRes.data || []);
-      setInvoices(invoiceRes.data || []);
-    } catch (err) {
-      toast.error(t('common.errorLoading') || 'Failed to load payment data');
+      setRevenueStats(dashRes.data);
+
+      // Load purchases and invoices from admin endpoints
+      const [purchRes, invRes] = await Promise.allSettled([
+        axios.get('/consulting/admin/purchases'),
+        axios.get('/consulting/admin/invoices'),
+      ]);
+      if (purchRes.status === 'fulfilled') setPurchases(purchRes.value.data || []);
+      if (invRes.status === 'fulfilled') setInvoices(invRes.value.data || []);
+    } catch {
+      toast.error('Failed to load payment data');
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function handlePurchase(packageId) {
-    if (!packageId) return;
+  useEffect(() => { loadData(); }, [loadData]);
+
+  async function handleEditPackage(id, form) {
     try {
-      setPaymentLoading(true);
-      // Create payment intent
-      const intentRes = await axios.post('/consulting/payment-intent', { package_id: packageId });
-
-      // Initialize Stripe payment
-      const stripe = window.Stripe || null;
-      if (!stripe) {
-        toast.error(t('consulting.payment.stripeError'));
-        setPaymentLoading(false);
-        return;
-      }
-
-      // For now, just show the intent was created
-      // Full Stripe integration would happen here
-      setSelectedPackage(null);
-      setPaymentLoading(false);
-      toast.success(t('consulting.payment.intentCreated'));
+      await axios.patch(`/consulting/admin/packages/${id}`, form);
+      toast.success('Package updated');
       loadData();
-    } catch (err) {
-      toast.error(t('consulting.payment.error') || 'Payment failed');
-      setPaymentLoading(false);
+    } catch {
+      toast.error('Failed to update package');
     }
   }
 
-  const containerStyle = {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '2rem',
-  };
-
-  const tabsStyle = {
-    display: 'flex',
-    gap: '1rem',
-    marginBottom: '2rem',
-    borderBottom: '2px solid var(--color-border)',
-    paddingBottom: '1rem',
-  };
+  async function handleTogglePackage(id, isActive) {
+    try {
+      await axios.patch(`/consulting/admin/packages/${id}`, { is_active: isActive });
+      toast.success(isActive ? 'Package enabled' : 'Package disabled');
+    } catch {
+      toast.error('Failed to toggle package');
+    }
+  }
 
   const tabStyle = (isActive) => ({
-    padding: '0.75rem 1.5rem',
+    padding: '0.65rem 1.25rem',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    fontWeight: isActive ? '600' : '400',
+    fontWeight: isActive ? 700 : 500,
     color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
-    borderBottom: isActive ? '3px solid var(--color-primary)' : 'none',
-    fontSize: '1rem',
+    borderBottom: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
+    fontSize: '0.95rem',
   });
 
-  const gridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '2rem',
-    marginBottom: '2rem',
-  };
-
-  const cardStyle = {
-    background: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '2rem',
-  };
-
-  const priceStyle = {
-    fontSize: '2rem',
-    fontWeight: '700',
-    color: 'var(--color-primary)',
-    margin: '1rem 0',
-  };
-
-  const buttonStyle = {
-    background: 'var(--color-primary)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.75rem 1.5rem',
-    cursor: 'pointer',
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    width: '100%',
-    marginTop: '1rem',
-  };
-
-  const tableStyle = {
-    width: '100%',
-    borderCollapse: 'collapse',
-    marginTop: '1rem',
-  };
-
-  const thStyle = {
-    background: 'var(--color-bg)',
-    padding: '1rem',
-    textAlign: 'left',
-    borderBottom: '2px solid var(--color-border)',
-    fontWeight: '600',
-  };
-
-  const tdStyle = {
-    padding: '1rem',
-    borderBottom: '1px solid var(--color-border)',
-  };
+  const thStyle = { background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem' };
+  const tdStyle = { padding: '0.85rem 1rem', borderBottom: '1px solid var(--color-border)', fontSize: '0.9rem' };
 
   if (loading) {
     return (
-      <div style={containerStyle}>
-        <p>{t('common.loading')}</p>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem', color: 'var(--color-text-muted)' }}>
+        Loading payment data...
       </div>
     );
   }
 
   return (
-    <div style={containerStyle}>
-      <h1 style={{ marginBottom: '2rem', fontSize: '2rem', fontWeight: '700' }}>
-        {t('consulting.payment.title')}
-      </h1>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+      {/* Breadcrumb */}
+      <nav style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+        <Link to="/admin" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Admin</Link>
+        {' / '}
+        <Link to="/admin/consulting" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Consulting</Link>
+        {' / '}
+        <span>Payments</span>
+      </nav>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>Consulting Payments</h1>
+        <button onClick={() => setShowInvoiceModal(true)} style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+          + Generate Invoice
+        </button>
+      </div>
+
+      {/* Revenue Summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        {[
+          { label: 'Total Revenue', value: formatMoney(revenueStats?.total_revenue_cents), color: '#10B981' },
+          { label: 'Active Packages', value: revenueStats?.active_packages || 0, color: 'var(--color-primary)' },
+          { label: 'Pending Payments', value: formatMoney(revenueStats?.pending_revenue_cents), color: '#FFA500' },
+          { label: 'Refunds Issued', value: formatMoney(revenueStats?.refunded_cents), color: '#EF4444' },
+        ].map(s => (
+          <div key={s.label} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '1.25rem 1.5rem' }}>
+            <p style={{ margin: '0 0 0.25rem', fontSize: '0.78rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</p>
+            <div style={{ fontSize: '1.6rem', fontWeight: 700, color: s.color || 'var(--color-text)' }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
 
       {/* Tabs */}
-      <div style={tabsStyle}>
-        <button
-          style={tabStyle(activeTab === 'packages')}
-          onClick={() => setActiveTab('packages')}
-        >
-          {t('consulting.payment.availablePackages')}
-        </button>
-        <button
-          style={tabStyle(activeTab === 'purchases')}
-          onClick={() => setActiveTab('purchases')}
-        >
-          {t('consulting.payment.myPurchases')}
-        </button>
-        <button
-          style={tabStyle(activeTab === 'invoices')}
-          onClick={() => setActiveTab('invoices')}
-        >
-          {t('consulting.payment.invoices')}
-        </button>
+      <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--color-border)', marginBottom: '1.75rem' }}>
+        <button style={tabStyle(activeTab === 'packages')} onClick={() => setActiveTab('packages')}>Available Packages</button>
+        <button style={tabStyle(activeTab === 'purchases')} onClick={() => setActiveTab('purchases')}>Client Purchases</button>
+        <button style={tabStyle(activeTab === 'invoices')} onClick={() => setActiveTab('invoices')}>Invoices</button>
       </div>
 
       {/* Packages Tab */}
       {activeTab === 'packages' && (
         <div>
-          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: '600' }}>
-            {t('consulting.payment.availablePackages')}
-          </h2>
-          <div style={gridStyle}>
-            {packages.map(pkg => (
-              <div key={pkg.id} style={cardStyle}>
-                <h3 style={{ marginBottom: '0.5rem', fontSize: '1.25rem' }}>
-                  {pkg.name}
-                </h3>
-                <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-                  {pkg.tier}
-                </p>
-                <div style={priceStyle}>
-                  ${(pkg.price_cents / 100).toFixed(2)}
-                </div>
-                <p style={{ marginBottom: '1rem' }}>
-                  {pkg.session_count} {t('consulting.payment.sessions')}
-                </p>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                  {pkg.description}
-                </p>
-                <button
-                  style={buttonStyle}
-                  onClick={() => handlePurchase(pkg.id)}
-                  disabled={paymentLoading}
-                >
-                  {paymentLoading ? t('common.sending') : t('consulting.payment.purchaseNow')}
-                </button>
+          {packages.length === 0 ? (
+            <div>
+              <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>No packages found in database. Showing default package templates:</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                {PACKAGE_TIERS.map(pkg => (
+                  <div key={pkg.tier} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-primary)', borderRadius: '10px', padding: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{pkg.label}</h3>
+                      <span style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-primary)' }}>{formatMoney(pkg.price)}</span>
+                    </div>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: '0.25rem 0 0.75rem' }}>{pkg.sessions} session{pkg.sessions !== 1 ? 's' : ''}</p>
+                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5 }}>{pkg.description}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+              {packages.map(pkg => (
+                <PackageCard key={pkg.id} pkg={pkg} onEdit={handleEditPackage} onToggle={handleTogglePackage} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Purchases Tab */}
       {activeTab === 'purchases' && (
         <div>
-          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: '600' }}>
-            {t('consulting.payment.myPurchases')}
-          </h2>
-          {purchases.length > 0 ? (
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>{t('consulting.payment.packageName')}</th>
-                  <th style={thStyle}>{t('consulting.payment.amount')}</th>
-                  <th style={thStyle}>{t('consulting.payment.sessionsRemaining')}</th>
-                  <th style={thStyle}>{t('consulting.payment.purchaseDate')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map(purchase => (
-                  <tr key={purchase.id}>
-                    <td style={tdStyle}>{purchase.package_name || purchase.name}</td>
-                    <td style={tdStyle}>
-                      ${(purchase.total_cost_cents / 100).toFixed(2)}
-                    </td>
-                    <td style={tdStyle}>{purchase.sessions_remaining}</td>
-                    <td style={tdStyle}>
-                      {new Date(purchase.purchase_date).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {purchases.length === 0 ? (
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '3rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>No purchases yet</p>
+              <p style={{ color: 'var(--color-text-muted)' }}>Client purchases will appear here once clients pay for consulting packages.</p>
+            </div>
           ) : (
-            <p style={{ color: 'var(--color-text-muted)' }}>
-              {t('consulting.payment.noPurchases')}
-            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)', borderRadius: '10px', overflow: 'hidden' }}>
+                <thead>
+                  <tr>
+                    {['Client', 'Email', 'Package', 'Amount', 'Fulfillment', 'Sessions Left', 'Purchased'].map(h => (
+                      <th key={h} style={thStyle}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchases.map(p => (
+                    <tr key={p.id}>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{p.first_name} {p.last_name}</td>
+                      <td style={tdStyle}>{p.email}</td>
+                      <td style={tdStyle}>{p.package_name || p.service_tier}</td>
+                      <td style={tdStyle}>{formatMoney(p.total_cost_cents || p.amount_cents)}</td>
+                      <td style={tdStyle}>
+                        <span style={{ background: p.status === 'completed' ? '#10B981' : p.status === 'active' ? '#0EA5E9' : '#FFA500', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>
+                          {p.status || 'active'}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>{p.sessions_remaining ?? '-'}</td>
+                      <td style={{ ...tdStyle, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+                        {p.purchase_date || p.created_at ? new Date(p.purchase_date || p.created_at).toLocaleDateString() : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -257,49 +347,55 @@ export default function ConsultingPayments() {
       {/* Invoices Tab */}
       {activeTab === 'invoices' && (
         <div>
-          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: '600' }}>
-            {t('consulting.payment.invoices')}
-          </h2>
-          {invoices.length > 0 ? (
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>{t('consulting.payment.invoiceNumber')}</th>
-                  <th style={thStyle}>{t('consulting.payment.amount')}</th>
-                  <th style={thStyle}>{t('consulting.payment.status')}</th>
-                  <th style={thStyle}>{t('consulting.payment.dueDate')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map(invoice => (
-                  <tr key={invoice.id}>
-                    <td style={tdStyle}>{invoice.invoice_number}</td>
-                    <td style={tdStyle}>
-                      ${(invoice.amount_cents / 100).toFixed(2)}
-                    </td>
-                    <td style={tdStyle}>
-                      <span style={{
-                        background: 'var(--color-bg)',
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '12px',
-                        fontSize: '0.85rem',
-                      }}>
-                        {invoice.status}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      {new Date(invoice.due_date).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {invoices.length === 0 ? (
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '3rem', textAlign: 'center' }}>
+              <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>No invoices yet</p>
+              <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>Generate a manual invoice to get started, or invoices will appear here as clients make purchases.</p>
+              <button onClick={() => setShowInvoiceModal(true)} style={{ padding: '0.65rem 1.5rem', borderRadius: '8px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+                Generate Invoice
+              </button>
+            </div>
           ) : (
-            <p style={{ color: 'var(--color-text-muted)' }}>
-              {t('consulting.payment.noInvoices')}
-            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)', borderRadius: '10px', overflow: 'hidden' }}>
+                <thead>
+                  <tr>
+                    {['Invoice #', 'Client', 'Package', 'Amount', 'Status', 'Due Date', 'Actions'].map(h => (
+                      <th key={h} style={thStyle}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map(inv => (
+                    <tr key={inv.id}>
+                      <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '0.85rem' }}>{inv.invoice_number}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{inv.client_name || `${inv.first_name || ''} ${inv.last_name || ''}`.trim() || inv.email}</td>
+                      <td style={tdStyle}>{inv.package_name || inv.service_tier || '-'}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{formatMoney(inv.amount_cents)}</td>
+                      <td style={tdStyle}>
+                        <span style={{ background: INVOICE_STATUS_COLORS[inv.status] || '#6B7280', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>
+                        {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '-'}
+                      </td>
+                      <td style={tdStyle}>
+                        <button style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
+                          Download
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
+      )}
+
+      {showInvoiceModal && (
+        <ManualInvoiceModal onClose={() => setShowInvoiceModal(false)} onCreated={loadData} />
       )}
     </div>
   );

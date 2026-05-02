@@ -141,7 +141,7 @@ async function submitBusinessLaunchRequest(req, res) {
  * GET /api/consulting/business-launch/requests?page=1&limit=20&status=pending&package=launch
  */
 async function getBusinessLaunchRequests(req, res) {
-  const { page = 1, limit = 20, status, package: pkg, urgency, state } = req.query;
+  const { page = 1, limit = 20, status, package: pkg, urgency, state, search } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
   try {
@@ -167,6 +167,12 @@ async function getBusinessLaunchRequests(req, res) {
     if (state) {
       whereConditions.push(`operating_state = $${paramIndex++}`);
       params.push(state);
+    }
+
+    if (search) {
+      whereConditions.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
+      params.push(`%${search}%`);
+      paramIndex++;
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

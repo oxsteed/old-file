@@ -1,374 +1,549 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import toast from 'react-hot-toast';
 
-export default function ConsultingScheduler() {
-  const { t } = useTranslation();
-  const [sessions, setSessions] = useState([]);
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [showScheduler, setShowScheduler] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
+const SESSION_STATUS_COLORS = {
+  pending: '#FFA500',
+  scheduled: '#0EA5E9',
+  confirmed: '#10B981',
+  completed: '#6B7280',
+  cancelled: '#EF4444',
+  no_show: '#DC2626',
+};
+
+const TIME_SLOTS = [
+  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+  '16:00', '16:30', '17:00',
+];
+
+function getWeekDays(weekStart) {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+}
+
+function isSameDay(d1, d2) {
+  return d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+}
+
+function getMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function CalendarEvent({ session, onClick }) {
+  const color = SESSION_STATUS_COLORS[session.status] || '#6B7280';
+  return (
+    <div
+      onClick={() => onClick(session)}
+      title={`${session.first_name} ${session.last_name} — ${session.service_tier}`}
+      style={{
+        background: color,
+        color: 'white',
+        borderRadius: '4px',
+        padding: '0.2rem 0.4rem',
+        fontSize: '0.72rem',
+        fontWeight: 600,
+        cursor: 'pointer',
+        marginBottom: '2px',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+    >
+      {session.scheduled_at
+        ? `${new Date(session.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} `
+        : ''}
+      {session.first_name} {session.last_name}
+    </div>
+  );
+}
+
+function ScheduleModal({ session, consultants, onClose, onScheduled }) {
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
   const [meetingUrl, setMeetingUrl] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [consultant, setConsultant] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const timeSlots = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-    '16:00', '16:30', '17:00'
-  ];
-
-  useEffect(() => {
-    loadSessions();
-  }, []);
-
-  async function loadSessions() {
-    try {
-      setLoading(true);
-      const res = await axios.get('/consulting/admin/requests');
-      setSessions(res.data.requests || []);
-    } catch (err) {
-      toast.error(t('common.errorLoading') || 'Failed to load sessions');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function scheduleSession() {
-    if (!selectedSession || !selectedDate || !selectedTime) {
-      toast.error(t('consulting.scheduler.selectAll'));
+  async function doSchedule() {
+    if (!selectedDate || !selectedTime) {
+      toast.error('Please select date and time');
       return;
     }
-
     try {
       setSaving(true);
-      const scheduledDateTime = new Date(`${selectedDate}T${selectedTime}`);
-
-      await axios.patch(
-        `/consulting/admin/requests/${selectedSession.id}/status`,
-        {
-          status: 'scheduled',
-          scheduled_at: scheduledDateTime.toISOString(),
-          meeting_url: meetingUrl
-        }
-      );
-
-      toast.success(t('consulting.scheduler.scheduleSuccess'));
-      setShowScheduler(false);
-      setSelectedSession(null);
-      setSelectedDate(null);
-      setSelectedTime(null);
-      setMeetingUrl('');
-      loadSessions();
-    } catch (err) {
-      toast.error(t('consulting.scheduler.scheduleError') || 'Failed to schedule session');
+      const scheduled_at = new Date(`${selectedDate}T${selectedTime}`).toISOString();
+      await axios.patch(`/consulting/admin/requests/${session.id}/status`, {
+        status: 'scheduled',
+        scheduled_at,
+        meeting_url: meetingUrl,
+        ...(consultant && { consultant_id: consultant }),
+      });
+      toast.success('Session scheduled');
+      onScheduled();
+      onClose();
+    } catch {
+      toast.error('Failed to schedule session');
     } finally {
       setSaving(false);
     }
   }
 
-  const containerStyle = {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '2rem',
-  };
+  async function sendCalendarInvite() {
+    try {
+      await axios.post(`/consulting/admin/sessions/${session.id}/send-invite`);
+      toast.success('Calendar invite sent');
+    } catch {
+      toast.error('Failed to send invite');
+    }
+  }
 
-  const gridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-    gap: '2rem',
-    marginBottom: '2rem',
-  };
+  async function decline() {
+    if (!window.confirm('Decline this request? The client will be notified.')) return;
+    try {
+      await axios.patch(`/consulting/admin/requests/${session.id}/status`, { status: 'cancelled' });
+      toast.success('Request declined');
+      onScheduled();
+      onClose();
+    } catch {
+      toast.error('Failed to decline request');
+    }
+  }
 
-  const cardStyle = {
-    background: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '8px',
-    padding: '2rem',
-    cursor: 'pointer',
-    transition: 'border-color 0.3s',
-  };
+  const inputStyle = { width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.9rem', boxSizing: 'border-box' };
+  const labelStyle = { display: 'block', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.85rem' };
 
-  const selectedCardStyle = {
-    ...cardStyle,
-    borderColor: 'var(--color-primary)',
-    background: 'rgba(var(--color-primary-rgb), 0.05)',
-  };
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+      <div style={{ background: 'var(--color-surface)', borderRadius: '10px', padding: '2rem', maxWidth: '540px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.2rem', fontWeight: 700 }}>
+              Schedule: {session.first_name} {session.last_name}
+            </h2>
+            <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+              {session.email} · {session.service_tier} · {session.phone || 'No phone'}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}>×</button>
+        </div>
 
-  const tableStyle = {
-    width: '100%',
-    borderCollapse: 'collapse',
-    marginTop: '2rem',
-  };
+        {session.description && (
+          <div style={{ background: 'var(--color-bg)', padding: '0.75rem', borderRadius: '6px', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+            {session.description}
+          </div>
+        )}
 
-  const thStyle = {
-    background: 'var(--color-bg)',
-    padding: '1rem',
-    textAlign: 'left',
-    borderBottom: '2px solid var(--color-border)',
-    fontWeight: '600',
-  };
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={labelStyle}>Select Date</label>
+          <input type="date" style={inputStyle} value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+        </div>
 
-  const tdStyle = {
-    padding: '1rem',
-    borderBottom: '1px solid var(--color-border)',
-  };
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={labelStyle}>Select Time</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem' }}>
+            {TIME_SLOTS.map(t => (
+              <button key={t} onClick={() => setSelectedTime(t)} style={{
+                padding: '0.4rem 0',
+                borderRadius: '5px',
+                border: selectedTime === t ? 'none' : '1px solid var(--color-border)',
+                background: selectedTime === t ? 'var(--color-primary)' : 'var(--color-bg)',
+                color: selectedTime === t ? 'white' : 'var(--color-text)',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                fontWeight: selectedTime === t ? 600 : 400,
+              }}>{t}</button>
+            ))}
+          </div>
+        </div>
 
-  const buttonStyle = {
-    background: 'var(--color-primary)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.75rem 1.5rem',
-    cursor: 'pointer',
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    marginRight: '0.5rem',
-  };
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={labelStyle}>Meeting URL (Zoom, Google Meet...)</label>
+          <input type="url" placeholder="https://zoom.us/j/..." style={inputStyle} value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} />
+        </div>
 
-  const modalStyle = {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  };
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={labelStyle}>Assign Consultant</label>
+          <select style={inputStyle} value={consultant} onChange={e => setConsultant(e.target.value)}>
+            <option value="">-- Select consultant --</option>
+            {consultants.map(c => (
+              <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({c.role}) - {c.active_sessions || 0} active</option>
+            ))}
+          </select>
+        </div>
 
-  const modalContentStyle = {
-    background: 'var(--color-surface)',
-    borderRadius: '8px',
-    padding: '2rem',
-    maxWidth: '600px',
-    width: '90%',
-    maxHeight: '80vh',
-    overflowY: 'auto',
-  };
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button onClick={doSchedule} disabled={saving} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer', flex: 1 }}>
+            {saving ? 'Scheduling...' : 'Confirm Session'}
+          </button>
+          <button onClick={sendCalendarInvite} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>
+            Send Invite
+          </button>
+          <button onClick={decline} style={{ padding: '0.6rem 1rem', borderRadius: '6px', border: '1px solid #EF4444', background: 'none', color: '#EF4444', fontWeight: 600, cursor: 'pointer' }}>
+            Decline
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const sectionStyle = {
-    marginBottom: '2rem',
-  };
+function NewSessionModal({ consultants, onClose, onCreated }) {
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', service_tier: 'initial', scheduled_date: '', scheduled_time: '', meeting_url: '', consultant_id: '', description: '' });
+  const [saving, setSaving] = useState(false);
 
-  const labelStyle = {
-    display: 'block',
-    fontWeight: '600',
-    marginBottom: '0.5rem',
-    marginTop: '1rem',
-  };
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.email || !form.scheduled_date || !form.scheduled_time) {
+      toast.error('Email, date, and time are required');
+      return;
+    }
+    try {
+      setSaving(true);
+      const scheduled_at = new Date(`${form.scheduled_date}T${form.scheduled_time}`).toISOString();
+      await axios.post('/consulting/admin/sessions/create', { ...form, scheduled_at });
+      toast.success('Session created');
+      onCreated();
+      onClose();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Failed to create session');
+    } finally {
+      setSaving(false);
+    }
+  }
 
-  const inputStyle = {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    fontSize: '0.95rem',
-    boxSizing: 'border-box',
-    background: 'var(--color-bg)',
-    color: 'var(--color-text)',
-  };
+  const inputStyle = { width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.9rem', boxSizing: 'border-box' };
+  const labelStyle = { display: 'block', fontWeight: 600, marginBottom: '0.35rem', fontSize: '0.85rem' };
+  const fieldStyle = { marginBottom: '1rem' };
 
-  const timeGridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '0.5rem',
-    marginTop: '0.5rem',
-  };
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+      <div style={{ background: 'var(--color-surface)', borderRadius: '10px', padding: '2rem', maxWidth: '560px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.3rem', fontWeight: 700 }}>Schedule New Session</h2>
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>First Name</label>
+              <input style={inputStyle} value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Last Name</label>
+              <input style={inputStyle} value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} />
+            </div>
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Email *</label>
+            <input type="email" style={inputStyle} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Service Tier</label>
+            <select style={inputStyle} value={form.service_tier} onChange={e => setForm({ ...form, service_tier: e.target.value })}>
+              <option value="initial">Initial ($100)</option>
+              <option value="foundation">Foundation</option>
+              <option value="implementation">Implementation</option>
+              <option value="transformation">Transformation</option>
+            </select>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Date *</label>
+              <input type="date" style={inputStyle} value={form.scheduled_date} onChange={e => setForm({ ...form, scheduled_date: e.target.value })} required />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Time *</label>
+              <select style={inputStyle} value={form.scheduled_time} onChange={e => setForm({ ...form, scheduled_time: e.target.value })} required>
+                <option value="">-- Select --</option>
+                {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Meeting URL</label>
+            <input type="url" placeholder="https://zoom.us/j/..." style={inputStyle} value={form.meeting_url} onChange={e => setForm({ ...form, meeting_url: e.target.value })} />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Assign Consultant</label>
+            <select style={inputStyle} value={form.consultant_id} onChange={e => setForm({ ...form, consultant_id: e.target.value })}>
+              <option value="">-- Unassigned --</option>
+              {consultants.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({c.role})</option>)}
+            </select>
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Notes</label>
+            <textarea style={{ ...inputStyle, minHeight: '70px', resize: 'vertical', fontFamily: 'inherit' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>Cancel</button>
+            <button type="submit" disabled={saving} style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+              {saving ? 'Creating...' : 'Create Session'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
-  const timeButtonStyle = (isSelected) => ({
-    padding: '0.5rem',
-    border: isSelected ? 'none' : '1px solid var(--color-border)',
-    borderRadius: '4px',
-    background: isSelected ? 'var(--color-primary)' : 'var(--color-bg)',
-    color: isSelected ? 'white' : 'var(--color-text)',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-  });
+export default function ConsultingScheduler() {
+  const [sessions, setSessions] = useState([]);
+  const [consultants, setConsultants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [showNewSession, setShowNewSession] = useState(false);
+  const [view, setView] = useState('week');
 
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [sesRes, consRes] = await Promise.all([
+        axios.get('/consulting/admin/requests?limit=200'),
+        axios.get('/consulting/admin/consultants'),
+      ]);
+      setSessions(sesRes.data.requests || []);
+      setConsultants(consRes.data || []);
+    } catch {
+      toast.error('Failed to load sessions');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const weekDays = getWeekDays(weekStart);
   const pendingSessions = sessions.filter(s => s.status === 'pending');
-  const scheduledSessions = sessions.filter(s => s.status === 'scheduled');
+  const scheduledSessions = sessions.filter(s => s.status === 'scheduled' || s.status === 'confirmed');
+
+  const prevWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); };
+  const nextWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d); };
+  const today = () => setWeekStart(getMonday(new Date()));
+
+  async function sendReminder(session) {
+    try {
+      await axios.post(`/consulting/admin/sessions/${session.id}/send-reminder`);
+      toast.success('Reminder sent to client');
+    } catch {
+      toast.error('Failed to send reminder');
+    }
+  }
+
+  const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const now = new Date();
 
   if (loading) {
     return (
-      <div style={containerStyle}>
-        <p>{t('common.loading')}</p>
-      </div>
+      <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem', color: 'var(--color-text-muted)' }}>Loading sessions...</div>
     );
   }
 
   return (
-    <div style={containerStyle}>
-      <h1 style={{ marginBottom: '2rem', fontSize: '2rem', fontWeight: '700' }}>
-        {t('consulting.scheduler.title')}
-      </h1>
+    <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '2rem' }}>
+      {/* Breadcrumb */}
+      <nav style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+        <Link to="/admin" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Admin</Link>
+        {' / '}
+        <Link to="/admin/consulting" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Consulting</Link>
+        {' / '}
+        <span>Scheduling</span>
+      </nav>
 
-      {/* Pending Sessions Section */}
-      <div>
-        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: '600' }}>
-          {t('consulting.scheduler.pendingSessions')} ({pendingSessions.length})
-        </h2>
-
-        {pendingSessions.length > 0 ? (
-          <div style={gridStyle}>
-            {pendingSessions.map(session => (
-              <div
-                key={session.id}
-                style={selectedSession?.id === session.id ? selectedCardStyle : cardStyle}
-                onClick={() => {
-                  setSelectedSession(session);
-                  setShowScheduler(true);
-                }}
-              >
-                <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>
-                  {session.first_name} {session.last_name}
-                </h3>
-                <p style={{ color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-                  {session.email}
-                </p>
-                <p style={{ marginBottom: '0.5rem' }}>
-                  <strong>{t('consulting.serviceTier')}:</strong> {session.service_tier}
-                </p>
-                <p style={{ marginBottom: '0.5rem' }}>
-                  <strong>{t('consulting.phone')}:</strong> {session.phone || t('common.na')}
-                </p>
-                <button style={buttonStyle} onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedSession(session);
-                  setShowScheduler(true);
-                }}>
-                  {t('consulting.scheduler.schedule')}
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: 'var(--color-text-muted)' }}>
-            {t('consulting.scheduler.noPending')}
-          </p>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>Session Scheduler</h1>
+        <button onClick={() => setShowNewSession(true)} style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+          + Schedule Session
+        </button>
       </div>
 
-      {/* Scheduled Sessions Section */}
-      <div style={{ marginTop: '3rem' }}>
-        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: '600' }}>
-          {t('consulting.scheduler.scheduledSessions')} ({scheduledSessions.length})
-        </h2>
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        {Object.entries(SESSION_STATUS_COLORS).map(([status, color]) => (
+          <div key={status} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: color, flexShrink: 0 }} />
+            <span style={{ textTransform: 'capitalize' }}>{status.replace('_', ' ')}</span>
+          </div>
+        ))}
+      </div>
 
-        {scheduledSessions.length > 0 ? (
-          <table style={tableStyle}>
+      {/* Calendar Header */}
+      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', overflow: 'hidden', marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button onClick={prevWeek} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>← Prev</button>
+            <button onClick={today} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>Today</button>
+            <button onClick={nextWeek} style={{ padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', color: 'var(--color-text)' }}>Next →</button>
+          </div>
+          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+            Week of {weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </h2>
+        </div>
+
+        {/* Calendar Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(7, 1fr)`, minHeight: '200px' }}>
+          {weekDays.map((day, i) => {
+            const isToday = isSameDay(day, now);
+            const daySessions = scheduledSessions.filter(s => {
+              if (!s.scheduled_at) return false;
+              return isSameDay(new Date(s.scheduled_at), day);
+            });
+            return (
+              <div key={i} style={{ borderRight: i < 6 ? '1px solid var(--color-border)' : 'none', minHeight: '140px' }}>
+                <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem', background: isToday ? 'var(--color-primary)' : 'var(--color-bg)', color: isToday ? 'white' : 'var(--color-text)' }}>
+                  <span>{DAY_NAMES[i]}</span>
+                  <span style={{ marginLeft: '0.4rem', opacity: 0.7 }}>{day.getDate()}</span>
+                </div>
+                <div style={{ padding: '0.4rem 0.4rem' }}>
+                  {daySessions.length === 0 ? (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-border)', textAlign: 'center', paddingTop: '0.5rem' }}>-</div>
+                  ) : (
+                    daySessions.map(s => (
+                      <CalendarEvent key={s.id} session={s} onClick={setSelectedSession} />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Pending Sessions */}
+      <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem' }}>
+        Pending Sessions to Schedule ({pendingSessions.length})
+      </h2>
+
+      {pendingSessions.length === 0 ? (
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '2.5rem', textAlign: 'center', marginBottom: '2.5rem' }}>
+          <p style={{ color: 'var(--color-text-muted)' }}>No pending sessions. All requests have been processed.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
+          {pendingSessions.map(session => (
+            <div key={session.id} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem' }}>{session.first_name} {session.last_name}</div>
+                  <div style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>{session.email}</div>
+                </div>
+                <span style={{ background: '#FFA500', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>Pending</span>
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
+                <strong>Tier:</strong> {session.service_tier} &nbsp;|&nbsp; <strong>Phone:</strong> {session.phone || 'N/A'}
+              </div>
+              <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                <strong>Submitted:</strong> {new Date(session.created_at).toLocaleDateString()}
+              </div>
+              {session.preferred_date && (
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+                  <strong>Preferred:</strong> {new Date(session.preferred_date).toLocaleDateString()} {session.preferred_time_slot ? `at ${session.preferred_time_slot}` : ''}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <button onClick={() => setSelectedSession(session)} style={{ padding: '0.4rem 0.85rem', borderRadius: '6px', border: 'none', background: 'var(--color-primary)', color: 'white', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                  Confirm Time
+                </button>
+                <button onClick={() => sendReminder(session)} style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                  Send Reminder
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Scheduled Sessions Table */}
+      <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem' }}>
+        Scheduled Sessions ({scheduledSessions.length})
+      </h2>
+
+      {scheduledSessions.length === 0 ? (
+        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '2.5rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--color-text-muted)' }}>No scheduled sessions. Confirm a pending request above to get started.</p>
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)', borderRadius: '10px', overflow: 'hidden' }}>
             <thead>
               <tr>
-                <th style={thStyle}>{t('consulting.scheduler.client')}</th>
-                <th style={thStyle}>{t('consulting.scheduler.email')}</th>
-                <th style={thStyle}>{t('consulting.scheduler.scheduledDate')}</th>
-                <th style={thStyle}>{t('consulting.scheduler.meetingUrl')}</th>
+                {['Client', 'Date & Time', 'Tier', 'Consultant', 'Meeting', 'Status', 'Reminders', 'Actions'].map(h => (
+                  <th key={h} style={{ background: 'var(--color-bg)', padding: '0.85rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--color-border)', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {scheduledSessions.map(session => (
-                <tr key={session.id}>
-                  <td style={tdStyle}>
-                    {session.first_name} {session.last_name}
+              {scheduledSessions.map(s => (
+                <tr key={s.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    <div style={{ fontWeight: 600 }}>{s.first_name} {s.last_name}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{s.email}</div>
                   </td>
-                  <td style={tdStyle}>{session.email}</td>
-                  <td style={tdStyle}>
-                    {session.scheduled_at
-                      ? new Date(session.scheduled_at).toLocaleString()
-                      : t('common.na')}
+                  <td style={{ padding: '0.85rem 1rem', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
+                    {s.scheduled_at ? new Date(s.scheduled_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not set'}
                   </td>
-                  <td style={tdStyle}>
-                    {session.meeting_url ? (
-                      <a href={session.meeting_url} target="_blank" rel="noopener noreferrer">
-                        {t('consulting.scheduler.joinMeeting')}
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    <span style={{ background: '#8B5CF6', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>{s.service_tier}</span>
+                  </td>
+                  <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: s.consultant_id ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
+                    {s.consultant_name || (s.consultant_id ? 'Assigned' : 'Unassigned')}
+                  </td>
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    {s.meeting_url ? (
+                      <a href={s.meeting_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}>
+                        Join
                       </a>
-                    ) : (
-                      t('common.na')
-                    )}
+                    ) : <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>No link</span>}
+                  </td>
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    <span style={{ background: SESSION_STATUS_COLORS[s.status] || '#6B7280', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.78rem', fontWeight: 600 }}>
+                      {s.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                    {s.reminder_sent ? 'Sent' : 'Not sent'}
+                  </td>
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <button onClick={() => setSelectedSession(s)} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-primary)', background: 'none', color: 'var(--color-primary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
+                        Edit
+                      </button>
+                      <button onClick={() => sendReminder(s)} style={{ padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid var(--color-border)', background: 'none', color: 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        Remind
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        ) : (
-          <p style={{ color: 'var(--color-text-muted)' }}>
-            {t('consulting.scheduler.noScheduled')}
-          </p>
-        )}
-      </div>
-
-      {/* Schedule Modal */}
-      {showScheduler && selectedSession && (
-        <div style={modalStyle}>
-          <div style={modalContentStyle}>
-            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: '600' }}>
-              {t('consulting.scheduler.scheduleFor')} {selectedSession.first_name}{' '}
-              {selectedSession.last_name}
-            </h2>
-
-            <div style={sectionStyle}>
-              <label style={labelStyle}>{t('consulting.scheduler.selectDate')}</label>
-              <input
-                type="date"
-                value={selectedDate || ''}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={sectionStyle}>
-              <label style={labelStyle}>{t('consulting.scheduler.selectTime')}</label>
-              <div style={timeGridStyle}>
-                {timeSlots.map(time => (
-                  <button
-                    key={time}
-                    style={timeButtonStyle(selectedTime === time)}
-                    onClick={() => setSelectedTime(time)}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={sectionStyle}>
-              <label style={labelStyle}>{t('consulting.scheduler.meetingUrl')}</label>
-              <input
-                type="text"
-                placeholder="https://zoom.us/j/..."
-                value={meetingUrl}
-                onChange={(e) => setMeetingUrl(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-
-            <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
-              <button
-                style={buttonStyle}
-                onClick={scheduleSession}
-                disabled={saving}
-              >
-                {saving ? t('common.sending') : t('consulting.scheduler.confirm')}
-              </button>
-              <button
-                style={{
-                  ...buttonStyle,
-                  background: 'var(--color-border)',
-                  color: 'var(--color-text)',
-                }}
-                onClick={() => {
-                  setShowScheduler(false);
-                  setSelectedDate(null);
-                  setSelectedTime(null);
-                  setMeetingUrl('');
-                }}
-              >
-                {t('common.cancel')}
-              </button>
-            </div>
-          </div>
         </div>
+      )}
+
+      {selectedSession && (
+        <ScheduleModal
+          session={selectedSession}
+          consultants={consultants}
+          onClose={() => setSelectedSession(null)}
+          onScheduled={loadData}
+        />
+      )}
+
+      {showNewSession && (
+        <NewSessionModal
+          consultants={consultants}
+          onClose={() => setShowNewSession(false)}
+          onCreated={loadData}
+        />
       )}
     </div>
   );
