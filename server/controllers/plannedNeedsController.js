@@ -50,19 +50,19 @@ exports.listPlannedNeeds = async (req, res) => {
     const userId = req.user.id;
     const { status, category, limit = 100, offset = 0 } = req.query;
 
-    const conditions = ['user_id = $1'];
+    const conditions = ['pn.user_id = $1'];
     const params = [userId];
 
     if (status) {
       const statuses = status.split(',').filter(s => VALID_STATUSES.includes(s));
       if (statuses.length) {
         params.push(statuses);
-        conditions.push(`status = ANY($${params.length})`);
+        conditions.push(`pn.status = ANY($${params.length})`);
       }
     }
     if (category && VALID_CATEGORIES.includes(category)) {
       params.push(category);
-      conditions.push(`category = $${params.length}`);
+      conditions.push(`pn.category = $${params.length}`);
     }
 
     params.push(Math.min(parseInt(limit) || 100, 200), Math.max(parseInt(offset) || 0, 0));
@@ -109,7 +109,7 @@ exports.listPlannedNeeds = async (req, res) => {
       LEFT JOIN user_homes uh ON uh.id = pn.home_id
       WHERE ${conditions.join(' AND ')}
       ORDER BY
-        CASE status
+        CASE pn.status
           WHEN 'activating_soon' THEN 0
           WHEN 'funding'         THEN 1
           WHEN 'planned'         THEN 2
@@ -118,7 +118,7 @@ exports.listPlannedNeeds = async (req, res) => {
           WHEN 'cancelled'       THEN 5
           ELSE 6
         END,
-        due_date ASC
+        pn.due_date ASC
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
