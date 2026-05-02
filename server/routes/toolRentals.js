@@ -30,30 +30,57 @@ const TOOL_FIELDS_BASE = `
   t.location_city, t.location_state, t.created_at, t.updated_at
 `;
 
-// Extended fields added in migration 078b — resolved lazily on first browse request
-let _toolFieldsResolved = null;
+// Resolved lazily on first request — checks which optional columns exist so the
+// query doesn't fail on databases where migration 078b hasn't applied yet.
+let _resolvedFields = null;
 async function getToolFields() {
-  if (_toolFieldsResolved) return _toolFieldsResolved;
+  if (_resolvedFields) return _resolvedFields;
   try {
-    const { rows } = await pool.query(`
-      SELECT column_name
-        FROM information_schema.columns
+    // Check optional tool_rentals columns (added in 078b)
+    const { rows: trCols } = await pool.query(`
+      SELECT column_name FROM information_schema.columns
        WHERE table_name = 'tool_rentals'
-         AND column_name IN ('avg_rating','review_count','image_gallery')
+         AND column_name IN ('avg_rating', 'review_count', 'image_gallery')
     `);
-    const cols = rows.map(r => r.column_name);
-    const extras = [
-      cols.includes('avg_rating')    ? 'COALESCE(t.avg_rating, 0) AS avg_rating'    : '0 AS avg_rating',
-      cols.includes('review_count')  ? 'COALESCE(t.review_count, 0) AS review_count' : '0 AS review_count',
-      cols.includes('image_gallery')
+    const tr = new Set(trCols.map(r => r.column_name));
+
+    // Check optional users columns (added in 078b)
+    const { rows: uCols } = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'users'
+         AND column_name IN ('avatar_url', 'avg_response_time_hours')
+    `);
+    const uc = new Set(uCols.map(r => r.column_name));
+
+    const toolExtras = [
+      tr.has('avg_rating')   ? 'COALESCE(t.avg_rating, 0) AS avg_rating'   : '0 AS avg_rating',
+      tr.has('review_count') ? 'COALESCE(t.review_count, 0) AS review_count' : '0 AS review_count',
+      tr.has('image_gallery')
         ? `CASE WHEN t.image_gallery IS NOT NULL AND array_length(t.image_gallery, 1) > 0 THEN t.image_gallery[1] ELSE NULL END AS image_url`
         : 'NULL AS image_url',
     ].join(',\n  ');
-    _toolFieldsResolved = `${TOOL_FIELDS_BASE},\n  ${extras}`;
+
+    // Store which optional users columns are safe to select
+    _resolvedFields = {
+      toolFields: `${TOOL_FIELDS_BASE},\n  ${toolExtras}`,
+      hasAvatarUrl: uc.has('avatar_url'),
+      hasResponseTime: uc.has('avg_response_time_hours'),
+    };
   } catch {
-    _toolFieldsResolved = `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url`;
+    _resolvedFields = {
+      toolFields: `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url`,
+      hasAvatarUrl: false,
+      hasResponseTime: false,
+    };
   }
-  return _toolFieldsResolved;
+  return _resolvedFields;
+}
+
+function buildUserFields(hasAvatarUrl, hasResponseTime) {
+  const parts = ['u.first_name', 'u.last_name'];
+  parts.push(hasAvatarUrl ? 'u.avatar_url' : 'NULL AS avatar_url');
+  parts.push(hasResponseTime ? 'COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours' : '24 AS avg_response_time_hours');
+  return parts.join(',\n              ');
 }
 
 // Seeded common tool categories (also merged with DB distinct values)
@@ -118,11 +145,10 @@ router.get('/browse', async (req, res) => {
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);
 
-    const TOOL_FIELDS = await getToolFields();
+    const { toolFields, hasAvatarUrl, hasResponseTime } = await getToolFields();
     const result = await pool.query(
-      `SELECT ${TOOL_FIELDS},
-              u.first_name, u.last_name, u.avatar_url,
-              COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours,
+      `SELECT ${toolFields},
+              ${buildUserFields(hasAvatarUrl, hasResponseTime)},
               t.user_id AS owner_id,
               COALESCE(t.avg_rating, 0) AS owner_rating
          FROM tool_rentals t
@@ -144,11 +170,10 @@ router.get('/public/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid tool id' });
-    const TOOL_FIELDS = await getToolFields();
+    const { toolFields, hasAvatarUrl, hasResponseTime } = await getToolFields();
     const result = await pool.query(
-      `SELECT ${TOOL_FIELDS},
-              u.first_name, u.last_name, u.avatar_url,
-              COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours,
+      `SELECT ${toolFields},
+              ${buildUserFields(hasAvatarUrl, hasResponseTime)},
               t.user_id AS owner_id,
               COALESCE(t.avg_rating, 0) AS owner_rating
          FROM tool_rentals t
@@ -167,9 +192,9 @@ router.get('/public/:id', async (req, res) => {
 // GET /api/tool-rentals/me
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const TOOL_FIELDS = await getToolFields();
+    const { toolFields } = await getToolFields();
     const result = await pool.query(
-      `SELECT ${TOOL_FIELDS}
+      `SELECT ${toolFields}
          FROM tool_rentals t
         WHERE t.user_id = $1
         ORDER BY t.created_at DESC`,
