@@ -3,30 +3,41 @@ const logger = require('../utils/logger');
 const db = require('../db');
 const { sendEmail } = require('../utils/email');
 
-const VALID_CONSULTING_STATUSES = ['pending', 'scheduled', 'completed', 'cancelled'];
+const VALID_CONSULTING_STATUSES = ['pending', 'contacted', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
 
 exports.getConsultingRequests = async (req, res) => {
-  const { status, limit = 50, offset = 0 } = req.query;
+  const { status, limit = 50, offset = 0, search } = req.query;
   try {
-    // Validate status parameter if provided
-    if (status && !VALID_CONSULTING_STATUSES.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value' });
-    }
-
-    let query = `SELECT cs.*, c.current_phase, c.progress_pct FROM consulting_sessions cs
-                 LEFT JOIN consulting_session_phases c ON cs.id = c.session_id`;
+    const conditions = [];
     const params = [];
+    let idx = 1;
 
     if (status) {
-      query += ` WHERE cs.status = $${params.length + 1}`;
+      conditions.push(`cs.status = $${idx++}`);
       params.push(status);
     }
 
-    query += ` ORDER BY cs.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    if (search) {
+      conditions.push(`(cs.first_name ILIKE $${idx} OR cs.last_name ILIKE $${idx} OR cs.email ILIKE $${idx})`);
+      params.push(`%${search}%`);
+      idx++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const query = `
+      SELECT cs.* FROM consulting_sessions cs
+      ${whereClause}
+      ORDER BY cs.created_at DESC
+      LIMIT $${idx} OFFSET $${idx + 1}
+    `;
     params.push(parseInt(limit), parseInt(offset));
 
     const result = await db.query(query, params);
-    const countResult = await db.query('SELECT COUNT(*) FROM consulting_sessions' + (status ? ` WHERE status = $1` : ''), status ? [status] : []);
+    const countResult = await db.query(
+      `SELECT COUNT(*) FROM consulting_sessions cs ${whereClause}`,
+      params.slice(0, idx - 1)
+    );
 
     res.json({
       requests: result.rows,
@@ -159,7 +170,7 @@ exports.getDashboardStats = async (req, res) => {
  * GET /api/consulting/admin/sessions
  */
 exports.listSessions = async (req, res) => {
-  const { page = 1, limit = 20, status = '', service_tier = '' } = req.query;
+  const { page = 1, limit = 20, status = '', service_tier = '', search = '' } = req.query;
 
   const pageNum = parseInt(page) || 1;
   const limitNum = Math.min(parseInt(limit) || 20, 100);
@@ -180,6 +191,12 @@ exports.listSessions = async (req, res) => {
     if (service_tier) {
       conditions.push(`service_tier = $${paramIndex}`);
       values.push(service_tier);
+      paramIndex++;
+    }
+
+    if (search) {
+      conditions.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
+      values.push(`%${search}%`);
       paramIndex++;
     }
 
@@ -259,7 +276,7 @@ exports.getSessionDetail = async (req, res) => {
  */
 exports.updateSessionDetails = async (req, res) => {
   const { id } = req.params;
-  const { status, consultant_assigned_id, scheduled_at } = req.body;
+  const { status, consultant_assigned_id, scheduled_at, notes, meeting_url } = req.body;
 
   try {
     // Verify session exists
@@ -309,6 +326,18 @@ exports.updateSessionDetails = async (req, res) => {
     if (scheduled_at) {
       updates.push(`scheduled_at = $${paramIndex}`);
       values.push(scheduled_at);
+      paramIndex++;
+    }
+
+    if (meeting_url !== undefined) {
+      updates.push(`meeting_url = $${paramIndex}`);
+      values.push(meeting_url);
+      paramIndex++;
+    }
+
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramIndex}`);
+      values.push(notes);
       paramIndex++;
     }
 
@@ -429,5 +458,280 @@ exports.markNoShow = async (req, res) => {
   } catch (err) {
     logger.error('Error marking consulting session as no-show', { sessionId, err });
     return res.status(500).json({ error: 'Failed to mark session as no-show' });
+  }
+};
+
+/**
+ * Create a consulting request/session manually (admin-initiated)
+ * POST /api/consulting/admin/requests/create
+ * POST /api/consulting/admin/sessions/create
+ */
+exports.createSessionManually = async (req, res) => {
+  const {
+    first_name, last_name, email, phone, business_name,
+    service_tier = 'initial', description = '', areas_of_help = [],
+    consultant_id, scheduled_at, meeting_url, status = 'pending',
+  } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const result = await db.query(
+      `INSERT INTO consulting_sessions
+         (first_name, last_name, email, phone, business_name, service_tier, description, areas_of_help,
+          consultant_assigned_id, scheduled_at, meeting_url, status, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
+       RETURNING *`,
+      [
+        first_name || '', last_name || '', email, phone || null, business_name || null,
+        service_tier, description,
+        areas_of_help.length ? areas_of_help : null,
+        consultant_id || null, scheduled_at || null, meeting_url || null, status,
+      ]
+    );
+
+    logger.info('Consulting session created manually', { adminId: req.user?.id, sessionId: result.rows[0].id });
+    return res.status(201).json(result.rows[0]);
+  } catch (err) {
+    logger.error('Error creating consulting session manually', { err });
+    return res.status(500).json({ error: 'Failed to create session' });
+  }
+};
+
+/**
+ * Update request status (alias supporting body or param)
+ * PATCH /api/consulting/admin/requests/:id/status
+ */
+exports.updateRequestStatusById = async (req, res) => {
+  const { id } = req.params;
+  const { status, scheduled_at, meeting_url, consultant_id } = req.body;
+
+  if (!status) {
+    return res.status(400).json({ error: 'Status is required' });
+  }
+
+  try {
+    const updates = ['status = $1', 'updated_at = NOW()'];
+    const values = [status];
+    let idx = 2;
+
+    if (scheduled_at) { updates.push(`scheduled_at = $${idx++}`); values.push(scheduled_at); }
+    if (meeting_url !== undefined) { updates.push(`meeting_url = $${idx++}`); values.push(meeting_url); }
+    if (consultant_id) { updates.push(`consultant_assigned_id = $${idx++}`); values.push(consultant_id); }
+
+    values.push(id);
+    const result = await db.query(
+      `UPDATE consulting_sessions SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    logger.info('Consulting request status updated', { adminId: req.user?.id, id, status });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    logger.error('Error updating request status by id', { id, err });
+    return res.status(500).json({ error: 'Failed to update status' });
+  }
+};
+
+/**
+ * Enhanced getDashboardStats with more metrics
+ */
+exports.getEnhancedDashboardStats = async (req, res) => {
+  try {
+    const stats = await db.query(`
+      SELECT
+        (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'pending') as pending_requests,
+        (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'scheduled') as scheduled_sessions,
+        (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'completed') as completed_sessions,
+        (SELECT COUNT(*) FROM consulting_sessions WHERE status = 'cancelled') as cancelled_sessions,
+        (SELECT COUNT(DISTINCT email) FROM consulting_sessions WHERE status IN ('scheduled','completed')) as total_clients,
+        (SELECT AVG(nps_score) FROM consulting_session_feedback WHERE nps_score IS NOT NULL) as avg_nps,
+        (SELECT COALESCE(SUM(amount_cents),0) FROM consulting_payments WHERE status = 'completed') as total_revenue_cents,
+        (SELECT COALESCE(SUM(amount_cents),0) FROM consulting_payments WHERE status IN ('pending','processing')) as pending_revenue_cents,
+        (SELECT COALESCE(SUM(amount_cents),0) FROM consulting_payments WHERE status = 'refunded') as refunded_cents,
+        (SELECT COUNT(*) FROM consulting_purchases WHERE status = 'completed') as active_packages
+    `);
+
+    const s = stats.rows[0];
+    const total = parseInt(s.completed_sessions) + parseInt(s.cancelled_sessions);
+    const cancellationRate = total > 0 ? Math.round((parseInt(s.cancelled_sessions) / total) * 100) : 0;
+
+    return res.json({ ...s, cancellation_rate: cancellationRate });
+  } catch (err) {
+    logger.error('Error fetching enhanced dashboard stats', { err });
+    return res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+};
+
+/**
+ * List all admin purchases
+ * GET /api/consulting/admin/purchases
+ */
+exports.listPurchases = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT cp.*, u.first_name, u.last_name, u.email, pkg.package_name, pkg.service_tier as package_tier
+      FROM consulting_purchases cp
+      LEFT JOIN users u ON cp.user_id = u.id
+      LEFT JOIN consulting_packages pkg ON cp.package_id = pkg.id
+      ORDER BY cp.created_at DESC
+      LIMIT 100
+    `);
+    return res.json(result.rows);
+  } catch (err) {
+    logger.error('Error listing consulting purchases', { err });
+    return res.status(500).json({ error: 'Failed to fetch purchases' });
+  }
+};
+
+/**
+ * List all admin invoices
+ * GET /api/consulting/admin/invoices
+ */
+exports.listInvoices = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT ci.*, u.first_name, u.last_name, u.email as client_email,
+             pkg.package_name, cp.service_tier
+      FROM consulting_invoices ci
+      LEFT JOIN consulting_purchases cp ON ci.purchase_id = cp.id
+      LEFT JOIN users u ON ci.user_id = u.id
+      LEFT JOIN consulting_packages pkg ON cp.package_id = pkg.id
+      ORDER BY ci.issued_date DESC
+      LIMIT 200
+    `);
+    return res.json(result.rows);
+  } catch (err) {
+    logger.error('Error listing consulting invoices', { err });
+    return res.status(500).json({ error: 'Failed to fetch invoices' });
+  }
+};
+
+/**
+ * Generate a manual invoice for a client not in the system
+ * POST /api/consulting/admin/invoices/generate-manual
+ */
+exports.generateManualInvoice = async (req, res) => {
+  const { client_email, client_name, package_tier, amount_cents, notes } = req.body;
+  if (!client_email || !client_name) {
+    return res.status(400).json({ error: 'Client email and name required' });
+  }
+  try {
+    const invoiceNumber = `CONS-${Date.now()}`;
+    const result = await db.query(
+      `INSERT INTO consulting_invoices (invoice_number, amount_cents, status, issued_date, due_date, notes)
+       VALUES ($1, $2, 'sent', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', $3)
+       RETURNING *`,
+      [invoiceNumber, amount_cents || 0, notes || null]
+    );
+
+    // Non-blocking email send
+    sendEmail({
+      to: client_email,
+      subject: `Invoice ${invoiceNumber} - OxSteed Consulting`,
+      html: `<p>Dear ${client_name},</p><p>Please find your invoice for consulting services attached.</p><p><strong>Invoice #:</strong> ${invoiceNumber}<br><strong>Amount:</strong> $${((amount_cents || 0) / 100).toFixed(2)}</p><p>Please contact us if you have any questions.</p>`,
+    }).catch(err => logger.warn('Failed to send invoice email', { error: err.message }));
+
+    logger.info('Manual invoice generated', { invoiceNumber, adminId: req.user?.id, client_email });
+    return res.status(201).json({ ...result.rows[0], client_email, client_name });
+  } catch (err) {
+    logger.error('Error generating manual invoice', { err });
+    return res.status(500).json({ error: 'Failed to generate invoice' });
+  }
+};
+
+/**
+ * Update consulting package (admin)
+ * PATCH /api/consulting/admin/packages/:id
+ */
+exports.updatePackage = async (req, res) => {
+  const { id } = req.params;
+  const { name, description, base_price, session_count, is_active } = req.body;
+  try {
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (name !== undefined) { updates.push(`package_name = $${idx++}`); values.push(name); }
+    if (description !== undefined) { updates.push(`description = $${idx++}`); values.push(description); }
+    if (base_price !== undefined) { updates.push(`base_price = $${idx++}`); values.push(base_price); }
+    if (session_count !== undefined) { updates.push(`duration_hours = $${idx++}`); values.push(session_count); }
+    if (is_active !== undefined) { updates.push(`is_active = $${idx++}`); values.push(is_active); }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+    values.push(id);
+    const result = await db.query(
+      `UPDATE consulting_packages SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Package not found' });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    logger.error('Error updating consulting package', { id, err });
+    return res.status(500).json({ error: 'Failed to update package' });
+  }
+};
+
+/**
+ * Send session reminder email
+ * POST /api/consulting/admin/sessions/:id/send-reminder
+ */
+exports.sendSessionReminder = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      'SELECT * FROM consulting_sessions WHERE id = $1',
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Session not found' });
+
+    const session = result.rows[0];
+    if (session.email) {
+      await sendEmail({
+        to: session.email,
+        subject: 'Reminder: Your Consulting Session',
+        html: `<p>Hi ${session.first_name},</p><p>This is a reminder about your upcoming consulting session${session.scheduled_at ? ` on ${new Date(session.scheduled_at).toLocaleString()}` : ''}.</p>${session.meeting_url ? `<p><a href="${session.meeting_url}">Join the session</a></p>` : ''}<p>Please reach out if you need to reschedule.</p>`,
+      });
+    }
+
+    await db.query('UPDATE consulting_sessions SET updated_at = NOW() WHERE id = $1', [id]);
+    return res.json({ message: 'Reminder sent' });
+  } catch (err) {
+    logger.error('Error sending session reminder', { id, err });
+    return res.status(500).json({ error: 'Failed to send reminder' });
+  }
+};
+
+/**
+ * Send follow-up email after session
+ * POST /api/consulting/admin/sessions/:id/send-followup
+ */
+exports.sendSessionFollowUp = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query('SELECT * FROM consulting_sessions WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Session not found' });
+
+    const session = result.rows[0];
+    if (session.email) {
+      await sendEmail({
+        to: session.email,
+        subject: 'Thank You - Consulting Session Follow-up',
+        html: `<p>Hi ${session.first_name},</p><p>Thank you for your consulting session with OxSteed. We hope it was valuable.</p><p>Please review your action items and reach out if you have any questions about next steps.</p><p>We look forward to supporting your business journey.</p>`,
+      });
+    }
+
+    return res.json({ message: 'Follow-up email sent' });
+  } catch (err) {
+    logger.error('Error sending follow-up email', { id, err });
+    return res.status(500).json({ error: 'Failed to send follow-up' });
   }
 };
