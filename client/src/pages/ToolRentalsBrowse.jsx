@@ -19,10 +19,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { SlidersHorizontal, X, ChevronDown, Sparkles } from 'lucide-react';
-
+import { SlidersHorizontal, X, ChevronDown, Sparkles, Wrench } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
@@ -232,39 +231,55 @@ const DirectoryHero = ({ searchValue, onSearch, categoryChips }) => {
       <div className="absolute inset-y-0 left-0 w-1 bg-brand-500" aria-hidden="true" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-        <div className="max-w-2xl">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-brand-400" aria-hidden="true" />
-            <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">
-              {t('toolRentalsDir.heroEyebrow')}
-            </span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
-            {t('toolRentalsDir.heroTitle')}
-          </h1>
-          <p className="text-gray-400 mt-2 text-base leading-relaxed">
-            {t('toolRentalsDir.heroSubtitle')}
-          </p>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-brand-400" aria-hidden="true" />
+              <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">
+                {t('toolRentalsDir.heroEyebrow')}
+              </span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
+              {t('toolRentalsDir.heroTitle')}
+            </h1>
+            <p className="text-gray-400 mt-2 text-base leading-relaxed">
+              {t('toolRentalsDir.heroSubtitle')}
+            </p>
 
-          <div className="mt-6">
-            <SearchBar
-              value={searchValue}
-              onChange={onSearch}
-              placeholder={t('toolRentalsDir.heroSearchPlaceholder')}
-            />
+            <div className="mt-6">
+              <SearchBar
+                value={searchValue}
+                onChange={onSearch}
+                placeholder={t('toolRentalsDir.heroSearchPlaceholder')}
+              />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {categoryChips.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onSearch(key)}
+                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {categoryChips.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onSearch(key)}
-                className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full text-xs text-gray-300 hover:text-white transition-colors"
-              >
-                {label}
-              </button>
-            ))}
+          {/* List Your Tool CTA */}
+          <div className="lg:flex-shrink-0">
+            <Link
+              to="/profile/tool-rentals"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/20 transition-all hover:shadow-brand-500/30 hover:-translate-y-0.5"
+            >
+              <Wrench className="w-4 h-4" aria-hidden="true" />
+              {t('toolRentalsDir.listYourTool')}
+            </Link>
+            <p className="text-xs text-gray-500 mt-2 max-w-[200px]">
+              {t('toolRentalsDir.listYourToolSubtitle')}
+            </p>
           </div>
         </div>
       </div>
@@ -328,8 +343,10 @@ function applyClientSort(tools, sort, boostedCategory) {
   const copy = [...tools];
   const baseCompare = (a, b) => {
     switch (sort) {
-      case 'price-asc':  return Number(a.daily_rate || 0) - Number(b.daily_rate || 0);
-      case 'price-desc': return Number(b.daily_rate || 0) - Number(a.daily_rate || 0);
+      case 'price-asc':    return Number(a.daily_rate || 0) - Number(b.daily_rate || 0);
+      case 'price-desc':   return Number(b.daily_rate || 0) - Number(a.daily_rate || 0);
+      case 'most-popular': return Number(b.review_count || 0) - Number(a.review_count || 0);
+      case 'highest-rated':return Number(b.avg_rating || 0) - Number(a.avg_rating || 0);
       case 'newest':
       default: {
         const tA = new Date(a.created_at || 0).getTime() || 0;
@@ -626,15 +643,26 @@ const ToolRentalsBrowse = () => {
                 ))}
               </div>
             ) : loadState === 'error' ? (
-              <div className="text-center py-16 text-gray-400">
-                <p className="text-lg font-medium text-white mb-2">{t('errors.generic')}</p>
-                <p className="text-sm mb-4">{t('toolRentalsDir.loadError')}</p>
+              <div className="flex flex-col items-center justify-center gap-5 py-16 px-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-rose-900/30 border border-rose-800/40 flex items-center justify-center">
+                  <Wrench className="w-7 h-7 text-rose-400" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-white mb-1">{t('errors.generic')}</p>
+                  <p className="text-sm text-gray-400 max-w-sm leading-relaxed">{t('toolRentalsDir.loadError')}</p>
+                </div>
                 <button
                   onClick={() => load(filters, sort, 0)}
-                  className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow shadow-brand-500/20"
                 >
                   {t('common.retry')}
                 </button>
+                <Link
+                  to="/profile/tool-rentals"
+                  className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
+                >
+                  {t('toolRentalsDir.listToolCta')}
+                </Link>
               </div>
             ) : displayed.length === 0 ? (
               <EmptyState

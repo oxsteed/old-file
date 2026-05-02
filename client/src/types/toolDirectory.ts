@@ -172,12 +172,16 @@ export type ToolCondition = (typeof TOOL_CONDITIONS)[number];
 export type ToolSortOption =
   | 'newest'
   | 'price-asc'
-  | 'price-desc';
+  | 'price-desc'
+  | 'most-popular'
+  | 'highest-rated';
 
 export const TOOL_SORT_OPTIONS: ToolSortOption[] = [
   'newest',
   'price-asc',
   'price-desc',
+  'most-popular',
+  'highest-rated',
 ];
 
 // ─── Distance / price presets ────────────────────────────────────────────────
@@ -191,6 +195,9 @@ export const TOOL_PRICE_PRESETS = [
 
 // ─── Filter state ────────────────────────────────────────────────────────────
 
+export const DISTANCE_RADIUS_OPTIONS = [5, 10, 25, 50] as const;
+export type DistanceRadius = (typeof DISTANCE_RADIUS_OPTIONS)[number] | null;
+
 export interface ToolDirectoryFilters {
   query: string;
   /** Active categories (any-of). For now backend supports a single value; client picks the first. */
@@ -203,6 +210,8 @@ export interface ToolDirectoryFilters {
   priceRange: [number, number] | null;
   /** Free-text city filter; sent to the backend as `city` */
   city: string;
+  /** Radius in miles around city; null = no restriction */
+  radius: DistanceRadius;
   /** Quick toggles */
   availableNow: boolean;
   deliveryAvailable: boolean;
@@ -216,6 +225,7 @@ export const DEFAULT_TOOL_FILTERS: ToolDirectoryFilters = {
   conditions: [],
   priceRange: null,
   city: '',
+  radius: null,
   availableNow: false,
   deliveryAvailable: false,
   requiresDeposit: null,
@@ -230,6 +240,7 @@ export function countActiveToolFilters(f: ToolDirectoryFilters): number {
   if (f.conditions.length)  n++;
   if (f.priceRange)         n++;
   if (f.city)               n++;
+  if (f.radius !== null)    n++;
   if (f.availableNow)       n++;
   if (f.deliveryAvailable)  n++;
   if (f.requiresDeposit !== null) n++;

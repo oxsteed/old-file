@@ -60,6 +60,17 @@
 - **i18n**: `templatePicker.*` keys (42 each) added to en/es/fr/ht locale files.
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
+**Latest work completed (2026-05-02):**
+- **Tool Rentals page (/tool-rentals) - Bug fixes & improvements:**
+ - **Bug #1 (P0):** Added missing `toolRentalsDir` i18n namespace to all 4 locale files (en/es/fr/ht) - 150+ keys including hero copy, filters, sort options, conditions, tile labels, category/subtype taxonomy, ARIA strings, empty/error state copy. Page was previously showing raw translation keys.
+ - **Bug #2 (P0):** Fixed `GET /api/tool-rentals/browse` SQL query - removed `u.owner_rating` (non-existent column on users) that caused every listing load to fail with a DB error. Replaced with `t.avg_rating AS owner_rating`. Also added `t.avg_rating`, `t.review_count`, `t.image_url` (from `image_gallery[1]`), `u.avg_response_time_hours` to TOOL_FIELDS. Applied same fix to `GET /api/tool-rentals/public/:id`.
+ - **Bug #3 (P0):** Browser tab title now shows correctly (was showing raw key `toolRentalsDir.heroTitle`).
+ - **Improvement (P1):** Added distance/radius filter to FilterPanel (5 mi / 10 mi / 25 mi / 50 mi buttons) - new `radius` field in `ToolDirectoryFilters` type with active tag support.
+ - **Improvement (P1):** Expanded sort options: added "Most Popular" and "Highest Rated" to the 3 existing options (sort by `review_count` / `avg_rating` client-side). Updated `ToolSortOption` type. Fixed `replace('-', '_')` to use `replace(/-/g, '_')` in `SortControls.tsx` for multi-hyphen sort keys.
+ - **Improvement (P1):** "List Your Tool" CTA button added to hero section (links to `/profile/tool-rentals`).
+ - **Improvement (P1):** Load error state now shows icon + descriptive message + Retry button (was plain text).
+ - **Category tiles:** Active/selected state was already implemented (brand-500 border + bg).
+
 **Latest work completed (2026-05-01):**
 - **Business Hub runtime crash (helper after creating a business):** `BusinessHubPage.jsx` used `formatMoney` / `getDefaultCurrency` without imports, and `currency` was only defined in the outer wrapper so child tab components saw **undefined** `currency` and threw in `OverviewTab` (default tab). Fixed: import `formatMoney` + `getDefaultCurrency`, compute `currency` in `BusinessHubInner`, pass `currency` into `OverviewTab` / `InvoicesTab` / `TaxTab` / `GoalsTab`.
 - **Docker client build / `BusinessLaunchStatusPage.jsx`:** File ended mid-`<a>` (Vite: "Unexpected end of file before a closing a tag"). Completed the support footer link, closed `DetailModal` JSX, and added the missing default export: loads `GET /consulting/business-launch/my-requests`, optional `GET /consulting/business-launch/search` by email (matches i18n keys already in `en.json`), list + `DetailModal`. **Verified:** `npm run build` not run here (no Node in agent env); Coolify should pass `vite build` once deployed.
