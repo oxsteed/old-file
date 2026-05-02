@@ -19,39 +19,159 @@ const BUSINESS_PHASES = Array.from({ length: 25 }, (_, i) => ({
 }));
 
 // Setup items grouped by category (labels will be translated at runtime)
+// 100 services across 18 categories from CONSULTING_SERVICES_COMPLETE.md
 const SETUP_ITEMS_GROUPED_KEYS = {
+  // ── Original Services ──────────────────────────────────────────────────────
   groupBusinessFormation: [
-    { id: 'llc_filing', labelKey: 'llcFiling' },
-    { id: 'ein_registration', labelKey: 'einRegistration' },
-    { id: 'business_address', labelKey: 'businessAddress' },
-    { id: 'operating_docs', labelKey: 'operatingDocs' },
+    { id: 'llc_filing',          labelKey: 'llcFiling' },
+    { id: 'ein_registration',    labelKey: 'einRegistration' },
+    { id: 'business_address',    labelKey: 'businessAddress' },
+    { id: 'operating_docs',      labelKey: 'operatingDocs' },
   ],
   groupDigitalIdentity: [
     { id: 'domain_registration', labelKey: 'domainRegistration' },
-    { id: 'business_email', labelKey: 'businessEmail' },
-    { id: 'business_phone', labelKey: 'businessPhone' },
-    { id: 'logo_branding', labelKey: 'logoBranding' },
+    { id: 'business_email',      labelKey: 'businessEmail' },
+    { id: 'business_phone',      labelKey: 'businessPhone' },
+    { id: 'logo_branding',       labelKey: 'logoBranding' },
   ],
   groupOnlinePresence: [
-    { id: 'website_build', labelKey: 'websiteBuild' },
-    { id: 'contact_form', labelKey: 'contactForm' },
-    { id: 'google_business', labelKey: 'googleBusiness' },
-    { id: 'social_media', labelKey: 'socialMedia' },
+    { id: 'website_build',       labelKey: 'websiteBuild' },
+    { id: 'contact_form',        labelKey: 'contactForm' },
+    { id: 'google_business',     labelKey: 'googleBusiness' },
+    { id: 'social_media',        labelKey: 'socialMedia' },
   ],
   groupBusinessOperations: [
-    { id: 'payment_processor', labelKey: 'paymentProcessor' },
-    { id: 'scheduling_system', labelKey: 'schedulingSystem' },
-    { id: 'client_intake', labelKey: 'clientIntake' },
-    { id: 'invoice_templates', labelKey: 'invoiceTemplates' },
-    { id: 'bookkeeping_system', labelKey: 'bookkeepingSystem' },
+    { id: 'payment_processor',   labelKey: 'paymentProcessor' },
+    { id: 'scheduling_system',   labelKey: 'schedulingSystem' },
+    { id: 'client_intake',       labelKey: 'clientIntake' },
+    { id: 'invoice_templates',   labelKey: 'invoiceTemplates' },
+    { id: 'bookkeeping_system',  labelKey: 'bookkeepingSystem' },
   ],
   groupLaunchSupport: [
-    { id: 'outreach_templates', labelKey: 'outreachTemplates' },
-    { id: 'referral_system', labelKey: 'referralSystem' },
-    { id: 'online_listings', labelKey: 'onlineListings' },
-    { id: 'launch_support', labelKey: 'launchSupport' },
+    { id: 'outreach_templates',  labelKey: 'outreachTemplates' },
+    { id: 'referral_system',     labelKey: 'referralSystem' },
+    { id: 'online_listings',     labelKey: 'onlineListings' },
+    { id: 'launch_support',      labelKey: 'launchSupport' },
+  ],
+  // ── Business & AI Services ─────────────────────────────────────────────────
+  groupAiResearchTools: [
+    { id: 'ai_market_research',    labelKey: 'aiMarketResearch' },
+    { id: 'ai_competitor_analysis',labelKey: 'aiCompetitorAnalysis' },
+    { id: 'ai_content_creation',   labelKey: 'aiContentCreation' },
+    { id: 'ai_business_plan',      labelKey: 'aiBusinessPlan' },
+    { id: 'ai_pricing_strategy',   labelKey: 'aiPricingStrategy' },
+  ],
+  groupStrategyPlanning: [
+    { id: 'business_strategy',     labelKey: 'businessStrategy' },
+    { id: 'market_positioning',    labelKey: 'marketPositioning' },
+    { id: 'niche_definition',      labelKey: 'nicheDefinition' },
+    { id: 'service_package_design',labelKey: 'servicePackageDesign' },
+    { id: 'growth_roadmap',        labelKey: 'growthRoadmap' },
+  ],
+  groupMarketingContent: [
+    { id: 'email_marketing_setup', labelKey: 'emailMarketingSetup' },
+    { id: 'social_content_plan',   labelKey: 'socialContentPlan' },
+    { id: 'sales_pitch_dev',       labelKey: 'salesPitchDev' },
+    { id: 'website_copy',          labelKey: 'websiteCopy' },
+    { id: 'marketing_materials',   labelKey: 'marketingMaterials' },
+  ],
+  groupOperationsAutomation: [
+    { id: 'workflow_automation',   labelKey: 'workflowAutomation' },
+    { id: 'client_followup',       labelKey: 'clientFollowup' },
+    { id: 'lead_qualification',    labelKey: 'leadQualification' },
+    { id: 'database_organization', labelKey: 'databaseOrganization' },
+    { id: 'document_template_lib', labelKey: 'documentTemplateLib' },
+  ],
+  groupFinancialBusiness: [
+    { id: 'pricing_calculator',    labelKey: 'pricingCalculator' },
+    { id: 'expense_tracking',      labelKey: 'expenseTracking' },
+    { id: 'financial_dashboard',   labelKey: 'financialDashboard' },
+    { id: 'tax_planning_guide',    labelKey: 'taxPlanningGuide' },
+    { id: 'profit_margin_analysis',labelKey: 'profitMarginAnalysis' },
+  ],
+  groupCustomerSuccess: [
+    { id: 'customer_onboarding',   labelKey: 'customerOnboarding' },
+    { id: 'customer_retention',    labelKey: 'customerRetention' },
+    { id: 'feedback_system',       labelKey: 'feedbackSystem' },
+    { id: 'case_study_dev',        labelKey: 'caseStudyDev' },
+  ],
+  // ── Technical Services ─────────────────────────────────────────────────────
+  groupInfrastructureHosting: [
+    { id: 'cloud_server_setup',    labelKey: 'cloudServerSetup' },
+    { id: 'coolify_deployment',    labelKey: 'coolifyDeployment' },
+    { id: 'cloudflare_config',     labelKey: 'cloudflareConfig' },
+    { id: 'ssl_tls_setup',         labelKey: 'sslTlsSetup' },
+    { id: 'server_monitoring',     labelKey: 'serverMonitoring' },
+  ],
+  groupDatabaseData: [
+    { id: 'postgres_setup',        labelKey: 'postgresSetup' },
+    { id: 'database_optimization', labelKey: 'databaseOptimization' },
+    { id: 'data_backup_recovery',  labelKey: 'dataBackupRecovery' },
+    { id: 'data_migration',        labelKey: 'dataMigration' },
+  ],
+  groupWebAppDev: [
+    { id: 'frontend_framework',    labelKey: 'frontendFramework' },
+    { id: 'backend_api_dev',       labelKey: 'backendApiDev' },
+    { id: 'fullstack_app_build',   labelKey: 'fullstackAppBuild' },
+    { id: 'api_integration',       labelKey: 'apiIntegration' },
+    { id: 'perf_optimization',     labelKey: 'perfOptimization' },
+  ],
+  groupDevOps: [
+    { id: 'cicd_pipeline',         labelKey: 'cicdPipeline' },
+    { id: 'docker_containerization',labelKey: 'dockerContainerization' },
+    { id: 'infrastructure_as_code',labelKey: 'infrastructureAsCode' },
+    { id: 'automated_backups',     labelKey: 'automatedBackups' },
+  ],
+  groupSecurityCompliance: [
+    { id: 'security_audit',        labelKey: 'securityAudit' },
+    { id: 'user_auth_setup',       labelKey: 'userAuthSetup' },
+    { id: 'gdpr_compliance',       labelKey: 'gdprCompliance' },
+  ],
+  groupIntegrationsAutomation: [
+    { id: 'webhook_api_automation',labelKey: 'webhookApiAutomation' },
+    { id: 'email_sms_integration', labelKey: 'emailSmsIntegration' },
+  ],
+  groupCustomSolutions: [
+    { id: 'custom_saas_dev',       labelKey: 'customSaasDev' },
+    { id: 'legacy_modernization',  labelKey: 'legacyModernization' },
   ],
 };
+
+// Skill dropdown options for Step 2 (drawn from trades + consulting domains)
+const SKILL_OPTIONS = [
+  // Trades
+  'Landscaping', 'Lawn Mowing', 'Tree Trimming', 'Snow Removal',
+  'Cleaning', 'Deep Cleaning', 'Pressure Washing', 'Window Cleaning', 'Carpet Cleaning',
+  'Painting', 'Interior Painting', 'Exterior Painting', 'Cabinet Painting', 'Deck Staining',
+  'Home Repair', 'Drywall Repair', 'Tile & Grout', 'Fixture Installation', 'Handyman',
+  'Electrical', 'Panel Upgrades', 'EV Charger Install', 'Lighting Installation',
+  'Plumbing', 'Leak Repair', 'Drain Cleaning', 'Water Heater',
+  'HVAC', 'AC Repair', 'Furnace Service', 'Duct Cleaning',
+  'Carpentry', 'Custom Cabinetry', 'Deck Building', 'Trim & Molding',
+  'Roofing', 'Roof Repair', 'Roof Replacement', 'Gutter Install',
+  'Flooring', 'Hardwood Installation', 'Tile Installation', 'Carpet Install',
+  'Concrete', 'Driveway Pour', 'Patio Slab', 'Stamped Concrete',
+  'Welding', 'MIG Welding', 'Metal Fabrication', 'Custom Metalwork',
+  'Moving', 'Packing & Unpacking', 'Junk Removal', 'Furniture Assembly',
+  'Pest Control', 'Rodent Control', 'Termite Treatment',
+  'Auto', 'Mobile Mechanic', 'Mobile Detailing', 'Oil Change',
+  'Appliance Repair', 'Washer & Dryer Repair', 'Refrigerator Repair',
+  'Security', 'Security Camera Install', 'Smart Lock Install',
+  'Pet Care', 'Pet Sitting', 'Dog Walking',
+  'Tutoring', 'Elder Care Assistance', 'Home Organization',
+  // Business & Professional
+  'Bookkeeping', 'Accounting', 'Tax Preparation',
+  'Graphic Design', 'Logo Design', 'Brand Identity',
+  'Web Design', 'Web Development', 'App Development',
+  'Digital Marketing', 'Social Media Management', 'SEO',
+  'Photography', 'Videography', 'Video Editing',
+  'Copywriting', 'Content Writing', 'Ghostwriting',
+  'Virtual Assistant', 'Data Entry', 'Customer Service',
+  'Event Planning', 'Catering', 'Personal Chef',
+  'Fitness Training', 'Life Coaching', 'Business Coaching',
+  'Real Estate', 'Property Management', 'Interior Design',
+  'IT Support', 'Network Setup', 'Cybersecurity',
+];
 
 // Countries with states/provinces
 // Country / region metadata is now sourced from `client/src/lib/countries.js`
@@ -295,8 +415,27 @@ export default function ConsultingIntakePage() {
         url={`${window.location.origin}/consulting-intake`}
       />
 
-      <div style={{ minHeight: '100vh', background: 'var(--color-bg)', padding: '2rem 1rem' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <style>{`
+        .consulting-services-panel {
+          display: flex;
+          flex-direction: column;
+        }
+        @media (max-width: 900px) {
+          .consulting-services-panel { display: none !important; }
+          .consulting-form-panel { padding: 1.5rem 1rem !important; }
+        }
+      `}</style>
+
+      <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
+        {/* ── Split-screen wrapper ────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh' }}>
+
+          {/* ── Left panel: services list (sticky) ─────────────────────── */}
+          <ServicesPanel setupItemsGrouped={setupItemsGrouped} t={t} />
+
+          {/* ── Right panel: multi-step form ───────────────────────────── */}
+          <div className="consulting-form-panel" style={{ flex: 1, minWidth: 0, padding: '2rem 2rem 2rem 1.5rem' }}>
+            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           {/* Progress Bar */}
           <div style={{ marginBottom: '3rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -422,10 +561,97 @@ export default function ConsultingIntakePage() {
                 {loading ? t('consulting.intake.buttons.submitting') : step === 5 ? t('consulting.intake.buttons.submit') : t('consulting.intake.buttons.next')}
               </button>
             </div>
-          </div>
-        </div>
-      </div>
+            </div>{/* end card */}
+            </div>{/* end maxWidth */}
+          </div>{/* end right panel */}
+        </div>{/* end split-screen wrapper */}
+      </div>{/* end page bg */}
     </PageShell>
+  );
+}
+
+// ── Services Panel (left sticky column) ────────────────────────────────────
+function ServicesPanel({ setupItemsGrouped, t }) {
+  return (
+    <aside className="consulting-services-panel" style={{
+      width: '260px',
+      flexShrink: 0,
+      position: 'sticky',
+      top: 0,
+      height: '100vh',
+      overflowY: 'auto',
+      background: 'var(--color-surface)',
+      borderRight: '1px solid var(--color-border)',
+      padding: '2rem 1.25rem',
+      scrollbarWidth: 'thin',
+    }}>
+      {/* Heading */}
+      <p style={{
+        fontSize: '0.7rem',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color: 'var(--color-primary)',
+        marginBottom: '0.4rem',
+      }}>
+        {t('consulting.intake.servicesPanelHeading')}
+      </p>
+      <div style={{
+        width: '28px',
+        height: '2px',
+        background: 'var(--color-primary)',
+        borderRadius: '1px',
+        marginBottom: '1.5rem',
+      }} />
+
+      {/* Categories + items */}
+      {Object.entries(setupItemsGrouped).map(([groupName, items]) => (
+        <div key={groupName} style={{ marginBottom: '1.25rem' }}>
+          {/* Category header */}
+          <p style={{
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.07em',
+            color: 'var(--color-primary)',
+            marginBottom: '0.5rem',
+            paddingBottom: '0.25rem',
+            borderBottom: '1px solid var(--color-border)',
+          }}>
+            {groupName}
+          </p>
+
+          {/* Service items */}
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {items.map(item => (
+              <li key={item.id} style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.4rem',
+                fontSize: '0.75rem',
+                lineHeight: 1.4,
+                color: 'var(--color-text-muted)',
+                marginBottom: '0.3rem',
+              }}>
+                {/* Checkmark icon */}
+                <svg
+                  viewBox="0 0 12 12"
+                  width="11"
+                  height="11"
+                  style={{ flexShrink: 0, marginTop: '0.15em' }}
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle cx="6" cy="6" r="5.5" stroke="var(--color-primary)" strokeWidth="1" />
+                  <path d="M3.5 6l1.8 1.8 3.2-3.2" stroke="var(--color-primary)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </aside>
   );
 }
 
@@ -522,19 +748,51 @@ function Step2SkillOffer({ form, handleInputChange, t }) {
     { value: 'no', labelKey: 'consulting.intake.businessNameOptions.no' },
   ];
 
+  const isOtherSkill = form.skill_description !== '' && !SKILL_OPTIONS.includes(form.skill_description);
+  const [showCustom, setShowCustom] = useState(isOtherSkill);
+
+  const handleSkillSelect = (e) => {
+    const val = e.target.value;
+    if (val === '__other__') {
+      setShowCustom(true);
+      // Clear so validation requires them to type something
+      handleInputChange({ target: { name: 'skill_description', value: '' } });
+    } else {
+      setShowCustom(false);
+      handleInputChange({ target: { name: 'skill_description', value: val } });
+    }
+  };
+
+  const dropdownValue = showCustom ? '__other__' : (SKILL_OPTIONS.includes(form.skill_description) ? form.skill_description : '');
+
   return (
     <>
       <div style={{ marginBottom: '1.5rem' }}>
         <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.skillQuestion')} *</label>
-        <input
-          type="text"
-          name="skill_description"
-          value={form.skill_description}
-          onChange={handleInputChange}
+        <select
+          value={dropdownValue}
+          onChange={handleSkillSelect}
           style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem' }}
-          placeholder={t('consulting.intake.formFields.skillPlaceholder')}
-          required
-        />
+          required={!showCustom}
+        >
+          <option value="">{t('consulting.intake.formFields.skillSelectPlaceholder')}</option>
+          {SKILL_OPTIONS.map(skill => (
+            <option key={skill} value={skill}>{skill}</option>
+          ))}
+          <option value="__other__">{t('consulting.intake.formFields.skillOtherOption')}</option>
+        </select>
+        {showCustom && (
+          <input
+            type="text"
+            name="skill_description"
+            value={form.skill_description}
+            onChange={handleInputChange}
+            style={{ width: '100%', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: '8px', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: '0.95rem', marginTop: '0.75rem' }}
+            placeholder={t('consulting.intake.formFields.skillCustomPlaceholder')}
+            required
+            autoFocus
+          />
+        )}
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
