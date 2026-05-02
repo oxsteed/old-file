@@ -10,13 +10,15 @@ import {
   CheckCircle2,
   Truck,
   Wallet,
+  Navigation,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { ToolDirectoryFilters, ToolCondition } from '../../types/toolDirectory';
+import type { ToolDirectoryFilters, ToolCondition, DistanceRadius } from '../../types/toolDirectory';
 import {
   TOOL_CATEGORIES,
   TOOL_CONDITIONS,
   TOOL_PRICE_PRESETS,
+  DISTANCE_RADIUS_OPTIONS,
   countActiveToolFilters,
 } from '../../types/toolDirectory';
 import { translateToolDirectoryCategory } from '../../utils/toolRentalsTaxonomy';
@@ -175,18 +177,57 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onChange, onReset })
 
         {/* ── Location ──────────────────────────────────────── */}
         <FilterSection title={t('toolRentalsDir.location')} icon={MapPin}>
-          <div>
-            <label htmlFor="tool-city-filter" className="text-xs text-gray-500 mb-1.5 block">
-              {t('toolRentalsDir.city')}
-            </label>
-            <input
-              id="tool-city-filter"
-              type="text"
-              value={filters.city}
-              onChange={(e) => onChange({ city: e.target.value })}
-              placeholder={t('toolRentalsDir.cityPlaceholder')}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            />
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="tool-city-filter" className="text-xs text-gray-500 mb-1.5 block">
+                {t('toolRentalsDir.city')}
+              </label>
+              <input
+                id="tool-city-filter"
+                type="text"
+                value={filters.city}
+                onChange={(e) => onChange({ city: e.target.value })}
+                placeholder={t('toolRentalsDir.cityPlaceholder')}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+            {/* Distance radius */}
+            <div>
+              <label className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+                <Navigation className="w-3 h-3" aria-hidden="true" />
+                {t('toolRentalsDir.radius')}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => onChange({ radius: null })}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+                    filters.radius === null
+                      ? 'bg-brand-500 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
+                  }`}
+                  aria-pressed={filters.radius === null}
+                >
+                  {t('toolRentalsDir.radiusAny')}
+                </button>
+                {DISTANCE_RADIUS_OPTIONS.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => onChange({ radius: r as DistanceRadius })}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+                      filters.radius === r
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
+                    }`}
+                    aria-pressed={filters.radius === r}
+                  >
+                    {t('toolRentalsDir.radiusMi', { miles: r })}
+                  </button>
+                ))}
+              </div>
+              {filters.radius !== null && (
+                <p className="text-xs text-gray-600 mt-1.5">{t('toolRentalsDir.radiusNote')}</p>
+              )}
+            </div>
           </div>
         </FilterSection>
 

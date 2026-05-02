@@ -54,6 +54,9 @@ const ActiveFilterTags: React.FC<ActiveFilterTagsProps> = ({ filters, onChange }
   if (filters.city)
     tags.push({ key: 'city', label: t('toolRentalsDir.cityTag', { city: filters.city }), onRemove: () => onChange({ city: '' }) });
 
+  if (filters.radius !== null)
+    tags.push({ key: 'radius', label: t('toolRentalsDir.radiusMi', { miles: filters.radius }), onRemove: () => onChange({ radius: null }) });
+
   if (filters.priceRange) {
     const [min, max] = filters.priceRange;
     const label = max >= 9999

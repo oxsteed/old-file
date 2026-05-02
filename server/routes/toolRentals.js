@@ -26,7 +26,11 @@ const TOOL_FIELDS = `
   t.daily_rate, t.hourly_rate, t.deposit_amount,
   t.condition, t.brand, t.model, t.is_available,
   t.requires_deposit, t.delivery_available, t.pickup_only,
-  t.location_city, t.location_state, t.created_at, t.updated_at
+  t.location_city, t.location_state, t.created_at, t.updated_at,
+  COALESCE(t.avg_rating, 0) AS avg_rating,
+  COALESCE(t.review_count, 0) AS review_count,
+  CASE WHEN t.image_gallery IS NOT NULL AND array_length(t.image_gallery, 1) > 0
+       THEN t.image_gallery[1] ELSE NULL END AS image_url
 `;
 
 // Seeded common tool categories (also merged with DB distinct values)
@@ -93,7 +97,10 @@ router.get('/browse', async (req, res) => {
 
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS},
-              u.first_name, u.last_name, u.avatar_url, u.owner_rating
+              u.first_name, u.last_name, u.avatar_url,
+              COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours,
+              t.user_id AS owner_id,
+              t.avg_rating AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         ${where}
@@ -115,7 +122,10 @@ router.get('/public/:id', async (req, res) => {
     if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid tool id' });
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS},
-              u.first_name, u.last_name, u.avatar_url, u.owner_rating
+              u.first_name, u.last_name, u.avatar_url,
+              COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours,
+              t.user_id AS owner_id,
+              t.avg_rating AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         WHERE t.id = $1 AND t.is_available = TRUE AND u.is_active = TRUE`,

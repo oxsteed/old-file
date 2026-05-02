@@ -29,7 +29,7 @@ const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCoun
         >
           {TOOL_SORT_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>
-              {t(`toolRentalsDir.sort.${opt.replace('-', '_')}`)}
+              {t(`toolRentalsDir.sort.${opt.replace(/-/g, '_')}`)}
             </option>
           ))}
         </select>
