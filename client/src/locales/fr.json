@@ -4510,6 +4510,9 @@
     "toolCount": "{{count}} outils trouvés",
     "toolCount_one": "{{count}} outil trouvé",
     "toolCount_other": "{{count}} outils trouvés",
+    "toolsLabel": "outils trouvés",
+    "toolsLabel_one": "outil trouvé",
+    "toolsLabel_other": "outils trouvés",
     "sortByAria": "Trier les outils par",
     "sort": {
       "newest": "Plus Récents",

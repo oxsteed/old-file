@@ -21,17 +21,40 @@ const invoiceController = require('../controllers/invoiceController');
 const userReportController = require('../controllers/userReportController');
 const termsController = require('../controllers/termsController');
 
-const TOOL_FIELDS = `
+// Base fields guaranteed present since migration 039
+const TOOL_FIELDS_BASE = `
   t.id, t.user_id, t.name, t.category, t.description,
   t.daily_rate, t.hourly_rate, t.deposit_amount,
   t.condition, t.brand, t.model, t.is_available,
   t.requires_deposit, t.delivery_available, t.pickup_only,
-  t.location_city, t.location_state, t.created_at, t.updated_at,
-  COALESCE(t.avg_rating, 0) AS avg_rating,
-  COALESCE(t.review_count, 0) AS review_count,
-  CASE WHEN t.image_gallery IS NOT NULL AND array_length(t.image_gallery, 1) > 0
-       THEN t.image_gallery[1] ELSE NULL END AS image_url
+  t.location_city, t.location_state, t.created_at, t.updated_at
 `;
+
+// Extended fields added in migration 078b — resolved lazily on first browse request
+let _toolFieldsResolved = null;
+async function getToolFields() {
+  if (_toolFieldsResolved) return _toolFieldsResolved;
+  try {
+    const { rows } = await pool.query(`
+      SELECT column_name
+        FROM information_schema.columns
+       WHERE table_name = 'tool_rentals'
+         AND column_name IN ('avg_rating','review_count','image_gallery')
+    `);
+    const cols = rows.map(r => r.column_name);
+    const extras = [
+      cols.includes('avg_rating')    ? 'COALESCE(t.avg_rating, 0) AS avg_rating'    : '0 AS avg_rating',
+      cols.includes('review_count')  ? 'COALESCE(t.review_count, 0) AS review_count' : '0 AS review_count',
+      cols.includes('image_gallery')
+        ? `CASE WHEN t.image_gallery IS NOT NULL AND array_length(t.image_gallery, 1) > 0 THEN t.image_gallery[1] ELSE NULL END AS image_url`
+        : 'NULL AS image_url',
+    ].join(',\n  ');
+    _toolFieldsResolved = `${TOOL_FIELDS_BASE},\n  ${extras}`;
+  } catch {
+    _toolFieldsResolved = `${TOOL_FIELDS_BASE},\n  0 AS avg_rating, 0 AS review_count, NULL AS image_url`;
+  }
+  return _toolFieldsResolved;
+}
 
 // Seeded common tool categories (also merged with DB distinct values)
 const SEED_TOOL_CATEGORIES = [
@@ -95,12 +118,13 @@ router.get('/browse', async (req, res) => {
     params.push(Math.min(parseInt(limit) || 30, 100));
     params.push(parseInt(offset) || 0);
 
+    const TOOL_FIELDS = await getToolFields();
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS},
               u.first_name, u.last_name, u.avatar_url,
               COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours,
               t.user_id AS owner_id,
-              t.avg_rating AS owner_rating
+              COALESCE(t.avg_rating, 0) AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         ${where}
@@ -120,12 +144,13 @@ router.get('/public/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Invalid tool id' });
+    const TOOL_FIELDS = await getToolFields();
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS},
               u.first_name, u.last_name, u.avatar_url,
               COALESCE(u.avg_response_time_hours, 24) AS avg_response_time_hours,
               t.user_id AS owner_id,
-              t.avg_rating AS owner_rating
+              COALESCE(t.avg_rating, 0) AS owner_rating
          FROM tool_rentals t
          JOIN users u ON u.id = t.user_id
         WHERE t.id = $1 AND t.is_available = TRUE AND u.is_active = TRUE`,
@@ -142,6 +167,7 @@ router.get('/public/:id', async (req, res) => {
 // GET /api/tool-rentals/me
 router.get('/me', authenticate, async (req, res) => {
   try {
+    const TOOL_FIELDS = await getToolFields();
     const result = await pool.query(
       `SELECT ${TOOL_FIELDS}
          FROM tool_rentals t

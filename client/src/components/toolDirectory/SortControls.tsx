@@ -17,7 +17,7 @@ const SortControls: React.FC<SortControlsProps> = ({ value, onChange, resultCoun
     <div className="flex items-center justify-between gap-3">
       <p className="text-sm text-gray-400 flex-shrink-0">
         <span className="font-semibold text-white">{resultCount}</span>{' '}
-        {t('toolRentalsDir.toolCount', { count: resultCount })}
+        {t('toolRentalsDir.toolsLabel', { count: resultCount })}
       </p>
       <div className="relative flex items-center gap-2">
         <ArrowUpDown className="w-4 h-4 text-gray-500 flex-shrink-0" aria-hidden="true" />
