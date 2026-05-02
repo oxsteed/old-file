@@ -148,7 +148,7 @@ exports.createJob = async (req, res, next) => {
           $11,$12,$13,$14,$15,$16,$17,$18,$19,
           ${hasGeo ? `ST_SetSRID(ST_MakePoint($19::float,$18::float),4326)::geography` : 'NULL'},
           $20,$21,$22,$23,$24,
-          $25,$26,$27,$28,$29,$30,
+          $25,$26,$27,$28,$29,$30,$31,
           'published', now() + interval '30 days'
        )
        RETURNING *`,
