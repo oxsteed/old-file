@@ -29,6 +29,7 @@ const startPlannedNeedsScheduler = () => {
         UPDATE planned_needs
         SET status = 'activating_soon', updated_at = NOW()
         WHERE status IN ('planned', 'funding')
+          AND COALESCE(is_paused, FALSE) = FALSE
           AND (due_date - lead_time_days - 1) = CURRENT_DATE
       `);
       if (soonCount > 0) {
@@ -49,6 +50,7 @@ const startPlannedNeedsScheduler = () => {
         JOIN users u  ON u.id  = pn.user_id
         LEFT JOIN users ph ON ph.id = pn.preferred_helper_id
         WHERE pn.status IN ('planned', 'funding', 'activating_soon')
+          AND COALESCE(pn.is_paused, FALSE) = FALSE
           AND (pn.due_date - pn.lead_time_days) <= CURRENT_DATE
           AND pn.published_job_id IS NULL
       `);

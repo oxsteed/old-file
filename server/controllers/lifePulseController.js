@@ -99,7 +99,7 @@ exports.getLifePulse = async (req, res) => {
 
     // ── parallel queries ───────────────────────────────────────────────────
     const [
-      baselineRes, reliabilityRes, oxsteedRes, needsRes, recurringRes, taskRecurringRes,
+      baselineRes, priorBaselineRes, reliabilityRes, oxsteedRes, needsRes, recurringRes, taskRecurringRes,
       invoiceIncomeRes, pendingInvoicesRes, taxObligationsRes, predictedJobRes,
       toolRentalRes, debtObligRes,
     ] = await Promise.all([
@@ -112,6 +112,18 @@ exports.getLifePulse = async (req, res) => {
         FROM expenses
         WHERE user_id = $1
           AND occurred_at >= CURRENT_DATE - INTERVAL '90 days'
+          AND (is_recurring IS NOT TRUE)
+      `, [userId]),
+
+      // 1b. Prior 90-day window (days 91–180 ago) for period-over-period trends
+      db.query(`
+        SELECT
+          COALESCE(SUM(amount) FILTER (WHERE type = 'income'),  0) / 90 AS avg_daily_income,
+          COALESCE(SUM(amount) FILTER (WHERE type = 'expense'), 0) / 90 AS avg_daily_expense
+        FROM expenses
+        WHERE user_id = $1
+          AND occurred_at >= CURRENT_DATE - INTERVAL '180 days'
+          AND occurred_at <  CURRENT_DATE - INTERVAL '90 days'
           AND (is_recurring IS NOT TRUE)
       `, [userId]),
 
@@ -153,6 +165,7 @@ exports.getLifePulse = async (req, res) => {
         FROM planned_needs
         WHERE user_id = $1
           AND status IN ('planned', 'funding', 'activating_soon')
+          AND COALESCE(is_paused, FALSE) = FALSE
           AND due_date >= CURRENT_DATE
         ORDER BY due_date ASC
       `, [userId]),
@@ -317,6 +330,7 @@ exports.getLifePulse = async (req, res) => {
     ]);
 
     const baseline          = baselineRes.rows[0];
+    const priorBaseline     = priorBaselineRes.rows[0];
     const reliability       = reliabilityRes.rows[0];
     const oxsteed           = oxsteedRes.rows[0];
     const rawNeeds          = needsRes.rows;
@@ -385,6 +399,21 @@ exports.getLifePulse = async (req, res) => {
     const avgDailyIncome  = (totalIncome90d / 90) + (recurringIncomeMonthly  / 30);
     const avgDailyExpense = (expense90d / 90) + (recurringExpenseMonthly / 30) + (taskExpenseMonthly / 30);
 
+    const priorIncomeOneTimeTotal = cfg('include_manual_income')
+      ? parseFloat(priorBaseline.avg_daily_income || 0) * 90
+      : 0;
+    const priorExpenseOneTimeTotal = cfg('include_manual_expenses')
+      ? parseFloat(priorBaseline.avg_daily_expense || 0) * 90
+      : 0;
+    const priorAvgDailyIncome = (priorIncomeOneTimeTotal / 90)
+      + (recurringIncomeMonthly / 30)
+      + (oxsteedIncome / 90)
+      + (invoiceIncome90d / 90)
+      + (toolRentalIncome90d / 90);
+    const priorAvgDailyExpense = (priorExpenseOneTimeTotal / 90)
+      + (recurringExpenseMonthly / 30)
+      + (taskExpenseMonthly / 30);
+
     // ── 2. Window projections ───────────────────────────────────────────────
     const projectedIncome   = round2(avgDailyIncome  * windowDays);
     const projectedExpenses = round2(avgDailyExpense * windowDays);
@@ -393,6 +422,7 @@ exports.getLifePulse = async (req, res) => {
     // Formula (same as the existing UI note): (cost − reserved) ÷ days remaining × window_days
     let totalSinkingFund    = 0;
     let autoPublishingCount = 0;
+    const autoPublishingList = [];
 
     const needs = rawNeeds.map(need => {
       const daysUntilDue = Math.max(0, parseInt(need.days_until_due || 0));
@@ -411,8 +441,17 @@ exports.getLifePulse = async (req, res) => {
       totalSinkingFund += windowCost;
 
       const activationDays   = daysUntilDue - parseInt(need.lead_time_days || 7);
-      const isActivatingSoon = activationDays <= windowDays;
-      if (isActivatingSoon) autoPublishingCount++;
+      const isActivatingSoon = activationDays <= windowDays && activationDays >= 0;
+      if (isActivatingSoon) {
+        autoPublishingCount++;
+        autoPublishingList.push({
+          id: need.id,
+          title: need.title,
+          due_date: need.due_date,
+          activates_in_days: activationDays,
+          status: need.status,
+        });
+      }
 
       return {
         id:                     need.id,
@@ -592,6 +631,62 @@ exports.getLifePulse = async (req, res) => {
         ? 100
         : Math.min(100, Math.round((presentValueIncome / totalObligations) * 100));
 
+    const priorPastIncome = round2(priorAvgDailyIncome * windowDays);
+    const priorProjectedExpensesOnly = round2(priorAvgDailyExpense * windowDays);
+    const priorPresentValue = round2(priorPastIncome + totalPredictedIncome);
+    const priorNetAvailable = round2(priorPresentValue - totalObligations);
+    const priorCoverageForTrend = totalObligations > 0 ? round2(priorPresentValue / totalObligations) : null;
+
+    const stepDays = windowDays <= 14 ? 1 : windowDays <= 90 ? Math.max(1, Math.floor(windowDays / 14)) : Math.max(7, Math.floor(windowDays / 12));
+    const sinkAtDay = (d) => {
+      let cumSink = 0;
+      for (const n of rawNeeds) {
+        const daysUntilDue = Math.max(0, parseInt(n.days_until_due || 0, 10));
+        const cost = parseFloat(n.estimated_cost || 0);
+        const reserved = parseFloat(n.reserved_amount || 0);
+        const remaining = Math.max(0, cost - reserved);
+        const daysToFund = Math.max(daysUntilDue, 1);
+        const dailyContrib = remaining / daysToFund;
+        cumSink += dailyContrib * Math.min(d, daysUntilDue);
+      }
+      return cfg('include_planned_needs') ? cumSink : 0;
+    };
+    const timeline = [];
+    for (let d = 0; d <= windowDays; d += stepDays) {
+      timeline.push({
+        day: d,
+        projected_income: round2(avgDailyIncome * d),
+        projected_fixed_expenses: round2(avgDailyExpense * d),
+        sinking_funds_cumulative: round2(sinkAtDay(d)),
+      });
+    }
+    if (timeline.length && timeline[timeline.length - 1].day !== windowDays) {
+      const d = windowDays;
+      timeline.push({
+        day: d,
+        projected_income: round2(avgDailyIncome * d),
+        projected_fixed_expenses: round2(avgDailyExpense * d),
+        sinking_funds_cumulative: round2(sinkAtDay(d)),
+      });
+    }
+
+    const trend = {
+      projected_income_pct: priorPastIncome > 0
+        ? round2(((projectedIncome - priorPastIncome) / priorPastIncome) * 100)
+        : null,
+      projected_expenses_pct: priorProjectedExpensesOnly > 0
+        ? round2(((projectedExpenses - priorProjectedExpensesOnly) / priorProjectedExpensesOnly) * 100)
+        : null,
+      sinking_funds_pct: null,
+      net_available_pct: Math.abs(priorNetAvailable) > 0.01
+        ? round2(((netAvailable - priorNetAvailable) / Math.abs(priorNetAvailable)) * 100)
+        : null,
+      coverage_ratio_pct:
+        priorCoverageForTrend != null && coverageRatio != null && priorCoverageForTrend > 0
+          ? round2(((coverageRatio - priorCoverageForTrend) / priorCoverageForTrend) * 100)
+          : null,
+    };
+
     // ── response ────────────────────────────────────────────────────────────
     res.json({
       window:      windowKey,
@@ -661,9 +756,13 @@ exports.getLifePulse = async (req, res) => {
       runway_months:            runwayMonths,
       income_reliability:       incomeReliability,
       auto_publishing_in_window: autoPublishingCount,
+      auto_publishing_needs: autoPublishingList,
 
       // Per-need breakdown (backward-compat)
       needs,
+
+      timeline,
+      trend,
 
       // Alerts
       shortfall_warnings: shortfallWarnings,
