@@ -87,10 +87,10 @@ export default function useJobs() {
     return data;
   };
 
-  const getJobBids = async (jobId) => {
+  const getJobBids = useCallback(async (jobId) => {
     const { data } = await api.get(`/bids/job/${jobId}`);
     return data;
-  };
+  }, []);
 
   const getMyBids = async (status) => {
     const params = status ? `?status=${status}` : '';

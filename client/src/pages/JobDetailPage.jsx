@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import usePayments from '../hooks/usePayments';
@@ -111,6 +111,15 @@ export default function JobDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
 
+  const loadBids = useCallback(async () => {
+    try {
+      const data = await getJobBids(id);
+      setBids(Array.isArray(data) ? data : []);
+    } catch {
+      setBids([]);
+    }
+  }, [id, getJobBids]);
+
   useEffect(() => {
     fetchJob(id);
     loadBids();
@@ -126,15 +135,6 @@ export default function JobDetailPage() {
         .catch(() => setReviewEligible(false));
     }
   }, [job?.status, user?.id, id]);
-
-  async function loadBids() {
-    try {
-      const data = await getJobBids(id);
-      setBids(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setBids([]);
-    }
-  }
 
   async function handleBidSubmit(e) {
     e.preventDefault();
