@@ -1,6 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import AdminLayout from './layouts/AdminLayout';
+
+const adminQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+    },
+  },
+});
 
 // Super Admin pages
 import SuperDashboard      from './pages/super/Dashboard';
@@ -86,6 +96,7 @@ function AdminGuard({ children, superOnly = false }) {
 
 export default function AdminApp() {
   return (
+    <QueryClientProvider client={adminQueryClient}>
     <BrowserRouter>
       <Routes>
         {/* Public login route */}
@@ -197,5 +208,6 @@ export default function AdminApp() {
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
+    </QueryClientProvider>
   );
 }
