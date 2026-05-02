@@ -18,6 +18,17 @@ async function tableExists(name) {
   } catch { return false; }
 }
 
+// Helper: check if a column exists on a table
+async function columnExists(table, column) {
+  try {
+    const { rows } = await db.query(
+      "SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name=$2",
+      [table, column]
+    );
+    return rows.length > 0;
+  } catch { return false; }
+}
+
 // DASHBOARD OVERVIEW
 exports.getDashboardStats = async (req, res) => {
   try {
@@ -185,6 +196,10 @@ exports.getUserDetail = async (req, res) => {
     const hasSubs = await tableExists('subscriptions');
     const hasPlanTable = hasSubs && await tableExists('plans');
     const hasCA   = await tableExists('connect_accounts');
+
+    // Check for columns added in migration 154 (non-fatal if migration hasn't run)
+    const hasMig154Cols = await columnExists('users', 'is_suspended');
+
     // Explicit list of columns to retrieve. NEVER use SELECT * in production to
     // prevent leaking sensitive internal flags or secrets (e.g. password_hash, otp_secret).
     const cols = [
@@ -196,8 +211,36 @@ exports.getUserDetail = async (req, res) => {
       'u.didit_status', 'u.didit_verified_at',
       'COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required',
       'u.last_login_at',
-      'u.subscription_status', 'u.background_check_status', 'u.identity_verified'
+      'u.subscription_status', 'u.background_check_status', 'u.identity_verified',
     ];
+
+    // Columns added in migration 154 — only include when the migration has run
+    if (hasMig154Cols) {
+      cols.push(
+        'u.last_login_ip',
+        'COALESCE(u.is_suspended, FALSE) AS is_suspended',
+        'u.suspended_until',
+        'u.suspension_reason',
+        'COALESCE(u.is_restricted, FALSE) AS is_restricted',
+        'u.restriction_reason',
+        'COALESCE(u.warning_count, 0) AS warning_count',
+        'u.bio',
+        'u.country',
+      );
+    } else {
+      // Provide safe defaults so the frontend never receives undefined for these fields
+      cols.push(
+        'NULL AS last_login_ip',
+        'FALSE AS is_suspended',
+        'NULL AS suspended_until',
+        'NULL AS suspension_reason',
+        'FALSE AS is_restricted',
+        'NULL AS restriction_reason',
+        '0 AS warning_count',
+        'NULL AS bio',
+        "NULL AS country",
+      );
+    }
 
     const joins = [];
     if (hasSubs) { joins.push("LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'"); cols.push('s.status AS sub_status, s.stripe_subscription_id, s.current_period_start, s.current_period_end, s.cancel_at_period_end'); }
