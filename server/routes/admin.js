@@ -87,6 +87,29 @@ router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
 
+// Impersonation (super-admin only)
+router.post('/users/:userId/impersonate',     requireSuperAdmin, superCtrl.impersonateUser);
+router.post('/users/:userId/impersonate/end', requireSuperAdmin, superCtrl.endImpersonation);
+
+// Activity log & admin notes (all admins can read; super-admin can delete any note)
+router.get('/users/:userId/activity',               requireAdmin, superCtrl.getUserActivityLog);
+router.get('/users/:userId/notes',                  requireAdmin, superCtrl.getUserNotes);
+router.post('/users/:userId/notes',                 requireAdmin, superCtrl.addUserNote);
+router.put('/users/:userId/notes/:noteId',          requireAdmin, superCtrl.updateUserNote);
+router.delete('/users/:userId/notes/:noteId',       requireAdmin, superCtrl.deleteUserNote);
+
+// Granular status controls (super-admin only)
+router.post('/users/:userId/suspend',    requireSuperAdmin, superCtrl.suspendUser);
+router.post('/users/:userId/restrict',   requireSuperAdmin, superCtrl.restrictUser);
+router.post('/users/:userId/warn',       requireSuperAdmin, superCtrl.warnUser);
+router.post('/users/:userId/reactivate', requireSuperAdmin, superCtrl.reactivateUser);
+
+// Extended profile editing (super-admin only)
+router.put('/users/:userId/profile', requireSuperAdmin, superCtrl.updateUserProfile);
+
+// Support tickets for a user (all admins)
+router.get('/users/:userId/support-tickets', requireAdmin, superCtrl.getUserSupportTickets);
+
 // Conversations (super-admin only - every read is audited)
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
 router.get('/super/conversations/:id',          requireSuperAdmin, convAdminCtrl.getThread);

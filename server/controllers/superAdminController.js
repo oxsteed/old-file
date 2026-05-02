@@ -1420,3 +1420,595 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
     res.status(500).json({ error: 'Failed to update password.' });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPERSONATION  (super-admin only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const crypto = require('crypto');
+const jwt    = require('jsonwebtoken');
+
+/**
+ * POST /admin/users/:userId/impersonate
+ * Generates a short-lived (30 min) impersonation JWT for the target user.
+ * The token is returned to the admin client which opens it in a new tab.
+ * Every session is logged in user_impersonation_log.
+ */
+exports.impersonateUser = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const { userId } = req.params;
+
+    if (adminId === userId) {
+      return res.status(400).json({ error: 'Cannot impersonate yourself.' });
+    }
+
+    const { rows } = await db.query(
+      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      [userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    const target = rows[0];
+
+    // Prevent impersonating other admins
+    if (['admin', 'super_admin'].includes(target.role)) {
+      return res.status(403).json({ error: 'Cannot impersonate admin accounts.' });
+    }
+
+    const jti = crypto.randomUUID();
+    const impersonationToken = jwt.sign(
+      {
+        id:              target.id,
+        email:           target.email,
+        role:            target.role,
+        impersonation:   true,
+        impersonated_by: adminId,
+        jti,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '30m', algorithm: 'HS256' }
+    );
+
+    // Log the session
+    await db.query(
+      `INSERT INTO user_impersonation_log (admin_id, target_user_id, token_jti, ip_address, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, userId, jti, req.ip || null, req.headers['user-agent'] || null]
+    );
+
+    await logAdminAction({
+      adminId,
+      action:      'user_impersonation_started',
+      targetType:  'user',
+      targetId:    userId,
+      description: `Admin impersonated ${target.first_name} ${target.last_name} (${target.email})`,
+      req,
+    });
+
+    logger.info('Admin impersonation started', { adminId, targetUserId: userId, jti });
+
+    res.json({
+      impersonationToken,
+      userId,
+      user: {
+        id:         target.id,
+        first_name: target.first_name,
+        last_name:  target.last_name,
+        email:      target.email,
+        role:       target.role,
+      },
+    });
+  } catch (err) {
+    logger.error('impersonateUser error', { err });
+    res.status(500).json({ error: 'Failed to create impersonation session.' });
+  }
+};
+
+/**
+ * POST /admin/users/:userId/impersonate/end
+ * Marks the impersonation session ended (by jti).
+ */
+exports.endImpersonation = async (req, res) => {
+  try {
+    const { jti } = req.body;
+    if (!jti) return res.status(400).json({ error: 'jti required.' });
+
+    await db.query(
+      `UPDATE user_impersonation_log SET ended_at = NOW() WHERE token_jti = $1 AND ended_at IS NULL`,
+      [jti]
+    );
+
+    res.json({ message: 'Impersonation session ended.' });
+  } catch (err) {
+    logger.error('endImpersonation error', { err });
+    res.status(500).json({ error: 'Failed to end impersonation session.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTIVITY LOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /admin/users/:userId/activity?page=1&limit=50
+ * Returns a merged, time-sorted list of:
+ *   - admin_user_action_log  (admin edits to this account)
+ *   - admin_audit_log        (general admin actions targeting this user)
+ *   - user_login_history     (login attempts)
+ *   - user_impersonation_log (impersonation sessions)
+ */
+exports.getUserActivityLog = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const limit  = Math.min(parseInt(req.query.limit  || '100', 10), 200);
+    const offset = parseInt(req.query.offset || '0', 10);
+
+    const hasActionLog    = await tableExists('admin_user_action_log');
+    const hasAuditLog     = await tableExists('admin_audit_log');
+    const hasLoginHistory = await tableExists('user_login_history');
+    const hasImpLog       = await tableExists('user_impersonation_log');
+
+    const parts = [];
+
+    if (hasActionLog) {
+      parts.push(`
+        SELECT
+          l.id::TEXT AS id,
+          'admin_action' AS source,
+          l.action_type AS event_type,
+          l.field_name,
+          l.old_value,
+          l.new_value,
+          l.notes,
+          l.ip_address::TEXT AS ip_address,
+          l.created_at,
+          u.first_name || ' ' || u.last_name AS actor_name,
+          u.email AS actor_email,
+          u.role  AS actor_role
+        FROM admin_user_action_log l
+        JOIN users u ON u.id = l.admin_id
+        WHERE l.target_user_id = $1
+      `);
+    }
+
+    if (hasAuditLog) {
+      parts.push(`
+        SELECT
+          a.id::TEXT AS id,
+          'audit_log'   AS source,
+          a.action      AS event_type,
+          NULL          AS field_name,
+          NULL          AS old_value,
+          a.description AS new_value,
+          NULL          AS notes,
+          a.ip_address::TEXT AS ip_address,
+          a.created_at,
+          u.first_name || ' ' || u.last_name AS actor_name,
+          u.email AS actor_email,
+          u.role  AS actor_role
+        FROM admin_audit_log a
+        JOIN users u ON u.id = a.admin_id
+        WHERE a.target_id = $1
+      `);
+    }
+
+    if (hasLoginHistory) {
+      parts.push(`
+        SELECT
+          h.id::TEXT AS id,
+          'login'         AS source,
+          CASE WHEN h.success THEN 'user_login' ELSE 'login_failed' END AS event_type,
+          NULL            AS field_name,
+          NULL            AS old_value,
+          h.failure_reason AS new_value,
+          NULL            AS notes,
+          h.ip_address::TEXT AS ip_address,
+          h.login_at      AS created_at,
+          NULL            AS actor_name,
+          NULL            AS actor_email,
+          'system'        AS actor_role
+        FROM user_login_history h
+        WHERE h.user_id = $1
+      `);
+    }
+
+    if (hasImpLog) {
+      parts.push(`
+        SELECT
+          l.id::TEXT AS id,
+          'impersonation'  AS source,
+          CASE WHEN l.ended_at IS NULL THEN 'impersonation_started' ELSE 'impersonation_ended' END AS event_type,
+          NULL             AS field_name,
+          NULL             AS old_value,
+          NULL             AS new_value,
+          l.notes          AS notes,
+          l.ip_address::TEXT AS ip_address,
+          l.started_at     AS created_at,
+          u.first_name || ' ' || u.last_name AS actor_name,
+          u.email          AS actor_email,
+          u.role           AS actor_role
+        FROM user_impersonation_log l
+        JOIN users u ON u.id = l.admin_id
+        WHERE l.target_user_id = $1
+      `);
+    }
+
+    if (!parts.length) {
+      return res.json({ events: [], total: 0 });
+    }
+
+    const unionSql = `
+      SELECT * FROM (
+        ${parts.join('\n UNION ALL \n')}
+      ) combined
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const { rows } = await db.query(unionSql, [userId, limit, offset]);
+
+    // Count total (without pagination)
+    const countSql = `SELECT COUNT(*) AS total FROM (${parts.join('\n UNION ALL \n')}) counted`;
+    const { rows: countRows } = await db.query(countSql, [userId]);
+
+    res.json({
+      events: rows,
+      total:  parseInt(countRows[0]?.total || '0', 10),
+    });
+  } catch (err) {
+    logger.error('getUserActivityLog error', { err });
+    res.status(500).json({ error: 'Failed to fetch activity log.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN NOTES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** GET /admin/users/:userId/notes */
+exports.getUserNotes = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const hasTable = await tableExists('admin_user_notes');
+    if (!hasTable) return res.json({ notes: [] });
+
+    const { rows } = await db.query(
+      `SELECT n.id, n.note_text, n.created_at, n.updated_at,
+              u.first_name || ' ' || u.last_name AS author_name,
+              u.email AS author_email, u.role AS author_role
+       FROM admin_user_notes n
+       JOIN users u ON u.id = n.admin_id
+       WHERE n.target_user_id = $1
+       ORDER BY n.created_at DESC`,
+      [userId]
+    );
+    res.json({ notes: rows });
+  } catch (err) {
+    logger.error('getUserNotes error', { err });
+    res.status(500).json({ error: 'Failed to fetch notes.' });
+  }
+};
+
+/** POST /admin/users/:userId/notes  Body: { note_text } */
+exports.addUserNote = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { note_text } = req.body;
+    if (!note_text?.trim()) return res.status(400).json({ error: 'note_text is required.' });
+    if (note_text.length > 4000) return res.status(400).json({ error: 'Note too long (max 4000 chars).' });
+
+    const { rows } = await db.query(
+      `INSERT INTO admin_user_notes (target_user_id, admin_id, note_text)
+       VALUES ($1, $2, $3)
+       RETURNING id, note_text, created_at, updated_at`,
+      [userId, req.user.id, note_text.trim()]
+    );
+
+    res.status(201).json({ note: rows[0] });
+  } catch (err) {
+    logger.error('addUserNote error', { err });
+    res.status(500).json({ error: 'Failed to add note.' });
+  }
+};
+
+/** PUT /admin/users/:userId/notes/:noteId  Body: { note_text } */
+exports.updateUserNote = async (req, res) => {
+  try {
+    const { userId, noteId } = req.params;
+    const { note_text } = req.body;
+    if (!note_text?.trim()) return res.status(400).json({ error: 'note_text is required.' });
+
+    const { rows } = await db.query(
+      `UPDATE admin_user_notes
+       SET note_text = $1, updated_at = NOW()
+       WHERE id = $2 AND target_user_id = $3 AND admin_id = $4
+       RETURNING id, note_text, updated_at`,
+      [note_text.trim(), noteId, userId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Note not found or not owned by you.' });
+    res.json({ note: rows[0] });
+  } catch (err) {
+    logger.error('updateUserNote error', { err });
+    res.status(500).json({ error: 'Failed to update note.' });
+  }
+};
+
+/** DELETE /admin/users/:userId/notes/:noteId */
+exports.deleteUserNote = async (req, res) => {
+  try {
+    const { userId, noteId } = req.params;
+    // Super-admins can delete any note; regular admins only their own
+    const isSuper = req.user.role === 'super_admin';
+    const ownerClause = isSuper ? '' : 'AND admin_id = $3';
+    const params      = isSuper ? [noteId, userId] : [noteId, userId, req.user.id];
+
+    const { rowCount } = await db.query(
+      `DELETE FROM admin_user_notes WHERE id = $1 AND target_user_id = $2 ${ownerClause}`,
+      params
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Note not found.' });
+    res.json({ message: 'Note deleted.' });
+  } catch (err) {
+    logger.error('deleteUserNote error', { err });
+    res.status(500).json({ error: 'Failed to delete note.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GRANULAR ACCOUNT STATUS CONTROLS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /admin/users/:userId/suspend
+ * Body: { reason, days }  — days=0 means indefinite
+ */
+exports.suspendUser = async (req, res) => {
+  try {
+    const adminId        = req.user.id;
+    const { userId }     = req.params;
+    const { reason = '', days = 0 } = req.body;
+    if (!reason.trim()) return res.status(400).json({ error: 'Suspension reason is required.' });
+
+    const { rows: existing } = await db.query('SELECT id, email, first_name FROM users WHERE id = $1', [userId]);
+    if (!existing.length) return res.status(404).json({ error: 'User not found.' });
+
+    const suspendedUntil = days > 0 ? new Date(Date.now() + days * 86400000) : null;
+
+    await db.query(
+      `UPDATE users
+       SET is_suspended = TRUE,
+           is_active    = FALSE,
+           suspended_until   = $1,
+           suspension_reason = $2,
+           suspended_by      = $3,
+           updated_at        = NOW()
+       WHERE id = $4`,
+      [suspendedUntil, reason.trim(), adminId, userId]
+    );
+
+    // Force-logout the user
+    try { socketService.disconnectUserSockets(userId); } catch (_) {}
+
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_suspended', notes: reason.trim(), ipAddress: req.ip });
+    await logAdminAction({ adminId, action: 'user_suspended', targetType: 'user', targetId: userId, description: reason.trim(), req });
+
+    res.json({
+      message:         `User suspended ${days > 0 ? `for ${days} day(s)` : 'indefinitely'}.`,
+      suspended_until: suspendedUntil,
+    });
+  } catch (err) {
+    logger.error('suspendUser error', { err });
+    res.status(500).json({ error: 'Failed to suspend user.' });
+  }
+};
+
+/**
+ * POST /admin/users/:userId/restrict
+ * Body: { reason }  — user can still log in but cannot post jobs/bids
+ */
+exports.restrictUser = async (req, res) => {
+  try {
+    const adminId    = req.user.id;
+    const { userId } = req.params;
+    const { reason = '' } = req.body;
+    if (!reason.trim()) return res.status(400).json({ error: 'Restriction reason is required.' });
+
+    const { rows } = await db.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+
+    await db.query(
+      `UPDATE users
+       SET is_restricted      = TRUE,
+           restriction_reason = $1,
+           restricted_by      = $2,
+           updated_at         = NOW()
+       WHERE id = $3`,
+      [reason.trim(), adminId, userId]
+    );
+
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_restricted', notes: reason.trim(), ipAddress: req.ip });
+    await logAdminAction({ adminId, action: 'user_restricted', targetType: 'user', targetId: userId, description: reason.trim(), req });
+
+    res.json({ message: 'User account restricted.' });
+  } catch (err) {
+    logger.error('restrictUser error', { err });
+    res.status(500).json({ error: 'Failed to restrict user.' });
+  }
+};
+
+/**
+ * POST /admin/users/:userId/warn
+ * Body: { reason }  — increments warning_count and sends an in-app message
+ */
+exports.warnUser = async (req, res) => {
+  try {
+    const adminId    = req.user.id;
+    const { userId } = req.params;
+    const { reason = '' } = req.body;
+    if (!reason.trim()) return res.status(400).json({ error: 'Warning reason is required.' });
+
+    const { rows } = await db.query(
+      `UPDATE users SET warning_count = COALESCE(warning_count, 0) + 1, updated_at = NOW()
+       WHERE id = $1 RETURNING warning_count, email, first_name`,
+      [userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+
+    // Send in-app notification
+    try {
+      const { sendNotification } = require('../services/notificationService');
+      await sendNotification({
+        userId,
+        type:    'admin_warning',
+        title:   'Official Warning from OxSteed',
+        message: reason.trim(),
+        adminId,
+      });
+    } catch (_) {}
+
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_warned', notes: reason.trim(), ipAddress: req.ip });
+    await logAdminAction({ adminId, action: 'user_warned', targetType: 'user', targetId: userId, description: reason.trim(), req });
+
+    res.json({ message: `Warning issued. User now has ${rows[0].warning_count} warning(s).`, warning_count: rows[0].warning_count });
+  } catch (err) {
+    logger.error('warnUser error', { err });
+    res.status(500).json({ error: 'Failed to issue warning.' });
+  }
+};
+
+/**
+ * POST /admin/users/:userId/reactivate
+ * Lifts any suspension or restriction; can also unban.
+ */
+exports.reactivateUser = async (req, res) => {
+  try {
+    const adminId    = req.user.id;
+    const { userId } = req.params;
+    const { notes = '' } = req.body;
+
+    const { rows } = await db.query(
+      `UPDATE users
+       SET is_suspended      = FALSE,
+           suspended_until   = NULL,
+           suspension_reason = NULL,
+           suspended_by      = NULL,
+           is_restricted     = FALSE,
+           restriction_reason= NULL,
+           restricted_by     = NULL,
+           is_active         = TRUE,
+           is_banned         = FALSE,
+           ban_reason        = NULL,
+           updated_at        = NOW()
+       WHERE id = $1
+       RETURNING id, email, first_name`,
+      [userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+
+    await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
+    await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
+
+    res.json({ message: 'User account fully reactivated.' });
+  } catch (err) {
+    logger.error('reactivateUser error', { err });
+    res.status(500).json({ error: 'Failed to reactivate user.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXTENDED PROFILE EDITING
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * PUT /admin/users/:userId/profile
+ * Body: { email, phone, bio, city, state, country }
+ * Logs each changed field individually to admin_user_action_log.
+ */
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const adminId    = req.user.id;
+    const { userId } = req.params;
+    const allowed    = ['email', 'phone', 'bio', 'city', 'state', 'country'];
+    const updates    = {};
+
+    for (const field of allowed) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ error: 'No updatable fields provided.' });
+    }
+
+    // Validate email uniqueness if changing
+    if (updates.email) {
+      const { rows } = await db.query(
+        'SELECT id FROM users WHERE email = $1 AND id <> $2',
+        [updates.email, userId]
+      );
+      if (rows.length) return res.status(409).json({ error: 'Email already in use by another account.' });
+    }
+
+    const { rows: before } = await db.query(`SELECT ${allowed.join(',')} FROM users WHERE id = $1`, [userId]);
+    if (!before.length) return res.status(404).json({ error: 'User not found.' });
+
+    const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`);
+    setClauses.push(`updated_at = NOW()`);
+    const vals = [...Object.values(updates), userId];
+
+    await db.query(
+      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${vals.length}`,
+      vals
+    );
+
+    // Log each changed field
+    for (const field of Object.keys(updates)) {
+      const oldVal = String(before[0][field] ?? '');
+      const newVal = String(updates[field] ?? '');
+      if (oldVal !== newVal) {
+        await logUserAction({
+          adminId,
+          targetUserId: userId,
+          actionType:  'edit_profile_field',
+          fieldName:    field,
+          oldValue:     field === 'email' ? '[REDACTED]' : oldVal,
+          newValue:     field === 'email' ? '[REDACTED]' : newVal,
+          ipAddress:    req.ip,
+        });
+      }
+    }
+
+    await logAdminAction({ adminId, action: 'user_profile_updated', targetType: 'user', targetId: userId, req });
+
+    res.json({ message: 'Profile updated successfully.', updated: Object.keys(updates) });
+  } catch (err) {
+    logger.error('updateUserProfile error', { err });
+    res.status(500).json({ error: 'Failed to update profile.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPPORT TICKETS FOR USER
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** GET /admin/users/:userId/support-tickets */
+exports.getUserSupportTickets = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const hasTable   = await tableExists('support_tickets');
+    if (!hasTable) return res.json({ tickets: [] });
+
+    const { rows } = await db.query(
+      `SELECT id, ticket_number, title, status, priority, category,
+              created_at, updated_at, resolved_at
+       FROM support_tickets
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [userId]
+    );
+    res.json({ tickets: rows });
+  } catch (err) {
+    logger.error('getUserSupportTickets error', { err });
+    res.status(500).json({ error: 'Failed to fetch support tickets.' });
+  }
+};

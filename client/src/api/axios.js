@@ -7,9 +7,13 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Attach token to every request
+// Attach token to every request.
+// Impersonation sessions store a short-lived token in sessionStorage so the
+// admin's normal access token in localStorage is never overwritten.
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token =
+    sessionStorage.getItem('oxs:impersonation_token') ||
+    localStorage.getItem('accessToken');
 
   // Always add Authorization header if token exists
   if (token) {
@@ -17,10 +21,9 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   } else {
     // Log missing token for debugging
-    console.warn('[axios] No access token found in localStorage for request:', {
+    console.warn('[axios] No access token found for request:', {
       method: config.method,
       url: config.url,
-      headers: config.headers,
     });
   }
 

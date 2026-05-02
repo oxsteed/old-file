@@ -9,6 +9,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary, { RouterAwareErrorBoundary } from './components/ErrorBoundary';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
+import ImpersonationBanner from './components/ImpersonationBanner';
+import ImpersonatePage     from './pages/ImpersonatePage';
 import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import CustomerRegister from './pages/CustomerRegister';
@@ -113,9 +115,12 @@ export default function App() {
               <RouterAwareErrorBoundary>
                 <AuthProvider>
                 <ScrollToTop />
+                <ImpersonationBanner />
                 <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
                 <TermsGate>
                   <Routes>
+                    {/* ── Impersonation landing (super-admin only, new tab) ── */}
+                    <Route path="/impersonate"             element={<ImpersonatePage />} />
                     {/* ── Public routes ────────────────────────────────────── */}
                     <Route path="/"                        element={<Guarded><HomePage /></Guarded>} />
                     <Route path="/login"                   element={<Guarded><Login /></Guarded>} />

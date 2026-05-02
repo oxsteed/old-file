@@ -259,6 +259,21 @@ async function login(req, res, next) {
       logger.warn('Failed to record login agreement', { userId: user.id, error: logErr.message });
     }
 
+    // Record login history and update last_login_ip (non-fatal)
+    try {
+      const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+        || req.socket?.remoteAddress || req.ip || null;
+      const loginUa = req.headers['user-agent'] || null;
+      await pool.query(
+        `INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`,
+        [user.id, loginIp, loginUa]
+      ).catch(() => {}); // table may not exist yet on older deploys
+      await pool.query(
+        `UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`,
+        [loginIp, user.id]
+      ).catch(() => {});
+    } catch (_) {}
+
     res.json({
       success: true,
       message: 'Login successful',

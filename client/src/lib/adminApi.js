@@ -12,9 +12,13 @@ const adminApi = axios.create({
     withCredentials: true
 });
 
-// Attach token automatically - uses the same key as the main app
+// Attach token automatically.
+// Impersonation sessions store a short-lived token in sessionStorage to avoid
+// overwriting the admin's normal localStorage token in their original tab.
 adminApi.interceptors.request.use(config => {
-    const token = localStorage.getItem('accessToken');
+    const token =
+        sessionStorage.getItem('oxs:impersonation_token') ||
+        localStorage.getItem('accessToken');
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
