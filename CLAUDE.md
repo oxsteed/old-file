@@ -61,6 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-02):**
+- **Homepage consulting section:** Removed the trailing clause (` - while becoming part of something larger.`) from `home.consulting.subcopy` in `client/src/locales/{en,es,fr,ht}.json` (ES/FR/HT adjusted to match).
 - **Tool Rentals page (/tool-rentals) - Bug fixes & improvements:**
  - **Bug #1 (P0):** Added missing `toolRentalsDir` i18n namespace to all 4 locale files (en/es/fr/ht) - 150+ keys including hero copy, filters, sort options, conditions, tile labels, category/subtype taxonomy, ARIA strings, empty/error state copy. Page was previously showing raw translation keys.
  - **Bug #2 (P0):** Fixed `GET /api/tool-rentals/browse` SQL query - removed `u.owner_rating` (non-existent column on users) that caused every listing load to fail with a DB error. Replaced with `t.avg_rating AS owner_rating`. Also added `t.avg_rating`, `t.review_count`, `t.image_url` (from `image_gallery[1]`), `u.avg_response_time_hours` to TOOL_FIELDS. Applied same fix to `GET /api/tool-rentals/public/:id`.
