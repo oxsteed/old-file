@@ -183,14 +183,14 @@ async function login(req, res, next) {
       throw new AppError('Validation failed', 400, 'validation_failed', errs);
     }
 
-    if (!termsAgreed) {
+    const preCheckUser = await pool.query('SELECT role FROM users WHERE email = $1', [email]);       const isAdminUser = preCheckUser.rows.length > 0 && ['admin', 'super_admin'].includes(preCheckUser.rows[0].role);       if (!isAdminUser && !termsAgreed) {
       throw new AppError(
         'You must agree to the Terms of Service and Privacy Policy to sign in',
         400, 'validation_failed',
         { termsAgreed: 'Required' }
       );
     }
-    if (!agreementName || !String(agreementName).trim()) {
+    if (!isAdminUser && (!agreementName || !String(agreementName).trim())) {
       throw new AppError(
         'Full name signature is required to confirm your agreement',
         400, 'validation_failed',
