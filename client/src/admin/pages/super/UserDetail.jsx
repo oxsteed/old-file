@@ -5,7 +5,7 @@ import {
   Shield, Ban, CheckCircle, ExternalLink, AlertCircle,
   ChevronLeft, MessageSquare, X, Loader2, Trash2, FileCheck,
   AlertTriangle, KeyRound, LogIn, Clock, StickyNote, Activity,
-  TicketCheck, Phone, MapPin, Calendar, Wifi, Lock,
+  ClipboardList, Phone, MapPin, Calendar, Wifi, Lock,
   RotateCcw, Edit3, Save, Plus, ChevronDown, ChevronUp, Eye,
 } from 'lucide-react';
 import adminApi from '../../../lib/adminApi';
@@ -634,7 +634,7 @@ export default function UserDetail() {
         <div className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-5 mb-6">
           <button onClick={() => { setShowTickets(v => !v); if (!ticketsLoaded) loadTickets(); }}
             className="w-full flex items-center justify-between text-left">
-            <h3 className="font-semibold text-white flex items-center gap-2"><TicketCheck size={18} />Support Tickets</h3>
+            <h3 className="font-semibold text-white flex items-center gap-2"><ClipboardList size={18} />Support Tickets</h3>
             {showTickets ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
           </button>
           {showTickets && (
