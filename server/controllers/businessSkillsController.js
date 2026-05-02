@@ -1,4 +1,4 @@
-const { pool } = require('../db');
+const pool = require('../db');
 const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canManageBusinessFinance } = require('../utils/businessOwnership');

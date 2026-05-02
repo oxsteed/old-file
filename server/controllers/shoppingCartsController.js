@@ -1,4 +1,4 @@
-const { pool } = require('../db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 
