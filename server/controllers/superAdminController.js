@@ -109,9 +109,9 @@ exports.getUsers = async (req, res) => {
     const finalWhereClause = `WHERE ${baseConditions.join(' AND ')}`;
 
     const selectCols = [
-      // Core user fields — avatar_url added (was missing in prior version)
+      // Core user fields. Note: users table has no avatar_url column — avatar comes from helper_profiles.
       'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.email_verified, u.is_verified, u.last_login_at',
-      'u.avatar_url, u.city, u.state, u.zip_code',
+      'u.city, u.state, u.zip_code',
       'u.subscription_status AS user_sub_status',
     ];
     const joins = [];
@@ -125,8 +125,9 @@ exports.getUsers = async (req, res) => {
     } else { selectCols.push('NULL AS plan_slug, NULL AS plan_name'); }
     if (hasHP) {
       joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id');
-      selectCols.push('hp.avg_rating, hp.completed_jobs_count, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier');
-    } else { selectCols.push('NULL AS avg_rating, NULL AS completed_jobs_count, NULL AS total_reviews, NULL AS is_background_checked, NULL AS is_identity_verified, NULL AS helper_tier'); }
+      // profile_photo_url aliased as avatar_url so the frontend can use user.avatar_url uniformly
+      selectCols.push('hp.avg_rating, hp.completed_jobs_count, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.profile_photo_url AS avatar_url');
+    } else { selectCols.push('NULL AS avg_rating, NULL AS completed_jobs_count, NULL AS total_reviews, NULL AS is_background_checked, NULL AS is_identity_verified, NULL AS helper_tier, NULL AS avatar_url'); }
     if (hasJobs) {
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted");
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper");
