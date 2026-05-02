@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import axios from '../../api/axios';
 import PageMeta from '../../components/PageMeta';
 import OrderManagementTable from '../components/OrderManagementTable';
 import OrderDetailModal from '../components/OrderDetailModal';
