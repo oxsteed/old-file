@@ -51,6 +51,8 @@ import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helpe
 // Types & API
 import type { HelperProfileData, LoadingState, Service } from '../types/helperProfile';
 import { fetchHelperProfile } from '../api/helpers';
+// Template system
+import { ProfileTemplateRenderer } from '../components/profileTemplates/index';
 
 // ── Main page component ───────────────────────────────────────────────────────
 const HelperBusinessProfilePage: React.FC = () => {
@@ -62,6 +64,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [data, setData] = useState<HelperProfileData | null>(null);
   const [loadState, setLoadState] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [activeTemplate, setActiveTemplate] = useState<string>('default');
   const [chatOpen, setChatOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
@@ -95,6 +98,7 @@ const HelperBusinessProfilePage: React.FC = () => {
     try {
       const profileData = await fetchHelperProfile(id!);
       setData(profileData);
+      setActiveTemplate((profileData as any).activeTemplate || 'default');
       setLoadState('success');
     } catch (err) {
       setError(t('helperProfile.chrome.unableToLoad'));
@@ -203,6 +207,31 @@ const HelperBusinessProfilePage: React.FC = () => {
     data;
 
   const isGuestVisitor = !user;
+
+  // ── Template override: non-default templates replace the page interior ─────
+  if (activeTemplate && activeTemplate !== 'default') {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white">
+        <PageMeta
+          title={helper.businessName || helper.ownerName}
+          description={buildPublicProfileDescription({
+            displayName: helper.businessName || helper.ownerName,
+            tagline: helper.tagline,
+            bio: helper.bio,
+            city: helper.city,
+            state: helper.state,
+            entityLabel: 'helper',
+          })}
+          image={helper.coverImage || helper.avatar}
+          url={`${getPublicSiteUrl()}/helpers/${id}`}
+          type="profile"
+        />
+        <Navbar />
+        <ProfileTemplateRenderer slug={activeTemplate} profileData={data} />
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">

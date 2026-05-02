@@ -502,7 +502,8 @@ async function getHelperProfile(req, res, next) {
            COALESCE(hp.allow_guest_contact, TRUE) AS allow_guest_contact,
            COALESCE(hp.allow_live_chat, TRUE) AS allow_live_chat,
            COALESCE(hp.allow_booking, TRUE) AS allow_booking,
-           COALESCE(hp.allow_scheduling, TRUE) AS allow_scheduling
+           COALESCE(hp.allow_scheduling, TRUE) AS allow_scheduling,
+           COALESCE(hp.active_template, 'default') AS active_template
          FROM users u
          JOIN helper_profiles hp ON hp.user_id = u.id
          WHERE u.id = $1
@@ -723,6 +724,7 @@ async function getHelperProfile(req, res, next) {
         timeline:      [],
         typing:        null,
       },
+      activeTemplate: h.active_template || 'default',
     });
   } catch (err) {
     next(err);

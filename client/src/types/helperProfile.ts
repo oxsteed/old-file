@@ -265,6 +265,8 @@ export interface HelperProfileData {
   faqs: FAQ[];
   visibility: SectionVisibility;
   chatSession: ChatSession;
+  /** Active profile template slug (default: 'default') */
+  activeTemplate?: string;
 }
 
 export type LoadingState = 'idle' | 'loading' | 'success' | 'error';

@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-01
+**Last updated:** 2026-05-02
 
 ## Instructions for Every Session
 
@@ -16,9 +16,9 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 247 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage, SupportWidget, WidgetPanel, TicketCreationModal, TicketHistory, LiveChat, ABTestingPage)
-- 111 backend controllers (added 7 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts, ABTest)
-- 140 database migrations (added support_employers multi-tenant hiring)
+- 257 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage, SupportWidget, WidgetPanel, TicketCreationModal, TicketHistory, LiveChat, ABTestingPage, TemplatePicker, TemplateManagement, 30 profile template components)
+- 112 backend controllers (added 7 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts, ABTest; + templateController)
+- 152 database migrations (added support_employers multi-tenant hiring, profile_templates)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Error Handling Implementation (2026-04-30):**
@@ -47,6 +47,18 @@
 **Phase 3 Implementation Guide:** See `PHASE3_IMPLEMENTATION_GUIDE.md` for detailed patterns and controller update checklist.
 
 - **Support agent self-service portal:** Plan `docs/superpowers/plans/2026-05-01-support-agent-portal-dashboard.md`. API `GET /api/support/agent/me` and `PATCH /api/support/agent/me/availability` (`server/controllers/supportAgentPortalController.js`, registered first in `server/routes/support.js`). **Degraded mode:** if migration 149 (`support_employers`) is not applied, these endpoints return **200** with `data: []` (and `degraded: true`) instead of 500 so global layout (Navbar) does not crash. Main app route `/support/agent` → `client/src/pages/SupportAgentPortalPage.jsx` (PageShell, employments from `support_employers` model, global go online/offline for active rows). Navbar shows **Support workspace** when `GET /api/support/agent/me` returns employments. **Footer:** same pill style as Vortex, link next to Vortex when signed in (`client/src/components/Footer.jsx`). i18n: `nav.supportWorkspace`, `supportAgentPortal.*` in en/es/fr/ht.
+
+**Profile Template System (2026-05-02):** ✅ COMPLETE
+- **Migration 152** (`server/migrations/152_profile_templates.sql`): `template_pricing` table (slug, name, category, is_free, monthly_price_cents, lifetime_price_cents, sort_order, is_active), `template_access` table (user_id, template_slug, access_type, grant_type, expiry_date, status), `ALTER TABLE businesses/helper_profiles ADD COLUMN active_template VARCHAR(64) DEFAULT 'default'`. Seeds all 30 templates at $9.99/month + $49.99 lifetime.
+- **Controller** (`server/controllers/templateController.js`): 12 functions — listTemplates, getMyAccess, getActiveTemplate, activateTemplate, purchaseLifetime, adminUpdatePricing, adminBulkUpdatePricing, adminGrantAccess, adminRevokeAccess, adminListGrants, adminGetPricing, adminTemplateStats.
+- **Routes** (`server/routes/templates.js`): 13 routes registered; public list, authenticated access/activate/purchase, admin manage. Registered in `server/index.js` as `/api/templates`.
+- **Expiry job** (`server/jobs/templateExpiryJob.js`): `node-cron` at `0 3 * * *`; marks expired access rows, reverts `active_template` to 'default' (skips if lifetime access still active). Started in `server/index.js`.
+- **30 profile templates** across 5 files in `client/src/components/profileTemplates/templates/`: HomeTemplates.jsx (8), CreativeTemplates.jsx (4), HealthTemplates.jsx (4), CareTemplates.jsx (4), EventsBeautyTechTemplates.jsx (10). Shared primitives in `shared.jsx`. Registry + renderer in `index.js` (`TEMPLATE_REGISTRY`, `getTemplateComponent`, `ProfileTemplateRenderer`).
+- **TemplatePicker** (`client/src/pages/TemplatePicker.jsx`): Grid with search/category/access filters, PreviewModal with monthly+lifetime pricing, activate/purchase handlers. Route: `/templates?type=helper|business`.
+- **TemplateManagement** (`client/src/admin/pages/TemplateManagement.jsx`): 3-tab admin UI — Pricing (inline editable rows), Access Grants (grant/revoke modal, paginated list), Stats. Admin nav entry added.
+- **Public profiles**: `BusinessProfilePage.jsx` and `HelperBusinessProfilePage.tsx` render `<ProfileTemplateRenderer>` when `activeTemplate !== 'default'`. Public APIs updated: `businessController.js` and `helpersController.js` both return `active_template` / `activeTemplate` in profile responses.
+- **i18n**: `templatePicker.*` keys (42 each) added to en/es/fr/ht locale files.
+- **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-01):**
 - **Business Hub runtime crash (helper after creating a business):** `BusinessHubPage.jsx` used `formatMoney` / `getDefaultCurrency` without imports, and `currency` was only defined in the outer wrapper so child tab components saw **undefined** `currency` and threw in `OverviewTab` (default tab). Fixed: import `formatMoney` + `getDefaultCurrency`, compute `currency` in `BusinessHubInner`, pass `currency` into `OverviewTab` / `InvoicesTab` / `TaxTab` / `GoalsTab`.

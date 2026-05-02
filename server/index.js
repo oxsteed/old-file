@@ -440,6 +440,7 @@ const affiliatePayoutsRoutes = require('./routes/affiliatePayouts');
 const discountCodesRoutes = require('./routes/discountCodes');
 const emailPreferencesRoutes = require('./routes/emailPreferences');
 const smsNotificationsRoutes = require('./routes/smsNotifications');
+const templateRoutes = require('./routes/templates');
 
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/marketplace/products', marketplaceProductsRoutes);
@@ -454,6 +455,7 @@ app.use('/api/api-products', apiProductsRoutes);
 app.use('/api/affiliate', affiliatePayoutsRoutes);
 app.use('/api/notifications/email', emailPreferencesRoutes);
 app.use('/api/notifications/sms', smsNotificationsRoutes);
+app.use('/api/templates', templateRoutes);
 app.use('/api/chat', chatRoutes);
 app.get('/api/users/:id/profile', getPublicProfile);
 
@@ -505,6 +507,7 @@ const { startConsultingNoShowFollowup } = require('./jobs/consultingNoShowFollow
 const { startCalendarReminderJob } = require('./jobs/calendarReminders');
 const { startAffiliateCommissionBatchJob } = require('./jobs/affiliateCommissionBatch');
 const cleanupOldMessagesJob = require('./jobs/cleanupOldMessages');
+const { startTemplateExpiryJob } = require('./jobs/templateExpiryJob');
 
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
@@ -516,6 +519,7 @@ startConsultingPostSessionFollowup();
 startConsultingNoShowFollowup();
 startCalendarReminderJob();
 startAffiliateCommissionBatchJob();
+startTemplateExpiryJob();
 
 // Start message cleanup job (180-day auto-retention for support conversations)
 const cron = require('node-cron');

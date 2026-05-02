@@ -46,6 +46,7 @@ import ConsultingAnalyticsDashboard from './pages/ConsultingAnalyticsDashboard';
 import BusinessLaunchAdmin from './pages/BusinessLaunchAdmin';
 import ConsultingSessionsAdmin from './pages/ConsultingSessionsAdmin';
 import OrderManagement from './pages/OrderManagement';
+import TemplateManagement from './pages/TemplateManagement';
 import AdminLogin      from './pages/Login';
 import SupportCSATAnalytics from './pages/SupportCSATAnalytics';
 import SupportEscalationManager from './pages/SupportEscalationManager';
@@ -121,6 +122,7 @@ export default function AdminApp() {
           <Route path="planned-needs"       element={<PlannedNeedsAdmin />} />
           <Route path="payments"            element={<PaymentsList />} />
           <Route path="orders"              element={<OrderManagement />} />
+          <Route path="templates"           element={<TemplateManagement />} />
           <Route path="consulting"          element={<ConsultingDashboard />} />
           <Route path="consulting/payments" element={<ConsultingPayments />} />
           <Route path="consulting/scheduler" element={<ConsultingScheduler />} />

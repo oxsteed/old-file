@@ -37,6 +37,7 @@ import NotificationSettings from './pages/Settings/Notifications';
 import SettingsPage from './pages/SettingsPage';
 import PublicProfile from './pages/PublicProfile';
 import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
+import TemplatePicker from './pages/TemplatePicker';
 import BusinessProfilePage from './pages/BusinessProfilePage';
 import HelpersDirectoryPage from './pages/HelpersDirectoryPage';
 import DisputeCenter from './pages/disputes/DisputeCenter';
@@ -166,6 +167,7 @@ export default function App() {
                     <Route path="/dashboard"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
+                    <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />
 
                     {/* Critical: Job posting form with media upload */}
                     <Route path="/post-job"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><PostJobPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

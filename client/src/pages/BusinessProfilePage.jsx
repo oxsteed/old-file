@@ -42,6 +42,7 @@ import ChatPanel from '../components/helperProfile/chat/ChatPanel';
 import { AvailabilityBlock, PricingBlock, SlotsBlock } from '../components/helperProfile/DynamicBlocks';
 
 import { getBusinessPublicProfile } from '../api/businesses';
+import { ProfileTemplateRenderer } from '../components/profileTemplates/index';
 
 // ── Data mapping helpers ──────────────────────────────────────────────────────
 
@@ -275,9 +276,10 @@ export default function BusinessProfilePage() {
   const { t }     = useTranslation();
   const { user } = useAuth();
 
-  const [profileData, setProfileData] = useState(null);
-  const [loadState,   setLoadState]   = useState('idle');
-  const [error,       setError]       = useState(null);
+  const [profileData,     setProfileData]     = useState(null);
+  const [loadState,       setLoadState]       = useState('idle');
+  const [error,           setError]           = useState(null);
+  const [activeTemplate,  setActiveTemplate]  = useState('default');
   const [chatOpen,    setChatOpen]    = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
@@ -304,6 +306,7 @@ export default function BusinessProfilePage() {
     try {
       const raw = await getBusinessPublicProfile(id);
       setProfileData(mapToHelperProfileData(raw, t));
+      setActiveTemplate(raw.business?.active_template || 'default');
       setLoadState('success');
     } catch (e) {
       setError(
@@ -384,6 +387,31 @@ export default function BusinessProfilePage() {
   } = profileData;
 
   const isGuestVisitor = !user;
+
+  // ── Template override: non-default templates replace the page interior ─────
+  if (activeTemplate && activeTemplate !== 'default') {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white">
+        <PageMeta
+          title={helper.businessName}
+          description={buildPublicProfileDescription({
+            displayName: helper.businessName,
+            tagline: helper.tagline,
+            bio: helper.bio,
+            city: helper.city,
+            state: helper.state,
+            entityLabel: 'business',
+          })}
+          image={helper.coverImage || helper.avatar}
+          url={`${getPublicSiteUrl()}/business/${id}`}
+          type="profile"
+        />
+        <Navbar />
+        <ProfileTemplateRenderer slug={activeTemplate} profileData={profileData} />
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">

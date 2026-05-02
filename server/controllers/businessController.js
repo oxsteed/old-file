@@ -701,7 +701,8 @@ async function getBusinessPublicProfile(req, res) {
          hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
          hp.is_identity_verified, hp.is_background_checked,
          hp.is_insured, hp.is_licensed,
-         COALESCE(hp.allow_guest_contact, TRUE) AS owner_allow_guest_contact
+         COALESCE(hp.allow_guest_contact, TRUE) AS owner_allow_guest_contact,
+         COALESCE(b.active_template, 'default') AS active_template
        FROM businesses b
        JOIN users u          ON u.id  = b.user_id
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
@@ -800,6 +801,8 @@ async function getBusinessPublicProfile(req, res) {
         bio_short:       biz.bio_short,
         /** Same gate as `/helpers/:id` guest chat - owner's helper_profiles.allow_guest_contact */
         allow_guest_contact: biz.owner_allow_guest_contact !== false,
+        /** Active profile template slug */
+        active_template: biz.active_template || 'default',
       },
       services:  svcRes.rows,
       reviews:   reviewRes.rows,
