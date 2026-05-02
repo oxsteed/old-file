@@ -57,6 +57,7 @@ import BusinessLaunchAdmin from './pages/BusinessLaunchAdmin';
 import ConsultingSessionsAdmin from './pages/ConsultingSessionsAdmin';
 import OrderManagement from './pages/OrderManagement';
 import TemplateManagement from './pages/TemplateManagement';
+import TemplatePreviewPage from './pages/TemplatePreviewPage';
 import AdminLogin      from './pages/Login';
 import SupportCSATAnalytics from './pages/SupportCSATAnalytics';
 import SupportEscalationManager from './pages/SupportEscalationManager';
@@ -101,6 +102,13 @@ export default function AdminApp() {
       <Routes>
         {/* Public login route */}
         <Route path="/admin/login" element={<AdminLogin />} />
+
+        {/* Full-width template preview (no sidebar) - still requires admin auth */}
+        <Route path="/admin/template-preview" element={
+          <AdminGuard>
+            <TemplatePreviewPage />
+          </AdminGuard>
+        } />
 
         {/* Protected admin routes */}
         <Route path="/admin" element={
