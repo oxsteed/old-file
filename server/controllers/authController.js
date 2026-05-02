@@ -173,7 +173,7 @@ res.status(201).json({ user: formatAuthUser(fullRows[0]), ...tokens });
 // LOGIN - Updated to support 2FA
 async function login(req, res, next) {
   try {
-    const { email, password, rememberMe } = req.body;
+    const { email, password, rememberMe, termsAgreed, agreementName } = req.body;
 
     const errs = validate(req.body, {
       email:    [rules.required, rules.email],
@@ -181,6 +181,21 @@ async function login(req, res, next) {
     });
     if (errs) {
       throw new AppError('Validation failed', 400, 'validation_failed', errs);
+    }
+
+    if (!termsAgreed) {
+      throw new AppError(
+        'You must agree to the Terms of Service and Privacy Policy to sign in',
+        400, 'validation_failed',
+        { termsAgreed: 'Required' }
+      );
+    }
+    if (!agreementName || !String(agreementName).trim()) {
+      throw new AppError(
+        'Full name signature is required to confirm your agreement',
+        400, 'validation_failed',
+        { agreementName: 'Required' }
+      );
     }
 
     const { rows } = await pool.query(
@@ -227,8 +242,23 @@ async function login(req, res, next) {
       ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
     await pool.query(sessionSql, [user.id, hashedRefresh]);
-    // Fetch tier from helper_profiles if helper, otherwise 'free'
-    
+
+    // Log terms agreement for legal/compliance record
+    try {
+      const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+        || req.socket?.remoteAddress
+        || req.ip
+        || null;
+      const ua = req.headers['user-agent'] || null;
+      await pool.query(
+        `INSERT INTO login_agreements (user_id, full_name, ip_address, user_agent)
+         VALUES ($1, $2, $3, $4)`,
+        [user.id, String(agreementName).trim(), ip, ua]
+      );
+    } catch (logErr) {
+      logger.warn('Failed to record login agreement', { userId: user.id, error: logErr.message });
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
