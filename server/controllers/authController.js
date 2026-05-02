@@ -259,19 +259,29 @@ async function login(req, res, next) {
       logger.warn('Failed to record login agreement', { userId: user.id, error: logErr.message });
     }
 
-    // Record login history and update last_login_ip (non-fatal)
+    // Record login history and update last_login_at (non-fatal)
     try {
       const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
         || req.socket?.remoteAddress || req.ip || null;
       const loginUa = req.headers['user-agent'] || null;
+
+      // Write last_login_at unconditionally — column exists since migration 001.
+      await pool.query(
+        `UPDATE users SET last_login_at = NOW() WHERE id = $1`,
+        [user.id]
+      ).catch(() => {});
+
+      // last_login_ip was added in migration 154; write separately so a missing
+      // column doesn't prevent last_login_at from being recorded.
+      await pool.query(
+        `UPDATE users SET last_login_ip = $1 WHERE id = $2`,
+        [loginIp, user.id]
+      ).catch(() => {});
+
       await pool.query(
         `INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`,
         [user.id, loginIp, loginUa]
       ).catch(() => {}); // table may not exist yet on older deploys
-      await pool.query(
-        `UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`,
-        [loginIp, user.id]
-      ).catch(() => {});
     } catch (_) {}
 
     res.json({
@@ -365,7 +375,21 @@ async function loginWith2FA(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [user.id, hashedRefresh]
     );
-        const { rows: fullRows } = await pool.query(
+
+    // Record last_login_at and login history (non-fatal)
+    try {
+      const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+        || req.socket?.remoteAddress || req.ip || null;
+      const loginUa = req.headers['user-agent'] || null;
+      await pool.query(`UPDATE users SET last_login_at = NOW() WHERE id = $1`, [user.id]).catch(() => {});
+      await pool.query(`UPDATE users SET last_login_ip = $1 WHERE id = $2`, [loginIp, user.id]).catch(() => {});
+      await pool.query(
+        `INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`,
+        [user.id, loginIp, loginUa]
+      ).catch(() => {});
+    } catch (_) {}
+
+    const { rows: fullRows } = await pool.query(
       `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
        onboarding_status, onboarding_completed, contact_completed, profile_completed,
        tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
