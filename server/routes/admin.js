@@ -76,8 +76,10 @@ router.delete('/markets/:marketId/zip-codes', requireAdmin, adminCtrl.removeZipC
 // ══════════════════════════════════════════════════════════════
 
 // Full dashboard + charts
-router.get('/super/dashboard',     requireSuperAdmin, superCtrl.getDashboardStats);
-router.get('/super/revenue-chart', requireSuperAdmin, superCtrl.getRevenueChart);
+router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboardStats);
+router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
+router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
+router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboardGeo);
 
 // User management (privileged write)
 // ID / background "confirm" is super-admin only (trust & compliance).
