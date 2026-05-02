@@ -32,7 +32,7 @@ export default function OrderManagement() {
       params.append('sortOrder', filters.sortOrder);
 
       const res = await axios.get(`/api/admin/orders?${params.toString()}`);
-      return res.data.data;
+      return res.data;
     },
     staleTime: 30000,
   });
@@ -116,17 +116,17 @@ export default function OrderManagement() {
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
             <p className="mt-2 text-gray-600 dark:text-gray-400">Loading orders...</p>
           </div>
-        ) : !data?.data || data.data.length === 0 ? (
+        ) : !data?.data || data?.data?.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             <p>No orders found</p>
           </div>
         ) : (
           <>
             <OrderManagementTable
-              orders={data.data}
+              orders={data?.data}
               onRowClick={handleRowClick}
             />
-            {data.pagination && data.pagination.total > 0 && (
+            {data?.pagination && data.pagination.total > 0 && (
               <Pagination
                 pagination={data.pagination}
                 onPageChange={handlePageChange}
