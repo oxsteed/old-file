@@ -49,154 +49,225 @@ exports.getDashboardStats = async (req, res) => {
     const period = PERIOD_INTERVAL[req.query.period] ? req.query.period : '30d';
     const { interval: cur, prev: prevInterval } = PERIOD_INTERVAL[period];
 
-    const [hasJobs, hasSubs, hasLedger, hasBids, hasHP, hasST, hasPayouts, hasMig154] = await Promise.all([
+    // Probe optional tables/columns in parallel — never throws
+    const [hasJobs, hasSubs, hasLedger, hasHP, hasST, hasPayouts, hasMig154, hasContentReports] = await Promise.all([
       tableExists('jobs'),
       tableExists('subscriptions'),
       tableExists('platform_ledger'),
-      tableExists('bids'),
       tableExists('helper_profiles'),
       tableExists('support_tickets'),
       tableExists('payouts'),
       columnExists('users', 'is_suspended'),
+      tableExists('content_reports'),
     ]);
-    const hasPlanTable = hasSubs && await tableExists('plans');
-    const hasContentReports = await tableExists('content_reports');
 
-    // ── Current-period counts ──────────────────────────────────────────────
-    const { rows } = await db.query(`
+    // ── Core user stats (always available — no optional tables) ────────────
+    const coreStats = await db.query(`
       SELECT
-        -- Users
         (SELECT COUNT(*) FROM users WHERE role NOT IN ('admin','super_admin'))                                            AS total_users,
         (SELECT COUNT(*) FROM users WHERE role = 'customer')                                                             AS total_customers,
         (SELECT COUNT(*) FROM users WHERE role IN ('helper','helper_pro'))                                               AS total_helpers,
         (SELECT COUNT(*) FROM users WHERE role = 'broker')                                                               AS total_brokers,
         (SELECT COUNT(*) FROM users WHERE role NOT IN ('admin','super_admin') AND created_at >= now() - $1::interval)    AS new_users_period,
         (SELECT COUNT(*) FROM users WHERE role NOT IN ('admin','super_admin') AND created_at >= date_trunc('day',now())) AS new_users_today,
-        ${hasMig154
-          ? `(SELECT COUNT(*) FROM users WHERE (is_suspended = TRUE OR is_active = FALSE) AND role NOT IN ('admin','super_admin')) AS suspended_users,`
-          : `(SELECT COUNT(*) FROM users WHERE is_active = FALSE AND role NOT IN ('admin','super_admin')) AS suspended_users,`}
+        (SELECT COUNT(*) FROM users WHERE is_active = FALSE AND role NOT IN ('admin','super_admin'))                     AS suspended_users
+    `, [cur]).then(r => r.rows[0]).catch(() => ({}));
 
-        -- Helpers verification
-        ${hasHP
-          ? `(SELECT COUNT(*) FROM helper_profiles WHERE is_identity_verified = TRUE OR is_background_checked = TRUE) AS verified_helpers,
-             (SELECT COUNT(*) FROM helper_profiles WHERE (is_identity_verified IS NOT TRUE AND is_background_checked IS NOT TRUE)) AS unverified_helpers,`
-          : `0 AS verified_helpers, 0 AS unverified_helpers,`}
+    // When migration 154 is present, refine suspended_users to also include is_suspended flag
+    let suspended_users = safeInt(coreStats.suspended_users);
+    if (hasMig154) {
+      try {
+        const { rows: sus } = await db.query(
+          `SELECT COUNT(*) AS cnt FROM users WHERE (is_suspended = TRUE OR is_active = FALSE) AND role NOT IN ('admin','super_admin')`
+        );
+        suspended_users = safeInt(sus[0]?.cnt);
+      } catch (_) {}
+    }
 
-        -- Jobs
-        ${hasJobs ? `
-        (SELECT COUNT(*) FROM jobs WHERE status = 'published')                                                  AS open_jobs,
-        (SELECT COUNT(*) FROM jobs WHERE status = 'in_progress')                                                AS active_jobs,
-        (SELECT COUNT(*) FROM jobs WHERE status = 'completed')                                                  AS completed_jobs,
-        (SELECT COUNT(*) FROM jobs WHERE status = 'cancelled')                                                  AS cancelled_jobs,
-        (SELECT COUNT(*) FROM jobs WHERE status = 'completed' AND created_at >= now() - $1::interval)          AS completed_jobs_period,
-        (SELECT COUNT(*) FROM jobs WHERE created_at >= now() - $1::interval)                                    AS new_jobs_period,
-        (SELECT COUNT(*) FROM jobs WHERE created_at >= date_trunc('day',now()))                                 AS new_jobs_today,
-        (SELECT COUNT(*) FROM jobs WHERE dispute_status IN ('open','disputed'))                                 AS open_disputes,
-        ` : `0 AS open_jobs, 0 AS active_jobs, 0 AS completed_jobs, 0 AS cancelled_jobs,
-             0 AS completed_jobs_period, 0 AS new_jobs_period, 0 AS new_jobs_today, 0 AS open_disputes,`}
+    // ── Helper verification stats ──────────────────────────────────────────
+    let verified_helpers = 0, unverified_helpers = 0;
+    if (hasHP) {
+      try {
+        const { rows } = await db.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE is_identity_verified = TRUE OR is_background_checked = TRUE)  AS verified,
+            COUNT(*) FILTER (WHERE is_identity_verified IS NOT TRUE AND is_background_checked IS NOT TRUE) AS unverified
+          FROM helper_profiles
+        `);
+        verified_helpers   = safeInt(rows[0]?.verified);
+        unverified_helpers = safeInt(rows[0]?.unverified);
+      } catch (_) {}
+    }
 
-        -- Bids
-        ${hasBids && hasJobs
-          ? `(SELECT ROUND(AVG(bid_count),1) FROM jobs WHERE bid_count > 0 AND created_at >= now() - $1::interval) AS avg_bids_per_job,`
-          : `NULL AS avg_bids_per_job,`}
+    // ── Job stats ─────────────────────────────────────────────────────────
+    let open_jobs = 0, active_jobs = 0, completed_jobs = 0, cancelled_jobs = 0,
+        completed_jobs_period = 0, new_jobs_period = 0, new_jobs_today = 0,
+        open_disputes = 0, avg_bids_per_job = null;
+    if (hasJobs) {
+      try {
+        const { rows } = await db.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE status = 'published')                               AS open_jobs,
+            COUNT(*) FILTER (WHERE status = 'in_progress')                             AS active_jobs,
+            COUNT(*) FILTER (WHERE status = 'completed')                               AS completed_jobs,
+            COUNT(*) FILTER (WHERE status = 'cancelled')                               AS cancelled_jobs,
+            COUNT(*) FILTER (WHERE status = 'completed' AND created_at >= now() - $1::interval) AS completed_jobs_period,
+            COUNT(*) FILTER (WHERE created_at >= now() - $1::interval)                AS new_jobs_period,
+            COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()))             AS new_jobs_today,
+            COUNT(*) FILTER (WHERE dispute_status = 'open')                            AS open_disputes,
+            ROUND(AVG(bid_count) FILTER (WHERE bid_count > 0 AND created_at >= now() - $1::interval), 1) AS avg_bids_per_job
+          FROM jobs
+        `, [cur]);
+        open_jobs             = safeInt(rows[0]?.open_jobs);
+        active_jobs           = safeInt(rows[0]?.active_jobs);
+        completed_jobs        = safeInt(rows[0]?.completed_jobs);
+        cancelled_jobs        = safeInt(rows[0]?.cancelled_jobs);
+        completed_jobs_period = safeInt(rows[0]?.completed_jobs_period);
+        new_jobs_period       = safeInt(rows[0]?.new_jobs_period);
+        new_jobs_today        = safeInt(rows[0]?.new_jobs_today);
+        open_disputes         = safeInt(rows[0]?.open_disputes);
+        avg_bids_per_job      = rows[0]?.avg_bids_per_job != null ? parseFloat(rows[0].avg_bids_per_job) : null;
+      } catch (jobErr) {
+        logger.warn('getDashboardStats: jobs query failed', { err: jobErr.message });
+      }
+    }
 
-        -- Revenue
-        ${hasLedger ? `
-        (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0)                                               AS total_revenue_cents,
-        (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at >= now() - $1::interval)        AS revenue_period_cents,
-        (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= now() - $1::interval)                    AS subscription_revenue_period_cents,
-        (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at >= date_trunc('month',now()))   AS revenue_mtd_cents,
-        (SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= date_trunc('month',now()))                AS subscription_revenue_mtd_cents,
-        (SELECT COALESCE(SUM(ABS(amount_cents)),0) FROM platform_ledger WHERE source_type = 'refund' AND created_at >= now() - $1::interval)                                          AS refunds_period_cents,
-        ` : `0 AS total_revenue_cents, 0 AS revenue_period_cents, 0 AS subscription_revenue_period_cents,
-             0 AS revenue_mtd_cents, 0 AS subscription_revenue_mtd_cents, 0 AS refunds_period_cents,`}
+    // ── Revenue stats ─────────────────────────────────────────────────────
+    let total_revenue_cents = 0, revenue_period_cents = 0,
+        subscription_revenue_period_cents = 0, revenue_mtd_cents = 0,
+        subscription_revenue_mtd_cents = 0, refunds_period_cents = 0;
+    if (hasLedger) {
+      try {
+        const { rows } = await db.query(`
+          SELECT
+            COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0), 0)                                             AS total_revenue_cents,
+            COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)     AS revenue_period_cents,
+            COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= now() - $1::interval), 0)                  AS subscription_revenue_period_cents,
+            COALESCE(SUM(amount_cents) FILTER (WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at >= date_trunc('month', now())), 0) AS revenue_mtd_cents,
+            COALESCE(SUM(amount_cents) FILTER (WHERE source_type = 'subscription' AND amount_cents > 0 AND created_at >= date_trunc('month', now())), 0)             AS subscription_revenue_mtd_cents,
+            COALESCE(SUM(ABS(amount_cents)) FILTER (WHERE source_type = 'refund' AND created_at >= now() - $1::interval), 0)                                        AS refunds_period_cents
+          FROM platform_ledger
+        `, [cur]);
+        total_revenue_cents               = safeInt(rows[0]?.total_revenue_cents);
+        revenue_period_cents              = safeInt(rows[0]?.revenue_period_cents);
+        subscription_revenue_period_cents = safeInt(rows[0]?.subscription_revenue_period_cents);
+        revenue_mtd_cents                 = safeInt(rows[0]?.revenue_mtd_cents);
+        subscription_revenue_mtd_cents    = safeInt(rows[0]?.subscription_revenue_mtd_cents);
+        refunds_period_cents              = safeInt(rows[0]?.refunds_period_cents);
+      } catch (_) {}
+    }
 
-        -- Subscriptions
-        ${hasSubs ? `(SELECT COUNT(*) FROM subscriptions WHERE status = 'active') AS active_subscriptions,` : `0 AS active_subscriptions,`}
+    // ── Subscription count ────────────────────────────────────────────────
+    let active_subscriptions = 0;
+    if (hasSubs) {
+      try {
+        const { rows } = await db.query(`SELECT COUNT(*) AS cnt FROM subscriptions WHERE status = 'active'`);
+        active_subscriptions = safeInt(rows[0]?.cnt);
+      } catch (_) {}
+    }
 
-        -- Payouts
-        ${hasPayouts ? `
-        (SELECT COALESCE(SUM(amount),0) FROM payouts WHERE status = 'pending') AS pending_payouts,
-        ` : `0 AS pending_payouts,`}
+    // ── Pending payouts ───────────────────────────────────────────────────
+    let pending_payouts = 0;
+    if (hasPayouts) {
+      try {
+        // Try amount_cents first; fall back to amount * 100
+        const { rows } = await db.query(
+          `SELECT COALESCE(SUM(CASE WHEN amount_cents IS NOT NULL THEN amount_cents ELSE CAST(amount * 100 AS BIGINT) END), 0) AS total
+           FROM payouts WHERE status = 'pending'`
+        );
+        pending_payouts = safeFloat(rows[0]?.total) / 100; // convert to dollars
+      } catch (_) {}
+    }
 
-        -- Support tickets
-        ${hasST ? `
-        (SELECT COUNT(*) FROM support_tickets WHERE status NOT IN ('resolved','closed'))  AS open_support_tickets,
-        ` : `0 AS open_support_tickets,`}
+    // ── Support tickets ───────────────────────────────────────────────────
+    let open_support_tickets = 0;
+    if (hasST) {
+      try {
+        const { rows } = await db.query(
+          `SELECT COUNT(*) AS cnt FROM support_tickets WHERE status NOT IN ('resolved','closed')`
+        );
+        open_support_tickets = safeInt(rows[0]?.cnt);
+      } catch (_) {}
+    }
 
-        -- Content reports
-        ${hasContentReports
-          ? `(SELECT COUNT(*) FROM content_reports WHERE status = 'pending') AS pending_reports`
-          : `0 AS pending_reports`}
-    `, [cur]);
+    // ── Content reports ───────────────────────────────────────────────────
+    let pending_reports = 0;
+    if (hasContentReports) {
+      try {
+        const { rows } = await db.query(`SELECT COUNT(*) AS cnt FROM content_reports WHERE status = 'pending'`);
+        pending_reports = safeInt(rows[0]?.cnt);
+      } catch (_) {}
+    }
 
-    // ── Previous-period comparison counts ──────────────────────────────────
-    const { rows: prevRows } = await db.query(`
-      SELECT
-        (SELECT COUNT(*) FROM users WHERE role NOT IN ('admin','super_admin') AND created_at BETWEEN now() - $2::interval AND now() - $1::interval) AS new_users_prev,
-        ${hasJobs
-          ? `(SELECT COUNT(*) FROM jobs WHERE created_at BETWEEN now() - $2::interval AND now() - $1::interval) AS new_jobs_prev,`
-          : `0 AS new_jobs_prev,`}
-        ${hasLedger
-          ? `(SELECT COALESCE(SUM(amount_cents),0) FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at BETWEEN now() - $2::interval AND now() - $1::interval) AS revenue_prev_cents`
-          : `0 AS revenue_prev_cents`}
-    `, [cur, prevInterval]);
+    // ── Previous-period comparison ────────────────────────────────────────
+    let new_users_prev = 0, new_jobs_prev = 0, revenue_prev_cents = 0;
+    try {
+      const { rows } = await db.query(
+        `SELECT COUNT(*) AS cnt FROM users WHERE role NOT IN ('admin','super_admin') AND created_at BETWEEN now() - $2::interval AND now() - $1::interval`,
+        [cur, prevInterval]
+      );
+      new_users_prev = safeInt(rows[0]?.cnt);
+    } catch (_) {}
+    if (hasJobs) {
+      try {
+        const { rows } = await db.query(
+          `SELECT COUNT(*) AS cnt FROM jobs WHERE created_at BETWEEN now() - $2::interval AND now() - $1::interval`,
+          [cur, prevInterval]
+        );
+        new_jobs_prev = safeInt(rows[0]?.cnt);
+      } catch (_) {}
+    }
+    if (hasLedger) {
+      try {
+        const { rows } = await db.query(
+          `SELECT COALESCE(SUM(amount_cents),0) AS total FROM platform_ledger WHERE source_type IN ('job_fee','subscription') AND amount_cents > 0 AND created_at BETWEEN now() - $2::interval AND now() - $1::interval`,
+          [cur, prevInterval]
+        );
+        revenue_prev_cents = safeInt(rows[0]?.total);
+      } catch (_) {}
+    }
 
-    const s = rows[0];
-    const p = prevRows[0];
-
-    // ── Job completion rate ────────────────────────────────────────────────
-    const totalFinished = safeInt(s.completed_jobs_period) + safeInt(s.cancelled_jobs);
+    // ── Completion rate ────────────────────────────────────────────────────
+    const totalFinished = completed_jobs_period + cancelled_jobs;
     const completion_rate = totalFinished > 0
-      ? Math.round((safeInt(s.completed_jobs_period) / totalFinished) * 100)
+      ? Math.round((completed_jobs_period / totalFinished) * 100)
       : null;
 
-    // ── Build the enriched response ────────────────────────────────────────
     const stats = {
-      // Users
-      total_users:          safeInt(s.total_users),
-      total_customers:      safeInt(s.total_customers),
-      total_helpers:        safeInt(s.total_helpers),
-      total_brokers:        safeInt(s.total_brokers),
-      new_users_period:     safeInt(s.new_users_period),
-      new_users_today:      safeInt(s.new_users_today),
-      suspended_users:      safeInt(s.suspended_users),
-      verified_helpers:     safeInt(s.verified_helpers),
-      unverified_helpers:   safeInt(s.unverified_helpers),
-
-      // Jobs
-      open_jobs:            safeInt(s.open_jobs),
-      active_jobs:          safeInt(s.active_jobs),
-      completed_jobs:       safeInt(s.completed_jobs),
-      cancelled_jobs:       safeInt(s.cancelled_jobs),
-      new_jobs_period:      safeInt(s.new_jobs_period),
-      new_jobs_today:       safeInt(s.new_jobs_today),
-      open_disputes:        safeInt(s.open_disputes),
-      avg_bids_per_job:     s.avg_bids_per_job !== null ? parseFloat(s.avg_bids_per_job) : null,
+      total_users:          safeInt(coreStats.total_users),
+      total_customers:      safeInt(coreStats.total_customers),
+      total_helpers:        safeInt(coreStats.total_helpers),
+      total_brokers:        safeInt(coreStats.total_brokers),
+      new_users_period:     safeInt(coreStats.new_users_period),
+      new_users_today:      safeInt(coreStats.new_users_today),
+      suspended_users,
+      verified_helpers,
+      unverified_helpers,
+      open_jobs,
+      active_jobs,
+      completed_jobs,
+      cancelled_jobs,
+      new_jobs_period,
+      new_jobs_today,
+      open_disputes,
+      avg_bids_per_job,
       completion_rate,
-
-      // Revenue (in cents)
-      total_revenue_cents:               safeInt(s.total_revenue_cents),
-      revenue_period_cents:              safeInt(s.revenue_period_cents),
-      subscription_revenue_period_cents: safeInt(s.subscription_revenue_period_cents),
-      revenue_mtd_cents:                 safeInt(s.revenue_mtd_cents),
-      subscription_revenue_mtd_cents:    safeInt(s.subscription_revenue_mtd_cents),
-      refunds_period_cents:              safeInt(s.refunds_period_cents),
-
-      // Misc
-      active_subscriptions: safeInt(s.active_subscriptions),
-      pending_payouts:       safeFloat(s.pending_payouts),
-      open_support_tickets:  safeInt(s.open_support_tickets),
-      pending_reports:       safeInt(s.pending_reports),
-
-      // Comparison deltas
-      new_users_delta:  safeInt(s.new_users_period)   - safeInt(p.new_users_prev),
-      new_jobs_delta:   safeInt(s.new_jobs_period)    - safeInt(p.new_jobs_prev),
-      revenue_delta_cents: safeInt(s.revenue_period_cents) - safeInt(p.revenue_prev_cents),
-
-      // Legacy aliases kept for backward compat
-      new_users_30d: safeInt(s.new_users_period),
-      new_jobs_30d:  safeInt(s.new_jobs_period),
+      total_revenue_cents,
+      revenue_period_cents,
+      subscription_revenue_period_cents,
+      revenue_mtd_cents,
+      subscription_revenue_mtd_cents,
+      refunds_period_cents,
+      active_subscriptions,
+      pending_payouts,
+      open_support_tickets,
+      pending_reports,
+      new_users_delta:     safeInt(coreStats.new_users_period) - new_users_prev,
+      new_jobs_delta:      new_jobs_period - new_jobs_prev,
+      revenue_delta_cents: revenue_period_cents - revenue_prev_cents,
+      // Legacy aliases
+      new_users_30d: safeInt(coreStats.new_users_period),
+      new_jobs_30d:  new_jobs_period,
       escrow_held:   0,
     };
 
