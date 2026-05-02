@@ -2,6 +2,7 @@ import '../instrument.jsx';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
+import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import AdminApp from './AdminApp';
@@ -31,11 +32,13 @@ function sentryAdminFallback({ error, resetError }) {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Sentry.ErrorBoundary fallback={sentryAdminFallback}>
-      <ThemeProvider>
-        <AuthProvider>
-          <AdminApp />
-        </AuthProvider>
-      </ThemeProvider>
+      <HelmetProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AdminApp />
+          </AuthProvider>
+        </ThemeProvider>
+      </HelmetProvider>
     </Sentry.ErrorBoundary>
   </React.StrictMode>
 );
