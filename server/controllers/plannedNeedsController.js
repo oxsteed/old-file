@@ -70,6 +70,7 @@ exports.listPlannedNeeds = async (req, res) => {
     const { rows: needs } = await db.query(`
       SELECT
         pn.*,
+        COALESCE(pn.is_paused, FALSE) AS is_paused,
         (pn.due_date - CURRENT_DATE) AS days_until_due,
         CASE
           WHEN pn.estimated_cost > 0 AND pn.due_date > CURRENT_DATE
@@ -80,6 +81,24 @@ exports.listPlannedNeeds = async (req, res) => {
           )
           ELSE 0
         END AS sinking_fund_per_month,
+        CASE
+          WHEN pn.estimated_cost > 0 AND pn.due_date > CURRENT_DATE
+          THEN ROUND(
+            (pn.estimated_cost - pn.reserved_amount) /
+            GREATEST(pn.due_date - CURRENT_DATE, 1)
+            * 7, 2
+          )
+          ELSE 0
+        END AS sinking_fund_per_week,
+        CASE
+          WHEN pn.estimated_cost > 0 AND pn.due_date > CURRENT_DATE
+          THEN ROUND(
+            (pn.estimated_cost - pn.reserved_amount) /
+            GREATEST(pn.due_date - CURRENT_DATE, 1)
+            , 2
+          )
+          ELSE 0
+        END AS sinking_fund_per_day,
         ph.first_name AS preferred_helper_first_name,
         ph.last_name  AS preferred_helper_last_name,
         COALESCE(uv.nickname, uv.make_name || ' ' || uv.model_name) AS vehicle_name,
@@ -197,6 +216,7 @@ exports.updatePlannedNeed = async (req, res) => {
       notes,
       vehicle_id,
       home_id,
+      is_paused,
     } = req.body;
 
     // Verify ownership and editability
@@ -226,7 +246,10 @@ exports.updatePlannedNeed = async (req, res) => {
     const newDueDate    = due_date    || need.due_date;
     const newCost       = estimated_cost !== undefined ? estimated_cost : need.estimated_cost;
     const newLeadTime   = lead_time_days !== undefined ? lead_time_days : need.lead_time_days;
-    const newStatus     = deriveInitialStatus(newCost, newDueDate, parseInt(newLeadTime));
+    const newPaused = 'is_paused' in req.body ? Boolean(is_paused) : Boolean(need.is_paused);
+    const newStatus = newPaused
+      ? need.status
+      : deriveInitialStatus(newCost, newDueDate, parseInt(newLeadTime));
 
     // vehicle_id and home_id use explicit assignment (not COALESCE) so callers can pass
     // null/0 to *clear* an existing link. Fields absent from req.body fall back to the
@@ -251,6 +274,7 @@ exports.updatePlannedNeed = async (req, res) => {
           notes                    = COALESCE($13, notes),
           vehicle_id               = $14,
           home_id                  = $15,
+          is_paused                = $16,
           updated_at               = NOW()
       WHERE id = $1 AND user_id = $2
       RETURNING *
@@ -258,7 +282,7 @@ exports.updatePlannedNeed = async (req, res) => {
       id, userId, title, description, category, newStatus, due_date,
       estimated_cost, lead_time_days, recurrence_type,
       recurrence_interval_days, preferred_helper_id, notes,
-      newVehicleId, newHomeId,
+      newVehicleId, newHomeId, newPaused,
     ]);
 
     res.json(rows[0]);
@@ -414,6 +438,65 @@ exports.deletePlannedNeed = async (req, res) => {
 // LIFE PULSE PROJECTION
 // ═══════════════════════════════════════════════════════════════════════════
 
+function round2(n) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
+  let totalSinkingFundForWindow = 0;
+  let autoPublishingCount = 0;
+  const autoPublishingList = [];
+
+  const needsWithProjection = needs.map((need) => {
+    const daysUntilDue = Math.max(0, parseInt(need.days_until_due || 0, 10));
+    const cost = parseFloat(need.estimated_cost || 0);
+    const reserved = parseFloat(need.reserved_amount || 0);
+    const remaining = Math.max(0, cost - reserved);
+    const daysToFund = Math.max(daysUntilDue, 1);
+    const dailyContrib = remaining / daysToFund;
+    const daysInWindow = Math.min(windowDays, daysUntilDue);
+    const windowCost = dailyContrib * daysInWindow;
+    const monthlyContrib = dailyContrib * 30;
+
+    totalSinkingFundForWindow += windowCost;
+
+    const activationDays = daysUntilDue - parseInt(need.lead_time_days || 7, 10);
+    const isActivatingSoon = activationDays <= windowDays && activationDays >= 0;
+    if (isActivatingSoon) {
+      autoPublishingCount++;
+      autoPublishingList.push({
+        id: need.id,
+        title: need.title,
+        due_date: need.due_date,
+        activates_in_days: activationDays,
+        status: need.status,
+      });
+    }
+
+    return {
+      id: need.id,
+      title: need.title,
+      category: need.category,
+      status: need.status,
+      due_date: need.due_date,
+      estimated_cost: cost,
+      reserved_amount: reserved,
+      days_until_due: daysUntilDue,
+      sinking_fund_per_month: round2(monthlyContrib),
+      window_cost: round2(windowCost),
+      funding_pct: cost > 0 ? Math.min(100, Math.round((reserved / cost) * 100)) : 0,
+      activates_in_days: activationDays,
+      is_activating_soon: isActivatingSoon,
+    };
+  });
+
+  return {
+    needsWithProjection,
+    totalSinkingFundForWindow,
+    autoPublishingCount,
+    autoPublishingList,
+  };
+}
+
 exports.getProjection = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -426,20 +509,26 @@ exports.getProjection = async (req, res) => {
       });
     }
 
-    // ── Average daily income/expense from last 90 days ─────────────────
     const { rows: avgRows } = await db.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN type = 'income'  THEN amount ELSE 0 END), 0) / 90 AS avg_daily_income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) / 90 AS avg_daily_expense
+        COALESCE(SUM(CASE WHEN type = 'income' AND occurred_at >= CURRENT_DATE - INTERVAL '90 days'
+          THEN amount ELSE 0 END), 0) / 90 AS avg_daily_income,
+        COALESCE(SUM(CASE WHEN type = 'expense' AND occurred_at >= CURRENT_DATE - INTERVAL '90 days'
+          THEN amount ELSE 0 END), 0) / 90 AS avg_daily_expense,
+        COALESCE(SUM(CASE WHEN type = 'income' AND occurred_at >= CURRENT_DATE - INTERVAL '180 days'
+          AND occurred_at < CURRENT_DATE - INTERVAL '90 days' THEN amount ELSE 0 END), 0) / 90 AS prior_avg_daily_income,
+        COALESCE(SUM(CASE WHEN type = 'expense' AND occurred_at >= CURRENT_DATE - INTERVAL '180 days'
+          AND occurred_at < CURRENT_DATE - INTERVAL '90 days' THEN amount ELSE 0 END), 0) / 90 AS prior_avg_daily_expense
       FROM expenses
       WHERE user_id = $1
-        AND occurred_at >= CURRENT_DATE - INTERVAL '90 days'
+        AND occurred_at >= CURRENT_DATE - INTERVAL '180 days'
     `, [userId]);
 
-    const avgDailyIncome  = parseFloat(avgRows[0].avg_daily_income  || 0);
+    const avgDailyIncome = parseFloat(avgRows[0].avg_daily_income || 0);
     const avgDailyExpense = parseFloat(avgRows[0].avg_daily_expense || 0);
+    const priorAvgDailyIncome = parseFloat(avgRows[0].prior_avg_daily_income || 0);
+    const priorAvgDailyExpense = parseFloat(avgRows[0].prior_avg_daily_expense || 0);
 
-    // ── Active planned needs ────────────────────────────────────────────
     const { rows: needs } = await db.query(`
       SELECT
         id, title, category, status, due_date, estimated_cost,
@@ -448,73 +537,105 @@ exports.getProjection = async (req, res) => {
       FROM planned_needs
       WHERE user_id = $1
         AND status IN ('planned', 'funding', 'activating_soon')
+        AND COALESCE(is_paused, FALSE) = FALSE
         AND due_date >= CURRENT_DATE
       ORDER BY due_date ASC
     `, [userId]);
 
-    // ── Sinking fund math per need ─────────────────────────────────────
-    // For each need: how much of the estimated_cost falls within this window?
-    // Formula: daily_contribution = (cost - reserved) / days_until_due
-    //          window_cost = daily_contribution * min(window_days, days_until_due)
-    let totalSinkingFundForWindow = 0;
-    let autoPublishingCount = 0;
+    const {
+      needsWithProjection,
+      totalSinkingFundForWindow,
+      autoPublishingCount,
+      autoPublishingList,
+    } = buildNeedsProjectionRows(needs, windowDays);
 
-    const needsWithProjection = needs.map(need => {
-      const daysUntilDue  = Math.max(0, parseInt(need.days_until_due || 0));
-      const cost          = parseFloat(need.estimated_cost || 0);
-      const reserved      = parseFloat(need.reserved_amount || 0);
-      const remaining     = Math.max(0, cost - reserved);
-      const daysToFund    = Math.max(daysUntilDue, 1);
-      const dailyContrib  = remaining / daysToFund;
-      const daysInWindow  = Math.min(windowDays, daysUntilDue);
-      const windowCost    = dailyContrib * daysInWindow;
-      const monthlyContrib = dailyContrib * 30;
-
-      totalSinkingFundForWindow += windowCost;
-
-      const activationDays = daysUntilDue - parseInt(need.lead_time_days || 7);
-      const isActivatingSoon = activationDays <= windowDays;
-      if (isActivatingSoon) autoPublishingCount++;
-
-      return {
-        id:                need.id,
-        title:             need.title,
-        category:          need.category,
-        status:            need.status,
-        due_date:          need.due_date,
-        estimated_cost:    cost,
-        reserved_amount:   reserved,
-        days_until_due:    daysUntilDue,
-        sinking_fund_per_month: Math.round(monthlyContrib * 100) / 100,
-        window_cost:       Math.round(windowCost * 100) / 100,
-        funding_pct:       cost > 0 ? Math.min(100, Math.round((reserved / cost) * 100)) : 0,
-        activates_in_days: activationDays,
-        is_activating_soon: isActivatingSoon,
-      };
-    });
-
-    // ── Window projections ─────────────────────────────────────────────
-    const projectedIncome   = Math.round(avgDailyIncome  * windowDays * 100) / 100;
-    const projectedExpenses = Math.round(avgDailyExpense * windowDays * 100) / 100;
-    const totalPlannedCost  = Math.round(totalSinkingFundForWindow * 100) / 100;
-    const netAvailable      = Math.round((projectedIncome - projectedExpenses - totalPlannedCost) * 100) / 100;
-    const denominator       = projectedExpenses + totalPlannedCost;
-    const coverageRatio     = denominator > 0
-      ? Math.round((projectedIncome / denominator) * 100) / 100
+    const projectedIncome = round2(avgDailyIncome * windowDays);
+    const projectedExpenses = round2(avgDailyExpense * windowDays);
+    const priorProjectedIncome = round2(priorAvgDailyIncome * windowDays);
+    const priorProjectedExpenses = round2(priorAvgDailyExpense * windowDays);
+    const priorTotalPlanned = round2(totalSinkingFundForWindow);
+    const totalPlannedCost = round2(totalSinkingFundForWindow);
+    const netAvailable = round2(projectedIncome - projectedExpenses - totalPlannedCost);
+    const denominator = projectedExpenses + totalPlannedCost;
+    const coverageRatio = denominator > 0
+      ? round2(projectedIncome / denominator)
       : null;
 
+    const priorNet = round2(priorProjectedIncome - priorProjectedExpenses - priorTotalPlanned);
+    const priorDen = priorProjectedExpenses + priorTotalPlanned;
+    const priorCoverage = priorDen > 0 ? round2(priorProjectedIncome / priorDen) : null;
+
+    const stepDays = windowDays <= 14 ? 1 : windowDays <= 90 ? Math.max(1, Math.floor(windowDays / 14)) : Math.max(7, Math.floor(windowDays / 12));
+    const timeline = [];
+    const sinkAtDay = (d) => {
+      let cumSink = 0;
+      for (const n of needs) {
+        const daysUntilDue = Math.max(0, parseInt(n.days_until_due || 0, 10));
+        const cost = parseFloat(n.estimated_cost || 0);
+        const reserved = parseFloat(n.reserved_amount || 0);
+        const remaining = Math.max(0, cost - reserved);
+        const daysToFund = Math.max(daysUntilDue, 1);
+        const dailyContrib = remaining / daysToFund;
+        cumSink += dailyContrib * Math.min(d, daysUntilDue);
+      }
+      return cumSink;
+    };
+    for (let d = 0; d <= windowDays; d += stepDays) {
+      timeline.push({
+        day: d,
+        projected_income: round2(avgDailyIncome * d),
+        projected_fixed_expenses: round2(avgDailyExpense * d),
+        sinking_funds_cumulative: round2(sinkAtDay(d)),
+      });
+    }
+    if (timeline.length && timeline[timeline.length - 1].day !== windowDays) {
+      const d = windowDays;
+      timeline.push({
+        day: d,
+        projected_income: round2(avgDailyIncome * d),
+        projected_fixed_expenses: round2(avgDailyExpense * d),
+        sinking_funds_cumulative: round2(sinkAtDay(d)),
+      });
+    }
+
+    const trend = {
+      projected_income_pct: priorProjectedIncome > 0
+        ? round2(((projectedIncome - priorProjectedIncome) / priorProjectedIncome) * 100)
+        : null,
+      projected_expenses_pct: priorProjectedExpenses > 0
+        ? round2(((projectedExpenses - priorProjectedExpenses) / priorProjectedExpenses) * 100)
+        : null,
+      sinking_funds_pct: null,
+      net_available_pct: Math.abs(priorNet) > 0.01
+        ? round2(((netAvailable - priorNet) / Math.abs(priorNet)) * 100)
+        : null,
+      coverage_ratio_pct:
+        priorCoverage != null && coverageRatio != null && priorCoverage > 0
+          ? round2(((coverageRatio - priorCoverage) / priorCoverage) * 100)
+          : null,
+    };
+
     res.json({
-      window:          windowKey,
-      window_days:     windowDays,
-      avg_daily_income:  Math.round(avgDailyIncome  * 100) / 100,
-      avg_daily_expense: Math.round(avgDailyExpense * 100) / 100,
-      projected_income:  projectedIncome,
+      window: windowKey,
+      window_days: windowDays,
+      avg_daily_income: round2(avgDailyIncome),
+      avg_daily_expense: round2(avgDailyExpense),
+      prior_avg_daily_income: round2(priorAvgDailyIncome),
+      prior_avg_daily_expense: round2(priorAvgDailyExpense),
+      projected_income: projectedIncome,
       projected_fixed_expenses: projectedExpenses,
-      sinking_fund_for_window:  totalPlannedCost,
-      net_available:     netAvailable,
-      coverage_ratio:    coverageRatio,
+      prior_projected_income: priorProjectedIncome,
+      prior_projected_fixed_expenses: priorProjectedExpenses,
+      sinking_fund_for_window: totalPlannedCost,
+      prior_sinking_fund_for_window: priorTotalPlanned,
+      net_available: netAvailable,
+      prior_net_available: priorNet,
+      coverage_ratio: coverageRatio,
       auto_publishing_in_window: autoPublishingCount,
+      auto_publishing_needs: autoPublishingList,
       needs: needsWithProjection,
+      timeline,
+      trend,
     });
   } catch (err) {
     logger.error('getProjection error', { message: err.message });
@@ -804,3 +925,58 @@ exports.getPreferredByCount = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch count.' });
   }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUGGESTED PLANNED NEEDS (job history + category fallbacks)
+// ═══════════════════════════════════════════════════════════════════════════
+exports.getSuggestions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { rows: jobRows } = await db.query(`
+      SELECT j.id, j.title, j.category_name, j.completed_at
+      FROM jobs j
+      WHERE j.client_id = $1
+        AND j.status = 'completed'
+        AND j.completed_at IS NOT NULL
+      ORDER BY j.completed_at DESC
+      LIMIT 12
+    `, [userId]);
+
+    const suggestions = [];
+    const now = Date.now();
+    for (const j of jobRows) {
+      const completed = j.completed_at ? new Date(j.completed_at).getTime() : 0;
+      const daysSince = completed ? Math.floor((now - completed) / (86400000)) : 0;
+      if (daysSince < 120) continue;
+      const cat = mapJobCategoryToPlanned(j.category_name);
+      suggestions.push({
+        type: 'repeat_job',
+        title: j.title,
+        category: cat,
+        days_since_completed: daysSince,
+        source_job_id: j.id,
+      });
+    }
+
+    const defaults = [
+      { type: 'template', title: 'HVAC filter change', category: 'other', recurrence_days: 90 },
+      { type: 'template', title: 'Gutter cleaning', category: 'other', recurrence_days: 180 },
+      { type: 'template', title: 'Oil change', category: 'car_care', recurrence_days: 90 },
+      { type: 'template', title: 'Dental cleaning', category: 'personal_care', recurrence_days: 180 },
+      { type: 'template', title: 'Smoke detector batteries', category: 'other', recurrence_days: 365 },
+    ];
+
+    res.json({ suggestions: suggestions.slice(0, 5), defaults });
+  } catch (err) {
+    logger.error('getSuggestions error', { userId: req.user?.id, error: err.message });
+    res.status(500).json({ error: 'Failed to load suggestions.' });
+  }
+};
+
+function mapJobCategoryToPlanned(categoryName) {
+  if (!categoryName) return 'other';
+  const n = String(categoryName).toLowerCase();
+  if (n.includes('auto') || n.includes('car') || n.includes('vehicle')) return 'car_care';
+  if (n.includes('clean') || n.includes('dental') || n.includes('health') || n.includes('personal')) return 'personal_care';
+  return 'other';
+}

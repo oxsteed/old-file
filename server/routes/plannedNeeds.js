@@ -3,7 +3,7 @@ const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/plannedNeedsController');
 
 // Projection must be declared before /:id routes to avoid param capture
-router.get('/projection',    authenticate, ctrl.getProjection);
+router.get('/suggestions',       authenticate, ctrl.getSuggestions);
 
 // Templates (Task 9) - no auth needed for reading
 router.get('/templates',     authenticate, ctrl.getTemplates);
