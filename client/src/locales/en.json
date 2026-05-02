@@ -4510,6 +4510,9 @@
     "toolCount": "{{count}} tools found",
     "toolCount_one": "{{count}} tool found",
     "toolCount_other": "{{count}} tools found",
+    "toolsLabel": "tools found",
+    "toolsLabel_one": "tool found",
+    "toolsLabel_other": "tools found",
     "sortByAria": "Sort tools by",
     "sort": {
       "newest": "Newest Listed",

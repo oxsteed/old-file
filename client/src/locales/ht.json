@@ -4510,6 +4510,9 @@
     "toolCount": "{{count}} zouti jwenn",
     "toolCount_one": "{{count}} zouti jwenn",
     "toolCount_other": "{{count}} zouti jwenn",
+    "toolsLabel": "zouti jwenn",
+    "toolsLabel_one": "zouti jwenn",
+    "toolsLabel_other": "zouti jwenn",
     "sortByAria": "Triye zouti pa",
     "sort": {
       "newest": "Pi Resan",
