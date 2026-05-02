@@ -66,64 +66,111 @@ exports.getRevenueChart = async (req, res) => {
 // USER MANAGEMENT
 exports.getUsers = async (req, res) => {
   try {
-    const { search, role, status, plan, page = 1, limit = 25, sort = 'created_at', order = 'desc' } = req.query;
+    const {
+      search, role, status, plan, location,
+      page = 1, limit = 25, sort = 'created_at', order = 'desc'
+    } = req.query;
     const offset = (page - 1) * limit;
     const params = [];
     let paramIdx = 1;
-    
+
     // Base exclusion: Never return administrative accounts via the standard user list.
-    // This is the single source of truth for the base WHERE clause.
     const baseConditions = [`u.role NOT IN ('admin','super_admin')`];
-    
-    if (search) { baseConditions.push(`(u.first_name ILIKE $${paramIdx} OR u.last_name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
+
+    if (search) {
+      baseConditions.push(`(u.first_name ILIKE $${paramIdx} OR u.last_name ILIKE $${paramIdx} OR u.email ILIKE $${paramIdx} OR u.phone ILIKE $${paramIdx})`);
+      params.push(`%${search}%`); paramIdx++;
+    }
     if (role) { baseConditions.push(`u.role = $${paramIdx++}`); params.push(role); }
     if (status === 'active') baseConditions.push(`u.is_active = true`);
     else if (status === 'banned') baseConditions.push(`u.is_active = false`);
-
-    const allowedSorts = ['created_at','first_name','email'];
-    const safeSort = allowedSorts.includes(sort) ? sort : 'created_at';
-    const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
+    if (location) {
+      baseConditions.push(`(u.city ILIKE $${paramIdx} OR u.state ILIKE $${paramIdx} OR u.zip_code ILIKE $${paramIdx})`);
+      params.push(`%${location}%`); paramIdx++;
+    }
 
     // Check which optional tables exist
-    const [hasSubs, hasHP, hasJobs] = await Promise.all([
+    const [hasSubs, hasHP, hasJobs, hasPayouts] = await Promise.all([
       tableExists('subscriptions'),
       tableExists('helper_profiles'),
-      tableExists('jobs')
+      tableExists('jobs'),
+      tableExists('payouts'),
     ]);
     const hasPlanTable = hasSubs && await tableExists('plans');
 
     if (plan && hasPlanTable) { baseConditions.push(`p.slug = $${paramIdx++}`); params.push(plan); }
-    
+
+    const allowedSorts = ['created_at', 'first_name', 'email', 'last_login_at'];
+    // avg_rating sort must be prefixed with hp. when hasHP, falls back to u.created_at otherwise
+    const sortIsRating = sort === 'avg_rating' && hasHP;
+    const safeSort = sortIsRating ? 'hp.avg_rating' : (allowedSorts.includes(sort) ? `u.${sort}` : 'u.created_at');
+    const safeOrder = order === 'asc' ? 'ASC' : 'DESC';
+
     const finalWhereClause = `WHERE ${baseConditions.join(' AND ')}`;
 
     const selectCols = [
-      'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.email_verified, u.subscription_status AS user_sub_status'
+      // Core user fields — avatar_url added (was missing in prior version)
+      'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.email_verified, u.is_verified, u.last_login_at',
+      'u.avatar_url, u.city, u.state, u.zip_code',
+      'u.subscription_status AS user_sub_status',
     ];
     const joins = [];
-    if (hasSubs) { joins.push('LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = \'active\''); selectCols.push('s.status AS subscription_status, s.current_period_end'); }
-    else { selectCols.push('NULL AS subscription_status, NULL AS current_period_end'); }
-    if (hasPlanTable) { joins.push('LEFT JOIN plans p ON p.id = s.plan_id'); selectCols.push('p.slug AS plan_slug, p.name AS plan_name'); }
-    else { selectCols.push('NULL AS plan_slug, NULL AS plan_name'); }
-    if (hasHP) { joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id'); selectCols.push('hp.avg_rating, hp.completed_jobs_count, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier'); }
-    else { selectCols.push('NULL AS avg_rating, NULL AS completed_jobs_count, NULL AS total_reviews, NULL AS is_background_checked, NULL AS is_identity_verified, NULL AS helper_tier'); }
-    if (hasJobs) { selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted"); selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper"); }
-    else { selectCols.push('0 AS jobs_posted, 0 AS jobs_completed_as_helper'); }
+    if (hasSubs) {
+      joins.push("LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'");
+      selectCols.push('s.status AS subscription_status, s.current_period_end');
+    } else { selectCols.push('NULL AS subscription_status, NULL AS current_period_end'); }
+    if (hasPlanTable) {
+      joins.push('LEFT JOIN plans p ON p.id = s.plan_id');
+      selectCols.push('p.slug AS plan_slug, p.name AS plan_name');
+    } else { selectCols.push('NULL AS plan_slug, NULL AS plan_name'); }
+    if (hasHP) {
+      joins.push('LEFT JOIN helper_profiles hp ON hp.user_id = u.id');
+      selectCols.push('hp.avg_rating, hp.completed_jobs_count, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier');
+    } else { selectCols.push('NULL AS avg_rating, NULL AS completed_jobs_count, NULL AS total_reviews, NULL AS is_background_checked, NULL AS is_identity_verified, NULL AS helper_tier'); }
+    if (hasJobs) {
+      selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted");
+      selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper");
+    } else { selectCols.push('0 AS jobs_posted, 0 AS jobs_completed_as_helper'); }
+    if (hasPayouts) {
+      selectCols.push("(SELECT COALESCE(SUM(amount_cents),0)/100.0 FROM payouts WHERE user_id = u.id AND status = 'paid') AS earnings_total");
+    } else { selectCols.push('0 AS earnings_total'); }
 
     const { rows: users } = await db.query(`
       SELECT ${selectCols.join(', ')}
       FROM users u
       ${joins.join(' ')}
       ${finalWhereClause}
-      ORDER BY u.${safeSort} ${safeOrder}
+      ORDER BY ${safeSort} ${safeOrder} NULLS LAST
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `, [...params, limit, offset]);
 
-    const countJoins = hasSubs ? 'LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = \'active\'' : '';
+    const countJoins = hasSubs ? "LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'" : '';
     const countJoins2 = hasPlanTable ? 'LEFT JOIN plans p ON p.id = s.plan_id' : '';
-    const { rows: countRows } = await db.query(`
-      SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${finalWhereClause}
-    `, params);
-    res.json({ users, total: parseInt(countRows[0].count), page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(countRows[0].count / limit) });
+    const { rows: countRows } = await db.query(
+      `SELECT COUNT(*) FROM users u ${countJoins} ${countJoins2} ${finalWhereClause}`,
+      params
+    );
+
+    // Summary stats (always across all non-admin users, ignoring current filters)
+    const { rows: summaryRows } = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin'))                             AS total,
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND is_active = true)        AS active,
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND is_active = false)       AS suspended,
+        COUNT(*) FILTER (WHERE role IN ('helper','helper_pro'))                                 AS helpers,
+        COUNT(*) FILTER (WHERE role = 'customer')                                               AS customers,
+        COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND created_at >= now() - interval '7 days') AS new_this_week
+      FROM users
+    `);
+
+    res.json({
+      users,
+      total: parseInt(countRows[0].count),
+      page: parseInt(page),
+      limit: parseInt(limit),
+      pages: Math.ceil(countRows[0].count / limit),
+      summary: summaryRows[0],
+    });
   } catch (err) {
     logger.error('getUsers error', { err });
     res.status(500).json({ error: 'Failed to fetch users.' });
