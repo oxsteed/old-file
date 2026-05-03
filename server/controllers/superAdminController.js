@@ -1582,7 +1582,35 @@ exports.deleteUser = async (req, res) => {
     });
   } catch (err) {
     logger.error('deleteUser error', { err });
-    res.status(500).json({ error: 'Failed to delete user.' });
+
+    // Map known PostgreSQL / application errors to specific messages
+    const pgCode = err.code;
+    let userMessage = 'Failed to delete user.';
+    let detail = null;
+
+    if (pgCode === '22P02') {
+      userMessage = 'Database type mismatch — a required database migration has not been applied yet.';
+      detail = 'Migration 165 (deletion scheduling columns) is missing on the live database. Redeploy to apply it, then retry.';
+    } else if (pgCode === '23503') {
+      userMessage = 'Cannot delete this account because it is still referenced by another record.';
+      detail = 'A foreign-key constraint blocked the deletion. Check for pending payments, escrow holds, or other linked records.';
+    } else if (pgCode === '23505') {
+      userMessage = 'A conflict occurred while updating the account status.';
+      detail = 'Concurrent modification detected. Reload the page and try again.';
+    } else if (pgCode === '42703') {
+      userMessage = 'Database schema mismatch — a required column does not exist.';
+      detail = `Column: ${err.message}. A migration has not been applied. Redeploy and retry.`;
+    } else if (pgCode === '42P01') {
+      userMessage = 'A required database table does not exist.';
+      detail = `Table: ${err.message}. A migration has not been applied. Redeploy and retry.`;
+    } else if (err.message?.includes('connect ECONNREFUSED') || err.message?.includes('connection')) {
+      userMessage = 'Database connection failed.';
+      detail = 'The server could not reach the database. Check the DATABASE_URL and database server status.';
+    } else if (err.message) {
+      detail = err.message;
+    }
+
+    res.status(500).json({ error: userMessage, detail, code: pgCode || null });
   }
 };
 
@@ -1664,7 +1692,19 @@ exports.restoreUser = async (req, res) => {
     });
   } catch (err) {
     logger.error('restoreUser error', { err });
-    res.status(500).json({ error: 'Failed to restore user account.' });
+    const pgCode = err.code;
+    let userMessage = 'Failed to restore user account.';
+    let detail = null;
+    if (pgCode === '42703') {
+      userMessage = 'Database schema mismatch — a required column does not exist.';
+      detail = 'Migration 165 has not been applied. Redeploy and retry.';
+    } else if (pgCode === '23505') {
+      userMessage = 'A conflict occurred while restoring the account.';
+      detail = 'Concurrent modification detected. Reload the page and try again.';
+    } else if (err.message) {
+      detail = err.message;
+    }
+    res.status(500).json({ error: userMessage, detail, code: pgCode || null });
   }
 };
 
