@@ -1,5 +1,5 @@
 const db = require('../db');
-const { tableExists, columnExists, userIdEq } = require('../utils/schemaProbe');
+const { tableExists, columnExists, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
 const { logAdminAction, logUserAction } = require('../services/auditService');
 const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
@@ -1390,7 +1390,7 @@ exports.exportData = async (req, res) => {
 //   4. Admin can RESTORE the account within 30 days (see restoreUser below)
 //
 // Pre-deletion guards:
-//   - Active jobs (open/accepted/in_progress/escrow_held): block with 409
+//   - Active jobs (published through in_progress per job_status enum): block with 409
 //   - Pending payments owed by/to user: block with 409
 //   - Business team members: warn in response but don't block (admin decision)
 //
@@ -1467,7 +1467,7 @@ exports.deleteUser = async (req, res) => {
       const { rows: activeJobs } = await db.query(
         `SELECT id, title, status FROM jobs
          WHERE (${userIdEq('client_id')} OR ${userIdEq('assigned_helper_id')})
-           AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
+           AND status IN ${ACTIVE_JOB_STATUS_SQL_IN}`,
         [String(userId)]
       );
       if (activeJobs.length > 0 && !force) {
@@ -1589,11 +1589,19 @@ exports.deleteUser = async (req, res) => {
     let detail = null;
 
     if (pgCode === '22P02') {
-      userMessage = 'Invalid data type in the request or database.';
-      detail =
-        'PostgreSQL could not compare the user id to a column (often jobs/payments use BIGINT while users.id is UUID). '
-        + 'If this persists after deploy, check server logs for the exact statement. '
-        + 'Also verify the URL user id is a valid UUID.';
+      const msg = err.message || '';
+      if (/enum/i.test(msg) && /job_status/i.test(msg)) {
+        userMessage = 'Account deletion check failed due to a job status mismatch.';
+        detail =
+          'The database job_status enum does not match the status values used in the guard query. '
+          + 'Report this error (and the log line) so the active-status list can be aligned with your schema.';
+      } else {
+        userMessage = 'Invalid data type in the request or database.';
+        detail =
+          'PostgreSQL could not compare the user id to a column (often jobs/payments use BIGINT while users.id is UUID), '
+          + 'or an enum/cast failed. Check server logs for message and position. '
+          + 'Verify the URL user id matches your users.id type.';
+      }
     } else if (pgCode === '23503') {
       userMessage = 'Cannot delete this account because it is still referenced by another record.';
       detail = 'A foreign-key constraint blocked the deletion. Check for pending payments, escrow holds, or other linked records.';
