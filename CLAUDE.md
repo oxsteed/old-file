@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **Admin users list (2026-05-03):** Pending-deletion **reversal** is the goal: **`reinstateAfterPendingAdminDeletion`** clears schedule + **`deleted_at`** + **`is_active`** (skips `deletion_type = 'self'`). Used by **`restoreUser`** (lookup by `id::text`; restores when `deleted_at` OR `deletion_scheduled_at` set; 30-day check only if schedule exists), **`cancelPendingDeletion`**, **`toggleUserBan`** (unban), **`reactivateUser`** (`WHERE id::text`). **`restoreUser`** no longer requires UUID-only param. Admin messaging again requires **`deleted_at IS NULL`** (reinstate first).
+- **Admin users list (2026-05-03):** … **Transactional admin emails (2026-05-03):** `notificationService.sendNotification` — new email-capable types `account_restored`, `account_suspended`, `account_restricted`, `account_deletion_scheduled`, `admin_warning`; these **ignore** per-type email opt-off (still require user email + Resend). `superAdminController`: `notifyUserAccountEvent` helper; emails on scheduled delete, suspend, restrict, warn, restore, cancel-pending-deletion, reactivate; ban/unban adds `/login` on restore. Email template hides notification prefs footer when suspended or deletion-scheduled.
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS

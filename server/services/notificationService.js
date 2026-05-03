@@ -97,13 +97,28 @@ exports.sendNotification = async ({
 
     // ── 4. Email notification (via Resend) ────────────────────
     const emailKey   = `email_${type.replace(':', '_')}`;
-    const emailEnabled = prefs[emailKey] !== false;
+    const emailPrefOff = prefs[emailKey] === false;
     const emailTypes = [
       'bid_accepted', 'payment_released', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
-      'dispute_update', 'payout_deposited', 'account_banned'
+      'dispute_update', 'payout_deposited', 'account_banned',
+      // Account integrity / admin actions — user should receive email by default
+      'account_restored', 'account_suspended', 'account_restricted',
+      'account_deletion_scheduled', 'admin_warning',
     ];
-    if (emailEnabled && userEmail && emailTypes.includes(type)) {
+    // Transactional: always attempt email when we have an address (cannot opt out of
+    // security-relevant account notices via marketing-style toggles).
+    const transactionalEmailTypes = new Set([
+      'account_banned',
+      'account_restored',
+      'account_suspended',
+      'account_restricted',
+      'account_deletion_scheduled',
+      'admin_warning',
+    ]);
+    const emailAllowed = userEmail && emailTypes.includes(type)
+      && (transactionalEmailTypes.has(type) ? true : !emailPrefOff);
+    if (emailAllowed) {
       // Banned users get the notification email but with no account link
       const safeActionUrl = isBanned ? null : action_url;
       await sendEmailNotification({
@@ -172,7 +187,12 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
       subscription_past_due:  'Update Payment',
       dispute_update:         'View Dispute',
       payout_deposited:       'View Earnings',
-      account_banned:         'Contact Support'
+      account_banned:         'Contact Support',
+      account_restored:       'Sign In',
+      account_suspended:      'Contact Support',
+      account_restricted:     'Contact Support',
+      account_deletion_scheduled: 'Contact Support',
+      admin_warning:          'Contact Support',
     }[type] || 'View Dashboard';
 
     const html = buildEmailTemplate({
@@ -181,7 +201,8 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
       body,
       action_url,
       buttonText,
-      isBanned
+      isBanned,
+      type,
     });
 
     await sendEmail({
@@ -198,13 +219,14 @@ async function sendEmailNotification({ to, firstName, type, title, body, action_
 
 
 // ─── EMAIL TEMPLATE BUILDER ───────────────────────────────────
-function buildEmailTemplate({ firstName, title, body, action_url, buttonText, isBanned }) {
+function buildEmailTemplate({ firstName, title, body, action_url, buttonText, isBanned, type = '' }) {
   // action_url must be a relative path starting with '/' to prevent open redirect
   const safeActionUrl = (action_url && typeof action_url === 'string' && action_url.startsWith('/'))
     ? action_url
     : null;
 
-  const settingsUrl = isBanned
+  const lockedOut = isBanned || ['account_deletion_scheduled', 'account_suspended'].includes(type);
+  const settingsUrl = lockedOut
     ? null
     : `${process.env.CLIENT_URL}/settings/notifications`;
 
