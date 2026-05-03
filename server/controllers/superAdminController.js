@@ -1,4 +1,5 @@
 const db = require('../db');
+const { tableExists, columnExists } = require('../utils/schemaProbe');
 const { logAdminAction, logUserAction } = require('../services/auditService');
 const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
@@ -7,26 +8,11 @@ const socketService = require('../services/socketService');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { withTransaction } = require('../utils/transaction');
 
-// Helper: check if a table exists
-async function tableExists(name) {
-  try {
-    const { rows } = await db.query(
-      "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=$1",
-      [name]
-    );
-    return rows.length > 0;
-  } catch { return false; }
-}
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Helper: check if a column exists on a table
-async function columnExists(table, column) {
-  try {
-    const { rows } = await db.query(
-      "SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name=$2",
-      [table, column]
-    );
-    return rows.length > 0;
-  } catch { return false; }
+function isUuidParam(id) {
+  return typeof id === 'string' && UUID_RE.test(id.trim());
 }
 
 // ─── Dashboard helpers ────────────────────────────────────────────────────────
@@ -1414,6 +1400,12 @@ exports.deleteUser = async (req, res) => {
   const crypto = require('crypto');
   try {
     const { userId } = req.params;
+    if (!isUuidParam(userId)) {
+      return res.status(400).json({
+        error: 'Invalid user id.',
+        detail: 'The user id in the URL must be a valid UUID.',
+      });
+    }
     const { reason, force = false } = req.body;
     const adminId = req.user.id;
 
@@ -1589,8 +1581,10 @@ exports.deleteUser = async (req, res) => {
     let detail = null;
 
     if (pgCode === '22P02') {
-      userMessage = 'Database type mismatch — a required database migration has not been applied yet.';
-      detail = 'Migration 165 (deletion scheduling columns) is missing on the live database. Redeploy to apply it, then retry.';
+      userMessage = 'Invalid data type in the request or database.';
+      detail =
+        'PostgreSQL rejected a value (often an invalid UUID in the URL, or a type mismatch in a query parameter). '
+        + 'Verify the user id is a valid UUID. If the id is correct, check server logs for the underlying query error.';
     } else if (pgCode === '23503') {
       userMessage = 'Cannot delete this account because it is still referenced by another record.';
       detail = 'A foreign-key constraint blocked the deletion. Check for pending payments, escrow holds, or other linked records.';
@@ -1620,6 +1614,12 @@ exports.deleteUser = async (req, res) => {
 exports.restoreUser = async (req, res) => {
   try {
     const { userId } = req.params;
+    if (!isUuidParam(userId)) {
+      return res.status(400).json({
+        error: 'Invalid user id.',
+        detail: 'The user id in the URL must be a valid UUID.',
+      });
+    }
     const { reason } = req.body;
     const adminId = req.user.id;
 

@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-03
 
 ## Instructions for Every Session
 
@@ -59,6 +59,9 @@
 - **Public profiles**: `BusinessProfilePage.jsx` and `HelperBusinessProfilePage.tsx` render `<ProfileTemplateRenderer>` when `activeTemplate !== 'default'`. Public APIs updated: `businessController.js` and `helpersController.js` both return `active_template` / `activeTemplate` in profile responses.
 - **i18n**: `templatePicker.*` keys (42 each) added to en/es/fr/ht locale files.
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
+
+**Latest work completed (2026-05-03):**
+- **User deletion / migration 165 probes:** `superAdminController.js` previously probed `information_schema` only for `schema = 'public'`. When `DATABASE_URL` sets a non-default `search_path` (e.g. app schema first), column detection could disagree with unqualified `UPDATE users`, producing wrong `hasMig165` or confusing errors. **Fix:** `server/utils/schemaProbe.js` — `tableExists` / `columnExists` use first schema from `SHOW search_path` with fallback to `public`. **Super-admin `deleteUser`:** reject non-UUID `:userId` with 400; PostgreSQL `22P02` errors no longer map to “migration 165 missing” (that was often an invalid UUID in the URL). **`DELETE /api/privacy/delete-account`:** dynamic `UPDATE` only sets migration-165 columns that exist; skips admin-pending check if `deletion_scheduled_at` is absent.
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS
