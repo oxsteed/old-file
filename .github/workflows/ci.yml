@@ -24,6 +24,18 @@ jobs:
         working-directory: server
         run: npm install
 
+      - name: Active job status checks (Jest + optional pg_enum)
+        working-directory: server
+        env:
+          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+        run: |
+          npm run test:active-job-statuses
+          if [ -n "${DATABASE_URL}" ]; then
+            npm run verify:active-job-statuses
+          else
+            echo "Skipping verify:active-job-statuses (set CI_DATABASE_URL secret for live DB check)."
+          fi
+
       - name: Install client dependencies
         working-directory: client
         run: npm install

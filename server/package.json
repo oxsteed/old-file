@@ -9,6 +9,8 @@
     "dev": "nodemon index.js",
     "test": "jest --runInBand --forceExit",
     "test:watch": "jest --watch --runInBand",
+    "test:active-job-statuses": "jest __tests__/activeJobStatuses.test.js --runInBand --forceExit",
+    "verify:active-job-statuses": "node scripts/verify-active-job-statuses.js",
     "translate": "node ../scripts/translate-locales.js",
     "translate:force": "node ../scripts/translate-locales.js --force"
   },
