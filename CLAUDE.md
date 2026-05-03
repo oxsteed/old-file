@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **User deletion (2026-05-03):** `server/utils/schemaProbe.js` — `tableExists` / `columnExists` / `userIdEq`, plus **`ACTIVE_JOB_STATUS_SQL_IN`**: valid `job_status` enum literals from `001_initial_schema.sql` only (`published`, `matched`, `negotiating`, `accepted`, `in_progress`) for `superAdminController.deleteUser` and `privacy` delete-account job guards. Removed invalid literals `'open'`, `'escrow_held'`, `'pending_completion'` that caused production **`22P02 invalid input value for enum job_status: "open"`**. `deleteUser` maps enum-related `22P02` to a clearer API message; id/session coercion fixes remain (sessions `user_id`, users `id` text compare).
+- **User deletion (2026-05-03):** `server/utils/schemaProbe.js` — `tableExists` / `columnExists` / `userIdEq`, plus **`ACTIVE_JOB_STATUS_SQL_IN`** from `server/constants/activeJobStatuses.js` (single list: `ACTIVE_DELETION_GUARD_JOB_STATUSES` + `activeJobStatusSqlIn()`). Valid `job_status` enum literals only for delete guards; removed invalid `'open'` / `'escrow_held'` / `'pending_completion'`. **`npm run test:active-job-statuses`** (Jest) asserts list ⊆ canonical enum from migration 001; **`npm run verify:active-job-statuses`** queries `pg_enum` for `public.job_status` when `DATABASE_URL` is set. CI runs Jest always; runs verify when **`CI_DATABASE_URL`** secret is set (see `.github/workflows/ci.yml`).
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS
