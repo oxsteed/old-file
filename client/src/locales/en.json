@@ -724,355 +724,357 @@
     "errorSubmit": "Failed to submit signature. Please try again."
   },
   "backgroundCheck": {
-    "title": "Background Check Policy",
-    "description": "Learn what OxSteed checks, what disqualifies an application, and how to appeal a denial.",
-    "subtitle": "How we screen helpers to keep your home safe",
-    "lastUpdated": "Last updated: May 1, 2026",
+    "title": "Background Check & Adverse Action Procedure",
+    "description": "Information about OxSteed background checks, disqualifying factors, appeal process, and FCRA compliance.",
+    "subtitle": "We run background checks to keep our community safe. Here's how the process works and what to do if you need to appeal.",
+    "lastUpdated": "Last updated: May 3, 2026",
     "onThisPage": "On this page",
-    "searchPlaceholder": "Search this policy…",
-    "searchLabel": "Search background check policy",
+    "searchLabel": "Search background check information",
+    "searchPlaceholder": "Search…",
     "sections": {
       "whatWeCheck": "What We Check",
       "disqualifying": "Disqualifying Factors",
       "ourProcess": "Our Process",
-      "ifDenied": "If You're Denied",
+      "ifDenied": "If Your Application Is Denied",
       "appeal": "Appeal Process",
-      "timeline": "Timeline",
-      "faqs": "FAQs"
+      "timeline": "Timeline & Status",
+      "faqs": "Frequently Asked Questions"
     },
     "whatWeCheck": {
-      "intro": "OxSteed partners with Checkr to run background checks on all helpers before they can accept paid jobs. Checks cover:",
-      "item1": "Criminal History",
-      "item1_desc": "County, state, and federal criminal records going back 7 years (or longer for certain offenses).",
-      "item2": "Sex Offender Registry",
-      "item2_desc": "National and state-level sex offender registries are checked at sign-up and periodically thereafter.",
-      "item3": "Identity Verification",
-      "item3_desc": "SSN trace and address history to confirm your identity and flag potential fraud.",
-      "item4": "Watchlist Screening",
-      "item4_desc": "Global watchlists and sanctions lists including OFAC, FBI Most Wanted, and terrorist watch lists."
+      "intro": "We use Checkr, a third-party background screening service, to conduct comprehensive background checks on all helper applicants. The check includes multiple verification steps to ensure the safety of our community.",
+      "item1": "Criminal Records",
+      "item1_desc": "We screen county, state, and national databases for criminal convictions, arrests, and pending charges.",
+      "item2": "Identity Verification",
+      "item2_desc": "We verify your identity using government-issued ID and cross-reference with public records to prevent fraud.",
+      "item3": "Sex Offender Registry",
+      "item3_desc": "We check the National Sex Offender Public Website (NSOPW) and state registries to verify you are not a registered sex offender.",
+      "item4": "Additional Screening",
+      "item4_desc": "We may screen additional databases including fraud prevention services, civil records, and motor vehicle records."
     },
     "disqualifying": {
-      "intro": "The following factors will result in automatic disqualification. This list is not exhaustive - OxSteed reserves the right to disqualify any applicant whose background presents an unacceptable risk to customers.",
+      "intro": "The following factors will result in denial of your application. Some infractions may be considered on a case-by-case basis after the appeal process.",
       "violent": "Violent Crimes",
       "sexual": "Sexual Offenses",
-      "felony": "Recent Felony Conviction",
+      "felony": "Felony Convictions",
       "sex_offender": "Sex Offender Registration",
-      "theft": "Theft or Property Crimes",
+      "theft": "Property Crimes",
       "drugs": "Drug Trafficking",
-      "fraud": "Fraud or Financial Crimes",
-      "examples": "Examples",
-      "note": "Note",
-      "noteDesc": "Marijuana-only records that have been expunged or where marijuana is fully legal in your state are generally not disqualifying. Contact support if you have questions about a specific record."
+      "fraud": "Fraud or Identity Theft",
+      "examples": "Examples include",
+      "note": "Important Note",
+      "noteDesc": "We evaluate applications based on the nature, severity, and recency of any criminal history. Not all disqualifying factors are permanent - some may be considered after the appeal process."
     },
     "process": {
-      "intro": "Here is how the background check process works from start to finish:",
-      "step1": "Initiation",
-      "step1_desc": "After you complete your profile and identity verification, Checkr is notified and initiates your background check automatically.",
-      "step2": "Data Collection",
-      "step2_desc": "Checkr collects your consent (required by FCRA), then queries national and county court records, sex offender registries, and watchlists.",
-      "step3": "Review",
-      "step3_desc": "Results are reviewed by Checkr's compliance team. Ambiguous records may require additional documentation from you.",
-      "step4": "Decision",
-      "step4_desc": "OxSteed receives the report and makes an eligibility decision. You are notified by email within 1-3 business days of check completion."
+      "intro": "Our background check process is straightforward and transparent. Here's what happens after you apply:",
+      "step1": "Application Submitted",
+      "step1_desc": "You complete your helper application with all required information.",
+      "step2": "Background Check Initiated",
+      "step2_desc": "Checkr receives your information and begins screening. We'll send you a copy of the disclosure and authorization forms.",
+      "step3": "Results Received",
+      "step3_desc": "Checkr completes the screening (typically 1-3 business days) and reports results to us.",
+      "step4": "Decision & Notification",
+      "step4_desc": "We review results and notify you via email. Approved applicants can start bidding immediately."
     },
     "ifDenied": {
-      "adverseNotice": "Pre-Adverse and Adverse Action Notices",
-      "adverseIntro": "If you are denied based on your background check, you are entitled to receive a copy of the report and a Pre-Adverse Action notice before the final decision is made. This is required by the Fair Credit Reporting Act (FCRA).",
-      "adverseExample": "You will receive an email from Checkr with a link to review your report before OxSteed makes a final determination.",
-      "adverseNote": "You have 5 business days to dispute inaccurate information with Checkr directly before OxSteed issues a final adverse action notice.",
-      "disputeTitle": "Dispute Inaccurate Information",
-      "disputeDesc": "You have the right to dispute any inaccurate information in your background report directly with Checkr. Log in to your Checkr candidate portal to review your report and file a dispute.",
-      "viewCheckr": "View My Checkr Report"
+      "adverseNotice": "Your Adverse Action Notice (FCRA Compliance)",
+      "adverseIntro": "If we deny your application based on information in your background check, we are legally required to provide you with an Adverse Action Notice under the Fair Credit Reporting Act (FCRA).",
+      "adverseExample": "Example: 'We denied your helper application because your background check revealed a felony conviction from 2020. You can view the full report from Checkr and dispute the findings within 30 days.'",
+      "adverseNote": "You will receive this notice via email with specific details about why your application was denied.",
+      "disputeTitle": "Dispute with Checkr",
+      "disputeDesc": "You have 30 days from receiving your adverse action notice to dispute the findings with Checkr. If the report contains errors, you can request a correction. Visit Checkr's dispute portal to begin the process.",
+      "viewCheckr": "Visit Checkr to Dispute"
     },
     "appeal": {
-      "intro": "If you believe you were denied based on inaccurate information or a record that should not be disqualifying, you may appeal to OxSteed after resolving any disputes with Checkr.",
-      "step1": "Resolve the dispute",
-      "step1_desc": "First, dispute any inaccurate information directly with Checkr and wait for their resolution (typically 30 days).",
-      "step2": "Request a corrected report",
-      "step2_desc": "Once Checkr resolves your dispute, request an updated report from Checkr showing the correction.",
-      "step3": "Submit appeal to OxSteed",
-      "step3_desc": "Email support@oxsteed.com with subject 'Background Check Appeal', your corrected report, and a brief explanation.",
-      "step4": "Wait for review",
-      "step4_desc": "OxSteed will review your appeal within 10 business days and notify you of the decision by email.",
-      "submitBtn": "Submit an Appeal",
+      "intro": "If your application is denied, you have the right to appeal. We encourage you to submit an appeal if you believe the denial was in error or if you have additional context to provide.",
+      "step1": "Gather Your Evidence",
+      "step1_desc": "Collect any documents that support your appeal - court records, dismissal letters, rehabilitation documentation, character references, or explanations.",
+      "step2": "Submit Your Appeal",
+      "step2_desc": "Click the button below to open a support form. Explain why you believe the decision should be reconsidered.",
+      "step3": "Manager Review",
+      "step3_desc": "A member of our team will review your appeal within 10 business days.",
+      "step4": "Final Decision",
+      "step4_desc": "You'll receive an email with our final decision. If approved, you can begin bidding immediately.",
+      "submitBtn": "Appeal Denial",
       "form": {
         "email": "Your Email Address",
-        "reason": "Reason for Appeal",
-        "reasonPlaceholder": "Describe the inaccuracy or explain why you believe this record should not be disqualifying…",
-        "evidence": "Supporting Documentation",
-        "evidencePlaceholder": "Paste links to court documents, expungement orders, or other supporting evidence…",
+        "reason": "Why should we reconsider?",
+        "reasonPlaceholder": "Explain your appeal, providing context about the record and any mitigating circumstances...",
+        "evidence": "Supporting Evidence (Optional)",
+        "evidencePlaceholder": "Describe any documents you have (court records, letters, etc.) that support your appeal...",
         "submit": "Submit Appeal"
       },
-      "successMsg": "Appeal submitted successfully.",
-      "successDesc": "We will review your appeal and respond by email within 10 business days."
+      "successMsg": "Appeal submitted successfully!",
+      "successDesc": "We'll review your appeal and contact you within 10 business days with a decision."
     },
     "timeline": {
       "submitted": "Application Submitted",
-      "submitted_desc": "You complete your profile and identity verification. Checkr is notified automatically.",
-      "initiated": "Check Initiated",
-      "initiated_desc": "Checkr begins querying criminal records, sex offender registries, and watchlists. This typically takes 1-3 business days.",
-      "received": "Report Received",
-      "received_desc": "OxSteed receives Checkr's report and reviews it against our eligibility criteria.",
-      "result": "Decision Issued",
-      "result_desc": "You receive an email with the result: approved, pending further review, or denied with Pre-Adverse Action notice.",
-      "appeal": "Appeal (if applicable)",
-      "appeal_desc": "If denied, you have 5 business days to dispute with Checkr and 30 days to submit an appeal to OxSteed."
+      "submitted_desc": "You complete and submit your helper application.",
+      "initiated": "Background Check Initiated",
+      "initiated_desc": "Checkr receives your information (same day or next business day).",
+      "received": "Results Received",
+      "received_desc": "Background check completes within 1-3 business days.",
+      "result": "Approved or Denied",
+      "result_desc": "We notify you of the decision and you can start earning or appeal.",
+      "appeal": "Appeal Period",
+      "appeal_desc": "You have 30 days to dispute findings with Checkr or appeal with us."
     },
     "faq": {
       "q1": "How long does the background check take?",
-      "a1": "Most checks complete within 1-3 business days. Some county courts have longer turnaround times and may extend this to 5-7 days.",
-      "q2": "Do I need to pay for my background check?",
-      "a2": "No. OxSteed covers the cost of the initial background check. Re-checks triggered by disputes or periodic re-screening are also free.",
-      "q3": "How often are background checks run?",
-      "a3": "Checks are run at sign-up and may be re-run annually or when triggered by a complaint or dispute. You will be notified before any re-check is initiated.",
-      "q4": "Can I see my background report?",
-      "a4": "Yes. Checkr provides you with access to your candidate portal where you can view your full report at any time.",
-      "q5": "What if I have an expunged record?",
-      "a5": "Expunged records should not appear on your report. If one does, dispute it directly with Checkr. In most cases, expunged records are not disqualifying.",
-      "q6": "What if I move to a different state?",
-      "a6": "Your background check covers national records so a state move does not require a new check. However, new state-specific licensing or registration requirements may apply."
+      "a1": "Background checks typically complete within 1-3 business days of submission. Complex cases may take longer. You'll receive updates via email.",
+      "q2": "Does a denied background check mean I can never apply again?",
+      "a2": "Not necessarily. You can appeal the decision within 30 days. Additionally, some disqualifying factors may not be permanent. You may reapply after a specified period.",
+      "q3": "What if there's an error in my background check report?",
+      "a3": "You have 30 days to dispute the report directly with Checkr. They will investigate and correct any errors. After corrections, we can review your application again.",
+      "q4": "Does OxSteed look at arrests without convictions?",
+      "a4": "We primarily focus on convictions. However, pending charges and arrests may be considered in our review. We look at the nature of the charge and your explanation.",
+      "q5": "Can I work as a helper while my background check is pending?",
+      "a5": "No. You must have a cleared background check before you can bid on jobs or provide services on OxSteed.",
+      "q6": "What information do I see in my background report?",
+      "a6": "You receive a copy of your background report along with our decision. You can review what information Checkr used to create the report and dispute any inaccuracies."
     },
     "contactSupport": {
-      "intro": "Have a question not covered here? Our Trust & Safety team is here to help.",
+      "intro": "Have questions about the background check process?",
       "btn": "Contact Support"
     }
   },
   "arbitration": {
-    "title": "Arbitration Agreement",
-    "description": "Understand how disputes between you and OxSteed are resolved through binding arbitration.",
-    "subtitle": "Binding arbitration and class action waiver",
-    "lastUpdated": "Last updated: May 1, 2026",
+    "title": "Binding Arbitration & Limitation of Liability",
+    "description": "Information about OxSteed's arbitration clause, class action waiver, and liability limitations. Includes state-specific enforceability disclaimers.",
+    "subtitle": "Understanding your rights and OxSteed's limitations in legal disputes",
+    "lastUpdated": "Last updated: May 3, 2026",
     "onThisPage": "On this page",
-    "searchPlaceholder": "Search this agreement…",
-    "searchLabel": "Search arbitration agreement",
+    "searchLabel": "Search arbitration information",
+    "searchPlaceholder": "Search…",
     "sections": {
       "bindingArbitration": "Binding Arbitration",
-      "process": "Arbitration Process",
-      "fees": "Fees & Costs",
+      "process": "The Arbitration Process",
+      "fees": "Arbitration Fees & Costs",
       "classAction": "Class Action Waiver",
-      "exceptions": "Exceptions",
+      "exceptions": "Exceptions to Arbitration",
       "limitation": "Limitation of Liability",
-      "stateDisclaimers": "State-Specific Notices",
-      "initiate": "How to Initiate"
+      "stateDisclaimers": "State-Specific Enforceability",
+      "initiate": "How to Initiate Arbitration"
     },
     "bindingArbitration": {
-      "intro": "By using OxSteed, you agree that any dispute, claim, or controversy arising out of or relating to these Terms or the use of the Service shall be resolved exclusively through binding arbitration.",
-      "keyPoint": "This means you waive your right to a jury trial and your ability to participate in class action lawsuits.",
-      "details": "Arbitration will be conducted by JAMS (Judicial Arbitration and Mediation Services) under its Streamlined Arbitration Rules and Procedures, except as modified by this agreement."
+      "intro": "Any dispute between you and OxSteed arising from these Terms, your use of the platform, or any service provided will be resolved through binding arbitration rather than in court.",
+      "keyPoint": "By using OxSteed, you agree that disputes will be resolved by a neutral arbitrator, not a judge or jury.",
+      "details": "This means both parties agree to submit to arbitration to resolve disagreements about contracts, services, payments, or any other matter related to OxSteed. The arbitrator's decision is final and binding."
     },
     "process": {
-      "rulesTitle": "Governing Rules",
-      "rulesIntro": "The following rules govern all arbitration proceedings:",
-      "rule1": "Arbitration shall be conducted by a single neutral arbitrator selected by mutual agreement or per JAMS rules",
-      "rule2": "The arbitration will be conducted in English in the county of your residence or via video conference",
-      "rule3": "The arbitrator may award any relief that a court could award, subject to the limitations below",
-      "arbitratorTitle": "Arbitrator Selection",
-      "arbitratorDesc": "Each party will have the right to strike up to three arbitrators from JAMS's list. If the parties cannot agree, JAMS will appoint the arbitrator per its standard procedures.",
-      "timelineTitle": "Arbitration Timeline",
-      "phase1": "Demand Filed",
-      "phase1Desc": "Either party submits a written demand for arbitration to JAMS and serves the other party.",
-      "phase2": "Arbitrator Selected",
-      "phase2Desc": "Parties select or JAMS appoints a neutral arbitrator. Discovery period begins.",
-      "phase3": "Hearing",
-      "phase3Desc": "Arbitration hearing conducted (in person or via video). Both parties present evidence and arguments.",
-      "phase4": "Award",
-      "phase4Desc": "Arbitrator issues a written award. The award is binding and may be entered as a judgment in any court."
+      "rulesTitle": "Arbitration Rules & Procedures",
+      "rulesIntro": "Our arbitration follows these rules and procedures:",
+      "rule1": "JAMS (Judicial Arbitration and Mediation Services) or AAA (American Arbitration Association) rules apply, whichever is mutually chosen by the parties.",
+      "rule2": "Arbitration will be conducted by a single, neutral arbitrator with experience in contract disputes.",
+      "rule3": "The arbitrator will issue a written decision explaining the reasoning, which may be appealed under JAMS/AAA rules.",
+      "arbitratorTitle": "The Arbitrator",
+      "arbitratorDesc": "The arbitrator is a retired judge or experienced attorney trained in dispute resolution. They are bound by confidentiality and must disclose any conflicts of interest.",
+      "timelineTitle": "Typical Arbitration Timeline"
+    },
+    "timeline": {
+      "phase1": "Initial Demand",
+      "phase1Desc": "The claimant files a demand for arbitration, outlining the dispute and relief sought.",
+      "phase2": "Arbitrator Selection",
+      "phase2Desc": "Both parties participate in selecting an arbitrator. The arbitrator reviews the case and schedules a hearing.",
+      "phase3": "Hearing & Evidence",
+      "phase3Desc": "The arbitrator hears evidence from both parties, witness testimony, and arguments. This is similar to a trial but more informal.",
+      "phase4": "Decision",
+      "phase4Desc": "The arbitrator issues a written award decision. This decision is binding and may only be appealed in very limited circumstances."
     },
     "fees": {
-      "intro": "Arbitration costs are allocated as follows:",
-      "costTitle": "Filing and Arbitrator Fees",
-      "costDetail": "For claims under $75,000, OxSteed will pay all JAMS filing fees and arbitrator compensation. For claims over $75,000, fees are split equally unless the arbitrator awards otherwise.",
-      "attorneyFees": "Each party bears its own attorneys' fees unless the arbitrator awards fees to the prevailing party under applicable law.",
-      "lowValue": "For claims under $10,000, the arbitration may be conducted by document submission only, without an in-person or video hearing, at either party's request."
+      "intro": "We want arbitration to be accessible. Here's how costs are handled:",
+      "costTitle": "Who Pays for Arbitration?",
+      "costDetail": "OxSteed will pay all JAMS or AAA filing and administrative fees if your claim is for under $10,000. For claims exceeding $10,000, costs are split per JAMS/AAA rules.",
+      "attorneyFees": "Each party is responsible for their own attorney fees and costs, unless the arbitrator awards attorney fees to the prevailing party (which is rare).",
+      "lowValue": "For low-value claims (under $10,000), JAMS offers streamlined procedures that reduce arbitration costs significantly."
     },
     "classAction": {
-      "intro": "YOU AND OXSTEED AGREE THAT EACH MAY BRING CLAIMS AGAINST THE OTHER ONLY IN YOUR OR ITS INDIVIDUAL CAPACITY, AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS OR REPRESENTATIVE PROCEEDING.",
-      "impact": "This means you cannot file or participate in a class action lawsuit, class arbitration, or representative action against OxSteed.",
-      "meaning": "If this class action waiver is found to be unenforceable, then the arbitration agreement in its entirety will be null and void and the dispute will proceed in court.",
-      "stateNotice": "State-Specific Class Action Notice",
-      "noticeText": "Residents of California, New Jersey, and certain other states may have additional rights regarding class action waivers. See the State-Specific Notices section below."
+      "intro": "You agree that arbitration will be conducted on an individual basis only.",
+      "impact": "This means you CANNOT bring a class action lawsuit against OxSteed, and OxSteed cannot bring a class action against you. All claims must be resolved individually through arbitration.",
+      "meaning": "Instead of joining other customers in a class action lawsuit, you and OxSteed will each have your disputes resolved separately by an arbitrator.",
+      "stateNotice": "Important: State-Specific Notice",
+      "noticeText": "Some states do not permit class action waivers in certain circumstances. See the State-Specific Enforceability section below for details about your jurisdiction."
     },
     "exceptions": {
-      "intro": "The following types of disputes are excluded from mandatory arbitration and may be brought in court:",
+      "intro": "Arbitration does NOT apply to the following:",
       "item1": "Small Claims Court",
-      "item1Desc": "Claims that qualify for small claims court in your jurisdiction may be filed there instead of arbitration.",
-      "item2": "Intellectual Property",
-      "item2Desc": "Claims related to the infringement or misappropriation of intellectual property rights (patents, copyrights, trademarks, trade secrets).",
-      "item3": "Injunctive Relief",
-      "item3Desc": "Either party may seek emergency injunctive or other equitable relief in court to prevent irreparable harm pending arbitration.",
-      "item4": "NLRA Rights",
-      "item4Desc": "Nothing in this agreement is intended to interfere with your rights under the National Labor Relations Act."
+      "item1Desc": "You may pursue your claim in small claims court instead of arbitration (if you elect to do so).",
+      "item2": "Injunctive Relief",
+      "item2Desc": "Either party may seek temporary restraining orders or injunctions in court to prevent irreparable harm.",
+      "item3": "JAMS/AAA Procedures",
+      "item3Desc": "Disputes about the arbitration agreement itself (e.g., whether it is valid) may be resolved by arbitration or by a court.",
+      "item4": "Regulatory Agencies",
+      "item4Desc": "Claims brought by government agencies or regulatory bodies are not subject to arbitration."
     },
     "limitation": {
-      "capTitle": "Damages Cap",
-      "capIntro": "OXSTEED'S TOTAL LIABILITY TO YOU FOR ANY CLAIMS ARISING FROM OR RELATED TO YOUR USE OF THE SERVICE SHALL NOT EXCEED:",
-      "capAmount": "The greater of (a) the total fees paid by you to OxSteed in the 12 months preceding the claim, or (b) $500.",
-      "indirectTitle": "Exclusion of Consequential Damages",
-      "indirectIntro": "OXSTEED SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES INCLUDING:",
-      "item1": "Loss of profits, revenue, or data",
-      "item2": "Business interruption or loss of business opportunity",
-      "item3": "Personal injury or property damage not directly caused by OxSteed",
-      "item4": "Cost of substitute services"
+      "capTitle": "Liability Cap",
+      "capIntro": "OxSteed's total liability to you is limited in all circumstances.",
+      "capAmount": "OxSteed's maximum liability shall not exceed the greater of (a) the amount you paid OxSteed in the 12 months preceding the claim, or (b) $100.",
+      "indirectTitle": "No Indirect Damages",
+      "indirectIntro": "OxSteed is NOT liable for the following, regardless of the cause:",
+      "item1": "Lost profits or lost revenue",
+      "item2": "Lost data or business interruption",
+      "item3": "Indirect, incidental, special, or consequential damages",
+      "item4": "Punitive or exemplary damages"
     },
     "stateDisclaimers": {
       "ca": {
-        "title": "California Residents",
-        "point1": "California residents may opt out of the arbitration agreement within 30 days of first accepting OxSteed's Terms of Service by emailing legal@oxsteed.com.",
-        "point2": "This agreement is subject to California's Consumer Legal Remedies Act (CLRA) and Unfair Competition Law.",
-        "point3": "California's AB5 and Proposition 22 govern independent contractor classification for California-based helpers."
+        "title": "California (CA) - Enforceability",
+        "point1": "California law permits class action waivers in most consumer contracts. However, California Consumers Legal Remedies Act (CLRA) claims and certain wage-and-hour claims may not be subject to arbitration.",
+        "point2": "Under Proposition 65, any disputes arising from the sale of consumer goods will be treated as non-waivable class actions in certain circumstances.",
+        "point3": "If you are a California resident, you have the right to opt out of arbitration by providing written notice within 30 days of first accepting these Terms."
       },
       "ny": {
-        "title": "New York Residents",
-        "point1": "New York residents retain rights under the New York Consumer Protection Act that cannot be waived by arbitration agreement.",
-        "point2": "Claims under New York's Freelance Isn't Free Act are not subject to this arbitration agreement.",
-        "point3": "The class action waiver does not apply to claims brought under the New York Labor Law."
+        "title": "New York (NY) - Enforceability",
+        "point1": "New York courts have held that class action waivers are enforceable in arbitration agreements, but specific consumer protection claims may require alternative resolution.",
+        "point2": "New York General Business Law §349 (deceptive practices) cannot be waived through arbitration in some cases.",
+        "point3": "You may request that arbitration take place in New York County if you are a New York resident."
       },
       "ma": {
-        "title": "Massachusetts Residents",
-        "point1": "Massachusetts residents may bring claims under M.G.L. c. 93A (Consumer Protection) in court notwithstanding this arbitration agreement.",
-        "point2": "Claims of $7,500 or less under M.G.L. c. 93A may not be subject to mandatory arbitration.",
-        "point3": "Nothing herein waives your rights under Massachusetts wage and hour laws."
+        "title": "Massachusetts (MA) - Enforceability",
+        "point1": "Massachusetts courts scrutinize arbitration waivers closely. Arbitration clauses must be fair and reasonable, and mutual obligation must exist for both parties.",
+        "point2": "Massachusetts consumer protection laws may not permit waiver of certain statutory rights through arbitration.",
+        "point3": "Class action waivers may not be enforceable in Massachusetts for certain consumer claims without explicit, clear acknowledgment."
       }
     },
     "initiate": {
-      "intro": "To initiate arbitration, follow these steps:",
-      "step1": "Send a Written Demand",
-      "step1Desc": "Email legal@oxsteed.com with a brief written description of the dispute, the relief you are seeking, and your contact information.",
-      "step2": "30-Day Negotiation Period",
-      "step2Desc": "The parties will have 30 days to attempt to resolve the dispute informally before formal arbitration begins.",
-      "step3": "File with JAMS",
-      "step3Desc": "If informal resolution fails, file a Demand for Arbitration with JAMS at www.jamsadr.com and serve OxSteed at legal@oxsteed.com.",
-      "step4": "Proceed to Arbitration",
-      "step4Desc": "Follow JAMS procedures for arbitrator selection, discovery, and hearing scheduling.",
-      "contactTitle": "OxSteed Legal Contact",
-      "contactInfo": "OxSteed LLC, Attn: Legal Department, legal@oxsteed.com"
+      "intro": "If you have a dispute with OxSteed, here's how to initiate arbitration:",
+      "step1": "Send Notice",
+      "step1Desc": "Send OxSteed a detailed written notice describing the dispute, the relief sought, and your proposed solution. Include dates, amounts, and any relevant documentation.",
+      "step2": "Wait for Response",
+      "step2Desc": "OxSteed will respond within 30 days. Many disputes are resolved during this negotiation period.",
+      "step3": "File Demand",
+      "step3Desc": "If the dispute is not resolved, file a demand for arbitration with JAMS or AAA. Follow their procedures and submit the filing fee (which OxSteed will reimburse if you prevail).",
+      "step4": "Attend Hearing",
+      "step4Desc": "Participate in the arbitration hearing. You may represent yourself, hire an attorney, or use other representation.",
+      "contactTitle": "Send your notice to:",
+      "contactInfo": "support@oxsteed.com or our legal team at legal@oxsteed.com"
     },
     "acceptance": {
-      "title": "Acknowledge This Agreement",
-      "intro": "By using OxSteed, you acknowledge that you have read, understood, and agreed to be bound by this Arbitration Agreement and Class Action Waiver.",
-      "checkbox": "I have read and agree to the Arbitration Agreement and Class Action Waiver",
-      "signBtn": "Sign Acknowledgement",
+      "title": "Acknowledgment & Acceptance",
+      "intro": "By using OxSteed, you acknowledge that you have read, understood, and agree to be bound by this arbitration clause and all provisions herein.",
+      "checkbox": "I understand and accept the arbitration clause, class action waiver, and limitations of liability outlined above.",
+      "signBtn": "Accept & Sign",
       "form": {
-        "signature": "Electronic Signature",
-        "signaturePlaceholder": "Type your full legal name as your electronic signature",
-        "signatureNote": "Your typed name constitutes your electronic signature under the E-SIGN Act.",
-        "submit": "Submit Signature"
+        "signature": "Your E-Signature (Type Your Name)",
+        "signaturePlaceholder": "Type your full legal name here",
+        "signatureNote": "By typing your name, you are providing an electronic signature confirming acceptance of these terms.",
+        "submit": "Confirm Acceptance"
       },
-      "successMsg": "Agreement acknowledged successfully.",
-      "successDesc": "Your acknowledgement has been recorded with your IP address and timestamp."
+      "successMsg": "Your acceptance has been recorded.",
+      "successDesc": "Thank you. Your agreement to the arbitration clause has been logged with a timestamp for compliance purposes."
     }
   },
   "escrowPolicy": {
-    "title": "Escrow & Payment Policy",
-    "description": "How OxSteed holds, protects, and releases your money using Stripe-powered escrow.",
-    "subtitle": "Stripe-powered escrow protection for every job",
-    "lastUpdated": "Last updated: May 1, 2026",
+    "title": "Escrow & Fund Holding Policy",
+    "description": "How OxSteed holds payments in escrow using Stripe Connect, fund ownership, release timelines, and dispute procedures.",
+    "subtitle": "Understanding how we protect your funds during transactions",
+    "lastUpdated": "Last updated: May 3, 2026",
     "onThisPage": "On this page",
-    "searchPlaceholder": "Search this policy…",
-    "searchLabel": "Search escrow policy",
+    "searchLabel": "Search escrow policy information",
+    "searchPlaceholder": "Search…",
     "sections": {
-      "mechanism": "How Escrow Works",
-      "authorization": "Payment Authorization",
+      "mechanism": "Fund Holding Mechanism",
+      "authorization": "Authorization & Consent",
       "ownership": "Fund Ownership",
-      "liability": "Liability Limitations",
-      "release": "Fund Release",
-      "timeline": "Payment Timeline",
-      "faqs": "FAQs"
+      "liability": "OxSteed Liability",
+      "release": "Release & Refunds",
+      "timeline": "Timeline & Important Notices",
+      "faqs": "Frequently Asked Questions"
     },
     "mechanism": {
-      "intro": "OxSteed uses a payment escrow system to protect both customers and helpers. When you pay for a job, your money is held securely by Stripe until the job is complete.",
-      "keyPoint": "Your payment is authorized but not captured at booking. Funds are only captured and transferred when the job is marked complete.",
-      "details": "This escrow model ensures that helpers are paid for completed work and customers have recourse if work is not completed as agreed.",
-      "stripe": "Stripe holds all escrowed funds in segregated accounts. OxSteed never has direct access to customer payment card data."
+      "intro": "OxSteed uses Stripe Connect to hold payment funds in escrow during jobs. This means funds are held securely until the job is complete, protecting both customers and helpers.",
+      "keyPoint": "Funds are held BY Stripe, not by OxSteed. We facilitate the holding only.",
+      "details": "When you make a payment for a job, the funds are authorized on your payment method and held in Stripe's secure system. OxSteed does not have direct access to or control of these funds.",
+      "stripe": "Stripe is a leading payment processor trusted by thousands of businesses worldwide. They are PCI-DSS compliant and maintain the highest security standards for payment processing."
     },
     "authorization": {
-      "intro": "When you book a job, your payment method is authorized for the job amount plus the platform service fee.",
-      "byChoosingTitle": "What happens at booking:",
-      "byChoosingDesc": "Your card is authorized (not charged). The authorization places a hold on your funds for up to 7 days.",
-      "details": "If the job is not started within 7 days, the authorization is released and no charge is made. A new authorization will be required to rebook."
+      "intro": "By posting a job and proceeding to payment, you authorize the escrow process.",
+      "byChoosingTitle": "By Choosing to Pay",
+      "byChoosingDesc": "You agree that OxSteed and Stripe may hold your payment funds according to these terms until the job is marked complete or the dispute is resolved.",
+      "details": "You will receive a confirmation email showing the authorization amount, job details, and timeline for fund release. You can cancel the payment before the job begins."
     },
     "ownership": {
-      "intro": "Escrowed funds are held by Stripe on behalf of the customer until release conditions are met.",
-      "item1": "Before Job Completion",
-      "item1Desc": "Funds remain the customer's property and are protected by Stripe's escrow.",
-      "item2": "After Marked Complete",
-      "item2Desc": "Ownership transfers to the helper upon job completion. Release occurs within 3 business days.",
-      "item3": "During a Dispute",
-      "item3Desc": "Funds are frozen until the dispute is resolved. Neither party can access the funds.",
-      "disclaimerTitle": "Stripe's Role",
-      "disclaimerDesc": "Stripe acts as the payment processor and escrow custodian. Stripe's terms of service and privacy policy govern the handling of payment data."
+      "intro": "It's important to understand who owns the funds during escrow.",
+      "item1": "Funds Belong to the Payer",
+      "item1Desc": "Until the job is complete and funds are released, the money belongs to the customer (the person who made the payment). The helper has no claim to the funds until the job is complete.",
+      "item2": "OxSteed Does Not Own Funds",
+      "item2Desc": "OxSteed does not own, control, or have access to escrowed funds. We facilitate the process but remain a neutral third party.",
+      "item3": "Stripe Holds Funds Securely",
+      "item3Desc": "Stripe holds the funds in a secure, segregated account. The funds cannot be accessed by OxSteed, the helper, or anyone else until the proper conditions are met.",
+      "disclaimerTitle": "IMPORTANT DISCLAIMER",
+      "disclaimerDesc": "Escrowed funds are NOT insured by the FDIC or any government agency. However, Stripe maintains the highest security standards to prevent loss or theft."
     },
     "liability": {
-      "intro": "OxSteed's liability in connection with the escrow service is limited as follows:",
-      "serviceInterruptionTitle": "Service Interruptions",
-      "serviceInterruptionDesc": "OxSteed is not liable for delays in payment release caused by Stripe service outages, bank processing delays, or regulatory holds outside our control.",
-      "securityTitle": "Security Incidents",
-      "securityDesc": "OxSteed employs industry-standard security measures. In the event of a security incident, liability is limited to the value of funds directly affected.",
-      "recoveryTitle": "Recovery Procedures",
-      "recoveryDesc": "In the event of an error in fund release, OxSteed will work with Stripe to investigate and correct the error within 10 business days."
+      "intro": "OxSteed is not responsible for certain issues related to fund holding.",
+      "serviceInterruptionTitle": "Stripe Service Interruptions",
+      "serviceInterruptionDesc": "If Stripe experiences downtime or service disruptions, resulting in delays to fund release, OxSteed is not liable. Stripe maintains 99.99% uptime guarantees.",
+      "securityTitle": "Fund Mishandling or Theft",
+      "securityDesc": "If Stripe's systems are compromised or funds are lost due to security breach (extremely rare), OxSteed is not liable. Your recourse would be through Stripe and their insurance.",
+      "recoveryTitle": "Recovery Assistance",
+      "recoveryDesc": "OxSteed will assist in investigating and reporting any issues to Stripe, but we cannot recover lost or misappropriated funds directly."
     },
     "release": {
-      "jobCompletionTitle": "Job Completion",
-      "jobCompletionDesc": "Funds are released to the helper when the customer marks the job as complete, or automatically 72 hours after the job's scheduled end time if neither party takes action.",
-      "timeline": "Release timeline: 3-5 business days from trigger to bank account.",
+      "jobCompletionTitle": "Release Upon Job Completion",
+      "jobCompletionDesc": "Funds are released 3 business days after the customer marks the job as complete. This gives the customer time to verify the work quality before the helper receives payment.",
+      "timeline": "Release Timeline: 3 business days after job completion. Funds arrive in helper's account: 5-7 business days from release.",
       "refundTitle": "Refunds",
-      "refundDesc": "Refunds are issued at OxSteed's discretion following dispute resolution. Approved refunds are returned to the original payment method.",
-      "processingTime": "Processing time",
-      "processingTimeDesc": "Refunds typically appear on your statement within 5-10 business days depending on your bank or card issuer.",
-      "disputeTitle": "Disputed Funds",
-      "disputeDesc": "Funds involved in an active dispute are frozen until the dispute is resolved. Both parties will be notified of the freeze and the timeline for resolution."
+      "refundDesc": "If a customer requests a refund before the job is complete, the funds are returned to their original payment method per Stripe's refund policies.",
+      "processingTime": "Refund Processing Time",
+      "processingTimeDesc": "Refunds are issued within 5-7 business days of approval. Processing times vary by bank and payment method (credit card, debit card, bank account, etc.).",
+      "disputeTitle": "Disputed Jobs",
+      "disputeDesc": "If there is a dispute about job completion, funds remain in escrow while the dispute is investigated. See our Dispute Resolution page for details."
     },
     "timeline": {
       "authorized": "Payment Authorized",
-      "authorizedDesc": "Customer's card is authorized at booking. Funds are held but not yet captured.",
+      "authorizedDesc": "Customer's payment is authorized and placed in escrow with Stripe.",
       "completed": "Job Completed",
-      "completedDesc": "Customer marks job complete. Escrow capture is triggered.",
+      "completedDesc": "Customer marks the job as complete after the helper finishes work.",
       "released": "Funds Released",
-      "releasedDesc": "Stripe transfers funds to helper's connected account, minus platform fee.",
+      "releasedDesc": "Funds are released from escrow to the helper's OxSteed account 3 business days after completion.",
       "received": "Funds Received",
-      "receivedDesc": "Helper's bank receives the transfer. Timeline depends on bank processing."
+      "receivedDesc": "Funds arrive in helper's bank account or payment method 5-7 business days later."
     },
     "notices": {
-      "chargebackTitle": "Chargeback Notice",
-      "chargebackDesc": "If a customer files a credit card chargeback after funds have been released to a helper, OxSteed reserves the right to recover the disputed amount from the helper's future earnings.",
-      "chargebackFee": "A $25 administrative fee applies to all chargebacks regardless of outcome.",
-      "legalHoldTitle": "Legal Hold",
-      "legalHoldDesc": "Funds may be frozen by legal order, regulatory requirement, or fraud investigation. OxSteed will notify affected parties as permitted by law."
+      "chargebackTitle": "Chargebacks Bypass Escrow",
+      "chargebackDesc": "If you initiate a chargeback with your credit card company instead of using OxSteed's dispute process, it bypasses our escrow protection. Chargebacks are expensive and disrupt the dispute process.",
+      "chargebackFee": "Per Stripe's terms, chargebacks incur a $25 fee per transaction. Please use our dispute process instead.",
+      "legalHoldTitle": "Legal Holds",
+      "legalHoldDesc": "If OxSteed receives a legal order, subpoena, or court order regarding funds in escrow, those funds may be frozen and held pending legal resolution. OxSteed will notify you if this occurs."
     },
     "faq": {
-      "q1": "When is my card charged?",
-      "a1": "Your card is authorized at booking but only charged (captured) when the job is marked complete. If the job is cancelled before it starts, no charge is made.",
-      "q2": "What if the helper doesn't show up?",
-      "a2": "If the helper doesn't show, you can mark the job as cancelled. Your card authorization will be released and no payment will be captured.",
-      "q3": "How long until the helper gets paid?",
-      "a3": "After you mark the job complete, the helper receives their payment within 3-5 business days via Stripe transfer to their bank account.",
-      "q4": "Can the helper access funds before the job is done?",
-      "a4": "No. Funds are held in escrow and inaccessible to the helper until the job is marked complete or the automatic release trigger fires (72 hours after scheduled end).",
-      "q5": "What happens to my money if I dispute the job?",
-      "a5": "Disputed funds are frozen immediately. Neither party can access them until the dispute is resolved. See our Dispute Resolution Policy for details.",
-      "q6": "What if I accidentally mark the job complete?",
-      "a6": "Contact support@oxsteed.com immediately. If the helper has not yet received the transfer, we may be able to pause the release. Once the transfer is processed, it cannot be reversed without the helper's cooperation.",
-      "q7": "Is my payment information secure?",
-      "a7": "Yes. OxSteed never stores your full card number. Stripe handles all payment data and is PCI DSS Level 1 compliant - the highest level of payment security certification.",
-      "q8": "What currencies does OxSteed support?",
-      "a8": "OxSteed currently processes payments in USD. International payment support is planned for future releases."
+      "q1": "Can I cancel a payment after it's authorized?",
+      "a1": "Yes. Before the helper starts work, you can cancel the job and your payment will be refunded to your original payment method within 5-7 business days.",
+      "q2": "What if the helper doesn't complete the job?",
+      "a2": "If the job is not completed or the customer is unsatisfied, they can open a dispute. OxSteed reviews disputes and either releases funds to the helper or refunds the customer.",
+      "q3": "How long does it take to get paid as a helper?",
+      "a3": "After the customer marks the job complete, funds are released 3 business days later, then take 5-7 business days to appear in your bank account (10 business days total).",
+      "q4": "What if Stripe holds my funds for some reason?",
+      "a4": "Stripe may hold funds temporarily for verification purposes. If this happens, contact support@oxsteed.com and we will follow up with Stripe on your behalf.",
+      "q5": "Can I get my funds released early?",
+      "a5": "No. The 3-day escrow hold is fixed per Stripe's policies and OxSteed's payment terms. This protects both customers and helpers.",
+      "q6": "What happens if I have a dispute?",
+      "a6": "If you dispute a job, funds remain in escrow while we investigate. See our Dispute Resolution policy for full details on the process and timeline.",
+      "q7": "Is my money safe in escrow?",
+      "a7": "Yes. Stripe uses bank-level encryption and security measures. However, escrow funds are not FDIC insured. Stripe maintains 99.99% uptime and has never lost customer funds due to security issues.",
+      "q8": "What if OxSteed shuts down - what happens to escrowed funds?",
+      "a8": "If OxSteed ceases operations, funds in escrow remain the property of their rightful owners (customers and helpers). Stripe would work with OxSteed's receivers to distribute funds according to the contracts."
     },
     "acceptance": {
-      "title": "Acknowledge This Policy",
-      "intro": "By using OxSteed's payment and escrow services, you acknowledge that you have read and agree to this Escrow & Payment Policy.",
-      "checkbox": "I have read and agree to the Escrow & Payment Policy",
-      "signBtn": "Sign Acknowledgement",
+      "title": "Understanding & Acknowledgment",
+      "intro": "By using OxSteed's payment system, you acknowledge that you understand how escrow works, who holds funds, and the timelines for release.",
+      "checkbox": "I understand and accept OxSteed's escrow policy, including fund ownership, liability limitations, release timelines, and dispute procedures.",
+      "signBtn": "Accept & Sign",
       "form": {
-        "signature": "Electronic Signature",
-        "signaturePlaceholder": "Type your full legal name as your electronic signature",
-        "signatureNote": "Your typed name constitutes your electronic signature under the E-SIGN Act.",
-        "submit": "Submit Signature"
+        "signature": "Your E-Signature (Type Your Name)",
+        "signaturePlaceholder": "Type your full legal name here",
+        "signatureNote": "By typing your name, you are providing an electronic signature confirming acceptance of the escrow policy.",
+        "submit": "Confirm Acceptance"
       },
-      "successMsg": "Policy acknowledged successfully.",
-      "successDesc": "Your acknowledgement has been recorded with your IP address and timestamp."
+      "successMsg": "Your acceptance has been recorded.",
+      "successDesc": "Thank you. Your agreement to the escrow policy has been logged with a timestamp."
     },
     "contactSupport": {
-      "intro": "Questions about a payment or escrow hold? Our support team can help.",
+      "intro": "Have questions about how escrow works?",
       "btn": "Contact Support"
     }
   },
@@ -2366,7 +2368,8 @@
       "findJobs": "Find Jobs",
       "myBids": "My Bids",
       "reviews": "Reviews",
-      "invoices": "Invoices"
+      "invoices": "Invoices",
+      "aiKnowledge": "AI knowledge"
     },
     "proActivated": "Pro Plan Activated",
     "products": {
@@ -3752,7 +3755,8 @@
     "loadingGallery": "Loading gallery…",
     "loadingPolicies": "Loading policies…",
     "loadingServices": "Loading services…",
-    "tabSkillsLabel": "Skills"
+    "tabSkillsLabel": "Skills",
+    "tabAILabel": "AI knowledge"
   },
   "plans": {
     "free": "Free",
@@ -5490,29 +5494,98 @@
         "borescope": "Borescope"
       },
       "tiles": {
-        "power-tools":  { "label": "Power Tools",      "desc": "Drills, saws, grinders" },
-        "hand-tools":   { "label": "Hand Tools",       "desc": "Wrenches, hammers, pliers" },
-        "cutting":      { "label": "Cutting",          "desc": "Saws, chainsaws, blades" },
-        "drilling":     { "label": "Drilling",         "desc": "Drills, drivers, nailers" },
-        "sanding":      { "label": "Sanding",          "desc": "Sanders, polishers, buffers" },
-        "welding":      { "label": "Welding",          "desc": "MIG, TIG, plasma, grinders" },
-        "plumbing":     { "label": "Plumbing",         "desc": "Snakes, wrenches, torches" },
-        "electrical":   { "label": "Electrical",       "desc": "Meters, testers, fish tape" },
-        "hvac":         { "label": "HVAC",             "desc": "Vacuum pumps, gauges, scales" },
-        "landscaping":  { "label": "Landscaping",      "desc": "Mowers, blowers, trimmers" },
-        "pressure":     { "label": "Pressure Washing", "desc": "Pressure washers & cleaners" },
-        "concrete":     { "label": "Concrete",         "desc": "Mixers, demo hammers, trowels" },
-        "flooring":     { "label": "Flooring",         "desc": "Nailers, tile cutters, rollers" },
-        "painting":     { "label": "Painting",         "desc": "Sprayers, mixers, heat guns" },
-        "scaffolding":  { "label": "Ladders",          "desc": "Ladders & scaffolding" },
-        "lifting":      { "label": "Lifting",          "desc": "Hoists, jacks, dollies" },
-        "compressors":  { "label": "Air Tools",        "desc": "Compressors & pneumatics" },
-        "generators":   { "label": "Generators",       "desc": "Generators & power stations" },
-        "automotive":   { "label": "Automotive",       "desc": "Jacks, scanners, wrenches" },
-        "trailers":     { "label": "Trailers",         "desc": "Trailers, ramps, straps" },
-        "safety":       { "label": "Safety Gear",      "desc": "Harnesses, helmets, masks" },
-        "cleaning":     { "label": "Cleaning",         "desc": "Vacuums, scrubbers, steam" },
-        "diagnostic":   { "label": "Diagnostic",       "desc": "Cameras, thermal, sensors" }
+        "power-tools": {
+          "label": "Power Tools",
+          "desc": "Drills, saws, grinders"
+        },
+        "hand-tools": {
+          "label": "Hand Tools",
+          "desc": "Wrenches, hammers, pliers"
+        },
+        "cutting": {
+          "label": "Cutting",
+          "desc": "Saws, chainsaws, blades"
+        },
+        "drilling": {
+          "label": "Drilling",
+          "desc": "Drills, drivers, nailers"
+        },
+        "sanding": {
+          "label": "Sanding",
+          "desc": "Sanders, polishers, buffers"
+        },
+        "welding": {
+          "label": "Welding",
+          "desc": "MIG, TIG, plasma, grinders"
+        },
+        "plumbing": {
+          "label": "Plumbing",
+          "desc": "Snakes, wrenches, torches"
+        },
+        "electrical": {
+          "label": "Electrical",
+          "desc": "Meters, testers, fish tape"
+        },
+        "hvac": {
+          "label": "HVAC",
+          "desc": "Vacuum pumps, gauges, scales"
+        },
+        "landscaping": {
+          "label": "Landscaping",
+          "desc": "Mowers, blowers, trimmers"
+        },
+        "pressure": {
+          "label": "Pressure Washing",
+          "desc": "Pressure washers & cleaners"
+        },
+        "concrete": {
+          "label": "Concrete",
+          "desc": "Mixers, demo hammers, trowels"
+        },
+        "flooring": {
+          "label": "Flooring",
+          "desc": "Nailers, tile cutters, rollers"
+        },
+        "painting": {
+          "label": "Painting",
+          "desc": "Sprayers, mixers, heat guns"
+        },
+        "scaffolding": {
+          "label": "Ladders",
+          "desc": "Ladders & scaffolding"
+        },
+        "lifting": {
+          "label": "Lifting",
+          "desc": "Hoists, jacks, dollies"
+        },
+        "compressors": {
+          "label": "Air Tools",
+          "desc": "Compressors & pneumatics"
+        },
+        "generators": {
+          "label": "Generators",
+          "desc": "Generators & power stations"
+        },
+        "automotive": {
+          "label": "Automotive",
+          "desc": "Jacks, scanners, wrenches"
+        },
+        "trailers": {
+          "label": "Trailers",
+          "desc": "Trailers, ramps, straps"
+        },
+        "safety": {
+          "label": "Safety Gear",
+          "desc": "Harnesses, helmets, masks"
+        },
+        "cleaning": {
+          "label": "Cleaning",
+          "desc": "Vacuums, scrubbers, steam"
+        },
+        "diagnostic": {
+          "label": "Diagnostic",
+          "desc": "Cameras, thermal, sensors"
+        }
       }
     }
   },
@@ -6697,359 +6770,50 @@
     "activateAriaLabel": "Activate {{name}} template",
     "unlockAriaLabel": "Unlock {{name}} template"
   },
-  "backgroundCheck": {
-    "title": "Background Check & Adverse Action Procedure",
-    "description": "Information about OxSteed background checks, disqualifying factors, appeal process, and FCRA compliance.",
-    "subtitle": "We run background checks to keep our community safe. Here's how the process works and what to do if you need to appeal.",
-    "lastUpdated": "Last updated: May 3, 2026",
-    "onThisPage": "On this page",
-    "searchLabel": "Search background check information",
-    "searchPlaceholder": "Search…",
-    "sections": {
-      "whatWeCheck": "What We Check",
-      "disqualifying": "Disqualifying Factors",
-      "ourProcess": "Our Process",
-      "ifDenied": "If Your Application Is Denied",
-      "appeal": "Appeal Process",
-      "timeline": "Timeline & Status",
-      "faqs": "Frequently Asked Questions"
-    },
-    "whatWeCheck": {
-      "intro": "We use Checkr, a third-party background screening service, to conduct comprehensive background checks on all helper applicants. The check includes multiple verification steps to ensure the safety of our community.",
-      "item1": "Criminal Records",
-      "item1_desc": "We screen county, state, and national databases for criminal convictions, arrests, and pending charges.",
-      "item2": "Identity Verification",
-      "item2_desc": "We verify your identity using government-issued ID and cross-reference with public records to prevent fraud.",
-      "item3": "Sex Offender Registry",
-      "item3_desc": "We check the National Sex Offender Public Website (NSOPW) and state registries to verify you are not a registered sex offender.",
-      "item4": "Additional Screening",
-      "item4_desc": "We may screen additional databases including fraud prevention services, civil records, and motor vehicle records."
-    },
-    "disqualifying": {
-      "intro": "The following factors will result in denial of your application. Some infractions may be considered on a case-by-case basis after the appeal process.",
-      "violent": "Violent Crimes",
-      "sexual": "Sexual Offenses",
-      "felony": "Felony Convictions",
-      "sex_offender": "Sex Offender Registration",
-      "theft": "Property Crimes",
-      "drugs": "Drug Trafficking",
-      "fraud": "Fraud or Identity Theft",
-      "examples": "Examples include",
-      "note": "Important Note",
-      "noteDesc": "We evaluate applications based on the nature, severity, and recency of any criminal history. Not all disqualifying factors are permanent - some may be considered after the appeal process."
-    },
-    "process": {
-      "intro": "Our background check process is straightforward and transparent. Here's what happens after you apply:",
-      "step1": "Application Submitted",
-      "step1_desc": "You complete your helper application with all required information.",
-      "step2": "Background Check Initiated",
-      "step2_desc": "Checkr receives your information and begins screening. We'll send you a copy of the disclosure and authorization forms.",
-      "step3": "Results Received",
-      "step3_desc": "Checkr completes the screening (typically 1-3 business days) and reports results to us.",
-      "step4": "Decision & Notification",
-      "step4_desc": "We review results and notify you via email. Approved applicants can start bidding immediately."
-    },
-    "ifDenied": {
-      "adverseNotice": "Your Adverse Action Notice (FCRA Compliance)",
-      "adverseIntro": "If we deny your application based on information in your background check, we are legally required to provide you with an Adverse Action Notice under the Fair Credit Reporting Act (FCRA).",
-      "adverseExample": "Example: 'We denied your helper application because your background check revealed a felony conviction from 2020. You can view the full report from Checkr and dispute the findings within 30 days.'",
-      "adverseNote": "You will receive this notice via email with specific details about why your application was denied.",
-      "disputeTitle": "Dispute with Checkr",
-      "disputeDesc": "You have 30 days from receiving your adverse action notice to dispute the findings with Checkr. If the report contains errors, you can request a correction. Visit Checkr's dispute portal to begin the process.",
-      "viewCheckr": "Visit Checkr to Dispute"
-    },
-    "appeal": {
-      "intro": "If your application is denied, you have the right to appeal. We encourage you to submit an appeal if you believe the denial was in error or if you have additional context to provide.",
-      "step1": "Gather Your Evidence",
-      "step1_desc": "Collect any documents that support your appeal - court records, dismissal letters, rehabilitation documentation, character references, or explanations.",
-      "step2": "Submit Your Appeal",
-      "step2_desc": "Click the button below to open a support form. Explain why you believe the decision should be reconsidered.",
-      "step3": "Manager Review",
-      "step3_desc": "A member of our team will review your appeal within 10 business days.",
-      "step4": "Final Decision",
-      "step4_desc": "You'll receive an email with our final decision. If approved, you can begin bidding immediately.",
-      "submitBtn": "Appeal Denial",
-      "form": {
-        "email": "Your Email Address",
-        "reason": "Why should we reconsider?",
-        "reasonPlaceholder": "Explain your appeal, providing context about the record and any mitigating circumstances...",
-        "evidence": "Supporting Evidence (Optional)",
-        "evidencePlaceholder": "Describe any documents you have (court records, letters, etc.) that support your appeal...",
-        "submit": "Submit Appeal"
-      },
-      "successMsg": "Appeal submitted successfully!",
-      "successDesc": "We'll review your appeal and contact you within 10 business days with a decision."
-    },
-    "timeline": {
-      "submitted": "Application Submitted",
-      "submitted_desc": "You complete and submit your helper application.",
-      "initiated": "Background Check Initiated",
-      "initiated_desc": "Checkr receives your information (same day or next business day).",
-      "received": "Results Received",
-      "received_desc": "Background check completes within 1-3 business days.",
-      "result": "Approved or Denied",
-      "result_desc": "We notify you of the decision and you can start earning or appeal.",
-      "appeal": "Appeal Period",
-      "appeal_desc": "You have 30 days to dispute findings with Checkr or appeal with us."
-    },
-    "faq": {
-      "q1": "How long does the background check take?",
-      "a1": "Background checks typically complete within 1-3 business days of submission. Complex cases may take longer. You'll receive updates via email.",
-      "q2": "Does a denied background check mean I can never apply again?",
-      "a2": "Not necessarily. You can appeal the decision within 30 days. Additionally, some disqualifying factors may not be permanent. You may reapply after a specified period.",
-      "q3": "What if there's an error in my background check report?",
-      "a3": "You have 30 days to dispute the report directly with Checkr. They will investigate and correct any errors. After corrections, we can review your application again.",
-      "q4": "Does OxSteed look at arrests without convictions?",
-      "a4": "We primarily focus on convictions. However, pending charges and arrests may be considered in our review. We look at the nature of the charge and your explanation.",
-      "q5": "Can I work as a helper while my background check is pending?",
-      "a5": "No. You must have a cleared background check before you can bid on jobs or provide services on OxSteed.",
-      "q6": "What information do I see in my background report?",
-      "a6": "You receive a copy of your background report along with our decision. You can review what information Checkr used to create the report and dispute any inaccuracies."
-    },
-    "contactSupport": {
-      "intro": "Have questions about the background check process?",
-      "btn": "Contact Support"
-    }
+  "aiKnowledge": {
+    "heading": "AI assistant knowledge",
+    "subheading": "Optional facts and policies the profile assistant may use when answering visitors. Keep it accurate and avoid secrets or personal data.",
+    "label": "Knowledge for your AI assistant",
+    "placeholder": "Example: We serve within 25 miles of Austin. Same-day emergency calls are an extra fee. We do not work on Sundays.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveError": "Could not save. Please try again.",
+    "charCount": "{{count}} / 8000 characters",
+    "charCountAria": "Character count {{count}} of 8000",
+    "previewBtn": "Open AI preview",
+    "tips": "Tips",
+    "tip1": "Write short paragraphs or bullet-style lines visitors ask about often.",
+    "tip2": "If something must be confirmed in person, say that here so the assistant can repeat it.",
+    "tip3": "Do not paste passwords, API keys, or customer PII.",
+    "tip4": "Changes apply after save; allow a minute for caches to refresh."
   },
-  "arbitration": {
-    "title": "Binding Arbitration & Limitation of Liability",
-    "description": "Information about OxSteed's arbitration clause, class action waiver, and liability limitations. Includes state-specific enforceability disclaimers.",
-    "subtitle": "Understanding your rights and OxSteed's limitations in legal disputes",
-    "lastUpdated": "Last updated: May 3, 2026",
-    "onThisPage": "On this page",
-    "searchLabel": "Search arbitration information",
-    "searchPlaceholder": "Search…",
-    "sections": {
-      "bindingArbitration": "Binding Arbitration",
-      "process": "The Arbitration Process",
-      "fees": "Arbitration Fees & Costs",
-      "classAction": "Class Action Waiver",
-      "exceptions": "Exceptions to Arbitration",
-      "limitation": "Limitation of Liability",
-      "stateDisclaimers": "State-Specific Enforceability",
-      "initiate": "How to Initiate Arbitration"
-    },
-    "bindingArbitration": {
-      "intro": "Any dispute between you and OxSteed arising from these Terms, your use of the platform, or any service provided will be resolved through binding arbitration rather than in court.",
-      "keyPoint": "By using OxSteed, you agree that disputes will be resolved by a neutral arbitrator, not a judge or jury.",
-      "details": "This means both parties agree to submit to arbitration to resolve disagreements about contracts, services, payments, or any other matter related to OxSteed. The arbitrator's decision is final and binding."
-    },
-    "process": {
-      "rulesTitle": "Arbitration Rules & Procedures",
-      "rulesIntro": "Our arbitration follows these rules and procedures:",
-      "rule1": "JAMS (Judicial Arbitration and Mediation Services) or AAA (American Arbitration Association) rules apply, whichever is mutually chosen by the parties.",
-      "rule2": "Arbitration will be conducted by a single, neutral arbitrator with experience in contract disputes.",
-      "rule3": "The arbitrator will issue a written decision explaining the reasoning, which may be appealed under JAMS/AAA rules.",
-      "arbitratorTitle": "The Arbitrator",
-      "arbitratorDesc": "The arbitrator is a retired judge or experienced attorney trained in dispute resolution. They are bound by confidentiality and must disclose any conflicts of interest.",
-      "timelineTitle": "Typical Arbitration Timeline"
-    },
-    "timeline": {
-      "phase1": "Initial Demand",
-      "phase1Desc": "The claimant files a demand for arbitration, outlining the dispute and relief sought.",
-      "phase2": "Arbitrator Selection",
-      "phase2Desc": "Both parties participate in selecting an arbitrator. The arbitrator reviews the case and schedules a hearing.",
-      "phase3": "Hearing & Evidence",
-      "phase3Desc": "The arbitrator hears evidence from both parties, witness testimony, and arguments. This is similar to a trial but more informal.",
-      "phase4": "Decision",
-      "phase4Desc": "The arbitrator issues a written award decision. This decision is binding and may only be appealed in very limited circumstances."
-    },
-    "fees": {
-      "intro": "We want arbitration to be accessible. Here's how costs are handled:",
-      "costTitle": "Who Pays for Arbitration?",
-      "costDetail": "OxSteed will pay all JAMS or AAA filing and administrative fees if your claim is for under $10,000. For claims exceeding $10,000, costs are split per JAMS/AAA rules.",
-      "attorneyFees": "Each party is responsible for their own attorney fees and costs, unless the arbitrator awards attorney fees to the prevailing party (which is rare).",
-      "lowValue": "For low-value claims (under $10,000), JAMS offers streamlined procedures that reduce arbitration costs significantly."
-    },
-    "classAction": {
-      "intro": "You agree that arbitration will be conducted on an individual basis only.",
-      "impact": "This means you CANNOT bring a class action lawsuit against OxSteed, and OxSteed cannot bring a class action against you. All claims must be resolved individually through arbitration.",
-      "meaning": "Instead of joining other customers in a class action lawsuit, you and OxSteed will each have your disputes resolved separately by an arbitrator.",
-      "stateNotice": "Important: State-Specific Notice",
-      "noticeText": "Some states do not permit class action waivers in certain circumstances. See the State-Specific Enforceability section below for details about your jurisdiction."
-    },
-    "exceptions": {
-      "intro": "Arbitration does NOT apply to the following:",
-      "item1": "Small Claims Court",
-      "item1Desc": "You may pursue your claim in small claims court instead of arbitration (if you elect to do so).",
-      "item2": "Injunctive Relief",
-      "item2Desc": "Either party may seek temporary restraining orders or injunctions in court to prevent irreparable harm.",
-      "item3": "JAMS/AAA Procedures",
-      "item3Desc": "Disputes about the arbitration agreement itself (e.g., whether it is valid) may be resolved by arbitration or by a court.",
-      "item4": "Regulatory Agencies",
-      "item4Desc": "Claims brought by government agencies or regulatory bodies are not subject to arbitration."
-    },
-    "limitation": {
-      "capTitle": "Liability Cap",
-      "capIntro": "OxSteed's total liability to you is limited in all circumstances.",
-      "capAmount": "OxSteed's maximum liability shall not exceed the greater of (a) the amount you paid OxSteed in the 12 months preceding the claim, or (b) $100.",
-      "indirectTitle": "No Indirect Damages",
-      "indirectIntro": "OxSteed is NOT liable for the following, regardless of the cause:",
-      "item1": "Lost profits or lost revenue",
-      "item2": "Lost data or business interruption",
-      "item3": "Indirect, incidental, special, or consequential damages",
-      "item4": "Punitive or exemplary damages"
-    },
-    "stateDisclaimers": {
-      "ca": {
-        "title": "California (CA) - Enforceability",
-        "point1": "California law permits class action waivers in most consumer contracts. However, California Consumers Legal Remedies Act (CLRA) claims and certain wage-and-hour claims may not be subject to arbitration.",
-        "point2": "Under Proposition 65, any disputes arising from the sale of consumer goods will be treated as non-waivable class actions in certain circumstances.",
-        "point3": "If you are a California resident, you have the right to opt out of arbitration by providing written notice within 30 days of first accepting these Terms."
-      },
-      "ny": {
-        "title": "New York (NY) - Enforceability",
-        "point1": "New York courts have held that class action waivers are enforceable in arbitration agreements, but specific consumer protection claims may require alternative resolution.",
-        "point2": "New York General Business Law §349 (deceptive practices) cannot be waived through arbitration in some cases.",
-        "point3": "You may request that arbitration take place in New York County if you are a New York resident."
-      },
-      "ma": {
-        "title": "Massachusetts (MA) - Enforceability",
-        "point1": "Massachusetts courts scrutinize arbitration waivers closely. Arbitration clauses must be fair and reasonable, and mutual obligation must exist for both parties.",
-        "point2": "Massachusetts consumer protection laws may not permit waiver of certain statutory rights through arbitration.",
-        "point3": "Class action waivers may not be enforceable in Massachusetts for certain consumer claims without explicit, clear acknowledgment."
-      }
-    },
-    "initiate": {
-      "intro": "If you have a dispute with OxSteed, here's how to initiate arbitration:",
-      "step1": "Send Notice",
-      "step1Desc": "Send OxSteed a detailed written notice describing the dispute, the relief sought, and your proposed solution. Include dates, amounts, and any relevant documentation.",
-      "step2": "Wait for Response",
-      "step2Desc": "OxSteed will respond within 30 days. Many disputes are resolved during this negotiation period.",
-      "step3": "File Demand",
-      "step3Desc": "If the dispute is not resolved, file a demand for arbitration with JAMS or AAA. Follow their procedures and submit the filing fee (which OxSteed will reimburse if you prevail).",
-      "step4": "Attend Hearing",
-      "step4Desc": "Participate in the arbitration hearing. You may represent yourself, hire an attorney, or use other representation.",
-      "contactTitle": "Send your notice to:",
-      "contactInfo": "support@oxsteed.com or our legal team at legal@oxsteed.com"
-    },
-    "acceptance": {
-      "title": "Acknowledgment & Acceptance",
-      "intro": "By using OxSteed, you acknowledge that you have read, understood, and agree to be bound by this arbitration clause and all provisions herein.",
-      "checkbox": "I understand and accept the arbitration clause, class action waiver, and limitations of liability outlined above.",
-      "signBtn": "Accept & Sign",
-      "form": {
-        "signature": "Your E-Signature (Type Your Name)",
-        "signaturePlaceholder": "Type your full legal name here",
-        "signatureNote": "By typing your name, you are providing an electronic signature confirming acceptance of these terms.",
-        "submit": "Confirm Acceptance"
-      },
-      "successMsg": "Your acceptance has been recorded.",
-      "successDesc": "Thank you. Your agreement to the arbitration clause has been logged with a timestamp for compliance purposes."
-    }
-  },
-  "escrowPolicy": {
-    "title": "Escrow & Fund Holding Policy",
-    "description": "How OxSteed holds payments in escrow using Stripe Connect, fund ownership, release timelines, and dispute procedures.",
-    "subtitle": "Understanding how we protect your funds during transactions",
-    "lastUpdated": "Last updated: May 3, 2026",
-    "onThisPage": "On this page",
-    "searchLabel": "Search escrow policy information",
-    "searchPlaceholder": "Search…",
-    "sections": {
-      "mechanism": "Fund Holding Mechanism",
-      "authorization": "Authorization & Consent",
-      "ownership": "Fund Ownership",
-      "liability": "OxSteed Liability",
-      "release": "Release & Refunds",
-      "timeline": "Timeline & Important Notices",
-      "faqs": "Frequently Asked Questions"
-    },
-    "mechanism": {
-      "intro": "OxSteed uses Stripe Connect to hold payment funds in escrow during jobs. This means funds are held securely until the job is complete, protecting both customers and helpers.",
-      "keyPoint": "Funds are held BY Stripe, not by OxSteed. We facilitate the holding only.",
-      "details": "When you make a payment for a job, the funds are authorized on your payment method and held in Stripe's secure system. OxSteed does not have direct access to or control of these funds.",
-      "stripe": "Stripe is a leading payment processor trusted by thousands of businesses worldwide. They are PCI-DSS compliant and maintain the highest security standards for payment processing."
-    },
-    "authorization": {
-      "intro": "By posting a job and proceeding to payment, you authorize the escrow process.",
-      "byChoosingTitle": "By Choosing to Pay",
-      "byChoosingDesc": "You agree that OxSteed and Stripe may hold your payment funds according to these terms until the job is marked complete or the dispute is resolved.",
-      "details": "You will receive a confirmation email showing the authorization amount, job details, and timeline for fund release. You can cancel the payment before the job begins."
-    },
-    "ownership": {
-      "intro": "It's important to understand who owns the funds during escrow.",
-      "item1": "Funds Belong to the Payer",
-      "item1Desc": "Until the job is complete and funds are released, the money belongs to the customer (the person who made the payment). The helper has no claim to the funds until the job is complete.",
-      "item2": "OxSteed Does Not Own Funds",
-      "item2Desc": "OxSteed does not own, control, or have access to escrowed funds. We facilitate the process but remain a neutral third party.",
-      "item3": "Stripe Holds Funds Securely",
-      "item3Desc": "Stripe holds the funds in a secure, segregated account. The funds cannot be accessed by OxSteed, the helper, or anyone else until the proper conditions are met.",
-      "disclaimerTitle": "IMPORTANT DISCLAIMER",
-      "disclaimerDesc": "Escrowed funds are NOT insured by the FDIC or any government agency. However, Stripe maintains the highest security standards to prevent loss or theft."
-    },
-    "liability": {
-      "intro": "OxSteed is not responsible for certain issues related to fund holding.",
-      "serviceInterruptionTitle": "Stripe Service Interruptions",
-      "serviceInterruptionDesc": "If Stripe experiences downtime or service disruptions, resulting in delays to fund release, OxSteed is not liable. Stripe maintains 99.99% uptime guarantees.",
-      "securityTitle": "Fund Mishandling or Theft",
-      "securityDesc": "If Stripe's systems are compromised or funds are lost due to security breach (extremely rare), OxSteed is not liable. Your recourse would be through Stripe and their insurance.",
-      "recoveryTitle": "Recovery Assistance",
-      "recoveryDesc": "OxSteed will assist in investigating and reporting any issues to Stripe, but we cannot recover lost or misappropriated funds directly."
-    },
-    "release": {
-      "jobCompletionTitle": "Release Upon Job Completion",
-      "jobCompletionDesc": "Funds are released 3 business days after the customer marks the job as complete. This gives the customer time to verify the work quality before the helper receives payment.",
-      "timeline": "Release Timeline: 3 business days after job completion. Funds arrive in helper's account: 5-7 business days from release.",
-      "refundTitle": "Refunds",
-      "refundDesc": "If a customer requests a refund before the job is complete, the funds are returned to their original payment method per Stripe's refund policies.",
-      "processingTime": "Refund Processing Time",
-      "processingTimeDesc": "Refunds are issued within 5-7 business days of approval. Processing times vary by bank and payment method (credit card, debit card, bank account, etc.).",
-      "disputeTitle": "Disputed Jobs",
-      "disputeDesc": "If there is a dispute about job completion, funds remain in escrow while the dispute is investigated. See our Dispute Resolution page for details."
-    },
-    "timeline": {
-      "authorized": "Payment Authorized",
-      "authorizedDesc": "Customer's payment is authorized and placed in escrow with Stripe.",
-      "completed": "Job Completed",
-      "completedDesc": "Customer marks the job as complete after the helper finishes work.",
-      "released": "Funds Released",
-      "releasedDesc": "Funds are released from escrow to the helper's OxSteed account 3 business days after completion.",
-      "received": "Funds Received",
-      "receivedDesc": "Funds arrive in helper's bank account or payment method 5-7 business days later."
-    },
-    "notices": {
-      "chargebackTitle": "Chargebacks Bypass Escrow",
-      "chargebackDesc": "If you initiate a chargeback with your credit card company instead of using OxSteed's dispute process, it bypasses our escrow protection. Chargebacks are expensive and disrupt the dispute process.",
-      "chargebackFee": "Per Stripe's terms, chargebacks incur a $25 fee per transaction. Please use our dispute process instead.",
-      "legalHoldTitle": "Legal Holds",
-      "legalHoldDesc": "If OxSteed receives a legal order, subpoena, or court order regarding funds in escrow, those funds may be frozen and held pending legal resolution. OxSteed will notify you if this occurs."
-    },
-    "faq": {
-      "q1": "Can I cancel a payment after it's authorized?",
-      "a1": "Yes. Before the helper starts work, you can cancel the job and your payment will be refunded to your original payment method within 5-7 business days.",
-      "q2": "What if the helper doesn't complete the job?",
-      "a2": "If the job is not completed or the customer is unsatisfied, they can open a dispute. OxSteed reviews disputes and either releases funds to the helper or refunds the customer.",
-      "q3": "How long does it take to get paid as a helper?",
-      "a3": "After the customer marks the job complete, funds are released 3 business days later, then take 5-7 business days to appear in your bank account (10 business days total).",
-      "q4": "What if Stripe holds my funds for some reason?",
-      "a4": "Stripe may hold funds temporarily for verification purposes. If this happens, contact support@oxsteed.com and we will follow up with Stripe on your behalf.",
-      "q5": "Can I get my funds released early?",
-      "a5": "No. The 3-day escrow hold is fixed per Stripe's policies and OxSteed's payment terms. This protects both customers and helpers.",
-      "q6": "What happens if I have a dispute?",
-      "a6": "If you dispute a job, funds remain in escrow while we investigate. See our Dispute Resolution policy for full details on the process and timeline.",
-      "q7": "Is my money safe in escrow?",
-      "a7": "Yes. Stripe uses bank-level encryption and security measures. However, escrow funds are not FDIC insured. Stripe maintains 99.99% uptime and has never lost customer funds due to security issues.",
-      "q8": "What if OxSteed shuts down - what happens to escrowed funds?",
-      "a8": "If OxSteed ceases operations, funds in escrow remain the property of their rightful owners (customers and helpers). Stripe would work with OxSteed's receivers to distribute funds according to the contracts."
-    },
-    "acceptance": {
-      "title": "Understanding & Acknowledgment",
-      "intro": "By using OxSteed's payment system, you acknowledge that you understand how escrow works, who holds funds, and the timelines for release.",
-      "checkbox": "I understand and accept OxSteed's escrow policy, including fund ownership, liability limitations, release timelines, and dispute procedures.",
-      "signBtn": "Accept & Sign",
-      "form": {
-        "signature": "Your E-Signature (Type Your Name)",
-        "signaturePlaceholder": "Type your full legal name here",
-        "signatureNote": "By typing your name, you are providing an electronic signature confirming acceptance of the escrow policy.",
-        "submit": "Confirm Acceptance"
-      },
-      "successMsg": "Your acceptance has been recorded.",
-      "successDesc": "Thank you. Your agreement to the escrow policy has been logged with a timestamp."
-    },
-    "contactSupport": {
-      "intro": "Have questions about how escrow works?",
-      "btn": "Contact Support"
-    }
+  "aiPreview": {
+    "title": "AI profile assistant preview",
+    "subtitle": "See what context OxSteed sends to your profile assistant and try a private test chat.",
+    "badgeAvailable": "Marked available now",
+    "badgeUnavailable": "Not marked available now",
+    "availabilityLabel": "Availability snapshot",
+    "skillsLabel": "Skills sent to the model",
+    "faqsLabel": "FAQs sent to the model",
+    "noFAQs": "No FAQs on file yet.",
+    "productsLabel": "Products sent to the model",
+    "noProducts": "No products on file yet.",
+    "knowledgeLabel": "Your AI knowledge block",
+    "noKnowledge": "No custom AI knowledge saved yet.",
+    "sectionContext": "Structured context",
+    "sectionPrompt": "System prompt preview",
+    "sectionSandbox": "Sandbox chat (test only)",
+    "refreshBtn": "Refresh",
+    "editKnowledgeBtn": "Edit knowledge",
+    "loadError": "Could not load preview. Please try again.",
+    "sandboxPlaceholder": "Ask a question as a visitor would…",
+    "sandboxYou": "You",
+    "sandboxAI": "Assistant",
+    "sandboxThinking": "Thinking…",
+    "sandboxSend": "Send",
+    "sandboxClear": "Clear",
+    "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
+    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers."
   }
 }

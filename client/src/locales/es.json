@@ -724,355 +724,357 @@
     "errorSubmit": "Error al enviar la firma. Por favor intente de nuevo."
   },
   "backgroundCheck": {
-    "title": "Política de Verificación de Antecedentes",
-    "description": "Aprenda qué verifica OxSteed, qué descalifica una solicitud y cómo apelar una denegación.",
-    "subtitle": "Cómo examinamos a los ayudantes para mantener su hogar seguro",
-    "lastUpdated": "Última actualización: 1 de mayo de 2026",
+    "title": "Verificación de Antecedentes y Procedimiento de Acción Adversa",
+    "description": "Información sobre verificaciones de antecedentes de OxSteed, factores descalificadores, proceso de apelación y cumplimiento de FCRA.",
+    "subtitle": "Realizamos verificaciones de antecedentes para mantener nuestra comunidad segura. Aquí te explicamos cómo funciona el proceso y qué hacer si necesitas apelar.",
+    "lastUpdated": "Última actualización: 3 de mayo de 2026",
     "onThisPage": "En esta página",
-    "searchPlaceholder": "Buscar esta política…",
-    "searchLabel": "Buscar política de verificación de antecedentes",
+    "searchLabel": "Buscar información de verificación de antecedentes",
+    "searchPlaceholder": "Buscar…",
     "sections": {
       "whatWeCheck": "Qué Verificamos",
       "disqualifying": "Factores Descalificadores",
       "ourProcess": "Nuestro Proceso",
-      "ifDenied": "Si es Denegado",
+      "ifDenied": "Si Tu Solicitud Es Rechazada",
       "appeal": "Proceso de Apelación",
-      "timeline": "Cronograma",
+      "timeline": "Cronograma y Estado",
       "faqs": "Preguntas Frecuentes"
     },
     "whatWeCheck": {
-      "intro": "OxSteed se asocia con Checkr para realizar verificaciones de antecedentes de todos los ayudantes.",
-      "item1": "Historial Criminal",
-      "item1_desc": "Registros criminales del condado, estado y federales de los últimos 7 años.",
-      "item2": "Registro de Delincuentes Sexuales",
-      "item2_desc": "Los registros nacionales y estatales de delincuentes sexuales se verifican al registrarse.",
-      "item3": "Verificación de Identidad",
-      "item3_desc": "Rastreo de SSN e historial de direcciones para confirmar su identidad.",
-      "item4": "Verificación de Listas de Vigilancia",
-      "item4_desc": "Listas de vigilancia globales incluyendo OFAC, FBI Más Buscados y listas terroristas."
+      "intro": "Utilizamos Checkr, un servicio de verificación de antecedentes de terceros, para realizar verificaciones exhaustivas en todos los solicitantes de ayudantes. El proceso incluye múltiples pasos de verificación para garantizar la seguridad de nuestra comunidad.",
+      "item1": "Antecedentes Penales",
+      "item1_desc": "Verificamos bases de datos estatales, locales y nacionales en busca de condenas penales, arrestos y cargos pendientes.",
+      "item2": "Verificación de Identidad",
+      "item2_desc": "Verificamos tu identidad usando una identificación emitida por el gobierno y verificamos registros públicos para prevenir fraude.",
+      "item3": "Registro de Delincuentes Sexuales",
+      "item3_desc": "Verificamos el Sitio Web Público del Registro Nacional de Delincuentes Sexuales (NSOPW) y registros estatales.",
+      "item4": "Verificación Adicional",
+      "item4_desc": "Podemos verificar bases de datos adicionales incluyendo servicios de prevención de fraude, registros civiles y registros de vehículos."
     },
     "disqualifying": {
-      "intro": "Los siguientes factores resultarán en descalificación automática.",
-      "violent": "Crímenes Violentos",
+      "intro": "Los siguientes factores resultarán en rechazo de tu solicitud. Algunas infracciones pueden ser consideradas caso por caso después del proceso de apelación.",
+      "violent": "Delitos Violentos",
       "sexual": "Delitos Sexuales",
-      "felony": "Condena por Delito Mayor Reciente",
-      "sex_offender": "Registro de Delincuente Sexual",
-      "theft": "Robo o Delitos contra la Propiedad",
+      "felony": "Condenas por Delitos Graves",
+      "sex_offender": "Registro como Delincuente Sexual",
+      "theft": "Delitos Contra la Propiedad",
       "drugs": "Tráfico de Drogas",
-      "fraud": "Fraude o Delitos Financieros",
-      "examples": "Ejemplos",
-      "note": "Nota",
-      "noteDesc": "Los registros solo de marihuana que han sido eliminados o donde la marihuana es totalmente legal en su estado generalmente no son descalificadores."
+      "fraud": "Fraude o Robo de Identidad",
+      "examples": "Los ejemplos incluyen",
+      "note": "Nota Importante",
+      "noteDesc": "Evaluamos solicitudes basadas en la naturaleza, gravedad y recencia de cualquier antecedente penal. No todos los factores descalificadores son permanentes - algunos pueden considerarse después del proceso de apelación."
     },
     "process": {
-      "intro": "Así funciona el proceso de verificación de antecedentes:",
-      "step1": "Iniciación",
-      "step1_desc": "Después de completar su perfil y verificación de identidad, se notifica a Checkr automáticamente.",
-      "step2": "Recopilación de Datos",
-      "step2_desc": "Checkr consulta registros judiciales nacionales y del condado, registros de delincuentes sexuales y listas de vigilancia.",
-      "step3": "Revisión",
-      "step3_desc": "Los resultados son revisados por el equipo de cumplimiento de Checkr.",
-      "step4": "Decisión",
-      "step4_desc": "OxSteed recibe el informe y toma una decisión de elegibilidad dentro de 1-3 días hábiles."
+      "intro": "Nuestro proceso de verificación de antecedentes es simple y transparente. Aquí es lo que sucede después de presentar tu solicitud:",
+      "step1": "Solicitud Presentada",
+      "step1_desc": "Completas tu solicitud de ayudante con toda la información requerida.",
+      "step2": "Verificación de Antecedentes Iniciada",
+      "step2_desc": "Checkr recibe tu información y comienza la verificación. Te enviaremos una copia de los formularios de divulgación y autorización.",
+      "step3": "Resultados Recibidos",
+      "step3_desc": "Checkr completa la verificación (típicamente 1-3 días hábiles) e informa los resultados a nosotros.",
+      "step4": "Decisión y Notificación",
+      "step4_desc": "Revisamos los resultados y te notificamos por correo electrónico. Los solicitantes aprobados pueden comenzar a hacer ofertas inmediatamente."
     },
     "ifDenied": {
-      "adverseNotice": "Avisos de Acción Previa y Adversa",
-      "adverseIntro": "Si es denegado, tiene derecho a recibir una copia del informe y un aviso de Acción Previa antes de que se tome la decisión final.",
-      "adverseExample": "Recibirá un correo de Checkr con un enlace para revisar su informe.",
-      "adverseNote": "Tiene 5 días hábiles para disputar información inexacta con Checkr directamente.",
-      "disputeTitle": "Disputar Información Inexacta",
-      "disputeDesc": "Tiene derecho a disputar cualquier información inexacta en su informe directamente con Checkr.",
-      "viewCheckr": "Ver Mi Informe de Checkr"
+      "adverseNotice": "Tu Notificación de Acción Adversa (Cumplimiento de FCRA)",
+      "adverseIntro": "Si rechazamos tu solicitud en función de información en tu verificación de antecedentes, estamos legalmente obligados a proporcionarte una Notificación de Acción Adversa bajo la Ley de Informes de Crédito Justos (FCRA).",
+      "adverseExample": "Ejemplo: 'Rechazamos tu solicitud de ayudante porque tu verificación de antecedentes reveló una condena por delito grave de 2020. Puedes ver el informe completo de Checkr y disputar los hallazgos dentro de 30 días.'",
+      "adverseNote": "Recibirás esta notificación por correo electrónico con detalles específicos sobre por qué se rechazó tu solicitud.",
+      "disputeTitle": "Disputar con Checkr",
+      "disputeDesc": "Tienes 30 días desde que recibas tu notificación de acción adversa para disputar los hallazgos con Checkr. Si el informe contiene errores, puedes solicitar una corrección. Visita el portal de disputa de Checkr para comenzar.",
+      "viewCheckr": "Visitar Checkr para Disputar"
     },
     "appeal": {
-      "intro": "Si cree que fue denegado basado en información inexacta, puede apelar a OxSteed después de resolver cualquier disputa con Checkr.",
-      "step1": "Resolver la disputa",
-      "step1_desc": "Primero, dispute cualquier información inexacta directamente con Checkr.",
-      "step2": "Solicitar informe corregido",
-      "step2_desc": "Una vez que Checkr resuelva su disputa, solicite un informe actualizado.",
-      "step3": "Enviar apelación a OxSteed",
-      "step3_desc": "Envíe un correo a support@oxsteed.com con el asunto 'Apelación de Verificación de Antecedentes'.",
-      "step4": "Esperar revisión",
-      "step4_desc": "OxSteed revisará su apelación dentro de 10 días hábiles.",
-      "submitBtn": "Enviar una Apelación",
+      "intro": "Si tu solicitud es rechazada, tienes derecho a apelar. Te recomendamos que presentes una apelación si crees que la denegación fue un error o si tienes contexto adicional para proporcionar.",
+      "step1": "Reúne Tu Evidencia",
+      "step1_desc": "Recopila cualquier documento que apoye tu apelación - registros judiciales, cartas de desestimación, documentación de rehabilitación, referencias de carácter o explicaciones.",
+      "step2": "Presenta Tu Apelación",
+      "step2_desc": "Haz clic en el botón de abajo para abrir un formulario de soporte. Explica por qué crees que la decisión debe ser reconsiderada.",
+      "step3": "Revisión del Gerente",
+      "step3_desc": "Un miembro de nuestro equipo revisará tu apelación dentro de 10 días hábiles.",
+      "step4": "Decisión Final",
+      "step4_desc": "Recibirás un correo electrónico con nuestra decisión final. Si es aprobada, puedes comenzar a hacer ofertas inmediatamente.",
+      "submitBtn": "Apelar Denegación",
       "form": {
-        "email": "Su Dirección de Correo Electrónico",
-        "reason": "Motivo de la Apelación",
-        "reasonPlaceholder": "Describa la inexactitud o explique por qué cree que este registro no debería ser descalificador…",
-        "evidence": "Documentación de Apoyo",
-        "evidencePlaceholder": "Pegue enlaces a documentos judiciales, órdenes de eliminación u otra evidencia de apoyo…",
-        "submit": "Enviar Apelación"
+        "email": "Tu Dirección de Correo Electrónico",
+        "reason": "¿Por qué deberíamos reconsiderar?",
+        "reasonPlaceholder": "Explica tu apelación, proporcionando contexto sobre el registro y cualquier circunstancia atenuante...",
+        "evidence": "Evidencia de Apoyo (Opcional)",
+        "evidencePlaceholder": "Describe cualquier documento que tengas (registros judiciales, cartas, etc.) que apoye tu apelación...",
+        "submit": "Presentar Apelación"
       },
-      "successMsg": "Apelación enviada exitosamente.",
-      "successDesc": "Revisaremos su apelación y responderemos por correo dentro de 10 días hábiles."
+      "successMsg": "¡Apelación presentada exitosamente!",
+      "successDesc": "Revisaremos tu apelación y nos pondremos en contacto contigo en 10 días hábiles con una decisión."
     },
     "timeline": {
-      "submitted": "Solicitud Enviada",
-      "submitted_desc": "Completa su perfil y verificación de identidad. Se notifica a Checkr automáticamente.",
-      "initiated": "Verificación Iniciada",
-      "initiated_desc": "Checkr comienza a consultar registros criminales. Esto generalmente toma 1-3 días hábiles.",
-      "received": "Informe Recibido",
-      "received_desc": "OxSteed recibe el informe de Checkr y lo revisa.",
-      "result": "Decisión Emitida",
-      "result_desc": "Recibirá un correo con el resultado: aprobado, pendiente de revisión adicional o denegado.",
-      "appeal": "Apelación (si aplica)",
-      "appeal_desc": "Si es denegado, tiene 5 días hábiles para disputar con Checkr y 30 días para enviar una apelación a OxSteed."
+      "submitted": "Solicitud Presentada",
+      "submitted_desc": "Completas y presentas tu solicitud de ayudante.",
+      "initiated": "Verificación de Antecedentes Iniciada",
+      "initiated_desc": "Checkr recibe tu información (el mismo día o al siguiente día hábil).",
+      "received": "Resultados Recibidos",
+      "received_desc": "La verificación de antecedentes se completa dentro de 1-3 días hábiles.",
+      "result": "Aprobado o Denegado",
+      "result_desc": "Te notificamos de la decisión y puedes comenzar a ganar o apelar.",
+      "appeal": "Período de Apelación",
+      "appeal_desc": "Tienes 30 días para disputar hallazgos con Checkr o apelar con nosotros."
     },
     "faq": {
-      "q1": "¿Cuánto tiempo toma la verificación de antecedentes?",
-      "a1": "La mayoría de las verificaciones se completan en 1-3 días hábiles.",
-      "q2": "¿Necesito pagar por mi verificación de antecedentes?",
-      "a2": "No. OxSteed cubre el costo de la verificación inicial.",
-      "q3": "¿Con qué frecuencia se realizan las verificaciones?",
-      "a3": "Las verificaciones se realizan al registrarse y pueden volver a realizarse anualmente.",
-      "q4": "¿Puedo ver mi informe de antecedentes?",
-      "a4": "Sí. Checkr le proporciona acceso a su portal de candidatos.",
-      "q5": "¿Qué pasa si tengo un registro eliminado?",
-      "a5": "Los registros eliminados no deberían aparecer en su informe. Si aparece uno, dispútelo directamente con Checkr.",
-      "q6": "¿Qué pasa si me mudo a un estado diferente?",
-      "a6": "Su verificación cubre registros nacionales, por lo que un cambio de estado no requiere una nueva verificación."
+      "q1": "¿Cuánto tiempo tarda la verificación de antecedentes?",
+      "a1": "Las verificaciones de antecedentes típicamente se completan dentro de 1-3 días hábiles de la presentación. Los casos complejos pueden tardar más. Recibirás actualizaciones por correo electrónico.",
+      "q2": "¿Significa una denegación de verificación de antecedentes que nunca puedo solicitar de nuevo?",
+      "a2": "No necesariamente. Puedes apelar la decisión dentro de 30 días. Además, algunos factores descalificadores pueden no ser permanentes. Puedes solicitar de nuevo después de un período especificado.",
+      "q3": "¿Qué pasa si hay un error en mi informe de verificación de antecedentes?",
+      "a3": "Tienes 30 días para disputar el informe directamente con Checkr. Ellos investigarán y corregirán cualquier error. Después de las correcciones, podemos revisar tu solicitud de nuevo.",
+      "q4": "¿OxSteed examina arrestos sin condenas?",
+      "a4": "Nos enfocamos principalmente en condenas. Sin embargo, cargos pendientes y arrestos pueden considerarse en nuestra revisión. Examinamos la naturaleza del cargo y tu explicación.",
+      "q5": "¿Puedo trabajar como ayudante mientras mi verificación de antecedentes está pendiente?",
+      "a5": "No. Debes tener una verificación de antecedentes aprobada antes de poder hacer ofertas en trabajos o proporcionar servicios en OxSteed.",
+      "q6": "¿Qué información veo en mi informe de antecedentes?",
+      "a6": "Recibes una copia de tu informe de antecedentes junto con nuestra decisión. Puedes revisar qué información utilizó Checkr para crear el informe y disputar cualquier inexactitud."
     },
     "contactSupport": {
-      "intro": "¿Tiene alguna pregunta no cubierta aquí? Nuestro equipo de Confianza y Seguridad está aquí para ayudar.",
+      "intro": "¿Tienes preguntas sobre el proceso de verificación de antecedentes?",
       "btn": "Contactar Soporte"
     }
   },
   "arbitration": {
-    "title": "Acuerdo de Arbitraje",
-    "description": "Comprenda cómo se resuelven las disputas entre usted y OxSteed a través de arbitraje vinculante.",
-    "subtitle": "Arbitraje vinculante y renuncia a acción colectiva",
-    "lastUpdated": "Última actualización: 1 de mayo de 2026",
+    "title": "Arbitraje Vinculante y Limitación de Responsabilidad",
+    "description": "Información sobre la cláusula de arbitraje de OxSteed, renuncia de demanda colectiva y limitaciones de responsabilidad. Incluye exenciones de aplicabilidad específicas del estado.",
+    "subtitle": "Comprende tus derechos y las limitaciones de OxSteed en disputas legales",
+    "lastUpdated": "Última actualización: 3 de mayo de 2026",
     "onThisPage": "En esta página",
-    "searchPlaceholder": "Buscar este acuerdo…",
-    "searchLabel": "Buscar acuerdo de arbitraje",
+    "searchLabel": "Buscar información de arbitraje",
+    "searchPlaceholder": "Buscar…",
     "sections": {
       "bindingArbitration": "Arbitraje Vinculante",
-      "process": "Proceso de Arbitraje",
-      "fees": "Honorarios y Costos",
-      "classAction": "Renuncia a Acción Colectiva",
-      "exceptions": "Excepciones",
+      "process": "El Proceso de Arbitraje",
+      "fees": "Honorarios y Costos de Arbitraje",
+      "classAction": "Renuncia de Demanda Colectiva",
+      "exceptions": "Excepciones al Arbitraje",
       "limitation": "Limitación de Responsabilidad",
-      "stateDisclaimers": "Avisos Específicos del Estado",
-      "initiate": "Cómo Iniciar"
+      "stateDisclaimers": "Aplicabilidad Específica del Estado",
+      "initiate": "Cómo Iniciar Arbitraje"
     },
     "bindingArbitration": {
-      "intro": "Al usar OxSteed, acepta que cualquier disputa que surja de o relacionada con estos Términos se resolverá exclusivamente a través de arbitraje vinculante.",
-      "keyPoint": "Esto significa que renuncia a su derecho a un juicio por jurado y a participar en demandas colectivas.",
-      "details": "El arbitraje será realizado por JAMS bajo sus Reglas y Procedimientos de Arbitraje Simplificado."
+      "intro": "Cualquier disputa entre tú y OxSteed que surja de estos Términos, tu uso de la plataforma, o cualquier servicio proporcionado se resolverá mediante arbitraje vinculante en lugar de en la corte.",
+      "keyPoint": "Al usar OxSteed, aceptas que las disputas serán resueltas por un árbitro neutral, no por un juez o jurado.",
+      "details": "Esto significa que ambas partes acuerdan someterse a arbitraje para resolver desacuerdos sobre contratos, servicios, pagos, o cualquier otro asunto relacionado con OxSteed. La decisión del árbitro es final y vinculante."
     },
     "process": {
-      "rulesTitle": "Reglas Aplicables",
-      "rulesIntro": "Las siguientes reglas rigen todos los procedimientos de arbitraje:",
-      "rule1": "El arbitraje se realizará por un árbitro neutral único seleccionado por acuerdo mutuo",
-      "rule2": "El arbitraje se realizará en inglés en el condado de su residencia o por videoconferencia",
-      "rule3": "El árbitro puede otorgar cualquier alivio que un tribunal podría otorgar",
-      "arbitratorTitle": "Selección del Árbitro",
-      "arbitratorDesc": "Cada parte tendrá derecho a rechazar hasta tres árbitros de la lista de JAMS.",
-      "timelineTitle": "Cronograma de Arbitraje",
-      "phase1": "Demanda Presentada",
-      "phase1Desc": "Cualquiera de las partes presenta una demanda escrita de arbitraje a JAMS.",
-      "phase2": "Árbitro Seleccionado",
-      "phase2Desc": "Las partes seleccionan o JAMS nombra un árbitro neutral.",
-      "phase3": "Audiencia",
-      "phase3Desc": "Audiencia de arbitraje realizada (en persona o por video). Ambas partes presentan evidencia.",
-      "phase4": "Laudo",
-      "phase4Desc": "El árbitro emite un laudo escrito. El laudo es vinculante."
+      "rulesTitle": "Reglas y Procedimientos de Arbitraje",
+      "rulesIntro": "Nuestro arbitraje sigue estas reglas y procedimientos:",
+      "rule1": "Aplican las reglas de JAMS (Servicios de Arbitraje y Mediación Judicial) o AAA (Asociación Americana de Arbitraje), la que sea mutuamente elegida por las partes.",
+      "rule2": "El arbitraje será conducido por un único árbitro neutral e imparcial con experiencia en disputas de contrato.",
+      "rule3": "El árbitro emitirá una decisión escrita explicando el razonamiento, que puede apelarse bajo las reglas de JAMS/AAA.",
+      "arbitratorTitle": "El Árbitro",
+      "arbitratorDesc": "El árbitro es un juez retirado o abogado experimentado capacitado en resolución de disputas. Están obligados por confidencialidad y deben divulgar cualquier conflicto de interés.",
+      "timelineTitle": "Cronograma Típico de Arbitraje"
+    },
+    "timeline": {
+      "phase1": "Demanda Inicial",
+      "phase1Desc": "El demandante presenta una demanda de arbitraje, describiendo la disputa y la reparación solicitada.",
+      "phase2": "Selección del Árbitro",
+      "phase2Desc": "Ambas partes participan en la selección del árbitro. El árbitro revisa el caso y programa una audiencia.",
+      "phase3": "Audiencia y Prueba",
+      "phase3Desc": "El árbitro escucha pruebas de ambas partes, testimonio de testigos y argumentos. Esto es similar a un juicio pero más informal.",
+      "phase4": "Decisión",
+      "phase4Desc": "El árbitro emite una sentencia de decisión escrita. Esta decisión es vinculante y solo puede apelarse en circunstancias muy limitadas."
     },
     "fees": {
-      "intro": "Los costos de arbitraje se asignan de la siguiente manera:",
-      "costTitle": "Honorarios de Presentación y del Árbitro",
-      "costDetail": "Para reclamaciones menores de $75,000, OxSteed pagará todos los honorarios de presentación de JAMS.",
-      "attorneyFees": "Cada parte asume sus propios honorarios de abogados.",
-      "lowValue": "Para reclamaciones menores de $10,000, el arbitraje puede realizarse solo por presentación de documentos."
+      "intro": "Queremos que el arbitraje sea accesible. Así es cómo se manejan los costos:",
+      "costTitle": "¿Quién Paga el Arbitraje?",
+      "costDetail": "OxSteed pagará todos los honorarios de presentación y administrativos de JAMS o AAA si tu reclamo es menor a $10,000. Para reclamos superiores a $10,000, los costos se dividen según las reglas de JAMS/AAA.",
+      "attorneyFees": "Cada parte es responsable de sus propios honorarios de abogados y costos, a menos que el árbitro otorgue honorarios de abogados a la parte ganadora (lo cual es raro).",
+      "lowValue": "Para reclamos de bajo valor (menos de $10,000), JAMS ofrece procedimientos simplificados que reducen significativamente los costos de arbitraje."
     },
     "classAction": {
-      "intro": "USTED Y OXSTEED ACUERDAN QUE CADA UNO PUEDE PRESENTAR RECLAMACIONES CONTRA EL OTRO SOLO EN SU CAPACIDAD INDIVIDUAL.",
-      "impact": "Esto significa que no puede presentar ni participar en una demanda colectiva contra OxSteed.",
-      "meaning": "Si esta renuncia a la acción colectiva se considera inaplicable, el acuerdo de arbitraje completo será nulo.",
-      "stateNotice": "Aviso de Acción Colectiva Específico del Estado",
-      "noticeText": "Los residentes de California, Nueva Jersey y ciertos otros estados pueden tener derechos adicionales."
+      "intro": "Aceptas que el arbitraje se llevará a cabo en forma individual solamente.",
+      "impact": "Esto significa que NO PUEDES presentar una demanda colectiva contra OxSteed, y OxSteed no puede presentar una demanda colectiva contra ti. Todos los reclamos deben resolverse individualmente mediante arbitraje.",
+      "meaning": "En lugar de unirte a otros clientes en una demanda colectiva, tú y OxSteed resolveréis cada una vuestras disputas por separado por un árbitro.",
+      "stateNotice": "Importante: Aviso Específico del Estado",
+      "noticeText": "Algunos estados no permiten renuncias de demanda colectiva en ciertas circunstancias. Consulta la sección de Aplicabilidad Específica del Estado a continuación para obtener detalles sobre tu jurisdicción."
     },
     "exceptions": {
-      "intro": "Los siguientes tipos de disputas están excluidos del arbitraje obligatorio:",
-      "item1": "Tribunal de Pequeñas Causas",
-      "item1Desc": "Las reclamaciones que califiquen para el tribunal de pequeñas causas pueden presentarse allí.",
-      "item2": "Propiedad Intelectual",
-      "item2Desc": "Reclamaciones relacionadas con la infracción de derechos de propiedad intelectual.",
-      "item3": "Medidas Cautelares",
-      "item3Desc": "Cualquiera de las partes puede buscar medidas cautelares de emergencia en tribunal.",
-      "item4": "Derechos de la NLRA",
-      "item4Desc": "Nada en este acuerdo pretende interferir con sus derechos bajo la Ley Nacional de Relaciones Laborales."
+      "intro": "El arbitraje NO se aplica a lo siguiente:",
+      "item1": "Tribunal de Pequeños Reclamos",
+      "item1Desc": "Puedes perseguir tu reclamo en tribunal de pequeños reclamos en lugar de arbitraje (si así lo eliges).",
+      "item2": "Medidas Cautelares",
+      "item2Desc": "Cualquiera de las partes puede solicitar órdenes de restricción temporal o medidas cautelares en la corte para prevenir daños irreparables.",
+      "item3": "Procedimientos de JAMS/AAA",
+      "item3Desc": "Las disputas sobre el acuerdo de arbitraje en sí (p. ej., si es válido) pueden resolverse mediante arbitraje o por una corte.",
+      "item4": "Agencias Regulatorias",
+      "item4Desc": "Los reclamos presentados por agencias gubernamentales o regulatorias no están sujetos a arbitraje."
     },
     "limitation": {
-      "capTitle": "Límite de Daños",
-      "capIntro": "LA RESPONSABILIDAD TOTAL DE OXSTEED NO EXCEDERÁ:",
-      "capAmount": "El mayor de (a) las tarifas totales pagadas a OxSteed en los 12 meses anteriores, o (b) $500.",
-      "indirectTitle": "Exclusión de Daños Consecuentes",
-      "indirectIntro": "OXSTEED NO SERÁ RESPONSABLE POR DAÑOS INDIRECTOS, INCIDENTALES, ESPECIALES O CONSECUENTES INCLUYENDO:",
-      "item1": "Pérdida de ganancias, ingresos o datos",
-      "item2": "Interrupción del negocio",
-      "item3": "Lesiones personales o daños a la propiedad no causados directamente por OxSteed",
-      "item4": "Costo de servicios sustitutos"
+      "capTitle": "Límite de Responsabilidad",
+      "capIntro": "La responsabilidad total de OxSteed hacia ti está limitada en todas las circunstancias.",
+      "capAmount": "La responsabilidad máxima de OxSteed no excederá la cantidad mayor de (a) lo que pagaste a OxSteed en los 12 meses anteriores al reclamo, o (b) $100.",
+      "indirectTitle": "Sin Daños Indirectos",
+      "indirectIntro": "OxSteed NO es responsable por lo siguiente, independientemente de la causa:",
+      "item1": "Pérdidas de ganancias o ingresos",
+      "item2": "Pérdida de datos o interrupción del negocio",
+      "item3": "Daños indirectos, incidentales, especiales o consecuentes",
+      "item4": "Daños punitivos o ejemplares"
     },
     "stateDisclaimers": {
       "ca": {
-        "title": "Residentes de California",
-        "point1": "Los residentes de California pueden optar por no participar en el acuerdo de arbitraje dentro de los 30 días.",
-        "point2": "Este acuerdo está sujeto a la Ley de Recursos Legales del Consumidor de California.",
-        "point3": "La AB5 de California y la Proposición 22 rigen la clasificación de contratistas independientes."
+        "title": "California (CA) - Aplicabilidad",
+        "point1": "La ley de California permite renuncias de demanda colectiva en la mayoría de los contratos de consumo. Sin embargo, los reclamos de la Ley de Remedios Legales para Consumidores de California (CLRA) y ciertos reclamos de salarios y horas pueden no estar sujetos a arbitraje.",
+        "point2": "Bajo la Propuesta 65, cualquier disputa que surja de la venta de bienes de consumo será tratada como una demanda colectiva no renunciable en ciertas circunstancias.",
+        "point3": "Si eres residente de California, tienes derecho a optar por no participar en arbitraje proporcionando aviso escrito dentro de 30 días de aceptar estos Términos por primera vez."
       },
       "ny": {
-        "title": "Residentes de Nueva York",
-        "point1": "Los residentes de Nueva York retienen derechos bajo la Ley de Protección al Consumidor de Nueva York.",
-        "point2": "Las reclamaciones bajo la Ley Freelance Isn't Free de Nueva York no están sujetas a este acuerdo.",
-        "point3": "La renuncia a la acción colectiva no aplica a reclamaciones bajo la Ley Laboral de Nueva York."
+        "title": "Nueva York (NY) - Aplicabilidad",
+        "point1": "Los tribunales de Nueva York han determinado que las renuncias de demanda colectiva son vinculantes en acuerdos de arbitraje, pero ciertos reclamos específicos de protección al consumidor pueden requerir resolución alternativa.",
+        "point2": "La Ley Comercial General de Nueva York §349 (prácticas engañosas) no puede renunciarse mediante arbitraje en algunos casos.",
+        "point3": "Puedes solicitar que el arbitraje se lleve a cabo en el Condado de Nueva York si eres residente de Nueva York."
       },
       "ma": {
-        "title": "Residentes de Massachusetts",
-        "point1": "Los residentes de Massachusetts pueden presentar reclamaciones bajo M.G.L. c. 93A en tribunal.",
-        "point2": "Las reclamaciones de $7,500 o menos bajo M.G.L. c. 93A pueden no estar sujetas al arbitraje obligatorio.",
-        "point3": "Nada aquí renuncia a sus derechos bajo las leyes de salarios y horas de Massachusetts."
+        "title": "Massachusetts (MA) - Aplicabilidad",
+        "point1": "Los tribunales de Massachusetts examinan las cláusulas de arbitraje de cerca. Las cláusulas de arbitraje deben ser justas y razonables, y debe existir obligación mutua para ambas partes.",
+        "point2": "Las leyes de protección al consumidor de Massachusetts pueden no permitir la renuncia de ciertos derechos estatutarios mediante arbitraje.",
+        "point3": "Las renuncias de demanda colectiva pueden no ser aplicables en Massachusetts para ciertos reclamos de consumo sin reconocimiento explícito y claro."
       }
     },
     "initiate": {
-      "intro": "Para iniciar un arbitraje, siga estos pasos:",
-      "step1": "Enviar una Demanda Escrita",
-      "step1Desc": "Envíe un correo a legal@oxsteed.com con una breve descripción de la disputa.",
-      "step2": "Período de Negociación de 30 Días",
-      "step2Desc": "Las partes tendrán 30 días para intentar resolver la disputa de manera informal.",
-      "step3": "Presentar ante JAMS",
-      "step3Desc": "Si la resolución informal falla, presente una Demanda de Arbitraje ante JAMS en www.jamsadr.com.",
-      "step4": "Proceder al Arbitraje",
-      "step4Desc": "Siga los procedimientos de JAMS para la selección de árbitros y programación de audiencias.",
-      "contactTitle": "Contacto Legal de OxSteed",
-      "contactInfo": "OxSteed LLC, Attn: Departamento Legal, legal@oxsteed.com"
+      "intro": "Si tienes una disputa con OxSteed, aquí es cómo iniciar arbitraje:",
+      "step1": "Envía Aviso",
+      "step1Desc": "Envía a OxSteed un aviso escrito detallado describiendo la disputa, la reparación solicitada y tu solución propuesta. Incluye fechas, montos y cualquier documentación relevante.",
+      "step2": "Espera la Respuesta",
+      "step2Desc": "OxSteed responderá dentro de 30 días. Muchas disputas se resuelven durante este período de negociación.",
+      "step3": "Presenta la Demanda",
+      "step3Desc": "Si la disputa no se resuelve, presenta una demanda de arbitraje a JAMS o AAA. Sigue sus procedimientos y presenta la tarifa de presentación (que OxSteed reembolsará si ganas).",
+      "step4": "Asiste a la Audiencia",
+      "step4Desc": "Participa en la audiencia de arbitraje. Puedes representarte a ti mismo, contratar un abogado, o usar otra representación.",
+      "contactTitle": "Envía tu aviso a:",
+      "contactInfo": "support@oxsteed.com o nuestro equipo legal en legal@oxsteed.com"
     },
     "acceptance": {
-      "title": "Reconocer Este Acuerdo",
-      "intro": "Al usar OxSteed, reconoce que ha leído, entendido y acordado estar sujeto a este Acuerdo de Arbitraje.",
-      "checkbox": "He leído y acepto el Acuerdo de Arbitraje y la Renuncia a Acción Colectiva",
-      "signBtn": "Firmar Reconocimiento",
+      "title": "Reconocimiento y Aceptación",
+      "intro": "Al usar OxSteed, reconoces que has leído, comprendido y aceptas estar vinculado por esta cláusula de arbitraje y todas las disposiciones aquí.",
+      "checkbox": "Entiendo y acepto la cláusula de arbitraje, renuncia de demanda colectiva, y limitaciones de responsabilidad descritas arriba.",
+      "signBtn": "Aceptar y Firmar",
       "form": {
-        "signature": "Firma Electrónica",
-        "signaturePlaceholder": "Escriba su nombre legal completo como firma electrónica",
-        "signatureNote": "Su nombre escrito constituye su firma electrónica.",
-        "submit": "Enviar Firma"
+        "signature": "Tu Firma Electrónica (Escribe Tu Nombre)",
+        "signaturePlaceholder": "Escribe tu nombre legal completo aquí",
+        "signatureNote": "Al escribir tu nombre, proporcionas una firma electrónica confirmando la aceptación de estos términos.",
+        "submit": "Confirmar Aceptación"
       },
-      "successMsg": "Acuerdo reconocido exitosamente.",
-      "successDesc": "Su reconocimiento ha sido registrado con su dirección IP y marca de tiempo."
+      "successMsg": "Tu aceptación ha sido registrada.",
+      "successDesc": "Gracias. Tu acuerdo a la cláusula de arbitraje ha sido registrado con una marca de tiempo para propósitos de cumplimiento."
     }
   },
   "escrowPolicy": {
-    "title": "Política de Depósito en Garantía y Pago",
-    "description": "Cómo OxSteed retiene, protege y libera su dinero usando el depósito en garantía de Stripe.",
-    "subtitle": "Protección de depósito en garantía impulsada por Stripe para cada trabajo",
-    "lastUpdated": "Última actualización: 1 de mayo de 2026",
+    "title": "Política de Depósito en Garantía y Retención de Fondos",
+    "description": "Cómo OxSteed retiene pagos en depósito en garantía usando Stripe Connect, propiedad de fondos, cronogramas de liberación y procedimientos de disputa.",
+    "subtitle": "Comprende cómo protegemos tus fondos durante las transacciones",
+    "lastUpdated": "Última actualización: 3 de mayo de 2026",
     "onThisPage": "En esta página",
-    "searchPlaceholder": "Buscar esta política…",
-    "searchLabel": "Buscar política de depósito en garantía",
+    "searchLabel": "Buscar información de política de depósito en garantía",
+    "searchPlaceholder": "Buscar…",
     "sections": {
-      "mechanism": "Cómo Funciona el Depósito",
-      "authorization": "Autorización de Pago",
+      "mechanism": "Mecanismo de Retención de Fondos",
+      "authorization": "Autorización y Consentimiento",
       "ownership": "Propiedad de Fondos",
-      "liability": "Limitaciones de Responsabilidad",
-      "release": "Liberación de Fondos",
-      "timeline": "Cronograma de Pago",
+      "liability": "Responsabilidad de OxSteed",
+      "release": "Liberación y Reembolsos",
+      "timeline": "Cronograma y Avisos Importantes",
       "faqs": "Preguntas Frecuentes"
     },
     "mechanism": {
-      "intro": "OxSteed usa un sistema de depósito en garantía para proteger tanto a clientes como a ayudantes.",
-      "keyPoint": "Su pago es autorizado pero no capturado al reservar. Los fondos solo se capturan cuando el trabajo se marca como completado.",
-      "details": "Este modelo garantiza que los ayudantes sean pagados por el trabajo completado y los clientes tengan recurso si el trabajo no se completa.",
-      "stripe": "Stripe mantiene todos los fondos en depósito en garantía en cuentas segregadas."
+      "intro": "OxSteed utiliza Stripe Connect para retener fondos de pago en depósito en garantía durante los trabajos. Esto significa que los fondos se retienen de forma segura hasta que se complete el trabajo, protegiendo tanto a clientes como a ayudantes.",
+      "keyPoint": "Los fondos son retenidos POR Stripe, no por OxSteed. Solo facilitamos la retención.",
+      "details": "Cuando realizas un pago por un trabajo, los fondos se autorizan en tu método de pago y se retienen en el sistema seguro de Stripe. OxSteed no tiene acceso directo ni control sobre estos fondos.",
+      "stripe": "Stripe es un procesador de pagos líder de confianza de miles de empresas en todo el mundo. Son compatibles con PCI-DSS y mantienen los más altos estándares de seguridad para el procesamiento de pagos."
     },
     "authorization": {
-      "intro": "Cuando reserva un trabajo, su método de pago es autorizado por el monto del trabajo más la tarifa de servicio.",
-      "byChoosingTitle": "Qué sucede al reservar:",
-      "byChoosingDesc": "Su tarjeta es autorizada (no cobrada). La autorización coloca un bloqueo en sus fondos hasta 7 días.",
-      "details": "Si el trabajo no se inicia dentro de los 7 días, la autorización se libera y no se realiza ningún cobro."
+      "intro": "Al publicar un trabajo y proceder al pago, autorizas el proceso de depósito en garantía.",
+      "byChoosingTitle": "Al Elegir Pagar",
+      "byChoosingDesc": "Aceptas que OxSteed y Stripe pueden retener tus fondos de pago de acuerdo a estos términos hasta que se marque el trabajo como completo o se resuelva la disputa.",
+      "details": "Recibirás un correo de confirmación mostrando el monto autorizado, detalles del trabajo, y cronograma para la liberación de fondos. Puedes cancelar el pago antes de que comience el trabajo."
     },
     "ownership": {
-      "intro": "Los fondos en depósito son mantenidos por Stripe en nombre del cliente hasta que se cumplan las condiciones de liberación.",
-      "item1": "Antes de la Finalización del Trabajo",
-      "item1Desc": "Los fondos siguen siendo propiedad del cliente y están protegidos por el depósito en garantía de Stripe.",
-      "item2": "Después de Marcado como Completado",
-      "item2Desc": "La propiedad se transfiere al ayudante al completar el trabajo.",
-      "item3": "Durante una Disputa",
-      "item3Desc": "Los fondos están congelados hasta que la disputa sea resuelta.",
-      "disclaimerTitle": "El Rol de Stripe",
-      "disclaimerDesc": "Stripe actúa como procesador de pagos y custodio del depósito en garantía."
+      "intro": "Es importante entender quién es propietario de los fondos durante el depósito en garantía.",
+      "item1": "Los Fondos Pertenecen al Pagador",
+      "item1_desc": "Hasta que se complete el trabajo y se liberen los fondos, el dinero pertenece al cliente (la persona que realizó el pago). El ayudante no tiene derecho a los fondos hasta que se complete el trabajo.",
+      "item2": "OxSteed No Es Propietario de los Fondos",
+      "item2_desc": "OxSteed no es propietario, no controla ni tiene acceso a los fondos en depósito en garantía. Solo facilitamos el proceso pero permanecemos como un tercero neutral.",
+      "item3": "Stripe Retiene los Fondos de Forma Segura",
+      "item3_desc": "Stripe retiene los fondos en una cuenta segura y segregada. Los fondos no pueden ser accedidos por OxSteed, el ayudante ni nadie más hasta que se cumplan las condiciones apropiadas.",
+      "disclaimerTitle": "AVISO IMPORTANTE",
+      "disclaimerDesc": "Los fondos en depósito en garantía NO están asegurados por el FDIC ni ninguna agencia gubernamental. Sin embargo, Stripe mantiene los más altos estándares de seguridad para prevenir pérdida o robo."
     },
     "liability": {
-      "intro": "La responsabilidad de OxSteed en relación con el servicio de depósito en garantía está limitada:",
-      "serviceInterruptionTitle": "Interrupciones del Servicio",
-      "serviceInterruptionDesc": "OxSteed no es responsable de retrasos causados por interrupciones del servicio de Stripe.",
-      "securityTitle": "Incidentes de Seguridad",
-      "securityDesc": "En caso de un incidente de seguridad, la responsabilidad está limitada al valor de los fondos directamente afectados.",
-      "recoveryTitle": "Procedimientos de Recuperación",
-      "recoveryDesc": "En caso de un error en la liberación de fondos, OxSteed trabajará con Stripe para investigar y corregir el error."
+      "intro": "OxSteed no es responsable de ciertos problemas relacionados con la retención de fondos.",
+      "serviceInterruptionTitle": "Interrupciones del Servicio de Stripe",
+      "serviceInterruptionDesc": "Si Stripe experimenta tiempo de inactividad o interrupciones de servicio que resulten en retrasos en la liberación de fondos, OxSteed no es responsable. Stripe mantiene garantías de disponibilidad del 99.99%.",
+      "securityTitle": "Mal Manejo o Robo de Fondos",
+      "securityDesc": "Si los sistemas de Stripe están comprometidos o los fondos se pierden debido a una violación de seguridad (extremadamente raro), OxSteed no es responsable. Tu recurso sería a través de Stripe y su seguro.",
+      "recoveryTitle": "Asistencia en Recuperación",
+      "recoveryDesc": "OxSteed asistirá en investigar y reportar cualquier problema a Stripe, pero no podemos recuperar directamente fondos perdidos o mal utilizados."
     },
     "release": {
-      "jobCompletionTitle": "Finalización del Trabajo",
-      "jobCompletionDesc": "Los fondos se liberan al ayudante cuando el cliente marca el trabajo como completado.",
-      "timeline": "Cronograma de liberación: 3-5 días hábiles desde el activador hasta la cuenta bancaria.",
+      "jobCompletionTitle": "Liberación al Completar el Trabajo",
+      "jobCompletionDesc": "Los fondos se liberan 3 días hábiles después de que el cliente marca el trabajo como completo. Esto da al cliente tiempo para verificar la calidad del trabajo antes de que el ayudante reciba el pago.",
+      "timeline": "Cronograma de Liberación: 3 días hábiles después de la finalización del trabajo. Los fondos llegan a la cuenta del ayudante: 5-7 días hábiles desde la liberación.",
       "refundTitle": "Reembolsos",
-      "refundDesc": "Los reembolsos se emiten a discreción de OxSteed después de la resolución de disputas.",
-      "processingTime": "Tiempo de procesamiento",
-      "processingTimeDesc": "Los reembolsos generalmente aparecen en su estado de cuenta dentro de 5-10 días hábiles.",
-      "disputeTitle": "Fondos en Disputa",
-      "disputeDesc": "Los fondos involucrados en una disputa activa están congelados hasta que la disputa sea resuelta."
+      "refundDesc": "Si un cliente solicita un reembolso antes de que se complete el trabajo, los fondos se devuelven a su método de pago original según las políticas de reembolso de Stripe.",
+      "processingTime": "Tiempo de Procesamiento del Reembolso",
+      "processingTimeDesc": "Los reembolsos se emiten dentro de 5-7 días hábiles de la aprobación. Los tiempos de procesamiento varían según el banco y el método de pago (tarjeta de crédito, tarjeta de débito, cuenta bancaria, etc.).",
+      "disputeTitle": "Trabajos en Disputa",
+      "disputeDesc": "Si hay una disputa sobre la finalización del trabajo, los fondos permanecen en depósito en garantía mientras se investiga. Consulta nuestra página de Resolución de Disputas para obtener detalles."
     },
     "timeline": {
       "authorized": "Pago Autorizado",
-      "authorizedDesc": "La tarjeta del cliente es autorizada al reservar. Los fondos están retenidos pero aún no capturados.",
+      "authorizedDesc": "El pago del cliente está autorizado y colocado en depósito en garantía con Stripe.",
       "completed": "Trabajo Completado",
-      "completedDesc": "El cliente marca el trabajo como completado. Se activa la captura del depósito en garantía.",
+      "completedDesc": "El cliente marca el trabajo como completo después de que el ayudante termina el trabajo.",
       "released": "Fondos Liberados",
-      "releasedDesc": "Stripe transfiere fondos a la cuenta del ayudante, menos la tarifa de plataforma.",
+      "releasedDesc": "Los fondos se liberan del depósito en garantía a la cuenta de OxSteed del ayudante 3 días hábiles después de la finalización.",
       "received": "Fondos Recibidos",
-      "receivedDesc": "El banco del ayudante recibe la transferencia."
+      "receivedDesc": "Los fondos llegan a la cuenta bancaria o método de pago del ayudante 5-7 días hábiles después."
     },
     "notices": {
-      "chargebackTitle": "Aviso de Contracargo",
-      "chargebackDesc": "Si un cliente presenta un contracargo después de que los fondos han sido liberados, OxSteed se reserva el derecho de recuperar el monto disputado.",
-      "chargebackFee": "Se aplica una tarifa administrativa de $25 a todos los contracargos.",
-      "legalHoldTitle": "Retención Legal",
-      "legalHoldDesc": "Los fondos pueden ser congelados por orden legal o investigación de fraude."
+      "chargebackTitle": "Los Contracargos Evitan el Depósito en Garantía",
+      "chargebackDesc": "Si inicias un contracargo con tu empresa de tarjeta de crédito en lugar de usar el proceso de disputa de OxSteed, evita nuestra protección de depósito en garantía. Los contracargos son costosos e interrumpen el proceso de disputa.",
+      "chargebackFee": "Según los términos de Stripe, los contracargos incurren en una tarifa de $25 por transacción. Por favor, utiliza nuestro proceso de disputa en su lugar.",
+      "legalHoldTitle": "Retenciones Legales",
+      "legalHoldDesc": "Si OxSteed recibe una orden legal, citación u orden judicial con respecto a fondos en depósito en garantía, esos fondos pueden ser congelados y retenidos pendiente la resolución legal. OxSteed te notificará si esto ocurre."
     },
     "faq": {
-      "q1": "¿Cuándo se cobra mi tarjeta?",
-      "a1": "Su tarjeta es autorizada al reservar pero solo cobrada cuando el trabajo se marca como completado.",
-      "q2": "¿Qué pasa si el ayudante no se presenta?",
-      "a2": "Si el ayudante no se presenta, puede marcar el trabajo como cancelado y no se realizará ningún pago.",
-      "q3": "¿Cuánto tiempo hasta que el ayudante recibe el pago?",
-      "a3": "Después de que marque el trabajo como completado, el ayudante recibe su pago dentro de 3-5 días hábiles.",
-      "q4": "¿Puede el ayudante acceder a los fondos antes de que se complete el trabajo?",
-      "a4": "No. Los fondos están en depósito en garantía y son inaccesibles al ayudante hasta que el trabajo se marque como completado.",
-      "q5": "¿Qué sucede con mi dinero si disputo el trabajo?",
-      "a5": "Los fondos en disputa se congelan inmediatamente. Ninguna de las partes puede acceder a ellos hasta que la disputa se resuelva.",
-      "q6": "¿Qué pasa si accidentalmente marco el trabajo como completado?",
-      "a6": "Contacte a support@oxsteed.com inmediatamente. Si el ayudante aún no ha recibido la transferencia, es posible que podamos pausar la liberación.",
-      "q7": "¿Es segura mi información de pago?",
-      "a7": "Sí. OxSteed nunca almacena su número de tarjeta completo. Stripe maneja todos los datos de pago.",
-      "q8": "¿Qué divisas admite OxSteed?",
-      "a8": "OxSteed actualmente procesa pagos en USD."
+      "q1": "¿Puedo cancelar un pago después de ser autorizado?",
+      "a1": "Sí. Antes de que el ayudante comience el trabajo, puedes cancelar el trabajo y tu pago será reembolsado a tu método de pago original dentro de 5-7 días hábiles.",
+      "q2": "¿Qué pasa si el ayudante no completa el trabajo?",
+      "a2": "Si el trabajo no se completa o el cliente está insatisfecho, puede abrir una disputa. OxSteed revisa las disputas y libera fondos al ayudante o reembolsa al cliente.",
+      "q3": "¿Cuánto tiempo tarda en pagarse como ayudante?",
+      "a3": "Después de que el cliente marca el trabajo como completo, los fondos se liberan 3 días hábiles después, luego toman 5-7 días hábiles para aparecer en tu cuenta bancaria (10 días hábiles en total).",
+      "q4": "¿Qué pasa si Stripe retiene mis fondos por alguna razón?",
+      "a4": "Stripe puede retener fondos temporalmente para propósitos de verificación. Si esto sucede, contacta a support@oxsteed.com y haremos seguimiento con Stripe en tu nombre.",
+      "q5": "¿Puedo obtener mis fondos liberados anticipadamente?",
+      "a5": "No. La retención de depósito en garantía de 3 días es fija según las políticas de Stripe y los términos de pago de OxSteed. Esto protege tanto a clientes como ayudantes.",
+      "q6": "¿Qué pasa si tengo una disputa?",
+      "a6": "Si disputas un trabajo, los fondos permanecen en depósito en garantía mientras investigamos. Consulta nuestra política de Resolución de Disputas para obtener detalles completos del proceso y cronograma.",
+      "q7": "¿Mi dinero está seguro en depósito en garantía?",
+      "a7": "Sí. Stripe utiliza encriptación de nivel bancario y medidas de seguridad. Sin embargo, los fondos en depósito en garantía no están asegurados por FDIC. Stripe mantiene disponibilidad del 99.99% y nunca ha perdido fondos de clientes debido a problemas de seguridad.",
+      "q8": "¿Qué pasa si OxSteed cierra - qué ocurre con los fondos en depósito en garantía?",
+      "a8": "Si OxSteed cesa las operaciones, los fondos en depósito en garantía permanecen como propiedad de sus propietarios legítimos (clientes y ayudantes). Stripe trabajaría con los receptores de OxSteed para distribuir fondos según los contratos."
     },
     "acceptance": {
-      "title": "Reconocer Esta Política",
-      "intro": "Al usar los servicios de pago y depósito en garantía de OxSteed, reconoce que ha leído y acepta esta política.",
-      "checkbox": "He leído y acepto la Política de Depósito en Garantía y Pago",
-      "signBtn": "Firmar Reconocimiento",
+      "title": "Comprensión y Reconocimiento",
+      "intro": "Al usar el sistema de pagos de OxSteed, reconoces que entiendes cómo funciona el depósito en garantía, quién retiene los fondos, y los cronogramas para la liberación.",
+      "checkbox": "Entiendo y acepto la política de depósito en garantía de OxSteed, incluyendo propiedad de fondos, limitaciones de responsabilidad, cronogramas de liberación, y procedimientos de disputa.",
+      "signBtn": "Aceptar y Firmar",
       "form": {
-        "signature": "Firma Electrónica",
-        "signaturePlaceholder": "Escriba su nombre legal completo como firma electrónica",
-        "signatureNote": "Su nombre escrito constituye su firma electrónica.",
-        "submit": "Enviar Firma"
+        "signature": "Tu Firma Electrónica (Escribe Tu Nombre)",
+        "signaturePlaceholder": "Escribe tu nombre legal completo aquí",
+        "signatureNote": "Al escribir tu nombre, proporcionas una firma electrónica confirmando la aceptación de la política de depósito en garantía.",
+        "submit": "Confirmar Aceptación"
       },
-      "successMsg": "Política reconocida exitosamente.",
-      "successDesc": "Su reconocimiento ha sido registrado con su dirección IP y marca de tiempo."
+      "successMsg": "Tu aceptación ha sido registrada.",
+      "successDesc": "Gracias. Tu acuerdo a la política de depósito en garantía ha sido registrado con una marca de tiempo."
     },
     "contactSupport": {
-      "intro": "¿Preguntas sobre un pago o retención de depósito en garantía? Nuestro equipo de soporte puede ayudar.",
+      "intro": "¿Tienes preguntas sobre cómo funciona el depósito en garantía?",
       "btn": "Contactar Soporte"
     }
   },
@@ -2366,7 +2368,8 @@
       "findJobs": "Buscar trabajos",
       "myBids": "Mis ofertas",
       "reviews": "Reseñas",
-      "invoices": "Facturas"
+      "invoices": "Facturas",
+      "aiKnowledge": "AI knowledge"
     },
     "jobsCompleted": "Trabajos completados",
     "earnedThisMonth": "Ganancia este mes",
@@ -3752,7 +3755,8 @@
     "loadingGallery": "Cargando galería…",
     "loadingPolicies": "Cargando políticas…",
     "loadingServices": "Cargando servicios…",
-    "tabSkillsLabel": "Habilidades"
+    "tabSkillsLabel": "Habilidades",
+    "tabAILabel": "AI knowledge"
   },
   "plans": {
     "free": "Gratis",
@@ -5490,29 +5494,98 @@
         "borescope": "Boroscopio"
       },
       "tiles": {
-        "power-tools":  { "label": "Herramientas Eléctricas", "desc": "Taladros, sierras, amoladoras" },
-        "hand-tools":   { "label": "Herramientas Manuales",   "desc": "Llaves, martillos, alicates" },
-        "cutting":      { "label": "Corte",                   "desc": "Sierras, motosierras, cuchillas" },
-        "drilling":     { "label": "Perforación",             "desc": "Taladros, atornilladores, clavadoras" },
-        "sanding":      { "label": "Lijado",                  "desc": "Lijadoras, pulidoras, fregadoras" },
-        "welding":      { "label": "Soldadura",               "desc": "MIG, TIG, plasma, amoladoras" },
-        "plumbing":     { "label": "Plomería",                "desc": "Serpentines, llaves, sopletes" },
-        "electrical":   { "label": "Eléctrico",               "desc": "Multímetros, probadores, pasacables" },
-        "hvac":         { "label": "HVAC",                    "desc": "Bombas de vacío, manómetros, básculas" },
-        "landscaping":  { "label": "Jardinería",              "desc": "Cortadoras, sopladores, podadoras" },
-        "pressure":     { "label": "Lavado a Presión",        "desc": "Lavadoras a presión y limpiadoras" },
-        "concrete":     { "label": "Concreto",                "desc": "Mezcladoras, martillos, llanas" },
-        "flooring":     { "label": "Pisos",                   "desc": "Clavadoras, cortadores, rodillos" },
-        "painting":     { "label": "Pintura",                 "desc": "Pistolas, mezcladoras, pistolas de calor" },
-        "scaffolding":  { "label": "Escaleras",               "desc": "Escaleras y andamios" },
-        "lifting":      { "label": "Elevación",               "desc": "Polipastos, gatos, carretillas" },
-        "compressors":  { "label": "Herramientas de Aire",    "desc": "Compresores y neumáticos" },
-        "generators":   { "label": "Generadores",             "desc": "Generadores y estaciones de energía" },
-        "automotive":   { "label": "Automotriz",              "desc": "Gatos, escáneres, llaves" },
-        "trailers":     { "label": "Remolques",               "desc": "Remolques, rampas, correas" },
-        "safety":       { "label": "Equipo de Seguridad",     "desc": "Arneses, cascos, máscaras" },
-        "cleaning":     { "label": "Limpieza",                "desc": "Aspiradoras, fregadoras, vapor" },
-        "diagnostic":   { "label": "Diagnóstico",             "desc": "Cámaras, térmicas, sensores" }
+        "power-tools": {
+          "label": "Herramientas Eléctricas",
+          "desc": "Taladros, sierras, amoladoras"
+        },
+        "hand-tools": {
+          "label": "Herramientas Manuales",
+          "desc": "Llaves, martillos, alicates"
+        },
+        "cutting": {
+          "label": "Corte",
+          "desc": "Sierras, motosierras, cuchillas"
+        },
+        "drilling": {
+          "label": "Perforación",
+          "desc": "Taladros, atornilladores, clavadoras"
+        },
+        "sanding": {
+          "label": "Lijado",
+          "desc": "Lijadoras, pulidoras, fregadoras"
+        },
+        "welding": {
+          "label": "Soldadura",
+          "desc": "MIG, TIG, plasma, amoladoras"
+        },
+        "plumbing": {
+          "label": "Plomería",
+          "desc": "Serpentines, llaves, sopletes"
+        },
+        "electrical": {
+          "label": "Eléctrico",
+          "desc": "Multímetros, probadores, pasacables"
+        },
+        "hvac": {
+          "label": "HVAC",
+          "desc": "Bombas de vacío, manómetros, básculas"
+        },
+        "landscaping": {
+          "label": "Jardinería",
+          "desc": "Cortadoras, sopladores, podadoras"
+        },
+        "pressure": {
+          "label": "Lavado a Presión",
+          "desc": "Lavadoras a presión y limpiadoras"
+        },
+        "concrete": {
+          "label": "Concreto",
+          "desc": "Mezcladoras, martillos, llanas"
+        },
+        "flooring": {
+          "label": "Pisos",
+          "desc": "Clavadoras, cortadores, rodillos"
+        },
+        "painting": {
+          "label": "Pintura",
+          "desc": "Pistolas, mezcladoras, pistolas de calor"
+        },
+        "scaffolding": {
+          "label": "Escaleras",
+          "desc": "Escaleras y andamios"
+        },
+        "lifting": {
+          "label": "Elevación",
+          "desc": "Polipastos, gatos, carretillas"
+        },
+        "compressors": {
+          "label": "Herramientas de Aire",
+          "desc": "Compresores y neumáticos"
+        },
+        "generators": {
+          "label": "Generadores",
+          "desc": "Generadores y estaciones de energía"
+        },
+        "automotive": {
+          "label": "Automotriz",
+          "desc": "Gatos, escáneres, llaves"
+        },
+        "trailers": {
+          "label": "Remolques",
+          "desc": "Remolques, rampas, correas"
+        },
+        "safety": {
+          "label": "Equipo de Seguridad",
+          "desc": "Arneses, cascos, máscaras"
+        },
+        "cleaning": {
+          "label": "Limpieza",
+          "desc": "Aspiradoras, fregadoras, vapor"
+        },
+        "diagnostic": {
+          "label": "Diagnóstico",
+          "desc": "Cámaras, térmicas, sensores"
+        }
       }
     }
   },
@@ -6697,359 +6770,50 @@
     "activateAriaLabel": "Activar plantilla {{name}}",
     "unlockAriaLabel": "Desbloquear plantilla {{name}}"
   },
-  "backgroundCheck": {
-    "title": "Verificación de Antecedentes y Procedimiento de Acción Adversa",
-    "description": "Información sobre verificaciones de antecedentes de OxSteed, factores descalificadores, proceso de apelación y cumplimiento de FCRA.",
-    "subtitle": "Realizamos verificaciones de antecedentes para mantener nuestra comunidad segura. Aquí te explicamos cómo funciona el proceso y qué hacer si necesitas apelar.",
-    "lastUpdated": "Última actualización: 3 de mayo de 2026",
-    "onThisPage": "En esta página",
-    "searchLabel": "Buscar información de verificación de antecedentes",
-    "searchPlaceholder": "Buscar…",
-    "sections": {
-      "whatWeCheck": "Qué Verificamos",
-      "disqualifying": "Factores Descalificadores",
-      "ourProcess": "Nuestro Proceso",
-      "ifDenied": "Si Tu Solicitud Es Rechazada",
-      "appeal": "Proceso de Apelación",
-      "timeline": "Cronograma y Estado",
-      "faqs": "Preguntas Frecuentes"
-    },
-    "whatWeCheck": {
-      "intro": "Utilizamos Checkr, un servicio de verificación de antecedentes de terceros, para realizar verificaciones exhaustivas en todos los solicitantes de ayudantes. El proceso incluye múltiples pasos de verificación para garantizar la seguridad de nuestra comunidad.",
-      "item1": "Antecedentes Penales",
-      "item1_desc": "Verificamos bases de datos estatales, locales y nacionales en busca de condenas penales, arrestos y cargos pendientes.",
-      "item2": "Verificación de Identidad",
-      "item2_desc": "Verificamos tu identidad usando una identificación emitida por el gobierno y verificamos registros públicos para prevenir fraude.",
-      "item3": "Registro de Delincuentes Sexuales",
-      "item3_desc": "Verificamos el Sitio Web Público del Registro Nacional de Delincuentes Sexuales (NSOPW) y registros estatales.",
-      "item4": "Verificación Adicional",
-      "item4_desc": "Podemos verificar bases de datos adicionales incluyendo servicios de prevención de fraude, registros civiles y registros de vehículos."
-    },
-    "disqualifying": {
-      "intro": "Los siguientes factores resultarán en rechazo de tu solicitud. Algunas infracciones pueden ser consideradas caso por caso después del proceso de apelación.",
-      "violent": "Delitos Violentos",
-      "sexual": "Delitos Sexuales",
-      "felony": "Condenas por Delitos Graves",
-      "sex_offender": "Registro como Delincuente Sexual",
-      "theft": "Delitos Contra la Propiedad",
-      "drugs": "Tráfico de Drogas",
-      "fraud": "Fraude o Robo de Identidad",
-      "examples": "Los ejemplos incluyen",
-      "note": "Nota Importante",
-      "noteDesc": "Evaluamos solicitudes basadas en la naturaleza, gravedad y recencia de cualquier antecedente penal. No todos los factores descalificadores son permanentes - algunos pueden considerarse después del proceso de apelación."
-    },
-    "process": {
-      "intro": "Nuestro proceso de verificación de antecedentes es simple y transparente. Aquí es lo que sucede después de presentar tu solicitud:",
-      "step1": "Solicitud Presentada",
-      "step1_desc": "Completas tu solicitud de ayudante con toda la información requerida.",
-      "step2": "Verificación de Antecedentes Iniciada",
-      "step2_desc": "Checkr recibe tu información y comienza la verificación. Te enviaremos una copia de los formularios de divulgación y autorización.",
-      "step3": "Resultados Recibidos",
-      "step3_desc": "Checkr completa la verificación (típicamente 1-3 días hábiles) e informa los resultados a nosotros.",
-      "step4": "Decisión y Notificación",
-      "step4_desc": "Revisamos los resultados y te notificamos por correo electrónico. Los solicitantes aprobados pueden comenzar a hacer ofertas inmediatamente."
-    },
-    "ifDenied": {
-      "adverseNotice": "Tu Notificación de Acción Adversa (Cumplimiento de FCRA)",
-      "adverseIntro": "Si rechazamos tu solicitud en función de información en tu verificación de antecedentes, estamos legalmente obligados a proporcionarte una Notificación de Acción Adversa bajo la Ley de Informes de Crédito Justos (FCRA).",
-      "adverseExample": "Ejemplo: 'Rechazamos tu solicitud de ayudante porque tu verificación de antecedentes reveló una condena por delito grave de 2020. Puedes ver el informe completo de Checkr y disputar los hallazgos dentro de 30 días.'",
-      "adverseNote": "Recibirás esta notificación por correo electrónico con detalles específicos sobre por qué se rechazó tu solicitud.",
-      "disputeTitle": "Disputar con Checkr",
-      "disputeDesc": "Tienes 30 días desde que recibas tu notificación de acción adversa para disputar los hallazgos con Checkr. Si el informe contiene errores, puedes solicitar una corrección. Visita el portal de disputa de Checkr para comenzar.",
-      "viewCheckr": "Visitar Checkr para Disputar"
-    },
-    "appeal": {
-      "intro": "Si tu solicitud es rechazada, tienes derecho a apelar. Te recomendamos que presentes una apelación si crees que la denegación fue un error o si tienes contexto adicional para proporcionar.",
-      "step1": "Reúne Tu Evidencia",
-      "step1_desc": "Recopila cualquier documento que apoye tu apelación - registros judiciales, cartas de desestimación, documentación de rehabilitación, referencias de carácter o explicaciones.",
-      "step2": "Presenta Tu Apelación",
-      "step2_desc": "Haz clic en el botón de abajo para abrir un formulario de soporte. Explica por qué crees que la decisión debe ser reconsiderada.",
-      "step3": "Revisión del Gerente",
-      "step3_desc": "Un miembro de nuestro equipo revisará tu apelación dentro de 10 días hábiles.",
-      "step4": "Decisión Final",
-      "step4_desc": "Recibirás un correo electrónico con nuestra decisión final. Si es aprobada, puedes comenzar a hacer ofertas inmediatamente.",
-      "submitBtn": "Apelar Denegación",
-      "form": {
-        "email": "Tu Dirección de Correo Electrónico",
-        "reason": "¿Por qué deberíamos reconsiderar?",
-        "reasonPlaceholder": "Explica tu apelación, proporcionando contexto sobre el registro y cualquier circunstancia atenuante...",
-        "evidence": "Evidencia de Apoyo (Opcional)",
-        "evidencePlaceholder": "Describe cualquier documento que tengas (registros judiciales, cartas, etc.) que apoye tu apelación...",
-        "submit": "Presentar Apelación"
-      },
-      "successMsg": "¡Apelación presentada exitosamente!",
-      "successDesc": "Revisaremos tu apelación y nos pondremos en contacto contigo en 10 días hábiles con una decisión."
-    },
-    "timeline": {
-      "submitted": "Solicitud Presentada",
-      "submitted_desc": "Completas y presentas tu solicitud de ayudante.",
-      "initiated": "Verificación de Antecedentes Iniciada",
-      "initiated_desc": "Checkr recibe tu información (el mismo día o al siguiente día hábil).",
-      "received": "Resultados Recibidos",
-      "received_desc": "La verificación de antecedentes se completa dentro de 1-3 días hábiles.",
-      "result": "Aprobado o Denegado",
-      "result_desc": "Te notificamos de la decisión y puedes comenzar a ganar o apelar.",
-      "appeal": "Período de Apelación",
-      "appeal_desc": "Tienes 30 días para disputar hallazgos con Checkr o apelar con nosotros."
-    },
-    "faq": {
-      "q1": "¿Cuánto tiempo tarda la verificación de antecedentes?",
-      "a1": "Las verificaciones de antecedentes típicamente se completan dentro de 1-3 días hábiles de la presentación. Los casos complejos pueden tardar más. Recibirás actualizaciones por correo electrónico.",
-      "q2": "¿Significa una denegación de verificación de antecedentes que nunca puedo solicitar de nuevo?",
-      "a2": "No necesariamente. Puedes apelar la decisión dentro de 30 días. Además, algunos factores descalificadores pueden no ser permanentes. Puedes solicitar de nuevo después de un período especificado.",
-      "q3": "¿Qué pasa si hay un error en mi informe de verificación de antecedentes?",
-      "a3": "Tienes 30 días para disputar el informe directamente con Checkr. Ellos investigarán y corregirán cualquier error. Después de las correcciones, podemos revisar tu solicitud de nuevo.",
-      "q4": "¿OxSteed examina arrestos sin condenas?",
-      "a4": "Nos enfocamos principalmente en condenas. Sin embargo, cargos pendientes y arrestos pueden considerarse en nuestra revisión. Examinamos la naturaleza del cargo y tu explicación.",
-      "q5": "¿Puedo trabajar como ayudante mientras mi verificación de antecedentes está pendiente?",
-      "a5": "No. Debes tener una verificación de antecedentes aprobada antes de poder hacer ofertas en trabajos o proporcionar servicios en OxSteed.",
-      "q6": "¿Qué información veo en mi informe de antecedentes?",
-      "a6": "Recibes una copia de tu informe de antecedentes junto con nuestra decisión. Puedes revisar qué información utilizó Checkr para crear el informe y disputar cualquier inexactitud."
-    },
-    "contactSupport": {
-      "intro": "¿Tienes preguntas sobre el proceso de verificación de antecedentes?",
-      "btn": "Contactar Soporte"
-    }
+  "aiKnowledge": {
+    "heading": "AI assistant knowledge",
+    "subheading": "Optional facts and policies the profile assistant may use when answering visitors. Keep it accurate and avoid secrets or personal data.",
+    "label": "Knowledge for your AI assistant",
+    "placeholder": "Example: We serve within 25 miles of Austin. Same-day emergency calls are an extra fee. We do not work on Sundays.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveError": "Could not save. Please try again.",
+    "charCount": "{{count}} / 8000 characters",
+    "charCountAria": "Character count {{count}} of 8000",
+    "previewBtn": "Open AI preview",
+    "tips": "Tips",
+    "tip1": "Write short paragraphs or bullet-style lines visitors ask about often.",
+    "tip2": "If something must be confirmed in person, say that here so the assistant can repeat it.",
+    "tip3": "Do not paste passwords, API keys, or customer PII.",
+    "tip4": "Changes apply after save; allow a minute for caches to refresh."
   },
-  "arbitration": {
-    "title": "Arbitraje Vinculante y Limitación de Responsabilidad",
-    "description": "Información sobre la cláusula de arbitraje de OxSteed, renuncia de demanda colectiva y limitaciones de responsabilidad. Incluye exenciones de aplicabilidad específicas del estado.",
-    "subtitle": "Comprende tus derechos y las limitaciones de OxSteed en disputas legales",
-    "lastUpdated": "Última actualización: 3 de mayo de 2026",
-    "onThisPage": "En esta página",
-    "searchLabel": "Buscar información de arbitraje",
-    "searchPlaceholder": "Buscar…",
-    "sections": {
-      "bindingArbitration": "Arbitraje Vinculante",
-      "process": "El Proceso de Arbitraje",
-      "fees": "Honorarios y Costos de Arbitraje",
-      "classAction": "Renuncia de Demanda Colectiva",
-      "exceptions": "Excepciones al Arbitraje",
-      "limitation": "Limitación de Responsabilidad",
-      "stateDisclaimers": "Aplicabilidad Específica del Estado",
-      "initiate": "Cómo Iniciar Arbitraje"
-    },
-    "bindingArbitration": {
-      "intro": "Cualquier disputa entre tú y OxSteed que surja de estos Términos, tu uso de la plataforma, o cualquier servicio proporcionado se resolverá mediante arbitraje vinculante en lugar de en la corte.",
-      "keyPoint": "Al usar OxSteed, aceptas que las disputas serán resueltas por un árbitro neutral, no por un juez o jurado.",
-      "details": "Esto significa que ambas partes acuerdan someterse a arbitraje para resolver desacuerdos sobre contratos, servicios, pagos, o cualquier otro asunto relacionado con OxSteed. La decisión del árbitro es final y vinculante."
-    },
-    "process": {
-      "rulesTitle": "Reglas y Procedimientos de Arbitraje",
-      "rulesIntro": "Nuestro arbitraje sigue estas reglas y procedimientos:",
-      "rule1": "Aplican las reglas de JAMS (Servicios de Arbitraje y Mediación Judicial) o AAA (Asociación Americana de Arbitraje), la que sea mutuamente elegida por las partes.",
-      "rule2": "El arbitraje será conducido por un único árbitro neutral e imparcial con experiencia en disputas de contrato.",
-      "rule3": "El árbitro emitirá una decisión escrita explicando el razonamiento, que puede apelarse bajo las reglas de JAMS/AAA.",
-      "arbitratorTitle": "El Árbitro",
-      "arbitratorDesc": "El árbitro es un juez retirado o abogado experimentado capacitado en resolución de disputas. Están obligados por confidencialidad y deben divulgar cualquier conflicto de interés.",
-      "timelineTitle": "Cronograma Típico de Arbitraje"
-    },
-    "timeline": {
-      "phase1": "Demanda Inicial",
-      "phase1Desc": "El demandante presenta una demanda de arbitraje, describiendo la disputa y la reparación solicitada.",
-      "phase2": "Selección del Árbitro",
-      "phase2Desc": "Ambas partes participan en la selección del árbitro. El árbitro revisa el caso y programa una audiencia.",
-      "phase3": "Audiencia y Prueba",
-      "phase3Desc": "El árbitro escucha pruebas de ambas partes, testimonio de testigos y argumentos. Esto es similar a un juicio pero más informal.",
-      "phase4": "Decisión",
-      "phase4Desc": "El árbitro emite una sentencia de decisión escrita. Esta decisión es vinculante y solo puede apelarse en circunstancias muy limitadas."
-    },
-    "fees": {
-      "intro": "Queremos que el arbitraje sea accesible. Así es cómo se manejan los costos:",
-      "costTitle": "¿Quién Paga el Arbitraje?",
-      "costDetail": "OxSteed pagará todos los honorarios de presentación y administrativos de JAMS o AAA si tu reclamo es menor a $10,000. Para reclamos superiores a $10,000, los costos se dividen según las reglas de JAMS/AAA.",
-      "attorneyFees": "Cada parte es responsable de sus propios honorarios de abogados y costos, a menos que el árbitro otorgue honorarios de abogados a la parte ganadora (lo cual es raro).",
-      "lowValue": "Para reclamos de bajo valor (menos de $10,000), JAMS ofrece procedimientos simplificados que reducen significativamente los costos de arbitraje."
-    },
-    "classAction": {
-      "intro": "Aceptas que el arbitraje se llevará a cabo en forma individual solamente.",
-      "impact": "Esto significa que NO PUEDES presentar una demanda colectiva contra OxSteed, y OxSteed no puede presentar una demanda colectiva contra ti. Todos los reclamos deben resolverse individualmente mediante arbitraje.",
-      "meaning": "En lugar de unirte a otros clientes en una demanda colectiva, tú y OxSteed resolveréis cada una vuestras disputas por separado por un árbitro.",
-      "stateNotice": "Importante: Aviso Específico del Estado",
-      "noticeText": "Algunos estados no permiten renuncias de demanda colectiva en ciertas circunstancias. Consulta la sección de Aplicabilidad Específica del Estado a continuación para obtener detalles sobre tu jurisdicción."
-    },
-    "exceptions": {
-      "intro": "El arbitraje NO se aplica a lo siguiente:",
-      "item1": "Tribunal de Pequeños Reclamos",
-      "item1Desc": "Puedes perseguir tu reclamo en tribunal de pequeños reclamos en lugar de arbitraje (si así lo eliges).",
-      "item2": "Medidas Cautelares",
-      "item2Desc": "Cualquiera de las partes puede solicitar órdenes de restricción temporal o medidas cautelares en la corte para prevenir daños irreparables.",
-      "item3": "Procedimientos de JAMS/AAA",
-      "item3Desc": "Las disputas sobre el acuerdo de arbitraje en sí (p. ej., si es válido) pueden resolverse mediante arbitraje o por una corte.",
-      "item4": "Agencias Regulatorias",
-      "item4Desc": "Los reclamos presentados por agencias gubernamentales o regulatorias no están sujetos a arbitraje."
-    },
-    "limitation": {
-      "capTitle": "Límite de Responsabilidad",
-      "capIntro": "La responsabilidad total de OxSteed hacia ti está limitada en todas las circunstancias.",
-      "capAmount": "La responsabilidad máxima de OxSteed no excederá la cantidad mayor de (a) lo que pagaste a OxSteed en los 12 meses anteriores al reclamo, o (b) $100.",
-      "indirectTitle": "Sin Daños Indirectos",
-      "indirectIntro": "OxSteed NO es responsable por lo siguiente, independientemente de la causa:",
-      "item1": "Pérdidas de ganancias o ingresos",
-      "item2": "Pérdida de datos o interrupción del negocio",
-      "item3": "Daños indirectos, incidentales, especiales o consecuentes",
-      "item4": "Daños punitivos o ejemplares"
-    },
-    "stateDisclaimers": {
-      "ca": {
-        "title": "California (CA) - Aplicabilidad",
-        "point1": "La ley de California permite renuncias de demanda colectiva en la mayoría de los contratos de consumo. Sin embargo, los reclamos de la Ley de Remedios Legales para Consumidores de California (CLRA) y ciertos reclamos de salarios y horas pueden no estar sujetos a arbitraje.",
-        "point2": "Bajo la Propuesta 65, cualquier disputa que surja de la venta de bienes de consumo será tratada como una demanda colectiva no renunciable en ciertas circunstancias.",
-        "point3": "Si eres residente de California, tienes derecho a optar por no participar en arbitraje proporcionando aviso escrito dentro de 30 días de aceptar estos Términos por primera vez."
-      },
-      "ny": {
-        "title": "Nueva York (NY) - Aplicabilidad",
-        "point1": "Los tribunales de Nueva York han determinado que las renuncias de demanda colectiva son vinculantes en acuerdos de arbitraje, pero ciertos reclamos específicos de protección al consumidor pueden requerir resolución alternativa.",
-        "point2": "La Ley Comercial General de Nueva York §349 (prácticas engañosas) no puede renunciarse mediante arbitraje en algunos casos.",
-        "point3": "Puedes solicitar que el arbitraje se lleve a cabo en el Condado de Nueva York si eres residente de Nueva York."
-      },
-      "ma": {
-        "title": "Massachusetts (MA) - Aplicabilidad",
-        "point1": "Los tribunales de Massachusetts examinan las cláusulas de arbitraje de cerca. Las cláusulas de arbitraje deben ser justas y razonables, y debe existir obligación mutua para ambas partes.",
-        "point2": "Las leyes de protección al consumidor de Massachusetts pueden no permitir la renuncia de ciertos derechos estatutarios mediante arbitraje.",
-        "point3": "Las renuncias de demanda colectiva pueden no ser aplicables en Massachusetts para ciertos reclamos de consumo sin reconocimiento explícito y claro."
-      }
-    },
-    "initiate": {
-      "intro": "Si tienes una disputa con OxSteed, aquí es cómo iniciar arbitraje:",
-      "step1": "Envía Aviso",
-      "step1Desc": "Envía a OxSteed un aviso escrito detallado describiendo la disputa, la reparación solicitada y tu solución propuesta. Incluye fechas, montos y cualquier documentación relevante.",
-      "step2": "Espera la Respuesta",
-      "step2Desc": "OxSteed responderá dentro de 30 días. Muchas disputas se resuelven durante este período de negociación.",
-      "step3": "Presenta la Demanda",
-      "step3Desc": "Si la disputa no se resuelve, presenta una demanda de arbitraje a JAMS o AAA. Sigue sus procedimientos y presenta la tarifa de presentación (que OxSteed reembolsará si ganas).",
-      "step4": "Asiste a la Audiencia",
-      "step4Desc": "Participa en la audiencia de arbitraje. Puedes representarte a ti mismo, contratar un abogado, o usar otra representación.",
-      "contactTitle": "Envía tu aviso a:",
-      "contactInfo": "support@oxsteed.com o nuestro equipo legal en legal@oxsteed.com"
-    },
-    "acceptance": {
-      "title": "Reconocimiento y Aceptación",
-      "intro": "Al usar OxSteed, reconoces que has leído, comprendido y aceptas estar vinculado por esta cláusula de arbitraje y todas las disposiciones aquí.",
-      "checkbox": "Entiendo y acepto la cláusula de arbitraje, renuncia de demanda colectiva, y limitaciones de responsabilidad descritas arriba.",
-      "signBtn": "Aceptar y Firmar",
-      "form": {
-        "signature": "Tu Firma Electrónica (Escribe Tu Nombre)",
-        "signaturePlaceholder": "Escribe tu nombre legal completo aquí",
-        "signatureNote": "Al escribir tu nombre, proporcionas una firma electrónica confirmando la aceptación de estos términos.",
-        "submit": "Confirmar Aceptación"
-      },
-      "successMsg": "Tu aceptación ha sido registrada.",
-      "successDesc": "Gracias. Tu acuerdo a la cláusula de arbitraje ha sido registrado con una marca de tiempo para propósitos de cumplimiento."
-    }
-  },
-  "escrowPolicy": {
-    "title": "Política de Depósito en Garantía y Retención de Fondos",
-    "description": "Cómo OxSteed retiene pagos en depósito en garantía usando Stripe Connect, propiedad de fondos, cronogramas de liberación y procedimientos de disputa.",
-    "subtitle": "Comprende cómo protegemos tus fondos durante las transacciones",
-    "lastUpdated": "Última actualización: 3 de mayo de 2026",
-    "onThisPage": "En esta página",
-    "searchLabel": "Buscar información de política de depósito en garantía",
-    "searchPlaceholder": "Buscar…",
-    "sections": {
-      "mechanism": "Mecanismo de Retención de Fondos",
-      "authorization": "Autorización y Consentimiento",
-      "ownership": "Propiedad de Fondos",
-      "liability": "Responsabilidad de OxSteed",
-      "release": "Liberación y Reembolsos",
-      "timeline": "Cronograma y Avisos Importantes",
-      "faqs": "Preguntas Frecuentes"
-    },
-    "mechanism": {
-      "intro": "OxSteed utiliza Stripe Connect para retener fondos de pago en depósito en garantía durante los trabajos. Esto significa que los fondos se retienen de forma segura hasta que se complete el trabajo, protegiendo tanto a clientes como a ayudantes.",
-      "keyPoint": "Los fondos son retenidos POR Stripe, no por OxSteed. Solo facilitamos la retención.",
-      "details": "Cuando realizas un pago por un trabajo, los fondos se autorizan en tu método de pago y se retienen en el sistema seguro de Stripe. OxSteed no tiene acceso directo ni control sobre estos fondos.",
-      "stripe": "Stripe es un procesador de pagos líder de confianza de miles de empresas en todo el mundo. Son compatibles con PCI-DSS y mantienen los más altos estándares de seguridad para el procesamiento de pagos."
-    },
-    "authorization": {
-      "intro": "Al publicar un trabajo y proceder al pago, autorizas el proceso de depósito en garantía.",
-      "byChoosingTitle": "Al Elegir Pagar",
-      "byChoosingDesc": "Aceptas que OxSteed y Stripe pueden retener tus fondos de pago de acuerdo a estos términos hasta que se marque el trabajo como completo o se resuelva la disputa.",
-      "details": "Recibirás un correo de confirmación mostrando el monto autorizado, detalles del trabajo, y cronograma para la liberación de fondos. Puedes cancelar el pago antes de que comience el trabajo."
-    },
-    "ownership": {
-      "intro": "Es importante entender quién es propietario de los fondos durante el depósito en garantía.",
-      "item1": "Los Fondos Pertenecen al Pagador",
-      "item1_desc": "Hasta que se complete el trabajo y se liberen los fondos, el dinero pertenece al cliente (la persona que realizó el pago). El ayudante no tiene derecho a los fondos hasta que se complete el trabajo.",
-      "item2": "OxSteed No Es Propietario de los Fondos",
-      "item2_desc": "OxSteed no es propietario, no controla ni tiene acceso a los fondos en depósito en garantía. Solo facilitamos el proceso pero permanecemos como un tercero neutral.",
-      "item3": "Stripe Retiene los Fondos de Forma Segura",
-      "item3_desc": "Stripe retiene los fondos en una cuenta segura y segregada. Los fondos no pueden ser accedidos por OxSteed, el ayudante ni nadie más hasta que se cumplan las condiciones apropiadas.",
-      "disclaimerTitle": "AVISO IMPORTANTE",
-      "disclaimerDesc": "Los fondos en depósito en garantía NO están asegurados por el FDIC ni ninguna agencia gubernamental. Sin embargo, Stripe mantiene los más altos estándares de seguridad para prevenir pérdida o robo."
-    },
-    "liability": {
-      "intro": "OxSteed no es responsable de ciertos problemas relacionados con la retención de fondos.",
-      "serviceInterruptionTitle": "Interrupciones del Servicio de Stripe",
-      "serviceInterruptionDesc": "Si Stripe experimenta tiempo de inactividad o interrupciones de servicio que resulten en retrasos en la liberación de fondos, OxSteed no es responsable. Stripe mantiene garantías de disponibilidad del 99.99%.",
-      "securityTitle": "Mal Manejo o Robo de Fondos",
-      "securityDesc": "Si los sistemas de Stripe están comprometidos o los fondos se pierden debido a una violación de seguridad (extremadamente raro), OxSteed no es responsable. Tu recurso sería a través de Stripe y su seguro.",
-      "recoveryTitle": "Asistencia en Recuperación",
-      "recoveryDesc": "OxSteed asistirá en investigar y reportar cualquier problema a Stripe, pero no podemos recuperar directamente fondos perdidos o mal utilizados."
-    },
-    "release": {
-      "jobCompletionTitle": "Liberación al Completar el Trabajo",
-      "jobCompletionDesc": "Los fondos se liberan 3 días hábiles después de que el cliente marca el trabajo como completo. Esto da al cliente tiempo para verificar la calidad del trabajo antes de que el ayudante reciba el pago.",
-      "timeline": "Cronograma de Liberación: 3 días hábiles después de la finalización del trabajo. Los fondos llegan a la cuenta del ayudante: 5-7 días hábiles desde la liberación.",
-      "refundTitle": "Reembolsos",
-      "refundDesc": "Si un cliente solicita un reembolso antes de que se complete el trabajo, los fondos se devuelven a su método de pago original según las políticas de reembolso de Stripe.",
-      "processingTime": "Tiempo de Procesamiento del Reembolso",
-      "processingTimeDesc": "Los reembolsos se emiten dentro de 5-7 días hábiles de la aprobación. Los tiempos de procesamiento varían según el banco y el método de pago (tarjeta de crédito, tarjeta de débito, cuenta bancaria, etc.).",
-      "disputeTitle": "Trabajos en Disputa",
-      "disputeDesc": "Si hay una disputa sobre la finalización del trabajo, los fondos permanecen en depósito en garantía mientras se investiga. Consulta nuestra página de Resolución de Disputas para obtener detalles."
-    },
-    "timeline": {
-      "authorized": "Pago Autorizado",
-      "authorizedDesc": "El pago del cliente está autorizado y colocado en depósito en garantía con Stripe.",
-      "completed": "Trabajo Completado",
-      "completedDesc": "El cliente marca el trabajo como completo después de que el ayudante termina el trabajo.",
-      "released": "Fondos Liberados",
-      "releasedDesc": "Los fondos se liberan del depósito en garantía a la cuenta de OxSteed del ayudante 3 días hábiles después de la finalización.",
-      "received": "Fondos Recibidos",
-      "receivedDesc": "Los fondos llegan a la cuenta bancaria o método de pago del ayudante 5-7 días hábiles después."
-    },
-    "notices": {
-      "chargebackTitle": "Los Contracargos Evitan el Depósito en Garantía",
-      "chargebackDesc": "Si inicias un contracargo con tu empresa de tarjeta de crédito en lugar de usar el proceso de disputa de OxSteed, evita nuestra protección de depósito en garantía. Los contracargos son costosos e interrumpen el proceso de disputa.",
-      "chargebackFee": "Según los términos de Stripe, los contracargos incurren en una tarifa de $25 por transacción. Por favor, utiliza nuestro proceso de disputa en su lugar.",
-      "legalHoldTitle": "Retenciones Legales",
-      "legalHoldDesc": "Si OxSteed recibe una orden legal, citación u orden judicial con respecto a fondos en depósito en garantía, esos fondos pueden ser congelados y retenidos pendiente la resolución legal. OxSteed te notificará si esto ocurre."
-    },
-    "faq": {
-      "q1": "¿Puedo cancelar un pago después de ser autorizado?",
-      "a1": "Sí. Antes de que el ayudante comience el trabajo, puedes cancelar el trabajo y tu pago será reembolsado a tu método de pago original dentro de 5-7 días hábiles.",
-      "q2": "¿Qué pasa si el ayudante no completa el trabajo?",
-      "a2": "Si el trabajo no se completa o el cliente está insatisfecho, puede abrir una disputa. OxSteed revisa las disputas y libera fondos al ayudante o reembolsa al cliente.",
-      "q3": "¿Cuánto tiempo tarda en pagarse como ayudante?",
-      "a3": "Después de que el cliente marca el trabajo como completo, los fondos se liberan 3 días hábiles después, luego toman 5-7 días hábiles para aparecer en tu cuenta bancaria (10 días hábiles en total).",
-      "q4": "¿Qué pasa si Stripe retiene mis fondos por alguna razón?",
-      "a4": "Stripe puede retener fondos temporalmente para propósitos de verificación. Si esto sucede, contacta a support@oxsteed.com y haremos seguimiento con Stripe en tu nombre.",
-      "q5": "¿Puedo obtener mis fondos liberados anticipadamente?",
-      "a5": "No. La retención de depósito en garantía de 3 días es fija según las políticas de Stripe y los términos de pago de OxSteed. Esto protege tanto a clientes como ayudantes.",
-      "q6": "¿Qué pasa si tengo una disputa?",
-      "a6": "Si disputas un trabajo, los fondos permanecen en depósito en garantía mientras investigamos. Consulta nuestra política de Resolución de Disputas para obtener detalles completos del proceso y cronograma.",
-      "q7": "¿Mi dinero está seguro en depósito en garantía?",
-      "a7": "Sí. Stripe utiliza encriptación de nivel bancario y medidas de seguridad. Sin embargo, los fondos en depósito en garantía no están asegurados por FDIC. Stripe mantiene disponibilidad del 99.99% y nunca ha perdido fondos de clientes debido a problemas de seguridad.",
-      "q8": "¿Qué pasa si OxSteed cierra - qué ocurre con los fondos en depósito en garantía?",
-      "a8": "Si OxSteed cesa las operaciones, los fondos en depósito en garantía permanecen como propiedad de sus propietarios legítimos (clientes y ayudantes). Stripe trabajaría con los receptores de OxSteed para distribuir fondos según los contratos."
-    },
-    "acceptance": {
-      "title": "Comprensión y Reconocimiento",
-      "intro": "Al usar el sistema de pagos de OxSteed, reconoces que entiendes cómo funciona el depósito en garantía, quién retiene los fondos, y los cronogramas para la liberación.",
-      "checkbox": "Entiendo y acepto la política de depósito en garantía de OxSteed, incluyendo propiedad de fondos, limitaciones de responsabilidad, cronogramas de liberación, y procedimientos de disputa.",
-      "signBtn": "Aceptar y Firmar",
-      "form": {
-        "signature": "Tu Firma Electrónica (Escribe Tu Nombre)",
-        "signaturePlaceholder": "Escribe tu nombre legal completo aquí",
-        "signatureNote": "Al escribir tu nombre, proporcionas una firma electrónica confirmando la aceptación de la política de depósito en garantía.",
-        "submit": "Confirmar Aceptación"
-      },
-      "successMsg": "Tu aceptación ha sido registrada.",
-      "successDesc": "Gracias. Tu acuerdo a la política de depósito en garantía ha sido registrado con una marca de tiempo."
-    },
-    "contactSupport": {
-      "intro": "¿Tienes preguntas sobre cómo funciona el depósito en garantía?",
-      "btn": "Contactar Soporte"
-    }
+  "aiPreview": {
+    "title": "AI profile assistant preview",
+    "subtitle": "See what context OxSteed sends to your profile assistant and try a private test chat.",
+    "badgeAvailable": "Marked available now",
+    "badgeUnavailable": "Not marked available now",
+    "availabilityLabel": "Availability snapshot",
+    "skillsLabel": "Skills sent to the model",
+    "faqsLabel": "FAQs sent to the model",
+    "noFAQs": "No FAQs on file yet.",
+    "productsLabel": "Products sent to the model",
+    "noProducts": "No products on file yet.",
+    "knowledgeLabel": "Your AI knowledge block",
+    "noKnowledge": "No custom AI knowledge saved yet.",
+    "sectionContext": "Structured context",
+    "sectionPrompt": "System prompt preview",
+    "sectionSandbox": "Sandbox chat (test only)",
+    "refreshBtn": "Refresh",
+    "editKnowledgeBtn": "Edit knowledge",
+    "loadError": "Could not load preview. Please try again.",
+    "sandboxPlaceholder": "Ask a question as a visitor would…",
+    "sandboxYou": "You",
+    "sandboxAI": "Assistant",
+    "sandboxThinking": "Thinking…",
+    "sandboxSend": "Send",
+    "sandboxClear": "Clear",
+    "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
+    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers."
   }
 }

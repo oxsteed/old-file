@@ -809,356 +809,358 @@
     "errorSubmit": "Echèk soumisyon siyati. Tanpri eseye ankò."
   },
   "backgroundCheck": {
-    "title": "Règleman Verifikasyon Antesèdan",
-    "description": "Aprann sa OxSteed verifye, sa ki diskalifile yon aplikasyon, ak kijan pou fè apèl yon refize.",
-    "subtitle": "Kijan nou ekzamine asistan pou kenbe kay ou an sekirite",
-    "lastUpdated": "Dènye mises ajou: 1 me 2026",
+    "title": "Vérifikasyon Dosye Kriminèl ak Pwosedi Aksyon Negatif",
+    "description": "Enfòmasyon sou vérifikasyon dosye OxSteed, faktè ki elimine, pwosèdi apèl, ak konformite FCRA.",
+    "subtitle": "Nou fè vérifikasyon dosye pou keep kominote nou an sekirite.",
+    "lastUpdated": "Dènyè miz ajou: 3 me 2026",
     "onThisPage": "Sou paj sa a",
-    "searchPlaceholder": "Chèche règleman sa a…",
-    "searchLabel": "Chèche règleman verifikasyon antesèdan",
+    "searchLabel": "Chèche enfòmasyon vérifikasyon dosye",
+    "searchPlaceholder": "Chèche...",
     "sections": {
-      "whatWeCheck": "Sa Nou Verifye",
-      "disqualifying": "Faktè Diskalifilzan",
-      "ourProcess": "Pwosesis Nou",
-      "ifDenied": "Si Ou Refize",
-      "appeal": "Pwosesis Apèl",
-      "timeline": "Kalann",
-      "faqs": "FAQ"
+      "whatWeCheck": "Sa nou verifye",
+      "disqualifying": "Faktè elimine",
+      "ourProcess": "Pwosè nou",
+      "ifDenied": "Si demann ou reject",
+      "appeal": "Pwosedi apèl",
+      "timeline": "Orè ak estati",
+      "faqs": "Kesyon yo poze souvan"
     },
     "whatWeCheck": {
-      "intro": "OxSteed asosye avèk Checkr pou fè verifikasyon antesèdan sou tout asistan.",
-      "item1": "Istwa Kriminèl",
-      "item1_desc": "Dosye kriminèl konte, eta, ak federal pou 7 ane ki sot pase yo.",
-      "item2": "Rejis Delenkan Seksyèl",
-      "item2_desc": "Rejis nasyonal ak eta a delenkan seksyèl verifye nan enskripsyon.",
-      "item3": "Verifikasyon Idantite",
-      "item3_desc": "Tras SSN ak istwa adrès pou konfime idantite ou.",
-      "item4": "Verifikasyon Lis Siveyans",
-      "item4_desc": "Lis siveyans mondyal ki gen ladan OFAC, FBI Most Wanted, ak lis terroris."
+      "intro": "Nou itilize Checkr fè vérifikasyon dosye konplè pou tout kandida.",
+      "item1": "Dosye kriminèl",
+      "item1_desc": "Nou verifye baz done lokal, eta, ak nasyonal.",
+      "item2": "Vérifikasyon idantite",
+      "item2_desc": "Nou verifye idantite ou ak id gouvènman.",
+      "item3": "Rejis delinkan seksuèl",
+      "item3_desc": "Nou verifye sit rejis nasyonal delinkan seksuèl.",
+      "item4": "Vérifikasyon adisyonèl",
+      "item4_desc": "Nou ka verifye baz done adisyonèl."
     },
     "disqualifying": {
-      "intro": "Faktè sa yo pral rezilte nan diskialifikasyon otomatik.",
-      "violent": "Krim Vyolan",
-      "sexual": "Delits Seksyèl",
-      "felony": "Kondanasyon Krim Resan",
-      "sex_offender": "Enskripsyon Rejis Delenkan Seksyèl",
-      "theft": "Vòl oswa Krim Kont Pwopriyete",
-      "drugs": "Trafik Dwòg",
-      "fraud": "Fwod oswa Krim Finansye",
-      "examples": "Egzanp",
-      "note": "Nòt",
-      "noteDesc": "Dosye ki sèlman pou marijuana ki efase jeneralman pa diskalifilzan."
+      "intro": "Faktè sa yo ap rezilte an rejeksyon demann ou.",
+      "violent": "Krim vyolan",
+      "sexual": "Ofans seksuèl",
+      "felony": "Kondanasyon krim",
+      "sex_offender": "Rejis delinkan seksuèl",
+      "theft": "Krim kont pwopriyete",
+      "drugs": "Trafik dwòg",
+      "fraud": "Fwod oswa vòl idantite",
+      "examples": "Egzanp yo enkli",
+      "note": "Nòt enpòtan",
+      "noteDesc": "Nou evalye demann baze sou nati, gravite, ak resan antesandan kriminèl."
     },
     "process": {
-      "intro": "Men kijan pwosesis verifikasyon antesèdan travay:",
-      "step1": "Inisyasyon",
-      "step1_desc": "Apre ou konplete pwofil ou ak verifikasyon idantite, Checkr notifye otomatikman.",
-      "step2": "Koleksyon Done",
-      "step2_desc": "Checkr kesyone dosye tribinal nasyonal ak konte.",
-      "step3": "Revizyon",
-      "step3_desc": "Rezilta yo revize pa ekip konfòmite Checkr.",
-      "step4": "Desizyon",
-      "step4_desc": "OxSteed resevwa rapò a epi pran desizyon eligibilite nan 1-3 jou travay."
+      "intro": "Pwosè vérifikasyon dosye nou senp ak transparan.",
+      "step1": "Demann soumis",
+      "step1_desc": "Ou konplete ak soumèt demann ede ou.",
+      "step2": "Vérifikasyon dosye kòmanse",
+      "step2_desc": "Checkr resevwa enfòmasyon ou epi kòmanse vérifikasyon.",
+      "step3": "Rezilta resev",
+      "step3_desc": "Vérifikasyon nòmalman konplete nan 1-3 jou ouvrab.",
+      "step4": "Desizyon ak notifikasyon",
+      "step4_desc": "Nou revize rezilta ak notifye ou pa imel."
     },
     "ifDenied": {
-      "adverseNotice": "Avi Pre-Aksyon Defavorab ak Aksyon Defavorab",
-      "adverseIntro": "Si ou refize, ou gen dwa resevwa yon kopi rapò a anvan desizyon final.",
-      "adverseExample": "Ou resevwa yon imel nan Checkr avèk yon lyen pou revize rapò ou.",
-      "adverseNote": "Ou gen 5 jou travay pou konteste enfòmasyon egzak dirèkteman avèk Checkr.",
-      "disputeTitle": "Konteste Enfòmasyon Egzak",
-      "disputeDesc": "Ou gen dwa konteste nenpòt enfòmasyon egzak nan rapò ou dirèkteman avèk Checkr.",
-      "viewCheckr": "Wè Rapò Checkr Mwen"
+      "adverseNotice": "Avi aksyon negatif ou (konformite FCRA)",
+      "adverseIntro": "Si nou rejte demann ou, nou obligatwa bay ou avi aksyon negatif.",
+      "adverseExample": "Egzanp: 'Nou rejte demann ede ou akoz dosye kriminèl.'",
+      "adverseNote": "Ou ap resevwa avi sa a pa imel.",
+      "disputeTitle": "Teste avèk Checkr",
+      "disputeDesc": "Ou gen 30 jou pou teste rezilta avèk Checkr.",
+      "viewCheckr": "Vizit Checkr pou teste"
     },
     "appeal": {
-      "intro": "Si ou kwè ou te refize baze sou enfòmasyon egzak, ou ka fè apèl nan OxSteed.",
-      "step1": "Rezoud diferan an",
-      "step1_desc": "Premye, konteste nenpòt enfòmasyon egzak dirèkteman avèk Checkr.",
-      "step2": "Mande rapò korije",
-      "step2_desc": "Lè Checkr rezoud diferan ou a, mande yon rapò ajou.",
-      "step3": "Soumèt apèl nan OxSteed",
-      "step3_desc": "Voye imel nan support@oxsteed.com avèk sijè 'Apèl Verifikasyon Antesèdan'.",
-      "step4": "Tann revizyon",
-      "step4_desc": "OxSteed revize apèl ou a nan 10 jou travay.",
-      "submitBtn": "Soumèt yon Apèl",
+      "intro": "Si demann ou reject, ou gen dwa apèl.",
+      "step1": "Rasanble prèv ou",
+      "step1_desc": "Rasanble dokiman ki sipòte apèl ou.",
+      "step2": "Soumèt apèl ou",
+      "step2_desc": "Klik bouton anba a pou ouvri fòm sipò.",
+      "step3": "Revizyon jestiyonè",
+      "step3_desc": "Manm tim nou ap revize apèl ou nan 10 jou ouvrab.",
+      "step4": "Desizyon final",
+      "step4_desc": "Ou ap resevwa imel avèk desizyon final nou.",
+      "submitBtn": "Apèl rejeksyon",
       "form": {
-        "email": "Adrès Imel Ou",
-        "reason": "Rezon pou Apèl",
-        "reasonPlaceholder": "Dekri egzaktite a oswa eksplike poukisa ou kwè dosye sa a pa ta dwe diskalifilzan…",
-        "evidence": "Dokiman Sipò",
-        "evidencePlaceholder": "Kole lyen nan dokiman tribinal oswa lòt prèv…",
-        "submit": "Soumèt Apèl"
+        "email": "Adrès imèl ou",
+        "reason": "Poukisa dwe nou konsidere ankò?",
+        "reasonPlaceholder": "Eksplike apèl ou...",
+        "evidence": "Prèv sipò (Opsyonèl)",
+        "evidencePlaceholder": "Dekri dokiman ou gen...",
+        "submit": "Soumèt apèl"
       },
-      "successMsg": "Apèl soumèt avèk siksè.",
-      "successDesc": "Nou pral revize apèl ou a epi reponn pa imel nan 10 jou travay."
+      "successMsg": "Apèl soumis avèk siksè!",
+      "successDesc": "Nou ap revize apèl ou ak konakte ou nan 10 jou ouvrab."
     },
     "timeline": {
-      "submitted": "Aplikasyon Soumèt",
-      "submitted_desc": "Ou konplete pwofil ou ak verifikasyon idantite. Checkr notifye otomatikman.",
-      "initiated": "Verifikasyon Kòmanse",
-      "initiated_desc": "Checkr kòmanse kesyone dosye kriminèl. Sa jeneralman pran 1-3 jou travay.",
-      "received": "Rapò Resevwa",
-      "received_desc": "OxSteed resevwa rapò Checkr a epi revize l.",
-      "result": "Desizyon Emèt",
-      "result_desc": "Ou resevwa yon imel avèk rezilta: apwouve, pandan revizyon adisyonèl, oswa refize.",
-      "appeal": "Apèl (si aplikab)",
-      "appeal_desc": "Si refize, ou gen 5 jou travay pou konteste avèk Checkr ak 30 jou pou soumèt yon apèl nan OxSteed."
+      "submitted": "Demann soumis",
+      "submitted_desc": "Ou konplete ak soumèt demann ede ou.",
+      "initiated": "Vérifikasyon dosye kòmanse",
+      "initiated_desc": "Checkr resevwa enfòmasyon ou.",
+      "received": "Rezilta resev",
+      "received_desc": "Vérifikasyon nòmalman konplete nan 1-3 jou ouvrab.",
+      "result": "Apwouve oswa rejte",
+      "result_desc": "Nou notifye ou desizyon.",
+      "appeal": "Peryòd apèl",
+      "appeal_desc": "Ou gen 30 jou pou teste."
     },
     "faq": {
-      "q1": "Konbyen tan verifikasyon antesèdan an pran?",
-      "a1": "Pifò verifikasyon yo konplète nan 1-3 jou travay.",
-      "q2": "Eske mwen bezwen peye pou verifikasyon antesèdan mwen?",
-      "a2": "Non. OxSteed kouvri kòt verifikasyon inisyal la.",
-      "q3": "Ki frekans yo fè verifikasyon yo?",
-      "a3": "Verifikasyon yo fè nan enskripsyon epi ka refè anyèlman.",
-      "q4": "Eske mwen ka wè rapò antesèdan mwen?",
-      "a4": "Wi. Checkr ba ou aksè nan pòtay kandida ou a.",
-      "q5": "Kisa k ap pase si mwen gen yon dosye efase?",
-      "a5": "Dosye efase pa ta dwe parèt nan rapò ou. Si youn parèt, konteste l dirèkteman avèk Checkr.",
-      "q6": "Kisa k ap pase si mwen demenaje nan yon lòt eta?",
-      "a6": "Verifikasyon ou kouvri dosye nasyonal, yon demenajman pa mande yon nouvo verifikasyon."
+      "q1": "Konbyen tan vérifikasyon dosye pran?",
+      "a1": "Vérifikasyon nòmalman konplete nan 1-3 jou ouvrab.",
+      "q2": "Rejeksyon vle di m pa janm ka aplike ankò?",
+      "a2": "Ou ka apèl desizyon nan 30 jou.",
+      "q3": "Ak si gen erè nan rapò vérifikasyon dosye m?",
+      "a3": "Ou gen 30 jou pou teste rapò avèk Checkr.",
+      "q4": "OxSteed gade arete san kondanasyon?",
+      "a4": "Nou sou kondanasyon prensipalman.",
+      "q5": "Mwen ka travay kòm ede pandan vérifikasyon m?",
+      "a5": "Non. Ou dwe gen vérifikasyon aprouve.",
+      "q6": "Ki enfòmasyon mwen wè nan rapò dosye m?",
+      "a6": "Ou resevwa kopi rapò dosye ou avèk desizyon nou."
     },
     "contactSupport": {
-      "intro": "Gen yon kesyon ki pa kouvri isit? Ekip Konfyans ak Sekirite nou an la pou ede.",
-      "btn": "Kontakte Sipò"
+      "intro": "Ou gen kesyon sou pwosè vérifikasyon dosye?",
+      "btn": "Konakte sipò"
     }
   },
   "arbitration": {
-    "title": "Akò Abitraj",
-    "description": "Konprann kijan diferan ant ou ak OxSteed rezoud atravè abitraj obligatwa.",
-    "subtitle": "Abitraj obligatwa ak renonsyasyon aksyon kolektif",
-    "lastUpdated": "Dènye mises ajou: 1 me 2026",
+    "title": "Abitraj Obligatwa ak Limitasyon Responsabilite",
+    "description": "Enfòmasyon sou kloz abitraj OxSteed, renonsiasyon aksyon kolektif, ak limitasyon responsabilite.",
+    "subtitle": "Konprann dwa ou ak limitasyon OxSteed nan diferan legal",
+    "lastUpdated": "Dènyè miz ajou: 3 me 2026",
     "onThisPage": "Sou paj sa a",
-    "searchPlaceholder": "Chèche akò sa a…",
-    "searchLabel": "Chèche akò abitraj",
+    "searchLabel": "Chèche enfòmasyon abitraj",
+    "searchPlaceholder": "Chèche...",
     "sections": {
-      "bindingArbitration": "Abitraj Obligatwa",
-      "process": "Pwosesis Abitraj",
-      "fees": "Frè ak Kòs",
-      "classAction": "Renonsyasyon Aksyon Kolektif",
-      "exceptions": "Eksepsyon",
-      "limitation": "Limitasyon Responsabilite",
-      "stateDisclaimers": "Avi Espesifik Eta",
-      "initiate": "Kijan pou Inisye"
+      "bindingArbitration": "Abitraj obligatwa",
+      "process": "Pwosè abitraj",
+      "fees": "Onorè ak frè abitraj",
+      "classAction": "Renonsyasyon aksyon kolektif",
+      "exceptions": "Eksepsyon abitraj",
+      "limitation": "Limitasyon responsabilite",
+      "stateDisclaimers": "Aplikabilite espesifik eta",
+      "initiate": "Kouman kòmanse abitraj"
     },
     "bindingArbitration": {
-      "intro": "Lè ou itilize OxSteed, ou dakò ke nenpòt diferan k ap soti nan Kondisyon sa yo ap rezoud eksklizivman atravè abitraj obligatwa.",
-      "keyPoint": "Sa vle di ou abandone dwa ou nan yon jijman jiri ak kapasite ou pou patisipe nan lawsuits kolektif.",
-      "details": "Abitraj la ap kondwi pa JAMS anba Règ ak Pwosedi Abitraj Senplifye li yo."
+      "intro": "Nenpòt diferan ant ou ak OxSteed ap rezout pa abitraj obligatwa.",
+      "keyPoint": "Lè ou itilize OxSteed, ou aksepte diferan rezout pa abitrè netwèl.",
+      "details": "Sa vle di de pati yo dakò soumèt abitraj."
     },
     "process": {
-      "rulesTitle": "Règ Aplikab",
-      "rulesIntro": "Règ sa yo gouvène tout pwosedi abitraj:",
-      "rule1": "Abitraj la ap kondwi pa yon sèl abitè nèt chwazi pa akò mityèl",
-      "rule2": "Abitraj la ap kondwi an angle nan konte rezidans ou oswa pa videokonferans",
-      "rule3": "Abitè a ka akòde nenpòt soulajman yon tribinal ta ka akòde",
-      "arbitratorTitle": "Sèleksyon Abitè",
-      "arbitratorDesc": "Chak pati gen dwa pou ekarte jiska twa abitè nan lis JAMS.",
-      "timelineTitle": "Kalann Abitraj",
-      "phase1": "Demann Depoze",
-      "phase1Desc": "Nenpòt pati soumèt yon demann ekri pou abitraj nan JAMS.",
-      "phase2": "Abitè Chwazi",
-      "phase2Desc": "Pati yo chwazi oswa JAMS nonmen yon abitè nèt.",
-      "phase3": "Odyans",
-      "phase3Desc": "Odyans abitraj kondwi (an pèsòn oswa pa videyo).",
-      "phase4": "Prim",
-      "phase4Desc": "Abitè a emèt yon prim ekri. Prim nan obligatwa."
+      "rulesTitle": "Règ ak pwosedi abitraj",
+      "rulesIntro": "Abitraj nou swiv règ sa yo:",
+      "rule1": "Règ JAMS oswa AAA aplike.",
+      "rule2": "Abitraj pral dirije pa abitrè sèl netwèl.",
+      "rule3": "Abitrè ap bay desizyon eske ki eksplike.",
+      "arbitratorTitle": "Abitrè a",
+      "arbitratorDesc": "Abitrè se jij retiré oswa avoka eksperyanse.",
+      "timelineTitle": "Orè tipik abitraj"
+    },
+    "timeline": {
+      "phase1": "Demann inisyal",
+      "phase1Desc": "Demann aprè depoze demann abitraj.",
+      "phase2": "Seleksyon abitrè",
+      "phase2Desc": "De pati yo patisipe nan seleksyon abitrè.",
+      "phase3": "Odiyans ak prèv",
+      "phase3Desc": "Abitrè tande prèv de pati yo.",
+      "phase4": "Desizyon",
+      "phase4Desc": "Abitrè bay desizyon eske."
     },
     "fees": {
-      "intro": "Kòs abitraj yo distribye jan sa a:",
-      "costTitle": "Frè Depo ak Abitè",
-      "costDetail": "Pou reklamasyon anba $75,000, OxSteed peye tout frè depo JAMS.",
-      "attorneyFees": "Chak pati pran chaj pwòp frè avoka l yo.",
-      "lowValue": "Pou reklamasyon anba $10,000, abitraj la ka kondwi sèlman pa soumisyon dokiman."
+      "intro": "Nou vle abitraj aksesib.",
+      "costTitle": "Ki pèsonn ki peye abitraj?",
+      "costDetail": "OxSteed pral peye tout frè JAMS oswa AAA si reklam ou pi ba $10,000.",
+      "attorneyFees": "Chak pati responsab pou pwòp frè avoka.",
+      "lowValue": "Pou reklam ba valè (mwen pase $10,000), JAMS bay pwosedi senpliye."
     },
     "classAction": {
-      "intro": "OU AK OXSTEED DAKÒ KE CHAK YO KA POTE REKLAMASYON YO KONT LÒT LA SÈLMAN NAN KAPASITE ENDIVIDYÈL YO.",
-      "impact": "Sa vle di ou pa ka depoze oswa patisipe nan yon lawsuit kolektif kont OxSteed.",
-      "meaning": "Si renonsyasyon aksyon kolektif sa a jwenn inaplikab, akò abitraj la nan ansanm l ap nul ak san valè.",
-      "stateNotice": "Avi Aksyon Kolektif Espesifik Eta",
-      "noticeText": "Rezidan Kalifòni, New Jersey, ak sèten lòt eta ka gen dwa adisyonèl."
+      "intro": "Ou aksepte abitraj pral fèt sèl sèlman.",
+      "impact": "Sa vle di ou PA KA fè aksyon kolektif kont OxSteed.",
+      "meaning": "Olye de rantre ak lòt kliyè nan aksyon kolektif.",
+      "stateNotice": "Enpòtan: Avi espesifik eta",
+      "noticeText": "Kèk eta pa pèmèt renonsyasyon aksyon kolektif."
     },
     "exceptions": {
-      "intro": "Kalite diferan sa yo eksepte nan abitraj obligatwa:",
-      "item1": "Tribinal Ti Reklamasyon",
-      "item1Desc": "Reklamasyon ki kalifye pou tribinal ti reklamasyon ka depoze la.",
-      "item2": "Pwopriyete Entelektyèl",
-      "item2Desc": "Reklamasyon ki gen rapò ak vyolasyon dwa pwopriyete entelektyèl.",
-      "item3": "Soulajman Enjoktif",
-      "item3Desc": "Nenpòt pati ka chèche soulajman enjoktif nan tribinal.",
-      "item4": "Dwa NLRA",
-      "item4Desc": "Pa gen anyen nan akò sa a ki vize entèfere avèk dwa ou anba Lwa Nasyonal Relasyon Travay."
+      "intro": "Abitraj PA aplike a sa ki swiv:",
+      "item1": "Tribunal ti reklam",
+      "item1Desc": "Ou ka poursuiv reklam ou nan tribunal ti reklam.",
+      "item2": "Ordonans mesir",
+      "item2Desc": "Yonn nan pati yo ka demann ordonans tanporèr.",
+      "item3": "Pwosedi JAMS/AAA",
+      "item3Desc": "Diferan sou akò abitraj pa rezout pa abitraj.",
+      "item4": "Ajans regilatoris",
+      "item4Desc": "Reklam presenté pa ajans gouvènman pa sijè abitraj."
     },
     "limitation": {
-      "capTitle": "Plafon Domaj",
-      "capIntro": "TOTAL RESPONSABILITE OXSTEED PA KA DEPASE:",
-      "capAmount": "Pi gran nan (a) total frè peye OxSteed nan 12 mwa anvan reklamasyon, oswa (b) $500.",
-      "indirectTitle": "Eksklizyon Domaj Konsekitif",
-      "indirectIntro": "OXSTEED PA PRAL RESPONSAB POU OKENN DOMAJ ENDIRÈK, ENSIDANTAL, ESPESYAL, KONSEKITIF ENKLI:",
-      "item1": "Pèt pwofi, revni, oswa done",
-      "item2": "Entèripsyon biznis",
-      "item3": "Blesi pèsonèl oswa domaj pwopriyete ki pa dirèkteman koze pa OxSteed",
-      "item4": "Kòs sèvis sibstitisyon"
+      "capTitle": "Kap responsabilite",
+      "capIntro": "Responsabilite total OxSteed limite.",
+      "capAmount": "Responsabilite maksimum OxSteed pa depase montay ou peye OxSteed, oswa $100.",
+      "indirectTitle": "Pen endirèk",
+      "indirectIntro": "OxSteed PA responsab pou:",
+      "item1": "Pèt benefis oswa revni",
+      "item2": "Pèt done oswa entèriksyon biznis",
+      "item3": "Pen endirèk, ensidantal, espesyal oswa konsekan",
+      "item4": "Pen ipunitif oswa egzanplè"
     },
     "stateDisclaimers": {
       "ca": {
-        "title": "Rezidan Kalifòni",
-        "point1": "Rezidan Kalifòni ka dezengaje nan akò abitraj la nan 30 jou.",
-        "point2": "Akò sa a soumèt a Lwa Recours Legal Konsomatè Kalifòni.",
-        "point3": "AB5 Kalifòni ak Pwopozisyon 22 gouvène klasifikasyon kontraktè endepandan."
+        "title": "Kalifòni (CA) - Aplikabilite",
+        "point1": "Lwa Kalifòni pèmèt renonsyasyon aksyon kolektif.",
+        "point2": "Anba Pwopozisyon 65, nenpòt diferan.",
+        "point3": "Si ou rezidan Kalifòni, ou gen dwa ekskli abitraj."
       },
       "ny": {
-        "title": "Rezidan New York",
-        "point1": "Rezidan New York kenbe dwa anba Lwa Pwoteksyon Konsomatè New York.",
-        "point2": "Reklamasyon anba Lwa Freelance Isn't Free New York pa soumèt a akò sa a.",
-        "point3": "Renonsyasyon aksyon kolektif pa aplike pou reklamasyon anba Lwa Travay New York."
+        "title": "Nòvèl Yòk (NY) - Aplikabilite",
+        "point1": "Tribinal Nòvèl Yòk demine renonsyasyon aksyon kolektif ekzekitab.",
+        "point2": "Lwa pwoteksyon konsomate Nòvèl Yòk pa kapab elime.",
+        "point3": "Ou ka mande abitraj fèt nan konte Nòvèl Yòk."
       },
       "ma": {
-        "title": "Rezidan Massachusetts",
-        "point1": "Rezidan Massachusetts ka pote reklamasyon anba M.G.L. c. 93A nan tribinal.",
-        "point2": "Reklamasyon $7,500 oswa mwens anba M.G.L. c. 93A ka pa soumèt a abitraj obligatwa.",
-        "point3": "Pa gen anyen isit ki abandone dwa ou anba lwa salè ak orè Massachusetts."
+        "title": "Masachousèt (MA) - Aplikabilite",
+        "point1": "Tribinal Masachousèt ekzamine kloz abitraj",
+        "point2": "Lwa pwoteksyon konsomate Masachousèt pa kapab elime.",
+        "point3": "Renonsyasyon aksyon kolektif pa ekzekitab nan Masachousèt."
       }
     },
     "initiate": {
-      "intro": "Pou inisye yon abitraj, swiv etap sa yo:",
-      "step1": "Voye yon Demann Ekri",
-      "step1Desc": "Voye imel nan legal@oxsteed.com avèk yon deskripsyon kout diferan an.",
-      "step2": "Peryòd Negosyasyon 30 Jou",
-      "step2Desc": "Pati yo gen 30 jou pou eseye rezoud diferan an enfòmèlman.",
-      "step3": "Depoze avèk JAMS",
-      "step3Desc": "Si rezolisyon enfòmèl echwe, depoze yon Demann Abitraj avèk JAMS nan www.jamsadr.com.",
-      "step4": "Pwosede nan Abitraj",
-      "step4Desc": "Swiv pwosedi JAMS yo pou sèleksyon abitè ak planifikasyon odyans.",
-      "contactTitle": "Kontak Legal OxSteed",
-      "contactInfo": "OxSteed LLC, Attn: Depatman Legal, legal@oxsteed.com"
+      "intro": "Si ou gen diferan avèk OxSteed, vwala kouman kòmanse abitraj:",
+      "step1": "Voye avi",
+      "step1_desc": "Voye OxSteed avi eske detaye.",
+      "step2": "Atann repons",
+      "step2Desc": "OxSteed pral reponn nan 30 jou.",
+      "step3": "Depoze demann",
+      "step3Desc": "Si diferan rezout, depoze demann abitraj.",
+      "step4": "Patisipe odiyans",
+      "step4Desc": "Patisipe audiyans abitraj.",
+      "contactTitle": "Voye avi ou a:",
+      "contactInfo": "support@oxsteed.com oswa tim legal nou a legal@oxsteed.com"
     },
     "acceptance": {
-      "title": "Rekonèt Akò Sa a",
-      "intro": "Lè ou itilize OxSteed, ou rekonèt ke ou li, konprann, ak dakò pou w oblije pa Akò Abitraj sa a.",
-      "checkbox": "Mwen li epi aksepte Akò Abitraj ak Renonsyasyon Aksyon Kolektif la",
-      "signBtn": "Siyen Rekonèsans",
+      "title": "Rekonesans ak akseptasyon",
+      "intro": "Lè ou itilize OxSteed, ou rekonèt ou li, konprann, ak aksepte obligatwa.",
+      "checkbox": "Mwen konprann ak aksepte kloz abitraj, renonsyasyon aksyon kolektif.",
+      "signBtn": "Aksepte ak sinen",
       "form": {
-        "signature": "Siyati Elektwonik",
-        "signaturePlaceholder": "Tape non legal konplè ou kòm siyati elektwonik",
-        "signatureNote": "Non tape ou konstitye siyati elektwonik ou.",
-        "submit": "Soumèt Siyati"
+        "signature": "Siyati elektwonik ou (tape non ou)",
+        "signaturePlaceholder": "Tape non legal konplè ou isit",
+        "signatureNote": "Lè ou tape non ou, ou bay siyati elektwonik.",
+        "submit": "Konfime akseptasyon"
       },
-      "successMsg": "Akò rekonèt avèk siksè.",
-      "successDesc": "Rekonèsans ou anrejistre avèk adrès IP ou ak mak tan."
+      "successMsg": "Akseptasyon ou anrejistre.",
+      "successDesc": "Mèsi. Akò ou anrejistre avèk yon esztamp tan."
     }
   },
   "escrowPolicy": {
-    "title": "Règleman Depo ak Peman",
-    "description": "Kijan OxSteed kenbe, pwoteje, ak libere lajan ou lè l itilize depo Stripe.",
-    "subtitle": "Pwoteksyon depo alimante pa Stripe pou chak travay",
-    "lastUpdated": "Dènye mises ajou: 1 me 2026",
+    "title": "Polis Sekèstè ak Retni Fon",
+    "description": "Kouman OxSteed retni peyman an sekèstè avèk Stripe Connect, pwopriyete fon, orè lage, ak pwosedi diferan.",
+    "subtitle": "Konprann kouman nou pwoteje fon ou pandan tranzaksyon",
+    "lastUpdated": "Dènyè miz ajou: 3 me 2026",
     "onThisPage": "Sou paj sa a",
-    "searchPlaceholder": "Chèche règleman sa a…",
-    "searchLabel": "Chèche règleman depo",
+    "searchLabel": "Chèche enfòmasyon polis sekèstè",
+    "searchPlaceholder": "Chèche...",
     "sections": {
-      "mechanism": "Kijan Depo Travay",
-      "authorization": "Otorizasyon Peman",
-      "ownership": "Pwopriyete Fon",
-      "liability": "Limitasyon Responsabilite",
-      "release": "Liberasyon Fon",
-      "timeline": "Kalann Peman",
-      "faqs": "FAQ"
+      "mechanism": "Mekanizm retni fon",
+      "authorization": "Orizasyon ak konsentman",
+      "ownership": "Pwopriyete fon",
+      "liability": "Responsabilite OxSteed",
+      "release": "Laje ak rembosman",
+      "timeline": "Orè ak avi enpòtan",
+      "faqs": "Kesyon yo poze souvan"
     },
     "mechanism": {
-      "intro": "OxSteed itilize yon sistèm depo pou pwoteje tou de kliyan ak asistan.",
-      "keyPoint": "Peman ou otorize men pa kaptire nan rezervasyon. Fon yo sèlman kaptire lè travay la make konplè.",
-      "details": "Modèl depo sa a asire asistan yo peye pou travay konplè epi kliyan yo gen recou.",
-      "stripe": "Stripe kenbe tout fon depo nan kont separe."
+      "intro": "OxSteed itilize Stripe Connect pou retni fon peyman an sekèstè.",
+      "keyPoint": "Fon retni PA OxSteed, pa Stripe. Nou fasil retni a.",
+      "details": "Lè ou peye pou travay, fon otorive sou metòd peyman ou.",
+      "stripe": "Stripe se pwosesè peyman lidè konfirans mètrèl bid biznis."
     },
     "authorization": {
-      "intro": "Lè ou rezève yon travay, metòd peman ou a otorize pou montan travay la.",
-      "byChoosingTitle": "Sa k ap pase nan rezervasyon:",
-      "byChoosingDesc": "Kat ou a otorize (pa chaje). Otorizasyon an mete yon blokaj sou fon ou jiska 7 jou.",
-      "details": "Si travay la pa kòmanse nan 7 jou, otorizasyon an libere epi pa gen chaj fèt."
+      "intro": "Lè ou poste travay ak ale pou peye, ou otorive pwosè sekèstè.",
+      "byChoosingTitle": "Lè ou chwazi peye",
+      "byChoosingDesc": "Ou aksepte OxSteed ak Stripe ka retni fon ou.",
+      "details": "Ou pral resevwa imel konfimason."
     },
     "ownership": {
-      "intro": "Fon depo yo kenbe pa Stripe nan non kliyan jiskaske kondisyon liberasyon yo satisfè.",
-      "item1": "Anvan Konpletman Travay",
-      "item1Desc": "Fon yo rete pwopriyete kliyan epi pwoteje pa depo Stripe.",
-      "item2": "Apre Make Konplè",
-      "item2Desc": "Pwopriyete transfere nan asistan lè travay konplete.",
-      "item3": "Pandan yon Diferan",
-      "item3Desc": "Fon yo jele jiskaske diferan an rezoud.",
-      "disclaimerTitle": "Wòl Stripe",
-      "disclaimerDesc": "Stripe aji kòm pwosesè peman ak depozitè depo."
+      "intro": "Enpòtan konprann ki pwopriyete fon.",
+      "item1": "Fon pou peye a",
+      "item1_desc": "Jiska travay konplete, lajan pou kliyè a.",
+      "item2": "OxSteed pa pwopriyete fon",
+      "item2_desc": "OxSteed pa pwopriyete, pa kontwole fon sekèstè.",
+      "item3": "Stripe retni fon sekirite",
+      "item3_desc": "Stripe retni fon nan kont sekirize ak separe.",
+      "disclaimerTitle": "AVI ENPÒTAN",
+      "disclaimerDesc": "Fon sekèstè PA asire pa FDIC. Sepandan, Stripe kenbe estanda sekirite."
     },
     "liability": {
-      "intro": "Responsabilite OxSteed an rapò ak sèvis depo a limite:",
-      "serviceInterruptionTitle": "Entèripsyon Sèvis",
-      "serviceInterruptionDesc": "OxSteed pa responsab pou retar koze pa entèripsyon sèvis Stripe.",
-      "securityTitle": "Ensidan Sekirite",
-      "securityDesc": "An ka yon ensidan sekirite, responsabilite limite a valè fon ki dirèkteman afekte.",
-      "recoveryTitle": "Pwosedi Rekiperasyon",
-      "recoveryDesc": "An ka yon erè nan liberasyon fon, OxSteed pral travay avèk Stripe pou korije erè a."
+      "intro": "OxSteed pa responsab sèten pwoblèm retni fon.",
+      "serviceInterruptionTitle": "Entèriksyon sèvis Stripe",
+      "serviceInterruptionDesc": "Si Stripe gen entèriksyon sèvis, OxSteed pa responsab.",
+      "securityTitle": "Miji oswa vòl fon",
+      "securityDesc": "Si sistèm Stripe konpromèt, OxSteed pa responsab.",
+      "recoveryTitle": "Asistan rekipèrasyon",
+      "recoveryDesc": "OxSteed ap ede ankèt men pa ka rekipere dirèk fon."
     },
     "release": {
-      "jobCompletionTitle": "Konpletman Travay",
-      "jobCompletionDesc": "Fon yo libere nan asistan lè kliyan make travay la konplè.",
-      "timeline": "Kalann liberasyon: 3-5 jou travay depi deklanchè jiska kont labank.",
-      "refundTitle": "Ranbousman",
-      "refundDesc": "Ranbousman emèt a diskresyon OxSteed apre rezolisyon diferan.",
-      "processingTime": "Tan tretman",
-      "processingTimeDesc": "Ranbousman jeneralman parèt sou relve ou nan 5-10 jou travay.",
-      "disputeTitle": "Fon an Diferan",
-      "disputeDesc": "Fon ki enplike nan yon diferan aktif jele jiskaske diferan an rezoud."
+      "jobCompletionTitle": "Laje konplèsyon travay",
+      "jobCompletionDesc": "Fon laje 3 jou ouvrab apre kliyè make travay konplete.",
+      "timeline": "Orè laje: 3 jou ouvrab apre konplèsyon. Fon rive: 5-7 jou ouvrab.",
+      "refundTitle": "Rembòsman",
+      "refundDesc": "Si kliyè mande rembòsman, fon retounen metòd peyman.",
+      "processingTime": "Tan pwosèse rembòsman",
+      "processingTimeDesc": "Rembòsman emis nan 5-7 jou ouvrab.",
+      "disputeTitle": "Travay an diferan",
+      "disputeDesc": "Si gen diferan, fon rete sekèstè pandan ankèt."
     },
     "timeline": {
-      "authorized": "Peman Otorize",
-      "authorizedDesc": "Kat kliyan otorize nan rezervasyon. Fon yo kenbe men pa kaptire.",
-      "completed": "Travay Konplète",
-      "completedDesc": "Kliyan make travay konplè. Kaptire depo deklanche.",
-      "released": "Fon Libere",
-      "releasedDesc": "Stripe transfere fon nan kont asistan, mwens frè platfòm.",
-      "received": "Fon Resevwa",
-      "receivedDesc": "Labank asistan resevwa transfè a."
+      "authorized": "Peyman otorive",
+      "authorizedDesc": "Peyman kliyè otorive ak mèt sekèstè avèk Stripe.",
+      "completed": "Travay konplete",
+      "completedDesc": "Kliyè make travay konplete.",
+      "released": "Fon laje",
+      "releasedDesc": "Fon laje 3 jou ouvrab apre konplèsyon.",
+      "received": "Fon resev",
+      "receivedDesc": "Fon rive nan kont ban 5-7 jou ouvrab."
     },
     "notices": {
-      "chargebackTitle": "Avi Chajbak",
-      "chargebackDesc": "Si yon kliyan depoze yon chajbak apre fon yo te libere, OxSteed rezève dwa pou rekipere montan an.",
-      "chargebackFee": "Yon frè administratif $25 aplike pou tout chajbak.",
-      "legalHoldTitle": "Retansyon Legal",
-      "legalHoldDesc": "Fon yo ka jele pa òdonnans legal oswa envestigasyon fwod."
+      "chargebackTitle": "Kòntrachaj evite sekèstè",
+      "chargebackDesc": "Si ou lanse kòntrachaj olye pwosè diferan nou.",
+      "chargebackFee": "Selon kondisyon Stripe, kòntrachaj entren $25 chaj.",
+      "legalHoldTitle": "Retni legal",
+      "legalHoldDesc": "Si OxSteed resevwa òdè legal, fon sekèstè kapab jèle."
     },
     "faq": {
-      "q1": "Kilè kat mwen chaje?",
-      "a1": "Kat ou otorize nan rezervasyon men sèlman chaje lè travay la make konplè.",
-      "q2": "Kisa k ap pase si asistan an pa parèt?",
-      "a2": "Si asistan an pa parèt, ou ka make travay la anile epi pa gen peman kaptire.",
-      "q3": "Konbyen tan jiskaske asistan an peye?",
-      "a3": "Apre ou make travay konplè, asistan an resevwa peman l nan 3-5 jou travay.",
-      "q4": "Eske asistan an ka aksede fon anvan travay la fini?",
-      "a4": "Non. Fon yo nan depo epi pa aksesib pou asistan jiskaske travay la make konplè.",
-      "q5": "Kisa k ap rive ak lajan mwen si mwen conteste travay la?",
-      "a5": "Fon an diferan jele imedyatman. Okenn pati pa ka aksede yo jiskaske diferan an rezoud.",
-      "q6": "Kisa k ap pase si mwen make travay konplè pa aksidan?",
-      "a6": "Kontakte support@oxsteed.com imedyatman.",
-      "q7": "Eske enfòmasyon peman mwen an sekirite?",
-      "a7": "Wi. OxSteed pa janm estoke nimewo kat konplè ou. Stripe jere tout done peman.",
-      "q8": "Ki lajan OxSteed sipòte?",
-      "a8": "OxSteed aktyèlman trete peman an USD."
+      "q1": "Mwen ka anile peyman apre otorizasyon?",
+      "a1": "Wi. Avman travay kòmanse, ou ka anile epi peyman retounen.",
+      "q2": "Ak si ede pa konplete travay?",
+      "a2": "Si travay pa konplete, kliyè ka ouvri diferan.",
+      "q3": "Konbyen tan pou yo peye kòm ede?",
+      "a3": "Apre kliyè make travay konplete, fon laje 3 jou ouvrab.",
+      "q4": "Ak si Stripe retni fon m?",
+      "a4": "Stripe ka retni fon tanporèlman. Konakte support@oxsteed.com.",
+      "q5": "Mwen ka gen fon m laje pi bonè?",
+      "a5": "Non. Retni 3 jou fiks selon politik Stripe.",
+      "q6": "Ak si mwen gen diferan?",
+      "a6": "Si ou teste travay, fon rete sekèstè.",
+      "q7": "Fon m sekirize an sekèstè?",
+      "a7": "Wi. Stripe itilize chifre nivo ban.",
+      "q8": "Ak si OxSteed fèmen?",
+      "a8": "Fon sekèstè rete pwopriyete legal yo."
     },
     "acceptance": {
-      "title": "Rekonèt Règleman Sa a",
-      "intro": "Lè ou itilize sèvis peman ak depo OxSteed, ou rekonèt ke ou li epi aksepte règleman sa a.",
-      "checkbox": "Mwen li epi aksepte Règleman Depo ak Peman",
-      "signBtn": "Siyen Rekonèsans",
+      "title": "Konpreyansyon ak rekonesans",
+      "intro": "Lè ou itilize sistèm peyman OxSteed, ou rekonèt ou konprann.",
+      "checkbox": "Mwen konprann ak aksepte polis sekèstè OxSteed.",
+      "signBtn": "Aksepte ak sinen",
       "form": {
-        "signature": "Siyati Elektwonik",
-        "signaturePlaceholder": "Tape non legal konplè ou kòm siyati elektwonik",
-        "signatureNote": "Non tape ou konstitye siyati elektwonik ou.",
-        "submit": "Soumèt Siyati"
+        "signature": "Siyati elektwonik ou (tape non ou)",
+        "signaturePlaceholder": "Tape non legal konplè ou isit",
+        "signatureNote": "Lè ou tape non ou, ou bay siyati elektwonik.",
+        "submit": "Konfime akseptasyon"
       },
-      "successMsg": "Règleman rekonèt avèk siksè.",
-      "successDesc": "Rekonèsans ou anrejistre avèk adrès IP ou ak mak tan."
+      "successMsg": "Akseptasyon ou anrejistre.",
+      "successDesc": "Mèsi. Akò ou anrejistre avèk yon esztamp tan."
     },
     "contactSupport": {
-      "intro": "Kesyon sou yon peman oswa retansyon depo? Ekip sipò nou an ka ede.",
-      "btn": "Kontakte Sipò"
+      "intro": "Ou gen kesyon sou kouman sekèstè travay?",
+      "btn": "Konakte sipò"
     }
   },
   "termsPage": {
@@ -2363,7 +2365,8 @@
       "findJobs": "Jwenn travay",
       "myBids": "Òf mwen yo",
       "reviews": "Kritik",
-      "invoices": "Fakti"
+      "invoices": "Fakti",
+      "aiKnowledge": "AI knowledge"
     },
     "profileCompleteness": "Pwofil konplè",
     "missingLabel": "Mank: {{label}}",
@@ -3837,7 +3840,8 @@
     "loadingGallery": "Chajman galeriye…",
     "loadingPolicies": "Chajman politiki…",
     "loadingServices": "Chajman sèvis…",
-    "tabSkillsLabel": "Konpetans"
+    "tabSkillsLabel": "Konpetans",
+    "tabAILabel": "AI knowledge"
   },
   "plans": {
     "free": "Gratis",
@@ -5490,29 +5494,98 @@
         "borescope": "Borescòp"
       },
       "tiles": {
-        "power-tools":  { "label": "Zouti Elektrik",      "desc": "Forez, si, meulè" },
-        "hand-tools":   { "label": "Zouti Men",           "desc": "Kle, mato, tenay" },
-        "cutting":      { "label": "Koupe",               "desc": "Si, si motè, lam" },
-        "drilling":     { "label": "Fòraj",               "desc": "Forez, vis, kloutè" },
-        "sanding":      { "label": "Ponçaj",              "desc": "Ponus, poliswa, tampon" },
-        "welding":      { "label": "Soudaj",              "desc": "MIG, TIG, plazma, meulè" },
-        "plumbing":     { "label": "Plonbri",             "desc": "Debouchè, kle, chalimo" },
-        "electrical":   { "label": "Elektrisite",         "desc": "Miltimèt, testè, tire fil" },
-        "hvac":         { "label": "HVAC",                "desc": "Ponp vid, manomèt, balans" },
-        "landscaping":  { "label": "Amenajman",           "desc": "Tondeuse, soufflè, tay bòday" },
-        "pressure":     { "label": "Lavaj Presyon",       "desc": "Lavèz presyon ak netwayan" },
-        "concrete":     { "label": "Beton",               "desc": "Melanj, mato, trwèl" },
-        "flooring":     { "label": "Revetman",            "desc": "Kloutè, koupè, woulo" },
-        "painting":     { "label": "Penti",               "desc": "Pistolet, melanjè, chalè" },
-        "scaffolding":  { "label": "Eskalin",             "desc": "Eskalin ak echafodaj" },
-        "lifting":      { "label": "Leve",                "desc": "Poliswa, krik, charyo" },
-        "compressors":  { "label": "Zouti Lè",            "desc": "Konpresè ak neymatik" },
-        "generators":   { "label": "Jenerate",            "desc": "Jenerate ak estasyon enèji" },
-        "automotive":   { "label": "Otomotiv",            "desc": "Krik, skanè, kle" },
-        "trailers":     { "label": "Remòk",               "desc": "Remòk, ranp, sangle" },
-        "safety":       { "label": "Ekipman Sekirite",    "desc": "Anès, kas, mask" },
-        "cleaning":     { "label": "Netwayaj",            "desc": "Aspiratè, fwotè, vapè" },
-        "diagnostic":   { "label": "Dyagnostik",          "desc": "Kamera, tèmik, sansè" }
+        "power-tools": {
+          "label": "Zouti Elektrik",
+          "desc": "Forez, si, meulè"
+        },
+        "hand-tools": {
+          "label": "Zouti Men",
+          "desc": "Kle, mato, tenay"
+        },
+        "cutting": {
+          "label": "Koupe",
+          "desc": "Si, si motè, lam"
+        },
+        "drilling": {
+          "label": "Fòraj",
+          "desc": "Forez, vis, kloutè"
+        },
+        "sanding": {
+          "label": "Ponçaj",
+          "desc": "Ponus, poliswa, tampon"
+        },
+        "welding": {
+          "label": "Soudaj",
+          "desc": "MIG, TIG, plazma, meulè"
+        },
+        "plumbing": {
+          "label": "Plonbri",
+          "desc": "Debouchè, kle, chalimo"
+        },
+        "electrical": {
+          "label": "Elektrisite",
+          "desc": "Miltimèt, testè, tire fil"
+        },
+        "hvac": {
+          "label": "HVAC",
+          "desc": "Ponp vid, manomèt, balans"
+        },
+        "landscaping": {
+          "label": "Amenajman",
+          "desc": "Tondeuse, soufflè, tay bòday"
+        },
+        "pressure": {
+          "label": "Lavaj Presyon",
+          "desc": "Lavèz presyon ak netwayan"
+        },
+        "concrete": {
+          "label": "Beton",
+          "desc": "Melanj, mato, trwèl"
+        },
+        "flooring": {
+          "label": "Revetman",
+          "desc": "Kloutè, koupè, woulo"
+        },
+        "painting": {
+          "label": "Penti",
+          "desc": "Pistolet, melanjè, chalè"
+        },
+        "scaffolding": {
+          "label": "Eskalin",
+          "desc": "Eskalin ak echafodaj"
+        },
+        "lifting": {
+          "label": "Leve",
+          "desc": "Poliswa, krik, charyo"
+        },
+        "compressors": {
+          "label": "Zouti Lè",
+          "desc": "Konpresè ak neymatik"
+        },
+        "generators": {
+          "label": "Jenerate",
+          "desc": "Jenerate ak estasyon enèji"
+        },
+        "automotive": {
+          "label": "Otomotiv",
+          "desc": "Krik, skanè, kle"
+        },
+        "trailers": {
+          "label": "Remòk",
+          "desc": "Remòk, ranp, sangle"
+        },
+        "safety": {
+          "label": "Ekipman Sekirite",
+          "desc": "Anès, kas, mask"
+        },
+        "cleaning": {
+          "label": "Netwayaj",
+          "desc": "Aspiratè, fwotè, vapè"
+        },
+        "diagnostic": {
+          "label": "Dyagnostik",
+          "desc": "Kamera, tèmik, sansè"
+        }
       }
     }
   },
@@ -6697,359 +6770,50 @@
     "activateAriaLabel": "Aktive modèl {{name}}",
     "unlockAriaLabel": "Debloke modèl {{name}}"
   },
-  "backgroundCheck": {
-    "title": "Vérifikasyon Dosye Kriminèl ak Pwosedi Aksyon Negatif",
-    "description": "Enfòmasyon sou vérifikasyon dosye OxSteed, faktè ki elimine, pwosèdi apèl, ak konformite FCRA.",
-    "subtitle": "Nou fè vérifikasyon dosye pou keep kominote nou an sekirite.",
-    "lastUpdated": "Dènyè miz ajou: 3 me 2026",
-    "onThisPage": "Sou paj sa a",
-    "searchLabel": "Chèche enfòmasyon vérifikasyon dosye",
-    "searchPlaceholder": "Chèche...",
-    "sections": {
-      "whatWeCheck": "Sa nou verifye",
-      "disqualifying": "Faktè elimine",
-      "ourProcess": "Pwosè nou",
-      "ifDenied": "Si demann ou reject",
-      "appeal": "Pwosedi apèl",
-      "timeline": "Orè ak estati",
-      "faqs": "Kesyon yo poze souvan"
-    },
-    "whatWeCheck": {
-      "intro": "Nou itilize Checkr fè vérifikasyon dosye konplè pou tout kandida.",
-      "item1": "Dosye kriminèl",
-      "item1_desc": "Nou verifye baz done lokal, eta, ak nasyonal.",
-      "item2": "Vérifikasyon idantite",
-      "item2_desc": "Nou verifye idantite ou ak id gouvènman.",
-      "item3": "Rejis delinkan seksuèl",
-      "item3_desc": "Nou verifye sit rejis nasyonal delinkan seksuèl.",
-      "item4": "Vérifikasyon adisyonèl",
-      "item4_desc": "Nou ka verifye baz done adisyonèl."
-    },
-    "disqualifying": {
-      "intro": "Faktè sa yo ap rezilte an rejeksyon demann ou.",
-      "violent": "Krim vyolan",
-      "sexual": "Ofans seksuèl",
-      "felony": "Kondanasyon krim",
-      "sex_offender": "Rejis delinkan seksuèl",
-      "theft": "Krim kont pwopriyete",
-      "drugs": "Trafik dwòg",
-      "fraud": "Fwod oswa vòl idantite",
-      "examples": "Egzanp yo enkli",
-      "note": "Nòt enpòtan",
-      "noteDesc": "Nou evalye demann baze sou nati, gravite, ak resan antesandan kriminèl."
-    },
-    "process": {
-      "intro": "Pwosè vérifikasyon dosye nou senp ak transparan.",
-      "step1": "Demann soumis",
-      "step1_desc": "Ou konplete ak soumèt demann ede ou.",
-      "step2": "Vérifikasyon dosye kòmanse",
-      "step2_desc": "Checkr resevwa enfòmasyon ou epi kòmanse vérifikasyon.",
-      "step3": "Rezilta resev",
-      "step3_desc": "Vérifikasyon nòmalman konplete nan 1-3 jou ouvrab.",
-      "step4": "Desizyon ak notifikasyon",
-      "step4_desc": "Nou revize rezilta ak notifye ou pa imel."
-    },
-    "ifDenied": {
-      "adverseNotice": "Avi aksyon negatif ou (konformite FCRA)",
-      "adverseIntro": "Si nou rejte demann ou, nou obligatwa bay ou avi aksyon negatif.",
-      "adverseExample": "Egzanp: 'Nou rejte demann ede ou akoz dosye kriminèl.'",
-      "adverseNote": "Ou ap resevwa avi sa a pa imel.",
-      "disputeTitle": "Teste avèk Checkr",
-      "disputeDesc": "Ou gen 30 jou pou teste rezilta avèk Checkr.",
-      "viewCheckr": "Vizit Checkr pou teste"
-    },
-    "appeal": {
-      "intro": "Si demann ou reject, ou gen dwa apèl.",
-      "step1": "Rasanble prèv ou",
-      "step1_desc": "Rasanble dokiman ki sipòte apèl ou.",
-      "step2": "Soumèt apèl ou",
-      "step2_desc": "Klik bouton anba a pou ouvri fòm sipò.",
-      "step3": "Revizyon jestiyonè",
-      "step3_desc": "Manm tim nou ap revize apèl ou nan 10 jou ouvrab.",
-      "step4": "Desizyon final",
-      "step4_desc": "Ou ap resevwa imel avèk desizyon final nou.",
-      "submitBtn": "Apèl rejeksyon",
-      "form": {
-        "email": "Adrès imèl ou",
-        "reason": "Poukisa dwe nou konsidere ankò?",
-        "reasonPlaceholder": "Eksplike apèl ou...",
-        "evidence": "Prèv sipò (Opsyonèl)",
-        "evidencePlaceholder": "Dekri dokiman ou gen...",
-        "submit": "Soumèt apèl"
-      },
-      "successMsg": "Apèl soumis avèk siksè!",
-      "successDesc": "Nou ap revize apèl ou ak konakte ou nan 10 jou ouvrab."
-    },
-    "timeline": {
-      "submitted": "Demann soumis",
-      "submitted_desc": "Ou konplete ak soumèt demann ede ou.",
-      "initiated": "Vérifikasyon dosye kòmanse",
-      "initiated_desc": "Checkr resevwa enfòmasyon ou.",
-      "received": "Rezilta resev",
-      "received_desc": "Vérifikasyon nòmalman konplete nan 1-3 jou ouvrab.",
-      "result": "Apwouve oswa rejte",
-      "result_desc": "Nou notifye ou desizyon.",
-      "appeal": "Peryòd apèl",
-      "appeal_desc": "Ou gen 30 jou pou teste."
-    },
-    "faq": {
-      "q1": "Konbyen tan vérifikasyon dosye pran?",
-      "a1": "Vérifikasyon nòmalman konplete nan 1-3 jou ouvrab.",
-      "q2": "Rejeksyon vle di m pa janm ka aplike ankò?",
-      "a2": "Ou ka apèl desizyon nan 30 jou.",
-      "q3": "Ak si gen erè nan rapò vérifikasyon dosye m?",
-      "a3": "Ou gen 30 jou pou teste rapò avèk Checkr.",
-      "q4": "OxSteed gade arete san kondanasyon?",
-      "a4": "Nou sou kondanasyon prensipalman.",
-      "q5": "Mwen ka travay kòm ede pandan vérifikasyon m?",
-      "a5": "Non. Ou dwe gen vérifikasyon aprouve.",
-      "q6": "Ki enfòmasyon mwen wè nan rapò dosye m?",
-      "a6": "Ou resevwa kopi rapò dosye ou avèk desizyon nou."
-    },
-    "contactSupport": {
-      "intro": "Ou gen kesyon sou pwosè vérifikasyon dosye?",
-      "btn": "Konakte sipò"
-    }
+  "aiKnowledge": {
+    "heading": "AI assistant knowledge",
+    "subheading": "Optional facts and policies the profile assistant may use when answering visitors. Keep it accurate and avoid secrets or personal data.",
+    "label": "Knowledge for your AI assistant",
+    "placeholder": "Example: We serve within 25 miles of Austin. Same-day emergency calls are an extra fee. We do not work on Sundays.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveError": "Could not save. Please try again.",
+    "charCount": "{{count}} / 8000 characters",
+    "charCountAria": "Character count {{count}} of 8000",
+    "previewBtn": "Open AI preview",
+    "tips": "Tips",
+    "tip1": "Write short paragraphs or bullet-style lines visitors ask about often.",
+    "tip2": "If something must be confirmed in person, say that here so the assistant can repeat it.",
+    "tip3": "Do not paste passwords, API keys, or customer PII.",
+    "tip4": "Changes apply after save; allow a minute for caches to refresh."
   },
-  "arbitration": {
-    "title": "Abitraj Obligatwa ak Limitasyon Responsabilite",
-    "description": "Enfòmasyon sou kloz abitraj OxSteed, renonsiasyon aksyon kolektif, ak limitasyon responsabilite.",
-    "subtitle": "Konprann dwa ou ak limitasyon OxSteed nan diferan legal",
-    "lastUpdated": "Dènyè miz ajou: 3 me 2026",
-    "onThisPage": "Sou paj sa a",
-    "searchLabel": "Chèche enfòmasyon abitraj",
-    "searchPlaceholder": "Chèche...",
-    "sections": {
-      "bindingArbitration": "Abitraj obligatwa",
-      "process": "Pwosè abitraj",
-      "fees": "Onorè ak frè abitraj",
-      "classAction": "Renonsyasyon aksyon kolektif",
-      "exceptions": "Eksepsyon abitraj",
-      "limitation": "Limitasyon responsabilite",
-      "stateDisclaimers": "Aplikabilite espesifik eta",
-      "initiate": "Kouman kòmanse abitraj"
-    },
-    "bindingArbitration": {
-      "intro": "Nenpòt diferan ant ou ak OxSteed ap rezout pa abitraj obligatwa.",
-      "keyPoint": "Lè ou itilize OxSteed, ou aksepte diferan rezout pa abitrè netwèl.",
-      "details": "Sa vle di de pati yo dakò soumèt abitraj."
-    },
-    "process": {
-      "rulesTitle": "Règ ak pwosedi abitraj",
-      "rulesIntro": "Abitraj nou swiv règ sa yo:",
-      "rule1": "Règ JAMS oswa AAA aplike.",
-      "rule2": "Abitraj pral dirije pa abitrè sèl netwèl.",
-      "rule3": "Abitrè ap bay desizyon eske ki eksplike.",
-      "arbitratorTitle": "Abitrè a",
-      "arbitratorDesc": "Abitrè se jij retiré oswa avoka eksperyanse.",
-      "timelineTitle": "Orè tipik abitraj"
-    },
-    "timeline": {
-      "phase1": "Demann inisyal",
-      "phase1Desc": "Demann aprè depoze demann abitraj.",
-      "phase2": "Seleksyon abitrè",
-      "phase2Desc": "De pati yo patisipe nan seleksyon abitrè.",
-      "phase3": "Odiyans ak prèv",
-      "phase3Desc": "Abitrè tande prèv de pati yo.",
-      "phase4": "Desizyon",
-      "phase4Desc": "Abitrè bay desizyon eske."
-    },
-    "fees": {
-      "intro": "Nou vle abitraj aksesib.",
-      "costTitle": "Ki pèsonn ki peye abitraj?",
-      "costDetail": "OxSteed pral peye tout frè JAMS oswa AAA si reklam ou pi ba $10,000.",
-      "attorneyFees": "Chak pati responsab pou pwòp frè avoka.",
-      "lowValue": "Pou reklam ba valè (mwen pase $10,000), JAMS bay pwosedi senpliye."
-    },
-    "classAction": {
-      "intro": "Ou aksepte abitraj pral fèt sèl sèlman.",
-      "impact": "Sa vle di ou PA KA fè aksyon kolektif kont OxSteed.",
-      "meaning": "Olye de rantre ak lòt kliyè nan aksyon kolektif.",
-      "stateNotice": "Enpòtan: Avi espesifik eta",
-      "noticeText": "Kèk eta pa pèmèt renonsyasyon aksyon kolektif."
-    },
-    "exceptions": {
-      "intro": "Abitraj PA aplike a sa ki swiv:",
-      "item1": "Tribunal ti reklam",
-      "item1Desc": "Ou ka poursuiv reklam ou nan tribunal ti reklam.",
-      "item2": "Ordonans mesir",
-      "item2Desc": "Yonn nan pati yo ka demann ordonans tanporèr.",
-      "item3": "Pwosedi JAMS/AAA",
-      "item3Desc": "Diferan sou akò abitraj pa rezout pa abitraj.",
-      "item4": "Ajans regilatoris",
-      "item4Desc": "Reklam presenté pa ajans gouvènman pa sijè abitraj."
-    },
-    "limitation": {
-      "capTitle": "Kap responsabilite",
-      "capIntro": "Responsabilite total OxSteed limite.",
-      "capAmount": "Responsabilite maksimum OxSteed pa depase montay ou peye OxSteed, oswa $100.",
-      "indirectTitle": "Pen endirèk",
-      "indirectIntro": "OxSteed PA responsab pou:",
-      "item1": "Pèt benefis oswa revni",
-      "item2": "Pèt done oswa entèriksyon biznis",
-      "item3": "Pen endirèk, ensidantal, espesyal oswa konsekan",
-      "item4": "Pen ipunitif oswa egzanplè"
-    },
-    "stateDisclaimers": {
-      "ca": {
-        "title": "Kalifòni (CA) - Aplikabilite",
-        "point1": "Lwa Kalifòni pèmèt renonsyasyon aksyon kolektif.",
-        "point2": "Anba Pwopozisyon 65, nenpòt diferan.",
-        "point3": "Si ou rezidan Kalifòni, ou gen dwa ekskli abitraj."
-      },
-      "ny": {
-        "title": "Nòvèl Yòk (NY) - Aplikabilite",
-        "point1": "Tribinal Nòvèl Yòk demine renonsyasyon aksyon kolektif ekzekitab.",
-        "point2": "Lwa pwoteksyon konsomate Nòvèl Yòk pa kapab elime.",
-        "point3": "Ou ka mande abitraj fèt nan konte Nòvèl Yòk."
-      },
-      "ma": {
-        "title": "Masachousèt (MA) - Aplikabilite",
-        "point1": "Tribinal Masachousèt ekzamine kloz abitraj",
-        "point2": "Lwa pwoteksyon konsomate Masachousèt pa kapab elime.",
-        "point3": "Renonsyasyon aksyon kolektif pa ekzekitab nan Masachousèt."
-      }
-    },
-    "initiate": {
-      "intro": "Si ou gen diferan avèk OxSteed, vwala kouman kòmanse abitraj:",
-      "step1": "Voye avi",
-      "step1_desc": "Voye OxSteed avi eske detaye.",
-      "step2": "Atann repons",
-      "step2Desc": "OxSteed pral reponn nan 30 jou.",
-      "step3": "Depoze demann",
-      "step3Desc": "Si diferan rezout, depoze demann abitraj.",
-      "step4": "Patisipe odiyans",
-      "step4Desc": "Patisipe audiyans abitraj.",
-      "contactTitle": "Voye avi ou a:",
-      "contactInfo": "support@oxsteed.com oswa tim legal nou a legal@oxsteed.com"
-    },
-    "acceptance": {
-      "title": "Rekonesans ak akseptasyon",
-      "intro": "Lè ou itilize OxSteed, ou rekonèt ou li, konprann, ak aksepte obligatwa.",
-      "checkbox": "Mwen konprann ak aksepte kloz abitraj, renonsyasyon aksyon kolektif.",
-      "signBtn": "Aksepte ak sinen",
-      "form": {
-        "signature": "Siyati elektwonik ou (tape non ou)",
-        "signaturePlaceholder": "Tape non legal konplè ou isit",
-        "signatureNote": "Lè ou tape non ou, ou bay siyati elektwonik.",
-        "submit": "Konfime akseptasyon"
-      },
-      "successMsg": "Akseptasyon ou anrejistre.",
-      "successDesc": "Mèsi. Akò ou anrejistre avèk yon esztamp tan."
-    }
-  },
-  "escrowPolicy": {
-    "title": "Polis Sekèstè ak Retni Fon",
-    "description": "Kouman OxSteed retni peyman an sekèstè avèk Stripe Connect, pwopriyete fon, orè lage, ak pwosedi diferan.",
-    "subtitle": "Konprann kouman nou pwoteje fon ou pandan tranzaksyon",
-    "lastUpdated": "Dènyè miz ajou: 3 me 2026",
-    "onThisPage": "Sou paj sa a",
-    "searchLabel": "Chèche enfòmasyon polis sekèstè",
-    "searchPlaceholder": "Chèche...",
-    "sections": {
-      "mechanism": "Mekanizm retni fon",
-      "authorization": "Orizasyon ak konsentman",
-      "ownership": "Pwopriyete fon",
-      "liability": "Responsabilite OxSteed",
-      "release": "Laje ak rembosman",
-      "timeline": "Orè ak avi enpòtan",
-      "faqs": "Kesyon yo poze souvan"
-    },
-    "mechanism": {
-      "intro": "OxSteed itilize Stripe Connect pou retni fon peyman an sekèstè.",
-      "keyPoint": "Fon retni PA OxSteed, pa Stripe. Nou fasil retni a.",
-      "details": "Lè ou peye pou travay, fon otorive sou metòd peyman ou.",
-      "stripe": "Stripe se pwosesè peyman lidè konfirans mètrèl bid biznis."
-    },
-    "authorization": {
-      "intro": "Lè ou poste travay ak ale pou peye, ou otorive pwosè sekèstè.",
-      "byChoosingTitle": "Lè ou chwazi peye",
-      "byChoosingDesc": "Ou aksepte OxSteed ak Stripe ka retni fon ou.",
-      "details": "Ou pral resevwa imel konfimason."
-    },
-    "ownership": {
-      "intro": "Enpòtan konprann ki pwopriyete fon.",
-      "item1": "Fon pou peye a",
-      "item1_desc": "Jiska travay konplete, lajan pou kliyè a.",
-      "item2": "OxSteed pa pwopriyete fon",
-      "item2_desc": "OxSteed pa pwopriyete, pa kontwole fon sekèstè.",
-      "item3": "Stripe retni fon sekirite",
-      "item3_desc": "Stripe retni fon nan kont sekirize ak separe.",
-      "disclaimerTitle": "AVI ENPÒTAN",
-      "disclaimerDesc": "Fon sekèstè PA asire pa FDIC. Sepandan, Stripe kenbe estanda sekirite."
-    },
-    "liability": {
-      "intro": "OxSteed pa responsab sèten pwoblèm retni fon.",
-      "serviceInterruptionTitle": "Entèriksyon sèvis Stripe",
-      "serviceInterruptionDesc": "Si Stripe gen entèriksyon sèvis, OxSteed pa responsab.",
-      "securityTitle": "Miji oswa vòl fon",
-      "securityDesc": "Si sistèm Stripe konpromèt, OxSteed pa responsab.",
-      "recoveryTitle": "Asistan rekipèrasyon",
-      "recoveryDesc": "OxSteed ap ede ankèt men pa ka rekipere dirèk fon."
-    },
-    "release": {
-      "jobCompletionTitle": "Laje konplèsyon travay",
-      "jobCompletionDesc": "Fon laje 3 jou ouvrab apre kliyè make travay konplete.",
-      "timeline": "Orè laje: 3 jou ouvrab apre konplèsyon. Fon rive: 5-7 jou ouvrab.",
-      "refundTitle": "Rembòsman",
-      "refundDesc": "Si kliyè mande rembòsman, fon retounen metòd peyman.",
-      "processingTime": "Tan pwosèse rembòsman",
-      "processingTimeDesc": "Rembòsman emis nan 5-7 jou ouvrab.",
-      "disputeTitle": "Travay an diferan",
-      "disputeDesc": "Si gen diferan, fon rete sekèstè pandan ankèt."
-    },
-    "timeline": {
-      "authorized": "Peyman otorive",
-      "authorizedDesc": "Peyman kliyè otorive ak mèt sekèstè avèk Stripe.",
-      "completed": "Travay konplete",
-      "completedDesc": "Kliyè make travay konplete.",
-      "released": "Fon laje",
-      "releasedDesc": "Fon laje 3 jou ouvrab apre konplèsyon.",
-      "received": "Fon resev",
-      "receivedDesc": "Fon rive nan kont ban 5-7 jou ouvrab."
-    },
-    "notices": {
-      "chargebackTitle": "Kòntrachaj evite sekèstè",
-      "chargebackDesc": "Si ou lanse kòntrachaj olye pwosè diferan nou.",
-      "chargebackFee": "Selon kondisyon Stripe, kòntrachaj entren $25 chaj.",
-      "legalHoldTitle": "Retni legal",
-      "legalHoldDesc": "Si OxSteed resevwa òdè legal, fon sekèstè kapab jèle."
-    },
-    "faq": {
-      "q1": "Mwen ka anile peyman apre otorizasyon?",
-      "a1": "Wi. Avman travay kòmanse, ou ka anile epi peyman retounen.",
-      "q2": "Ak si ede pa konplete travay?",
-      "a2": "Si travay pa konplete, kliyè ka ouvri diferan.",
-      "q3": "Konbyen tan pou yo peye kòm ede?",
-      "a3": "Apre kliyè make travay konplete, fon laje 3 jou ouvrab.",
-      "q4": "Ak si Stripe retni fon m?",
-      "a4": "Stripe ka retni fon tanporèlman. Konakte support@oxsteed.com.",
-      "q5": "Mwen ka gen fon m laje pi bonè?",
-      "a5": "Non. Retni 3 jou fiks selon politik Stripe.",
-      "q6": "Ak si mwen gen diferan?",
-      "a6": "Si ou teste travay, fon rete sekèstè.",
-      "q7": "Fon m sekirize an sekèstè?",
-      "a7": "Wi. Stripe itilize chifre nivo ban.",
-      "q8": "Ak si OxSteed fèmen?",
-      "a8": "Fon sekèstè rete pwopriyete legal yo."
-    },
-    "acceptance": {
-      "title": "Konpreyansyon ak rekonesans",
-      "intro": "Lè ou itilize sistèm peyman OxSteed, ou rekonèt ou konprann.",
-      "checkbox": "Mwen konprann ak aksepte polis sekèstè OxSteed.",
-      "signBtn": "Aksepte ak sinen",
-      "form": {
-        "signature": "Siyati elektwonik ou (tape non ou)",
-        "signaturePlaceholder": "Tape non legal konplè ou isit",
-        "signatureNote": "Lè ou tape non ou, ou bay siyati elektwonik.",
-        "submit": "Konfime akseptasyon"
-      },
-      "successMsg": "Akseptasyon ou anrejistre.",
-      "successDesc": "Mèsi. Akò ou anrejistre avèk yon esztamp tan."
-    },
-    "contactSupport": {
-      "intro": "Ou gen kesyon sou kouman sekèstè travay?",
-      "btn": "Konakte sipò"
-    }
+  "aiPreview": {
+    "title": "AI profile assistant preview",
+    "subtitle": "See what context OxSteed sends to your profile assistant and try a private test chat.",
+    "badgeAvailable": "Marked available now",
+    "badgeUnavailable": "Not marked available now",
+    "availabilityLabel": "Availability snapshot",
+    "skillsLabel": "Skills sent to the model",
+    "faqsLabel": "FAQs sent to the model",
+    "noFAQs": "No FAQs on file yet.",
+    "productsLabel": "Products sent to the model",
+    "noProducts": "No products on file yet.",
+    "knowledgeLabel": "Your AI knowledge block",
+    "noKnowledge": "No custom AI knowledge saved yet.",
+    "sectionContext": "Structured context",
+    "sectionPrompt": "System prompt preview",
+    "sectionSandbox": "Sandbox chat (test only)",
+    "refreshBtn": "Refresh",
+    "editKnowledgeBtn": "Edit knowledge",
+    "loadError": "Could not load preview. Please try again.",
+    "sandboxPlaceholder": "Ask a question as a visitor would…",
+    "sandboxYou": "You",
+    "sandboxAI": "Assistant",
+    "sandboxThinking": "Thinking…",
+    "sandboxSend": "Send",
+    "sandboxClear": "Clear",
+    "promptTruncated": "First 3000 characters of the system prompt. Live replies may vary slightly.",
+    "sandboxDisclaimer": "This is a test chat using the same AI as your public profile. It is not visible to customers."
   }
 }
