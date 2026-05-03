@@ -512,6 +512,7 @@ const { startCalendarReminderJob } = require('./jobs/calendarReminders');
 const { startAffiliateCommissionBatchJob } = require('./jobs/affiliateCommissionBatch');
 const cleanupOldMessagesJob = require('./jobs/cleanupOldMessages');
 const { startTemplateExpiryJob } = require('./jobs/templateExpiryJob');
+const { startScheduledDeletionJob } = require('./jobs/scheduledDeletionJob');
 
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
@@ -523,6 +524,7 @@ startConsultingPostSessionFollowup();
 startConsultingNoShowFollowup();
 startCalendarReminderJob();
 startAffiliateCommissionBatchJob();
+startScheduledDeletionJob();
 startTemplateExpiryJob();
 
 // Start message cleanup job (180-day auto-retention for support conversations)

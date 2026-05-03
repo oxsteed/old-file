@@ -1388,15 +1388,35 @@ exports.exportData = async (req, res) => {
   } catch (err) { logger.error('exportData error', { err }); res.status(500).json({ error: 'Export failed.' }); }
 };
 
-// DELETE USER ACCOUNT (super_admin only - route guard)
+// DELETE USER ACCOUNT — admin soft-delete with 30-day recovery window (super_admin only)
+//
+// Admin deletion is a SOFT delete. The account is:
+//   1. Immediately locked (is_active=false, tokens revoked, sockets disconnected)
+//   2. Marked with deletion_scheduled_at = NOW() + 30 days
+//   3. Data is NOT removed until the background job processes it after 30 days
+//   4. Admin can RESTORE the account within 30 days (see restoreUser below)
+//
+// Pre-deletion guards:
+//   - Active jobs (open/accepted/in_progress/escrow_held): block with 409
+//   - Pending payments owed by/to user: block with 409
+//   - Business team members: warn in response but don't block (admin decision)
+//
+// Why not hard-delete immediately?
+//   - Counterparty protection: helpers mid-job don't lose their job record
+//   - Financial safety: Stripe PaymentIntents aren't orphaned
+//   - Admin error recovery: 30 days to reverse a mistake
+//   - Audit trail: full history survives the grace window
 exports.deleteUser = async (req, res) => {
+  const crypto = require('crypto');
   try {
     const { userId } = req.params;
-    const { reason } = req.body;
+    const { reason, force = false } = req.body;
     const adminId = req.user.id;
 
     const { rows: userRows } = await db.query(
-      'SELECT id, first_name, last_name, email, role FROM users WHERE id = $1',
+      `SELECT id, first_name, last_name, email, role, is_banned,
+              deletion_scheduled_at, deleted_at
+       FROM users WHERE id = $1`,
       [userId],
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
@@ -1406,97 +1426,188 @@ exports.deleteUser = async (req, res) => {
       return res.status(403).json({ error: 'Cannot delete admin accounts.' });
     }
 
-    try {
-      await tokenRevocationService.revokeAllUserTokens(userId);
-    } catch (e) {
-      /* non-fatal */
+    if (user.deleted_at) {
+      return res.status(409).json({ error: 'This account has already been permanently deleted.' });
     }
-    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
-    socketService.disconnectUserSockets(userId);
 
-    await withTransaction(
-      db,
-      async (client) => {
-        const q = (sql, params) => client.query(sql, params);
+    if (user.deletion_scheduled_at) {
+      return res.status(409).json({
+        error: 'This account is already scheduled for deletion.',
+        deletion_scheduled_at: user.deletion_scheduled_at,
+      });
+    }
 
-        const deleteWhere = async (table, condition) => {
-          if (!(await tableExists(table))) return;
-          await q(`DELETE FROM ${table} WHERE ${condition}`, [userId]);
-        };
+    // ── Pre-deletion guards ────────────────────────────────────────────────
 
-        const deleteWhereAny = async (table, conditions) => {
-          if (!(await tableExists(table))) return;
-          for (const cond of conditions) {
-            await q(`DELETE FROM ${table} WHERE ${cond}`, [userId]);
-          }
-        };
+    // Check active jobs (correct column names: client_id / assigned_helper_id)
+    const { rows: activeJobs } = await db.query(
+      `SELECT id, title, status FROM jobs
+       WHERE (client_id = $1 OR assigned_helper_id = $1)
+         AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
+      [userId]
+    );
+    if (activeJobs.length > 0 && !force) {
+      return res.status(409).json({
+        error: 'Cannot delete this account while the user has active or in-progress jobs. Resolve or reassign all jobs first, or use force=true to override.',
+        activeJobs: activeJobs.map(j => ({ id: j.id, title: j.title, status: j.status })),
+        canForce: true,
+      });
+    }
 
-        const nullWhere = async (table, column) => {
-          if (!(await tableExists(table))) return;
-          await q(`UPDATE ${table} SET ${column} = NULL WHERE ${column} = $1`, [userId]);
-        };
+    // Check pending payments
+    const { rows: pendingPayments } = await db.query(
+      `SELECT id FROM payments
+       WHERE (payer_id = $1 OR payee_id = $1)
+         AND status IN ('pending', 'authorized', 'processing', 'captured')
+       LIMIT 10`,
+      [userId]
+    );
+    if (pendingPayments.length > 0 && !force) {
+      return res.status(409).json({
+        error: 'Cannot delete this account while the user has pending payments or uncollected earnings. Use force=true to override.',
+        pendingPaymentCount: pendingPayments.length,
+        canForce: true,
+      });
+    }
 
-        await nullWhere('platform_settings', 'updated_by');
-        await nullWhere('feature_flags', 'updated_by');
-        await nullWhere('content_reports', 'reviewed_by');
-        await nullWhere('moderation_queue', 'reported_by');
-        await nullWhere('moderation_queue', 'assigned_to');
-        await nullWhere('moderation_queue', 'resolved_by');
-        await nullWhere('admin_user_action_log', 'admin_id');
-        await nullWhere('admin_user_action_log', 'target_user_id');
-        await nullWhere('admin_audit_log', 'admin_id');
+    // Warn about business team members (non-blocking — admin decides)
+    const { rows: teamMembers } = await db.query(
+      `SELECT COUNT(*) AS count FROM businesses b
+       JOIN business_members bm ON bm.business_id = b.id
+       WHERE b.user_id = $1`,
+      [userId]
+    ).catch(() => ({ rows: [{ count: 0 }] }));
+    const memberCount = parseInt(teamMembers[0]?.count || 0);
 
-        // disputes.payment_id → payments; clear dispute rows before payments
-        await deleteWhere('dispute_messages', 'sender_id = $1');
-        await deleteWhere('disputes', 'raised_by = $1');
-        await deleteWhere('disputes', 'against_user = $1');
-        await deleteWhere('disputes', 'resolved_by = $1');
-        await deleteWhere('payments', 'payer_id = $1');
-        await deleteWhere('payments', 'payee_id = $1');
+    // ── Lock the account immediately ──────────────────────────────────────
 
-        await deleteWhereAny('reviews', ['reviewer_id = $1', 'reviewee_id = $1']);
-        await deleteWhere('bids', 'helper_id = $1');
+    try { await tokenRevocationService.revokeAllUserTokens(userId); } catch { /* non-fatal */ }
+    try { await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]); } catch { /* non-fatal */ }
+    try { socketService.disconnectUserSockets(userId); } catch { /* non-fatal */ }
 
-        await deleteWhere('guest_profile_chat_inbound', 'helper_id = $1');
+    // Hash email before it might get anonymized later, for identity continuity
+    const originalEmailHash = crypto
+      .createHash('sha256')
+      .update(user.email.toLowerCase().trim())
+      .digest('hex');
 
-        // Job-linked messaging (messages CASCADE from conversations)
-        await deleteWhere('conversations', 'customer_id = $1');
-        await deleteWhere('conversations', 'helper_id = $1');
+    // Soft-delete: lock the account, schedule permanent deletion in 30 days.
+    // PII is NOT anonymized yet — that happens at hard-delete time so admin can restore.
+    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        await deleteWhere('notifications', 'user_id = $1');
-        await deleteWhere('subscriptions', 'user_id = $1');
-        await deleteWhere('helper_profiles', 'user_id = $1');
-        await deleteWhere('consent_records', 'user_id = $1');
-        await deleteWhere('user_2fa', 'user_id = $1');
-        await deleteWhere('sessions', 'user_id = $1');
-
-        await deleteWhere('jobs', 'client_id = $1');
-        await deleteWhere('jobs', 'assigned_helper_id = $1');
-
-        await q('DELETE FROM users WHERE id = $1', [userId]);
-      },
-      'super_admin_delete_user',
+    await db.query(
+      `UPDATE users SET
+        is_active              = FALSE,
+        deleted_at             = NOW(),
+        deletion_scheduled_at  = $2,
+        deletion_type          = 'admin',
+        deletion_reason        = $3,
+        deletion_admin_id      = $4,
+        was_banned_at_deletion = $5,
+        original_email_hash    = $6,
+        updated_at             = NOW()
+       WHERE id = $1`,
+      [userId, thirtyDaysFromNow, reason || null, adminId, user.is_banned, originalEmailHash]
     );
 
     try {
       await logAdminAction({
         adminId,
-        action: 'user_deleted',
+        action: 'user_deletion_scheduled',
         targetType: 'user',
         targetId: userId,
-        description: reason || `Deleted user ${user.email}`,
-        before: { email: user.email, role: user.role, name: `${user.first_name} ${user.last_name}` },
-        after: null,
+        description: `Scheduled deletion of ${user.email}${reason ? `: ${reason}` : ''}. Hard delete scheduled for ${thirtyDaysFromNow.toISOString()}.`,
+        before: { email: user.email, role: user.role, name: `${user.first_name} ${user.last_name}`, is_banned: user.is_banned },
+        after: { deleted_at: new Date().toISOString(), deletion_scheduled_at: thirtyDaysFromNow.toISOString() },
         req,
       });
-    } catch (e) {
-      /* audit non-fatal */
-    }
+    } catch { /* audit non-fatal */ }
 
-    res.json({ message: `User ${user.email} deleted successfully.` });
+    res.json({
+      message: `Account for ${user.email} has been locked and scheduled for permanent deletion in 30 days.`,
+      deletion_scheduled_at: thirtyDaysFromNow.toISOString(),
+      can_restore_until: thirtyDaysFromNow.toISOString(),
+      warnings: memberCount > 0
+        ? [`This user has ${memberCount} business team member(s). Their memberships will be cascade-deleted when the account is permanently removed.`]
+        : [],
+    });
   } catch (err) {
     logger.error('deleteUser error', { err });
     res.status(500).json({ error: 'Failed to delete user.' });
+  }
+};
+
+// RESTORE USER ACCOUNT — cancel a pending admin deletion (super_admin only)
+// Only works within the 30-day window (deletion_scheduled_at has not passed AND
+// the actual hard-delete job has not run yet).
+exports.restoreUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+    const adminId = req.user.id;
+
+    const { rows: userRows } = await db.query(
+      `SELECT id, first_name, last_name, email, role,
+              deletion_scheduled_at, deleted_at, deletion_type
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
+    const user = userRows[0];
+
+    // Can only restore admin-type deletions
+    if (user.deletion_type !== 'admin') {
+      return res.status(409).json({
+        error: 'This account was self-deleted by the user. Admin restoration is not permitted for self-deletes. If you believe this account should be reopened, contact the legal team.',
+      });
+    }
+
+    if (!user.deleted_at || !user.deletion_scheduled_at) {
+      return res.status(409).json({ error: 'This account is not currently scheduled for deletion.' });
+    }
+
+    // Check the 30-day window has not expired
+    const now = new Date();
+    const scheduledFor = new Date(user.deletion_scheduled_at);
+    if (now >= scheduledFor) {
+      return res.status(409).json({
+        error: 'The 30-day recovery window has expired. This account has been permanently deleted and cannot be restored.',
+      });
+    }
+
+    // Restore the account
+    await db.query(
+      `UPDATE users SET
+        is_active             = TRUE,
+        deleted_at            = NULL,
+        deletion_scheduled_at = NULL,
+        deletion_type         = NULL,
+        deletion_reason       = NULL,
+        deletion_admin_id     = NULL,
+        updated_at            = NOW()
+       WHERE id = $1`,
+      [userId]
+    );
+
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_restoration',
+        targetType: 'user',
+        targetId: userId,
+        description: `Restored account for ${user.email}${reason ? `. Reason: ${reason}` : ''}`,
+        before: { deleted_at: user.deleted_at, deletion_scheduled_at: user.deletion_scheduled_at },
+        after: { deleted_at: null, is_active: true },
+        req,
+      });
+    } catch { /* non-fatal */ }
+
+    res.json({
+      message: `Account for ${user.email} has been restored. The user may log in again.`,
+    });
+  } catch (err) {
+    logger.error('restoreUser error', { err });
+    res.status(500).json({ error: 'Failed to restore user account.' });
   }
 };
 

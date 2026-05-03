@@ -234,13 +234,36 @@ export default function SettingsPage() {
     setPrivacySaving(null);
   };
 
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteActiveJobs, setDeleteActiveJobs] = useState([]);
+  const [deletePending, setDeletePending] = useState(false);
+
   const deleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE MY ACCOUNT') {
+      setDeleteError('Please type "DELETE MY ACCOUNT" exactly to confirm.');
+      return;
+    }
+    setDeleteError('');
+    setDeleteActiveJobs([]);
+    setDeletePending(true);
     try {
-      await api.delete('/privacy/delete-account');
+      await api.delete('/privacy/delete-account', {
+        data: { confirmation: 'DELETE MY ACCOUNT' },
+      });
       toast.success(t('settings.accountDeleted'));
       logout();
       navigate('/');
-    } catch (err) { toast.error(t('settings.accountDeleteFailed')); }
+    } catch (err) {
+      const serverErr = err.response?.data;
+      if (serverErr?.activeJobs) {
+        setDeleteActiveJobs(serverErr.activeJobs);
+        setDeleteError(serverErr.error || t('settings.accountDeleteFailed'));
+      } else {
+        setDeleteError(serverErr?.error || t('settings.accountDeleteFailed'));
+      }
+    }
+    setDeletePending(false);
   };
 
   const resetBizForm = () => {
@@ -793,16 +816,72 @@ export default function SettingsPage() {
       <p className="sp-card-subtitle">{t('settings.danger.subtitle')}</p>
 
       {!showDelete ? (
-        <button onClick={() => setShowDelete(true)} className="sp-btn sp-btn-danger">{t('settings.danger.deleteAccount')}</button>
+        <button onClick={() => { setShowDelete(true); setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]); }} className="sp-btn sp-btn-danger">
+          {t('settings.danger.deleteAccount')}
+        </button>
       ) : (
         <div className="sp-confirm-box">
           <p className="text-sm font-semibold mb-1" style={{ color: '#f87171' }}>{t('settings.danger.confirmTitle')}</p>
-          <p className="text-sm mb-4" style={{ color: 'var(--muted-text,#94a3b8)' }}>
-            {t('settings.danger.confirmDesc')}
-          </p>
+
+          {/* What deletion means */}
+          <div className="text-sm mb-4 space-y-2" style={{ color: 'var(--muted-text,#94a3b8)' }}>
+            <p>{t('settings.danger.confirmDesc')}</p>
+            <div className="rounded-lg border p-3 text-xs space-y-1.5" style={{ borderColor: 'rgba(248,113,113,0.2)', background: 'rgba(248,113,113,0.04)' }}>
+              <p style={{ color: '#fca5a5', fontWeight: 600 }}>What happens when you delete your account:</p>
+              <p>• Your profile, photo, and personal information are immediately anonymized</p>
+              <p>• You are logged out and cannot log back in</p>
+              <p>• Your review history and dispute records are <strong style={{ color: '#fca5a5' }}>retained</strong> as required by law</p>
+              <p>• Pending earnings must be collected before deletion</p>
+              <p>• Active jobs must be completed or cancelled first</p>
+              <p style={{ color: '#fb923c' }}>⚠ Banned accounts cannot be self-deleted. Contact support to appeal a ban.</p>
+            </div>
+          </div>
+
+          {/* Active jobs error */}
+          {deleteActiveJobs.length > 0 && (
+            <div className="rounded-lg border p-3 text-xs mb-3 space-y-1" style={{ borderColor: 'rgba(251,146,60,0.3)', background: 'rgba(251,146,60,0.06)', color: '#fdba74' }}>
+              <p className="font-semibold">You have {deleteActiveJobs.length} active job{deleteActiveJobs.length !== 1 ? 's' : ''} that must be resolved first:</p>
+              {deleteActiveJobs.map(j => (
+                <p key={j.id}>• {j.title} — <span style={{ opacity: 0.75 }}>{j.status}</span></p>
+              ))}
+            </div>
+          )}
+
+          {/* Generic error */}
+          {deleteError && !deleteActiveJobs.length && (
+            <p className="text-sm mb-3" style={{ color: '#f87171' }}>{deleteError}</p>
+          )}
+
+          {/* Confirmation input */}
+          <div className="mb-4">
+            <label className="sp-label" style={{ color: '#f87171' }}>
+              Type <strong>DELETE MY ACCOUNT</strong> to confirm
+            </label>
+            <input
+              className="sp-input"
+              value={deleteConfirmText}
+              onChange={e => { setDeleteConfirmText(e.target.value); setDeleteError(''); }}
+              placeholder="DELETE MY ACCOUNT"
+              autoComplete="off"
+              style={{ borderColor: deleteError ? '#f87171' : undefined }}
+            />
+          </div>
+
           <div className="flex gap-3">
-            <button onClick={deleteAccount} className="sp-btn sp-btn-danger">{t('settings.danger.yesDelete')}</button>
-            <button onClick={() => setShowDelete(false)} className="sp-btn sp-btn-ghost">{t('common.cancel')}</button>
+            <button
+              onClick={deleteAccount}
+              disabled={deletePending || deleteConfirmText !== 'DELETE MY ACCOUNT'}
+              className="sp-btn sp-btn-danger"
+              style={{ opacity: deleteConfirmText !== 'DELETE MY ACCOUNT' ? 0.5 : 1 }}
+            >
+              {deletePending ? 'Deleting…' : t('settings.danger.yesDelete')}
+            </button>
+            <button
+              onClick={() => { setShowDelete(false); setDeleteConfirmText(''); setDeleteError(''); setDeleteActiveJobs([]); }}
+              className="sp-btn sp-btn-ghost"
+            >
+              {t('common.cancel')}
+            </button>
           </div>
         </div>
       )}
