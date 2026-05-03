@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **Admin users list (2026-05-03):** `POST /admin/users/:userId/cancel-pending-deletion` (super-admin) clears scheduled admin deletion when list still shows pending; **`restoreUser`** allows NULL `deletion_type` (only blocks `self`). **`toggleUserBan`** uses `id::text` match for BIGINT ids. Admin messaging (`sendAdminMessage`, `adminMessageController`) allows targets with `deleted_at` set when pending admin deletion (not self-delete).
+- **Admin users list (2026-05-03):** Pending-deletion **reversal** is the goal: **`reinstateAfterPendingAdminDeletion`** clears schedule + **`deleted_at`** + **`is_active`** (skips `deletion_type = 'self'`). Used by **`restoreUser`** (lookup by `id::text`; restores when `deleted_at` OR `deletion_scheduled_at` set; 30-day check only if schedule exists), **`cancelPendingDeletion`**, **`toggleUserBan`** (unban), **`reactivateUser`** (`WHERE id::text`). **`restoreUser`** no longer requires UUID-only param. Admin messaging again requires **`deleted_at IS NULL`** (reinstate first).
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS

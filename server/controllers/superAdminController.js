@@ -51,6 +51,18 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
   }
 }
 
+/** Clears admin-scheduled deletion state and sets the account active (never for self-deletes). */
+async function reinstateAfterPendingAdminDeletion(userId) {
+  await clearAdminScheduledDeletionIfPresent(userId);
+  const hasType = await columnExists('users', 'deletion_type');
+  const notSelf = hasType ? `AND deletion_type IS DISTINCT FROM 'self'` : '';
+  await db.query(
+    `UPDATE users SET deleted_at = NULL, is_active = TRUE, updated_at = NOW()
+     WHERE id::text = $1 ${notSelf}`,
+    [String(userId)],
+  );
+}
+
 // ─── Dashboard helpers ────────────────────────────────────────────────────────
 
 const PERIOD_INTERVAL = {
@@ -751,7 +763,7 @@ exports.toggleUserBan = async (req, res) => {
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
     if (newStatus) {
-      try { await clearAdminScheduledDeletionIfPresent(userId); } catch (e) { logger.warn('toggleUserBan: clear scheduled admin deletion failed', { userId, err: e.message }); }
+      try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
     }
     // Kick any live WebSocket session immediately so the user can't keep browsing
     if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
@@ -1671,18 +1683,12 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// RESTORE USER ACCOUNT — cancel a pending admin deletion (super_admin only)
-// Only works within the 30-day window (deletion_scheduled_at has not passed AND
-// the actual hard-delete job has not run yet).
+// RESTORE USER ACCOUNT — cancel pending admin deletion / reinstate (super_admin only)
+// Clears soft-delete + migration-165 schedule when the account is locked for admin deletion
+// (deleted_at and/or deletion_scheduled_at). 30-day window enforced only when a schedule exists.
 exports.restoreUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    if (!isUuidParam(userId)) {
-      return res.status(400).json({
-        error: 'Invalid user id.',
-        detail: 'The user id in the URL must be a valid UUID.',
-      });
-    }
     const { reason } = req.body;
     const adminId = req.user.id;
 
@@ -1697,45 +1703,36 @@ exports.restoreUser = async (req, res) => {
     const { rows: userRows } = await db.query(
       `SELECT id, first_name, last_name, email, role,
               deletion_scheduled_at, deleted_at, deletion_type
-       FROM users WHERE ${userIdEq('id')}`,
+       FROM users WHERE id::text = $1`,
       [String(userId)]
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
 
-    // Can only restore admin-scheduled deletions (explicit 'admin' or NULL legacy rows — never self-delete)
     if (user.deletion_type === 'self') {
       return res.status(409).json({
         error: 'This account was self-deleted by the user. Admin restoration is not permitted for self-deletes. If you believe this account should be reopened, contact the legal team.',
       });
     }
 
-    if (!user.deleted_at || !user.deletion_scheduled_at) {
+    const hasPendingSchedule = Boolean(user.deletion_scheduled_at);
+    const lockedForDeletion = Boolean(user.deleted_at || hasPendingSchedule);
+
+    if (!lockedForDeletion) {
       return res.status(409).json({ error: 'This account is not currently scheduled for deletion.' });
     }
 
-    // Check the 30-day window has not expired
-    const now = new Date();
-    const scheduledFor = new Date(user.deletion_scheduled_at);
-    if (now >= scheduledFor) {
-      return res.status(409).json({
-        error: 'The 30-day recovery window has expired. This account has been permanently deleted and cannot be restored.',
-      });
+    if (hasPendingSchedule) {
+      const now = new Date();
+      const scheduledFor = new Date(user.deletion_scheduled_at);
+      if (now >= scheduledFor) {
+        return res.status(409).json({
+          error: 'The 30-day recovery window has expired. This account has been permanently deleted and cannot be restored.',
+        });
+      }
     }
 
-    // Restore the account
-    await db.query(
-      `UPDATE users SET
-        is_active             = TRUE,
-        deleted_at            = NULL,
-        deletion_scheduled_at = NULL,
-        deletion_type         = NULL,
-        deletion_reason       = NULL,
-        deletion_admin_id     = NULL,
-        updated_at            = NOW()
-       WHERE ${userIdEq('id')}`,
-      [String(userId)]
-    );
+    await reinstateAfterPendingAdminDeletion(userId);
 
     try {
       await logAdminAction({
@@ -1773,8 +1770,7 @@ exports.restoreUser = async (req, res) => {
 
 /**
  * POST /admin/users/:userId/cancel-pending-deletion
- * Clears admin-scheduled deletion markers without requiring the 30-day restore flow.
- * Use when the user list shows "Pending deletion" but ban/reactivate did not apply (e.g. id type mismatch before fix).
+ * Super-admin: same reinstatement as restore when a future deletion_scheduled_at exists.
  */
 exports.cancelPendingDeletion = async (req, res) => {
   try {
@@ -1797,11 +1793,7 @@ exports.cancelPendingDeletion = async (req, res) => {
         error: 'Cannot cancel a self-service deletion from this endpoint.',
       });
     }
-    await clearAdminScheduledDeletionIfPresent(userId);
-    await db.query(
-      `UPDATE users SET is_active = TRUE, updated_at = NOW() WHERE id::text = $1`,
-      [String(userId)],
-    );
+    await reinstateAfterPendingAdminDeletion(userId);
     try {
       await logAdminAction({
         adminId,
@@ -1995,19 +1987,13 @@ exports.sendAdminMessage = async (req, res) => {
       return res.status(400).json({ error: 'Message must be 4000 characters or fewer.' });
     }
 
-    // Verify target user exists and is not an admin (allow messaging during admin-scheduled
-    // deletion when deleted_at is set but the account is not a self-delete)
+    // Verify target user exists, is not an admin, and is not soft-deleted (scheduled deletion
+    // locks the row — use cancel-pending-deletion / restore first).
     const { rows: targetRows } = await db.query(
       `SELECT id, first_name, last_name, email, role FROM users
        WHERE id::text = $1
          AND role NOT IN ('admin', 'super_admin')
-         AND (
-           deleted_at IS NULL
-           OR (
-             deletion_scheduled_at IS NOT NULL
-             AND (deletion_type IS DISTINCT FROM 'self')
-           )
-         )`,
+         AND deleted_at IS NULL`,
       [String(userId)]
     );
     if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
@@ -2649,14 +2635,14 @@ exports.reactivateUser = async (req, res) => {
            is_banned         = FALSE,
            ban_reason        = NULL,
            updated_at        = NOW()
-       WHERE id = $1
+       WHERE id::text = $1
        RETURNING id, email, first_name`,
-      [userId]
+      [String(userId)]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
 
-    try { await clearAdminScheduledDeletionIfPresent(userId); } catch (e) {
-      logger.warn('reactivateUser: clear scheduled admin deletion failed', { userId, err: e.message });
+    try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) {
+      logger.warn('reactivateUser: reinstate failed', { userId, err: e.message });
     }
 
     await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
