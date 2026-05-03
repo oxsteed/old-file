@@ -504,7 +504,14 @@
     "resource": "Resous",
     "qrGenerator": "Jeneratè QR",
     "consulting": "Konsèy",
-    "consultingTooltip": "Planifye yon seyans konsèy biznis inisyal $100"
+    "consultingTooltip": "Planifye yon seyans konsèy biznis inisyal $100",
+    "legal": "Legal",
+    "backgroundCheck": "Verifikasyon Antesèdan",
+    "arbitration": "Abitraj",
+    "escrowPolicy": "Règleman Depo",
+    "accountTermination": "Fèmti Kont",
+    "disputeResolution": "Rezolisyon Diferan",
+    "independentContractor": "Kontraktè Endepandan"
   },
   "termsPage": {
     "title": "Kondisyon Sèvis",
