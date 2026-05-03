@@ -66,8 +66,17 @@ async function columnExists(table, column) {
   }
 }
 
+/**
+ * Safe equality against user id columns that may be UUID on one DB and BIGINT on another.
+ * Comparing a uuid param directly to bigint (or vice versa) raises 22P02.
+ */
+function userIdEq(column) {
+  return `${column}::text = $1`;
+}
+
 module.exports = {
   getFirstSearchPathSchema,
   tableExists,
   columnExists,
+  userIdEq,
 };

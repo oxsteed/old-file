@@ -17,6 +17,7 @@
 const cron = require('node-cron');
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { userIdEq } = require('../utils/schemaProbe');
 
 async function tableExists(name) {
   const { rows } = await pool.query(
@@ -68,12 +69,12 @@ async function hardDeleteUser(user) {
 
     const del = async (table, condition) => {
       if (!(await tableExists(table))) return;
-      await q(`DELETE FROM ${table} WHERE ${condition}`, [userId]);
+      await q(`DELETE FROM ${table} WHERE ${condition}`, [String(userId)]);
     };
 
     const nullify = async (table, column) => {
       if (!(await tableExists(table))) return;
-      await q(`UPDATE ${table} SET ${column} = NULL WHERE ${column} = $1`, [userId]);
+      await q(`UPDATE ${table} SET ${column} = NULL WHERE ${column}::text = $1`, [String(userId)]);
     };
 
     // Null out audit/admin references (preserve audit trail, remove user link)
@@ -88,36 +89,37 @@ async function hardDeleteUser(user) {
     await nullify('moderation_queue', 'resolved_by');
 
     // Remove financial/dispute records (delete in FK order)
-    await del('dispute_messages', 'sender_id = $1');
-    await del('disputes', 'raised_by = $1');
-    await del('disputes', 'against_user = $1');
-    await del('disputes', 'resolved_by = $1');
-    await del('payments', 'payer_id = $1');
-    await del('payments', 'payee_id = $1');
+    // Use ::text comparisons so UUID params work when FK columns are BIGINT (or vice versa).
+    await del('dispute_messages', userIdEq('sender_id'));
+    await del('disputes', userIdEq('raised_by'));
+    await del('disputes', userIdEq('against_user'));
+    await del('disputes', userIdEq('resolved_by'));
+    await del('payments', userIdEq('payer_id'));
+    await del('payments', userIdEq('payee_id'));
 
     // Job-related
-    await del('bids', 'helper_id = $1');
-    await del('conversations', 'customer_id = $1');
-    await del('conversations', 'helper_id = $1');
-    await del('jobs', 'client_id = $1');
-    await del('jobs', 'assigned_helper_id = $1');
+    await del('bids', userIdEq('helper_id'));
+    await del('conversations', userIdEq('customer_id'));
+    await del('conversations', userIdEq('helper_id'));
+    await del('jobs', userIdEq('client_id'));
+    await del('jobs', userIdEq('assigned_helper_id'));
 
     // Profile & account data
-    await del('notifications', 'user_id = $1');
-    await del('subscriptions', 'user_id = $1');
-    await del('helper_profiles', 'user_id = $1');
-    await del('consent_records', 'user_id = $1');
-    await del('user_consents', 'user_id = $1');
-    await del('user_2fa', 'user_id = $1');
-    await del('sessions', 'user_id = $1');
-    await del('guest_profile_chat_inbound', 'helper_id = $1');
+    await del('notifications', userIdEq('user_id'));
+    await del('subscriptions', userIdEq('user_id'));
+    await del('helper_profiles', userIdEq('user_id'));
+    await del('consent_records', userIdEq('user_id'));
+    await del('user_consents', userIdEq('user_id'));
+    await del('user_2fa', userIdEq('user_id'));
+    await del('sessions', userIdEq('user_id'));
+    await del('guest_profile_chat_inbound', userIdEq('helper_id'));
 
     // Reviews are intentionally kept for counterparty integrity —
     // the reviewee's rating should not silently disappear.
     // Reviewer identity is already anonymized to NULL-safe UUID.
 
     // Hard delete the user row (businesses cascade via FK ON DELETE CASCADE)
-    await q('DELETE FROM users WHERE id = $1', [userId]);
+    await q('DELETE FROM users WHERE id::text = $1', [String(userId)]);
 
     await client.query('COMMIT');
 
@@ -140,9 +142,9 @@ async function hardDeleteUser(user) {
             WHERE r.reviewee_id = hp.user_id AND r.is_public = true
           )
         WHERE hp.user_id IN (
-          SELECT DISTINCT reviewee_id FROM reviews WHERE reviewer_id = $1
+          SELECT DISTINCT reviewee_id FROM reviews WHERE reviewer_id::text = $1
         )`,
-        [userId]
+        [String(userId)]
       );
     } catch (e) {
       logger.warn('scheduledDeletionJob: rating recompute failed (non-fatal)', { userId, error: e.message });
