@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { authenticator } = require('@otplib/v12-adapter');
 const pool = require('../db');
+const { userIdEq } = require('../utils/schemaProbe');
 const { generateTokens } = require('../middleware/auth');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../utils/email');
 const { sendOTPSMS } = require('../utils/sms');
@@ -574,8 +575,8 @@ async function logout(req, res) {
         if (decoded?.id) {
           userId = decoded.id;
           const { rows: invalidateRows } = await pool.query(
-            'UPDATE sessions SET is_valid = false WHERE user_id = $1 RETURNING id',
-            [decoded.id]
+            `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')} RETURNING id`,
+            [String(decoded.id)]
           );
           if (invalidateRows.length > 0) {
             didInvalidateSession = true;
@@ -1166,7 +1167,10 @@ async function switchRole(req, res) {
     const updatedUser = rows[0];
 
     // Invalidate all existing sessions then issue a fresh token pair.
-    await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+    await pool.query(
+      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      [String(userId)],
+    );
     const tokens       = generateTokens(updatedUser);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(

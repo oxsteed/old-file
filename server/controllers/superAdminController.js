@@ -659,7 +659,10 @@ exports.setUserDiditEnforcement = async (req, res) => {
 
     if (required) {
       try {
-        await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+        await db.query(
+          `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+          [String(userId)],
+        );
         socketService.broadcastToUser(userId, 'force_logout', { reason: 'didit_enforcement_required' });
       } catch (e) { /* non-fatal */ }
     }
@@ -1435,8 +1438,8 @@ exports.deleteUser = async (req, res) => {
     if (hasDeletionScheduled) selectCols.push('deletion_scheduled_at');
 
     const { rows: userRows } = await db.query(
-      `SELECT ${selectCols.join(', ')} FROM users WHERE id = $1`,
-      [userId],
+      `SELECT ${selectCols.join(', ')} FROM users WHERE ${userIdEq('id')}`,
+      [String(userId)],
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
@@ -1507,7 +1510,12 @@ exports.deleteUser = async (req, res) => {
     // ── Lock the account immediately ──────────────────────────────────────
 
     try { await tokenRevocationService.revokeAllUserTokens(userId); } catch { /* non-fatal */ }
-    try { await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]); } catch { /* non-fatal */ }
+    try {
+      await db.query(
+        `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+        [String(userId)],
+      );
+    } catch { /* non-fatal */ }
     try { socketService.disconnectUserSockets(userId); } catch { /* non-fatal */ }
 
     const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -1525,7 +1533,7 @@ exports.deleteUser = async (req, res) => {
         'deleted_at = NOW()',
         'updated_at = NOW()',
       ];
-      const params = [userId];
+      const params = [String(userId)];
       let pi = 2;
 
       if (hasDeletionScheduled) { sets.push(`deletion_scheduled_at = $${pi++}`); params.push(thirtyDaysFromNow); }
@@ -1535,14 +1543,14 @@ exports.deleteUser = async (req, res) => {
       if (hasWasBanned)         { sets.push(`was_banned_at_deletion = $${pi++}`); params.push(user.is_banned || false); }
       if (hasOriginalEmailHash) { sets.push(`original_email_hash = $${pi++}`); params.push(originalEmailHash); }
 
-      await db.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1`, params);
+      await db.query(`UPDATE users SET ${sets.join(', ')} WHERE ${userIdEq('id')}`, params);
     } else {
       // Fallback: migration 165 not yet applied — use only pre-existing columns
       // Still locks the account and marks deleted_at; no 30-day scheduling yet
       logger.warn('deleteUser: migration 165 columns not present — using legacy soft-delete fallback', { userId });
       await db.query(
-        `UPDATE users SET is_active = FALSE, deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [userId]
+        `UPDATE users SET is_active = FALSE, deleted_at = NOW(), updated_at = NOW() WHERE ${userIdEq('id')}`,
+        [String(userId)]
       );
     }
 
@@ -1573,7 +1581,7 @@ exports.deleteUser = async (req, res) => {
       ],
     });
   } catch (err) {
-    logger.error('deleteUser error', { err });
+    logger.error('deleteUser error', { err, message: err.message, code: err.code, detail: err.detail, hint: err.hint, where: err.where });
 
     // Map known PostgreSQL / application errors to specific messages
     const pgCode = err.code;
@@ -1635,8 +1643,8 @@ exports.restoreUser = async (req, res) => {
     const { rows: userRows } = await db.query(
       `SELECT id, first_name, last_name, email, role,
               deletion_scheduled_at, deleted_at, deletion_type
-       FROM users WHERE id = $1`,
-      [userId]
+       FROM users WHERE ${userIdEq('id')}`,
+      [String(userId)]
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
@@ -1671,8 +1679,8 @@ exports.restoreUser = async (req, res) => {
         deletion_reason       = NULL,
         deletion_admin_id     = NULL,
         updated_at            = NOW()
-       WHERE id = $1`,
-      [userId]
+       WHERE ${userIdEq('id')}`,
+      [String(userId)]
     );
 
     try {
@@ -1794,7 +1802,10 @@ exports.toggleAdminAccountStatus = async (req, res) => {
       return res.status(409).json({ error: 'Admin status changed during update - concurrent modification detected.' });
     }
     // Invalidate all sessions for this admin and kick any live WebSocket connection
-    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [id]);
+    await db.query(
+      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      [String(id)],
+    );
     if (!newStatus) socketService.broadcastToUser(id, 'force_logout', { reason: 'account_disabled' });
     await logAdminAction({
       adminId: req.user.id,
@@ -1846,7 +1857,10 @@ exports.forceLogout = async (req, res) => {
     const { reason } = req.body;
     const { rows } = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
-    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+    await db.query(
+      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      [String(userId)],
+    );
     await logAdminAction({
       adminId: req.user.id,
       action: 'force_logout',
@@ -2011,7 +2025,10 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
     } catch (e) {
       /* non-fatal */
     }
-    await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]);
+    await db.query(
+      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      [String(userId)],
+    );
     socketService.disconnectUserSockets(userId);
 
     await logUserAction({
