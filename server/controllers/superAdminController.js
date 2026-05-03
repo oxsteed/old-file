@@ -457,6 +457,7 @@ exports.getUsers = async (req, res) => {
       'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.email_verified, u.is_verified, u.last_login_at',
       'u.city, u.state, u.zip_code',
       'u.subscription_status AS user_sub_status',
+      'u.deleted_at, u.deletion_scheduled_at, u.deletion_type, u.deletion_reason',
     ];
     const joins = [];
     if (hasSubs) {

@@ -696,11 +696,17 @@ export default function UsersList() {
 
                     {/* Status */}
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        user.is_active ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'
-                      }`}>
-                        {user.is_active ? 'Active' : 'Suspended'}
-                      </span>
+                      {user.deletion_scheduled_at ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-900/50 text-orange-400 border border-orange-500/30" title={`Deletion scheduled: ${new Date(user.deletion_scheduled_at).toLocaleDateString()}`}>
+                          {user.deletion_type === 'self' ? 'Self-deleted' : 'Pending deletion'}
+                        </span>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          user.is_active ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'
+                        }`}>
+                          {user.is_active ? 'Active' : 'Suspended'}
+                        </span>
+                      )}
                     </td>
 
                     {/* Joined */}
