@@ -175,6 +175,8 @@
     "prefSaved": "Preferans sove",
     "failedLoad": "Echèk chajman preferans",
     "failedSave": "Echèk sove preferans",
+    "securityNoticeTitle": "Imèl kont ak sekirite",
+    "securityNoticeBody": "OxSteed ka toujou voye imèl ba ou sou kont ou lè sa nesesè pou sekirite, prevansyon fwod, oswa respekte lalwa. Sa gen ladann avètisman ofisyèl, sispansyon, entèdiksyon, retabli kont, ak pwogramasyon pou efase kont. Mesaj sa yo ale nan imèl ou anrejistre a menm si ou etèn alèt imèl opsyonèl ki anba a.",
     "webPush": {
       "title": "Notifikasyon Navigatè",
       "subtitle": "Resevwa alèt nan navigatè sa a menm lè OxSteed pa louvri.",

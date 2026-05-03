@@ -3790,6 +3790,8 @@
     "prefSaved": "Préférence enregistrée",
     "failedLoad": "Impossible de charger les préférences",
     "failedSave": "Impossible d'enregistrer la préférence",
+    "securityNoticeTitle": "E-mails de compte et de sécurité",
+    "securityNoticeBody": "OxSteed peut encore vous envoyer des e-mails concernant votre compte lorsque cela est nécessaire pour la sécurité, la prévention de la fraude ou la conformité légale. Cela inclut les avertissements officiels, les suspensions, les blocages, la restauration du compte et la suppression programmée du compte. Ces messages sont envoyés à votre adresse e-mail enregistrée même si vous désactivez les alertes e-mail facultatives ci-dessous.",
     "webPush": {
       "title": "Notifications du navigateur",
       "subtitle": "Recevez des alertes dans ce navigateur même quand OxSteed n'est pas ouvert.",

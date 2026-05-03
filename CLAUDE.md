@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **Admin users list (2026-05-03):** … **Transactional admin emails (2026-05-03):** `notificationService.sendNotification` — new email-capable types `account_restored`, `account_suspended`, `account_restricted`, `account_deletion_scheduled`, `admin_warning`; these **ignore** per-type email opt-off (still require user email + Resend). `superAdminController`: `notifyUserAccountEvent` helper; emails on scheduled delete, suspend, restrict, warn, restore, cancel-pending-deletion, reactivate; ban/unban adds `/login` on restore. Email template hides notification prefs footer when suspended or deletion-scheduled.
+- **Transactional admin emails (2026-05-03):** `notificationService` transactional types + `superAdminController` `notifyUserAccountEvent` (see prior commit). **Settings UI:** `/settings/notifications` (`Notifications.jsx`) and embedded `NotificationPreferences.jsx` show an **account/security email notice** (`notifications.securityNoticeTitle` / `securityNoticeBody`) in EN/ES/FR/HT.
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS
