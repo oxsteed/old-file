@@ -433,12 +433,13 @@ exports.getUsers = async (req, res) => {
       params.push(`%${location}%`); paramIdx++;
     }
 
-    // Check which optional tables exist
-    const [hasSubs, hasHP, hasJobs, hasPayouts] = await Promise.all([
+    // Check which optional tables/columns exist
+    const [hasSubs, hasHP, hasJobs, hasPayouts, hasDeletionCols] = await Promise.all([
       tableExists('subscriptions'),
       tableExists('helper_profiles'),
       tableExists('jobs'),
       tableExists('payouts'),
+      columnExists('users', 'deletion_scheduled_at'),
     ]);
     const hasPlanTable = hasSubs && await tableExists('plans');
 
@@ -457,7 +458,9 @@ exports.getUsers = async (req, res) => {
       'u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.phone, u.created_at, u.email_verified, u.is_verified, u.last_login_at',
       'u.city, u.state, u.zip_code',
       'u.subscription_status AS user_sub_status',
-      'u.deleted_at, u.deletion_scheduled_at, u.deletion_type, u.deletion_reason',
+      'u.deleted_at',
+      // Migration-165 deletion scheduling columns (only when present)
+      ...(hasDeletionCols ? ['u.deletion_scheduled_at, u.deletion_type, u.deletion_reason'] : []),
     ];
     const joins = [];
     if (hasSubs) {
@@ -1414,10 +1417,33 @@ exports.deleteUser = async (req, res) => {
     const { reason, force = false } = req.body;
     const adminId = req.user.id;
 
+    // Probe migration-165 columns at runtime — they may not be on the live DB yet
+    const [
+      hasDeletionScheduled,
+      hasDeletionType,
+      hasDeletionReason,
+      hasDeletionAdminId,
+      hasWasBanned,
+      hasOriginalEmailHash,
+      hasIsBanned,
+    ] = await Promise.all([
+      columnExists('users', 'deletion_scheduled_at'),
+      columnExists('users', 'deletion_type'),
+      columnExists('users', 'deletion_reason'),
+      columnExists('users', 'deletion_admin_id'),
+      columnExists('users', 'was_banned_at_deletion'),
+      columnExists('users', 'original_email_hash'),
+      columnExists('users', 'is_banned'),
+    ]);
+    const hasMig165 = hasDeletionScheduled && hasDeletionType;
+
+    // Build SELECT dynamically based on available columns
+    const selectCols = ['id', 'first_name', 'last_name', 'email', 'role', 'deleted_at'];
+    if (hasIsBanned) selectCols.push('is_banned');
+    if (hasDeletionScheduled) selectCols.push('deletion_scheduled_at');
+
     const { rows: userRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role, is_banned,
-              deletion_scheduled_at, deleted_at
-       FROM users WHERE id = $1`,
+      `SELECT ${selectCols.join(', ')} FROM users WHERE id = $1`,
       [userId],
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
@@ -1431,7 +1457,7 @@ exports.deleteUser = async (req, res) => {
       return res.status(409).json({ error: 'This account has already been permanently deleted.' });
     }
 
-    if (user.deletion_scheduled_at) {
+    if (hasMig165 && user.deletion_scheduled_at) {
       return res.status(409).json({
         error: 'This account is already scheduled for deletion.',
         deletion_scheduled_at: user.deletion_scheduled_at,
@@ -1441,34 +1467,40 @@ exports.deleteUser = async (req, res) => {
     // ── Pre-deletion guards ────────────────────────────────────────────────
 
     // Check active jobs (correct column names: client_id / assigned_helper_id)
-    const { rows: activeJobs } = await db.query(
-      `SELECT id, title, status FROM jobs
-       WHERE (client_id = $1 OR assigned_helper_id = $1)
-         AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
-      [userId]
-    );
-    if (activeJobs.length > 0 && !force) {
-      return res.status(409).json({
-        error: 'Cannot delete this account while the user has active or in-progress jobs. Resolve or reassign all jobs first, or use force=true to override.',
-        activeJobs: activeJobs.map(j => ({ id: j.id, title: j.title, status: j.status })),
-        canForce: true,
-      });
+    const jobsExist = await tableExists('jobs');
+    if (jobsExist) {
+      const { rows: activeJobs } = await db.query(
+        `SELECT id, title, status FROM jobs
+         WHERE (client_id = $1 OR assigned_helper_id = $1)
+           AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
+        [userId]
+      );
+      if (activeJobs.length > 0 && !force) {
+        return res.status(409).json({
+          error: 'Cannot delete this account while the user has active or in-progress jobs. Resolve or reassign all jobs first, or use force=true to override.',
+          activeJobs: activeJobs.map(j => ({ id: j.id, title: j.title, status: j.status })),
+          canForce: true,
+        });
+      }
     }
 
     // Check pending payments
-    const { rows: pendingPayments } = await db.query(
-      `SELECT id FROM payments
-       WHERE (payer_id = $1 OR payee_id = $1)
-         AND status IN ('pending', 'authorized', 'processing', 'captured')
-       LIMIT 10`,
-      [userId]
-    );
-    if (pendingPayments.length > 0 && !force) {
-      return res.status(409).json({
-        error: 'Cannot delete this account while the user has pending payments or uncollected earnings. Use force=true to override.',
-        pendingPaymentCount: pendingPayments.length,
-        canForce: true,
-      });
+    const paymentsExist = await tableExists('payments');
+    if (paymentsExist) {
+      const { rows: pendingPayments } = await db.query(
+        `SELECT id FROM payments
+         WHERE (payer_id = $1 OR payee_id = $1)
+           AND status IN ('pending', 'authorized', 'processing', 'captured')
+         LIMIT 10`,
+        [userId]
+      );
+      if (pendingPayments.length > 0 && !force) {
+        return res.status(409).json({
+          error: 'Cannot delete this account while the user has pending payments or uncollected earnings. Use force=true to override.',
+          pendingPaymentCount: pendingPayments.length,
+          canForce: true,
+        });
+      }
     }
 
     // Warn about business team members (non-blocking — admin decides)
@@ -1486,30 +1518,41 @@ exports.deleteUser = async (req, res) => {
     try { await db.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]); } catch { /* non-fatal */ }
     try { socketService.disconnectUserSockets(userId); } catch { /* non-fatal */ }
 
-    // Hash email before it might get anonymized later, for identity continuity
-    const originalEmailHash = crypto
-      .createHash('sha256')
-      .update(user.email.toLowerCase().trim())
-      .digest('hex');
-
-    // Soft-delete: lock the account, schedule permanent deletion in 30 days.
-    // PII is NOT anonymized yet — that happens at hard-delete time so admin can restore.
     const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    await db.query(
-      `UPDATE users SET
-        is_active              = FALSE,
-        deleted_at             = NOW(),
-        deletion_scheduled_at  = $2,
-        deletion_type          = 'admin',
-        deletion_reason        = $3,
-        deletion_admin_id      = $4,
-        was_banned_at_deletion = $5,
-        original_email_hash    = $6,
-        updated_at             = NOW()
-       WHERE id = $1`,
-      [userId, thirtyDaysFromNow, reason || null, adminId, user.is_banned, originalEmailHash]
-    );
+    if (hasMig165) {
+      // Full soft-delete with 30-day scheduling (migration 165 columns present)
+      const originalEmailHash = crypto
+        .createHash('sha256')
+        .update(user.email.toLowerCase().trim())
+        .digest('hex');
+
+      // Build SET clause for only columns that exist
+      const sets = [
+        'is_active = FALSE',
+        'deleted_at = NOW()',
+        'updated_at = NOW()',
+      ];
+      const params = [userId];
+      let pi = 2;
+
+      if (hasDeletionScheduled) { sets.push(`deletion_scheduled_at = $${pi++}`); params.push(thirtyDaysFromNow); }
+      if (hasDeletionType)      { sets.push(`deletion_type = $${pi++}`); params.push('admin'); }
+      if (hasDeletionReason)    { sets.push(`deletion_reason = $${pi++}`); params.push(reason || null); }
+      if (hasDeletionAdminId)   { sets.push(`deletion_admin_id = $${pi++}`); params.push(adminId); }
+      if (hasWasBanned)         { sets.push(`was_banned_at_deletion = $${pi++}`); params.push(user.is_banned || false); }
+      if (hasOriginalEmailHash) { sets.push(`original_email_hash = $${pi++}`); params.push(originalEmailHash); }
+
+      await db.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1`, params);
+    } else {
+      // Fallback: migration 165 not yet applied — use only pre-existing columns
+      // Still locks the account and marks deleted_at; no 30-day scheduling yet
+      logger.warn('deleteUser: migration 165 columns not present — using legacy soft-delete fallback', { userId });
+      await db.query(
+        `UPDATE users SET is_active = FALSE, deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [userId]
+      );
+    }
 
     try {
       await logAdminAction({
@@ -1517,20 +1560,25 @@ exports.deleteUser = async (req, res) => {
         action: 'user_deletion_scheduled',
         targetType: 'user',
         targetId: userId,
-        description: `Scheduled deletion of ${user.email}${reason ? `: ${reason}` : ''}. Hard delete scheduled for ${thirtyDaysFromNow.toISOString()}.`,
-        before: { email: user.email, role: user.role, name: `${user.first_name} ${user.last_name}`, is_banned: user.is_banned },
-        after: { deleted_at: new Date().toISOString(), deletion_scheduled_at: thirtyDaysFromNow.toISOString() },
+        description: `Scheduled deletion of ${user.email}${reason ? `: ${reason}` : ''}${hasMig165 ? `. Hard delete scheduled for ${thirtyDaysFromNow.toISOString()}` : ' (migration 165 pending — 30-day window not yet active)'}.`,
+        before: { email: user.email, role: user.role, name: `${user.first_name} ${user.last_name}` },
+        after: { deleted_at: new Date().toISOString(), ...(hasMig165 ? { deletion_scheduled_at: thirtyDaysFromNow.toISOString() } : {}) },
         req,
       });
     } catch { /* audit non-fatal */ }
 
     res.json({
-      message: `Account for ${user.email} has been locked and scheduled for permanent deletion in 30 days.`,
-      deletion_scheduled_at: thirtyDaysFromNow.toISOString(),
-      can_restore_until: thirtyDaysFromNow.toISOString(),
-      warnings: memberCount > 0
-        ? [`This user has ${memberCount} business team member(s). Their memberships will be cascade-deleted when the account is permanently removed.`]
-        : [],
+      message: hasMig165
+        ? `Account for ${user.email} has been locked and scheduled for permanent deletion in 30 days.`
+        : `Account for ${user.email} has been locked and marked for deletion.`,
+      ...(hasMig165 ? {
+        deletion_scheduled_at: thirtyDaysFromNow.toISOString(),
+        can_restore_until: thirtyDaysFromNow.toISOString(),
+      } : {}),
+      warnings: [
+        ...(memberCount > 0 ? [`This user has ${memberCount} business team member(s). Their memberships will be cascade-deleted when the account is permanently removed.`] : []),
+        ...(!hasMig165 ? ['Migration 165 is not yet applied. The 30-day recovery window will become active after the next deployment.'] : []),
+      ],
     });
   } catch (err) {
     logger.error('deleteUser error', { err });
@@ -1546,6 +1594,14 @@ exports.restoreUser = async (req, res) => {
     const { userId } = req.params;
     const { reason } = req.body;
     const adminId = req.user.id;
+
+    const hasMig165 = await columnExists('users', 'deletion_scheduled_at');
+
+    if (!hasMig165) {
+      return res.status(409).json({
+        error: 'The restore feature requires migration 165 to be applied. The database has not been updated yet.',
+      });
+    }
 
     const { rows: userRows } = await db.query(
       `SELECT id, first_name, last_name, email, role,
