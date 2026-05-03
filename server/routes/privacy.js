@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const pool = require('../db');
-const { columnExists } = require('../utils/schemaProbe');
+const { columnExists, userIdEq } = require('../utils/schemaProbe');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
@@ -143,9 +143,9 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     // Check for active jobs — use the correct column names (client_id / assigned_helper_id)
     const { rows: activeJobRows } = await pool.query(
       `SELECT id, title, status FROM jobs
-       WHERE (client_id = $1 OR assigned_helper_id = $1)
+       WHERE (${userIdEq('client_id')} OR ${userIdEq('assigned_helper_id')})
          AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
-      [userId]
+      [String(userId)]
     );
     if (activeJobRows.length > 0) {
       return res.status(409).json({
@@ -157,9 +157,9 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     // Check for pending outgoing payments (payer owes money)
     const { rows: pendingPayments } = await pool.query(
       `SELECT id FROM payments
-       WHERE payer_id = $1 AND status IN ('pending', 'authorized', 'processing')
+       WHERE ${userIdEq('payer_id')} AND status IN ('pending', 'authorized', 'processing')
        LIMIT 5`,
-      [userId]
+      [String(userId)]
     );
     if (pendingPayments.length) {
       return res.status(409).json({
@@ -170,9 +170,9 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     // Check for pending payouts owed to this user (payee has uncollected funds)
     const { rows: pendingPayouts } = await pool.query(
       `SELECT id FROM payments
-       WHERE payee_id = $1 AND status IN ('pending', 'authorized', 'processing', 'captured')
+       WHERE ${userIdEq('payee_id')} AND status IN ('pending', 'authorized', 'processing', 'captured')
        LIMIT 5`,
-      [userId]
+      [String(userId)]
     );
     if (pendingPayouts.length) {
       return res.status(409).json({

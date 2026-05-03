@@ -1,5 +1,5 @@
 const db = require('../db');
-const { tableExists, columnExists } = require('../utils/schemaProbe');
+const { tableExists, columnExists, userIdEq } = require('../utils/schemaProbe');
 const { logAdminAction, logUserAction } = require('../services/auditService');
 const { issueRefund } = require('../services/stripeService');
 const { sendNotification } = require('../services/notificationService');
@@ -595,15 +595,15 @@ exports.getUserDetail = async (req, res) => {
     if (await tableExists('jobs')) {
       const r = await db.query(
         `SELECT id, title, status, job_value AS final_price, created_at
-         FROM jobs WHERE client_id = $1 OR assigned_helper_id = $1
-         ORDER BY created_at DESC LIMIT 10`, [userId]);
+         FROM jobs WHERE ${userIdEq('client_id')} OR ${userIdEq('assigned_helper_id')}
+         ORDER BY created_at DESC LIMIT 10`, [String(userId)]);
       recentJobs = r.rows;
     }
     if (await tableExists('reviews')) {
       const r = await db.query(
         `SELECT r.rating, r.comment, r.created_at, u2.first_name || ' ' || u2.last_name AS reviewer_name
-         FROM reviews r JOIN users u2 ON r.reviewer_id = u2.id
-         WHERE r.reviewee_id = $1 ORDER BY r.created_at DESC LIMIT 5`, [userId]);
+         FROM reviews r JOIN users u2 ON r.reviewer_id::text = u2.id::text
+         WHERE ${userIdEq('r.reviewee_id')} ORDER BY r.created_at DESC LIMIT 5`, [String(userId)]);
       recentReviews = r.rows;
     }
     if (await tableExists('payments')) {
@@ -611,8 +611,8 @@ exports.getUserDetail = async (req, res) => {
         `SELECT j.title AS job_title, p.created_at AS completed_at,
                 ROUND(COALESCE(p.helper_payout, 0) * 100)::INTEGER AS net_to_helper_cents
          FROM payments p JOIN jobs j ON p.job_id = j.id
-         WHERE p.payee_id = $1 AND p.status = 'captured'
-         ORDER BY p.created_at DESC LIMIT 10`, [userId]);
+         WHERE ${userIdEq('p.payee_id')} AND p.status = 'captured'
+         ORDER BY p.created_at DESC LIMIT 10`, [String(userId)]);
       recentPayouts = r.rows;
     }
     res.json({ user, recentJobs, recentPayouts, recentReviews, billing: [] });
@@ -1463,9 +1463,9 @@ exports.deleteUser = async (req, res) => {
     if (jobsExist) {
       const { rows: activeJobs } = await db.query(
         `SELECT id, title, status FROM jobs
-         WHERE (client_id = $1 OR assigned_helper_id = $1)
+         WHERE (${userIdEq('client_id')} OR ${userIdEq('assigned_helper_id')})
            AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
-        [userId]
+        [String(userId)]
       );
       if (activeJobs.length > 0 && !force) {
         return res.status(409).json({
@@ -1481,10 +1481,10 @@ exports.deleteUser = async (req, res) => {
     if (paymentsExist) {
       const { rows: pendingPayments } = await db.query(
         `SELECT id FROM payments
-         WHERE (payer_id = $1 OR payee_id = $1)
+         WHERE (${userIdEq('payer_id')} OR ${userIdEq('payee_id')})
            AND status IN ('pending', 'authorized', 'processing', 'captured')
          LIMIT 10`,
-        [userId]
+        [String(userId)]
       );
       if (pendingPayments.length > 0 && !force) {
         return res.status(409).json({
@@ -1499,8 +1499,8 @@ exports.deleteUser = async (req, res) => {
     const { rows: teamMembers } = await db.query(
       `SELECT COUNT(*) AS count FROM businesses b
        JOIN business_members bm ON bm.business_id = b.id
-       WHERE b.user_id = $1`,
-      [userId]
+       WHERE ${userIdEq('b.user_id')}`,
+      [String(userId)]
     ).catch(() => ({ rows: [{ count: 0 }] }));
     const memberCount = parseInt(teamMembers[0]?.count || 0);
 
@@ -1583,8 +1583,9 @@ exports.deleteUser = async (req, res) => {
     if (pgCode === '22P02') {
       userMessage = 'Invalid data type in the request or database.';
       detail =
-        'PostgreSQL rejected a value (often an invalid UUID in the URL, or a type mismatch in a query parameter). '
-        + 'Verify the user id is a valid UUID. If the id is correct, check server logs for the underlying query error.';
+        'PostgreSQL could not compare the user id to a column (often jobs/payments use BIGINT while users.id is UUID). '
+        + 'If this persists after deploy, check server logs for the exact statement. '
+        + 'Also verify the URL user id is a valid UUID.';
     } else if (pgCode === '23503') {
       userMessage = 'Cannot delete this account because it is still referenced by another record.';
       detail = 'A foreign-key constraint blocked the deletion. Check for pending payments, escrow holds, or other linked records.';
