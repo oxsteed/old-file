@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const pool = require('../db');
-const { columnExists, userIdEq } = require('../utils/schemaProbe');
+const { columnExists, userIdEq, ACTIVE_JOB_STATUS_SQL_IN } = require('../utils/schemaProbe');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
@@ -144,7 +144,7 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     const { rows: activeJobRows } = await pool.query(
       `SELECT id, title, status FROM jobs
        WHERE (${userIdEq('client_id')} OR ${userIdEq('assigned_helper_id')})
-         AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
+         AND status IN ${ACTIVE_JOB_STATUS_SQL_IN}`,
       [String(userId)]
     );
     if (activeJobRows.length > 0) {

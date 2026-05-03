@@ -74,9 +74,17 @@ function userIdEq(column) {
   return `${column}::text = $1`;
 }
 
+/**
+ * Canonical `job_status` enum (001_initial_schema.sql): draft, published, matched,
+ * negotiating, accepted, in_progress, completed, cancelled, closed.
+ * Account-deletion guards must only use these labels — 'open' is not valid and causes 22P02.
+ */
+const ACTIVE_JOB_STATUS_SQL_IN = `('published', 'matched', 'negotiating', 'accepted', 'in_progress')`;
+
 module.exports = {
   getFirstSearchPathSchema,
   tableExists,
   columnExists,
   userIdEq,
+  ACTIVE_JOB_STATUS_SQL_IN,
 };
