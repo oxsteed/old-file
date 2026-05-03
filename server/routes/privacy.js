@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const pool = require('../db');
+const { columnExists } = require('../utils/schemaProbe');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
@@ -93,6 +94,21 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
       });
     }
 
+    const [
+      hasDeletionScheduled,
+      hasDeletionType,
+      hasDeletionReason,
+      hasWasBannedAtDeletion,
+      hasOriginalEmailHash,
+    ] = await Promise.all([
+      columnExists('users', 'deletion_scheduled_at'),
+      columnExists('users', 'deletion_type'),
+      columnExists('users', 'deletion_reason'),
+      columnExists('users', 'was_banned_at_deletion'),
+      columnExists('users', 'original_email_hash'),
+    ]);
+    const hasMig165SelfDelete = hasDeletionType && hasOriginalEmailHash;
+
     // Load full user state before proceeding
     const { rows: userRows } = await pool.query(
       `SELECT id, email, first_name, last_name, role, is_banned, is_active, deleted_at
@@ -114,12 +130,14 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     }
 
     // Block if account has already been scheduled for admin deletion
-    const { rows: pendingRows } = await pool.query(
-      `SELECT deletion_scheduled_at FROM users WHERE id = $1 AND deletion_scheduled_at IS NOT NULL`,
-      [userId]
-    );
-    if (pendingRows.length) {
-      return res.status(409).json({ error: 'This account is already scheduled for deletion by an administrator.' });
+    if (hasDeletionScheduled) {
+      const { rows: pendingRows } = await pool.query(
+        `SELECT deletion_scheduled_at FROM users WHERE id = $1 AND deletion_scheduled_at IS NOT NULL`,
+        [userId]
+      );
+      if (pendingRows.length) {
+        return res.status(409).json({ error: 'This account is already scheduled for deletion by an administrator.' });
+      }
     }
 
     // Check for active jobs — use the correct column names (client_id / assigned_helper_id)
@@ -173,34 +191,47 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     try { await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]); } catch { /* non-fatal */ }
     try { socketService.disconnectUserSockets(userId); } catch { /* non-fatal */ }
 
-    // Soft-delete: anonymize PII, set is_active=false, record deletion metadata
+    // Soft-delete: anonymize PII, set is_active=false, record deletion metadata when columns exist
+    const baseSets = [
+      "first_name   = 'Deleted'",
+      "last_name    = 'User'",
+      "email        = CONCAT('deleted_', id::text, '@oxsteed.removed')",
+      'phone        = NULL',
+      'phone_number = NULL',
+      'bio          = NULL',
+      'profile_photo_url = NULL',
+      'city         = NULL',
+      'state        = NULL',
+      'zip_code     = NULL',
+      'address_line1 = NULL',
+      'country      = NULL',
+      "password_hash = 'DELETED'",
+      'totp_secret   = NULL',
+      'totp_enabled  = FALSE',
+      'backup_codes  = NULL',
+      'is_active     = FALSE',
+      'deleted_at    = NOW()',
+      'updated_at    = NOW()',
+    ];
+    const params = [userId];
+    let pi = 2;
+    if (hasMig165SelfDelete) {
+      baseSets.push("deletion_type = 'self'");
+      if (hasDeletionReason) {
+        baseSets.push(`deletion_reason = $${pi++}`);
+        params.push('User requested account deletion via Settings');
+      }
+      if (hasWasBannedAtDeletion) {
+        baseSets.push(`was_banned_at_deletion = $${pi++}`);
+        params.push(user.is_banned);
+      }
+      baseSets.push(`original_email_hash = $${pi++}`);
+      params.push(originalEmailHash);
+    }
+
     await pool.query(
-      `UPDATE users SET
-        first_name   = 'Deleted',
-        last_name    = 'User',
-        email        = CONCAT('deleted_', id::text, '@oxsteed.removed'),
-        phone        = NULL,
-        phone_number = NULL,
-        bio          = NULL,
-        profile_photo_url = NULL,
-        city         = NULL,
-        state        = NULL,
-        zip_code     = NULL,
-        address_line1 = NULL,
-        country      = NULL,
-        password_hash = 'DELETED',
-        totp_secret   = NULL,
-        totp_enabled  = FALSE,
-        backup_codes  = NULL,
-        is_active     = FALSE,
-        deleted_at    = NOW(),
-        deletion_type = 'self',
-        deletion_reason = 'User requested account deletion via Settings',
-        was_banned_at_deletion = $2,
-        original_email_hash = $3,
-        updated_at    = NOW()
-       WHERE id = $1`,
-      [userId, user.is_banned, originalEmailHash]
+      `UPDATE users SET ${baseSets.join(', ')} WHERE id = $1`,
+      params
     );
 
     // Audit log
