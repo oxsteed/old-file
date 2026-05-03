@@ -15,6 +15,28 @@ function isUuidParam(id) {
   return typeof id === 'string' && UUID_RE.test(id.trim());
 }
 
+/**
+ * When an admin re-enables an account (unban / reactivate), clear migration-165
+ * scheduled **admin** deletion markers so the user list no longer shows "Pending deletion".
+ * Does not touch self-deletes (`deletion_type = 'self'`).
+ */
+async function clearAdminScheduledDeletionIfPresent(userId) {
+  const [hasSched, hasType, hasReason, hasAdminId] = await Promise.all([
+    columnExists('users', 'deletion_scheduled_at'),
+    columnExists('users', 'deletion_type'),
+    columnExists('users', 'deletion_reason'),
+    columnExists('users', 'deletion_admin_id'),
+  ]);
+  if (!hasSched || !hasType) return;
+  const sets = ['deleted_at = NULL', 'deletion_scheduled_at = NULL', 'deletion_type = NULL', 'updated_at = NOW()'];
+  if (hasReason) sets.push('deletion_reason = NULL');
+  if (hasAdminId) sets.push('deletion_admin_id = NULL');
+  await db.query(
+    `UPDATE users SET ${sets.join(', ')} WHERE ${userIdEq('id')} AND deletion_type = 'admin'`,
+    [String(userId)]
+  );
+}
+
 // ─── Dashboard helpers ────────────────────────────────────────────────────────
 
 const PERIOD_INTERVAL = {
@@ -707,6 +729,9 @@ exports.toggleUserBan = async (req, res) => {
     }
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
+    if (newStatus) {
+      try { await clearAdminScheduledDeletionIfPresent(userId); } catch (e) { logger.warn('toggleUserBan: clear scheduled admin deletion failed', { userId, err: e.message }); }
+    }
     // Kick any live WebSocket session immediately so the user can't keep browsing
     if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
@@ -2551,6 +2576,10 @@ exports.reactivateUser = async (req, res) => {
       [userId]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+
+    try { await clearAdminScheduledDeletionIfPresent(userId); } catch (e) {
+      logger.warn('reactivateUser: clear scheduled admin deletion failed', { userId, err: e.message });
+    }
 
     await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
     await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
