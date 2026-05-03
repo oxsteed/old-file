@@ -61,6 +61,19 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-02):**
+- **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS
+  - **Issue**: Admin job detail page (`/admin/jobs/:jobId`) was returning "Failed to fetch job detail." error when clicking on jobs from the jobs list
+  - **Root Cause Investigation**: Problem identified in `server/controllers/superAdminController.js` `getJobDetail()` function - insufficient error logging made it impossible to diagnose the actual database error
+  - **Fix Applied**:
+    - Added parameter validation for jobId
+    - Split tableExists checks into separate steps with logging
+    - Enhanced error logging to include PostgreSQL error code, detail message, and stack trace
+    - Added try-catch blocks around bids and payment fetches to continue gracefully if those tables have issues
+    - Added debug-level logging throughout the function to trace execution flow
+    - Error logs now include: `message`, `code` (PostgreSQL error code), `detail` (PostgreSQL error detail), `stack`, `jobId`
+  - **Status**: Improved error logging will provide visibility into what's actually failing when the user runs it next
+  - **Files Modified**: `server/controllers/superAdminController.js` (lines 950-1034)
+  - **Next Steps**: Run the endpoint in production and check server logs to identify the specific database error
 - **Business Moderation Admin Panel Redesign** ✅ COMPLETE
   - **Frontend Redesign** (`client/src/admin/pages/BusinessModeration.jsx`): Complete rewrite with stats bar (Total/Active/Inactive/New This Month/Dormant), activity-level filters (All Activity/No Jobs Posted/Incomplete Setup/No Revenue/Active Jobs), sorting (Name A-Z/Oldest First/Newest First/Most Jobs/Most Recently Active), business avatars with color-coded initials, 9-column table (BUSINESS with avatar/OWNER/LOCATION/CATEGORY/JOBS/MEMBERS/STATUS/CREATED/ACTIONS), paginated ActionMenu dropdown (View Profile/Deactivate-Reactivate/Flag for Review/Delete), ReasonModal for action confirmation.
   - **Detail Page** (`client/src/admin/pages/BusinessDetail.jsx`): New route `/admin/businesses/:id` with business header (avatar/name/category/status), 2-col layout (left: description/location/jobs posted, right: owner info/stats/timeline), admin notes textarea, action buttons (Deactivate/Reactivate/Flag/Delete), ActionModal for confirmation. Integrates with `AdminApp.jsx`.

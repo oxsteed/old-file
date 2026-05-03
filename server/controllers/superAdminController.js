@@ -949,9 +949,21 @@ exports.deleteJob = async (req, res) => {
 
 exports.getJobDetail = async (req, res) => {
   try {
-    if (!(await tableExists('jobs'))) return res.status(404).json({ error: 'Job not found.' });
     const { jobId } = req.params;
+    logger.debug('getJobDetail called', { jobId });
 
+    if (!jobId || jobId.trim() === '') {
+      return res.status(400).json({ error: 'Job ID is required.' });
+    }
+
+    // Check jobs table exists
+    const jobsTableExists = await tableExists('jobs');
+    if (!jobsTableExists) {
+      logger.warn('Jobs table does not exist');
+      return res.status(404).json({ error: 'Job not found.' });
+    }
+
+    logger.debug('Fetching job from database', { jobId });
     const { rows: jobRows } = await db.query(`
       SELECT
         j.*,
@@ -967,40 +979,65 @@ exports.getJobDetail = async (req, res) => {
       WHERE j.id = $1
     `, [jobId]);
 
-    if (!jobRows.length) return res.status(404).json({ error: 'Job not found.' });
+    if (!jobRows.length) {
+      logger.debug('Job not found', { jobId });
+      return res.status(404).json({ error: 'Job not found.' });
+    }
     const job = jobRows[0];
+    logger.debug('Job fetched successfully', { jobId, title: job.title });
 
     let bids = [];
     if (await tableExists('bids')) {
-      const r = await db.query(`
-        SELECT b.id, b.amount, b.status, b.message, b.created_at,
-               u.id AS helper_id,
-               u.first_name || ' ' || u.last_name AS helper_name,
-               u.email AS helper_email
-        FROM bids b
-        JOIN users u ON u.id = b.helper_id
-        WHERE b.job_id = $1
-        ORDER BY b.created_at ASC
-      `, [jobId]);
-      bids = r.rows;
+      try {
+        logger.debug('Fetching bids for job', { jobId });
+        const r = await db.query(`
+          SELECT b.id, b.amount, b.status, b.message, b.created_at,
+                 u.id AS helper_id,
+                 u.first_name || ' ' || u.last_name AS helper_name,
+                 u.email AS helper_email
+          FROM bids b
+          JOIN users u ON u.id = b.helper_id
+          WHERE b.job_id = $1
+          ORDER BY b.created_at ASC
+        `, [jobId]);
+        bids = r.rows;
+        logger.debug('Bids fetched', { jobId, count: bids.length });
+      } catch (bidErr) {
+        logger.warn('Error fetching bids', { jobId, err: bidErr.message });
+        // Continue without bids on error
+      }
     }
 
     let payment = null;
     if (await tableExists('payments')) {
-      const r = await db.query(`
-        SELECT id, status, amount, helper_payout, platform_fee,
-               stripe_payment_intent_id, created_at
-        FROM payments
-        WHERE job_id = $1
-        ORDER BY created_at DESC
-        LIMIT 1
-      `, [jobId]);
-      payment = r.rows[0] || null;
+      try {
+        logger.debug('Fetching payment for job', { jobId });
+        const r = await db.query(`
+          SELECT id, status, amount, helper_payout, platform_fee,
+                 stripe_payment_intent_id, created_at
+          FROM payments
+          WHERE job_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1
+        `, [jobId]);
+        payment = r.rows[0] || null;
+        logger.debug('Payment fetched', { jobId, hasPayment: !!payment });
+      } catch (paymentErr) {
+        logger.warn('Error fetching payment', { jobId, err: paymentErr.message });
+        // Continue without payment on error
+      }
     }
 
+    logger.debug('getJobDetail complete', { jobId });
     res.json({ job, bids, payment });
   } catch (err) {
-    logger.error('getJobDetail error', { err });
+    logger.error('getJobDetail error', {
+      message: err.message || String(err),
+      code: err.code,
+      detail: err.detail,
+      stack: err.stack,
+      jobId: req.params.jobId
+    });
     res.status(500).json({ error: 'Failed to fetch job detail.' });
   }
 };
