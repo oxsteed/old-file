@@ -21,6 +21,7 @@ import PlatformSettings  from './pages/super/PlatformSettings';
 import AuditLog          from './pages/super/AuditLog';
 import FeeConfig         from './pages/super/FeeConfig';
 import PricingConfig     from './pages/super/PricingConfig';
+import PricingOverrides  from './pages/super/PricingOverrides';
 import Revenue           from './pages/super/Revenue';
 import Payouts           from './pages/super/Payouts';
 import AdminAccounts     from './pages/super/AdminAccounts';
@@ -191,6 +192,9 @@ export default function AdminApp() {
           } />
           <Route path="super/pricing" element={
             <AdminGuard superOnly><PricingConfig /></AdminGuard>
+          } />
+          <Route path="super/pricing-overrides" element={
+            <AdminGuard superOnly><PricingOverrides /></AdminGuard>
           } />
           <Route path="super/admin-accounts" element={
             <AdminGuard superOnly><AdminAccounts /></AdminGuard>

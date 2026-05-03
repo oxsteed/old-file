@@ -6,6 +6,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const { withTransaction } = require('../utils/transaction');
+const pricingService = require('../services/pricingService');
 
 let plansActiveColumn = null;
 
@@ -41,12 +42,40 @@ exports.getPlans = async (req, res, next) => {
       ${whereClause}
       ORDER BY amount_cents ASC
     `);
+
+    // If user is authenticated, include location-based pricing
+    let locationData = null;
+    if (req.user) {
+      try {
+        const { rows: userRows } = await db.query(
+          'SELECT country FROM users WHERE id = $1',
+          [req.user.id]
+        );
+        if (userRows[0]?.country) {
+          locationData = await pricingService.getPremiumPrice(userRows[0].country);
+        }
+      } catch (err) {
+        logger.warn('Failed to get location-based pricing for user', {
+          userId: req.user?.id,
+          error: err.message
+        });
+      }
+    }
+
     res.json({
       plans: rows.map((p) => ({
         ...p,
         // Backward compatible field expected by some frontend consumers.
         price: p.amount_cents,
-      }))
+        // Include location-based pricing override if available
+        locationPrice: locationData && p.slug === 'premium' ? {
+          price_cents: locationData.price_cents,
+          currency_code: locationData.currency_code,
+          country: locationData.country_code,
+          stripe_price_id: locationData.stripe_price_id
+        } : null
+      })),
+      userLocation: req.user ? (locationData?.country_code || null) : null
     });
   } catch (err) {
     next(err);
@@ -92,10 +121,30 @@ exports.createCheckout = async (req, res, next) => {
     // Get or create Stripe customer
     let stripeCustomerId;
     const { rows: users } = await db.query(
-      'SELECT email, first_name, last_name FROM users WHERE id = $1',
+      'SELECT email, first_name, last_name, country FROM users WHERE id = $1',
       [userId]
     );
     const user = users[0];
+
+    // Get location-based pricing if available
+    let locationPricing = null;
+    if (user.country) {
+      try {
+        locationPricing = await pricingService.getPremiumPrice(user.country);
+        logger.info('Using location-based pricing', {
+          userId,
+          country: user.country,
+          price_cents: locationPricing.price_cents,
+          currency: locationPricing.currency_code
+        });
+      } catch (err) {
+        logger.warn('Failed to get location-based pricing, using plan default', {
+          userId,
+          country: user.country,
+          error: err.message
+        });
+      }
+    }
 
     const { rows: existingSubs } = await db.query(
       `SELECT stripe_customer_id
@@ -118,17 +167,30 @@ exports.createCheckout = async (req, res, next) => {
       stripeCustomerId = customer.id;
     }
 
+    // Use location-based Stripe price if available, otherwise use plan's default price
+    const stripePrice = locationPricing?.stripe_price_id || plan.stripe_price_id;
+
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
+      line_items: [{ price: stripePrice, quantity: 1 }],
       success_url: `${process.env.APP_URL}/helper-dashboard?subscribed=true`,
       cancel_url: `${process.env.APP_URL}/upgrade?cancelled=true`,
-      metadata: { userId: userId.toString(), planId: plan.id.toString() },
+      metadata: {
+        userId: userId.toString(),
+        planId: plan.id.toString(),
+        country: user.country || 'US',
+        locationPriced: locationPricing ? 'true' : 'false'
+      },
       subscription_data: {
-        metadata: { userId: userId.toString(), planId: plan.id.toString() },
+        metadata: {
+          userId: userId.toString(),
+          planId: plan.id.toString(),
+          country: user.country || 'US',
+          locationPriced: locationPricing ? 'true' : 'false'
+        },
       },
     });
 

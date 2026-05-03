@@ -1,5 +1,7 @@
 // server/middleware/helperOnboardingMiddleware.js
 
+const { getEffectiveTier } = require('../utils/trial');
+
 // ── New onboarding step gating ──────────────────────────
 // Require minimum onboarding step before allowing an action
 function requireOnboardingStep(minimumStep) {
@@ -46,12 +48,15 @@ function requireOnboardingStep(minimumStep) {
 
 // ── Tier gating ─────────────────────────────────────────
 // Require minimum membership tier
+// NOTE: Checks effective tier (considers active trials) not just membership_tier
 function requireTier(minimumTier) {
   // Support both naming conventions
-  const TIER_ORDER = ['free', 'tier1', 'active', 'tier2', 'premium'];
+  // 'pro' = trial-eligible or paid pro tier; 'tier2' = paid tier
+  const TIER_ORDER = ['free', 'tier1', 'pro', 'tier2', 'premium'];
 
   return (req, res, next) => {
-    const userTier = req.user?.membership_tier || 'tier1';
+    // Use getEffectiveTier to account for active trials
+    const userTier = getEffectiveTier(req.user);
     const userIdx  = TIER_ORDER.indexOf(userTier);
     const minIdx   = TIER_ORDER.indexOf(minimumTier);
 

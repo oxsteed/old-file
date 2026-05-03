@@ -52,6 +52,7 @@ const configRoutes = require('./routes/config');
 const twoFactorRoutes = require('./routes/twoFactor');
 const helperRegistrationRoutes = require('./routes/helperRegistration');
 const feeConfigRoutes = require('./routes/feeConfig');
+const pricingOverridesRoutes = require('./routes/pricingOverrides');
 const verificationRoutes = require('./routes/verification');
 const messageRoutes = require('./routes/messages');
 const lifeDashboardRoutes = require('./routes/lifeDashboard');
@@ -383,6 +384,7 @@ app.use('/api/auth/helper/register', helperRegistrationRoutes); // alias for fro
 app.use('/api/subscription/background-check', verificationRoutes);
 app.use('/api/subscription/identity', verificationRoutes);
 app.use('/api/fee-config', feeConfigRoutes);
+app.use('/api/admin/pricing-overrides', pricingOverridesRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/life', lifeDashboardRoutes);

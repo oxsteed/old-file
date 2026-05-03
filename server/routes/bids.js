@@ -14,7 +14,7 @@ router.get('/job/:jobId', authenticate, getJobBids);
 router.put('/:id', authenticate, updateBid);
 router.post('/:id/withdraw', authenticate, withdrawBid);
 
-// Creating a bid requires email verification + active onboarding + active/premium tier
-router.post('/', authenticate, requireEmailVerified, requireOnboardingStep('active'), requireTier('active'), createBid);
+// Creating a bid requires email verification + active onboarding + pro tier (trial or paid)
+router.post('/', authenticate, requireEmailVerified, requireOnboardingStep('active'), requireTier('pro'), createBid);
 
 module.exports = router;

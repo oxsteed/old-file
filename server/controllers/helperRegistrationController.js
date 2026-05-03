@@ -261,7 +261,7 @@ async function verifyOTP(req, res) {
       userId = reg.user_id;
     } else {
       // Create the helper user row
-      const { trial_started_at, trial_ends_at } = trialDefaults();
+      const { trial_started_at, trial_ends_at } = await trialDefaults();
       const addr1 = (reg.address_line1 || '').trim() || null;
       const cityU = (reg.city || '').trim() || null;
       const countryU = countriesUtil.normalizeCountry(reg.country, 'US');

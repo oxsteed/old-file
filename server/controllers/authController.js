@@ -100,7 +100,7 @@ async function register(req, res, next) {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const referralCode = crypto.randomBytes(6).toString('hex');
     const finalRole = role || 'customer';
-    const { trial_started_at, trial_ends_at } = trialDefaults();
+    const { trial_started_at, trial_ends_at } = await trialDefaults();
 
     // Resolve referrer from optional ?ref= code
     let referrerId = null;
@@ -815,7 +815,7 @@ async function verifyRegistrationOTP(req, res) {
       return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
     }
     const referralCode = crypto.randomBytes(6).toString('hex');
-    const { trial_started_at, trial_ends_at } = trialDefaults();
+    const { trial_started_at, trial_ends_at } = await trialDefaults();
 
     // Resolve referrer from pending.referral_ref
     let referrerId = null;

@@ -228,6 +228,7 @@ export default function FeeConfig() {
     }
   };
 
+  const trialDurationConfig = config.find(r => r.key === 'trial_duration_days');
   const transactionFees = config.filter(r =>
     r.key.startsWith('tier3_') && !r.key.includes('subscription'));
   const subscriptionFees = config.filter(r =>
@@ -301,6 +302,28 @@ export default function FeeConfig() {
                 transition-colors">
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {trialDurationConfig && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-blue-900 mb-2">
+                Trial Duration Configuration
+              </h2>
+              <p className="text-sm text-blue-700 mb-3">
+                New users get a <strong>{Math.floor(trialDurationConfig.value)}-day trial</strong> with pro tier access
+                before reverting to the free tier. Adjust this to affect all new signups.
+              </p>
+              <p className="text-xs text-blue-600">
+                Min: {trialDurationConfig.min_value} days | Max: {trialDurationConfig.max_value} days
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 border-t border-blue-200 pt-4">
+            <FeeRow row={trialDurationConfig} onSave={load} />
           </div>
         </div>
       )}

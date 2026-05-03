@@ -1,6 +1,14 @@
 // server/utils/trial.js
 
-const TRIAL_DURATION_DAYS = 365;
+const pool = require('../db');
+
+// Default trial duration (365 days) used as fallback if config not found
+const DEFAULT_TRIAL_DURATION_DAYS = 365;
+
+// Cached trial duration to avoid DB query on every call
+let cachedTrialDays = DEFAULT_TRIAL_DURATION_DAYS;
+let cachedAt = Date.now();
+const CACHE_TTL_MS = 5 * 60 * 1000; // Cache for 5 minutes
 
 function getEffectiveTier(user) {
   if (!user) return 'free';
@@ -20,11 +28,54 @@ function trialDaysLeft(user) {
   return diff > 0 ? Math.ceil(diff / (1000 * 60 * 60 * 24)) : 0;
 }
 
-function trialDefaults() {
+// Get trial duration from database (with cache) or fallback to default
+async function getTrialDurationDays() {
+  const now = Date.now();
+
+  // Return cached value if still fresh
+  if (now - cachedAt < CACHE_TTL_MS) {
+    return cachedTrialDays;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT value FROM fee_config WHERE key = $1',
+      ['trial_duration_days']
+    );
+
+    if (rows.length > 0) {
+      cachedTrialDays = Math.floor(parseFloat(rows[0].value));
+      cachedAt = now;
+      return cachedTrialDays;
+    }
+  } catch (err) {
+    // Log error but don't throw - fall back to default
+    console.error('Error fetching trial duration from config:', err.message);
+  }
+
+  // Fallback to default
+  return DEFAULT_TRIAL_DURATION_DAYS;
+}
+
+// Invalidate cache (called when admin updates trial duration)
+function invalidateTrialCache() {
+  cachedAt = 0;
+}
+
+async function trialDefaults() {
+  const trialDays = await getTrialDurationDays();
   return {
     trial_started_at: new Date(),
-    trial_ends_at: new Date(Date.now() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000),
+    trial_ends_at: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
   };
 }
 
-module.exports = { TRIAL_DURATION_DAYS, getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults };
+module.exports = {
+  getEffectiveTier,
+  isTrialActive,
+  trialDaysLeft,
+  trialDefaults,
+  getTrialDurationDays,
+  invalidateTrialCache,
+  DEFAULT_TRIAL_DURATION_DAYS
+};

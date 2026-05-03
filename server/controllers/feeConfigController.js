@@ -1,5 +1,6 @@
 const db = require('../db');
 const { invalidateCache, DEFAULTS } = require('../utils/feeCalculator');
+const { invalidateTrialCache } = require('../utils/trial');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
@@ -92,8 +93,11 @@ exports.updateFeeConfig = async (req, res, next) => {
       [newValue, adminId, key]
     );
 
-    // Invalidate cache
+    // Invalidate cache(s)
     invalidateCache();
+    if (key === 'trial_duration_days') {
+      invalidateTrialCache();
+    }
 
     // If subscription price changed, sync to Stripe
     if (key.includes('subscription')) {
