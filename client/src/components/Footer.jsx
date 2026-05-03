@@ -110,6 +110,17 @@ export default function Footer() {
               <FooterLink to="/helpers">{t('footer.findHelpers')}</FooterLink>
               <FooterLink to="/products">{t('footer.browseProducts')}</FooterLink>
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {t('footer.legal')}
+              </span>
+              <FooterLink to="/legal/background-check">{t('footer.backgroundCheck')}</FooterLink>
+              <FooterLink to="/legal/arbitration">{t('footer.arbitration')}</FooterLink>
+              <FooterLink to="/legal/escrow-policy">{t('footer.escrowPolicy')}</FooterLink>
+              <FooterLink to="/legal/account-termination">{t('footer.accountTermination')}</FooterLink>
+              <FooterLink to="/legal/dispute-resolution">{t('footer.disputeResolution')}</FooterLink>
+              <FooterLink to="/legal/independent-contractor">{t('footer.independentContractor')}</FooterLink>
+            </div>
             {user && (user.role === 'helper' || user.role === 'helper_pro' || user.role === 'broker') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>

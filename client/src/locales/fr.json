@@ -421,7 +421,14 @@
     "resource": "Ressources",
     "qrGenerator": "Générateur QR",
     "consulting": "Conseil",
-    "consultingTooltip": "Programmer une session de conseil commercial initiale de $100"
+    "consultingTooltip": "Programmer une session de conseil commercial initiale de $100",
+    "legal": "Légal",
+    "backgroundCheck": "Vérifications des Antécédents",
+    "arbitration": "Arbitrage",
+    "escrowPolicy": "Politique de Séquestre",
+    "accountTermination": "Résiliation de Compte",
+    "disputeResolution": "Résolution des Litiges",
+    "independentContractor": "Travailleur Indépendant"
   },
   "termsPage": {
     "title": "Conditions d’utilisation",

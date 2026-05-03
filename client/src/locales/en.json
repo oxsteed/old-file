@@ -421,7 +421,14 @@
     "resource": "Resources",
     "qrGenerator": "QR Generator",
     "consulting": "Consulting",
-    "consultingTooltip": "Schedule an initial $100 business consulting session"
+    "consultingTooltip": "Schedule an initial $100 business consulting session",
+    "legal": "Legal",
+    "backgroundCheck": "Background Checks",
+    "arbitration": "Arbitration",
+    "escrowPolicy": "Escrow Policy",
+    "accountTermination": "Account Termination",
+    "disputeResolution": "Dispute Resolution",
+    "independentContractor": "Independent Contractor"
   },
   "termsPage": {
     "title": "Terms of Service",

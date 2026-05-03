@@ -33,6 +33,9 @@ import AccessibilityPage from './pages/accessibility';
 import BackgroundCheckPage from './pages/BackgroundCheckPage';
 import ArbitrationPage from './pages/ArbitrationPage';
 import EscrowPolicyPage from './pages/EscrowPolicyPage';
+import AccountTerminationPage from './pages/AccountTerminationPage';
+import DisputeResolutionPage from './pages/DisputeResolutionPage';
+import IndependentContractorPage from './pages/IndependentContractorPage';
 import HowItWorksPage from './pages/HowItWorks';
 import AboutPage from './pages/about';
 import ForgotPasswordPage from './pages/ForgotPassword';
@@ -164,9 +167,12 @@ export default function App() {
                     <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />
                     <Route path="/cookie-policy"  element={<Guarded><CookiePolicyPage /></Guarded>} />
                     <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
-                    <Route path="/legal/background-check" element={<Guarded><BackgroundCheckPage /></Guarded>} />
-                    <Route path="/legal/arbitration" element={<Guarded><ArbitrationPage /></Guarded>} />
-                    <Route path="/legal/escrow-policy" element={<Guarded><EscrowPolicyPage /></Guarded>} />
+                    <Route path="/legal/background-check"      element={<Guarded><BackgroundCheckPage /></Guarded>} />
+                    <Route path="/legal/arbitration"           element={<Guarded><ArbitrationPage /></Guarded>} />
+                    <Route path="/legal/escrow-policy"         element={<Guarded><EscrowPolicyPage /></Guarded>} />
+                    <Route path="/legal/account-termination"   element={<Guarded><AccountTerminationPage /></Guarded>} />
+                    <Route path="/legal/dispute-resolution"    element={<Guarded><DisputeResolutionPage /></Guarded>} />
+                    <Route path="/legal/independent-contractor" element={<Guarded><IndependentContractorPage /></Guarded>} />
 
                     {/* ── Authenticated routes ────────────────────────────── */}
                     {/* verify-email is exempt from email verification gate in ProtectedRoute (see EMAIL_VERIFICATION_EXEMPT_PATHS) */}
