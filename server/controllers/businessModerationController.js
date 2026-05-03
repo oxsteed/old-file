@@ -6,7 +6,7 @@ const { logAdminAction } = require('../services/auditService');
 
 exports.listBusinesses = async (req, res) => {
   try {
-    const { search = '', status = '', page = 1, limit = 25 } = req.query;
+    const { search = '', status = '', activity = '', sort = 'created_desc', page = 1, limit = 25 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const params = []; let p = 1; const conds = [];
 
@@ -16,28 +16,62 @@ exports.listBusinesses = async (req, res) => {
     }
     if (status === 'active')   conds.push('b.is_active = TRUE');
     if (status === 'inactive') conds.push('b.is_active = FALSE');
+
+    // Always exclude deleted businesses from the list
+    conds.push('b.deleted_at IS NULL');
     const wc = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    // Determine sort order
+    let orderBy = 'b.created_at DESC';
+    if (sort === 'name') orderBy = 'b.business_name ASC';
+    if (sort === 'created_asc') orderBy = 'b.created_at ASC';
+    if (sort === 'created_desc') orderBy = 'b.created_at DESC';
+    if (sort === 'jobs') orderBy = 'COALESCE(job_count, 0) DESC';
+    if (sort === 'activity') orderBy = 'b.updated_at DESC';
 
     const { rows } = await db.query(`
       SELECT b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
-             b.address_city, b.address_state, b.created_at,
+             b.address_city, b.address_state, b.address_street, b.address_zip,
+             b.category, b.description, b.website, b.phone, b.admin_notes,
+             b.created_at, b.updated_at,
              u.id AS owner_id,
              u.first_name || ' ' || u.last_name AS owner_name,
              u.email AS owner_email,
-             COUNT(DISTINCT bm.id)::int AS member_count
+             COUNT(DISTINCT bm.id)::int AS member_count,
+             COALESCE(j.job_count, 0)::int AS job_count,
+             COALESCE(e.total_earnings_cents, 0)::bigint AS total_earnings_cents
         FROM businesses b
         JOIN users u ON b.user_id = u.id
         LEFT JOIN business_members bm ON bm.business_id = b.id AND bm.status = 'active'
+        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE is_deleted = FALSE GROUP BY business_id) j ON j.business_id = b.id
+        LEFT JOIN (SELECT helper_id, SUM(amount_cents)::bigint as total_earnings_cents FROM payments WHERE status = 'captured' GROUP BY helper_id) e ON e.helper_id = u.id
         ${wc}
-       GROUP BY b.id, u.id, u.first_name, u.last_name, u.email
-       ORDER BY b.created_at DESC
+       GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
+                b.address_city, b.address_state, b.address_street, b.address_zip,
+                b.category, b.description, b.website, b.phone, b.admin_notes,
+                b.created_at, b.updated_at,
+                u.id, u.first_name, u.last_name, u.email,
+                j.job_count, e.total_earnings_cents
+       ORDER BY ${orderBy}
        LIMIT $${p} OFFSET $${p + 1}
     `, [...params, parseInt(limit), offset]);
 
-    const { rows: countRows } = await db.query(
-      `SELECT COUNT(*) FROM businesses b JOIN users u ON b.user_id = u.id ${wc}`, params
-    );
-    res.json({ businesses: rows, total: parseInt(countRows[0].count) });
+    // Get stats
+    const { rows: statsRows } = await db.query(`
+      SELECT
+        COUNT(*)::int as total,
+        SUM(CASE WHEN b.is_active = TRUE THEN 1 ELSE 0 END)::int as active,
+        SUM(CASE WHEN b.is_active = FALSE THEN 1 ELSE 0 END)::int as inactive,
+        SUM(CASE WHEN DATE_TRUNC('month', b.created_at) = DATE_TRUNC('month', NOW()) THEN 1 ELSE 0 END)::int as newThisMonth,
+        SUM(CASE WHEN COALESCE(j.job_count, 0) = 0 THEN 1 ELSE 0 END)::int as dormant
+      FROM businesses b
+      LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE is_deleted = FALSE GROUP BY business_id) j ON j.business_id = b.id
+      ${wc}
+    `, params);
+
+    const stats = statsRows[0] || { total: 0, active: 0, inactive: 0, newThisMonth: 0, dormant: 0 };
+
+    res.json({ businesses: rows, total: stats.total, stats });
   } catch (err) {
     logger.error('listBusinesses error', { err });
     res.status(500).json({ error: 'Failed to fetch businesses.' });
@@ -266,5 +300,173 @@ exports.forceCancel = async (req, res) => {
   } catch (err) {
     logger.error('forceCancel error', { err });
     res.status(500).json({ error: 'Failed to cancel planned need.' });
+  }
+};
+
+// ─── Business Actions ──────────────────────────────────────────────────────────
+
+exports.getBusinessDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get business with owner details
+    const { rows: bizRows } = await db.query(`
+      SELECT b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
+             b.address_city, b.address_state, b.address_street, b.address_zip,
+             b.category, b.description, b.website, b.phone,
+             b.created_at, b.updated_at, b.admin_notes,
+             u.id AS owner_id, u.first_name || ' ' || u.last_name AS owner_name,
+             u.email AS owner_email, u.phone_number AS owner_phone,
+             COUNT(DISTINCT bm.id)::int AS member_count,
+             COALESCE(j.job_count, 0)::int AS job_count
+        FROM businesses b
+        JOIN users u ON b.user_id = u.id
+        LEFT JOIN business_members bm ON bm.business_id = b.id AND bm.status = 'active'
+        LEFT JOIN (SELECT business_id, COUNT(*)::int as job_count FROM jobs WHERE is_deleted = FALSE GROUP BY business_id) j ON j.business_id = b.id
+       WHERE b.id = $1
+       GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
+                b.address_city, b.address_state, b.address_street, b.address_zip,
+                b.category, b.description, b.website, b.phone, b.created_at, b.updated_at, b.admin_notes,
+                u.id, u.first_name, u.last_name, u.email, u.phone_number, j.job_count
+    `, [id]);
+
+    if (!bizRows.length) return res.status(404).json({ error: 'Business not found.' });
+
+    const business = bizRows[0];
+
+    // Get recent jobs
+    const { rows: jobs } = await db.query(`
+      SELECT id, title, status, budget_cents, created_at
+        FROM jobs
+       WHERE business_id = $1 AND is_deleted = FALSE
+       ORDER BY created_at DESC
+       LIMIT 10
+    `, [id]);
+
+    res.json({ business: { ...business, recent_jobs: jobs } });
+  } catch (err) {
+    logger.error('getBusinessDetail error', { err, businessId: req.params?.id });
+    res.status(500).json({ error: 'Failed to fetch business details.' });
+  }
+};
+
+exports.flagBusiness = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: 'Reason is required.' });
+    }
+
+    const { rows } = await db.query(
+      'SELECT id, business_name FROM businesses WHERE id = $1', [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
+
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'business_flagged_for_review',
+        targetType: 'business',
+        targetId: String(id),
+        description: reason,
+        req,
+      });
+    } catch (e) {}
+
+    res.json({ message: 'Business flagged for review.' });
+  } catch (err) {
+    logger.error('flagBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
+    res.status(500).json({ error: 'Failed to flag business.' });
+  }
+};
+
+exports.updateAdminNotes = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+
+    if (notes && notes.length > 2000) {
+      return res.status(400).json({ error: 'Notes cannot exceed 2000 characters.' });
+    }
+
+    const { rows } = await db.query(
+      'SELECT id, admin_notes FROM businesses WHERE id = $1', [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
+
+    const oldNotes = rows[0].admin_notes || null;
+    const newNotes = notes && notes.trim() ? notes.trim() : null;
+
+    // Update with safeguard
+    const updateResult = await db.query(
+      'UPDATE businesses SET admin_notes = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
+      [newNotes, id]
+    );
+
+    if (!updateResult.rows.length) {
+      return res.status(409).json({ error: 'Business was deleted during update. Please try again.' });
+    }
+
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'business_admin_notes_updated',
+        targetType: 'business',
+        targetId: String(id),
+        before: { admin_notes: oldNotes },
+        after: { admin_notes: newNotes },
+        req,
+      });
+    } catch (e) {}
+
+    res.json({ message: 'Admin notes updated.', admin_notes: newNotes });
+  } catch (err) {
+    logger.error('updateAdminNotes error', { err, businessId: req.params?.id, adminId: req.user?.id });
+    res.status(500).json({ error: 'Failed to update admin notes.' });
+  }
+};
+
+exports.deleteBusiness = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { confirmed } = req.body;
+
+    if (!confirmed) {
+      return res.status(400).json({ error: 'Deletion must be confirmed.' });
+    }
+
+    const { rows } = await db.query(
+      'SELECT id, business_name, is_active FROM businesses WHERE id = $1', [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
+
+    // Soft delete - mark as inactive and set deleted_at
+    const deleteResult = await db.query(
+      'UPDATE businesses SET is_active = FALSE, deleted_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING id',
+      [id]
+    );
+
+    if (!deleteResult.rows.length) {
+      return res.status(409).json({ error: 'Business was already deleted.' });
+    }
+
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'business_deleted',
+        targetType: 'business',
+        targetId: String(id),
+        before: { is_active: rows[0].is_active },
+        after: { is_active: false, deleted_at: new Date().toISOString() },
+        req,
+      });
+    } catch (e) {}
+
+    res.json({ message: 'Business deleted (soft delete applied).' });
+  } catch (err) {
+    logger.error('deleteBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
+    res.status(500).json({ error: 'Failed to delete business.' });
   }
 };

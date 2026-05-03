@@ -35,6 +35,7 @@ import AuditLogUserActions from './pages/super/AuditLogUserActions';
 import UsersList            from './pages/UsersList';
 import ReportsList          from './pages/ReportsList';
 import BusinessModeration   from './pages/BusinessModeration';
+import BusinessDetail       from './pages/BusinessDetail';
 import ToolRentalModeration from './pages/ToolRentalModeration';
 import PlannedNeedsAdmin    from './pages/PlannedNeedsAdmin';
 import PaymentsList         from './pages/PaymentsList';
@@ -138,6 +139,7 @@ export default function AdminApp() {
           <Route path="search"              element={<AdminSearch />} />
           <Route path="messages"            element={<AdminMessages />} />
           <Route path="businesses"          element={<BusinessModeration />} />
+          <Route path="businesses/:id"      element={<BusinessDetail />} />
           <Route path="tool-rentals"        element={<ToolRentalModeration />} />
           <Route path="planned-needs"       element={<PlannedNeedsAdmin />} />
           <Route path="payments"            element={<PaymentsList />} />

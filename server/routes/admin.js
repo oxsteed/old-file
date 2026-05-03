@@ -44,8 +44,12 @@ router.post('/reviews/:reviewId/restore',      requireAdmin, adminCtrl.restoreRe
 // ══════════════════════════════════════════════════════════════
 
 // Businesses
-router.get('/businesses',             requireAdmin, bizModCtrl.listBusinesses);
-router.put('/businesses/:id/toggle',  requireAdmin, bizModCtrl.toggleBusiness);
+router.get('/businesses',                      requireAdmin, bizModCtrl.listBusinesses);
+router.get('/businesses/:id',                  requireAdmin, bizModCtrl.getBusinessDetail);
+router.put('/businesses/:id/toggle',           requireAdmin, bizModCtrl.toggleBusiness);
+router.put('/businesses/:id/flag',             requireAdmin, bizModCtrl.flagBusiness);
+router.put('/businesses/:id/admin-notes',      requireAdmin, bizModCtrl.updateAdminNotes);
+router.put('/businesses/:id/delete',           requireAdmin, bizModCtrl.deleteBusiness);
 
 // Tool Rentals
 router.get('/tool-rentals',             requireAdmin, bizModCtrl.listToolRentals);
