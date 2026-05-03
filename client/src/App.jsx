@@ -30,6 +30,9 @@ import DoNotSellPage from './pages/donotsell';
 import SecurityPage from './pages/security';
 import CookiePolicyPage from './pages/cookiepolicy';
 import AccessibilityPage from './pages/accessibility';
+import BackgroundCheckPage from './pages/BackgroundCheckPage';
+import ArbitrationPage from './pages/ArbitrationPage';
+import EscrowPolicyPage from './pages/EscrowPolicyPage';
 import HowItWorksPage from './pages/HowItWorks';
 import AboutPage from './pages/about';
 import ForgotPasswordPage from './pages/ForgotPassword';
@@ -161,6 +164,9 @@ export default function App() {
                     <Route path="/security"       element={<Guarded><SecurityPage /></Guarded>} />
                     <Route path="/cookie-policy"  element={<Guarded><CookiePolicyPage /></Guarded>} />
                     <Route path="/accessibility"  element={<Guarded><AccessibilityPage /></Guarded>} />
+                    <Route path="/legal/background-check" element={<Guarded><BackgroundCheckPage /></Guarded>} />
+                    <Route path="/legal/arbitration" element={<Guarded><ArbitrationPage /></Guarded>} />
+                    <Route path="/legal/escrow-policy" element={<Guarded><EscrowPolicyPage /></Guarded>} />
 
                     {/* ── Authenticated routes ────────────────────────────── */}
                     {/* verify-email is exempt from email verification gate in ProtectedRoute (see EMAIL_VERIFICATION_EXEMPT_PATHS) */}

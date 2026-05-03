@@ -76,6 +76,10 @@ import SupportTemplates from './pages/SupportTemplates';
 import SupportMetricsDashboard from './pages/SupportMetricsDashboard';
 import SupportSLADashboard from './pages/SupportSLADashboard';
 import SupportPerformanceAnalytics from './pages/SupportPerformanceAnalytics';
+import AdminLegalAcceptancesPage from './pages/AdminLegalAcceptancesPage';
+import AdminLegalAuditLogPage from './pages/AdminLegalAuditLogPage';
+import AdminComplianceMetricsPage from './pages/AdminComplianceMetricsPage';
+import AdminCCPARequestsPage from './pages/AdminCCPARequestsPage';
 
 function AdminGuard({ children, superOnly = false }) {
   const { user, loading } = useAuth();
@@ -166,6 +170,12 @@ export default function AdminApp() {
           <Route path="support/team-hierarchy" element={<SupportTeamHierarchy />} />
           <Route path="support/settings" element={<SupportSettingsPage />} />
           <Route path="support/audit" element={<SupportAuditLog />} />
+
+          {/* Legal & Compliance */}
+          <Route path="legal/acceptances" element={<AdminLegalAcceptancesPage />} />
+          <Route path="legal/audit-log" element={<AdminLegalAuditLogPage />} />
+          <Route path="legal/compliance-metrics" element={<AdminComplianceMetricsPage />} />
+          <Route path="legal/ccpa-requests" element={<AdminCCPARequestsPage />} />
 
           {/* Super admin only */}
           <Route path="super/dashboard" element={

@@ -6041,5 +6041,360 @@
     "previewAriaLabel": "Apercu du modele {{name}}",
     "activateAriaLabel": "Activer le modele {{name}}",
     "unlockAriaLabel": "Debloquer le modele {{name}}"
+  },
+  "backgroundCheck": {
+    "title": "Vérification des Antécédents et Procédure d'Action Défavorable",
+    "description": "Information sur les vérifications d'antécédents OxSteed, facteurs disqualifiants, processus d'appel et conformité FCRA.",
+    "subtitle": "Nous effectuons des vérifications d'antécédents pour assurer la sécurité de notre communauté.",
+    "lastUpdated": "Dernière mise à jour: 3 mai 2026",
+    "onThisPage": "Sur cette page",
+    "searchLabel": "Rechercher des informations de vérification d'antécédents",
+    "searchPlaceholder": "Rechercher...",
+    "sections": {
+      "whatWeCheck": "Ce que nous vérifions",
+      "disqualifying": "Facteurs disqualifiants",
+      "ourProcess": "Notre processus",
+      "ifDenied": "Si votre demande est rejetée",
+      "appeal": "Processus d'appel",
+      "timeline": "Chronologie et statut",
+      "faqs": "Questions fréquemment posées"
+    },
+    "whatWeCheck": {
+      "intro": "Nous utilisons Checkr pour effectuer des vérifications d'antécédents exhaustives sur tous les candidats.",
+      "item1": "Antécédents criminels",
+      "item1_desc": "Nous vérifions les bases de données locales, étatiques et nationales.",
+      "item2": "Vérification d'identité",
+      "item2_desc": "Nous vérifions votre identité à l'aide d'une pièce d'identité émise par le gouvernement.",
+      "item3": "Registre des délinquants sexuels",
+      "item3_desc": "Nous vérifions le site Web public du registre national des délinquants sexuels.",
+      "item4": "Vérification supplémentaire",
+      "item4_desc": "Nous pouvons vérifier des bases de données supplémentaires."
+    },
+    "disqualifying": {
+      "intro": "Les facteurs suivants entraîneront le rejet de votre demande.",
+      "violent": "Crimes violents",
+      "sexual": "Infractions sexuelles",
+      "felony": "Condamnations pour crime",
+      "sex_offender": "Inscription au registre des délinquants sexuels",
+      "theft": "Crimes contre les biens",
+      "drugs": "Trafic de drogue",
+      "fraud": "Fraude ou vol d'identité",
+      "examples": "Les exemples incluent",
+      "note": "Remarque importante",
+      "noteDesc": "Nous évaluons les demandes en fonction de la nature, de la gravité et de la récence de tout antécédent criminel."
+    },
+    "process": {
+      "intro": "Notre processus de vérification d'antécédents est simple et transparent.",
+      "step1": "Demande soumise",
+      "step1_desc": "Vous remplissez et soumettez votre demande d'aide.",
+      "step2": "Vérification d'antécédents initiée",
+      "step2_desc": "Checkr reçoit vos informations et commence la vérification.",
+      "step3": "Résultats reçus",
+      "step3_desc": "La vérification est généralement complétée en 1-3 jours ouvrables.",
+      "step4": "Décision et notification",
+      "step4_desc": "Nous examinons les résultats et vous notifions par email."
+    },
+    "ifDenied": {
+      "adverseNotice": "Votre avis d'action défavorable (conformité FCRA)",
+      "adverseIntro": "Si nous rejetons votre demande, nous sommes légalement tenus de vous fournir un avis d'action défavorable.",
+      "adverseExample": "Exemple: 'Nous avons rejeté votre demande d'aide en raison de antécédents criminels révélés.'",
+      "adverseNote": "Vous recevrez cet avis par email avec des détails spécifiques.",
+      "disputeTitle": "Contester avec Checkr",
+      "disputeDesc": "Vous avez 30 jours pour contester les résultats avec Checkr.",
+      "viewCheckr": "Visiter Checkr pour contester"
+    },
+    "appeal": {
+      "intro": "Si votre demande est rejetée, vous avez le droit d'appeler.",
+      "step1": "Rassemblez vos preuves",
+      "step1_desc": "Rassemblez tous les documents qui soutiennent votre appel.",
+      "step2": "Soumettez votre appel",
+      "step2_desc": "Cliquez sur le bouton ci-dessous pour ouvrir un formulaire de support.",
+      "step3": "Révision du gestionnaire",
+      "step3_desc": "Un membre de notre équipe examinera votre appel dans les 10 jours ouvrables.",
+      "step4": "Décision finale",
+      "step4_desc": "Vous recevrez un email avec notre décision finale.",
+      "submitBtn": "Appeler la dénégation",
+      "form": {
+        "email": "Votre adresse email",
+        "reason": "Pourquoi devrions-nous reconsidérer?",
+        "reasonPlaceholder": "Expliquez votre appel...",
+        "evidence": "Preuves justificatives (Facultatif)",
+        "evidencePlaceholder": "Décrivez tous les documents que vous avez...",
+        "submit": "Soumettre l'appel"
+      },
+      "successMsg": "Appel soumis avec succès!",
+      "successDesc": "Nous examinerons votre appel et vous contacterons dans les 10 jours ouvrables."
+    },
+    "timeline": {
+      "submitted": "Demande soumise",
+      "submitted_desc": "Vous complétez et soumettez votre demande d'aide.",
+      "initiated": "Vérification d'antécédents initiée",
+      "initiated_desc": "Checkr reçoit vos informations.",
+      "received": "Résultats reçus",
+      "received_desc": "La vérification est généralement complétée en 1-3 jours ouvrables.",
+      "result": "Approuvé ou rejeté",
+      "result_desc": "Nous vous notifions de la décision.",
+      "appeal": "Période d'appel",
+      "appeal_desc": "Vous avez 30 jours pour contester."
+    },
+    "faq": {
+      "q1": "Combien de temps prend la vérification d'antécédents?",
+      "a1": "Les vérifications d'antécédents sont généralement complétées dans les 1-3 jours ouvrables.",
+      "q2": "Un rejet signifie-t-il que je ne peux jamais postuler à nouveau?",
+      "a2": "Non nécessairement. Vous pouvez faire appel de la décision dans les 30 jours.",
+      "q3": "Et s'il y a une erreur dans mon rapport de vérification d'antécédents?",
+      "a3": "Vous avez 30 jours pour contester le rapport directement avec Checkr.",
+      "q4": "OxSteed examine-t-il les arrestations sans condamnation?",
+      "a4": "Nous nous concentrons principalement sur les condamnations.",
+      "q5": "Puis-je travailler comme aide pendant que ma vérification d'antécédents est en attente?",
+      "a5": "Non. Vous devez avoir une vérification d'antécédents approuvée.",
+      "q6": "Quelles informations vois-je dans mon rapport d'antécédents?",
+      "a6": "Vous recevez une copie de votre rapport d'antécédents avec notre décision."
+    },
+    "contactSupport": {
+      "intro": "Avez-vous des questions sur le processus de vérification d'antécédents?",
+      "btn": "Contacter le support"
+    }
+  },
+  "arbitration": {
+    "title": "Arbitrage contraignant et limitation de responsabilité",
+    "description": "Information sur la clause d'arbitrage d'OxSteed, renonciation à l'action collective et limitations de responsabilité.",
+    "subtitle": "Comprenez vos droits et les limitations d'OxSteed en cas de litige légal",
+    "lastUpdated": "Dernière mise à jour: 3 mai 2026",
+    "onThisPage": "Sur cette page",
+    "searchLabel": "Rechercher des informations d'arbitrage",
+    "searchPlaceholder": "Rechercher...",
+    "sections": {
+      "bindingArbitration": "Arbitrage contraignant",
+      "process": "Le processus d'arbitrage",
+      "fees": "Honoraires et frais d'arbitrage",
+      "classAction": "Renonciation à l'action collective",
+      "exceptions": "Exceptions à l'arbitrage",
+      "limitation": "Limitation de responsabilité",
+      "stateDisclaimers": "Application spécifique à l'État",
+      "initiate": "Comment initier un arbitrage"
+    },
+    "bindingArbitration": {
+      "intro": "Tout différend entre vous et OxSteed sera résolu par arbitrage contraignant plutôt que devant un tribunal.",
+      "keyPoint": "En utilisant OxSteed, vous acceptez que les différends soient résolus par un arbitre neutre, non par un juge ou un jury.",
+      "details": "Cela signifie que les deux parties conviennent de soumettre à l'arbitrage pour résoudre les différends."
+    },
+    "process": {
+      "rulesTitle": "Règles et procédures d'arbitrage",
+      "rulesIntro": "Notre arbitrage suit ces règles et procédures:",
+      "rule1": "Les règles de JAMS ou AAA s'appliquent.",
+      "rule2": "L'arbitrage sera conduit par un arbitre unique, neutre et impartial.",
+      "rule3": "L'arbitre émettra une décision écrite expliquant le raisonnement.",
+      "arbitratorTitle": "L'arbitre",
+      "arbitratorDesc": "L'arbitre est un juge retraité ou un avocat expérimenté formé à la résolution des différends.",
+      "timelineTitle": "Chronologie typique de l'arbitrage"
+    },
+    "timeline": {
+      "phase1": "Demande initiale",
+      "phase1Desc": "Le demandeur dépose une demande d'arbitrage.",
+      "phase2": "Sélection de l'arbitre",
+      "phase2Desc": "Les deux parties participent à la sélection de l'arbitre.",
+      "phase3": "Audience et preuves",
+      "phase3Desc": "L'arbitre entend des preuves des deux parties.",
+      "phase4": "Décision",
+      "phase4Desc": "L'arbitre émet une sentence écrite."
+    },
+    "fees": {
+      "intro": "Nous voulons que l'arbitrage soit accessible.",
+      "costTitle": "Qui paie l'arbitrage?",
+      "costDetail": "OxSteed paiera tous les frais de dossier et administratifs de JAMS ou AAA si votre réclamation est inférieure à $10,000.",
+      "attorneyFees": "Chaque partie est responsable de ses propres frais d'avocat.",
+      "lowValue": "Pour les réclamations de faible valeur (moins de $10,000), JAMS propose des procédures simplifiées."
+    },
+    "classAction": {
+      "intro": "Vous acceptez que l'arbitrage soit mené individuellement uniquement.",
+      "impact": "Cela signifie que vous NE POUVEZ PAS intenter une action collective contre OxSteed.",
+      "meaning": "Au lieu de vous joindre à d'autres clients dans une action collective, vous et OxSteed résoudrez séparément vos différends.",
+      "stateNotice": "Important: Avis spécifique à l'État",
+      "noticeText": "Certains États n'autorisent pas les renonciations à l'action collective dans certaines circonstances."
+    },
+    "exceptions": {
+      "intro": "L'arbitrage NE s'applique PAS à ce qui suit:",
+      "item1": "Tribunal des petites créances",
+      "item1Desc": "Vous pouvez poursuivre votre réclamation au tribunal des petites créances.",
+      "item2": "Mesures d'ordonnance",
+      "item2Desc": "L'une ou l'autre partie peut demander une ordonnance de restriction temporaire.",
+      "item3": "Procédures JAMS/AAA",
+      "item3Desc": "Les différends concernant l'accord d'arbitrage lui-même peuvent être résolus par arbitrage ou par un tribunal.",
+      "item4": "Agences réglementaires",
+      "item4Desc": "Les réclamations présentées par les agences gouvernementales ne sont pas soumises à l'arbitrage."
+    },
+    "limitation": {
+      "capTitle": "Plafond de responsabilité",
+      "capIntro": "La responsabilité totale d'OxSteed envers vous est limitée.",
+      "capAmount": "La responsabilité maximale d'OxSteed ne dépassera pas le montant que vous avez payé à OxSteed au cours des 12 mois précédents, ou $100.",
+      "indirectTitle": "Pas de dommages indirects",
+      "indirectIntro": "OxSteed n'est PAS responsable de ce qui suit:",
+      "item1": "Pertes de bénéfices ou de revenus",
+      "item2": "Perte de données ou interruption d'activité",
+      "item3": "Dommages indirects, accessoires, spéciaux ou consécutifs",
+      "item4": "Dommages punitifs ou exemplaires"
+    },
+    "stateDisclaimers": {
+      "ca": {
+        "title": "Californie (CA) - Application",
+        "point1": "La loi californienne permet les renonciations à l'action collective.",
+        "point2": "En vertu de la Proposition 65, tout différend découlant de la vente de biens de consommation sera traité comme une action collective non renoncée.",
+        "point3": "Si vous êtes résident de Californie, vous avez le droit d'exclure l'arbitrage."
+      },
+      "ny": {
+        "title": "New York (NY) - Application",
+        "point1": "Les tribunaux de New York ont déterminé que les renonciations à l'action collective sont exécutoires.",
+        "point2": "La loi sur la protection des consommateurs de New York ne peut pas être supprimée par l'arbitrage.",
+        "point3": "Vous pouvez demander que l'arbitrage ait lieu dans le comté de New York."
+      },
+      "ma": {
+        "title": "Massachusetts (MA) - Application",
+        "point1": "Les tribunaux du Massachusetts examinent attentivement les clauses d'arbitrage.",
+        "point2": "Les lois de protection des consommateurs du Massachusetts peuvent ne pas permettre la renonciation.",
+        "point3": "Les renonciations à l'action collective peuvent ne pas être exécutoires au Massachusetts."
+      }
+    },
+    "initiate": {
+      "intro": "Si vous avez un différend avec OxSteed, voici comment initier un arbitrage:",
+      "step1": "Envoyer un avis",
+      "step1Desc": "Envoyez à OxSteed un avis écrit détaillé décrivant le différend.",
+      "step2": "Attendre la réponse",
+      "step2Desc": "OxSteed répondra dans les 30 jours.",
+      "step3": "Déposer la demande",
+      "step3Desc": "Si le différend n'est pas résolu, déposez une demande d'arbitrage auprès de JAMS ou AAA.",
+      "step4": "Participer à l'audience",
+      "step4Desc": "Participez à l'audience d'arbitrage.",
+      "contactTitle": "Envoyez votre avis à:",
+      "contactInfo": "support@oxsteed.com ou notre équipe juridique à legal@oxsteed.com"
+    },
+    "acceptance": {
+      "title": "Reconnaissance et acceptation",
+      "intro": "En utilisant OxSteed, vous reconnaissez que vous avez lu, compris et accepté d'être lié par cette clause d'arbitrage.",
+      "checkbox": "Je comprends et accepte la clause d'arbitrage, la renonciation à l'action collective et les limitations de responsabilité décrites ci-dessus.",
+      "signBtn": "Accepter et signer",
+      "form": {
+        "signature": "Votre signature électronique (tapez votre nom)",
+        "signaturePlaceholder": "Tapez votre nom legal complet ici",
+        "signatureNote": "En tapant votre nom, vous fournissez une signature électronique confirmant l'acceptation de ces termes.",
+        "submit": "Confirmer l'acceptation"
+      },
+      "successMsg": "Votre acceptation a été enregistrée.",
+      "successDesc": "Merci. Votre accord à la clause d'arbitrage a été enregistré avec un horodatage."
+    }
+  },
+  "escrowPolicy": {
+    "title": "Politique de séquestre et de rétention des fonds",
+    "description": "Comment OxSteed retient les paiements en séquestre à l'aide de Stripe Connect, propriété des fonds, calendriers de libération et procédures de litige.",
+    "subtitle": "Comprendre comment nous protégeons vos fonds lors des transactions",
+    "lastUpdated": "Dernière mise à jour: 3 mai 2026",
+    "onThisPage": "Sur cette page",
+    "searchLabel": "Rechercher des informations sur la politique de séquestre",
+    "searchPlaceholder": "Rechercher...",
+    "sections": {
+      "mechanism": "Mécanisme de rétention des fonds",
+      "authorization": "Autorisation et consentement",
+      "ownership": "Propriété des fonds",
+      "liability": "Responsabilité d'OxSteed",
+      "release": "Libération et remboursements",
+      "timeline": "Calendrier et avis importants",
+      "faqs": "Questions fréquemment posées"
+    },
+    "mechanism": {
+      "intro": "OxSteed utilise Stripe Connect pour retenir les fonds de paiement en séquestre lors des travaux.",
+      "keyPoint": "Les fonds sont retenus PAR Stripe, non par OxSteed. Nous facilitons seulement la rétention.",
+      "details": "Lorsque vous effectuez un paiement pour un travail, les fonds sont autorisés sur votre mode de paiement et retenus dans le système sécurisé de Stripe.",
+      "stripe": "Stripe est un processeur de paiement de premier plan de confiance par des milliers d'entreprises."
+    },
+    "authorization": {
+      "intro": "En publiant un travail et en procédant au paiement, vous autorisez le processus de séquestre.",
+      "byChoosingTitle": "En choisissant de payer",
+      "byChoosingDesc": "Vous acceptez qu'OxSteed et Stripe puissent retenir vos fonds selon ces conditions.",
+      "details": "Vous recevrez un email de confirmation montrant le montant autorisé et les détails du travail."
+    },
+    "ownership": {
+      "intro": "Il est important de comprendre qui est propriétaire des fonds en séquestre.",
+      "item1": "Les fonds appartiennent au payeur",
+      "item1_desc": "Jusqu'à ce que le travail soit complété et les fonds libérés, l'argent appartient au client.",
+      "item2": "OxSteed n'est pas propriétaire des fonds",
+      "item2_desc": "OxSteed n'est pas propriétaire des fonds en séquestre, ne les contrôle pas et n'y a pas accès.",
+      "item3": "Stripe retient les fonds en toute sécurité",
+      "item3_desc": "Stripe retient les fonds dans un compte sécurisé et séparé.",
+      "disclaimerTitle": "AVIS IMPORTANT",
+      "disclaimerDesc": "Les fonds en séquestre ne sont PAS assurés par la FDIC. Cependant, Stripe maintient les normes de sécurité les plus élevées."
+    },
+    "liability": {
+      "intro": "OxSteed n'est pas responsable de certains problèmes liés à la rétention des fonds.",
+      "serviceInterruptionTitle": "Interruptions de service Stripe",
+      "serviceInterruptionDesc": "Si Stripe subit une interruption de service, OxSteed n'est pas responsable.",
+      "securityTitle": "Mauvaise gestion ou vol de fonds",
+      "securityDesc": "Si les systèmes de Stripe sont compromis, OxSteed n'est pas responsable.",
+      "recoveryTitle": "Assistance à la récupération",
+      "recoveryDesc": "OxSteed assistera à l'enquête mais ne peut pas récupérer directement les fonds perdus."
+    },
+    "release": {
+      "jobCompletionTitle": "Libération à l'achèvement du travail",
+      "jobCompletionDesc": "Les fonds sont libérés 3 jours ouvrables après que le client marque le travail comme terminé.",
+      "timeline": "Calendrier de libération: 3 jours ouvrables après l'achèvement du travail. Les fonds arrivent: 5-7 jours ouvrables.",
+      "refundTitle": "Remboursements",
+      "refundDesc": "Si un client demande un remboursement avant la fin du travail, les fonds sont retournés à son mode de paiement.",
+      "processingTime": "Temps de traitement du remboursement",
+      "processingTimeDesc": "Les remboursements sont émis dans les 5-7 jours ouvrables.",
+      "disputeTitle": "Travaux en litige",
+      "disputeDesc": "S'il y a un différend, les fonds restent en séquestre pendant l'enquête."
+    },
+    "timeline": {
+      "authorized": "Paiement autorisé",
+      "authorizedDesc": "Le paiement du client est autorisé et mis en séquestre avec Stripe.",
+      "completed": "Travail complété",
+      "completedDesc": "Le client marque le travail comme terminé.",
+      "released": "Fonds libérés",
+      "releasedDesc": "Les fonds sont libérés du séquestre 3 jours ouvrables après l'achèvement.",
+      "received": "Fonds reçus",
+      "receivedDesc": "Les fonds arrivent dans le compte bancaire 5-7 jours ouvrables plus tard."
+    },
+    "notices": {
+      "chargebackTitle": "Les contrechargés contournent le séquestre",
+      "chargebackDesc": "Si vous lancez un contrechargé au lieu d'utiliser notre processus de litige, cela contourne notre protection.",
+      "chargebackFee": "Selon les conditions de Stripe, les contrechargés entraînent une charge de $25 par transaction.",
+      "legalHoldTitle": "Retenues légales",
+      "legalHoldDesc": "Si OxSteed reçoit une ordonnance légale, les fonds en séquestre peuvent être gelés."
+    },
+    "faq": {
+      "q1": "Puis-je annuler un paiement après son autorisation?",
+      "a1": "Oui. Avant que le travail ne commence, vous pouvez annuler et votre paiement sera remboursé.",
+      "q2": "Et si l'aide ne termine pas le travail?",
+      "a2": "Si le travail n'est pas complété, le client peut ouvrir un litige.",
+      "q3": "Combien de temps faut-il pour être payé en tant qu'aide?",
+      "a3": "Après que le client marque le travail comme terminé, les fonds sont libérés 3 jours ouvrables plus tard.",
+      "q4": "Et si Stripe retient mes fonds?",
+      "a4": "Stripe peut retenir les fonds temporairement. Contactez support@oxsteed.com et nous suivrons.",
+      "q5": "Puis-je faire libérer mes fonds plus tôt?",
+      "a5": "Non. La retenue de 3 jours est fixe selon les politiques de Stripe.",
+      "q6": "Et si j'ai un différend?",
+      "a6": "Si vous contestez un travail, les fonds restent en séquestre pendant notre enquête.",
+      "q7": "Mon argent est-il sécurisé en séquestre?",
+      "a7": "Oui. Stripe utilise le chiffrement au niveau bancaire.",
+      "q8": "Et si OxSteed ferme?",
+      "a8": "Les fonds en séquestre restent la propriété de leurs propriétaires légitimes."
+    },
+    "acceptance": {
+      "title": "Compréhension et reconnaissance",
+      "intro": "En utilisant le système de paiement d'OxSteed, vous reconnaissez que vous comprenez comment fonctionne le séquestre.",
+      "checkbox": "Je comprends et accepte la politique de séquestre d'OxSteed.",
+      "signBtn": "Accepter et signer",
+      "form": {
+        "signature": "Votre signature électronique (tapez votre nom)",
+        "signaturePlaceholder": "Tapez votre nom legal complet ici",
+        "signatureNote": "En tapant votre nom, vous fournissez une signature électronique confirmant l'acceptation.",
+        "submit": "Confirmer l'acceptation"
+      },
+      "successMsg": "Votre acceptation a été enregistrée.",
+      "successDesc": "Merci. Votre accord a été enregistré avec un horodatage."
+    },
+    "contactSupport": {
+      "intro": "Avez-vous des questions sur le fonctionnement du séquestre?",
+      "btn": "Contacter le support"
+    }
   }
 }

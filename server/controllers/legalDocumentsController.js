@@ -1,577 +1,617 @@
-// Legal Documents Controller
-// Manages T&C, Privacy Policy, and other legal documents with versioning, approvals, and i18n support
-
+// Legal Documents Controller - Acceptance Recording & Compliance Metrics
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
-const emailService = require('../services/email');
+const { validate, rules } = require('../utils/validate');
 
-// ────────────────────────────────────────────────────────────
-// PUBLIC ENDPOINTS
-// ────────────────────────────────────────────────────────────
+const VALID_DOCUMENT_TYPES = [
+  'contractor_agreement',
+  'dispute_resolution',
+  'account_termination',
+  'privacy_policy',
+  'biometric_data',
+  'harassment_policy',
+  'background_check',
+  'arbitration',
+  'escrow_policy'
+];
 
 /**
- * GET /api/legal/documents/:category
- * Fetch published legal document in user's language
+ * Record a legal document acceptance
+ * POST /api/legal/{documentType}/accept
  */
-const getLegalDocument = async (req, res, next) => {
+async function recordAcceptance(req, res, next) {
   try {
-    const { category } = req.params;
-    const { language = 'en' } = req.query;
+    const { documentType } = req.params;
+    const { firstName, lastName, versionNumber } = req.body;
+    const userId = req.user?.id;
 
-    // Validate category
-    const validCategories = [
-      'terms_of_service', 'privacy_policy', 'helper_agreement', 'seller_agreement',
-      'payment_terms', 'dispute_resolution', 'data_retention', 'background_check_policy',
-      'fcra_compliance', 'incident_response', 'accessibility_policy'
-    ];
-    if (!validCategories.includes(category)) {
-      throw new AppError('Invalid document category', 400, 'invalid_category');
-    }
-
-    // Fetch live version
-    const { rows } = await pool.query(
-      `SELECT d.id, d.category, d.title, d.description, d.current_version,
-              d.effective_date, d.published_at,
-              COALESCE(dt.title, d.title) as title_localized,
-              COALESCE(dt.content, d.current_content) as content
-       FROM legal_documents d
-       LEFT JOIN legal_document_translations dt ON d.id = dt.document_id
-         AND dt.language_code = $2 AND dt.status = 'live'
-       WHERE d.category = $1 AND d.status = 'live'
-       ORDER BY d.published_at DESC LIMIT 1`,
-      [category, language]
-    );
-
-    if (!rows[0]) {
-      throw new AppError('Document not found', 404, 'not_found');
-    }
-
-    const doc = rows[0];
-
-    // Fetch sections
-    const { rows: sections } = await pool.query(
-      `SELECT s.id, s.section_key, s.title, s.content, s.section_order,
-              s.is_critical, COALESCE(st.title, s.title) as title_localized,
-              COALESCE(st.content, s.content) as content_localized
-       FROM legal_document_sections s
-       LEFT JOIN legal_section_translations st ON s.id = st.section_id
-         AND st.language_code = $2 AND st.status = 'live'
-       WHERE s.document_id = $1
-       ORDER BY s.section_order`,
-      [doc.id, language]
-    );
-
-    // Check if user has accepted this version
-    let userAccepted = false;
-    if (req.user) {
-      const { rows: acceptanceRows } = await pool.query(
-        `SELECT accepted_at FROM user_legal_acceptances_latest
-         WHERE user_id = $1 AND document_id = $2 AND version_number = $3`,
-        [req.user.id, doc.id, doc.current_version]
-      );
-      userAccepted = acceptanceRows.length > 0;
-    }
-
-    // Log view
-    await logAuditEvent(req, 'document_viewed', 'document', doc.id, null);
-
-    res.json({
-      document: {
-        id: doc.id,
-        category: doc.category,
-        title: doc.title_localized || doc.title,
-        description: doc.description,
-        version: doc.current_version,
-        effectiveDate: doc.effective_date,
-        publishedAt: doc.published_at,
-        userAccepted,
-        lastUpdated: doc.published_at
-      },
-      sections: sections.map(s => ({
-        id: s.id,
-        key: s.section_key,
-        title: s.title_localized || s.title,
-        content: s.content_localized || s.content,
-        order: s.section_order,
-        isCritical: s.is_critical
-      })),
-      language
+    const errs = validate(req.body, {
+      firstName: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
+      lastName: [rules.required, rules.minLen(1), rules.maxLen(255), rules.noScript],
+      versionNumber: [rules.required, rules.isInt, rules.min(1)]
     });
-  } catch (err) {
-    next(err);
-  }
-};
+    if (errs) throw new AppError('Validation failed', 400, 'validation_failed', errs);
 
-/**
- * GET /api/legal/documents/:id/history
- * Fetch version history for a legal document
- */
-const getDocumentHistory = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const { rows } = await pool.query(
-      `SELECT version_number, title, change_summary, created_at, published_at,
-              created_by, published_by
-       FROM legal_document_versions
-       WHERE document_id = $1
-       ORDER BY version_number DESC`,
-      [id]
-    );
-
-    res.json({
-      versions: rows.map(v => ({
-        versionNumber: v.version_number,
-        title: v.title,
-        changeSummary: v.change_summary,
-        createdAt: v.created_at,
-        publishedAt: v.published_at,
-        createdBy: v.created_by,
-        publishedBy: v.published_by
-      }))
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * GET /api/legal/documents/:id/version/:versionNumber
- * Fetch specific version for comparison/history
- */
-const getDocumentVersion = async (req, res, next) => {
-  try {
-    const { id, versionNumber } = req.params;
-
-    const { rows } = await pool.query(
-      `SELECT version_number, title, content, change_summary, effective_date
-       FROM legal_document_versions
-       WHERE document_id = $1 AND version_number = $2`,
-      [id, parseInt(versionNumber)]
-    );
-
-    if (!rows[0]) {
-      throw new AppError('Version not found', 404, 'not_found');
+    if (!documentType || !VALID_DOCUMENT_TYPES.includes(documentType)) {
+      throw new AppError('Invalid document type', 400, 'invalid_document_type');
     }
 
-    res.json(rows[0]);
-  } catch (err) {
-    next(err);
-  }
-};
+    if (!userId) throw new AppError('Authentication required', 401, 'unauthorized');
 
-/**
- * POST /api/legal/documents/:id/accept
- * User accepts a legal document (with electronic signature)
- */
-const acceptDocument = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { firstName, lastName } = req.body;
-    const userId = req.user.id;
-
-    if (!firstName || !lastName) {
-      throw new AppError('First and last name required', 400, 'validation_failed');
-    }
-
-    // Get current document version
-    const { rows: docRows } = await pool.query(
-      `SELECT id, current_version, status FROM legal_documents WHERE id = $1`,
-      [id]
-    );
-
-    if (!docRows[0]) {
-      throw new AppError('Document not found', 404, 'not_found');
-    }
-
-    const doc = docRows[0];
-    if (doc.status !== 'live') {
-      throw new AppError('Document not published', 400, 'invalid_state');
-    }
-
-    // Check if already accepted
-    const { rows: existingRows } = await pool.query(
-      `SELECT id FROM user_legal_acceptances_latest
-       WHERE user_id = $1 AND document_id = $2 AND version_number = $3`,
-      [userId, doc.id, doc.current_version]
-    );
-
-    if (existingRows.length > 0) {
-      return res.json({ message: 'Already accepted' });
-    }
-
-    // Record acceptance
-    const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    const userAgent = req.headers['user-agent'] || '';
-
-    const { rows: acceptanceRows } = await pool.query(
-      `INSERT INTO user_legal_acceptances (user_id, document_id, version_number,
-        accepted_at, ip_address, user_agent, signature_first_name, signature_last_name, signature_timestamp)
-       VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7, NOW())
-       RETURNING id, accepted_at`,
-      [userId, doc.id, doc.current_version, ipAddress, userAgent, firstName, lastName]
-    );
-
-    // Update latest acceptance denormalization table
-    await pool.query(
-      `INSERT INTO user_legal_acceptances_latest (user_id, document_id, version_number, accepted_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (user_id, document_id)
-       DO UPDATE SET version_number = $3, accepted_at = NOW()`,
-      [userId, doc.id, doc.current_version]
-    );
-
-    // Audit log
-    await logAuditEvent(req, 'user_accepted', 'acceptance', acceptanceRows[0].id, doc.id);
-
-    res.json({
-      accepted: true,
-      acceptedAt: acceptanceRows[0].accepted_at,
-      version: doc.current_version
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * GET /api/legal/my-acceptances
- * Fetch user's acceptance history
- */
-const getUserAcceptances = async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-
-    const { rows } = await pool.query(
-      `SELECT a.id, d.category, d.title, a.version_number, a.accepted_at
-       FROM user_legal_acceptances a
-       JOIN legal_documents d ON a.document_id = d.id
-       WHERE a.user_id = $1
-       ORDER BY a.accepted_at DESC`,
+    const userCheck = await pool.query(
+      'SELECT id, is_active, deleted_at FROM users WHERE id = $1',
       [userId]
     );
+    if (userCheck.rows.length === 0) throw new AppError('User not found', 404, 'user_not_found');
 
-    res.json({
-      acceptances: rows.map(a => ({
-        id: a.id,
-        category: a.category,
-        title: a.title,
-        version: a.version_number,
-        acceptedAt: a.accepted_at
-      }))
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ────────────────────────────────────────────────────────────
-// ADMIN ENDPOINTS
-// ────────────────────────────────────────────────────────────
-
-/**
- * GET /api/admin/legal/documents
- * List all legal documents with optional status filter
- */
-const listLegalDocuments = async (req, res, next) => {
-  try {
-    const { status } = req.query;
-
-    let query = `SELECT id, category, title, description, current_version, status,
-                        updated_at, created_at, created_by, published_at
-                 FROM legal_documents`;
-    const params = [];
-
-    if (status && status !== 'all') {
-      query += ` WHERE status = $1`;
-      params.push(status);
+    const user = userCheck.rows[0];
+    if (!user.is_active || user.deleted_at) {
+      throw new AppError('Account is not active', 403, 'account_inactive');
     }
 
-    query += ` ORDER BY updated_at DESC`;
+    const existing = await pool.query(
+      'SELECT id FROM user_legal_acceptances WHERE user_id = $1 AND document_type = $2 AND version_number = $3',
+      [userId, documentType, versionNumber]
+    );
 
-    const { rows } = await pool.query(query, params);
-
-    res.json({
-      documents: rows.map(doc => ({
-        id: doc.id,
-        title: doc.title,
-        category: doc.category.replace('_', ' '),
-        version: doc.current_version,
-        status: doc.status,
-        updatedAt: doc.updated_at,
-        createdAt: doc.created_at,
-        publishedAt: doc.published_at
-      }))
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * POST /api/admin/legal/documents
- * Create new legal document
- */
-const createLegalDocument = async (req, res, next) => {
-  try {
-    const { category, title, description, content } = req.body;
-    const userId = req.user.id;
-
-    const validCategories = [
-      'terms_of_service', 'privacy_policy', 'helper_agreement', 'seller_agreement',
-      'payment_terms', 'dispute_resolution', 'data_retention', 'background_check_policy',
-      'fcra_compliance', 'incident_response', 'accessibility_policy'
-    ];
-
-    if (!validCategories.includes(category) || !title || !content) {
-      throw new AppError('Missing required fields', 400, 'validation_failed');
+    if (existing.rows.length > 0) {
+      logger.info('User already accepted document version', { userId, documentType, versionNumber });
+      return res.json({
+        success: true,
+        alreadyAccepted: true,
+        acceptanceId: existing.rows[0].id,
+        acceptedAt: new Date().toISOString()
+      });
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO legal_documents (category, title, description, current_content, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $5)
-       RETURNING id, status, current_version`,
-      [category, title, description || null, content, userId]
+    const ipAddress = req.ip || req.connection.remoteAddress || null;
+    const userAgent = req.get('user-agent') || null;
+
+    const result = await pool.query(
+      `INSERT INTO user_legal_acceptances
+       (user_id, document_type, version_number, first_name, last_name, ip_address, user_agent, accepted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+       RETURNING id, accepted_at`,
+      [userId, documentType, versionNumber, firstName, lastName, ipAddress, userAgent]
     );
 
-    const doc = rows[0];
+    const acceptance = result.rows[0];
 
-    // Create initial version
-    await pool.query(
-      `INSERT INTO legal_document_versions (document_id, version_number, title, content, status, created_by)
-       VALUES ($1, 1, $2, $3, 'draft', $4)`,
-      [doc.id, title, content, userId]
+    await logAuditAction(
+      'acceptance',
+      documentType,
+      userId,
+      userId,
+      req.user?.role || 'user',
+      acceptance.id,
+      'user_legal_acceptance',
+      'success',
+      ipAddress,
+      userAgent,
+      { documentType, versionNumber, firstName, lastName }
     );
 
-    await logAuditEvent(req, 'document_created', 'document', doc.id, null);
+    logger.info('Legal document acceptance recorded', { userId, documentType, versionNumber });
 
     res.status(201).json({
-      id: doc.id,
-      category,
-      title,
-      status: doc.status,
-      version: doc.current_version
+      success: true,
+      acceptanceId: acceptance.id,
+      acceptedAt: acceptance.accepted_at,
+      documentType,
+      versionNumber
     });
   } catch (err) {
     next(err);
   }
-};
+}
 
 /**
- * PUT /api/admin/legal/documents/:id
- * Update legal document (saves as draft)
+ * Get user's legal document acceptances
+ * GET /api/legal/my-acceptances
  */
-const updateLegalDocument = async (req, res, next) => {
+async function getUserAcceptances(req, res, next) {
   try {
-    const { id } = req.params;
-    const { title, description, content, changeSummary } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    const { documentType } = req.query;
 
-    // Get current document
-    const { rows: docRows } = await pool.query(
-      `SELECT id, current_version, status FROM legal_documents WHERE id = $1`,
-      [id]
-    );
+    if (!userId) throw new AppError('Authentication required', 401, 'unauthorized');
 
-    if (!docRows[0]) {
-      throw new AppError('Document not found', 404, 'not_found');
+    let query = 'SELECT * FROM user_legal_acceptances WHERE user_id = $1';
+    const params = [userId];
+
+    if (documentType) {
+      if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
+        throw new AppError('Invalid document type', 400, 'invalid_document_type');
+      }
+      query += ' AND document_type = $2';
+      params.push(documentType);
     }
 
-    const doc = docRows[0];
-    const newVersion = doc.current_version + 1;
+    query += ' ORDER BY accepted_at DESC';
+    const result = await pool.query(query, params);
 
-    // Update document
+    res.json({
+      success: true,
+      acceptances: result.rows.map(row => ({
+        id: row.id,
+        documentType: row.document_type,
+        versionNumber: row.version_number,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        ipAddress: row.ip_address,
+        userAgent: row.user_agent,
+        acceptedAt: row.accepted_at,
+        createdAt: row.created_at
+      })),
+      total: result.rows.length
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get acceptance history for a specific document type
+ * GET /api/legal/{documentType}/history
+ */
+async function getAcceptanceHistory(req, res, next) {
+  try {
+    const { documentType } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) throw new AppError('Authentication required', 401, 'unauthorized');
+    if (!documentType || !VALID_DOCUMENT_TYPES.includes(documentType)) {
+      throw new AppError('Invalid document type', 400, 'invalid_document_type');
+    }
+
+    const result = await pool.query(
+      `SELECT * FROM user_legal_acceptances
+       WHERE user_id = $1 AND document_type = $2
+       ORDER BY accepted_at DESC`,
+      [userId, documentType]
+    );
+
+    res.json({
+      success: true,
+      documentType,
+      history: result.rows.map(row => ({
+        versionNumber: row.version_number,
+        acceptedAt: row.accepted_at,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        ipAddress: row.ip_address,
+        timestamp: row.accepted_at
+      })),
+      total: result.rows.length,
+      latestVersion: result.rows.length > 0 ? result.rows[0].version_number : null
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * List all user acceptances (admin only)
+ * GET /api/admin/legal/acceptances
+ */
+async function listAllAcceptances(req, res, next) {
+  try {
+    const { documentType, startDate, endDate, search, sort = 'newest', page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    if (isNaN(offset) || isNaN(limit) || parseInt(limit) > 500) {
+      throw new AppError('Invalid pagination parameters', 400, 'invalid_pagination');
+    }
+
+    let countQuery = 'SELECT COUNT(*) as total FROM user_legal_acceptances ula JOIN users u ON ula.user_id = u.id WHERE 1=1';
+    let dataQuery = `SELECT ula.*, u.email, u.first_name as user_first_name, u.last_name as user_last_name
+                    FROM user_legal_acceptances ula
+                    JOIN users u ON ula.user_id = u.id
+                    WHERE 1=1`;
+    const params = [];
+    let paramCount = 1;
+
+    if (documentType && VALID_DOCUMENT_TYPES.includes(documentType)) {
+      countQuery += ` AND ula.document_type = $${paramCount}`;
+      dataQuery += ` AND ula.document_type = $${paramCount}`;
+      params.push(documentType);
+      paramCount++;
+    }
+
+    if (startDate) {
+      try {
+        const date = new Date(startDate);
+        countQuery += ` AND ula.accepted_at >= $${paramCount}`;
+        dataQuery += ` AND ula.accepted_at >= $${paramCount}`;
+        params.push(date);
+        paramCount++;
+      } catch (e) {
+        throw new AppError('Invalid startDate format', 400, 'invalid_date');
+      }
+    }
+
+    if (endDate) {
+      try {
+        const date = new Date(endDate);
+        countQuery += ` AND ula.accepted_at <= $${paramCount}`;
+        dataQuery += ` AND ula.accepted_at <= $${paramCount}`;
+        params.push(date);
+        paramCount++;
+      } catch (e) {
+        throw new AppError('Invalid endDate format', 400, 'invalid_date');
+      }
+    }
+
+    if (search) {
+      countQuery += ` AND (u.email ILIKE $${paramCount} OR u.first_name ILIKE $${paramCount} OR u.last_name ILIKE $${paramCount})`;
+      dataQuery += ` AND (u.email ILIKE $${paramCount} OR u.first_name ILIKE $${paramCount} OR u.last_name ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+
+    if (sort === 'oldest') {
+      dataQuery += ' ORDER BY ula.accepted_at ASC';
+    } else if (sort === 'name_asc') {
+      dataQuery += ' ORDER BY u.first_name ASC, u.last_name ASC';
+    } else {
+      dataQuery += ' ORDER BY ula.accepted_at DESC';
+    }
+
+    dataQuery += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit), offset);
+
+    const [countResult, dataResult] = await Promise.all([
+      pool.query(countQuery, params.slice(0, paramCount - 2)),
+      pool.query(dataQuery, params)
+    ]);
+
+    const total = parseInt(countResult.rows[0].total);
+    const pages = Math.ceil(total / parseInt(limit));
+
+    const thisMonthParams = params.slice(0, paramCount - 2);
+    thisMonthParams.push(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    let thisMonthQuery = countQuery + ` AND ula.accepted_at >= $${thisMonthParams.length}`;
+    const thisMonthResult = await pool.query(thisMonthQuery, thisMonthParams);
+    const thisMonth = parseInt(thisMonthResult.rows[0].total);
+
+    logger.info('Listed legal acceptances', { total, thisMonth, page, limit, documentType });
+
+    res.json({
+      success: true,
+      acceptances: dataResult.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        userEmail: row.email,
+        userName: `${row.user_first_name} ${row.user_last_name}`,
+        documentType: row.document_type,
+        versionNumber: row.version_number,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        ipAddress: row.ip_address,
+        acceptedAt: row.accepted_at,
+        createdAt: row.created_at
+      })),
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages },
+      stats: { totalAcceptances: total, thisMonth, byDocumentType: await getAcceptancesByType(documentType) }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get compliance metrics dashboard
+ * GET /api/admin/legal/compliance-metrics
+ */
+async function getComplianceMetrics(req, res, next) {
+  try {
+    const totalUsersResult = await pool.query(
+      'SELECT COUNT(*) as total FROM users WHERE is_active = TRUE AND deleted_at IS NULL'
+    );
+    const totalUsers = parseInt(totalUsersResult.rows[0].total);
+
+    const acceptanceRates = {};
+    for (const docType of VALID_DOCUMENT_TYPES) {
+      const result = await pool.query(
+        'SELECT COUNT(DISTINCT user_id) as accepted FROM user_legal_acceptances WHERE document_type = $1',
+        [docType]
+      );
+      const accepted = parseInt(result.rows[0].accepted);
+      acceptanceRates[docType] = totalUsers > 0 ? (accepted / totalUsers * 100).toFixed(2) : 0;
+    }
+
+    const ccpaThisMonthResult = await pool.query(
+      `SELECT COUNT(*) as total FROM ccpa_data_requests
+       WHERE submitted_at >= DATE_TRUNC('month', CURRENT_TIMESTAMP)`
+    );
+    const ccpaThisMonth = parseInt(ccpaThisMonthResult.rows[0].total);
+
+    const ccpaPendingResult = await pool.query(
+      "SELECT COUNT(*) as total FROM ccpa_data_requests WHERE status IN ('pending', 'processing')"
+    );
+    const ccpaPending = parseInt(ccpaPendingResult.rows[0].total);
+
+    const ccpaAvgTimeResult = await pool.query(
+      `SELECT AVG(EXTRACT(DAY FROM (completed_at - submitted_at))) as avg_days
+       FROM ccpa_data_requests
+       WHERE status = 'completed' AND completed_at IS NOT NULL`
+    );
+    const ccpaAvgTime = ccpaAvgTimeResult.rows[0].avg_days
+      ? parseFloat(ccpaAvgTimeResult.rows[0].avg_days).toFixed(2)
+      : null;
+
+    const trendResult = await pool.query(
+      `SELECT DATE(accepted_at) as date, COUNT(*) as count
+       FROM user_legal_acceptances
+       WHERE accepted_at >= CURRENT_TIMESTAMP - INTERVAL '90 days'
+       GROUP BY DATE(accepted_at)
+       ORDER BY date ASC`
+    );
+
+    logger.info('Retrieved compliance metrics', { totalUsers, ccpaThisMonth, ccpaPending });
+
+    res.json({
+      success: true,
+      metrics: {
+        totalActiveUsers: totalUsers,
+        acceptanceRates,
+        documentStatus: { draft: 0, inReview: 0, approved: 0, published: 0 },
+        ccpaMetrics: {
+          thisMonth: ccpaThisMonth,
+          pending: ccpaPending,
+          avgResponseTimeDays: ccpaAvgTime,
+          byType: await getCCPAMetricsByType()
+        },
+        trends: {
+          last90Days: trendResult.rows.map(row => ({
+            date: row.date,
+            acceptanceCount: parseInt(row.count)
+          }))
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get audit log entries
+ * GET /api/admin/legal/audit-log
+ */
+async function getAuditLog(req, res, next) {
+  try {
+    const { action, documentType, startDate, endDate, sort = 'newest', page = 1, limit = 50 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    if (isNaN(offset) || isNaN(limit) || parseInt(limit) > 500) {
+      throw new AppError('Invalid pagination parameters', 400, 'invalid_pagination');
+    }
+
+    let countQuery = 'SELECT COUNT(*) as total FROM legal_audit_log WHERE 1=1';
+    let dataQuery = `SELECT lal.*, u.first_name, u.last_name, u.email
+                    FROM legal_audit_log lal
+                    LEFT JOIN users u ON lal.actor_id = u.id
+                    WHERE 1=1`;
+    const params = [];
+    let paramCount = 1;
+
+    if (action) {
+      countQuery += ` AND action_type = $${paramCount}`;
+      dataQuery += ` AND action_type = $${paramCount}`;
+      params.push(action);
+      paramCount++;
+    }
+
+    if (documentType) {
+      countQuery += ` AND document_type = $${paramCount}`;
+      dataQuery += ` AND document_type = $${paramCount}`;
+      params.push(documentType);
+      paramCount++;
+    }
+
+    if (startDate) {
+      try {
+        const date = new Date(startDate);
+        countQuery += ` AND created_at >= $${paramCount}`;
+        dataQuery += ` AND created_at >= $${paramCount}`;
+        params.push(date);
+        paramCount++;
+      } catch (e) {
+        throw new AppError('Invalid startDate format', 400, 'invalid_date');
+      }
+    }
+
+    if (endDate) {
+      try {
+        const date = new Date(endDate);
+        countQuery += ` AND created_at <= $${paramCount}`;
+        dataQuery += ` AND created_at <= $${paramCount}`;
+        params.push(date);
+        paramCount++;
+      } catch (e) {
+        throw new AppError('Invalid endDate format', 400, 'invalid_date');
+      }
+    }
+
+    if (sort === 'oldest') {
+      dataQuery += ' ORDER BY created_at ASC';
+    } else {
+      dataQuery += ' ORDER BY created_at DESC';
+    }
+
+    dataQuery += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit), offset);
+
+    const [countResult, dataResult] = await Promise.all([
+      pool.query(countQuery, params.slice(0, paramCount - 2)),
+      pool.query(dataQuery, params)
+    ]);
+
+    const total = parseInt(countResult.rows[0].total);
+    const pages = Math.ceil(total / parseInt(limit));
+
+    res.json({
+      success: true,
+      events: dataResult.rows.map(row => ({
+        id: row.id,
+        actionType: row.action_type,
+        documentType: row.document_type,
+        userId: row.user_id,
+        actor: {
+          id: row.actor_id,
+          name: row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : 'Unknown',
+          email: row.email,
+          role: row.actor_role
+        },
+        resourceId: row.resource_id,
+        resourceType: row.resource_type,
+        status: row.status,
+        ipAddress: row.ip_address,
+        userAgent: row.user_agent,
+        metadata: row.metadata,
+        createdAt: row.created_at
+      })),
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Revoke a user's legal acceptance (admin only)
+ * DELETE /api/admin/legal/acceptances/{acceptanceId}
+ */
+async function revokeAcceptance(req, res, next) {
+  try {
+    const { acceptanceId } = req.params;
+    const { reason = 'admin_review' } = req.body;
+    const adminId = req.user?.id;
+
+    if (!acceptanceId) throw new AppError('Acceptance ID is required', 400, 'missing_acceptance_id');
+
+    const validReasons = ['user_requested', 'admin_review', 'version_updated'];
+    if (!validReasons.includes(reason)) {
+      throw new AppError('Invalid revocation reason', 400, 'invalid_reason');
+    }
+
+    const acceptanceResult = await pool.query(
+      'SELECT * FROM user_legal_acceptances WHERE id = $1',
+      [acceptanceId]
+    );
+
+    if (acceptanceResult.rows.length === 0) {
+      throw new AppError('Acceptance record not found', 404, 'not_found');
+    }
+
+    const acceptance = acceptanceResult.rows[0];
+
     await pool.query(
-      `UPDATE legal_documents SET title = $2, description = $3, current_content = $4,
-        updated_by = $5, updated_at = NOW(), status = 'draft'
+      `UPDATE user_legal_acceptances
+       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
        WHERE id = $1`,
-      [id, title || req.body.title, description, content, userId]
+      [acceptanceId]
     );
 
-    // Create new version
-    await pool.query(
-      `INSERT INTO legal_document_versions (document_id, version_number, title, content, change_summary, status, created_by)
-       VALUES ($1, $2, $3, $4, $5, 'draft', $6)`,
-      [id, newVersion, title, content, changeSummary, userId]
+    await logAuditAction(
+      'revoked',
+      acceptance.document_type,
+      acceptance.user_id,
+      adminId,
+      req.user?.role || 'admin',
+      acceptanceId,
+      'user_legal_acceptance',
+      'success',
+      req.ip || null,
+      req.get('user-agent') || null,
+      { reason, documentType: acceptance.document_type, versionNumber: acceptance.version_number }
     );
 
-    await logAuditEvent(req, 'document_updated', 'document', id, null);
+    logger.info('Legal acceptance revoked', {
+      acceptanceId,
+      documentType: acceptance.document_type,
+      userId: acceptance.user_id,
+      reason,
+      revokedBy: adminId
+    });
 
     res.json({
-      id,
-      version: newVersion,
-      status: 'draft',
-      updatedAt: new Date()
+      success: true,
+      revokedAt: new Date().toISOString(),
+      acceptanceId
     });
   } catch (err) {
     next(err);
   }
-};
+}
 
-/**
- * POST /api/admin/legal/documents/:id/request-approval
- * Submit document for legal review
- */
-const requestApproval = async (req, res, next) => {
+async function logAuditAction(actionType, documentType, userId, actorId, actorRole, resourceId, resourceType, status, ipAddress, userAgent, metadata) {
   try {
-    const { id } = req.params;
-    const { changeSummary, changedSections } = req.body;
-    const userId = req.user.id;
-
-    // Create approval record
-    const { rows } = await pool.query(
-      `INSERT INTO legal_document_approvals (document_id, requested_by, change_summary, changed_sections, status)
-       VALUES ($1, $2, $3, $4, 'pending')
-       RETURNING id`,
-      [id, userId, changeSummary, changedSections || []]
-    );
-
-    // Update document status
     await pool.query(
-      `UPDATE legal_documents SET status = 'pending_review', awaiting_review_since = NOW() WHERE id = $1`,
-      [id]
+      `INSERT INTO legal_audit_log
+       (action_type, document_type, user_id, actor_id, actor_role, resource_id, resource_type, status, ip_address, user_agent, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [actionType, documentType, userId, actorId, actorRole, resourceId, resourceType, status, ipAddress, userAgent, JSON.stringify(metadata)]
     );
-
-    // Notify admin/legal team
-    // await emailService.notifyLegalReview(id);
-
-    await logAuditEvent(req, 'approval_requested', 'approval', rows[0].id, id);
-
-    res.json({
-      approvalId: rows[0].id,
-      status: 'pending'
-    });
   } catch (err) {
-    next(err);
+    logger.error('Failed to log audit action', { actionType, error: err.message });
   }
-};
+}
 
-/**
- * POST /api/admin/legal/documents/:id/approve
- * Approve document and schedule publication
- */
-const approveDocument = async (req, res, next) => {
+async function getAcceptancesByType(documentType) {
   try {
-    const { id } = req.params;
-    const { scheduledPublishDate, reviewComments } = req.body;
-    const userId = req.user.id;
-
-    // Get document
-    const { rows: docRows } = await pool.query(
-      `SELECT id, status FROM legal_documents WHERE id = $1`,
-      [id]
-    );
-
-    if (!docRows[0]) {
-      throw new AppError('Document not found', 404, 'not_found');
+    if (documentType && VALID_DOCUMENT_TYPES.includes(documentType)) {
+      const result = await pool.query(
+        'SELECT COUNT(*) as count FROM user_legal_acceptances WHERE document_type = $1',
+        [documentType]
+      );
+      return { [documentType]: parseInt(result.rows[0].count) };
     }
 
-    // Update approval
-    await pool.query(
-      `UPDATE legal_document_approvals SET status = 'approved', reviewed_by = $2, reviewed_at = NOW(),
-        review_comments = $3, scheduled_publish_date = $4
-       WHERE document_id = $1 AND status = 'pending'`,
-      [id, userId, reviewComments, scheduledPublishDate || new Date()]
+    const result = await pool.query(
+      'SELECT document_type, COUNT(*) as count FROM user_legal_acceptances GROUP BY document_type'
     );
 
-    // Update document
-    const publishDate = scheduledPublishDate || new Date();
-    await pool.query(
-      `UPDATE legal_documents SET status = 'scheduled', effective_date = $2, reviewed_by = $3, reviewed_at = NOW()
-       WHERE id = $1`,
-      [id, publishDate, userId]
-    );
-
-    await logAuditEvent(req, 'approval_approved', 'approval', id, null);
-
-    res.json({
-      id,
-      status: 'scheduled',
-      effectiveDate: publishDate
+    const stats = {};
+    result.rows.forEach(row => {
+      stats[row.document_type] = parseInt(row.count);
     });
+    return stats;
   } catch (err) {
-    next(err);
+    logger.error('Failed to get acceptance stats by type', { error: err.message });
+    return {};
   }
-};
+}
 
-/**
- * POST /api/admin/legal/documents/:id/publish
- * Publish document immediately (make it live)
- */
-const publishDocument = async (req, res, next) => {
+async function getCCPAMetricsByType() {
   try {
-    const { id } = req.params;
-    const { notifyUsers = true } = req.body;
-    const userId = req.user.id;
-
-    // Update document
-    const { rows } = await pool.query(
-      `UPDATE legal_documents SET status = 'live', published_by = $2, published_at = NOW(), effective_date = NOW()
-       WHERE id = $1
-       RETURNING id, category, current_version, requires_reacceptance`,
-      [id, userId]
+    const result = await pool.query(
+      `SELECT request_type, COUNT(*) as count,
+              SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+       FROM ccpa_data_requests
+       GROUP BY request_type`
     );
 
-    if (!rows[0]) {
-      throw new AppError('Document not found', 404, 'not_found');
-    }
-
-    const doc = rows[0];
-
-    // Publish current version
-    await pool.query(
-      `UPDATE legal_document_versions SET status = 'live', published_by = $2, published_at = NOW()
-       WHERE document_id = $1 AND version_number = $3`,
-      [id, userId, doc.current_version]
-    );
-
-    // If requires reacceptance, create notification
-    if (notifyUsers && doc.requires_reacceptance) {
-      // Queue email notifications
-      // await emailService.notifyReacceptanceRequired(id);
-    }
-
-    await logAuditEvent(req, 'document_published', 'document', id, null);
-
-    res.json({
-      id,
-      status: 'live',
-      publishedAt: new Date(),
-      version: doc.current_version
+    const stats = {};
+    result.rows.forEach(row => {
+      stats[row.request_type] = { total: parseInt(row.count), completed: parseInt(row.completed) };
     });
+    return stats;
   } catch (err) {
-    next(err);
+    logger.error('Failed to get CCPA metrics by type', { error: err.message });
+    return {};
   }
-};
-
-// ────────────────────────────────────────────────────────────
-// HELPER FUNCTIONS
-// ────────────────────────────────────────────────────────────
-
-const logAuditEvent = async (req, actionType, resourceType, resourceId, documentId) => {
-  try {
-    await pool.query(
-      `INSERT INTO legal_audit_log (action_type, resource_type, resource_id, document_id, user_id, ip_address, user_agent, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-      [actionType, resourceType, resourceId, documentId, req.user?.id || null,
-       req.ip || null, req.headers['user-agent'] || null]
-    );
-  } catch (err) {
-    logger.error('Failed to log audit event', { err });
-  }
-};
+}
 
 module.exports = {
-  getLegalDocument,
-  getDocumentHistory,
-  getDocumentVersion,
-  acceptDocument,
+  recordAcceptance,
   getUserAcceptances,
-  listLegalDocuments,
-  createLegalDocument,
-  updateLegalDocument,
-  requestApproval,
-  approveDocument,
-  publishDocument
+  getAcceptanceHistory,
+  listAllAcceptances,
+  getComplianceMetrics,
+  getAuditLog,
+  revokeAcceptance
 };
