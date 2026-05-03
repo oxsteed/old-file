@@ -30,6 +30,7 @@ import PermissionGrants  from './pages/super/PermissionGrants';
 import CreateUser        from './pages/super/CreateUser';
 import RegionsManager    from './pages/super/RegionsManager';
 import AuditLogUserActions from './pages/super/AuditLogUserActions';
+import OneTruthPage        from './pages/super/OneTruthPage';
 
 // Shared admin pages
 import UsersList            from './pages/UsersList';
@@ -225,6 +226,9 @@ export default function AdminApp() {
           } />
           <Route path="super/audit-log/user-actions" element={
             <AdminGuard superOnly><AuditLogUserActions /></AdminGuard>
+          } />
+          <Route path="super/one-truth" element={
+            <AdminGuard superOnly><OneTruthPage /></AdminGuard>
           } />
         </Route>
 
