@@ -17,8 +17,10 @@ function isUuidParam(id) {
 
 /**
  * When an admin re-enables an account (unban / reactivate), clear migration-165
- * scheduled **admin** deletion markers so the user list no longer shows "Pending deletion".
- * Does not touch self-deletes (`deletion_type = 'self'`).
+ * scheduled deletion markers so the user list no longer shows "Pending deletion".
+ *
+ * Matches any row with a scheduled deletion that is **not** an explicit self-delete
+ * (`deletion_type = 'self'`). Covers `deletion_type = 'admin'`, NULL, or legacy odd values.
  */
 async function clearAdminScheduledDeletionIfPresent(userId) {
   const [hasSched, hasType, hasReason, hasAdminId] = await Promise.all([
@@ -27,14 +29,26 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
     columnExists('users', 'deletion_reason'),
     columnExists('users', 'deletion_admin_id'),
   ]);
-  if (!hasSched || !hasType) return;
-  const sets = ['deleted_at = NULL', 'deletion_scheduled_at = NULL', 'deletion_type = NULL', 'updated_at = NOW()'];
+  if (!hasSched) return;
+  const sets = ['deleted_at = NULL', 'deletion_scheduled_at = NULL', 'updated_at = NOW()'];
+  if (hasType) sets.push('deletion_type = NULL');
   if (hasReason) sets.push('deletion_reason = NULL');
   if (hasAdminId) sets.push('deletion_admin_id = NULL');
-  await db.query(
-    `UPDATE users SET ${sets.join(', ')} WHERE ${userIdEq('id')} AND deletion_type = 'admin'`,
+
+  const notSelf = hasType ? `AND (deletion_type IS DISTINCT FROM 'self')` : '';
+  const { rowCount } = await db.query(
+    `UPDATE users SET ${sets.join(', ')}
+     WHERE ${userIdEq('id')}
+       AND deletion_scheduled_at IS NOT NULL
+       ${notSelf}`,
     [String(userId)]
   );
+  if (rowCount === 0) {
+    logger.warn('clearAdminScheduledDeletionIfPresent: no row updated', {
+      userId: String(userId),
+      hadDeletionTypeColumn: hasType,
+    });
+  }
 }
 
 // ─── Dashboard helpers ────────────────────────────────────────────────────────

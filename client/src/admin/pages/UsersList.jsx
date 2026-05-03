@@ -415,6 +415,7 @@ export default function UsersList() {
         }
         : u)));
       showToast(`${user.first_name} ${user.is_active ? 'suspended' : 'reactivated'}.`);
+      await fetchUsers();
     } catch (err) {
       showToast(err.response?.data?.error || 'Action failed.', 'error');
     }

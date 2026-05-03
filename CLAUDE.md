@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **User deletion (2026-05-03):** `server/utils/schemaProbe.js` — `tableExists` / `columnExists` / `userIdEq`, **`ACTIVE_JOB_STATUS_SQL_IN`** from `server/constants/activeJobStatuses.js`; Jest + optional `verify:active-job-statuses` (`pg_enum`); CI when **`CI_DATABASE_URL`** is set. **`reactivateUser` / `toggleUserBan` (unban):** `clearAdminScheduledDeletionIfPresent` clears `deleted_at`, `deletion_scheduled_at`, `deletion_type`, optional `deletion_reason` / `deletion_admin_id` when **`deletion_type = 'admin'`** so list **Reactivate** clears **Pending deletion**; `UsersList.jsx` optimistic update clears those fields on reactivate.
+- **User deletion (2026-05-03):** `schemaProbe` + `activeJobStatuses` + CI verify; **`clearAdminScheduledDeletionIfPresent`** on unban/reactivate clears `deleted_at` and scheduled-deletion columns when **`deletion_scheduled_at IS NOT NULL`** and **`deletion_type IS DISTINCT FROM 'self'`** (fixes rows with NULL `deletion_type`). **`UsersList`** refetches after reactivate. **`restoreUser`** unchanged for explicit restore within the 30-day window.
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS
