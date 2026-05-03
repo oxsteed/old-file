@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OxSteed Consulting Flyer</title>
+  <style>
+    :root {
+      --navy: #16213e;
+      --navy-soft: #24304f;
+      --orange: #f97316;
+      --orange-deep: #ea580c;
+      --cream: #fff8ef;
+      --paper: #fffdf9;
+      --ink: #172033;
+      --muted: #55617b;
+      --line: #d7deea;
+      --shadow: 0 20px 50px rgba(22, 33, 62, 0.12);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      overflow: visible;
+    }
+
+    body {
+      padding: 28px;
+    }
+
+    .flyer {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    .page {
+      background: var(--paper);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .page + .page {
+      margin-top: 18px;
+    }
+
+    .hero {
+      padding: 24px 24px 18px;
+      background:
+        radial-gradient(circle at top right, rgba(249, 115, 22, 0.18), transparent 32%),
+        linear-gradient(135deg, var(--navy) 0%, #0f172d 100%);
+      color: white;
+    }
+
+    .hero__header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: end;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand__logo {
+      width: 58px;
+      height: 58px;
+      flex: 0 0 58px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px;
+    }
+
+    .brand__text small {
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffd5b5;
+      margin-bottom: 8px;
+    }
+
+    .brand__text h1 {
+      margin: 0 0 6px;
+      font-size: 30px;
+      line-height: 1.05;
+    }
+
+    .brand__text p {
+      margin: 0;
+      max-width: 54ch;
+      font-size: 13px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .hero__meta {
+      text-align: right;
+      align-self: start;
+    }
+
+    .hero__pill {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .hero__subtitle {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: rgba(255, 255, 255, 0.94);
+    }
+
+    .content {
+      padding: 18px 22px 22px;
+    }
+
+    .content--split {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .section {
+      margin-bottom: 18px;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section__heading {
+      margin: 0 0 10px;
+      font-size: 17px;
+      line-height: 1.15;
+      color: var(--navy);
+    }
+
+    .section__heading span {
+      color: var(--orange-deep);
+    }
+
+    .section__note {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 1.4;
+    }
+
+    .offer-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .grid-4 {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini-card,
+    .step-card,
+    .package-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .mini-card {
+      padding: 12px 13px;
+      background: linear-gradient(180deg, #ffffff 0%, #fff8f0 100%);
+    }
+
+    .mini-card__cap {
+      width: 30px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--orange);
+      margin-bottom: 8px;
+    }
+
+    .mini-card h3,
+    .step-card h3,
+    .package-card h3 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      line-height: 1.2;
+      color: var(--navy);
+    }
+
+    .mini-card p,
+    .step-card p,
+    .package-card p,
+    .package-card li {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .step-card {
+      padding: 10px 12px;
+      background: #fcfdff;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .step-card__number {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--navy);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      margin-bottom: 0;
+    }
+
+    .step-card__body {
+      min-width: 0;
+    }
+
+    .package-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: start;
+    }
+
+    .package-card {
+      position: relative;
+      padding: 12px;
+      min-height: 100%;
+    }
+
+    .package-card--popular {
+      border-color: rgba(249, 115, 22, 0.45);
+      box-shadow: 0 10px 22px rgba(249, 115, 22, 0.12);
+      background: linear-gradient(180deg, #fff9f3 0%, #ffffff 100%);
+    }
+
+    .package-card__badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--orange-deep);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .package-card__price {
+      margin-bottom: 6px;
+      font-size: 23px;
+      font-weight: 800;
+      color: var(--orange-deep);
+      line-height: 1;
+    }
+
+    .package-card__timeline {
+      margin-bottom: 6px !important;
+      color: var(--navy-soft) !important;
+      font-weight: 700;
+    }
+
+    .package-card__for-who {
+      margin-bottom: 8px !important;
+    }
+
+    .package-card ul {
+      margin: 0;
+      padding-left: 16px;
+    }
+
+    .package-card li + li {
+      margin-top: 4px;
+    }
+
+    .why-list {
+      margin: 0;
+      padding-left: 20px;
+      columns: 1;
+      column-gap: 0;
+    }
+
+    .why-list li {
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 1.35;
+      break-inside: avoid;
+    }
+
+    .cta {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #fff6ec 0%, #fff 100%);
+      border: 1px solid rgba(249, 115, 22, 0.24);
+    }
+
+    .cta h2 {
+      margin: 0 0 6px;
+      font-size: 21px;
+      line-height: 1.1;
+      color: var(--navy);
+    }
+
+    .cta p {
+      margin: 0 0 10px;
+      font-size: 11.5px;
+      line-height: 1.4;
+      color: var(--muted);
+      max-width: 50ch;
+    }
+
+    .cta__link {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: var(--orange);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 10px 24px rgba(249, 115, 22, 0.22);
+    }
+
+    .cta__url {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--navy-soft);
+    }
+
+    .cta__qr {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 132px;
+      padding: 8px;
+      border-radius: 18px;
+      background: white;
+      border: 1px solid var(--line);
+    }
+
+    .cta__qr img {
+      width: 100px;
+      height: 100px;
+      display: block;
+      border-radius: 10px;
+    }
+
+    .cta__qr span {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .services-section {
+      display: none;
+    }
+
+    .screen-only {
+      display: block;
+    }
+
+    .print-only {
+      display: none;
+    }
+
+    @media (max-width: 820px) {
+      body {
+        padding: 12px;
+      }
+
+      .hero__header,
+      .cta {
+        grid-template-columns: 1fr;
+      }
+
+      .hero__meta {
+        text-align: left;
+      }
+
+      .content--split,
+      .grid-4,
+      .package-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .step-card {
+        grid-template-columns: auto 1fr;
+      }
+    }
+
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+
+    @media print {
+      html, body {
+        background: white;
+        padding: 0;
+        margin: 0;
+      }
+
+      .screen-only {
+        display: none !important;
+      }
+
+      .print-only {
+        display: block !important;
+      }
+
+      .page {
+        max-width: none;
+        box-shadow: none;
+        border-radius: 0;
+        break-after: page;
+        page-break-after: always;
+      }
+
+      .page:last-child {
+        break-after: auto;
+        page-break-after: auto;
+      }
+
+      .services-section {
+        display: none !important;
+      }
+
+      a {
+        text-decoration: none;
+      }
+
+      .flyer {
+        max-width: none;
+      }
+
+      .page {
+        overflow: visible;
+      }
+
+      .hero {
+        padding: 16px 18px 12px;
+      }
+
+      .brand__logo {
+        width: 48px;
+        height: 48px;
+        flex-basis: 48px;
+      }
+
+      .brand__text h1 {
+        font-size: 24px;
+      }
+
+      .brand__text p,
+      .hero__subtitle {
+        font-size: 10.5px;
+        line-height: 1.3;
+      }
+
+      .hero__pill {
+        font-size: 10px;
+        padding: 6px 10px;
+      }
+
+      .content,
+      .content--split {
+        display: block;
+        padding: 14px 18px 16px;
+      }
+
+      .section {
+        margin-bottom: 12px;
+      }
+
+      .section__heading {
+        font-size: 14px;
+        margin-bottom: 6px;
+      }
+
+      .section__note {
+        font-size: 9.5px;
+        margin-bottom: 6px;
+      }
+
+      .print-list,
+      .print-package-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .print-list-row,
+      .print-package-row {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 6px 8px;
+        background: white;
+      }
+
+      .print-list-row strong,
+      .print-package-row strong {
+        display: block;
+        font-size: 10px;
+        line-height: 1.2;
+        color: var(--navy);
+        margin-bottom: 2px;
+      }
+
+      .print-list-row span,
+      .print-package-row__meta,
+      .print-package-row__features {
+        display: block;
+        font-size: 8.8px;
+        line-height: 1.25;
+        color: var(--muted);
+      }
+
+      .print-package-row__top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: baseline;
+      }
+
+      .print-package-row__top span {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--orange-deep);
+        white-space: nowrap;
+      }
+
+      .why-list {
+        padding-left: 16px;
+      }
+
+      .why-list li {
+        font-size: 9px;
+        line-height: 1.2;
+        margin-bottom: 4px;
+      }
+
+      .cta {
+        padding: 10px 12px;
+        gap: 10px;
+        grid-template-columns: minmax(0, 1fr) 92px;
+      }
+
+      .cta h2 {
+        font-size: 17px;
+        margin-bottom: 4px;
+      }
+
+      .cta p,
+      .cta__url {
+        font-size: 9px;
+        line-height: 1.25;
+      }
+
+      .cta__link {
+        padding: 8px 12px;
+        font-size: 10px;
+      }
+
+      .cta__qr {
+        width: 92px;
+        padding: 6px;
+        gap: 4px;
+      }
+
+      .cta__qr img {
+        width: 72px;
+        height: 72px;
+      }
+
+      .cta__qr span {
+        font-size: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="flyer">
+    <section class="page">
+      <section class="hero">
+        <div class="hero__header">
+          <div class="brand">
+            <div class="brand__logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    OxSteed brand icon
+    4-arrow clockwise ring  (outer r=218, inner r=178)
+    Inner filled circle     (r=145)
+    OxS text + ECG line     (white on orange)
+    Dark-navy square bg     (#16213e)
+
+    Arrow arcs: each 75° with 15° gap for arrowhead
+      Arc 1: 262.5° → 337.5°   tip ≈ 349°
+      Arc 2: 352.5° → 67.5°    tip ≈ 79°
+      Arc 3: 82.5°  → 157.5°   tip ≈ 169°
+      Arc 4: 172.5° → 247.5°   tip ≈ 259°
+    (angles: 0° = 12 o'clock, clockwise)
+  -->
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="88" fill="#16213e"/>
+
+  <!-- ── Arrow 1 (upper-left → upper-right, tip at top) ──────────────── -->
+  <!--
+    Outer start 262.5°: (40, 285)   Outer end 337.5°: (173, 55)
+    Tip ~349°:          (211, 26)
+    Inner end 337.5°:   (188, 92)   Inner start 262.5°: (80, 279)
+  -->
+  <path d="
+    M 40 285
+    A 218 218 0 0 1 173 55
+    L 211 26
+    A 178 178 0 0 0 80 279
+    Z"
+    fill="#F97316"/>
+
+  <!-- ── Arrow 2 (upper-right → right, tip at right) ─────────────────── -->
+  <!--
+    Outer start 352.5°: (228, 40)   Outer end 67.5°: (457, 173)
+    Tip ~79°:           (486, 211)
+    Inner end 67.5°:    (421, 188)  Inner start 352.5°: (233, 80)
+  -->
+  <path d="
+    M 228 40
+    A 218 218 0 0 1 457 173
+    L 486 211
+    A 178 178 0 0 0 233 80
+    Z"
+    fill="#F97316"/>
+
+  <!-- ── Arrow 3 (right → lower-right, tip at bottom) ────────────────── -->
+  <!--
+    Outer start 82.5°: (472, 228)   Outer end 157.5°: (339, 457)
+    Tip ~169°:         (301, 486)
+    Inner end 157.5°:  (324, 421)   Inner start 82.5°: (433, 233)
+  -->
+  <path d="
+    M 472 228
+    A 218 218 0 0 1 339 457
+    L 301 486
+    A 178 178 0 0 0 433 233
+    Z"
+    fill="#F97316"/>
+
+  <!-- ── Arrow 4 (lower-left → left, tip at left) ─────────────────────── -->
+  <!--
+    Outer start 172.5°: (284, 472)  Outer end 247.5°: (55, 339)
+    Tip ~259°:          (26, 301)
+    Inner end 247.5°:   (92, 324)   Inner start 172.5°: (279, 433)
+  -->
+  <path d="
+    M 284 472
+    A 218 218 0 0 1 55 339
+    L 26 301
+    A 178 178 0 0 0 279 433
+    Z"
+    fill="#F97316"/>
+
+  <!-- Inner filled circle -->
+  <circle cx="256" cy="256" r="145" fill="#F97316"/>
+
+  <!-- OxS — bold white text, upper portion of inner circle -->
+  <text
+    x="256" y="236"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="Arial Black, Arial, Helvetica, system-ui, sans-serif"
+    font-weight="900"
+    font-size="90"
+    fill="#FFFFFF"
+  >OxS</text>
+
+  <!-- ECG / heartbeat baseline + spike (white) -->
+  <!-- Baseline at y=305, spanning x 131–381 inside the circle -->
+  <polyline
+    points="
+      131,305
+      172,305
+      184,295
+      194,268
+      204,326
+      214,297
+      224,305
+      381,305
+    "
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
+</div>
+            <div class="brand__text">
+              <small>Business launch support</small>
+              <h1>OxSteed Consulting</h1>
+              <p>Launch support for builders, operators, trades, and service businesses.</p>
+            </div>
+          </div>
+          <div class="hero__meta">
+            <div class="hero__pill">Print-ready handout</div>
+          </div>
+        </div>
+      </section>
+      <div class="hero__subtitle">Business launch support for people building a serious service business.</div>
+      <section class="content content--split">
+        <div class="stack">
+          <section class="section screen-only">
+            <h2 class="section__heading">What We Offer</h2>
+            <div class="offer-grid">
+            <article class="mini-card">
+              <div class="mini-card__cap"></div>
+              <h3>Launch ready</h3>
+              <p>Move from idea to a client-ready business with setup, systems, and next steps.</p>
+            </article>
+            
+            <article class="mini-card">
+              <div class="mini-card__cap"></div>
+              <h3>AI-powered</h3>
+              <p>Use AI-assisted research, positioning, and planning to make decisions faster.</p>
+            </article>
+            
+            <article class="mini-card">
+              <div class="mini-card__cap"></div>
+              <h3>Full-stack tech</h3>
+              <p>Get practical support for websites, forms, booking, payments, and automation.</p>
+            </article>
+            </div>
+          </section>
+
+          <section class="section print-only">
+            <h2 class="section__heading">What We Offer</h2>
+            <div class="print-list">
+            <div class="print-list-row">
+              <strong>Launch ready</strong>
+              <span>Move from idea to a client-ready business with setup, systems, and next steps.</span>
+            </div>
+            
+            <div class="print-list-row">
+              <strong>AI-powered</strong>
+              <span>Use AI-assisted research, positioning, and planning to make decisions faster.</span>
+            </div>
+            
+            <div class="print-list-row">
+              <strong>Full-stack tech</strong>
+              <span>Get practical support for websites, forms, booking, payments, and automation.</span>
+            </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2 class="section__heading">Why OxSteed?</h2>
+            <ul class="why-list"><li>Real implementation help, not theory alone.</li><li>Built for trades, services, and local operators.</li><li>Clear packages and practical deliverables.</li><li>One partner for strategy, systems, and launch support.</li></ul>
+          </section>
+        </div>
+
+        <section class="section screen-only">
+          <h2 class="section__heading">How It Works</h2>
+          <div class="grid-4">
+            <article class="step-card">
+              <div class="step-card__number">01</div>
+              <h3>Apply</h3>
+              <p>Submit the intake form and tell us what you are building.</p>
+            </article>
+            
+            <article class="step-card">
+              <div class="step-card__number">02</div>
+              <h3>Kickoff call</h3>
+              <p>We review your goals, blockers, and the right package.</p>
+            </article>
+            
+            <article class="step-card">
+              <div class="step-card__number">03</div>
+              <h3>Build the foundation</h3>
+              <p>We set up the brand, identity, workflows, website, and tools you need.</p>
+            </article>
+            
+            <article class="step-card">
+              <div class="step-card__number">04</div>
+              <h3>Launch with clarity</h3>
+              <p>You leave with assets, guidance, and a clear launch path.</p>
+            </article>
+            </div>
+        </section>
+
+        <section class="section print-only">
+          <h2 class="section__heading">How It Works</h2>
+          <div class="print-list">
+            <div class="print-list-row">
+              <strong>01 Apply</strong>
+              <span>Submit the intake form and tell us what you are building.</span>
+            </div>
+            
+            <div class="print-list-row">
+              <strong>02 Kickoff call</strong>
+              <span>We review your goals, blockers, and the right package.</span>
+            </div>
+            
+            <div class="print-list-row">
+              <strong>03 Build the foundation</strong>
+              <span>We set up the brand, identity, workflows, website, and tools you need.</span>
+            </div>
+            
+            <div class="print-list-row">
+              <strong>04 Launch with clarity</strong>
+              <span>You leave with assets, guidance, and a clear launch path.</span>
+            </div>
+            </div>
+        </section>
+      </section>
+    </section>
+
+    <section class="page">
+      <section class="content">
+        <section class="section screen-only">
+          <h2 class="section__heading">Consulting Packages</h2>
+          <p class="section__note">
+            Tight, shareable overview for the flyer version. The full service catalog stays off the print handout.
+          </p>
+          <div class="package-grid">
+            <article class="package-card">
+              
+              <div class="package-card__price">$100</div>
+              <h3>Initial Consultation</h3>
+              <p class="package-card__timeline">Up to 2 hours</p>
+              <p class="package-card__for-who">People who want to explore whether a consulting program is right for them</p>
+              <ul><li>Strategy deep-dive call (up to 2 hours)</li><li>Business assessment &amp; opportunity audit</li><li>Implementation roadmap &amp; timeline</li></ul>
+            </article>
+            
+            <article class="package-card">
+              
+              <div class="package-card__price">$750</div>
+              <h3>Business Foundation</h3>
+              <p class="package-card__timeline">1–2 weeks</p>
+              <p class="package-card__for-who">People who just need the legal and identity layer set up</p>
+              <ul><li>Business name guidance</li><li>Domain registration</li><li>Professional email setup</li></ul>
+            </article>
+            
+            <article class="package-card package-card--popular">
+              <div class="package-card__badge">Most popular</div>
+              <div class="package-card__price">$1,500</div>
+              <h3>Business Launch</h3>
+              <p class="package-card__timeline">2–3 weeks</p>
+              <p class="package-card__for-who">People who want a fully operational business presence</p>
+              <ul><li>Everything in Foundation plus:</li><li>Logo &amp; basic brand kit</li><li>4-page website (Home, Services, About, Contact)</li><li>Contact form &amp; lead capture</li></ul>
+            </article>
+            </div>
+        </section>
+
+        <section class="section print-only">
+          <h2 class="section__heading">Consulting Packages</h2>
+          <p class="section__note">
+            Tight, shareable overview for the flyer version. The full service catalog stays off the print handout.
+          </p>
+          <div class="print-package-list">
+            <div class="print-package-row">
+              <div class="print-package-row__top">
+                <strong>Initial Consultation</strong>
+                <span>$100</span>
+              </div>
+              <div class="print-package-row__meta">Up to 2 hours - People who want to explore whether a consulting program is right for them</div>
+              <div class="print-package-row__features">Strategy deep-dive call (up to 2 hours); Business assessment &amp; opportunity audit; Implementation roadmap &amp; timeline</div>
+            </div>
+            
+            <div class="print-package-row">
+              <div class="print-package-row__top">
+                <strong>Business Foundation</strong>
+                <span>$750</span>
+              </div>
+              <div class="print-package-row__meta">1–2 weeks - People who just need the legal and identity layer set up</div>
+              <div class="print-package-row__features">Business name guidance; Domain registration; Professional email setup</div>
+            </div>
+            
+            <div class="print-package-row">
+              <div class="print-package-row__top">
+                <strong>Business Launch</strong>
+                <span>$1,500</span>
+              </div>
+              <div class="print-package-row__meta">2–3 weeks - People who want a fully operational business presence</div>
+              <div class="print-package-row__features">Everything in Foundation plus:; Logo &amp; basic brand kit; 4-page website (Home, Services, About, Contact); Contact form &amp; lead capture</div>
+            </div>
+            </div>
+        </section>
+
+        <section class="section">
+          <div class="cta">
+            <div>
+              <h2>Ready to launch?</h2>
+              <p>Scan the QR code or visit the link to start your intake form and book the right next step.</p>
+              <a class="cta__link" href="https://oxsteed.com/consulting-intake">
+                Apply now
+              </a>
+              <div class="cta__url">oxsteed.com/consulting-intake</div>
+            </div>
+            <div class="cta__qr">
+              <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPgAAAD4AQAAAADpqhamAAABfUlEQVR4nOWZO5KDQAxEu13c/8pvA0kDJM5GYg1gPEwHtEp/YfT1+HyH/z0u1j8SwH13mt9u/EhZHReSiHvsTvNrkF+WSLEtSSiXzPPrkD8OY0EszqAwza9PflT6d+P7p/FDZ7CzwMjY1O40v9b4fz1zd5rfbvx0dSNLqnvT+6fxzPuKFFBmDyKAaX4t+vfKfiw7UKyn+bXon7KC0HvoPhbT/DpwQv+cvu9Y8Pv1X8Y/C+OMfuEL+A31nxAR9iL2rSgYndDP23/1fVH63nO/XiD/RyvtQbnDxSaewG8zbjkuna2flW3AA/htxsnQLxkq81NlwDy/3Xio2nK6gbMENG+I/x8hnH5fSX9NQp7Aby/u8njihxUFkfSK+c+l/6vi5zYKm+bX2/+zcmH1A9P8duOX+a/CGqjSV2/o/67z3wwGZfz4Bf5/4i5DQAayAngOvz34cXvymgGXIUzz65B/ffKKtjfO/A4wza9B/kz2VoS9q/fP8+vL/zPvn8b/AC8J5n630uZyAAAAAElFTkSuQmCC" alt="QR code for OxSteed consulting intake" />
+              <span>Scan to apply</span>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

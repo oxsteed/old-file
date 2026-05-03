@@ -1,0 +1,5 @@
+beautifulsoup4==4.14.3
+lxml==6.1.0
+pypdf==6.10.2
+python-docx==1.2.0
+qrcode[pil]==8.2
