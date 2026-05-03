@@ -112,8 +112,8 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     // Load full user state before proceeding
     const { rows: userRows } = await pool.query(
       `SELECT id, email, first_name, last_name, role, is_banned, is_active, deleted_at
-       FROM users WHERE id = $1`,
-      [userId]
+       FROM users WHERE ${userIdEq('id')}`,
+      [String(userId)]
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
@@ -132,8 +132,8 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     // Block if account has already been scheduled for admin deletion
     if (hasDeletionScheduled) {
       const { rows: pendingRows } = await pool.query(
-        `SELECT deletion_scheduled_at FROM users WHERE id = $1 AND deletion_scheduled_at IS NOT NULL`,
-        [userId]
+        `SELECT deletion_scheduled_at FROM users WHERE ${userIdEq('id')} AND deletion_scheduled_at IS NOT NULL`,
+        [String(userId)]
       );
       if (pendingRows.length) {
         return res.status(409).json({ error: 'This account is already scheduled for deletion by an administrator.' });
@@ -188,7 +188,10 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
 
     // Immediately revoke all tokens and disconnect sockets so existing JWTs stop working
     try { await tokenRevocationService.revokeAllUserTokens(userId); } catch { /* non-fatal */ }
-    try { await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]); } catch { /* non-fatal */ }
+    try { await pool.query(
+      `UPDATE sessions SET is_valid = false WHERE ${userIdEq('user_id')}`,
+      [String(userId)],
+    ); } catch { /* non-fatal */ }
     try { socketService.disconnectUserSockets(userId); } catch { /* non-fatal */ }
 
     // Soft-delete: anonymize PII, set is_active=false, record deletion metadata when columns exist
@@ -213,7 +216,7 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
       'deleted_at    = NOW()',
       'updated_at    = NOW()',
     ];
-    const params = [userId];
+    const params = [String(userId)];
     let pi = 2;
     if (hasMig165SelfDelete) {
       baseSets.push("deletion_type = 'self'");
@@ -230,7 +233,7 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
     }
 
     await pool.query(
-      `UPDATE users SET ${baseSets.join(', ')} WHERE id = $1`,
+      `UPDATE users SET ${baseSets.join(', ')} WHERE ${userIdEq('id')}`,
       params
     );
 
