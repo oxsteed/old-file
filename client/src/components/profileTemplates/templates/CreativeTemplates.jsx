@@ -1,108 +1,96 @@
 // CreativeTemplates.jsx — Creative & Media templates (4 templates)
+// Each has a distinct layout that matches creative industry expectations.
 import {
-  StarRating, Avatar, BadgeList, ServiceCard, GalleryGrid,
-  ReviewCard, FAQList, LocationChip, StatsRow, ContactRow, SectionHead,
+  StarRating, Avatar, BadgeList, GalleryGrid, ReviewCard, FAQList,
+  LocationChip, ContactRow, SectionHead, MasonryGallery,
+  SpecialtyPill, QuoteBlock, TechChip, HorizontalServiceBar,
 } from '../shared.jsx';
-import { Camera, Palette, Music, BookOpen } from 'lucide-react';
+import { Camera, Music, Pen, Layers, Headphones } from 'lucide-react';
 
-// ─── 9. CREATIVE STUDIO ───────────────────────────────────────────────────────
+// ─── 9. CREATIVE STUDIO ──────────────────────────────────────────────────────
+// Dark portfolio aesthetic. Single editorial column — NO sidebar.
+// Masonry gallery leads. Client industry chips. Black/electric-purple.
 export function CreativeStudioTemplate({ profileData }) {
   const { helper, services, gallery, reviews, faqs, phone, website } = profileData;
+  const industries = ['Startups', 'Fashion', 'Tech', 'Non-profit', 'Music', 'Hospitality', 'Real Estate', 'Fitness'];
   return (
-    <div className="min-h-screen bg-black text-white font-sans">
-      {/* Full gallery hero */}
-      {gallery.length > 0 ? (
-        <div className="relative h-80">
-          <img src={gallery[0].url} alt="featured" className="w-full h-full object-cover opacity-70" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-          <div className="absolute bottom-6 left-6 right-6">
-            <div className="max-w-4xl mx-auto flex items-end gap-5">
-              <Avatar src={helper.avatar} name={helper.ownerName} size={80}
-                className="border-2 border-orange-400 bg-gray-800 text-white" />
-              <div>
-                <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Creative Studio</span>
-                <h1 className="text-3xl font-black">{helper.businessName}</h1>
-                <div className="flex gap-3 mt-1">
-                  <StarRating rating={helper.rating} color="#fb923c" />
-                  <LocationChip city={helper.city} state={helper.state} className="text-gray-300" />
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen font-sans" style={{ background: '#0a0a0a', color: '#f5f5f5' }}>
+      {/* Minimal dark name plate */}
+      <div className="max-w-2xl mx-auto px-6 pt-12 pb-0 text-center">
+        <Avatar src={helper.avatar} name={helper.ownerName} size={72}
+          className="mx-auto mb-4 border-2" style={{ borderColor: '#a855f7', background: '#1a0a2e', color: '#d8b4fe' }} />
+        <span className="text-xs font-bold uppercase tracking-[0.4em]" style={{ color: '#a855f7' }}>Creative Studio</span>
+        <h1 className="text-4xl font-black mt-2">{helper.businessName}</h1>
+        <p style={{ color: '#a3a3a3' }} className="text-sm mt-2 max-w-md mx-auto">{helper.tagline}</p>
+        <div className="flex items-center justify-center gap-4 mt-3">
+          <StarRating rating={helper.rating} color="#a855f7" size={14} />
+          <span style={{ color: '#737373' }} className="text-xs">{helper.reviewCount} clients</span>
+          <LocationChip city={helper.city} state={helper.state} className="text-gray-500 text-xs" />
         </div>
-      ) : (
-        <div className="bg-gradient-to-r from-orange-600 to-rose-600 px-6 py-14">
-          <div className="max-w-4xl mx-auto flex items-center gap-5">
-            <Avatar src={helper.avatar} name={helper.ownerName} size={80}
-              className="border-2 border-white/50 bg-orange-700 text-white" />
-            <div>
-              <Camera size={16} className="text-orange-200 mb-1" />
-              <h1 className="text-3xl font-black">{helper.businessName}</h1>
-              <p className="text-orange-100 mt-1">{helper.tagline}</p>
-            </div>
-          </div>
+      </div>
+
+      {/* Full-width masonry gallery */}
+      {gallery.length > 0 && (
+        <div className="px-4 mt-8 max-w-4xl mx-auto">
+          <MasonryGallery gallery={gallery} rounded="rounded-2xl" maxItems={8} />
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-4 py-8 grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-5">
-          {helper.bio && (
-            <section className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-              <SectionHead className="text-orange-400">About the Studio</SectionHead>
-              <p className="text-gray-300 leading-relaxed">{helper.bio}</p>
-            </section>
-          )}
+      <div className="max-w-2xl mx-auto px-6 py-10 space-y-10">
+        {helper.bio && (
+          <section>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-3" style={{ color: '#a855f7' }}>About the Studio</span>
+            <p style={{ color: '#d4d4d4' }} className="leading-relaxed">{helper.bio}</p>
+          </section>
+        )}
 
-          {services.length > 0 && (
-            <section className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-              <SectionHead className="text-orange-400">Services & Packages</SectionHead>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {services.map(s => (
-                  <div key={s.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4 hover:border-orange-500 transition-colors">
-                    {s.popular && <span className="text-xs text-orange-400 font-bold uppercase">Popular</span>}
-                    <p className="font-semibold mt-0.5">{s.name}</p>
-                    {s.description && <p className="text-xs text-gray-400 mt-1">{s.description}</p>}
-                    {s.price > 0 && <p className="text-orange-400 font-bold text-sm mt-2">${s.price.toFixed(0)}</p>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {gallery.length > 1 && (
-            <section className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-              <SectionHead className="text-orange-400">Portfolio</SectionHead>
-              <GalleryGrid gallery={gallery.slice(1)} cols={3} rounded="rounded-lg" />
-            </section>
-          )}
-
-          {reviews.length > 0 && (
-            <section className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-              <SectionHead className="text-orange-400">Client Reviews</SectionHead>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {reviews.slice(0, 4).map(r => (
-                  <ReviewCard key={r.id} review={r} cardClass="bg-gray-800 text-gray-200" />
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-gradient-to-br from-orange-600 to-rose-600 rounded-2xl p-5">
-            <StatsRow rating={helper.rating} reviewCount={helper.reviewCount} jobsCompleted={helper.jobsCompleted}
-              statClass="text-white text-2xl" labelClass="text-orange-200 text-xs" />
-          </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
-            <BadgeList badges={helper.badges} badgeClass="bg-gray-800 text-orange-300 border border-gray-700" />
-            <ContactRow phone={phone} website={website} linkClass="text-orange-400 hover:text-orange-300" />
-          </div>
-          {faqs.length > 0 && (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <SectionHead className="text-orange-400 text-sm">FAQ</SectionHead>
-              <FAQList faqs={faqs} itemClass="bg-gray-800" questionClass="text-white" answerClass="text-gray-400" />
+        {services.length > 0 && (
+          <section>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4" style={{ color: '#a855f7' }}>What We Create</span>
+            <div className="space-y-2">
+              {services.map(s => (
+                <HorizontalServiceBar key={s.id} service={s} accentColor="#a855f7"
+                  bgClass="" textClass="text-white" priceClass="text-purple-400" />
+              ))}
             </div>
-          )}
+          </section>
+        )}
+
+        <section>
+          <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-3" style={{ color: '#a855f7' }}>Industries We Work With</span>
+          <div className="flex flex-wrap gap-2">
+            {industries.map(i => (
+              <SpecialtyPill key={i} label={i} pillClass="text-purple-300" />
+            ))}
+          </div>
+        </section>
+
+        {helper.badges.length > 0 && (
+          <BadgeList badges={helper.badges} badgeClass="text-purple-300 border border-purple-900 bg-purple-950" />
+        )}
+
+        {reviews.length > 0 && (
+          <section>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-5" style={{ color: '#a855f7' }}>Client Voices</span>
+            <div className="space-y-6">
+              {reviews.slice(0, 3).map(r => (
+                <QuoteBlock key={r.id} text={r.content} author={r.authorName}
+                  accentColor="#a855f7" textClass="text-gray-300" authorClass="text-purple-400" />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {faqs.length > 0 && (
+          <section>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4" style={{ color: '#a855f7' }}>FAQ</span>
+            <FAQList faqs={faqs} itemClass="bg-gray-900 border border-gray-800"
+              questionClass="text-white text-sm" answerClass="text-gray-400" />
+          </section>
+        )}
+
+        <div className="pt-4 flex gap-4 justify-center">
+          <ContactRow phone={phone} website={website} linkClass="text-purple-400 hover:text-purple-300 text-sm" />
         </div>
       </div>
     </div>
@@ -110,105 +98,117 @@ export function CreativeStudioTemplate({ profileData }) {
 }
 
 // ─── 10. GRAPHIC DESIGN ───────────────────────────────────────────────────────
+// Split-screen: portfolio panel left, scrolling info right.
+// Design software chips. Bold white/black with vivid red accent.
 export function GraphicDesignTemplate({ profileData }) {
   const { helper, services, gallery, reviews, faqs, phone, website } = profileData;
+  const tools = ['Figma', 'Illustrator', 'Photoshop', 'InDesign', 'Canva Pro', 'After Effects', 'Sketch', 'Procreate'];
+  const specialties = ['Brand Identity', 'Logo Design', 'Print', 'Digital Ads', 'Packaging', 'UI/UX', 'Illustrations', 'Social Media'];
   return (
-    <div className="min-h-screen font-sans bg-white text-gray-900">
-      {/* Minimal white with bold typography */}
-      <div className="border-b-4 border-gray-900 px-8 py-12">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-8">
-          <Avatar src={helper.avatar} name={helper.ownerName} size={96}
-            className="border-2 border-gray-900 bg-gray-100 text-gray-600" />
-          <div className="flex-1 text-center md:text-left">
-            <h1 className="text-5xl font-black leading-none tracking-tight">{helper.businessName}</h1>
-            <div className="flex items-center gap-1 my-2">
-              <div className="h-1 w-12 bg-gray-900 rounded" />
-              <div className="h-1 w-4 bg-gray-400 rounded" />
+    <div className="min-h-screen font-sans bg-white">
+      <div className="grid lg:grid-cols-2 min-h-screen">
+        {/* Left: portfolio sticky panel */}
+        <div className="relative lg:sticky lg:top-0 lg:h-screen overflow-hidden" style={{ background: '#111' }}>
+          {gallery.length > 0
+            ? <img src={gallery[0].url} alt="portfolio" className="w-full h-full object-cover opacity-80" />
+            : <div className="w-full h-full flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #111 0%, #1a1a2e 100%)' }}>
+                <Layers size={64} style={{ color: '#e11d48', opacity: 0.4 }} />
+              </div>}
+          <div className="absolute inset-0"
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 60%)' }} />
+          <div className="absolute bottom-0 left-0 right-0 p-8">
+            <span className="text-xs font-bold uppercase tracking-[0.3em]" style={{ color: '#e11d48' }}>Graphic Design</span>
+            <h1 className="text-3xl font-black text-white mt-1">{helper.businessName}</h1>
+            <p className="text-gray-300 text-sm mt-1">{helper.tagline}</p>
+            <div className="flex items-center gap-3 mt-3">
+              <StarRating rating={helper.rating} color="#e11d48" size={13} />
+              <span className="text-gray-400 text-xs">{helper.reviewCount} clients</span>
             </div>
-            <p className="text-gray-500 text-lg">{helper.tagline}</p>
-            <div className="flex flex-wrap gap-4 mt-3 justify-center md:justify-start text-sm text-gray-500">
-              <StarRating rating={helper.rating} color="#111827" size={14} />
-              <span>{helper.reviewCount} reviews</span>
-              <LocationChip city={helper.city} state={helper.state} className="text-gray-500" />
+            <div className="mt-4">
+              <ContactRow phone={phone} website={website} linkClass="text-red-400 hover:text-red-300 text-sm" />
             </div>
           </div>
+          {gallery.length > 1 && (
+            <div className="absolute top-4 right-4 flex flex-col gap-2">
+              {gallery.slice(1, 4).map(img => (
+                <div key={img.id} className="w-16 h-16 rounded-lg overflow-hidden border border-white/20">
+                  <img src={img.url} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="max-w-5xl mx-auto px-8 py-10 grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
+        {/* Right: info column */}
+        <div className="px-8 py-12 space-y-8 overflow-y-auto" style={{ color: '#0a0a0a' }}>
+          <div>
+            <Avatar src={helper.avatar} name={helper.ownerName} size={56}
+              className="border-2 bg-red-100 text-red-700 mb-4" style={{ borderColor: '#e11d48' }} />
+            <LocationChip city={helper.city} state={helper.state} className="text-gray-500 text-sm" />
+          </div>
+
           {helper.bio && (
             <section>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-4 w-1 bg-gray-900 rounded" />
-                <h3 className="font-black text-lg uppercase tracking-wide">About</h3>
-              </div>
-              <p className="text-gray-600 leading-relaxed">{helper.bio}</p>
+              <span className="text-xs font-bold uppercase tracking-widest text-red-600 block mb-2">About</span>
+              <p className="text-gray-700 leading-relaxed text-sm">{helper.bio}</p>
             </section>
           )}
+
+          <section>
+            <span className="text-xs font-bold uppercase tracking-widest text-red-600 block mb-3">Specialties</span>
+            <div className="flex flex-wrap gap-2">
+              {specialties.map(s => (
+                <SpecialtyPill key={s} label={s} pillClass="text-red-700 font-semibold text-xs bg-red-50 border border-red-200" />
+              ))}
+            </div>
+          </section>
 
           {services.length > 0 && (
             <section>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-4 w-1 bg-gray-900 rounded" />
-                <h3 className="font-black text-lg uppercase tracking-wide">Services</h3>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
+              <span className="text-xs font-bold uppercase tracking-widest text-red-600 block mb-3">Services</span>
+              <div className="space-y-2">
                 {services.map(s => (
-                  <div key={s.id} className="border-2 border-gray-900 rounded-xl p-4 hover:bg-gray-50 transition-colors">
-                    <p className="font-black">{s.name}</p>
-                    {s.description && <p className="text-xs text-gray-500 mt-1">{s.description}</p>}
-                    {s.price > 0 && <p className="font-black text-sm mt-2">from ${s.price.toFixed(0)}</p>}
-                  </div>
+                  <HorizontalServiceBar key={s.id} service={s} accentColor="#e11d48"
+                    bgClass="bg-gray-50" textClass="text-gray-900" priceClass="text-red-600" />
                 ))}
               </div>
             </section>
           )}
 
-          {gallery.length > 0 && (
-            <section>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-4 w-1 bg-gray-900 rounded" />
-                <h3 className="font-black text-lg uppercase tracking-wide">Work</h3>
-              </div>
-              <GalleryGrid gallery={gallery} cols={3} rounded="rounded-none" />
-            </section>
-          )}
+          <section>
+            <span className="text-xs font-bold uppercase tracking-widest text-red-600 block mb-3">Tools & Software</span>
+            <div className="flex flex-wrap gap-2">
+              {tools.map(t => <TechChip key={t} label={t} bgClass="bg-gray-100" textClass="text-gray-700" />)}
+            </div>
+          </section>
 
           {reviews.length > 0 && (
             <section>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-4 w-1 bg-gray-900 rounded" />
-                <h3 className="font-black text-lg uppercase tracking-wide">Reviews</h3>
-              </div>
-              <div className="space-y-3">
-                {reviews.slice(0, 4).map(r => (
-                  <div key={r.id} className="border border-gray-200 rounded-xl p-4">
-                    <div className="flex justify-between">
-                      <span className="font-bold text-sm">{r.authorName}</span>
-                      <StarRating rating={r.rating} color="#111" size={12} />
+              <span className="text-xs font-bold uppercase tracking-widest text-red-600 block mb-4">Client Reviews</span>
+              <div className="space-y-4">
+                {reviews.slice(0, 3).map(r => (
+                  <div key={r.id} className="rounded-xl p-4 bg-red-50 border border-red-100">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-semibold text-sm text-gray-900">{r.authorName}</span>
+                      <StarRating rating={r.rating} size={11} color="#e11d48" />
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{r.content}</p>
+                    <p className="text-xs text-gray-600 line-clamp-3">{r.content}</p>
                   </div>
                 ))}
               </div>
             </section>
           )}
-        </div>
 
-        <div className="space-y-6">
-          <div className="border-2 border-gray-900 rounded-xl p-5">
-            <StatsRow rating={helper.rating} reviewCount={helper.reviewCount} jobsCompleted={helper.jobsCompleted}
-              statClass="text-gray-900 text-2xl font-black" labelClass="text-gray-400 text-xs uppercase tracking-wide" />
-          </div>
-          <BadgeList badges={helper.badges} badgeClass="bg-gray-100 text-gray-800 border border-gray-300" />
-          <ContactRow phone={phone} website={website} linkClass="text-gray-900 hover:underline font-semibold" />
+          {helper.badges.length > 0 && (
+            <BadgeList badges={helper.badges} badgeClass="bg-red-50 text-red-700 border border-red-200" />
+          )}
+
           {faqs.length > 0 && (
-            <div className="border border-gray-200 rounded-xl p-5">
-              <h4 className="font-black text-sm uppercase tracking-wide mb-3">FAQ</h4>
-              <FAQList faqs={faqs} itemClass="border-b border-gray-100"
-                questionClass="text-gray-900 font-bold" answerClass="text-gray-600" />
-            </div>
+            <section>
+              <span className="text-xs font-bold uppercase tracking-widest text-red-600 block mb-3">FAQ</span>
+              <FAQList faqs={faqs} itemClass="bg-gray-50" questionClass="text-gray-900" answerClass="text-gray-600" />
+            </section>
           )}
         </div>
       </div>
@@ -217,83 +217,102 @@ export function GraphicDesignTemplate({ profileData }) {
 }
 
 // ─── 11. MUSIC & AUDIO ────────────────────────────────────────────────────────
+// Dark club/venue aesthetic. Services displayed as a numbered "setlist".
+// Genre chips. Dark purple/black with neon fuchsia accent.
 export function MusicAudioTemplate({ profileData }) {
   const { helper, services, gallery, reviews, faqs, phone, website } = profileData;
+  const genres = ['Jazz', 'R&B', 'Pop', 'Rock', 'Electronic', 'Classical', 'Hip-Hop', 'Soul', 'Latin'];
   return (
-    <div className="min-h-screen font-sans bg-gray-950 text-white">
-      {/* Dark neon purple aesthetic */}
-      <div style={{ background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1465 50%, #1a0536 100%)' }}
-        className="border-b border-purple-800">
-        <div className="max-w-4xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center gap-6">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-purple-500 blur-xl opacity-40" />
-            <Avatar src={helper.avatar} name={helper.ownerName} size={96}
-              className="relative border-2 border-purple-400 bg-purple-900 text-white" />
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
-              <Music size={14} className="text-purple-400" />
-              <span className="text-xs font-bold uppercase tracking-widest text-purple-400">Music & Audio Professional</span>
-            </div>
-            <h1 className="text-3xl font-black" style={{ textShadow: '0 0 30px rgba(168,85,247,0.5)' }}>{helper.businessName}</h1>
-            <p className="text-purple-300 mt-1">{helper.tagline}</p>
-            <div className="flex flex-wrap gap-3 mt-3 justify-center md:justify-start">
-              <StarRating rating={helper.rating} color="#c084fc" />
-              <span className="text-purple-300 text-sm">{helper.reviewCount} reviews</span>
-              <LocationChip city={helper.city} state={helper.state} className="text-purple-300" />
+    <div className="min-h-screen font-sans" style={{ background: '#080808', color: '#f5f5f5' }}>
+      <div className="relative overflow-hidden" style={{ minHeight: 260 }}>
+        {helper.coverImage
+          ? <img src={helper.coverImage} alt="venue" className="w-full h-64 object-cover opacity-50" />
+          : <div className="h-64" style={{ background: 'linear-gradient(135deg, #0d001a 0%, #1a0030 50%, #2d0050 100%)' }} />}
+        <div className="absolute inset-0"
+          style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(8,8,8,0.95) 85%)' }} />
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
+          <div className="max-w-4xl mx-auto flex items-end gap-5">
+            <Avatar src={helper.avatar} name={helper.ownerName} size={80}
+              className="border-4 flex-shrink-0"
+              style={{ borderColor: '#e879f9', background: '#1a003a', color: '#e879f9' }} />
+            <div>
+              <span className="text-xs font-bold uppercase tracking-[0.4em]" style={{ color: '#e879f9' }}>
+                Music & Audio
+              </span>
+              <h1 className="text-3xl font-black">{helper.businessName}</h1>
+              <p style={{ color: '#a3a3a3' }} className="text-sm mt-0.5">{helper.tagline}</p>
+              <div className="flex items-center gap-3 mt-2">
+                <StarRating rating={helper.rating} color="#e879f9" size={13} />
+                <span style={{ color: '#737373' }} className="text-xs">{helper.reviewCount} bookings</span>
+                <LocationChip city={helper.city} state={helper.state} className="text-gray-500 text-xs" />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Waveform decoration */}
-      <div className="bg-purple-900/20 border-b border-purple-800/30 py-3 flex justify-center gap-1 overflow-hidden px-4">
-        {Array.from({ length: 48 }).map((_, i) => (
-          <div key={i} className="w-1 rounded-full bg-purple-500"
-            style={{ height: `${8 + Math.sin(i * 0.8) * 16 + 8}px`, opacity: 0.6 }} />
-        ))}
-      </div>
-
       <div className="max-w-4xl mx-auto px-4 py-8 grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-5">
-          {helper.bio && (
-            <section className="bg-gray-900 border border-purple-900 rounded-2xl p-5">
-              <SectionHead className="text-purple-400">Artist Bio</SectionHead>
-              <p className="text-gray-300 leading-relaxed">{helper.bio}</p>
-            </section>
-          )}
+        <div className="lg:col-span-2 space-y-6">
+          <section className="rounded-2xl p-5" style={{ background: '#111', border: '1px solid #222' }}>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-3" style={{ color: '#e879f9' }}>
+              Genres & Styles
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {genres.map(g => (
+                <SpecialtyPill key={g} label={g} pillClass="text-fuchsia-300 text-xs font-semibold bg-purple-950 border border-purple-800" />
+              ))}
+            </div>
+          </section>
 
           {services.length > 0 && (
-            <section className="bg-gray-900 border border-purple-900 rounded-2xl p-5">
-              <SectionHead className="text-purple-400">Audio Services</SectionHead>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {services.map(s => (
-                  <div key={s.id}
-                    className="bg-purple-950 border border-purple-800 rounded-xl p-4"
-                    style={{ boxShadow: s.popular ? '0 0 12px rgba(168,85,247,0.3)' : 'none' }}>
-                    {s.popular && <span className="text-xs text-purple-300 font-bold">★ Popular</span>}
-                    <p className="font-semibold">{s.name}</p>
-                    {s.description && <p className="text-xs text-gray-400 mt-1">{s.description}</p>}
-                    {s.price > 0 && <p className="text-purple-400 font-bold text-sm mt-2">${s.price.toFixed(0)}</p>}
+            <section className="rounded-2xl p-5" style={{ background: '#111', border: '1px solid #222' }}>
+              <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4" style={{ color: '#e879f9' }}>
+                What I Offer
+              </span>
+              <div className="divide-y divide-gray-800">
+                {services.map((s, i) => (
+                  <div key={s.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono w-5 text-center" style={{ color: '#e879f9' }}>
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-sm">{s.name}</p>
+                        {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
+                      </div>
+                    </div>
+                    {s.price > 0 && (
+                      <span className="text-sm font-bold whitespace-nowrap ml-4" style={{ color: '#e879f9' }}>
+                        ${s.price.toFixed(0)}/{s.priceUnit}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             </section>
           )}
 
+          {helper.bio && (
+            <section className="rounded-2xl p-5" style={{ background: '#111', border: '1px solid #222' }}>
+              <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-3" style={{ color: '#e879f9' }}>About</span>
+              <p style={{ color: '#d4d4d4' }} className="leading-relaxed text-sm">{helper.bio}</p>
+            </section>
+          )}
+
           {gallery.length > 0 && (
-            <section className="bg-gray-900 border border-purple-900 rounded-2xl p-5">
-              <SectionHead className="text-purple-400">Media</SectionHead>
+            <section className="rounded-2xl p-5" style={{ background: '#111', border: '1px solid #222' }}>
+              <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4" style={{ color: '#e879f9' }}>Gallery</span>
               <GalleryGrid gallery={gallery} cols={3} rounded="rounded-lg" />
             </section>
           )}
 
           {reviews.length > 0 && (
-            <section className="bg-gray-900 border border-purple-900 rounded-2xl p-5">
-              <SectionHead className="text-purple-400">Reviews</SectionHead>
-              <div className="space-y-3">
-                {reviews.slice(0, 4).map(r => (
-                  <ReviewCard key={r.id} review={r} cardClass="bg-purple-950 text-gray-200 border border-purple-900" />
+            <section className="rounded-2xl p-5" style={{ background: '#111', border: '1px solid #222' }}>
+              <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4" style={{ color: '#e879f9' }}>Reviews</span>
+              <div className="space-y-4">
+                {reviews.slice(0, 3).map(r => (
+                  <QuoteBlock key={r.id} text={r.content} author={r.authorName}
+                    accentColor="#e879f9" textClass="text-gray-300" authorClass="text-fuchsia-400" />
                 ))}
               </div>
             </section>
@@ -301,18 +320,19 @@ export function MusicAudioTemplate({ profileData }) {
         </div>
 
         <div className="space-y-4">
-          <div style={{ background: 'linear-gradient(135deg, #7c3aed, #9333ea)' }} className="rounded-2xl p-5">
-            <StatsRow rating={helper.rating} reviewCount={helper.reviewCount} jobsCompleted={helper.jobsCompleted}
-              statClass="text-white text-2xl" labelClass="text-purple-200 text-xs" />
-          </div>
-          <div className="bg-gray-900 border border-purple-900 rounded-2xl p-5 space-y-3">
-            <BadgeList badges={helper.badges} badgeClass="bg-purple-900 text-purple-200 border border-purple-700" />
-            <ContactRow phone={phone} website={website} linkClass="text-purple-400 hover:text-purple-300" />
+          {helper.badges.length > 0 && (
+            <div className="rounded-2xl p-5" style={{ background: '#1a0030', border: '1px solid #4c1d95' }}>
+              <BadgeList badges={helper.badges} badgeClass="text-fuchsia-300 bg-purple-950 border border-purple-800" />
+            </div>
+          )}
+          <div className="rounded-2xl p-5" style={{ background: '#111', border: '1px solid #222' }}>
+            <ContactRow phone={phone} website={website} linkClass="text-fuchsia-400 hover:text-fuchsia-300 text-sm" />
           </div>
           {faqs.length > 0 && (
-            <div className="bg-gray-900 border border-purple-900 rounded-2xl p-5">
-              <SectionHead className="text-purple-400 text-sm">FAQ</SectionHead>
-              <FAQList faqs={faqs} itemClass="bg-purple-950 border border-purple-900" questionClass="text-white" answerClass="text-gray-400" />
+            <div className="rounded-2xl p-5" style={{ background: '#111', border: '1px solid #222' }}>
+              <span className="text-xs font-bold uppercase tracking-wider block mb-3" style={{ color: '#e879f9' }}>FAQ</span>
+              <FAQList faqs={faqs} itemClass="bg-gray-900 border border-gray-800"
+                questionClass="text-white text-sm" answerClass="text-gray-400" />
             </div>
           )}
         </div>
@@ -322,98 +342,119 @@ export function MusicAudioTemplate({ profileData }) {
 }
 
 // ─── 12. WRITING & COPY ───────────────────────────────────────────────────────
+// Literary editorial feel. Warm cream/sepia. Pull quotes for testimonials.
+// Writing specialties as genre tags. Dark header, warm body.
 export function WritingCopyTemplate({ profileData }) {
   const { helper, services, gallery, reviews, faqs, phone, website } = profileData;
+  const genres = ['Blog Posts', 'Copywriting', 'UX Writing', 'Email Campaigns', 'White Papers',
+    'Press Releases', 'Social Content', 'Technical Writing', 'Grant Writing', 'Scriptwriting'];
   return (
-    <div className="min-h-screen font-serif" style={{ background: '#f8f4ec', color: '#1a1207' }}>
-      {/* Literary editorial style */}
-      <div style={{ borderBottom: '3px double #2c1810', background: '#fdf8f0' }} className="px-8 py-10">
+    <div className="min-h-screen font-sans" style={{ background: '#fefce8', color: '#1c1003' }}>
+      {/* Dark editorial header */}
+      <div style={{ background: '#1c1003' }} className="px-6 py-10">
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-6">
-            <BookOpen size={24} className="mx-auto text-amber-800 mb-2" />
-            <span style={{ color: '#7c5227', letterSpacing: '0.3em', fontSize: '11px', fontFamily: 'sans-serif', fontWeight: 700, textTransform: 'uppercase' }}>
-              Words. Stories. Impact.
-            </span>
-            <h1 className="text-5xl font-bold mt-2" style={{ color: '#1a1207' }}>{helper.businessName}</h1>
-            <div style={{ width: 60, height: 2, background: '#7c5227', margin: '12px auto' }} />
-            <p style={{ color: '#7c5227', fontFamily: 'sans-serif' }} className="text-sm">{helper.tagline}</p>
+          <div className="flex items-center gap-5">
+            <Avatar src={helper.avatar} name={helper.ownerName} size={72}
+              className="border-2 flex-shrink-0"
+              style={{ borderColor: '#ca8a04', background: '#3a2600', color: '#fcd34d' }} />
+            <div className="text-white">
+              <div className="flex items-center gap-2 mb-1">
+                <Pen size={12} style={{ color: '#ca8a04' }} />
+                <span className="text-xs font-bold uppercase tracking-[0.4em]" style={{ color: '#ca8a04' }}>
+                  Freelance Writer & Copywriter
+                </span>
+              </div>
+              <h1 className="text-3xl font-black">{helper.businessName}</h1>
+              <p style={{ color: '#a3a3a3' }} className="text-sm mt-1">{helper.tagline}</p>
+              <div className="flex items-center gap-3 mt-2">
+                <StarRating rating={helper.rating} color="#ca8a04" size={13} />
+                <span className="text-gray-400 text-xs">{helper.reviewCount} clients</span>
+                <LocationChip city={helper.city} state={helper.state} className="text-gray-500 text-xs" />
+              </div>
+            </div>
           </div>
-          <div className="flex justify-center gap-6" style={{ fontFamily: 'sans-serif', fontSize: 13 }}>
-            <StarRating rating={helper.rating} color="#7c5227" size={14} />
-            <span style={{ color: '#7c5227' }}>{helper.reviewCount} clients</span>
-            <LocationChip city={helper.city} state={helper.state} className="text-amber-800" />
+          <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-white/10">
+            {[
+              { v: helper.jobsCompleted ?? 0, l: 'Projects Delivered' },
+              { v: helper.rating?.toFixed(1) ?? '5.0', l: 'Avg Rating' },
+              { v: `${helper.reviewCount}+`, l: 'Happy Clients' },
+            ].map(s => (
+              <div key={s.l} className="text-center">
+                <div className="text-2xl font-black" style={{ color: '#ca8a04' }}>{s.v}</div>
+                <div className="text-xs text-gray-400">{s.l}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-10 grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          {helper.bio && (
-            <section>
-              <h3 style={{ color: '#7c5227', fontFamily: 'sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase' }} className="mb-3">
-                About the Writer
-              </h3>
-              <p className="text-lg leading-loose">{helper.bio}</p>
-            </section>
-          )}
-
-          {services.length > 0 && (
-            <section>
-              <h3 style={{ color: '#7c5227', fontFamily: 'sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase' }} className="mb-4">
-                Services
-              </h3>
-              <div className="space-y-3">
-                {services.map(s => (
-                  <div key={s.id} style={{ borderBottom: '1px solid #d4b896' }} className="pb-3 flex justify-between items-start">
-                    <div>
-                      <p className="font-bold">{s.name}</p>
-                      {s.description && <p style={{ fontFamily: 'sans-serif', color: '#7c5227', fontSize: 12 }} className="mt-0.5">{s.description}</p>}
-                    </div>
-                    {s.price > 0 && <span style={{ fontFamily: 'sans-serif', fontWeight: 700, color: '#7c5227', fontSize: 13 }}>from ${s.price.toFixed(0)}</span>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {reviews.length > 0 && (
-            <section>
-              <h3 style={{ color: '#7c5227', fontFamily: 'sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase' }} className="mb-4">
-                Testimonials
-              </h3>
-              <div className="space-y-5">
-                {reviews.slice(0, 3).map(r => (
-                  <blockquote key={r.id} style={{ borderLeft: '3px solid #d4b896' }} className="pl-5">
-                    <p className="text-base italic leading-relaxed">"{r.content}"</p>
-                    <footer style={{ fontFamily: 'sans-serif', color: '#7c5227', fontSize: 12 }} className="mt-2">
-                      &mdash; {r.authorName}
-                    </footer>
-                  </blockquote>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {faqs.length > 0 && (
-            <section>
-              <h3 style={{ color: '#7c5227', fontFamily: 'sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase' }} className="mb-4">
-                Questions
-              </h3>
-              <FAQList faqs={faqs} itemClass="border-b border-amber-200"
-                questionClass="text-amber-900 font-bold font-serif" answerClass="text-amber-800 font-sans text-sm" />
-            </section>
-          )}
-        </div>
-
-        <div className="space-y-5">
-          <div style={{ background: '#fdf0d8', border: '1px solid #d4b896' }} className="rounded-2xl p-5 text-center">
-            <Avatar src={helper.avatar} name={helper.ownerName} size={70}
-              className="mx-auto mb-3 border-2 border-amber-300 bg-amber-100 text-amber-800 font-sans" />
-            <StatsRow rating={helper.rating} reviewCount={helper.reviewCount} jobsCompleted={helper.jobsCompleted}
-              statClass="text-amber-800 text-xl font-serif font-bold" labelClass="text-amber-600 text-xs font-sans" />
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+        <section>
+          <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-3" style={{ color: '#ca8a04' }}>Writing Specialties</span>
+          <div className="flex flex-wrap gap-2">
+            {genres.map(g => (
+              <span key={g} className="px-3 py-1 rounded-full text-xs font-semibold"
+                style={{ background: '#fef9c3', border: '1px solid #fde68a', color: '#92400e' }}>{g}</span>
+            ))}
           </div>
-          <BadgeList badges={helper.badges} badgeClass="bg-amber-100 text-amber-800 border border-amber-200 font-sans text-xs" />
-          <ContactRow phone={phone} website={website} linkClass="text-amber-800 hover:underline font-sans text-sm" />
+        </section>
+
+        {helper.bio && (
+          <section>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-3" style={{ color: '#ca8a04' }}>About Me</span>
+            <p style={{ color: '#3a2600' }} className="leading-relaxed">{helper.bio}</p>
+          </section>
+        )}
+
+        {services.length > 0 && (
+          <section>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4" style={{ color: '#ca8a04' }}>Services</span>
+            <div className="divide-y divide-yellow-200">
+              {services.map(s => (
+                <div key={s.id} className="py-4 flex justify-between items-start gap-4">
+                  <div>
+                    <p className="font-semibold" style={{ color: '#1c1003' }}>{s.name}</p>
+                    {s.description && <p className="text-sm mt-1" style={{ color: '#78601a' }}>{s.description}</p>}
+                  </div>
+                  {s.price > 0 && (
+                    <span className="font-bold whitespace-nowrap text-sm" style={{ color: '#ca8a04' }}>
+                      ${s.price.toFixed(0)}/{s.priceUnit}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {reviews.length > 0 && (
+          <section className="py-6 border-t border-b border-yellow-200">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-6" style={{ color: '#ca8a04' }}>
+              Client Testimonials
+            </span>
+            <div className="space-y-6">
+              {reviews.slice(0, 3).map(r => (
+                <QuoteBlock key={r.id} text={r.content} author={r.authorName}
+                  accentColor="#ca8a04" textClass="text-lg text-amber-900" authorClass="text-amber-700" />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {helper.badges.length > 0 && (
+          <BadgeList badges={helper.badges} badgeClass="bg-yellow-100 text-yellow-800 border border-yellow-200" />
+        )}
+
+        {faqs.length > 0 && (
+          <section>
+            <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4" style={{ color: '#ca8a04' }}>FAQ</span>
+            <FAQList faqs={faqs} itemClass="bg-yellow-50 border border-yellow-100"
+              questionClass="text-amber-900" answerClass="text-amber-700" />
+          </section>
+        )}
+
+        <div className="pt-2">
+          <ContactRow phone={phone} website={website} linkClass="text-amber-700 hover:text-amber-900" />
         </div>
       </div>
     </div>

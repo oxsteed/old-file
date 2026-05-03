@@ -46,8 +46,23 @@ import {
   LegalAdminTemplate,
 } from './templates/EventsBeautyTechTemplates.jsx';
 
+import {
+  ElectricianTemplate,
+  PhotographerTemplate,
+  MassageTherapistTemplate,
+  AutoMechanicTemplate,
+  DogWalkerTemplate,
+  PrivateChefTemplate,
+  HairStylistTemplate,
+  AccountantTemplate,
+  MathTutorTemplate,
+  PartyEntertainerTemplate,
+  CarDealershipTemplate,
+} from './templates/Batch1Templates.jsx';
+
 // ── Template registry ─────────────────────────────────────────────────────────
 // Maps slug → { component, meta }
+// 40 templates: 30 original (redesigned) + 10 Batch 1 new industries
 
 export const TEMPLATE_REGISTRY = {
   // Free
@@ -88,6 +103,18 @@ export const TEMPLATE_REGISTRY = {
   web_app_dev:          { component: WebAppDevTemplate,          name: 'Web & App Dev',        category: 'tech',     is_free: false },
   consulting_coaching:  { component: ConsultingCoachingTemplate, name: 'Consulting & Coaching',category: 'tech',     is_free: false },
   legal_admin:          { component: LegalAdminTemplate,         name: 'Legal & Administrative',category:'tech',     is_free: false },
+  // ── Batch 1 — New Industries ─────────────────────────────────────────────────
+  electrician:          { component: ElectricianTemplate,        name: 'Electrician',          category: 'trades',   is_free: false },
+  photographer:         { component: PhotographerTemplate,       name: 'Photographer',         category: 'creative', is_free: false },
+  massage_therapist:    { component: MassageTherapistTemplate,   name: 'Massage Therapist',    category: 'health',   is_free: false },
+  auto_mechanic:        { component: AutoMechanicTemplate,       name: 'Auto Mechanic',        category: 'trades',   is_free: false },
+  dog_walker:           { component: DogWalkerTemplate,          name: 'Dog Walker',           category: 'care',     is_free: false },
+  private_chef:         { component: PrivateChefTemplate,        name: 'Private Chef',         category: 'food',     is_free: false },
+  hair_stylist:         { component: HairStylistTemplate,        name: 'Hair Stylist',         category: 'beauty',   is_free: false },
+  accountant:           { component: AccountantTemplate,         name: 'Accountant',           category: 'professional', is_free: false },
+  math_tutor:           { component: MathTutorTemplate,          name: 'Math Tutor',           category: 'education', is_free: false },
+  party_entertainer:    { component: PartyEntertainerTemplate,   name: 'Party Entertainer',    category: 'events',   is_free: false },
+  car_dealership:       { component: CarDealershipTemplate,      name: 'Car Dealership',       category: 'automotive', is_free: false },
 };
 
 /**
