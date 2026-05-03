@@ -824,9 +824,9 @@ export default function UserDetail() {
                   danger={user.is_active}
                 />
 
-                {/* Delete / Restore */}
+                {/* Delete / Restore — show restore for any admin-scheduled pending row (not self); type may be NULL on legacy DBs */}
                 {!['admin', 'super_admin'].includes(user.role) && me?.id !== user.id && (
-                  user.deletion_scheduled_at && user.deletion_type === 'admin'
+                  user.deletion_scheduled_at && user.deletion_type !== 'self'
                     ? (
                       <DropdownItem
                         icon={RotateCcw}

@@ -3790,6 +3790,8 @@
     "prefSaved": "Preference saved",
     "failedSave": "Failed to save preference",
     "failedLoad": "Failed to load notification preferences",
+    "securityNoticeTitle": "Account and security emails",
+    "securityNoticeBody": "OxSteed may still email you about your account when required for security, fraud prevention, or legal compliance. That includes official warnings, suspensions, bans, account restoration, and scheduled account removal. Those messages are sent to your registered email even if you turn off optional email alerts below.",
     "webPush": {
       "title": "Browser Push Notifications",
       "subtitle": "Get alerts in this browser even when OxSteed isn't open.",

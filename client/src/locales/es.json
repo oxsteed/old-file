@@ -3790,6 +3790,8 @@
     "prefSaved": "Preferencia guardada",
     "failedLoad": "Error al cargar preferencias",
     "failedSave": "Error al guardar preferencia",
+    "securityNoticeTitle": "Correos de cuenta y seguridad",
+    "securityNoticeBody": "OxSteed aún puede enviarte correos sobre tu cuenta cuando sea necesario por seguridad, prevención de fraude o cumplimiento legal. Eso incluye advertencias oficiales, suspensiones, bloqueos, restauración de cuenta y eliminación programada de la cuenta. Esos mensajes se envían a tu correo registrado aunque desactives las alertas opcionales por correo abajo.",
     "webPush": {
       "title": "Notificaciones del navegador",
       "subtitle": "Recibe alertas en este navegador incluso cuando OxSteed no esté abierto.",

@@ -253,6 +253,15 @@ export default function NotificationPreferences() {
       </div>
       <p className="sp-card-subtitle">{t('notifications.subtitle')}</p>
 
+      <div
+        className="mb-6 rounded-xl px-4 py-3 text-sm"
+        style={{ border: '1px solid rgba(245,158,11,.35)', background: 'rgba(245,158,11,.08)', color: '#fde68a' }}
+        role="note"
+      >
+        <p className="font-semibold" style={{ color: '#fcd34d' }}>{t('notifications.securityNoticeTitle')}</p>
+        <p className="mt-1.5 leading-relaxed opacity-95">{t('notifications.securityNoticeBody')}</p>
+      </div>
+
       <BrowserPushPanel />
 
       <div className="space-y-8">

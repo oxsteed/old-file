@@ -139,6 +139,14 @@ export default function NotificationSettings() {
             )}
           </div>
 
+          <div
+            className="mb-8 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/95"
+            role="note"
+          >
+            <p className="font-semibold text-amber-200">{t('notifications.securityNoticeTitle')}</p>
+            <p className="mt-1.5 text-amber-100/90 leading-relaxed">{t('notifications.securityNoticeBody')}</p>
+          </div>
+
           {/* Content */}
           {loading ? (
             <div className="flex items-center justify-center py-24">
