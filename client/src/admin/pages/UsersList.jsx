@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Search, Download, UserPlus, X, MessageSquare, MoreHorizontal,
   ChevronUp, ChevronDown, Shield, ShieldCheck, MapPin, Star,
-  Ban, CheckCircle, Key, Eye,
+  Ban, CheckCircle, Key, Eye, RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import adminApi from '../../lib/adminApi';
@@ -207,7 +207,7 @@ function ResetPasswordModal({ user, onClose }) {
 // ---------------------------------------------------------------------------
 // QuickActionsMenu — "..." dropdown per row
 // ---------------------------------------------------------------------------
-function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, onRefresh }) {
+function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, onRefresh, onCancelPendingDeletion }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
@@ -238,6 +238,24 @@ function QuickActionsMenu({ user, isSuper, onMessage, onToggleBan, onResetPw, on
             <MessageSquare size={13} /> Send message
           </button>
           <div className="border-t border-gray-800 my-1" />
+          {isSuper && user.deletion_scheduled_at && user.deletion_type !== 'self' && (
+            <button
+              type="button"
+              onClick={async () => {
+                setOpen(false);
+                if (!window.confirm(`Cancel pending deletion for ${user.email}? They will show as Active again.`)) return;
+                setBusy(true);
+                try {
+                  await onCancelPendingDeletion(user);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg text-orange-300 hover:bg-orange-900/25 transition"
+            >
+              <RotateCcw size={13} /> Cancel pending deletion
+            </button>
+          )}
           <button onClick={doToggleBan}
             className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg transition
               ${user.is_active ? 'text-red-400 hover:bg-red-900/30' : 'text-green-400 hover:bg-green-900/30'}`}>
@@ -418,6 +436,16 @@ export default function UsersList() {
       await fetchUsers();
     } catch (err) {
       showToast(err.response?.data?.error || 'Action failed.', 'error');
+    }
+  };
+
+  const handleCancelPendingDeletion = async (user) => {
+    try {
+      await adminApi.post(`/admin/users/${user.id}/cancel-pending-deletion`);
+      showToast(`Pending deletion cleared for ${user.first_name}.`);
+      await fetchUsers();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to cancel pending deletion.', 'error');
     }
   };
 
@@ -740,6 +768,7 @@ export default function UsersList() {
                         onToggleBan={handleToggleBan}
                         onResetPw={setResetTarget}
                         onRefresh={fetchUsers}
+                        onCancelPendingDeletion={handleCancelPendingDeletion}
                       />
                     </td>
                   </tr>

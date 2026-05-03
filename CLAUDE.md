@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **User deletion (2026-05-03):** `schemaProbe` + `activeJobStatuses` + CI verify; **`clearAdminScheduledDeletionIfPresent`** on unban/reactivate clears `deleted_at` and scheduled-deletion columns when **`deletion_scheduled_at IS NOT NULL`** and **`deletion_type IS DISTINCT FROM 'self'`** (fixes rows with NULL `deletion_type`). **`UsersList`** refetches after reactivate. **`restoreUser`** unchanged for explicit restore within the 30-day window.
+- **Admin users list (2026-05-03):** Pending-deletion **reversal** is the goal: **`reinstateAfterPendingAdminDeletion`** clears schedule + **`deleted_at`** + **`is_active`** (skips `deletion_type = 'self'`). Used by **`restoreUser`** (lookup by `id::text`; restores when `deleted_at` OR `deletion_scheduled_at` set; 30-day check only if schedule exists), **`cancelPendingDeletion`**, **`toggleUserBan`** (unban), **`reactivateUser`** (`WHERE id::text`). **`restoreUser`** no longer requires UUID-only param. Admin messaging again requires **`deleted_at IS NULL`** (reinstate first).
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS

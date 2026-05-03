@@ -103,10 +103,11 @@ exports.getThread = async (req, res) => {
     const limitN  = Math.min(Math.max(1, parseInt(limit) || 50), 200);
     const offsetN = Math.max(0, parseInt(offset) || 0);
 
-    // Verify target user
+    // Verify target user (must not be soft-deleted — reinstate first if scheduled for deletion)
     const { rows: targetRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
-      [userId]
+      `SELECT id, first_name, last_name, email, role FROM users
+       WHERE id::text = $1 AND deleted_at IS NULL`,
+      [String(userId)]
     );
     if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
 
@@ -183,10 +184,11 @@ exports.send = async (req, res) => {
 
     const content = sanitizeMessage(rawContent);
 
-    // Verify target user
+    // Verify target user (must not be soft-deleted)
     const { rows: targetRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
-      [userId]
+      `SELECT id, first_name, last_name, email, role FROM users
+       WHERE id::text = $1 AND deleted_at IS NULL`,
+      [String(userId)]
     );
     if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin', 'super_admin'].includes(targetRows[0].role)) {

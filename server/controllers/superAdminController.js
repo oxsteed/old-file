@@ -51,6 +51,18 @@ async function clearAdminScheduledDeletionIfPresent(userId) {
   }
 }
 
+/** Clears admin-scheduled deletion state and sets the account active (never for self-deletes). */
+async function reinstateAfterPendingAdminDeletion(userId) {
+  await clearAdminScheduledDeletionIfPresent(userId);
+  const hasType = await columnExists('users', 'deletion_type');
+  const notSelf = hasType ? `AND deletion_type IS DISTINCT FROM 'self'` : '';
+  await db.query(
+    `UPDATE users SET deleted_at = NULL, is_active = TRUE, updated_at = NOW()
+     WHERE id::text = $1 ${notSelf}`,
+    [String(userId)],
+  );
+}
+
 // ─── Dashboard helpers ────────────────────────────────────────────────────────
 
 const PERIOD_INTERVAL = {
@@ -733,18 +745,25 @@ exports.toggleUserBan = async (req, res) => {
     const { userId } = req.params;
     const { reason } = req.body;
     const adminId = req.user.id;
-    const { rows: before } = await db.query('SELECT is_active, role FROM users WHERE id = $1', [userId]);
+    const { rows: before } = await db.query(
+      `SELECT is_active, role FROM users WHERE id::text = $1`,
+      [String(userId)],
+    );
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin','super_admin'].includes(before[0].role)) return res.status(403).json({ error: 'Cannot ban admin accounts.' });
     const newStatus = !before[0].is_active;
-    const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, userId, before[0].is_active]);
+    const { rows: updateRows } = await db.query(
+      `UPDATE users SET is_active = $1, updated_at = NOW()
+       WHERE id::text = $3 AND is_active = $2 RETURNING id`,
+      [newStatus, before[0].is_active, String(userId)],
+    );
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User status changed during ban operation - concurrent modification detected.' });
     }
     try { await logAdminAction({ adminId, action: newStatus ? 'user_unbanned' : 'user_banned', targetType: 'user', targetId: userId, description: reason || null, before: { is_active: before[0].is_active }, after: { is_active: newStatus }, req }); } catch(e) {}
     try { await sendNotification({ userId, type: newStatus ? 'account_restored' : 'account_banned', title: newStatus ? 'Account restored' : 'Account suspended', body: newStatus ? 'Your account has been restored.' : `Your account has been suspended. Reason: ${reason || 'Policy violation'}` }); } catch(e) {}
     if (newStatus) {
-      try { await clearAdminScheduledDeletionIfPresent(userId); } catch (e) { logger.warn('toggleUserBan: clear scheduled admin deletion failed', { userId, err: e.message }); }
+      try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
     }
     // Kick any live WebSocket session immediately so the user can't keep browsing
     if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
@@ -1664,18 +1683,12 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// RESTORE USER ACCOUNT — cancel a pending admin deletion (super_admin only)
-// Only works within the 30-day window (deletion_scheduled_at has not passed AND
-// the actual hard-delete job has not run yet).
+// RESTORE USER ACCOUNT — cancel pending admin deletion / reinstate (super_admin only)
+// Clears soft-delete + migration-165 schedule when the account is locked for admin deletion
+// (deleted_at and/or deletion_scheduled_at). 30-day window enforced only when a schedule exists.
 exports.restoreUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    if (!isUuidParam(userId)) {
-      return res.status(400).json({
-        error: 'Invalid user id.',
-        detail: 'The user id in the URL must be a valid UUID.',
-      });
-    }
     const { reason } = req.body;
     const adminId = req.user.id;
 
@@ -1690,45 +1703,36 @@ exports.restoreUser = async (req, res) => {
     const { rows: userRows } = await db.query(
       `SELECT id, first_name, last_name, email, role,
               deletion_scheduled_at, deleted_at, deletion_type
-       FROM users WHERE ${userIdEq('id')}`,
+       FROM users WHERE id::text = $1`,
       [String(userId)]
     );
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
 
-    // Can only restore admin-type deletions
-    if (user.deletion_type !== 'admin') {
+    if (user.deletion_type === 'self') {
       return res.status(409).json({
         error: 'This account was self-deleted by the user. Admin restoration is not permitted for self-deletes. If you believe this account should be reopened, contact the legal team.',
       });
     }
 
-    if (!user.deleted_at || !user.deletion_scheduled_at) {
+    const hasPendingSchedule = Boolean(user.deletion_scheduled_at);
+    const lockedForDeletion = Boolean(user.deleted_at || hasPendingSchedule);
+
+    if (!lockedForDeletion) {
       return res.status(409).json({ error: 'This account is not currently scheduled for deletion.' });
     }
 
-    // Check the 30-day window has not expired
-    const now = new Date();
-    const scheduledFor = new Date(user.deletion_scheduled_at);
-    if (now >= scheduledFor) {
-      return res.status(409).json({
-        error: 'The 30-day recovery window has expired. This account has been permanently deleted and cannot be restored.',
-      });
+    if (hasPendingSchedule) {
+      const now = new Date();
+      const scheduledFor = new Date(user.deletion_scheduled_at);
+      if (now >= scheduledFor) {
+        return res.status(409).json({
+          error: 'The 30-day recovery window has expired. This account has been permanently deleted and cannot be restored.',
+        });
+      }
     }
 
-    // Restore the account
-    await db.query(
-      `UPDATE users SET
-        is_active             = TRUE,
-        deleted_at            = NULL,
-        deletion_scheduled_at = NULL,
-        deletion_type         = NULL,
-        deletion_reason       = NULL,
-        deletion_admin_id     = NULL,
-        updated_at            = NOW()
-       WHERE ${userIdEq('id')}`,
-      [String(userId)]
-    );
+    await reinstateAfterPendingAdminDeletion(userId);
 
     try {
       await logAdminAction({
@@ -1761,6 +1765,51 @@ exports.restoreUser = async (req, res) => {
       detail = err.message;
     }
     res.status(500).json({ error: userMessage, detail, code: pgCode || null });
+  }
+};
+
+/**
+ * POST /admin/users/:userId/cancel-pending-deletion
+ * Super-admin: same reinstatement as restore when a future deletion_scheduled_at exists.
+ */
+exports.cancelPendingDeletion = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const adminId = req.user.id;
+    const { rows } = await db.query(
+      `SELECT id, email, first_name, role, deletion_scheduled_at, deletion_type
+       FROM users WHERE id::text = $1`,
+      [String(userId)],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    if (['admin', 'super_admin'].includes(rows[0].role)) {
+      return res.status(403).json({ error: 'Cannot modify admin accounts.' });
+    }
+    if (!rows[0].deletion_scheduled_at) {
+      return res.status(409).json({ error: 'This account has no pending scheduled deletion.' });
+    }
+    if (rows[0].deletion_type === 'self') {
+      return res.status(409).json({
+        error: 'Cannot cancel a self-service deletion from this endpoint.',
+      });
+    }
+    await reinstateAfterPendingAdminDeletion(userId);
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_pending_deletion_cancelled',
+        targetType: 'user',
+        targetId: userId,
+        description: `Cancelled scheduled deletion for ${rows[0].email}`,
+        before: { deletion_scheduled_at: rows[0].deletion_scheduled_at },
+        after: { deletion_scheduled_at: null, deleted_at: null },
+        req,
+      });
+    } catch { /* non-fatal */ }
+    res.json({ message: `Pending deletion cleared for ${rows[0].email}.` });
+  } catch (err) {
+    logger.error('cancelPendingDeletion error', { err });
+    res.status(500).json({ error: 'Failed to cancel pending deletion.' });
   }
 };
 
@@ -1938,15 +1987,16 @@ exports.sendAdminMessage = async (req, res) => {
       return res.status(400).json({ error: 'Message must be 4000 characters or fewer.' });
     }
 
-    // Verify target user exists and is not an admin
+    // Verify target user exists, is not an admin, and is not soft-deleted (scheduled deletion
+    // locks the row — use cancel-pending-deletion / restore first).
     const { rows: targetRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
-      [userId]
+      `SELECT id, first_name, last_name, email, role FROM users
+       WHERE id::text = $1
+         AND role NOT IN ('admin', 'super_admin')
+         AND deleted_at IS NULL`,
+      [String(userId)]
     );
     if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
-    if (['admin', 'super_admin'].includes(targetRows[0].role)) {
-      return res.status(400).json({ error: 'Cannot send messages to admin accounts.' });
-    }
 
     const adminId  = req.user.id;
     const targetId = userId;
@@ -2585,14 +2635,14 @@ exports.reactivateUser = async (req, res) => {
            is_banned         = FALSE,
            ban_reason        = NULL,
            updated_at        = NOW()
-       WHERE id = $1
+       WHERE id::text = $1
        RETURNING id, email, first_name`,
-      [userId]
+      [String(userId)]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
 
-    try { await clearAdminScheduledDeletionIfPresent(userId); } catch (e) {
-      logger.warn('reactivateUser: clear scheduled admin deletion failed', { userId, err: e.message });
+    try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) {
+      logger.warn('reactivateUser: reinstate failed', { userId, err: e.message });
     }
 
     await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
