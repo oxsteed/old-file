@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import PageMeta from '../components/PageMeta';
-import Footer from '../components/Footer';
+import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import '../styles/IndependentContractorPage.css';
 
@@ -189,7 +189,7 @@ export default function IndependentContractorPage() {
   ];
 
   return (
-    <>
+    <PageShell>
       <PageMeta
         title={t('contractorAgreement.pageTitle')}
         description={t('contractorAgreement.pageDescription')}
@@ -663,7 +663,6 @@ export default function IndependentContractorPage() {
         </div>
       </div>
 
-      <Footer />
-    </>
+    </PageShell>
   );
 }
