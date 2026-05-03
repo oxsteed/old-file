@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { chatMessage, profileChatMessage, guestProfileChatSession, financialAdvisor, transcribeAudio } = require('../controllers/chatController');
+const { chatMessage, profileChatMessage, guestProfileChatSession, financialAdvisor, transcribeAudio, getProfileContext } = require('../controllers/chatController');
 const { chatLimiter, profileChatLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const logger = require('../utils/logger');
@@ -42,6 +42,9 @@ router.post('/profile-message', chatLimiter, profileChatLimiter, optionalAuth, p
 
 // POST /api/chat/sessions/guest - public guest inquiry (helper must allow guest contact)
 router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);
+
+// GET /api/chat/profile-context/:type/:id — owner-only transparency (helper UUID or business id)
+router.get('/profile-context/:type/:id', chatLimiter, authenticate, getProfileContext);
 
 // POST /api/chat/transcribe
 // Transcribe audio using OpenRouter (fallback when Web Speech confidence is low)

@@ -23,7 +23,8 @@ router.get('/me', helperOnly, async (req, res) => {
               hourly_rate_min, hourly_rate_max, rate_preference,
               flat_rate_available, contact_for_pricing,
               availability_json, is_available_now, response_rate,
-              show_services, show_faqs, show_policies, show_gallery, show_hours
+              show_services, show_faqs, show_policies, show_gallery, show_hours,
+              ai_knowledge
        FROM helper_profiles WHERE user_id = $1`,
       [uid],
     );
@@ -69,7 +70,17 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
       service_radius_miles,
       availability_json,
       is_available_now,
+      ai_knowledge,
     } = req.body;
+
+    let safeAiKnowledge = undefined;
+    if (ai_knowledge !== undefined) {
+      const s = ai_knowledge == null ? '' : String(ai_knowledge);
+      if (s.length > 8000) {
+        return res.status(400).json({ error: 'ai_knowledge must be 8000 characters or less' });
+      }
+      safeAiKnowledge = s.trim() || null;
+    }
 
     const VALID_RATE_PREFS = ['per_job', 'hourly', 'flat', 'negotiable'];
     const safePref = VALID_RATE_PREFS.includes(rate_preference) ? rate_preference : undefined;
@@ -78,8 +89,8 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
       `INSERT INTO helper_profiles (user_id, profile_headline, bio_long, bio_short,
           hourly_rate_min, hourly_rate_max, rate_preference, flat_rate_available, contact_for_pricing,
           service_city, service_state, service_zip, service_radius_miles,
-          availability_json, is_available_now)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+          availability_json, is_available_now, ai_knowledge)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        ON CONFLICT (user_id) DO UPDATE SET
          profile_headline    = COALESCE($2,  helper_profiles.profile_headline),
          bio_long            = COALESCE($3,  helper_profiles.bio_long),
@@ -95,6 +106,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
          service_radius_miles= COALESCE($13, helper_profiles.service_radius_miles),
          availability_json   = COALESCE($14, helper_profiles.availability_json),
          is_available_now    = COALESCE($15, helper_profiles.is_available_now),
+         ai_knowledge        = CASE WHEN $18::boolean THEN $16 ELSE helper_profiles.ai_knowledge END,
          updated_at          = NOW()`,
       [
         uid,
@@ -112,6 +124,8 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
         service_radius_miles != null && service_radius_miles !== '' ? parseInt(service_radius_miles) : null,
         availability_json ? JSON.stringify(availability_json) : null,
         is_available_now  != null ? !!is_available_now : false,
+        safeAiKnowledge !== undefined ? safeAiKnowledge : null,
+        safeAiKnowledge !== undefined,
       ],
     );
 

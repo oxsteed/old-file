@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../utils/businessOwnership');
 const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
+const { invalidateHelperContext } = require('../services/helperContext');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -188,6 +189,19 @@ async function updateBusiness(req, res, next) {
     );
 
     if (!biz) throw new AppError('Business not found', 404, 'not_found');
+
+    if (req.body.ai_knowledge !== undefined) {
+      const raw = req.body.ai_knowledge;
+      const s = raw == null ? '' : String(raw);
+      if (s.length > 8000) {
+        throw new AppError('ai_knowledge must be 8000 characters or less', 400, 'validation_failed');
+      }
+      await pool.query(
+        `UPDATE businesses SET ai_knowledge = $1, updated_at = NOW() WHERE id = $2`,
+        [s.trim() || null, id]
+      );
+      invalidateHelperContext(ownerId, Number(id)).catch(() => {});
+    }
 
     // Update profile_headline / service_radius_miles on the OWNER's helper_profiles
     // row (keyed by ownerId, not the requester - a manager editing profile must not
@@ -843,7 +857,8 @@ async function getBusinessProfileForEditor(req, res) {
          b.cover_photo_url,
          hp.profile_headline,
          hp.service_radius_miles,
-         hp.bio_short
+         hp.bio_short,
+         b.ai_knowledge
        FROM businesses b
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
        WHERE b.id = $1`,

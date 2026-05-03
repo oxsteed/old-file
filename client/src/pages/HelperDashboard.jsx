@@ -12,6 +12,7 @@ import PageShell from '../components/PageShell';
 import TrialBanner from '../components/TrialBanner';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
+import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import { useSocket } from '../hooks/useSocket';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
@@ -91,6 +92,15 @@ export default function HelperDashboard() {
       setSearchParams({},{replace:true});
     }
   },[]);
+
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') || 'pulse';
+    if (urlTab === tab) return;
+    const n = new URLSearchParams(searchParams);
+    if (tab === 'pulse') n.delete('tab');
+    else n.set('tab', tab);
+    setSearchParams(n, { replace: true });
+  }, [tab, searchParams, setSearchParams]);
 
   // Detect "selected Pro during registration but hasn't paid yet"
   const selectedProNoPay = !subscription?.status && user?.effective_tier==='pro' && !!user?.tier_selected;
@@ -993,6 +1003,7 @@ export default function HelperDashboard() {
 
   const tabs = [
     { id: 'editprofile', label: t('helperDashboard.tabs.editProfile') },
+    { id: 'aiKnowledge', label: t('helperDashboard.tabs.aiKnowledge') },
     { id: 'earnings', label: t('helperDashboard.tabs.earnings') },
     { id: 'jobs', label: t('helperDashboard.tabs.findJobs') },
     { id: 'money', label: t('dashboard.tabs.money') },
@@ -1247,6 +1258,12 @@ export default function HelperDashboard() {
 
         {/* ═══════ EDIT PROFILE ═══════ */}
         {tab==='editprofile'&&<EditProfileTab />}
+
+        {tab==='aiKnowledge'&& user?.id && (
+          <div className="max-w-4xl">
+            <AIKnowledgeTab profileType="helper" profileId={user.id} />
+          </div>
+        )}
 
         {/* ═══════ EARNINGS ═══════ */}
         {tab==='earnings'&&(<>

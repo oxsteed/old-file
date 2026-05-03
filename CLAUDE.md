@@ -16,9 +16,9 @@
 **OxSteed** is a full-stack local trades marketplace built with React 18 + Node.js + PostgreSQL.
 
 **Codebase metrics:**
-- 257 React components / pages (added CheckoutPage, OrderHistoryPage, OrderDetailsPage, SupportWidget, WidgetPanel, TicketCreationModal, TicketHistory, LiveChat, ABTestingPage, TemplatePicker, TemplateManagement, 30 profile template components)
-- 112 backend controllers (added 7 new: cartCheckout, orders, adminOrders, adminProducts, apiProducts, affiliatePayouts, ABTest; + templateController)
-- 164 database migrations (includes 157 business team / Vortex schema alignment; support_employers, profile_templates, etc.)
+- 259+ React components / pages (includes `AIKnowledgeTab`, `AIPreviewPage` for profile AI)
+- 112 backend controllers
+- 165 database migrations (includes `166_ai_profile_expansion.sql` — `ai_knowledge`, appointments `source`/`ai_thread_id`/guest fields, internal placeholder user)
 - 82 Jest tests (some failing due to test environment constraints)
 
 **Error Handling Implementation (2026-04-30):**
@@ -61,6 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
+- **Profile AI expansion:** **Migration 166** (`server/migrations/166_ai_profile_expansion.sql`): `ai_knowledge` on `helper_profiles` + `businesses` (≤8000 chars); `appointments.source` (`user`|`ai_chat`), `ai_thread_id`, `guest_*`; unique partial index on `(helper_id, ai_thread_id)` for AI rows; internal UUID `00000000-0000-4000-8000-000000000001` placeholder customer for guest AI bookings. **`helperContext.js`**: Redis cache `v3`; `rawContext` + expanded `systemPrompt` (skills, FAQs, helper_products, availability summary, owner knowledge; business merges biz + owner helper `ai_knowledge`). **`chatController`**: strips ```action``` from user-visible reply; optional `booking_request` → appointment + notification + socket; **`GET /api/chat/profile-context/:type/:id`**. **API:** `PUT /api/helper-profile/core` accepts `ai_knowledge`; `PUT /api/businesses/:id` + `GET .../profile-edit` include `ai_knowledge`. **UI:** `AIKnowledgeTab.jsx`, `AIPreviewPage.jsx`, routes `/dashboard/ai-preview` + `/business/:id/ai-preview`; helper dashboard tab `aiKnowledge`; Business Hub tab `ai` + `?tab=` / `?biz=` URL sync; i18n `aiKnowledge.*` / `aiPreview.*`. Support KB remains separate from profile AI.
 - **Transactional admin emails (2026-05-03):** `notificationService` transactional types + `superAdminController` `notifyUserAccountEvent` (see prior commit). **Settings UI:** `/settings/notifications` (`Notifications.jsx`) and embedded `NotificationPreferences.jsx` show an **account/security email notice** (`notifications.securityNoticeTitle` / `securityNoticeBody`) in EN/ES/FR/HT.
 
 **Latest work completed (2026-05-02):**

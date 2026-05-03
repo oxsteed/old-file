@@ -71,6 +71,7 @@ import ConsultingPortalPage from './pages/ConsultingPortalPage';
 import ConsultantAvailabilityPage from './pages/ConsultantAvailabilityPage';
 import InvoicesPage from './pages/InvoicesPage';
 import CalendarPage from './pages/CalendarPage';
+import AIPreviewPage from './pages/AIPreviewPage';
 import ProductMarketplacePage from './pages/ProductMarketplacePage';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 import SharedCartPage from './pages/SharedCartPage';
@@ -185,6 +186,8 @@ export default function App() {
                     <Route path="/helper-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><SmartDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/upgrade"        element={<Guarded><ProtectedRoute><UpgradePage /></ProtectedRoute></Guarded>} />
                     <Route path="/templates"      element={<Guarded><ProtectedRoute><TemplatePicker /></ProtectedRoute></Guarded>} />
+                    <Route path="/dashboard/ai-preview" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AIPreviewPage profileType="helper" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/business/:id/ai-preview" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AIPreviewPage profileType="business" /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Critical: Job posting form with media upload */}
                     <Route path="/post-job"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><PostJobPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

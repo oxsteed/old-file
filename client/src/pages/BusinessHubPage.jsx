@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
@@ -9,6 +9,7 @@ import BusinessSkillsSelector from '../components/BusinessSkillsSelector';
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
 import PostalCodeInput from '../components/PostalCodeInput';
+import AIKnowledgeTab from '../components/AIKnowledgeTab';
 import {
   listBusinesses, createBusiness, updateBusiness, uploadBusinessPhotos,
   getAnalytics,
@@ -90,8 +91,9 @@ function BusinessHubInner() {
     || (user?.country ? getDefaultCurrency(user.country) : null)
     || 'USD';
   const [businesses, setBusinesses]   = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [bizId, setBizId]             = useState(() => localStorage.getItem(LS_KEY) || '');
-  const [tab, setTab]                 = useState('overview');
+  const [tab, setTab]                 = useState(() => searchParams.get('tab') || 'overview');
   const [loadingBiz, setLoadingBiz]   = useState(true);
 
   // modal state
@@ -190,6 +192,24 @@ function BusinessHubInner() {
   }, [t]);
 
   useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
+
+  useEffect(() => {
+    const b = searchParams.get('biz');
+    if (!b || !businesses.length) return;
+    if (!businesses.some(x => String(x.id) === String(b))) return;
+    if (String(bizId) === String(b)) return;
+    setBizId(String(b));
+    localStorage.setItem(LS_KEY, String(b));
+  }, [searchParams, businesses, bizId]);
+
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') || 'overview';
+    if (urlTab === tab) return;
+    const n = new URLSearchParams(searchParams);
+    if (tab === 'overview') n.delete('tab');
+    else n.set('tab', tab);
+    setSearchParams(n, { replace: true });
+  }, [tab, searchParams, setSearchParams]);
 
   // ── load tab data when bizId or tab changes ──────────────────────────────
   const loadOverview = useCallback(async () => {
@@ -405,6 +425,7 @@ function BusinessHubInner() {
     else if (tab === 'faqs') loadFAQs();
     else if (tab === 'hours') loadHours();
     else if (tab === 'skills') loadSkills();
+    else if (tab === 'ai') { /* AI tab loads its own data */ }
     else if (tab === 'overview') loadOverview();
     else if (tab === 'invoices') loadInvoices();
     else if (tab === 'tax') loadTax();
@@ -796,7 +817,7 @@ function BusinessHubInner() {
   const canEditBizProfile = currentRole === 'owner' || currentRole === 'manager';
   const canViewFinanceHub = currentRole !== 'representative';
   const financeTabIds = ['overview', 'invoices', 'tax', 'goals'];
-  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours', 'skills'];
+  const contentTabIds = ['services', 'gallery', 'policies', 'faqs', 'hours', 'skills', 'ai'];
   const visibleTabs = ['profile', ...contentTabIds, ...financeTabIds, 'team'].filter((tb) => {
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (contentTabIds.includes(tb) && !canEditBizProfile) return false;
@@ -806,6 +827,9 @@ function BusinessHubInner() {
 
   useEffect(() => {
     if ((tab === 'profile' || contentTabIds.includes(tab)) && !canEditBizProfile) {
+      setTab(canViewFinanceHub ? 'overview' : 'team');
+    }
+    if (tab === 'ai' && !canEditBizProfile) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
     }
     if (financeTabIds.includes(tab) && !canViewFinanceHub) {
@@ -827,6 +851,7 @@ function BusinessHubInner() {
     if (tb === 'invoices') return t('businessHub.tabInvoicesLabel');
     if (tb === 'tax') return t('businessHub.tabTaxLabel');
     if (tb === 'goals') return t('businessHub.tabGoalsLabel');
+    if (tb === 'ai') return t('businessHub.tabAILabel');
     return tb;
   };
 
@@ -1004,6 +1029,10 @@ function BusinessHubInner() {
                 businessId={bizId}
                 onSkillsChange={(updatedSkills) => setSkills(updatedSkills)}
               />
+            )}
+
+            {tab === 'ai' && canEditBizProfile && bizId && (
+              <AIKnowledgeTab profileType="business" profileId={bizId} />
             )}
 
             {/* ── Overview tab ────────────────────────────────────── */}
