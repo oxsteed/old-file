@@ -4,7 +4,6 @@ import { DollarSign, ChevronDown, ChevronUp, AlertCircle, Lock, CheckCircle } fr
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 
-const SECTION_IDS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 export default function EscrowPolicyPage() {
   const { t } = useTranslation();
