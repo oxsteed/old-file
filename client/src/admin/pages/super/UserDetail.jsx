@@ -283,7 +283,24 @@ export default function UserDetail() {
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
-  const flash = (type, text) => { setMessage({ type, text }); setTimeout(() => setMessage(null), 5000); };
+  // flash() accepts either a plain string or { title, detail, items[] }
+  const flash = (type, content) => {
+    const msg = typeof content === 'string' ? { title: content } : content;
+    setMessage({ type, ...msg });
+    setTimeout(() => setMessage(null), 8000);
+  };
+
+  // Extract a rich error object from an Axios error response
+  const parseApiError = (err, fallback = 'Action failed.') => {
+    const data = err?.response?.data;
+    if (!data) return { title: err?.message || fallback };
+    const title = data.error || fallback;
+    const detail = data.detail || null;
+    const items = data.activeJobs?.map(j => `${j.title} (${j.status})`)
+      || data.fields
+      || null;
+    return { title, detail, items };
+  };
 
   const doAction = async (endpoint, payload = {}, label = '') => {
     if (!window.confirm(`Confirm: ${label}?`)) return;
@@ -291,7 +308,7 @@ export default function UserDetail() {
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/${endpoint}`, payload);
       flash('success', res.message); fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || 'Action failed.'); }
+    } catch (err) { flash('error', parseApiError(err, `${label || 'Action'} failed.`)); }
     finally { setWorking(false); }
   };
 
@@ -307,7 +324,7 @@ export default function UserDetail() {
       const url = `${window.location.origin}/impersonate?token=${encodeURIComponent(res.impersonationToken)}`;
       window.open(url, '_blank', 'noopener');
     } catch (err) {
-      flash('error', err.response?.data?.error || 'Failed to create impersonation session.');
+      flash('error', parseApiError(err, 'Failed to create impersonation session.'));
     } finally { setImpersonating(false); }
   };
 
@@ -318,7 +335,7 @@ export default function UserDetail() {
     try {
       const { data: res } = await adminApi.put(`/admin/users/${userId}/name`, nameForm);
       flash('success', res.message); setShowNameEdit(false); fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || 'Name update failed.'); }
+    } catch (err) { flash('error', parseApiError(err, 'Name update failed.')); }
     finally { setNameSaving(false); }
   };
 
@@ -329,7 +346,7 @@ export default function UserDetail() {
     try {
       const { data: res } = await adminApi.put(`/admin/users/${userId}/profile`, profileForm);
       flash('success', res.message || 'Profile updated.'); setShowProfileEdit(false); fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || 'Profile update failed.'); }
+    } catch (err) { flash('error', parseApiError(err, 'Profile update failed.')); }
     finally { setProfileSaving(false); }
   };
 
@@ -341,7 +358,7 @@ export default function UserDetail() {
     try {
       const { data: res } = await adminApi.put(`/admin/users/${userId}/role`, { role });
       flash('success', res.message); fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || 'Role change failed.'); }
+    } catch (err) { flash('error', parseApiError(err, 'Role change failed.')); }
     finally { setWorking(false); }
   };
 
@@ -357,7 +374,7 @@ export default function UserDetail() {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/${statusModal.action}`, payload);
       flash('success', res.message);
       setStatusModal(null); setStatusReason(''); setSuspendDays(7); fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || 'Action failed.'); }
+    } catch (err) { flash('error', parseApiError(err, `${statusModal?.action || 'Action'} failed.`)); }
     finally { setStatusSaving(false); }
   };
 
@@ -371,7 +388,7 @@ export default function UserDetail() {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/notes`, { note_text: newNote.trim() });
       setNotes(prev => [{ ...res.note, author_name: `${me?.first_name ?? ''} ${me?.last_name ?? ''}`.trim(), author_email: me?.email, author_role: me?.role }, ...prev]);
       setNewNote('');
-    } catch (err) { flash('error', err.response?.data?.error || 'Failed to add note.'); }
+    } catch (err) { flash('error', parseApiError(err, 'Failed to add note.')); }
     finally { setNoteSaving(false); }
   };
 
@@ -382,7 +399,7 @@ export default function UserDetail() {
       await adminApi.put(`/admin/users/${userId}/notes/${editNote.id}`, { note_text: editNote.text });
       setNotes(prev => prev.map(n => n.id === editNote.id ? { ...n, note_text: editNote.text } : n));
       setEditNote(null);
-    } catch (err) { flash('error', err.response?.data?.error || 'Failed to update note.'); }
+    } catch (err) { flash('error', parseApiError(err, 'Failed to update note.')); }
   };
 
   const deleteNote = async (noteId) => {
@@ -390,7 +407,7 @@ export default function UserDetail() {
     try {
       await adminApi.delete(`/admin/users/${userId}/notes/${noteId}`);
       setNotes(prev => prev.filter(n => n.id !== noteId));
-    } catch (err) { flash('error', err.response?.data?.error || 'Failed to delete note.'); }
+    } catch (err) { flash('error', parseApiError(err, 'Failed to delete note.')); }
   };
 
   // ── didit ─────────────────────────────────────────────────────────────────
@@ -401,7 +418,7 @@ export default function UserDetail() {
     try {
       await adminApi.put(`/admin/users/${userId}/didit-enforcement`, { required });
       flash('success', t('admin.diditEnforcementUpdated')); fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || t('admin.diditEnforcementFailed')); }
+    } catch (err) { flash('error', parseApiError(err, t('admin.diditEnforcementFailed'))); }
     finally { setDiditSaving(false); }
   };
 
@@ -417,7 +434,7 @@ export default function UserDetail() {
       });
       flash('success', res.message || `${credentialModal.type} removed successfully`);
       setCredentialModal(null); setCredentialReason(''); setCredentialNotes(''); fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || 'Failed to remove credential.'); }
+    } catch (err) { flash('error', parseApiError(err, 'Failed to remove credential.')); }
     finally { setCredentialSaving(false); }
   };
 
@@ -463,15 +480,14 @@ export default function UserDetail() {
         data: { reason: reason.trim() },
       });
       flash('success', res.message);
-      // Refresh the page data to show the deletion status banner
       fetchUser();
     } catch (err) {
       const serverErr = err.response?.data;
-      // Show active jobs warning with force option
       if (serverErr?.canForce && serverErr?.activeJobs) {
+        // Active jobs — ask admin to force-override
         const jobList = serverErr.activeJobs.map(j => `• ${j.title} (${j.status})`).join('\n');
         const forceIt = window.confirm(
-          `This user has ${serverErr.activeJobs.length} active job(s):\n${jobList}\n\nForce deletion anyway? Their counterparties will lose these job records.`
+          `This user has ${serverErr.activeJobs.length} active job(s):\n${jobList}\n\nForce deletion anyway? Their counterparties will lose access to these job records.`
         );
         if (forceIt) {
           try {
@@ -480,10 +496,28 @@ export default function UserDetail() {
             });
             flash('success', res2.message);
             fetchUser();
-          } catch (e2) { flash('error', e2.response?.data?.error || 'Forced deletion failed.'); }
+          } catch (e2) {
+            flash('error', parseApiError(e2, 'Forced deletion failed.'));
+          }
+        }
+      } else if (serverErr?.canForce && serverErr?.pendingPaymentCount) {
+        // Pending payments — same force pattern
+        const forceIt = window.confirm(
+          `This user has ${serverErr.pendingPaymentCount} pending payment(s).\n\nForce deletion anyway? Pending funds may become unrecoverable.`
+        );
+        if (forceIt) {
+          try {
+            const { data: res2 } = await adminApi.delete(`/admin/users/${userId}`, {
+              data: { reason: reason.trim(), force: true },
+            });
+            flash('success', res2.message);
+            fetchUser();
+          } catch (e2) {
+            flash('error', parseApiError(e2, 'Forced deletion failed.'));
+          }
         }
       } else {
-        flash('error', serverErr?.error || 'Failed to schedule deletion.');
+        flash('error', parseApiError(err, 'Failed to schedule deletion.'));
       }
     }
     setWorking(false);
@@ -493,13 +527,15 @@ export default function UserDetail() {
     const user = data?.user;
     if (!user) return;
     const reason = window.prompt(`Reason for restoring ${user.email}:`, '') ?? '';
-    if (!reason.trim()) { flash('error', 'A reason is required to restore an account.'); return; }
+    if (!reason.trim()) { flash('error', { title: 'A reason is required to restore an account.' }); return; }
     setWorking(true);
     try {
       const { data: res } = await adminApi.post(`/admin/users/${userId}/restore`, { reason: reason.trim() });
       flash('success', res.message);
       fetchUser();
-    } catch (err) { flash('error', err.response?.data?.error || 'Failed to restore account.'); }
+    } catch (err) {
+      flash('error', parseApiError(err, 'Failed to restore account.'));
+    }
     finally { setWorking(false); }
   };
 
@@ -923,7 +959,20 @@ export default function UserDetail() {
             ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
             : 'bg-red-500/10 border border-red-500/30 text-red-300'
         }`}>
-          {message.text}
+          <p className="font-semibold">{message.title || message.text}</p>
+          {message.detail && (
+            <p className="mt-1 opacity-80 text-xs">{message.detail}</p>
+          )}
+          {message.items?.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5 text-xs opacity-80">
+              {message.items.map((item, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-0.5 shrink-0">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
