@@ -400,11 +400,20 @@ export default function UsersList() {
     });
   };
 
-  // Toggle ban (single user)
+  // Toggle ban (single user) — backend clears admin scheduled deletion when unbanning
   const handleToggleBan = async (user) => {
     try {
       await adminApi.post(`/admin/users/${user.id}/ban`);
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_active: !u.is_active } : u));
+      setUsers((prev) => prev.map((u) => (u.id === user.id
+        ? {
+          ...u,
+          is_active: !u.is_active,
+          deleted_at: u.is_active ? u.deleted_at : null,
+          deletion_scheduled_at: u.is_active ? u.deletion_scheduled_at : null,
+          deletion_type: u.is_active ? u.deletion_type : null,
+          deletion_reason: u.is_active ? u.deletion_reason : null,
+        }
+        : u)));
       showToast(`${user.first_name} ${user.is_active ? 'suspended' : 'reactivated'}.`);
     } catch (err) {
       showToast(err.response?.data?.error || 'Action failed.', 'error');

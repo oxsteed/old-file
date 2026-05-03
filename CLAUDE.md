@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **User deletion (2026-05-03):** `server/utils/schemaProbe.js` — `tableExists` / `columnExists` / `userIdEq`, plus **`ACTIVE_JOB_STATUS_SQL_IN`** from `server/constants/activeJobStatuses.js` (single list: `ACTIVE_DELETION_GUARD_JOB_STATUSES` + `activeJobStatusSqlIn()`). Valid `job_status` enum literals only for delete guards; removed invalid `'open'` / `'escrow_held'` / `'pending_completion'`. **`npm run test:active-job-statuses`** (Jest) asserts list ⊆ canonical enum from migration 001; **`npm run verify:active-job-statuses`** queries `pg_enum` for `public.job_status` when `DATABASE_URL` is set. CI runs Jest always; runs verify when **`CI_DATABASE_URL`** secret is set (see `.github/workflows/ci.yml`).
+- **User deletion (2026-05-03):** `server/utils/schemaProbe.js` — `tableExists` / `columnExists` / `userIdEq`, **`ACTIVE_JOB_STATUS_SQL_IN`** from `server/constants/activeJobStatuses.js`; Jest + optional `verify:active-job-statuses` (`pg_enum`); CI when **`CI_DATABASE_URL`** is set. **`reactivateUser` / `toggleUserBan` (unban):** `clearAdminScheduledDeletionIfPresent` clears `deleted_at`, `deletion_scheduled_at`, `deletion_type`, optional `deletion_reason` / `deletion_admin_id` when **`deletion_type = 'admin'`** so list **Reactivate** clears **Pending deletion**; `UsersList.jsx` optimistic update clears those fields on reactivate.
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS
