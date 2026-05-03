@@ -4,7 +4,6 @@ import { Shield, ChevronDown, ChevronUp, AlertCircle, CheckCircle, Clock } from 
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
 
-const SECTION_IDS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 
 export default function BackgroundCheckPage() {
   const { t } = useTranslation();
