@@ -105,8 +105,16 @@ exports.getThread = async (req, res) => {
 
     // Verify target user
     const { rows: targetRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
-      [userId]
+      `SELECT id, first_name, last_name, email, role FROM users
+       WHERE id::text = $1
+         AND (
+           deleted_at IS NULL
+           OR (
+             deletion_scheduled_at IS NOT NULL
+             AND (deletion_type IS DISTINCT FROM 'self')
+           )
+         )`,
+      [String(userId)]
     );
     if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
 
@@ -185,8 +193,16 @@ exports.send = async (req, res) => {
 
     // Verify target user
     const { rows: targetRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
-      [userId]
+      `SELECT id, first_name, last_name, email, role FROM users
+       WHERE id::text = $1
+         AND (
+           deleted_at IS NULL
+           OR (
+             deletion_scheduled_at IS NOT NULL
+             AND (deletion_type IS DISTINCT FROM 'self')
+           )
+         )`,
+      [String(userId)]
     );
     if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin', 'super_admin'].includes(targetRows[0].role)) {

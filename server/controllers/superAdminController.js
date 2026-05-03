@@ -733,11 +733,18 @@ exports.toggleUserBan = async (req, res) => {
     const { userId } = req.params;
     const { reason } = req.body;
     const adminId = req.user.id;
-    const { rows: before } = await db.query('SELECT is_active, role FROM users WHERE id = $1', [userId]);
+    const { rows: before } = await db.query(
+      `SELECT is_active, role FROM users WHERE id::text = $1`,
+      [String(userId)],
+    );
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
     if (['admin','super_admin'].includes(before[0].role)) return res.status(403).json({ error: 'Cannot ban admin accounts.' });
     const newStatus = !before[0].is_active;
-    const { rows: updateRows } = await db.query('UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 AND is_active = $3 RETURNING id', [newStatus, userId, before[0].is_active]);
+    const { rows: updateRows } = await db.query(
+      `UPDATE users SET is_active = $1, updated_at = NOW()
+       WHERE id::text = $3 AND is_active = $2 RETURNING id`,
+      [newStatus, before[0].is_active, String(userId)],
+    );
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User status changed during ban operation - concurrent modification detected.' });
     }
@@ -1696,8 +1703,8 @@ exports.restoreUser = async (req, res) => {
     if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
     const user = userRows[0];
 
-    // Can only restore admin-type deletions
-    if (user.deletion_type !== 'admin') {
+    // Can only restore admin-scheduled deletions (explicit 'admin' or NULL legacy rows — never self-delete)
+    if (user.deletion_type === 'self') {
       return res.status(409).json({
         error: 'This account was self-deleted by the user. Admin restoration is not permitted for self-deletes. If you believe this account should be reopened, contact the legal team.',
       });
@@ -1761,6 +1768,56 @@ exports.restoreUser = async (req, res) => {
       detail = err.message;
     }
     res.status(500).json({ error: userMessage, detail, code: pgCode || null });
+  }
+};
+
+/**
+ * POST /admin/users/:userId/cancel-pending-deletion
+ * Clears admin-scheduled deletion markers without requiring the 30-day restore flow.
+ * Use when the user list shows "Pending deletion" but ban/reactivate did not apply (e.g. id type mismatch before fix).
+ */
+exports.cancelPendingDeletion = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const adminId = req.user.id;
+    const { rows } = await db.query(
+      `SELECT id, email, first_name, role, deletion_scheduled_at, deletion_type
+       FROM users WHERE id::text = $1`,
+      [String(userId)],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    if (['admin', 'super_admin'].includes(rows[0].role)) {
+      return res.status(403).json({ error: 'Cannot modify admin accounts.' });
+    }
+    if (!rows[0].deletion_scheduled_at) {
+      return res.status(409).json({ error: 'This account has no pending scheduled deletion.' });
+    }
+    if (rows[0].deletion_type === 'self') {
+      return res.status(409).json({
+        error: 'Cannot cancel a self-service deletion from this endpoint.',
+      });
+    }
+    await clearAdminScheduledDeletionIfPresent(userId);
+    await db.query(
+      `UPDATE users SET is_active = TRUE, updated_at = NOW() WHERE id::text = $1`,
+      [String(userId)],
+    );
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'user_pending_deletion_cancelled',
+        targetType: 'user',
+        targetId: userId,
+        description: `Cancelled scheduled deletion for ${rows[0].email}`,
+        before: { deletion_scheduled_at: rows[0].deletion_scheduled_at },
+        after: { deletion_scheduled_at: null, deleted_at: null },
+        req,
+      });
+    } catch { /* non-fatal */ }
+    res.json({ message: `Pending deletion cleared for ${rows[0].email}.` });
+  } catch (err) {
+    logger.error('cancelPendingDeletion error', { err });
+    res.status(500).json({ error: 'Failed to cancel pending deletion.' });
   }
 };
 
@@ -1938,15 +1995,22 @@ exports.sendAdminMessage = async (req, res) => {
       return res.status(400).json({ error: 'Message must be 4000 characters or fewer.' });
     }
 
-    // Verify target user exists and is not an admin
+    // Verify target user exists and is not an admin (allow messaging during admin-scheduled
+    // deletion when deleted_at is set but the account is not a self-delete)
     const { rows: targetRows } = await db.query(
-      `SELECT id, first_name, last_name, email, role FROM users WHERE id = $1 AND deleted_at IS NULL`,
-      [userId]
+      `SELECT id, first_name, last_name, email, role FROM users
+       WHERE id::text = $1
+         AND role NOT IN ('admin', 'super_admin')
+         AND (
+           deleted_at IS NULL
+           OR (
+             deletion_scheduled_at IS NOT NULL
+             AND (deletion_type IS DISTINCT FROM 'self')
+           )
+         )`,
+      [String(userId)]
     );
     if (!targetRows.length) return res.status(404).json({ error: 'User not found.' });
-    if (['admin', 'super_admin'].includes(targetRows[0].role)) {
-      return res.status(400).json({ error: 'Cannot send messages to admin accounts.' });
-    }
 
     const adminId  = req.user.id;
     const targetId = userId;

@@ -90,6 +90,7 @@ router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboar
 router.post('/users/:userId/verify', requireSuperAdmin, superCtrl.verifyUser);
 router.put('/users/:userId/role',    requireSuperAdmin, superCtrl.updateUserRole);
 router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
+router.post('/users/:userId/cancel-pending-deletion', requireSuperAdmin, superCtrl.cancelPendingDeletion);
 router.post('/users/:userId/restore', requireSuperAdmin, superCtrl.restoreUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
 router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);

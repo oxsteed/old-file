@@ -61,7 +61,7 @@
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
 **Latest work completed (2026-05-03):**
-- **User deletion (2026-05-03):** `schemaProbe` + `activeJobStatuses` + CI verify; **`clearAdminScheduledDeletionIfPresent`** on unban/reactivate clears `deleted_at` and scheduled-deletion columns when **`deletion_scheduled_at IS NOT NULL`** and **`deletion_type IS DISTINCT FROM 'self'`** (fixes rows with NULL `deletion_type`). **`UsersList`** refetches after reactivate. **`restoreUser`** unchanged for explicit restore within the 30-day window.
+- **Admin users list (2026-05-03):** `POST /admin/users/:userId/cancel-pending-deletion` (super-admin) clears scheduled admin deletion when list still shows pending; **`restoreUser`** allows NULL `deletion_type` (only blocks `self`). **`toggleUserBan`** uses `id::text` match for BIGINT ids. Admin messaging (`sendAdminMessage`, `adminMessageController`) allows targets with `deleted_at` set when pending admin deletion (not self-delete).
 
 **Latest work completed (2026-05-02):**
 - **Admin Job Detail Page Bug Investigation & Fix** 🔍 IN PROGRESS
