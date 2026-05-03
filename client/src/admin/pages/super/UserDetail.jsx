@@ -437,19 +437,69 @@ export default function UserDetail() {
     finally { setPwSaving(false); }
   };
 
-  // ── delete ────────────────────────────────────────────────────────────────
+  // ── delete (now soft-delete with 30-day window) ───────────────────────────
 
   const deleteUserAccount = async () => {
-    if (!window.confirm(t('admin.deleteUserConfirm'))) return;
-    const typed = window.prompt(t('admin.deleteUserTypeEmail'), '');
+    const user = data?.user;
+    if (!user) return;
+    // Step 1: confirm intent
+    if (!window.confirm(
+      `Schedule deletion for ${user.email}?\n\nThe account will be locked immediately. Data will be permanently removed after 30 days. You can restore the account within that window.`
+    )) return;
+    // Step 2: type the email to confirm identity
+    const typed = window.prompt('Type the user\'s email address to confirm:', '');
     if (typed === null) return;
-    if (typed.trim().toLowerCase() !== (data?.user?.email ?? '').toLowerCase()) { flash('error', t('admin.deleteUserEmailMismatch')); return; }
-    const reason = window.prompt(t('admin.deleteUserReasonPrompt'), '') ?? '';
+    if (typed.trim().toLowerCase() !== (user.email ?? '').toLowerCase()) {
+      flash('error', 'Email address did not match. Deletion cancelled.');
+      return;
+    }
+    // Step 3: reason
+    const reason = window.prompt('Reason for deletion (required):', '') ?? '';
+    if (!reason.trim()) { flash('error', 'A reason is required.'); return; }
+
     setWorking(true);
     try {
-      const { data: res } = await adminApi.delete(`/admin/users/${userId}`, { data: { reason: reason.trim() || undefined } });
-      flash('success', res.message); navigate('/admin/users');
-    } catch (err) { flash('error', err.response?.data?.error || t('admin.deleteUserFailed')); }
+      const { data: res } = await adminApi.delete(`/admin/users/${userId}`, {
+        data: { reason: reason.trim() },
+      });
+      flash('success', res.message);
+      // Refresh the page data to show the deletion status banner
+      fetchUser();
+    } catch (err) {
+      const serverErr = err.response?.data;
+      // Show active jobs warning with force option
+      if (serverErr?.canForce && serverErr?.activeJobs) {
+        const jobList = serverErr.activeJobs.map(j => `• ${j.title} (${j.status})`).join('\n');
+        const forceIt = window.confirm(
+          `This user has ${serverErr.activeJobs.length} active job(s):\n${jobList}\n\nForce deletion anyway? Their counterparties will lose these job records.`
+        );
+        if (forceIt) {
+          try {
+            const { data: res2 } = await adminApi.delete(`/admin/users/${userId}`, {
+              data: { reason: reason.trim(), force: true },
+            });
+            flash('success', res2.message);
+            fetchUser();
+          } catch (e2) { flash('error', e2.response?.data?.error || 'Forced deletion failed.'); }
+        }
+      } else {
+        flash('error', serverErr?.error || 'Failed to schedule deletion.');
+      }
+    }
+    setWorking(false);
+  };
+
+  const restoreUserAccount = async () => {
+    const user = data?.user;
+    if (!user) return;
+    const reason = window.prompt(`Reason for restoring ${user.email}:`, '') ?? '';
+    if (!reason.trim()) { flash('error', 'A reason is required to restore an account.'); return; }
+    setWorking(true);
+    try {
+      const { data: res } = await adminApi.post(`/admin/users/${userId}/restore`, { reason: reason.trim() });
+      flash('success', res.message);
+      fetchUser();
+    } catch (err) { flash('error', err.response?.data?.error || 'Failed to restore account.'); }
     finally { setWorking(false); }
   };
 
@@ -738,14 +788,23 @@ export default function UserDetail() {
                   danger={user.is_active}
                 />
 
-                {/* Delete */}
+                {/* Delete / Restore */}
                 {!['admin', 'super_admin'].includes(user.role) && me?.id !== user.id && (
-                  <DropdownItem
-                    icon={Trash2}
-                    label={t('admin.deleteUserButton')}
-                    onClick={deleteUserAccount}
-                    danger
-                  />
+                  user.deletion_scheduled_at && user.deletion_type === 'admin'
+                    ? (
+                      <DropdownItem
+                        icon={RotateCcw}
+                        label="Restore Account"
+                        onClick={restoreUserAccount}
+                      />
+                    ) : !user.deletion_scheduled_at && (
+                      <DropdownItem
+                        icon={Trash2}
+                        label="Schedule Deletion (30-day window)"
+                        onClick={deleteUserAccount}
+                        danger
+                      />
+                    )
                 )}
               </ActionsDropdown>
             )}
@@ -766,6 +825,64 @@ export default function UserDetail() {
             )}
           </div>
         </div>
+
+        {/* Deletion status banner */}
+        {user.deletion_scheduled_at && (
+          <div className="mt-5 pt-5 border-t border-gray-800">
+            {(() => {
+              const scheduledFor = new Date(user.deletion_scheduled_at);
+              const now = new Date();
+              const daysLeft = Math.max(0, Math.ceil((scheduledFor - now) / (1000 * 60 * 60 * 24)));
+              const expired = now >= scheduledFor;
+              return (
+                <div className={`rounded-xl border p-4 flex flex-wrap items-start gap-4 ${
+                  expired
+                    ? 'bg-red-500/10 border-red-500/30'
+                    : 'bg-orange-500/10 border-orange-500/30'
+                }`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className={`w-4 h-4 shrink-0 ${expired ? 'text-red-400' : 'text-orange-400'}`} />
+                      <span className={`text-sm font-semibold ${expired ? 'text-red-300' : 'text-orange-300'}`}>
+                        {expired ? 'Permanent deletion overdue' : `Scheduled for permanent deletion — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 ml-6">
+                      {expired
+                        ? `This account was scheduled for permanent deletion on ${formatDate(user.deletion_scheduled_at)}. The cleanup job has not yet run.`
+                        : `Account locked on ${formatDate(user.deleted_at)}. All data permanently removed on ${formatDate(user.deletion_scheduled_at)}.`
+                      }
+                    </p>
+                    {user.deletion_reason && (
+                      <p className="text-xs text-gray-500 mt-1 ml-6">Reason: {user.deletion_reason}</p>
+                    )}
+                    {user.deletion_type && (
+                      <p className="text-xs text-gray-500 mt-0.5 ml-6">
+                        Deletion type: <span className="capitalize">{user.deletion_type}</span>
+                        {user.was_banned_at_deletion && ' · User was banned at time of deletion'}
+                      </p>
+                    )}
+                  </div>
+                  {isSuper && !expired && user.deletion_type === 'admin' && (
+                    <button
+                      onClick={restoreUserAccount}
+                      disabled={working}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Restore Account
+                    </button>
+                  )}
+                  {user.deletion_type === 'self' && (
+                    <span className="shrink-0 text-xs text-gray-500 italic">
+                      Self-deleted — not restorable
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {/* ID Verification enforcement — status + toggle (not two competing buttons) */}
         {isAdmin && !['admin', 'super_admin'].includes(user.role) && (

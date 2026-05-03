@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
+const tokenRevocationService = require('../services/tokenRevocationService');
+const socketService = require('../services/socketService');
 /**
  * CCPA/CPRA Privacy Rights Routes
  * Provides data export, account deletion, and data portability
@@ -67,59 +70,157 @@ router.get('/export', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to export data. Please try again.' });
   }
 });
-// DELETE /api/privacy/delete-account - Request account deletion (CCPA right to delete)
-router.delete('/delete-account', authenticate, async (req, res) => {
+// DELETE /api/privacy/delete-account - CCPA right to delete (user self-initiated)
+//
+// Self-delete is a SOFT delete only. Key behaviors:
+// - Banned users cannot self-delete to escape their ban
+// - Active jobs or escrow holds block deletion
+// - Pending payouts block deletion until released
+// - Tokens are immediately revoked, WebSockets disconnected
+// - is_active set to false so existing JWTs stop working
+// - Email is freed but original_email_hash is stored to detect bad-faith re-registration
+// - was_banned_at_deletion is recorded so re-registration can be blocked
+// - Reviews and dispute history are intentionally retained (user cannot delete-to-escape)
+// - No 30-day recovery window for self-deletes (admin deletions have one)
+router.delete('/delete-account', strictLimiter, authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
     const { confirmation } = req.body;
+
     if (confirmation !== 'DELETE MY ACCOUNT') {
       return res.status(400).json({
         error: 'Please type "DELETE MY ACCOUNT" to confirm.',
       });
     }
-    // Check for active escrow/Tier 3 jobs
-    const activeJobs = await pool.query(
-      `SELECT id FROM jobs
-       WHERE (customer_id = $1 OR helper_id = $1)
-       AND status IN ('in_progress', 'escrow_held')`,
+
+    // Load full user state before proceeding
+    const { rows: userRows } = await pool.query(
+      `SELECT id, email, first_name, last_name, role, is_banned, is_active, deleted_at
+       FROM users WHERE id = $1`,
       [userId]
     );
-    if (activeJobs.rows.length > 0) {
-      return res.status(409).json({
-        error: 'Cannot delete account while you have active jobs or held escrow funds. Please resolve all active jobs first.',
-        activeJobIds: activeJobs.rows.map((j) => j.id),
+    if (!userRows.length) return res.status(404).json({ error: 'User not found.' });
+    const user = userRows[0];
+
+    if (user.deleted_at) {
+      return res.status(409).json({ error: 'This account has already been deleted.' });
+    }
+
+    // Banned users cannot self-delete to escape their ban record.
+    if (user.is_banned) {
+      return res.status(403).json({
+        error: 'Banned accounts cannot be self-deleted. Please contact support if you believe this ban was made in error.',
       });
     }
-    // Soft-delete: anonymize PII but keep records for legal/financial compliance
-    await pool.query(
-      `UPDATE users SET
-        name = 'Deleted User',
-        email = CONCAT('deleted_', id, '@oxsteed.removed'),
-        phone = NULL,
-        bio = NULL,
-        skills = NULL,
-        profile_photo_url = NULL,
-        city = NULL,
-        state = NULL,
-        zip_code = NULL,
-        password_hash = 'DELETED',
-        deleted_at = NOW(),
-        updated_at = NOW()
-       WHERE id = $1`,
+
+    // Block if account has already been scheduled for admin deletion
+    const { rows: pendingRows } = await pool.query(
+      `SELECT deletion_scheduled_at FROM users WHERE id = $1 AND deletion_scheduled_at IS NOT NULL`,
       [userId]
     );
-    // Log the deletion request for audit
-    await pool.query(
-      `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
-       VALUES ($1, 'account_deletion', '1.0', $2, $3)`,
-      [userId, req.ip, req.headers['user-agent'] || 'unknown']
+    if (pendingRows.length) {
+      return res.status(409).json({ error: 'This account is already scheduled for deletion by an administrator.' });
+    }
+
+    // Check for active jobs — use the correct column names (client_id / assigned_helper_id)
+    const { rows: activeJobRows } = await pool.query(
+      `SELECT id, title, status FROM jobs
+       WHERE (client_id = $1 OR assigned_helper_id = $1)
+         AND status IN ('open', 'accepted', 'in_progress', 'escrow_held', 'pending_completion')`,
+      [userId]
     );
+    if (activeJobRows.length > 0) {
+      return res.status(409).json({
+        error: 'Cannot delete your account while you have active or in-progress jobs. Please complete or cancel all active jobs first.',
+        activeJobs: activeJobRows.map(j => ({ id: j.id, title: j.title, status: j.status })),
+      });
+    }
+
+    // Check for pending outgoing payments (payer owes money)
+    const { rows: pendingPayments } = await pool.query(
+      `SELECT id FROM payments
+       WHERE payer_id = $1 AND status IN ('pending', 'authorized', 'processing')
+       LIMIT 5`,
+      [userId]
+    );
+    if (pendingPayments.length) {
+      return res.status(409).json({
+        error: 'Cannot delete your account while you have pending payments. Please resolve all outstanding payments first.',
+      });
+    }
+
+    // Check for pending payouts owed to this user (payee has uncollected funds)
+    const { rows: pendingPayouts } = await pool.query(
+      `SELECT id FROM payments
+       WHERE payee_id = $1 AND status IN ('pending', 'authorized', 'processing', 'captured')
+       LIMIT 5`,
+      [userId]
+    );
+    if (pendingPayouts.length) {
+      return res.status(409).json({
+        error: 'Cannot delete your account while you have pending earnings. Please allow all pending payouts to complete first.',
+      });
+    }
+
+    // Hash original email before anonymizing (one-way, for re-registration detection)
+    const originalEmailHash = crypto
+      .createHash('sha256')
+      .update(user.email.toLowerCase().trim())
+      .digest('hex');
+
+    // Immediately revoke all tokens and disconnect sockets so existing JWTs stop working
+    try { await tokenRevocationService.revokeAllUserTokens(userId); } catch { /* non-fatal */ }
+    try { await pool.query('UPDATE sessions SET is_valid = false WHERE user_id = $1', [userId]); } catch { /* non-fatal */ }
+    try { socketService.disconnectUserSockets(userId); } catch { /* non-fatal */ }
+
+    // Soft-delete: anonymize PII, set is_active=false, record deletion metadata
+    await pool.query(
+      `UPDATE users SET
+        first_name   = 'Deleted',
+        last_name    = 'User',
+        email        = CONCAT('deleted_', id::text, '@oxsteed.removed'),
+        phone        = NULL,
+        phone_number = NULL,
+        bio          = NULL,
+        profile_photo_url = NULL,
+        city         = NULL,
+        state        = NULL,
+        zip_code     = NULL,
+        address_line1 = NULL,
+        country      = NULL,
+        password_hash = 'DELETED',
+        totp_secret   = NULL,
+        totp_enabled  = FALSE,
+        backup_codes  = NULL,
+        is_active     = FALSE,
+        deleted_at    = NOW(),
+        deletion_type = 'self',
+        deletion_reason = 'User requested account deletion via Settings',
+        was_banned_at_deletion = $2,
+        original_email_hash = $3,
+        updated_at    = NOW()
+       WHERE id = $1`,
+      [userId, user.is_banned, originalEmailHash]
+    );
+
+    // Audit log
+    try {
+      await pool.query(
+        `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
+         VALUES ($1, 'account_deletion', '1.0', $2, $3)
+         ON CONFLICT DO NOTHING`,
+        [userId, req.ip, req.headers['user-agent'] || 'unknown']
+      );
+    } catch { /* non-fatal */ }
+
+    logger.info('User self-deleted account', { userId, emailHash: originalEmailHash });
+
     res.json({
-      message: 'Your account has been scheduled for deletion. Personal data has been anonymized. Some records may be retained for legal and financial compliance purposes as described in our Privacy Policy.',
+      message: 'Your account has been deleted. Your personal information has been anonymized. Transaction records, reviews, and dispute history are retained as required by our Privacy Policy and applicable law. If you have questions, contact support@oxsteed.com.',
     });
   } catch (err) {
     logger.error('Account deletion failed', { message: err.message, userId: req.user?.id });
-    res.status(500).json({ error: 'Failed to process deletion request.' });
+    res.status(500).json({ error: 'Failed to process deletion request. Please try again or contact support.' });
   }
 });
 // GET /api/privacy/data-categories - List categories of data collected (CCPA disclosure)
