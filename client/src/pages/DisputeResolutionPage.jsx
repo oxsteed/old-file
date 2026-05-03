@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import PageMeta from '../components/PageMeta';
-import Footer from '../components/Footer';
+import PageShell from '../components/PageShell';
 import toast from 'react-hot-toast';
 import '../styles/DisputeResolutionPage.css';
 
@@ -193,7 +193,7 @@ export default function DisputeResolutionPage() {
   ];
 
   return (
-    <>
+    <PageShell>
       <PageMeta
         title={t('disputeResolution.pageTitle')}
         description={t('disputeResolution.pageDescription')}
@@ -680,7 +680,6 @@ export default function DisputeResolutionPage() {
         </div>
       </div>
 
-      <Footer />
-    </>
+    </PageShell>
   );
 }
