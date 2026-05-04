@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
+import PageShell from '../components/PageShell';
 import HelperCalendarView from '../components/calendar/HelperCalendarView';
 import CustomerCalendarView from '../components/calendar/CustomerCalendarView';
 import '../styles/CalendarPage.css';
@@ -17,7 +18,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <>
+    <PageShell>
       <PageMeta
         title={t('calendar.pageTitle')}
         description={t('calendar.pageDescription')}
@@ -76,6 +77,6 @@ export default function CalendarPage() {
           />
         )}
       </div>
-    </>
+    </PageShell>
   );
 }
