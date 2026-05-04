@@ -155,7 +155,7 @@ export default function BidAcceptanceModal({
                         {helperPolicies?.custom_policy?.deposit_percent ?? 50}%
                       </p>
                       <p>
-                        <strong>{t('bidAcceptanceModal.minimumNotice') || 'Minimum Notice')}:</strong>{' '}
+                        <strong>{t('bidAcceptanceModal.minimumNotice') || 'Minimum Notice'}:</strong>{' '}
                         {helperPolicies?.custom_policy?.min_notice_hours ?? 48} {t('bidAcceptanceModal.hours') || 'hours'}
                       </p>
                     </div>
