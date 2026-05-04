@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import CancellationStats from '../components/CancellationStats';
 import {
   ProfileSkeleton,
   ProfileError,
@@ -325,6 +326,15 @@ const HelperBusinessProfilePage: React.FC = () => {
             <AvailabilityBlock helperId={id!} />
             <PricingBlock helperId={id!} />
             <SlotsBlock helperId={id!} />
+
+            {/* Helper reliability & job acceptance history */}
+            {id && (
+              <CancellationStats
+                userId={id}
+                type="helper"
+                showDetails={true}
+              />
+            )}
 
             <ReviewsSection
               reviews={reviews}

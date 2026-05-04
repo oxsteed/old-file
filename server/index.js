@@ -92,6 +92,7 @@ const consultantSchedulingRoutes = require('./routes/consultantScheduling');
 const consultingAnalyticsRoutes = require('./routes/consultingAnalytics');
 const consultingActionItemsRoutes = require('./routes/consultingActionItems');
 const calendarRoutes = require('./routes/calendar');
+const cancellationStatsRoutes = require('./routes/cancellationStats');
 const marketplaceProductsRoutes = require('./routes/marketplaceProducts');
 const shoppingCartsRoutes = require('./routes/shoppingCarts');
 const sharedCartsRoutes = require('./routes/sharedCarts');
@@ -458,6 +459,7 @@ const smsNotificationsRoutes = require('./routes/smsNotifications');
 const templateRoutes = require('./routes/templates');
 
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/cancellation-stats', cancellationStatsRoutes);
 app.use('/api/marketplace/products', marketplaceProductsRoutes);
 app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);

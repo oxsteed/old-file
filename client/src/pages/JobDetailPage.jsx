@@ -12,6 +12,7 @@ import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
 import ReviewModal from '../components/reviews/ReviewModal';
 import BidAcceptanceModal from '../components/calendar/BidAcceptanceModal';
+import CancellationStats from '../components/CancellationStats';
 import { useTranslation } from 'react-i18next';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -735,6 +736,15 @@ export default function JobDetailPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Customer reliability & cancellation history */}
+          {job.client_id && !isOwner && (
+            <CancellationStats
+              userId={job.client_id}
+              type="customer"
+              showDetails={false}
+            />
           )}
 
           {/* Assigned helper */}
