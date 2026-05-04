@@ -1201,8 +1201,8 @@ export default function HelperDashboard() {
             </div>
 
             {/* Quick actions */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400'},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'}].map((a,i)=>(
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400'},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'}].map((a,i)=>(
                 <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                   <div className="relative flex-shrink-0">
                     <a.Ic size={18} cls={a.c}/>
