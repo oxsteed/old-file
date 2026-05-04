@@ -41,7 +41,7 @@ export default function JobCancellationModal({
       // For customers, show moral acknowledgement first
       if (isCustomer && feeToPay > 0) {
         const confirmed = window.confirm(
-          `${t('cancellationModal.affectingHelper') || 'By cancelling, you're affecting'} ${counterpartyName}'s ${t('cancellationModal.abilityToEarn') || 'ability to earn'}. ` +
+          `${t('cancellationModal.affectingHelper') || 'By cancelling, you\'re affecting'} ${counterpartyName}'s ${t('cancellationModal.abilityToEarn') || 'ability to earn'}. ` +
           `${t('cancellationModal.theyBlockedTime') || 'They have blocked their time for your job'}. ` +
           `${t('cancellationModal.youWillBeCharged') || 'You will be charged'} $${(feeToPay / 100).toFixed(2)} ${t('cancellationModal.forThisCancellation') || 'for this cancellation'}.\n\n` +
           `${t('cancellationModal.doYouWantToProceed') || 'Do you want to proceed?'}`
