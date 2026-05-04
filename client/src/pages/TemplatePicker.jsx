@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import PageShell from '../components/PageShell';
 import PageMeta from '../components/PageMeta';
-import { TEMPLATE_REGISTRY } from '../components/profileTemplates/index';
+import { TEMPLATE_REGISTRY, ProfileTemplateRenderer } from '../components/profileTemplates/index';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const Ico = ({ children, size = 18, cls = 'text-gray-400' }) => (
@@ -73,6 +73,53 @@ const TEMPLATE_ACCENT = {
   legal_admin:          'from-gray-900 to-yellow-900',
 };
 
+// ── Sample data for live preview (no auth needed) ──────────────────────────
+const PREVIEW_SAMPLE_DATA = {
+  helper: {
+    id: 'preview',
+    businessName: 'Preview Services',
+    ownerName: 'Alex Morgan',
+    tagline: 'Quality work you can count on.',
+    bio: 'This is a sample profile so you can see exactly how this template looks before activating it. Your real name, bio, photos, and services will appear here once you activate.',
+    avatar: '',
+    coverImage: '',
+    rating: 4.9,
+    reviewCount: 127,
+    jobsCompleted: 340,
+    memberSince: '2022-01-15',
+    verified: true,
+    responseTime: '< 1 hour',
+    responseRate: 98,
+    badges: [
+      { id: 'b1', label: 'Top Rated', icon: 'star', variant: 'top_rated' },
+      { id: 'b2', label: 'Licensed', icon: 'shield', variant: 'verified' },
+    ],
+    categories: ['General'],
+    city: 'Chicago',
+    state: 'IL',
+    allowGuestContact: true,
+  },
+  services: [
+    { id: 's1', name: 'Standard Service', description: 'Example service to show how cards render in this template.', price: 85, priceUnit: 'hour', popular: true, category: 'General' },
+    { id: 's2', name: 'Premium Package', description: 'Second service row to show grid layout and spacing.', price: 220, priceUnit: 'flat', category: 'General' },
+  ],
+  gallery: [
+    { id: 'g1', url: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=600&q=60', alt: 'Sample work' },
+    { id: 'g2', url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=60', alt: 'Sample project' },
+  ],
+  reviews: [
+    { id: 'r1', authorName: 'Jamie K.', rating: 5, content: 'Excellent work and communication. Would hire again without hesitation.' },
+    { id: 'r2', authorName: 'Riley P.', rating: 5, content: 'Professional from start to finish. Highly recommend.' },
+  ],
+  faqs: [
+    { id: 'f1', question: 'Do you offer free estimates?', answer: 'Yes. Estimates are complimentary within our normal service area.' },
+    { id: 'f2', question: 'What areas do you serve?', answer: 'Metro area and nearby suburbs, typically within 25 miles.' },
+  ],
+  bizId: null,
+  phone: '(555) 010-0199',
+  website: 'https://example.com',
+};
+
 // ── Modal: Preview ──────────────────────────────────────────────────────────
 const PreviewModal = ({ template, slug, pricing, hasAccess, isActive, onClose, onActivate, onPurchase, activating, purchasing }) => {
   const { t } = useTranslation();
@@ -81,86 +128,96 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, isActive, onClose, o
   const price = pricing?.[slug];
   const monthly = price ? (price.monthly_price_cents / 100).toFixed(2) : '9.99';
   const lifetime = price ? (price.lifetime_price_cents / 100).toFixed(2) : '49.99';
-  const accent = TEMPLATE_ACCENT[slug] || 'from-gray-700 to-gray-900';
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="preview-modal-title"
     >
       <div
-        className="bg-gray-900 border border-gray-700/60 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+        className="relative flex flex-col md:flex-row w-full h-full max-w-5xl max-h-[92vh] bg-gray-950 rounded-2xl overflow-hidden shadow-2xl border border-gray-700/40"
         onClick={e => e.stopPropagation()}
       >
-        {/* Thumbnail hero */}
-        <div className={`relative h-36 bg-gradient-to-br ${accent} flex items-center justify-center`}>
-          <div className="text-center">
-            <IcoPalette size={40} cls="text-white/60 mx-auto mb-2" />
-            <span className="text-white/80 font-semibold text-sm">{template.name}</span>
+        {/* ── Left: live template render ── */}
+        <div className="flex-1 overflow-y-auto bg-white min-h-0">
+          {/* Sample-data notice banner */}
+          <div className="sticky top-0 z-10 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600/90 backdrop-blur-sm text-white text-xs font-medium">
+            <IcoEye size={13} cls="text-white" />
+            {t('templatePicker.previewSampleNotice', { defaultValue: 'Preview using sample data — your real content will appear once activated' })}
           </div>
-          <button
-            onClick={onClose}
-            aria-label={t('templatePicker.closePreview')}
-            className="absolute top-3 right-3 p-1.5 rounded-full bg-black/40 hover:bg-black/60 transition"
-          >
-            <IcoX size={14} cls="text-white" />
-          </button>
-          {isActive && (
-            <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500 text-white">
-              {t('templatePicker.activeLabel')}
-            </span>
-          )}
+          <ProfileTemplateRenderer slug={slug} profileData={PREVIEW_SAMPLE_DATA} />
         </div>
 
-        <div className="p-6">
-          <h2 id="preview-modal-title" className="text-xl font-bold text-white mb-1">{template.name}</h2>
-          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold mb-4 ${CATEGORY_META[template.category]?.color}`}>
-            {CATEGORY_META[template.category]?.label}
-          </span>
+        {/* ── Right: info + action panel ── */}
+        <div className="w-full md:w-72 flex-shrink-0 flex flex-col bg-gray-900 border-t md:border-t-0 md:border-l border-gray-700/50 p-5 overflow-y-auto">
+          {/* Close button */}
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 id="preview-modal-title" className="text-lg font-bold text-white leading-tight">{template.name}</h2>
+              <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${CATEGORY_META[template.category]?.color || 'bg-gray-700 text-gray-300'}`}>
+                {CATEGORY_META[template.category]?.label}
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label={t('templatePicker.closePreview')}
+              className="p-1.5 rounded-full bg-gray-800 hover:bg-gray-700 transition flex-shrink-0 ml-2"
+            >
+              <IcoX size={14} cls="text-white" />
+            </button>
+          </div>
 
+          {/* Active badge */}
+          {isActive && (
+            <div className="mb-4 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
+              <p className="text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                <IcoCheck size={12} cls="text-emerald-400" />
+                {t('templatePicker.currentlyActive')}
+              </p>
+            </div>
+          )}
+
+          {/* Pricing */}
           {template.is_free ? (
             <p className="text-emerald-400 font-semibold text-sm mb-4">{t('templatePicker.freeForever')}</p>
+          ) : hasAccess ? (
+            <p className="text-blue-400 text-sm font-semibold mb-4 flex items-center gap-1.5">
+              <IcoCheck size={14} cls="text-blue-400" />
+              {t('templatePicker.unlocked')}
+            </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="bg-gray-800 rounded-xl p-3 text-center">
-                <div className="text-gray-400 text-xs mb-1">{t('templatePicker.monthlyPrice')}</div>
-                <div className="text-white font-bold text-lg">${monthly}</div>
-                <div className="text-gray-500 text-xs">{t('templatePicker.perMonth')}</div>
+                <div className="text-gray-400 text-[10px] mb-0.5">{t('templatePicker.monthlyPrice')}</div>
+                <div className="text-white font-bold text-base">${monthly}</div>
+                <div className="text-gray-500 text-[10px]">{t('templatePicker.perMonth')}</div>
               </div>
               <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-xl p-3 text-center">
-                <div className="text-amber-400 text-xs mb-1 font-semibold">{t('templatePicker.lifetimePrice')}</div>
-                <div className="text-white font-bold text-lg">${lifetime}</div>
-                <div className="text-amber-400/70 text-xs">{t('templatePicker.oneTimePay')}</div>
+                <div className="text-amber-400 text-[10px] mb-0.5 font-semibold">{t('templatePicker.lifetimePrice')}</div>
+                <div className="text-white font-bold text-base">${lifetime}</div>
+                <div className="text-amber-400/70 text-[10px]">{t('templatePicker.oneTimePay')}</div>
               </div>
             </div>
           )}
 
-          <div className="flex gap-3">
+          {/* Actions */}
+          <div className="flex flex-col gap-2 mt-auto pt-4">
             {isActive ? (
               <button
                 disabled
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold text-sm flex items-center justify-center gap-2 cursor-default"
+                className="w-full py-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 font-semibold text-sm flex items-center justify-center gap-2 cursor-default"
               >
-                <IcoCheck size={16} cls="text-emerald-400" />
+                <IcoCheck size={15} cls="text-emerald-400" />
                 {t('templatePicker.currentlyActive')}
               </button>
-            ) : hasAccess ? (
+            ) : (hasAccess || template.is_free) ? (
               <button
                 onClick={() => onActivate(slug)}
                 disabled={activating}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {activating ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoZap size={15} cls="text-white" />}
-                {activating ? t('templatePicker.activating') : t('templatePicker.activateNow')}
-              </button>
-            ) : template.is_free ? (
-              <button
-                onClick={() => onActivate(slug)}
-                disabled={activating}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {activating ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoZap size={15} cls="text-white" />}
                 {activating ? t('templatePicker.activating') : t('templatePicker.activateNow')}
@@ -169,7 +226,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, isActive, onClose, o
               <button
                 onClick={() => onPurchase(slug)}
                 disabled={purchasing}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {purchasing ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoStar size={15} cls="text-white" />}
                 {purchasing ? t('templatePicker.purchasing') : t('templatePicker.purchaseLifetime', { price: lifetime })}
@@ -177,7 +234,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, isActive, onClose, o
             )}
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition"
+              className="w-full px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm transition"
             >
               {t('common.close')}
             </button>

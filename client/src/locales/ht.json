@@ -6784,6 +6784,7 @@
     "showingCount": "{{shown}} nan {{total}}",
     "categoriesLegend": "Ekspore pa kategori",
     "closePreview": "Fèmen apèsi",
+    "previewSampleNotice": "Apèsi ak done echantiyon — kontni reyèl ou a ap parèt yon fwa aktive",
     "previewAriaLabel": "Apèsi modèl {{name}}",
     "activateAriaLabel": "Aktive modèl {{name}}",
     "unlockAriaLabel": "Debloke modèl {{name}}"

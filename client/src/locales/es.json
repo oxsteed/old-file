@@ -6784,6 +6784,7 @@
     "showingCount": "{{shown}} de {{total}}",
     "categoriesLegend": "Explorar por categoria",
     "closePreview": "Cerrar vista previa",
+    "previewSampleNotice": "Vista previa con datos de ejemplo — tu contenido real aparecerá una vez activado",
     "previewAriaLabel": "Vista previa de la plantilla {{name}}",
     "activateAriaLabel": "Activar plantilla {{name}}",
     "unlockAriaLabel": "Desbloquear plantilla {{name}}"

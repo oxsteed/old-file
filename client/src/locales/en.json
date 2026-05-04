@@ -6784,6 +6784,7 @@
     "showingCount": "{{shown}} of {{total}}",
     "categoriesLegend": "Browse by Category",
     "closePreview": "Close preview",
+    "previewSampleNotice": "Preview using sample data — your real content will appear once activated",
     "previewAriaLabel": "Preview {{name}} template",
     "activateAriaLabel": "Activate {{name}} template",
     "unlockAriaLabel": "Unlock {{name}} template"
