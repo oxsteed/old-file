@@ -60,6 +60,12 @@
 - **i18n**: `templatePicker.*` keys (42 each) added to en/es/fr/ht locale files.
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
+**Latest work completed (2026-05-03, session 4):**
+- **Calendar sidebar + Block Time discoverability** ✅ COMPLETE
+  - **`client/src/pages/CalendarPage.jsx`**: Restructured layout into `.cp-body` (flex row). Added left `.cp-sidebar` (196px) containing: (1) orange `+ Block Time` CTA button (helper-only), (2) `MiniCalendar` component (mini month grid with prev/next nav, today circle, selected-date highlight, syncs with `selectedDate`), (3) color legend (Confirmed/Requested/In Progress/Completed + Available/Busy for helpers). Added `blockModalRequest` state — sidebar button sets it `true`; `HelperCalendarView` consumes it to open `AvailabilityBlockModal` then calls `onBlockModalRequestHandled` to reset. `isSameDay` helper duplicated locally for mini calendar.
+  - **`client/src/styles/CalendarPage.css`**: Added `.cp-body`, `.cp-sidebar`, `.cp-main` flex layout. `.cp-block-time-btn` orange pill with shadow + hover lift. `.cp-mini-cal` / `.cp-mini-cal-grid` (7-col grid, 1:1 aspect day buttons, today circle, selected ring). `.cp-legend` items with color dots. Responsive: at ≤900px sidebar switches to row/flex-wrap; mini calendar hidden on small screens; block time button goes inline.
+  - **`client/src/components/calendar/HelperCalendarView.jsx`**: Added `blockModalRequest` + `onBlockModalRequestHandled` props. `useEffect` opens `AvailabilityBlockModal` (no pre-selected slot) when request fires, then calls handler to reset.
+
 **Latest work completed (2026-05-03, session 3):**
 - **Calendar HelperCalendarView upgrade** ✅ COMPLETE
   - **`client/src/components/calendar/HelperCalendarView.jsx`**: Added `useRef` import. **WeekView**: `nowMinutes` state (hours×60+mins) updated every 60 s via `setInterval`; `scrollRef` on `.hcv-week-body`; auto-scrolls to `nowMinutes - 60` on mount; red now-indicator line + dot rendered inside today's column at `top: nowMinutes px`. **DayView**: same now-indicator + auto-scroll pattern when `isToday`. Both views show improved event chips with `hcv-apt-time` (start time, 0.6rem) above `hcv-apt-name`. Agenda `STATUS_COLORS.confirmed` changed to `#f97316` (OxSteed orange).

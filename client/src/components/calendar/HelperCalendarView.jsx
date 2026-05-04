@@ -50,7 +50,13 @@ function getDateRange(date, mode) {
   return { start, end };
 }
 
-export default function HelperCalendarView({ viewMode, selectedDate, onDateChange }) {
+export default function HelperCalendarView({
+  viewMode,
+  selectedDate,
+  onDateChange,
+  blockModalRequest = false,
+  onBlockModalRequestHandled,
+}) {
   const { t } = useTranslation();
   const [appointments, setAppointments] = useState([]);
   const [availabilityBlocks, setAvailabilityBlocks] = useState([]);
@@ -59,6 +65,15 @@ export default function HelperCalendarView({ viewMode, selectedDate, onDateChang
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
+
+  // Respond to sidebar "+ Block Time" button from parent
+  useEffect(() => {
+    if (blockModalRequest) {
+      setSelectedTimeSlot(null);
+      setShowAvailabilityModal(true);
+      onBlockModalRequestHandled?.();
+    }
+  }, [blockModalRequest, onBlockModalRequestHandled]);
 
   const loadCalendarData = useCallback(async () => {
     setLoading(true);
