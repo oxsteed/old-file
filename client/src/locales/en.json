@@ -2368,6 +2368,7 @@
     "visibilityHint": "Toggle sections on or off to control what appears on your public profile. Turn off sections you haven't completed yet.",
     "visibilitySaved": "Visibility settings saved",
     "tabs": {
+      "overview": "Overview",
       "editProfile": "Edit Profile",
       "earnings": "Earnings",
       "findJobs": "Find Jobs",

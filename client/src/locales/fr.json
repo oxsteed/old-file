@@ -2368,6 +2368,7 @@
     "visibilityHint": "Activez ou désactivez les sections pour contrôler ce qui apparaît sur votre profil public. Désactivez les sections que vous n'avez pas encore complétées.",
     "visibilitySaved": "Paramètres de visibilité enregistrés",
     "tabs": {
+      "overview": "Vue d'ensemble",
       "editProfile": "Modifier le profil",
       "earnings": "Revenus",
       "findJobs": "Trouver des emplois",

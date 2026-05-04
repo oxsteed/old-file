@@ -1002,6 +1002,7 @@ export default function HelperDashboard() {
   const fp = life.financialPulse;
 
   const tabs = [
+    { id: 'pulse',       label: t('helperDashboard.tabs.overview', { defaultValue: 'Overview' }) },
     { id: 'editprofile', label: t('helperDashboard.tabs.editProfile') },
     { id: 'aiKnowledge', label: t('helperDashboard.tabs.aiKnowledge') },
     { id: 'earnings', label: t('helperDashboard.tabs.earnings') },

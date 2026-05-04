@@ -2368,6 +2368,7 @@
     "visibilityHint": "Activa o desactiva secciones para controlar qué aparece en tu perfil público. Desactiva secciones que aún no has completado.",
     "visibilitySaved": "Configuración de visibilidad guardada",
     "tabs": {
+      "overview": "Resumen",
       "editProfile": "Editar perfil",
       "earnings": "Ganancias",
       "findJobs": "Buscar trabajos",
