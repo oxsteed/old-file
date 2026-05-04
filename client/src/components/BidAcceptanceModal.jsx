@@ -151,7 +151,7 @@ export default function BidAcceptanceModal({
 
                     <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-2 pt-2 border-t border-purple-200 dark:border-purple-700">
                       <p>
-                        <strong>{t('bidAcceptanceModal.depositRequired') || 'Deposit Required')}:</strong>{' '}
+                        <strong>{t('bidAcceptanceModal.depositRequired') || 'Deposit Required'}:</strong>{' '}
                         {helperPolicies?.custom_policy?.deposit_percent ?? 50}%
                       </p>
                       <p>
