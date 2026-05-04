@@ -4,6 +4,7 @@ import api from '../../api/axios';
 import { toast } from 'sonner';
 import AppointmentDetailModal from './AppointmentDetailModal';
 import AvailabilityBlockModal from './AvailabilityBlockModal';
+import { useSocket } from '../../hooks/useSocket';
 import '../../styles/HelperCalendarView.css';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -58,6 +59,7 @@ export default function HelperCalendarView({
   onBlockModalRequestHandled,
 }) {
   const { t } = useTranslation();
+  const { socket } = useSocket();
   const [appointments, setAppointments] = useState([]);
   const [availabilityBlocks, setAvailabilityBlocks] = useState([]);
   // Start with false so the calendar is immediately visible; data loads async
@@ -134,6 +136,30 @@ export default function HelperCalendarView({
   useEffect(() => {
     loadCalendarData();
   }, [loadCalendarData]);
+
+  // Listen for job cancellations and remove from calendar
+  useEffect(() => {
+    if (!socket?.connected) return;
+
+    const handleJobCancelled = (data) => {
+      // Remove cancelled appointment from calendar
+      setAppointments((prevAppointments) => {
+        const filtered = prevAppointments.filter(apt => apt.job_id !== data.jobId);
+
+        if (filtered.length < prevAppointments.length) {
+          toast.success(t('calendar.jobCancelled') || 'Job cancelled. Your time is now free.');
+        }
+
+        return filtered;
+      });
+    };
+
+    socket.on('job:cancelled', handleJobCancelled);
+
+    return () => {
+      socket.off('job:cancelled', handleJobCancelled);
+    };
+  }, [socket, t]);
 
   const handleBlockTimeClick = (date, hour) => {
     setSelectedTimeSlot({ date, hour });

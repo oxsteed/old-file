@@ -18,8 +18,10 @@ import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Flag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import UserReputationCard from '../components/UserReputationCard';
+import ReportModal from '../components/ReportModal';
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -67,6 +69,7 @@ const HelperBusinessProfilePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTemplate, setActiveTemplate] = useState<string>('default');
   const [chatOpen, setChatOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
   const [chatDestination, setChatDestination] = useState<'helper' | 'oxsteed'>('oxsteed'); // default to helper
@@ -356,12 +359,23 @@ const HelperBusinessProfilePage: React.FC = () => {
 
           {/* ── Right column: Chat (desktop) ─────────── */}
           <aside
-            className="hidden lg:flex lg:col-span-5 flex-col"
+            className="hidden lg:flex lg:col-span-5 flex-col gap-5"
             aria-label={t('businessProfile.bookAndChatAria')}
             ref={chatPanelRef}
           >
             {/* Sticky wrapper */}
-            <div className="sticky top-16 max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
+            <div className="sticky top-16 max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden gap-5">
+              <UserReputationCard userId={helper.id} />
+              {user && (
+                <button
+                  onClick={() => setReportModalOpen(true)}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-red-600/30 text-red-400 font-medium text-sm hover:bg-red-950/20 transition-colors"
+                  aria-label={t('reportModal.reportUser', { name: helper.businessName })}
+                >
+                  <Flag size={16} />
+                  {t('reportModal.report')}
+                </button>
+              )}
               <div
                 className="flex-1 min-h-0 flex flex-col overflow-hidden"
                 style={{ minHeight: '600px' }}
@@ -467,6 +481,14 @@ const HelperBusinessProfilePage: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {reportModalOpen && (
+        <ReportModal
+          reportedUserId={helper.id}
+          reportedName={helper.businessName}
+          onClose={() => setReportModalOpen(false)}
+        />
       )}
 
       {/*

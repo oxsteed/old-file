@@ -321,3 +321,135 @@ exports.sendDisputeMessage = async (req, res, next) => {
     next(err);
   }
 };
+
+// ─── RESOLVE DISPUTE (ADMIN ONLY) ─────────────────────────────
+/**
+ * Admin resolution endpoint
+ * PUT /api/admin/disputes/:disputeId/resolve
+ *
+ * Body:
+ * {
+ *   resolutionType: 'refund_full' | 'refund_partial' | 'no_refund' | 'mutual_agreement',
+ *   refundAmount: 1000 (in cents, if partial),
+ *   adminNotes: 'Explanation...'
+ * }
+ */
+exports.resolveDispute = async (req, res, next) => {
+  try {
+    const { disputeId } = req.params;
+    const { resolutionType, refundAmount, adminNotes } = req.body;
+
+    if (!['refund_full', 'refund_partial', 'no_refund', 'mutual_agreement'].includes(resolutionType)) {
+      throw new AppError('Invalid resolution type', 400, 'validation_failed', {
+        resolutionType: 'Must be one of: refund_full, refund_partial, no_refund, mutual_agreement'
+      });
+    }
+
+    // Resolve in transaction
+    const result = await withTransaction(db, async (client) => {
+      // Fetch and lock dispute
+      const { rows: disputeRows } = await client.query(
+        'SELECT * FROM disputes WHERE id = $1 FOR UPDATE',
+        [disputeId]
+      );
+
+      if (!disputeRows.length) {
+        throw new AppError('Dispute not found', 404, 'dispute_not_found');
+      }
+
+      const dispute = disputeRows[0];
+
+      // Update dispute
+      const { rows: updatedRows } = await client.query(`
+        UPDATE disputes
+        SET
+          status = $1,
+          resolution_type = $2,
+          refund_amount = $3,
+          admin_notes = $4,
+          resolved_by = $5,
+          resolved_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $6
+        RETURNING *
+      `, ['resolved_by_admin', resolutionType, refundAmount || 0, adminNotes || null, req.user.id, disputeId]);
+
+      const updatedDispute = updatedRows[0];
+
+      // Handle escrow payment release/refund
+      const { rows: paymentRows } = await client.query(`
+        SELECT id, amount FROM payments
+        WHERE job_id = $1 AND escrow_status = 'disputed'
+        FOR UPDATE
+      `, [dispute.job_id]);
+
+      if (paymentRows.length > 0) {
+        const payment = paymentRows[0];
+        let newEscrowStatus = 'released';
+
+        if (resolutionType === 'refund_full') {
+          newEscrowStatus = 'refunded';
+        } else if (resolutionType === 'refund_partial') {
+          newEscrowStatus = 'released'; // Partial refund processed
+        }
+
+        await client.query(`
+          UPDATE payments
+          SET
+            escrow_status = $1,
+            updated_at = NOW()
+          WHERE id = $2
+        `, [newEscrowStatus, payment.id]);
+
+        logger.info('Dispute resolved - escrow updated', {
+          disputeId,
+          resolutionType,
+          escrowStatus: newEscrowStatus,
+          refundAmount: refundAmount || 0
+        });
+      }
+
+      return updatedDispute;
+    }, 'resolve_dispute');
+
+    // Notify both parties of resolution
+    try {
+      const { rows: jobRows } = await db.query(
+        'SELECT client_id, assigned_helper_id FROM jobs WHERE id = $1',
+        [result.job_id]
+      );
+
+      if (jobRows.length > 0) {
+        const job = jobRows[0];
+        const message = `Dispute resolved: ${resolutionType.replace(/_/g, ' ')}`;
+
+        await Promise.allSettled([
+          sendNotification({
+            userId: job.client_id,
+            type: 'dispute_resolved',
+            title: 'Your dispute has been resolved',
+            message,
+            metadata: { disputeId, jobId: result.job_id }
+          }),
+          sendNotification({
+            userId: job.assigned_helper_id,
+            type: 'dispute_resolved',
+            title: 'A dispute on your job has been resolved',
+            message,
+            metadata: { disputeId, jobId: result.job_id }
+          })
+        ]);
+      }
+    } catch (notifErr) {
+      logger.warn('Failed to notify dispute resolution', { disputeId, error: notifErr.message });
+    }
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Dispute resolved'
+    });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -1,0 +1,410 @@
+.reputation-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.reputation-skeleton {
+  height: 200px;
+  background: linear-gradient(
+    90deg,
+    var(--border-color) 0%,
+    var(--muted-text) 50%,
+    var(--border-color) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.rep-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.rep-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0;
+}
+
+.rep-caution-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid;
+  border-radius: 20px;
+  background: rgba(79, 70, 229, 0.05);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.rep-caution-badge svg {
+  flex-shrink: 0;
+}
+
+/* Score Section */
+.rep-score-section {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.rep-score-circle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: white;
+  flex-shrink: 0;
+}
+
+.rep-score-value {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rep-score-label {
+  font-size: 12px;
+  margin-top: 4px;
+  opacity: 0.9;
+}
+
+.rep-score-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rep-jobs-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.rep-stat-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.rep-stat-label {
+  font-size: 13px;
+  color: var(--muted-text);
+}
+
+.rep-completion-rate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted-text);
+  margin: 0;
+}
+
+/* Stats Grid */
+.rep-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.rep-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.rep-stat-item .rep-stat-label {
+  font-size: 11px;
+  color: var(--muted-text);
+  text-align: center;
+}
+
+.rep-stat-item .rep-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+/* Timing Analysis */
+.rep-timing-analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rep-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+  text-transform: uppercase;
+  margin: 0;
+  opacity: 0.7;
+}
+
+.rep-timing-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rep-timing-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: rgba(79, 70, 229, 0.03);
+  border-radius: 6px;
+}
+
+.rep-timing-label {
+  font-size: 13px;
+  color: var(--muted-text);
+}
+
+.rep-timing-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+  min-width: 20px;
+  text-align: right;
+}
+
+/* Last Updated */
+.rep-last-updated {
+  font-size: 11px;
+  color: var(--muted-text);
+  margin: 0;
+  text-align: center;
+}
+
+/* Dark Mode */
+html.dark .rep-caution-badge {
+  background: rgba(79, 70, 229, 0.1);
+}
+
+html.dark .rep-score-circle {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+}
+
+html.dark .rep-timing-item {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .reputation-card {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .rep-score-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rep-score-circle {
+    width: 80px;
+    height: 80px;
+  }
+
+  .rep-score-value {
+    font-size: 28px;
+  }
+
+  .rep-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Fee History Section ──────────────────────────────────────────────────── */
+
+.rep-fee-history {
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  padding-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.rep-fee-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.rep-fee-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rep-fee-icon {
+  color: #f97316;
+}
+
+.rep-fee-loading {
+  font-size: 0.78rem;
+  color: var(--muted-text, #9ca3af);
+}
+
+.rep-fee-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6366f1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.rep-fee-toggle:hover {
+  background: #eef2ff;
+}
+
+html.dark .rep-fee-toggle { color: #a5b4fc; }
+html.dark .rep-fee-toggle:hover { background: rgba(99, 102, 241, 0.12); }
+
+.rep-fee-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.rep-fee-count {
+  font-size: 0.84rem;
+  color: var(--app-text, #374151);
+  font-weight: 500;
+}
+
+.rep-fee-total {
+  font-size: 0.84rem;
+  color: #b45309;
+  font-weight: 700;
+  background: #fef3c7;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+html.dark .rep-fee-total {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+
+.rep-fee-none {
+  font-size: 0.84rem;
+  color: #15803d;
+  font-weight: 500;
+}
+
+html.dark .rep-fee-none { color: #4ade80; }
+
+/* ── Fee list ── */
+.rep-fee-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rep-fee-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border-color, #f3f4f6);
+}
+
+.rep-fee-item:last-child {
+  border-bottom: none;
+}
+
+.rep-fee-item:nth-child(odd) {
+  background: var(--app-bg, #f9fafb);
+}
+
+.rep-fee-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.rep-fee-job {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--app-text, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.rep-fee-helper {
+  font-size: 0.76rem;
+  color: var(--muted-text, #9ca3af);
+}
+
+.rep-fee-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.rep-fee-amount {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #b45309;
+}
+
+html.dark .rep-fee-amount { color: #fbbf24; }
+
+.rep-fee-date {
+  font-size: 0.74rem;
+  color: var(--muted-text, #9ca3af);
+}

@@ -11,9 +11,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Flag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import UserReputationCard from '../components/UserReputationCard';
+import ReportModal from '../components/ReportModal';
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -281,6 +283,7 @@ export default function BusinessProfilePage() {
   const [error,           setError]           = useState(null);
   const [activeTemplate,  setActiveTemplate]  = useState('default');
   const [chatOpen,    setChatOpen]    = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [guestSignInModalOpen, setGuestSignInModalOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
 
@@ -521,12 +524,23 @@ export default function BusinessProfilePage() {
             aria-label={t('businessProfile.bookAndChatAria')}
           >
             <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col">
+              <UserReputationCard userId={helper.id} />
               <CTASection
                 helper={helper}
                 onBookNow={handleBookNow}
                 onOpenChat={handleOpenChat}
                 hasServices={services.length > 0}
               />
+              {user && (
+                <button
+                  onClick={() => setReportModalOpen(true)}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-red-600/30 text-red-400 font-medium text-sm hover:bg-red-950/20 transition-colors"
+                  aria-label={t('reportModal.reportUser', { name: helper.businessName })}
+                >
+                  <Flag size={16} />
+                  {t('reportModal.report')}
+                </button>
+              )}
               <div className="flex-1 min-h-0" style={{ minHeight: '360px', maxHeight: 'min(80vh, calc(100vh - 200px))' }}>
                 <ChatPanel
                   session={chatSession}
@@ -624,6 +638,14 @@ export default function BusinessProfilePage() {
             </button>
           </div>
         </div>
+      )}
+
+      {reportModalOpen && (
+        <ReportModal
+          reportedUserId={helper.id}
+          reportedName={helper.businessName}
+          onClose={() => setReportModalOpen(false)}
+        />
       )}
 
       {/* ── Mobile chat FAB ──────────────────────────────────────────── */}

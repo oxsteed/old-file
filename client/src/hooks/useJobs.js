@@ -69,8 +69,8 @@ export default function useJobs() {
     return withTokenValidation(() => api.post(`/jobs/${id}/cancel`, { reason }).then(r => r.data));
   };
 
-  const assignHelper = async (bidId, scheduledStart = null, scheduledEnd = null) => {
-    const body = { bid_id: bidId };
+  const assignHelper = async (bidId, paymentMethod, scheduledStart = null, scheduledEnd = null) => {
+    const body = { bid_id: bidId, payment_method: paymentMethod };
     if (scheduledStart) body.scheduled_start = scheduledStart;
     if (scheduledEnd)   body.scheduled_end   = scheduledEnd;
     return withTokenValidation(() => api.post('/jobs/assign', body).then(r => r.data));

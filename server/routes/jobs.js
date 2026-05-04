@@ -4,6 +4,7 @@ const requireEmailVerified = require('../middleware/requireEmailVerified');
 const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter } = require('../middleware/rateLimiter');
+const checkRestrictions = require('../middleware/checkRestrictions');
 
 const {
   createJob, getJobs, getJob, updateJob,
@@ -19,7 +20,8 @@ router.delete('/draft', authenticate, deleteDraft);
 
 // ── Protected specific routes ─────────────────────────────────────────────────
 router.get('/me/list', authenticate, getMyJobs);
-router.post('/',       authenticate, requireEmailVerified, upload.array('media', 10), validateFileUpload, createJob);
+// checkRestrictions('job_posting') blocks customers with active job-posting restrictions
+router.post('/',       authenticate, requireEmailVerified, checkRestrictions('job_posting'), upload.array('media', 10), validateFileUpload, createJob);
 router.post('/assign', authenticate, assignHelper);
 
 // ── Public ────────────────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ router.get('/:id',  generalLimiter, getJob);
 
 // ── Protected parameterized ───────────────────────────────────────────────────
 router.put('/:id',           authenticate, updateJob);
-router.post('/:id/cancel',   authenticate, cancelJob);
+router.put('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
 router.post('/:id/complete', authenticate, completeJob);
 router.post('/:id/close',    authenticate, closeJob);

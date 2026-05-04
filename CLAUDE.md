@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-03
+**Last updated:** 2026-05-04
 
 ## Instructions for Every Session
 
@@ -61,6 +61,21 @@
 - **i18n**: `templatePicker.*` keys (42 each) added to en/es/fr/ht locale files. **Updated 2026-05-04:** Updated keys for monthly-only pricing, "Start Trial" CTAs, removed lifetime pricing strings.
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 - **Pricing Model (2026-05-04):** All templates now $0.99/month subscription-only model with automatic 1-year free trial on signup (see Migration 167). Lifetime deals completely removed.
+
+**Phase 2: Cancellation UX & Fee Logic (2026-05-04):** ✅ COMPLETE
+- **Migration 172** (`server/migrations/172_cancellation_fee_audit.sql`): `cancellation_audit_log` (every cancel writes here — role, fee, timing, reason), `cancellation_fees` (customer→helper fee records with gross/helper/platform/stripe splits), `user_restrictions` (granular restrictions: bidding/job_posting/checkout/all), `users.is_suspended` + `suspended_until` + `suspended_reason` columns.
+- **`server/controllers/jobController.js`** `cancelJob()`: Now writes `cancellation_audit_log` + `cancellation_fees` row (customer OxSteed cancellations only) inside the transaction. Fire-and-forget reputation recalculation after commit.
+- **`client/src/components/JobCancellationConfirmation.jsx` + `.css`** (NEW): Customer modal — shows helper name/avatar, fetches blocked appointment slot, displays fee (10% capped $100) with philosophy framing, requires explicit moral-acknowledge checkbox. Replaces `window.confirm()` approach.
+- **`client/src/components/HelperCancellationConfirmation.jsx` + `.css`** (NEW): Helper modal — fetches customer cancellation stats + helper's own pattern, shows 24h urgency banner, no fee but logs it, requires acknowledgement checkbox.
+- **`server/controllers/reputationController.js`**: Added `getFeeHistory()` (`GET /api/reputation/:userId/fee-history` → total_fees_paid_cents, cancellation_count, recent_fees with job title + helper name). Added `recalculateUserReputation(userId)` standalone helper for fire-and-forget calls.
+- **`client/src/components/UserReputationCard.jsx`**: Added `showFeeHistory` prop — lazily fetches fee history, shows total fees paid + expandable timeline list with helper name, job title, amount, relative date.
+- **`server/routes/reputation.js`** (NEW): Registered at `/api/reputation`. Public `GET /:userId`, auth `GET /:userId/fee-history`, admin recalculate + enforcement.
+- **`server/middleware/checkRestrictions.js`** (NEW): Express middleware factory `checkRestrictions(type)` — checks `users.is_suspended` first (with auto-expiry clearance), then `user_restrictions` table. Returns `403 ACCOUNT_SUSPENDED` or `403 ACCOUNT_RESTRICTED` with expiry date. Fails open on DB error (non-blocking).
+- **`server/controllers/enforcementController.js`**: Added `applyUserRestriction()`, `applyUserSuspension()`, `liftUserRestrictions()`, `liftUserSuspension()` helpers. `issueEnforcementAction()` now runs in a transaction that writes the `enforcement_actions` row + actually enforces: restriction→`user_restrictions`, suspension→`users.is_suspended`, warning→no side effect. `deactivateAction()` now lifts the effect (deactivates `user_restrictions` rows tied to enforcement_id, or lifts suspension if no other active suspension). Exported `addUserRestriction()` + `suspendUser()` for programmatic use.
+- **`server/routes/bids.js`**: `POST /api/bids` now includes `checkRestrictions('bidding')` before `createBid`.
+- **`server/routes/jobs.js`**: `POST /api/jobs` now includes `checkRestrictions('job_posting')` before `createJob`.
+- **`client/src/pages/JobDetailPage.jsx`**: Replaced single `JobCancellationModal` with role-aware: customers see `JobCancellationConfirmation`, helpers see `HelperCancellationConfirmation`. Old modal kept as fallback for non-accepted jobs.
+- **i18n**: Added `cancellationConfirm.*` (18 keys) + `helperCancelConfirm.*` (21 keys) + `reputation.fee*` (8 keys) to all 4 locales (EN/ES/FR/HT).
 
 **Latest work completed (2026-05-03, session 4):**
 - **Calendar sidebar + Block Time discoverability** ✅ COMPLETE

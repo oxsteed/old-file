@@ -11,8 +11,13 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
 import ReviewModal from '../components/reviews/ReviewModal';
-import BidAcceptanceModal from '../components/calendar/BidAcceptanceModal';
+import BidAcceptanceModal from '../components/BidAcceptanceModal';
+import JobCancellationModal from '../components/JobCancellationModal';
+import JobCancellationConfirmation from '../components/JobCancellationConfirmation';
+import HelperCancellationConfirmation from '../components/HelperCancellationConfirmation';
 import CancellationStats from '../components/CancellationStats';
+import UserReputationCard from '../components/UserReputationCard';
+import ReportModal from '../components/ReportModal';
 import { useTranslation } from 'react-i18next';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -122,10 +127,14 @@ export default function JobDetailPage() {
   const [mediaIndex, setMediaIndex] = useState(null); // lightbox index
   const [cancelReason, setCancelReason] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showJobCancellationModal, setShowJobCancellationModal] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
   // Bid acceptance scheduling modal
   const [acceptingBid, setAcceptingBid] = useState(null); // bid object being accepted
+  const [helperPolicies, setHelperPolicies] = useState(null); // cancellation policies for helper
+  const [loadingPolicies, setLoadingPolicies] = useState(false);
 
   const loadBids = useCallback(async () => {
     try {
@@ -168,17 +177,31 @@ export default function JobDetailPage() {
     }
   }
 
-  // Opens the BidAcceptanceModal (scheduling step) before calling assignHelper.
-  function handleAcceptClick(bid) {
-    setAcceptingBid(bid);
+  // Opens the BidAcceptanceModal (payment method selection step) before calling assignHelper.
+  async function handleAcceptClick(bid) {
+    setLoadingPolicies(true);
+    try {
+      // Fetch helper's cancellation policies
+      const { data } = await api.get('/api/helper-settings/policies', {
+        params: { helper_id: bid.helper_id }
+      });
+      setHelperPolicies(data.data);
+      setAcceptingBid(bid);
+    } catch (err) {
+      toast.error(t('jobDetail.failedToLoadPolicies', { defaultValue: 'Failed to load helper\'s payment policies' }));
+      console.error('Failed to fetch helper policies:', err);
+    } finally {
+      setLoadingPolicies(false);
+    }
   }
 
-  // Called by BidAcceptanceModal once the customer chooses (or skips) a time.
-  async function handleAssign(bidId, scheduledStart = null, scheduledEnd = null) {
+  // Called by BidAcceptanceModal once the customer selects a payment method.
+  async function handleAssign(bidId, paymentMethod, scheduledStart = null, scheduledEnd = null) {
     setAcceptingBid(null);
+    setHelperPolicies(null);
     setActionLoading(true);
     try {
-      await assignHelper(bidId, scheduledStart, scheduledEnd);
+      await assignHelper(bidId, paymentMethod, scheduledStart, scheduledEnd);
       fetchJob(id);
       loadBids();
       toast.success(t('jobDetail.helperAssigned', { defaultValue: 'Helper assigned successfully' }));
@@ -247,6 +270,13 @@ export default function JobDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  }
+
+  async function handleJobCancellation(feeData) {
+    // Called after JobCancellationModal confirms cancellation
+    setShowJobCancellationModal(false);
+    fetchJob(id);
+    loadBids();
   }
 
   // Helper function to extract error message
@@ -535,6 +565,19 @@ export default function JobDetailPage() {
               <button className="jdp-btn-primary" onClick={handleStart} disabled={actionLoading}>
                 {actionLoading ? 'Starting…' : '▶ Start Job'}
               </button>
+              <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ marginTop: '0.5rem', width: '100%' }}>
+                {t('jobDetail.cancelJob') || 'Cancel Job'}
+              </button>
+            </div>
+          )}
+
+          {/* Helper: cancel in-progress job */}
+          {isHelper && job.status === 'in_progress' && job.assigned_helper_id === user?.id && (
+            <div className="jdp-card jdp-action-card">
+              <p>You can cancel this job if something comes up. A cancellation fee may apply.</p>
+              <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ width: '100%' }}>
+                {t('jobDetail.cancelJob') || 'Cancel Job'}
+              </button>
             </div>
           )}
 
@@ -761,6 +804,42 @@ export default function JobDetailPage() {
             </div>
           )}
 
+          {/* Helper reputation for job viewers */}
+          {job.assigned_helper_id && (
+            <>
+              <UserReputationCard userId={job.assigned_helper_id} />
+              {user && !isOwner && (
+                <button
+                  onClick={() => setReportModalOpen(true)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: '#f87171',
+                    backgroundColor: 'rgba(127, 29, 29, 0.1)',
+                    fontWeight: 500,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = 'rgba(127, 29, 29, 0.2)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = 'rgba(127, 29, 29, 0.1)';
+                  }}
+                >
+                  🚩 Report Helper
+                </button>
+              )}
+            </>
+          )}
+
           {/* Owner actions */}
           {isOwner && (
             <div className="jdp-card jdp-sidebar-card jdp-owner-actions">
@@ -771,14 +850,24 @@ export default function JobDetailPage() {
                 </button>
               )}
               {job.status === 'accepted' && (
-                <button className="jdp-btn-primary" onClick={handlePayment} disabled={actionLoading}>
-                  {actionLoading ? 'Processing…' : '🔒 Pay & Hold in Escrow'}
-                </button>
+                <>
+                  <button className="jdp-btn-primary" onClick={handlePayment} disabled={actionLoading}>
+                    {actionLoading ? 'Processing…' : '🔒 Pay & Hold in Escrow'}
+                  </button>
+                  <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
+                    {t('jobDetail.cancelJob') || 'Cancel Job'}
+                  </button>
+                </>
               )}
               {job.status === 'in_progress' && (
-                <button className="jdp-btn-primary" onClick={handleComplete} disabled={actionLoading}>
-                  {actionLoading ? 'Processing…' : '✅ Mark as Complete'}
-                </button>
+                <>
+                  <button className="jdp-btn-primary" onClick={handleComplete} disabled={actionLoading}>
+                    {actionLoading ? 'Processing…' : '✅ Mark as Complete'}
+                  </button>
+                  <button className="jdp-btn-danger" onClick={() => setShowJobCancellationModal(true)} disabled={actionLoading} style={{ marginTop: '0.5rem' }}>
+                    {t('jobDetail.cancelJob') || 'Cancel Job'}
+                  </button>
+                </>
               )}
               {(job.status === 'completed' || job.status === 'closed') && (
                 <>
@@ -846,14 +935,52 @@ export default function JobDetailPage() {
         </div>
       )}
 
-      {/* ── Bid Acceptance + Scheduling Modal ─────────────────────── */}
-      {acceptingBid && (
+      {/* ── Bid Acceptance Modal (Payment Method Selection) ─────────── */}
+      {acceptingBid && helperPolicies && (
         <BidAcceptanceModal
           bid={acceptingBid}
-          helperName={acceptingBid.helper_name ? formatNameForPrivacy(acceptingBid.helper_name) : t('jobDetail.theHelper', { defaultValue: 'the helper' })}
-          jobTitle={job?.title || ''}
-          onClose={() => setAcceptingBid(null)}
-          onAccept={handleAssign}
+          helperPolicies={helperPolicies}
+          onCancel={() => {
+            setAcceptingBid(null);
+            setHelperPolicies(null);
+          }}
+          onConfirm={(bidData) => {
+            // bidData should contain payment_method
+            handleAssign(acceptingBid.id, bidData.payment_method);
+          }}
+        />
+      )}
+
+      {/* ── Job Cancellation Modals (role-aware Phase 2) ────────────── */}
+      {showJobCancellationModal && job && acceptedBid && isOwner && (
+        /* Customer sees: helper name+avatar, blocked time, fee, acknowledge */
+        <JobCancellationConfirmation
+          job={job}
+          bid={acceptedBid}
+          helperName={job.helper_name ? formatNameForPrivacy(job.helper_name) : null}
+          helperAvatar={job.helper_avatar || null}
+          onCancel={() => setShowJobCancellationModal(false)}
+          onConfirm={handleJobCancellation}
+        />
+      )}
+      {showJobCancellationModal && job && acceptedBid && !isOwner && (
+        /* Helper sees: customer reliability, own pattern, no fee, acknowledge */
+        <HelperCancellationConfirmation
+          job={job}
+          customerName={job.client_name ? formatNameForPrivacy(job.client_name) : null}
+          customerAvatar={job.client_avatar || null}
+          helperId={user?.id}
+          onCancel={() => setShowJobCancellationModal(false)}
+          onConfirm={handleJobCancellation}
+        />
+      )}
+
+      {/* ── Report Helper Modal ──────────────────────────────── */}
+      {reportModalOpen && job?.assigned_helper_id && (
+        <ReportModal
+          reportedUserId={job.assigned_helper_id}
+          reportedName={job.helper_name ? formatNameForPrivacy(job.helper_name) : 'the helper'}
+          onClose={() => setReportModalOpen(false)}
         />
       )}
     </div>

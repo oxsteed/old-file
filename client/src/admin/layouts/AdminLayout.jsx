@@ -10,6 +10,7 @@ import {
   Menu, X, Sun, Moon, HeadphonesIcon,
   Search, Key, ClipboardList, Building2, CreditCard, MessageSquare,
   HeartHandshake, Calendar, UserPlus, Map, ShoppingCart, Layers, Fingerprint,
+  AlertTriangle,
 } from 'lucide-react';
 
 const REGULAR_NAV = [
@@ -18,6 +19,7 @@ const REGULAR_NAV = [
   { to: '/admin/jobs',             icon: Briefcase,       label: 'Jobs'             },
   { to: '/admin/reports',          icon: Flag,            label: 'Reports'          },
   { to: '/admin/moderation',       icon: Shield,          label: 'Moderation'       },
+  { to: '/admin/enforcement',      icon: AlertTriangle,   label: 'Enforcement'      },
   { to: '/admin/content-removals', icon: Trash2,          label: 'Content Removals' },
   { to: '/admin/skills',           icon: Wrench,          label: 'Skills'           },
   { to: '/admin/support',          icon: HeadphonesIcon,  label: 'Support Tickets'  },

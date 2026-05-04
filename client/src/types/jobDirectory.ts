@@ -139,6 +139,7 @@ export interface JobCardData {
   expiresAt?: string | null;
   bidCount: number;
   clientName?: string | null;
+  clientId?: string | null;
 }
 
 /** Map a raw `/api/jobs` row to the card shape used by the directory grid. */
@@ -160,5 +161,6 @@ export function toJobCardData(row: Record<string, any>): JobCardData {
     expiresAt:    row.expires_at ?? null,
     bidCount:     Number(row.bid_count) || 0,
     clientName:   row.client_name ?? null,
+    clientId:     row.client_id ?? null,
   };
 }

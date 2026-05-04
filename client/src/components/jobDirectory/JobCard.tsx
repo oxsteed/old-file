@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { JobCardData } from '../../types/jobDirectory';
 import { translateJobCategory } from '../../utils/jobsTaxonomy';
+import CustomerReliabilityBadge from '../CustomerReliabilityBadge';
 
 interface JobCardProps {
   job: JobCardData;
@@ -121,6 +122,13 @@ const JobCard: React.FC<JobCardProps> = ({ job, highlightCategory }) => {
           </span>
         )}
       </div>
+
+      {/* Customer reliability badge */}
+      {job.clientId && (
+        <div className="px-4 pb-2">
+          <CustomerReliabilityBadge customerId={job.clientId} compact={true} />
+        </div>
+      )}
 
       {/* Footer - budget + CTA */}
       <div className="mt-auto px-4 py-3 border-t border-gray-800 flex items-center justify-between gap-3 bg-gray-900/40">

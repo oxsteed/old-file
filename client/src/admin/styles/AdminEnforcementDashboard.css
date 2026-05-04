@@ -1,0 +1,442 @@
+.admin-enforcement-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+}
+
+.admin-enforcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.admin-enforcement-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--app-text);
+  margin: 0;
+}
+
+.admin-enforcement-btn-new {
+  padding: 10px 20px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.admin-enforcement-btn-new:hover {
+  background: #4338ca;
+}
+
+.admin-enforcement-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-enforcement-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-enforcement-select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.admin-enforcement-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 24px;
+  color: var(--muted-text);
+}
+
+.admin-enforcement-loading .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.admin-enforcement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-enforcement-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--muted-text);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+
+.admin-enforcement-item {
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  transition: all 0.2s;
+}
+
+.admin-enforcement-item:hover {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.05);
+}
+
+.admin-enforcement-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-enforcement-item-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.admin-enforcement-icon {
+  font-size: 20px;
+}
+
+.admin-enforcement-item-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-enforcement-action-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.admin-enforcement-status-active {
+  padding: 4px 8px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-enforcement-status-inactive {
+  padding: 4px 8px;
+  background: rgba(107, 114, 128, 0.1);
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  color: #6b7280;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-enforcement-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-enforcement-reason {
+  font-size: 13px;
+  color: var(--app-text);
+  margin: 0;
+}
+
+.admin-enforcement-description {
+  font-size: 13px;
+  color: var(--muted-text);
+  margin: 0;
+  font-style: italic;
+}
+
+.admin-enforcement-timestamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted-text);
+}
+
+.admin-enforcement-timestamps span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-enforcement-btn-deactivate {
+  align-self: flex-start;
+  padding: 6px 14px;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-enforcement-btn-deactivate:hover {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: #dc2626;
+}
+
+.admin-enforcement-error {
+  padding: 16px;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.admin-enforcement-pagination {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.admin-enforcement-load-more {
+  padding: 10px 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-enforcement-load-more:hover {
+  background: rgba(79, 70, 229, 0.1);
+  border-color: #4f46e5;
+}
+
+/* Modal */
+.admin-enforcement-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.admin-enforcement-modal {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.admin-enforcement-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-enforcement-modal-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin: 0;
+}
+
+.admin-enforcement-modal-close {
+  background: none;
+  border: none;
+  color: var(--muted-text);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.admin-enforcement-modal-close:hover {
+  background: var(--border-color);
+  color: var(--app-text);
+}
+
+/* Form */
+.admin-enforcement-form {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-enforcement-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-enforcement-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.required {
+  color: #dc2626;
+}
+
+.admin-enforcement-input,
+.admin-enforcement-textarea {
+  background: var(--app-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--app-text);
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.admin-enforcement-input:focus,
+.admin-enforcement-textarea:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.admin-enforcement-textarea {
+  resize: vertical;
+}
+
+.admin-enforcement-help-text {
+  font-size: 12px;
+  color: var(--muted-text);
+  margin: 4px 0 0 0;
+}
+
+.admin-enforcement-form-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.admin-enforcement-btn-cancel,
+.admin-enforcement-btn-submit {
+  flex: 1;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  min-height: 40px;
+}
+
+.admin-enforcement-btn-cancel {
+  background: var(--border-color);
+  color: var(--app-text);
+}
+
+.admin-enforcement-btn-cancel:hover:not(:disabled) {
+  background: rgba(79, 70, 229, 0.1);
+}
+
+.admin-enforcement-btn-submit {
+  background: #4f46e5;
+  color: white;
+}
+
+.admin-enforcement-btn-submit:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.admin-enforcement-btn-cancel:disabled,
+.admin-enforcement-btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .admin-enforcement-dashboard {
+    padding: 16px;
+  }
+
+  .admin-enforcement-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-enforcement-btn-new {
+    width: 100%;
+  }
+
+  .admin-enforcement-modal {
+    max-width: 100%;
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+/* Dark Mode */
+html.dark .admin-enforcement-input,
+html.dark .admin-enforcement-textarea {
+  background: rgba(79, 70, 229, 0.05);
+}

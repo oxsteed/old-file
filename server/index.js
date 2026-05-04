@@ -93,6 +93,10 @@ const consultingAnalyticsRoutes = require('./routes/consultingAnalytics');
 const consultingActionItemsRoutes = require('./routes/consultingActionItems');
 const calendarRoutes = require('./routes/calendar');
 const cancellationStatsRoutes = require('./routes/cancellationStats');
+const reputationRoutes = require('./routes/reputation');
+const enforcementPolicyRoutes = require('./routes/enforcementPolicy');
+const reviewModerationRoutes = require('./routes/reviewModeration');
+const helperCancellationPoliciesRoutes = require('./routes/helperCancellationPolicies');
 const marketplaceProductsRoutes = require('./routes/marketplaceProducts');
 const shoppingCartsRoutes = require('./routes/shoppingCarts');
 const sharedCartsRoutes = require('./routes/sharedCarts');
@@ -436,6 +440,7 @@ app.use('/api/consulting/business-launch', businessLaunchRoutes);
 app.use('/api/consulting/analytics', consultingAnalyticsRoutes);
 app.use('/api/consulting', consultingActionItemsRoutes);
 app.use('/api/scheduling', consultantSchedulingRoutes);
+app.use('/api/helper-settings', helperCancellationPoliciesRoutes);
 // NOTE: /api/role-toggle intentionally removed - see comment near top of file
 
 // Sentry wizard "Verify" route - development/staging only (omit in production)
@@ -460,6 +465,9 @@ const templateRoutes = require('./routes/templates');
 
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/cancellation-stats', cancellationStatsRoutes);
+app.use('/api/reputation', reputationRoutes);
+app.use('/api/enforcement-policy', enforcementPolicyRoutes);
+app.use('/api', reviewModerationRoutes);
 app.use('/api/marketplace/products', marketplaceProductsRoutes);
 app.use('/api/carts', shoppingCartsRoutes);
 app.use('/api/carts', cartCheckoutRoutes);
@@ -525,6 +533,7 @@ const { startCalendarReminderJob } = require('./jobs/calendarReminders');
 const { startAffiliateCommissionBatchJob } = require('./jobs/affiliateCommissionBatch');
 const cleanupOldMessagesJob = require('./jobs/cleanupOldMessages');
 const { startTemplateExpiryJob } = require('./jobs/templateExpiryJob');
+const { startAcceptedJobExpiryJob } = require('./jobs/acceptedJobExpiryJob');
 const { startScheduledDeletionJob } = require('./jobs/scheduledDeletionJob');
 
 startWeeklySummaryJob();
@@ -539,6 +548,7 @@ startCalendarReminderJob();
 startAffiliateCommissionBatchJob();
 startScheduledDeletionJob();
 startTemplateExpiryJob();
+startAcceptedJobExpiryJob();
 
 // Start message cleanup job (180-day auto-retention for support conversations)
 const cron = require('node-cron');
