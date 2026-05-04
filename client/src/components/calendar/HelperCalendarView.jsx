@@ -62,6 +62,7 @@ export default function HelperCalendarView({
   const [availabilityBlocks, setAvailabilityBlocks] = useState([]);
   // Start with false so the calendar is immediately visible; data loads async
   const [loading, setLoading] = useState(false);
+  const [showLoadingBar, setShowLoadingBar] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
@@ -77,6 +78,9 @@ export default function HelperCalendarView({
 
   const loadCalendarData = useCallback(async () => {
     setLoading(true);
+    // Delay showing the loading bar to avoid flashing for quick loads (< 300ms)
+    const loadingTimer = setTimeout(() => setShowLoadingBar(true), 300);
+
     try {
       const dateRange = getDateRange(selectedDate, viewMode);
 
@@ -105,11 +109,12 @@ export default function HelperCalendarView({
           : []
       );
 
-      setAvailabilityBlocks(
-        availResult.status === 'fulfilled' && Array.isArray(availResult.value.data?.blocks)
-          ? availResult.value.data.blocks
-          : []
-      );
+      // Handle both 'blocks' and 'availability' keys for compatibility
+      const blocksData = availResult.status === 'fulfilled'
+        ? (availResult.value.data?.blocks || availResult.value.data?.availability || [])
+        : [];
+
+      setAvailabilityBlocks(Array.isArray(blocksData) ? blocksData : []);
 
       // Only toast if both calls failed
       if (apptsResult.status === 'rejected' && availResult.status === 'rejected') {
@@ -120,7 +125,9 @@ export default function HelperCalendarView({
       setAppointments([]);
       setAvailabilityBlocks([]);
     } finally {
+      clearTimeout(loadingTimer);
       setLoading(false);
+      setShowLoadingBar(false);
     }
   }, [selectedDate, viewMode, t]);
 
@@ -222,8 +229,9 @@ export default function HelperCalendarView({
         )}
       </div>
 
-      {loading && (
+      {showLoadingBar && (
         <div className="hcv-loading-bar" role="status" aria-live="polite">
+          <span className="hcv-loading-spinner" aria-hidden="true">⟳</span>
           {t('common.loading')}
         </div>
       )}
@@ -400,11 +408,18 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
                   });
 
                   const dayBlocks = availabilityBlocks.filter((block) => {
-                    if (!block?.start_time || !block?.end_time) return false;
+                    // Be more lenient with data format — try both snake_case and camelCase
+                    const startTime = block?.start_time || block?.startTime;
+                    const endTime = block?.end_time || block?.endTime;
+
+                    if (!startTime || !endTime) return false;
+
                     try {
-                      const blockStart = new Date(block.start_time);
-                      const blockEnd = new Date(block.end_time);
-                      return !isNaN(blockStart) && !isNaN(blockEnd) && blockStart < slotEnd && blockEnd > slotStart;
+                      const blockStart = new Date(startTime);
+                      const blockEnd = new Date(endTime);
+                      // Validate dates are valid and in the correct time slot
+                      if (isNaN(blockStart.getTime()) || isNaN(blockEnd.getTime())) return false;
+                      return blockStart < slotEnd && blockEnd > slotStart;
                     } catch {
                       return false;
                     }
@@ -420,9 +435,9 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
                         <div
                           key={block.id}
                           className={`hcv-block hcv-block-${block.type}`}
-                          title={block.title || block.type}
+                          title={block.title || `${block.type} time`}
                         >
-                          {block.type}
+                          {block.title || block.type}
                         </div>
                       ))}
                       {dayAppointments.map((apt) => {
@@ -527,10 +542,21 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
               });
 
               const hourBlocks = availabilityBlocks.filter((block) => {
-                if (!block?.start_time || !block?.end_time) return false;
-                const blockStart = new Date(block.start_time);
-                const blockEnd = new Date(block.end_time);
-                return blockStart < slotEnd && blockEnd > slotStart;
+                // Be more lenient with data format — try both snake_case and camelCase
+                const startTime = block?.start_time || block?.startTime;
+                const endTime = block?.end_time || block?.endTime;
+
+                if (!startTime || !endTime) return false;
+
+                try {
+                  const blockStart = new Date(startTime);
+                  const blockEnd = new Date(endTime);
+                  // Validate dates are valid and in the correct time slot
+                  if (isNaN(blockStart.getTime()) || isNaN(blockEnd.getTime())) return false;
+                  return blockStart < slotEnd && blockEnd > slotStart;
+                } catch {
+                  return false;
+                }
               });
 
               return (
@@ -540,8 +566,12 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
                   onClick={() => onBlockTime(selectedDate, hour)}
                 >
                   {hourBlocks.map((block) => (
-                    <div key={block.id} className={`hcv-block hcv-block-${block.type}`}>
-                      {block.type}
+                    <div
+                      key={block.id}
+                      className={`hcv-block hcv-block-${block.type}`}
+                      title={block.title || `${block.type} time`}
+                    >
+                      {block.title || block.type}
                     </div>
                   ))}
                   {hourAppointments.map((apt) => {
