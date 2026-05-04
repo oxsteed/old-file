@@ -132,44 +132,11 @@ exports.activateTemplate = async (req, res, next) => {
   }
 };
 
-// ── Auth: purchase a template (one-time lifetime) ──────────────────────────
-// Monthly subscriptions would be Stripe subscription; here we handle lifetime
+// ── Auth: purchase a template (DEPRECATED - lifetime deals removed)
+// All templates now use monthly subscription model only
 exports.purchaseLifetime = async (req, res, next) => {
   try {
-    const { slug } = req.body;
-
-    if (!slug) throw new AppError('slug is required', 400, 'missing_fields');
-
-    const tplRes = await pool.query(
-      `SELECT slug, is_free, lifetime_price_cents, name
-       FROM template_pricing WHERE slug = $1 AND is_active = TRUE`,
-      [slug]
-    );
-    if (!tplRes.rows.length) throw new AppError('Template not found', 404, 'template_not_found');
-    if (tplRes.rows[0].is_free) throw new AppError('This template is free', 400, 'already_free');
-
-    const existing = await pool.query(
-      `SELECT id FROM template_access
-       WHERE user_id = $1 AND template_slug = $2 AND status = 'active'
-         AND access_type = 'purchase_lifetime'`,
-      [req.user.id, slug]
-    );
-    if (existing.rows.length) {
-      throw new AppError('You already own lifetime access to this template', 409, 'already_owned');
-    }
-
-    // In a full Stripe integration this would create a PaymentIntent first.
-    // For now we record the access directly (Stripe webhook will call this path).
-    const { rows } = await pool.query(
-      `INSERT INTO template_access
-         (user_id, template_slug, access_type, start_date, expiry_date, status)
-       VALUES ($1, $2, 'purchase_lifetime', NOW(), NULL, 'active')
-       RETURNING id`,
-      [req.user.id, slug]
-    );
-
-    logger.info('Template lifetime access granted', { userId: req.user.id, slug });
-    res.status(201).json({ success: true, access_id: rows[0].id, template_slug: slug });
+    throw new AppError('Lifetime template purchases are no longer available. All templates are $0.99/month with 1-year free trial on signup.', 400, 'lifetime_deal_removed');
   } catch (err) {
     next(err);
   }

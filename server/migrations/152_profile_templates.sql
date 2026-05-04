@@ -87,45 +87,46 @@ END
 $$;
 
 -- ── Seed all 30 templates into template_pricing ─────────────────────────────
+-- All templates: $0.99/month (99 cents), no lifetime option, 1-year free trial on signup
 INSERT INTO template_pricing
   (slug, name, category, is_free, monthly_price_cents, lifetime_price_cents, sort_order)
 VALUES
   -- Free
   ('default',             'Default',              'general',    TRUE,  0,    0,     1),
   -- Home & Property
-  ('trades_pro',          'Trades Pro',           'home',       FALSE, 999,  4999,  2),
-  ('handyman',            'Handyman',             'home',       FALSE, 999,  4999,  3),
-  ('home_garden',         'Home & Garden',        'home',       FALSE, 999,  4999,  4),
-  ('cleaning_service',    'Cleaning Service',     'home',       FALSE, 999,  4999,  5),
-  ('pest_control',        'Pest Control',         'home',       FALSE, 999,  4999,  6),
-  ('moving_hauling',      'Moving & Hauling',     'home',       FALSE, 999,  4999,  7),
-  ('interior_design',     'Interior Design',      'home',       FALSE, 999,  4999,  8),
+  ('trades_pro',          'Trades Pro',           'home',       FALSE, 99,   0,     2),
+  ('handyman',            'Handyman',             'home',       FALSE, 99,   0,     3),
+  ('home_garden',         'Home & Garden',        'home',       FALSE, 99,   0,     4),
+  ('cleaning_service',    'Cleaning Service',     'home',       FALSE, 99,   0,     5),
+  ('pest_control',        'Pest Control',         'home',       FALSE, 99,   0,     6),
+  ('moving_hauling',      'Moving & Hauling',     'home',       FALSE, 99,   0,     7),
+  ('interior_design',     'Interior Design',      'home',       FALSE, 99,   0,     8),
   -- Creative & Media
-  ('creative_studio',     'Creative Studio',      'creative',   FALSE, 999,  4999,  9),
-  ('graphic_design',      'Graphic Design',       'creative',   FALSE, 999,  4999, 10),
-  ('music_audio',         'Music & Audio',        'creative',   FALSE, 999,  4999, 11),
-  ('writing_copy',        'Writing & Copy',       'creative',   FALSE, 999,  4999, 12),
+  ('creative_studio',     'Creative Studio',      'creative',   FALSE, 99,   0,     9),
+  ('graphic_design',      'Graphic Design',       'creative',   FALSE, 99,   0,    10),
+  ('music_audio',         'Music & Audio',        'creative',   FALSE, 99,   0,    11),
+  ('writing_copy',        'Writing & Copy',       'creative',   FALSE, 99,   0,    12),
   -- Health & Wellness
-  ('fitness_pro',         'Fitness Pro',          'health',     FALSE, 999,  4999, 13),
-  ('wellness_therapy',    'Wellness & Therapy',   'health',     FALSE, 999,  4999, 14),
-  ('nutrition_diet',      'Nutrition & Diet',     'health',     FALSE, 999,  4999, 15),
-  ('mental_health',       'Mental Health',        'health',     FALSE, 999,  4999, 16),
+  ('fitness_pro',         'Fitness Pro',          'health',     FALSE, 99,   0,    13),
+  ('wellness_therapy',    'Wellness & Therapy',   'health',     FALSE, 99,   0,    14),
+  ('nutrition_diet',      'Nutrition & Diet',     'health',     FALSE, 99,   0,    15),
+  ('mental_health',       'Mental Health',        'health',     FALSE, 99,   0,    16),
   -- Care & Education
-  ('care_trust',          'Care & Trust',         'care',       FALSE, 999,  4999, 17),
-  ('pet_services',        'Pet Services',         'care',       FALSE, 999,  4999, 18),
-  ('tutoring_education',  'Tutoring & Education', 'care',       FALSE, 999,  4999, 19),
-  ('child_development',   'Child Development',    'care',       FALSE, 999,  4999, 20),
+  ('care_trust',          'Care & Trust',         'care',       FALSE, 99,   0,    17),
+  ('pet_services',        'Pet Services',         'care',       FALSE, 99,   0,    18),
+  ('tutoring_education',  'Tutoring & Education', 'care',       FALSE, 99,   0,    19),
+  ('child_development',   'Child Development',    'care',       FALSE, 99,   0,    20),
   -- Events & Hospitality
-  ('events_entertainment','Events & Entertainment','events',    FALSE, 999,  4999, 21),
-  ('catering_food',       'Catering & Food',      'events',     FALSE, 999,  4999, 22),
-  ('wedding_services',    'Wedding Services',     'events',     FALSE, 999,  4999, 23),
+  ('events_entertainment','Events & Entertainment','events',    FALSE, 99,   0,    21),
+  ('catering_food',       'Catering & Food',      'events',     FALSE, 99,   0,    22),
+  ('wedding_services',    'Wedding Services',     'events',     FALSE, 99,   0,    23),
   -- Beauty & Personal Care
-  ('beauty_style',        'Beauty & Style',       'beauty',     FALSE, 999,  4999, 24),
-  ('barbershop',          'Barbershop',           'beauty',     FALSE, 999,  4999, 25),
-  ('spa_skincare',        'Spa & Skincare',       'beauty',     FALSE, 999,  4999, 26),
+  ('beauty_style',        'Beauty & Style',       'beauty',     FALSE, 99,   0,    24),
+  ('barbershop',          'Barbershop',           'beauty',     FALSE, 99,   0,    25),
+  ('spa_skincare',        'Spa & Skincare',       'beauty',     FALSE, 99,   0,    26),
   -- Tech & Professional
-  ('tech_it',             'Tech & IT',            'tech',       FALSE, 999,  4999, 27),
-  ('web_app_dev',         'Web & App Dev',        'tech',       FALSE, 999,  4999, 28),
-  ('consulting_coaching', 'Consulting & Coaching','tech',       FALSE, 999,  4999, 29),
-  ('legal_admin',         'Legal & Administrative','tech',      FALSE, 999,  4999, 30)
+  ('tech_it',             'Tech & IT',            'tech',       FALSE, 99,   0,    27),
+  ('web_app_dev',         'Web & App Dev',        'tech',       FALSE, 99,   0,    28),
+  ('consulting_coaching', 'Consulting & Coaching','tech',       FALSE, 99,   0,    29),
+  ('legal_admin',         'Legal & Administrative','tech',      FALSE, 99,   0,    30)
 ON CONFLICT (slug) DO NOTHING;

@@ -121,13 +121,12 @@ const PREVIEW_SAMPLE_DATA = {
 };
 
 // ── Modal: Preview ──────────────────────────────────────────────────────────
-const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActive, onClose, onActivate, onPurchase, activating, purchasing }) => {
+const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActive, onClose, onActivate, activating }) => {
   const { t } = useTranslation();
   if (!template) return null;
 
   const price = pricing?.[slug];
-  const monthly = price ? (price.monthly_price_cents / 100).toFixed(2) : '9.99';
-  const lifetime = price ? (price.lifetime_price_cents / 100).toFixed(2) : '49.99';
+  const monthly = price ? (price.monthly_price_cents / 100).toFixed(2) : '0.99';
 
   return (
     <div
@@ -196,17 +195,11 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
               {t('templatePicker.unlocked')}
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="bg-gray-800 rounded-xl p-3 text-center">
-                <div className="text-gray-400 text-[10px] mb-0.5">{t('templatePicker.monthlyPrice')}</div>
-                <div className="text-white font-bold text-base">${monthly}</div>
-                <div className="text-gray-500 text-[10px]">{t('templatePicker.perMonth')}</div>
-              </div>
-              <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-xl p-3 text-center">
-                <div className="text-amber-400 text-[10px] mb-0.5 font-semibold">{t('templatePicker.lifetimePrice')}</div>
-                <div className="text-white font-bold text-base">${lifetime}</div>
-                <div className="text-amber-400/70 text-[10px]">{t('templatePicker.oneTimePay')}</div>
-              </div>
+            <div className="bg-blue-600/20 border border-blue-500/30 rounded-xl p-4 mb-4 text-center">
+              <div className="text-blue-400 text-[11px] mb-1.5 font-semibold uppercase tracking-wide">{t('templatePicker.pricingLabel', { defaultValue: 'Pricing' })}</div>
+              <div className="text-white font-bold text-2xl">${monthly}</div>
+              <div className="text-blue-300 text-xs mt-1">{t('templatePicker.perMonth')}</div>
+              <div className="text-blue-300/70 text-[11px] mt-2.5">+ {t('templatePicker.freeTrialOneYear', { defaultValue: '1-year free trial' })}</div>
             </div>
           )}
 
@@ -231,12 +224,12 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
               </button>
             ) : (
               <button
-                onClick={() => onPurchase(slug)}
-                disabled={purchasing}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
+                onClick={() => onActivate(slug)}
+                disabled={activating}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold text-sm transition disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {purchasing ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoStar size={15} cls="text-white" />}
-                {purchasing ? t('templatePicker.purchasing') : t('templatePicker.purchaseLifetime', { price: lifetime })}
+                {activating ? <IcoRefresh size={15} cls="text-white animate-spin" /> : <IcoStar size={15} cls="text-white" />}
+                {activating ? t('templatePicker.activating') : t('templatePicker.startFreeTrial', { defaultValue: 'Start Free Trial' })}
               </button>
             )}
             <button
@@ -368,12 +361,16 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, trialExpiry, onPrev
             </button>
           ) : (
             <button
-              onClick={() => onPreview(slug)}
-              aria-label={t('templatePicker.unlockAriaLabel', { name: template.name })}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-semibold transition"
+              onClick={() => onActivate(slug)}
+              disabled={activating === slug}
+              aria-label={t('templatePicker.startTrialAriaLabel', { name: template.name })}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-semibold transition disabled:opacity-60"
             >
-              <IcoLock size={13} cls="text-amber-400" />
-              {t('templatePicker.unlock')}
+              {activating === slug
+                ? <IcoRefresh size={13} cls="text-blue-400 animate-spin" />
+                : <IcoZap size={13} cls="text-blue-400" />
+              }
+              {activating === slug ? t('templatePicker.activating') : t('templatePicker.startTrial', { defaultValue: 'Start Trial' })}
             </button>
           )}
         </div>
@@ -397,7 +394,6 @@ export default function TemplatePicker() {
   const [activeSlug, setActiveSlug]       = useState('default');
   const [loading, setLoading]             = useState(true);
   const [activating, setActivating]       = useState(null); // slug being activated
-  const [purchasing, setPurchasing]       = useState(null); // slug being purchased
 
   const [filterCat, setFilterCat]         = useState('all');
   const [filterAccess, setFilterAccess]   = useState('all'); // all | owned | free
@@ -459,23 +455,6 @@ export default function TemplatePicker() {
       toast.error(msg);
     } finally {
       setActivating(null);
-    }
-  };
-
-  // ── Purchase lifetime ──────────────────────────────────────────────────────
-  const handlePurchase = async (slug) => {
-    setPurchasing(slug);
-    try {
-      await api.post('/templates/purchase/lifetime', { template_slug: slug });
-      setMyAccess(prev => [...prev, slug]);
-      toast.success(t('templatePicker.purchaseSuccess', { name: TEMPLATE_REGISTRY[slug]?.name || slug }));
-      // Auto-activate after purchase
-      await handleActivate(slug);
-    } catch (err) {
-      const msg = err.response?.data?.error || t('templatePicker.purchaseError');
-      toast.error(msg);
-    } finally {
-      setPurchasing(null);
     }
   };
 
@@ -652,9 +631,7 @@ export default function TemplatePicker() {
           isActive={activeSlug === previewSlug}
           onClose={() => setPreviewSlug(null)}
           onActivate={handleActivate}
-          onPurchase={handlePurchase}
           activating={activating === previewSlug}
-          purchasing={purchasing === previewSlug}
         />
       )}
     </PageShell>
