@@ -45,6 +45,7 @@ const IcoCar       = (p) => <Ico {...p}><rect x="1" y="11" width="22" height="9"
 const IcoHeart     = (p) => <Ico {...p}><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></Ico>;
 const IcoCalendar  = (p) => <Ico {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Ico>;
 const IcoWrench    = (p) => <Ico {...p}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></Ico>;
+const IcoFileText  = (p) => <Ico {...p}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></Ico>;
 
 // ── Shared UI ─────────────────────────────────────────────────────────────
 const Tag = ({ text, color = 'orange' }) => {
@@ -1205,7 +1206,7 @@ export default function HelperDashboard() {
 
             {/* Quick actions */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
-              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400'},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'}].map((a,i)=>(
+              {[{to:'/jobs',Ic:IcoBriefcase,l:t('helperDashboard.findJobs'),c:'text-orange-400'},{to:'/my-bids',Ic:IcoCheck,l:t('helperDashboard.myBids',{defaultValue:'My Bids'}),c:'text-yellow-400',badge:myBids.filter(b=>b.status==='pending').length||0},{to:'/calendar',Ic:IcoCalendar,l:t('nav.calendar'),c:'text-emerald-400'},{to:'/helper/messages',Ic:IcoChat,l:t('nav.messages'),c:'text-blue-400',badge:unreadMessages},{to:'/tool-rentals',Ic:IcoSearch,l:t('toolRentals.browsePage'),c:'text-indigo-400'},{to:'/disputes',Ic:IcoShield,l:t('helperDashboard.disputes'),c:'text-purple-400'},{to:'/settings',Ic:IcoSettings,l:t('nav.settings'),c:'text-gray-400'},{to:'/templates?type=helper',Ic:IcoFileText,l:t('helperDashboard.templates'),c:'text-pink-400'}].map((a,i)=>(
                 <Link key={i} to={a.to} onClick={a.badge?()=>setUnreadMessages(0):undefined} className="bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                   <div className="relative flex-shrink-0">
                     <a.Ic size={18} cls={a.c}/>
