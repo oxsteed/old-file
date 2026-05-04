@@ -118,6 +118,17 @@ const io = new Server(httpServer, {
     origin: allowedOrigins,
     credentials: true,
   },
+  // Keep connections alive and detect dead sockets quickly.
+  // Dead connection = detected in pingInterval + pingTimeout = 35s (was 45s).
+  pingInterval:          20000,  // server pings clients every 20s (default 25s)
+  pingTimeout:           15000,  // disconnect if no pong within 15s (default 20s)
+  // Only allow WebSocket transport - avoids HTTP long-polling overhead and
+  // the extra round-trips polling adds to message latency.
+  transports:            ['websocket'],
+  // Compress frames - reduces bandwidth, especially for large message histories.
+  perMessageDeflate: {
+    threshold: 512,      // only compress payloads > 512 bytes
+  },
 });
 
 // Socket.IO authentication middleware - verify JWT before allowing connection

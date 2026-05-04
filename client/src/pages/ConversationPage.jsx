@@ -81,6 +81,7 @@ export default function ConversationPage() {
     otherTyping, showSeen, lastSentByMe,
     messagesEndRef, inputRef,
     handleInputChange, handleBlur, handleSend, handleKeyDown,
+    retryMessage,
     user,
   } = useConversationChat(conversationId);
 
@@ -119,7 +120,7 @@ export default function ConversationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
         <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -131,11 +132,11 @@ export default function ConversationPage() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
         <Navbar />
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-4">
-          <p className="text-gray-500 text-sm">{t('messages.conversationNotFound')}</p>
-          <button onClick={() => navigate('/messages')} className="text-blue-600 text-sm hover:underline">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{t('messages.conversationNotFound')}</p>
+          <button onClick={() => navigate('/messages')} className="text-blue-600 dark:text-blue-400 text-sm hover:underline">
             {t('messages.backToMessages')}
           </button>
         </div>
@@ -145,7 +146,7 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
       <PageMeta title={t('messages.chatWith', { name: otherName || '...' })} noIndex={true} />
       <Navbar />
       <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-6">
@@ -153,7 +154,7 @@ export default function ConversationPage() {
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => navigate('/messages')}
-            className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm transition"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 text-sm transition"
           >
 
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -166,9 +167,9 @@ export default function ConversationPage() {
               {(otherName || '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <h1 className="text-base font-semibold text-gray-900 truncate">{otherName || t('common.helper')}</h1>
+              <h1 className="text-base font-semibold text-gray-900 dark:text-white truncate">{otherName || t('common.helper')}</h1>
               {helperBusiness && (
-                <p className="text-xs text-gray-500 truncate leading-tight">{helperBusiness}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate leading-tight">{helperBusiness}</p>
               )}
               {jobTitle && (
                 <p className="text-xs text-blue-600 truncate leading-tight">{t('messages.re')}: {jobTitle}</p>
@@ -186,7 +187,7 @@ export default function ConversationPage() {
         </div>
 
         {/* Message thread */}
-        <div className="flex-1 bg-white rounded-xl shadow overflow-y-auto p-4 mb-3 min-h-[400px] max-h-[60vh] flex flex-col gap-3">
+        <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl shadow overflow-y-auto p-4 mb-3 min-h-[400px] max-h-[60vh] flex flex-col gap-3">
           {messages.length === 0 && (
             <p className="text-sm text-gray-400 text-center mt-8">{t('messages.noMessagesStart')}</p>
           )}
@@ -204,7 +205,7 @@ export default function ConversationPage() {
                     <textarea
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
-                      className="px-4 py-2 rounded-2xl border border-blue-500 bg-white text-gray-800 text-sm resize-none"
+                      className="px-4 py-2 rounded-2xl border border-blue-500 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm resize-none"
                       rows={2}
                     />
                     <div className="flex gap-2 justify-end">
@@ -216,7 +217,7 @@ export default function ConversationPage() {
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                        className="px-3 py-1 text-xs bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
                       >
                         Cancel
                       </button>
@@ -225,10 +226,10 @@ export default function ConversationPage() {
                 ) : (
                   <>
                     <div className={`flex flex-col gap-1`}>
-                      <div className={`px-4 py-2 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
+                      <div className={`px-4 py-2 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed transition-opacity ${
                         isMe
-                          ? 'bg-blue-600 text-white rounded-br-sm'
-                          : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                          ? `rounded-br-sm ${msg._failed ? 'bg-red-500 text-white' : 'bg-blue-600 text-white'} ${msg._pending ? 'opacity-60' : 'opacity-100'}`
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm'
                       }`}>
                         <AutoTranslatedMessage
                           text={msg.content}
@@ -239,17 +240,41 @@ export default function ConversationPage() {
                           <span className="text-xs opacity-75 ml-2">(edited)</span>
                         )}
                       </div>
-                      <div className={isMe ? 'flex justify-end' : 'flex justify-start'}>
-                        <MessageReactions
-                          conversationId={conversationId}
-                          messageId={msg.id}
-                          reactions={msg.reactions || []}
-                        />
-                      </div>
+                      {!msg._pending && !msg._failed && (
+                        <div className={isMe ? 'flex justify-end' : 'flex justify-start'}>
+                          <MessageReactions
+                            conversationId={conversationId}
+                            messageId={msg.id}
+                            reactions={msg.reactions || []}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5 px-1">
-                      <span className="text-[11px] text-gray-400">{formatTime(msg.created_at)}</span>
-                      {isLastFromMe && (
+                      {msg._pending && (
+                        <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                          <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                          </svg>
+                          {t('messages.sending') || 'Sending'}
+                        </span>
+                      )}
+                      {msg._failed && (
+                        <span className="text-[11px] text-red-500 flex items-center gap-1">
+                          {t('messages.failed') || 'Not sent'}
+                          <button
+                            onClick={() => retryMessage(msg.id)}
+                            className="underline hover:no-underline font-medium"
+                          >
+                            {t('messages.retry') || 'Retry'}
+                          </button>
+                        </span>
+                      )}
+                      {!msg._pending && !msg._failed && (
+                        <span className="text-[11px] text-gray-400">{formatTime(msg.created_at)}</span>
+                      )}
+                      {isLastFromMe && !msg._pending && !msg._failed && (
                         <span className="text-[11px] text-blue-500 font-medium">{t('messages.seen')}</span>
                       )}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
@@ -293,10 +318,10 @@ export default function ConversationPage() {
           {/* Typing indicator */}
           {otherTyping && (
             <div className="flex items-start">
-              <div className="px-4 py-2.5 rounded-2xl rounded-bl-sm bg-gray-100 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="px-4 py-2.5 rounded-2xl rounded-bl-sm bg-gray-100 dark:bg-gray-700 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           )}
@@ -314,7 +339,7 @@ export default function ConversationPage() {
             onBlur={handleBlur}
             placeholder={t('messages.typeAMessage')}
             maxLength={4000}
-            className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            className="flex-1 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           />
           <button
             type="submit"

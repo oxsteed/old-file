@@ -28,6 +28,7 @@ export default function HelperConversationPage() {
     otherTyping, showSeen, lastSentByMe,
     messagesEndRef, inputRef,
     handleInputChange, handleBlur, handleSend, handleKeyDown,
+    retryMessage,
     user,
   } = useConversationChat(conversationId, { listenProfileChat: true });
 
@@ -176,9 +177,9 @@ export default function HelperConversationPage() {
                 ) : (
                   <>
                     <div className="flex flex-col gap-1">
-                      <div className={`px-4 py-2.5 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed ${
+                      <div className={`px-4 py-2.5 rounded-2xl max-w-xs sm:max-w-sm text-sm leading-relaxed transition-opacity ${
                         isMe
-                          ? 'bg-orange-500 text-white rounded-br-sm'
+                          ? `rounded-br-sm ${msg._failed ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'} ${msg._pending ? 'opacity-60' : 'opacity-100'}`
                           : 'bg-gray-700/70 text-gray-100 rounded-bl-sm'
                       }`}>
                         <AutoTranslatedMessage
@@ -190,17 +191,41 @@ export default function HelperConversationPage() {
                           <span className="text-xs opacity-70 ml-2">({t('messages.edited') || 'edited'})</span>
                         )}
                       </div>
-                      <div className={isMe ? 'flex justify-end' : 'flex justify-start'}>
-                        <MessageReactions
-                          conversationId={conversationId}
-                          messageId={msg.id}
-                          reactions={msg.reactions || []}
-                        />
-                      </div>
+                      {!msg._pending && !msg._failed && (
+                        <div className={isMe ? 'flex justify-end' : 'flex justify-start'}>
+                          <MessageReactions
+                            conversationId={conversationId}
+                            messageId={msg.id}
+                            reactions={msg.reactions || []}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5 px-1">
-                      <span className="text-[11px] text-gray-600">{formatTime(msg.created_at)}</span>
-                      {isLastFromMe && (
+                      {msg._pending && (
+                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                          <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                          </svg>
+                          {t('messages.sending') || 'Sending'}
+                        </span>
+                      )}
+                      {msg._failed && (
+                        <span className="text-[11px] text-red-400 flex items-center gap-1">
+                          {t('messages.failed') || 'Not sent'}
+                          <button
+                            onClick={() => retryMessage(msg.id)}
+                            className="underline hover:no-underline font-medium"
+                          >
+                            {t('messages.retry') || 'Retry'}
+                          </button>
+                        </span>
+                      )}
+                      {!msg._pending && !msg._failed && (
+                        <span className="text-[11px] text-gray-600">{formatTime(msg.created_at)}</span>
+                      )}
+                      {isLastFromMe && !msg._pending && !msg._failed && (
                         <span className="text-[11px] text-orange-400 font-medium">{t('messages.seen')}</span>
                       )}
                       {/* Message action buttons - visible on hover */}

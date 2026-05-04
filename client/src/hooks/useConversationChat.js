@@ -32,6 +32,9 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const typingAutoClearRef = useRef(null);
   const isTypingRef = useRef(false);
   const messageIdsRef = useRef(new Set());
+  // Tracks temp IDs for in-flight optimistic messages (FIFO Set). When the
+  // socket echo of our own message arrives, we swap the oldest temp bubble out.
+  const pendingTempRef = useRef(new Set());
 
   const { user } = useAuth();
   const { socket, connected, joinConversation, leaveConversation } = useSocket();
@@ -114,6 +117,18 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     return true;
   }, []);
 
+  // Replace a temp (optimistic) message with the real server-confirmed one.
+  // Also removes the tempId from the dedup set so the real message can be added.
+  const replaceTempMessage = useCallback((tempId, realMessage) => {
+    messageIdsRef.current.delete(tempId);
+    if (realMessage && !messageIdsRef.current.has(realMessage.id)) {
+      messageIdsRef.current.add(realMessage.id);
+    }
+    setMessages((prev) =>
+      prev.map((m) => (m.id === tempId ? (realMessage || m) : m))
+    );
+  }, []);
+
   // ── Real-time events ─────────────────────────────────────────
   useEffect(() => {
     if (!socket) {
@@ -129,6 +144,20 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
         console.log('[useConversationChat] Ignoring message:new - conversation ID mismatch');
         return;
       }
+
+      // If this is our own message echoed back from the server (via socket broadcast),
+      // and we already have a pending optimistic bubble for it, swap it out cleanly.
+      if (message.sender_id === user?.id) {
+        const hasTempForThis = pendingTempRef.current.size > 0;
+        if (hasTempForThis) {
+          // Find the oldest pending temp message (FIFO) and replace it.
+          const [tempId] = pendingTempRef.current;
+          pendingTempRef.current.delete(tempId);
+          replaceTempMessage(tempId, message);
+          return;
+        }
+      }
+
       const appended = appendMessageIfNew(message);
       console.log('[useConversationChat] Message appended:', appended, message?.content?.substring(0, 50));
       if (!appended) return;
@@ -259,6 +288,24 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   const handleBlur = () => stopTypingEmit();
 
   // ── Send ──────────────────────────────────────────────────────
+  // Core send logic shared by handleSend and retryMessage.
+  const sendContent = useCallback(async (content, tempId) => {
+    try {
+      const res = await api.post(`/messages/conversations/${conversationId}`, { content });
+      console.log('[useConversationChat] Message sent successfully, ID:', res.data?.id);
+      // Remove from pending set; socket echo may or may not have already swapped it.
+      pendingTempRef.current.delete(tempId);
+      replaceTempMessage(tempId, res.data);
+    } catch (err) {
+      console.error('[useConversationChat] send error:', err);
+      pendingTempRef.current.delete(tempId);
+      // Mark the optimistic bubble as failed so the user can retry.
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, _pending: false, _failed: true } : m))
+      );
+    }
+  }, [conversationId, replaceTempMessage]);
+
   const handleSend = useCallback(async (e) => {
     e?.preventDefault();
     const content = newMessage.trim();
@@ -267,18 +314,44 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     stopTypingEmit();
     setSending(true);
     setNewMessage('');
-    try {
-      const res = await api.post(`/messages/conversations/${conversationId}`, { content });
-      console.log('[useConversationChat] Message sent successfully, ID:', res.data?.id);
-      appendMessageIfNew(res.data);
-    } catch (err) {
-      console.error('[useConversationChat] send error:', err);
-      setNewMessage(content);
-    } finally {
-      setSending(false);
-      inputRef.current?.focus();
+
+    // Optimistic: show the message immediately before the server responds.
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const optimisticMsg = {
+      id: tempId,
+      content,
+      sender_id: user?.id,
+      sender_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.name || '',
+      created_at: new Date().toISOString(),
+      _pending: true,
+      _failed: false,
+    };
+    messageIdsRef.current.add(tempId);
+    pendingTempRef.current.add(tempId);
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setSending(false);
+    inputRef.current?.focus();
+
+    await sendContent(content, tempId);
+  }, [newMessage, sending, stopTypingEmit, conversationId, user, sendContent]);
+
+  // Retry a previously failed optimistic message.
+  const retryMessage = useCallback(async (tempId) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === tempId ? { ...m, _pending: true, _failed: false } : m))
+    );
+    pendingTempRef.current.add(tempId);
+    const msg = await new Promise((resolve) => {
+      setMessages((prev) => {
+        const found = prev.find((m) => m.id === tempId);
+        resolve(found);
+        return prev;
+      });
+    });
+    if (msg?.content) {
+      await sendContent(msg.content, tempId);
     }
-  }, [newMessage, sending, stopTypingEmit, conversationId, appendMessageIfNew]);
+  }, [sendContent]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -288,7 +361,8 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
   };
 
   // ── Derived: "Seen" indicator ─────────────────────────────────
-  const lastSentByMe = [...messages].reverse().find(m => m.sender_id === user?.id);
+  // Exclude optimistic/pending messages - only show "Seen" for server-confirmed ones.
+  const lastSentByMe = [...messages].reverse().find(m => m.sender_id === user?.id && !m._pending && !m._failed);
   const showSeen = lastReadAt && lastSentByMe &&
     new Date(lastReadAt) >= new Date(lastSentByMe.created_at);
 
@@ -313,6 +387,7 @@ export function useConversationChat(conversationId, { extraSocketEvents = [], li
     handleBlur,
     handleSend,
     handleKeyDown,
+    retryMessage,
     // Auth
     user,
   };

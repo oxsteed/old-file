@@ -1829,10 +1829,15 @@
     "community": {
       "title": "Batman Kominote",
       "browseJobs": "Gade Travay →",
+      "findHelpers": "Jwenn Èd →",
       "jobsThisWeek": "Travay Semèn sa a",
       "openNow": "Louvri kounye a",
       "activeHelpers": "Èd aktif",
       "seekersThisWeek": "Moun k ap chèche semèn sa a",
+      "newHelpersThisWeek": "Nouvo Èd Semèn sa a",
+      "toolsForRent": "Zouti pou Lwe",
+      "productsForSale": "Pwodui pou Vann",
+      "topServices": "Sèvis prensipal:",
       "trending": "Tandans:"
     },
     "upgrade": {
@@ -5681,7 +5686,8 @@
     "notAdviceTag": "⚠️ Pa konsey finansyal pwofesyonel",
     "authRequired": "Tanpri konekte pou itilize konsèyè finansyal la.",
     "error": "Sèvis IA a pa disponib pandan tan. Tanpri eseye ankò.",
-    "windowLabel": "Fenèt analiz"
+    "windowLabel": "Fenèt analiz",
+    "buttonLabel": "Kalkil IA"
   },
   "qrGenerator": {
     "pageTitle": "Jeneratè Kòd QR | OxSteed",

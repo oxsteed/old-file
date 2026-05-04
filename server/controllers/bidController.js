@@ -32,7 +32,7 @@ exports.createBid = async (req, res, next) => {
       throw new AppError('Job is not accepting bids', 400, 'job_not_accepting_bids');
     }
 
-    // Create bid and update job status atomically (duplicate check inside transaction to prevent race condition)
+    // Create bid (duplicate check inside transaction to prevent race condition)
     const result = await withTransaction(pool, async (client) => {
       // Check for existing bid inside the transaction to avoid race window
       const existing = await client.query(
@@ -50,8 +50,10 @@ exports.createBid = async (req, res, next) => {
         [job_id, req.user.id, amount, message !== undefined ? message.trim() : message, estimated_hours]
       );
 
-      // Update job status to matched if first bid
-      await client.query(`UPDATE jobs SET status = 'matched', updated_at = NOW() WHERE id = $1 AND status = 'published'`, [job_id]);
+      // NOTE: Job status intentionally NOT changed here.
+      // A job remains 'published' (visible on the job board) until the customer
+      // explicitly accepts a bid via assignHelper(). Multiple helpers should be
+      // able to discover and bid on the same job concurrently.
 
       return bidResult.rows[0];
     });

@@ -66,11 +66,13 @@ export const useSocket = () => {
     socketInstance = io(
       import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000',
       {
-        auth:                 { token },
-        transports:           ['websocket'],
-        reconnection:         true,
-        reconnectionDelay:    2000,
-        reconnectionAttempts: 10,
+        auth:                    { token },
+        transports:              ['websocket'],
+        reconnection:            true,
+        reconnectionDelay:       500,      // was 2000 - reconnect quickly after a drop
+        reconnectionDelayMax:    4000,     // cap back-off at 4s
+        reconnectionAttempts:    20,       // more attempts before giving up
+        timeout:                 10000,    // handshake timeout (ms)
       }
     );
 
@@ -88,6 +90,15 @@ export const useSocket = () => {
 
     socketInstance.on('connect_error', (err) => {
       console.error('[useSocket] Connection error:', err.message, err);
+    });
+
+    // Refresh the auth token before each reconnect attempt so the socket never
+    // reconnects with an expired JWT (access tokens rotate every 15 minutes).
+    socketInstance.on('reconnect_attempt', () => {
+      const freshToken = localStorage.getItem('accessToken');
+      if (freshToken && socketInstance) {
+        socketInstance.auth = { token: freshToken };
+      }
     });
 
     // Server emits this when an admin bans or deactivates the account.

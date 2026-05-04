@@ -889,16 +889,75 @@ exports.getDashboardSummary = async (req, res) => {
 
 exports.getCommunityStats = async (req, res) => {
   try {
-    const { zip } = req.query;
-
-    // Jobs activity this week (optionally filtered by zip)
+    const { zip, view } = req.query;
     const zipCondition = zip ? 'AND j.location_zip = $1' : '';
     const zipParams = zip ? [zip] : [];
 
+    // ── Customer view: show marketplace supply-side stats ────────────
+    if (view === 'customer') {
+      // New helpers who joined this week
+      const { rows: newHelperRows } = await db.query(`
+        SELECT COUNT(DISTINCT u.id) AS new_helpers_this_week
+        FROM users u
+        WHERE u.role = 'helper'
+          AND u.onboarding_completed = true
+          AND u.is_active = true
+          AND u.created_at >= CURRENT_DATE - INTERVAL '7 days'
+      `);
+
+      // Total active helpers (available to hire)
+      const { rows: helperRows } = await db.query(`
+        SELECT COUNT(DISTINCT u.id) AS active_helpers
+        FROM users u
+        WHERE u.role = 'helper'
+          AND u.onboarding_completed = true
+          AND u.is_active = true
+      `);
+
+      // Tool rentals available
+      const { rows: toolRows } = await db.query(`
+        SELECT COUNT(*) AS tools_for_rent
+        FROM tool_rentals
+        WHERE status = 'available'
+          AND deleted_at IS NULL
+      `).catch(() => ({ rows: [{ tools_for_rent: 0 }] }));
+
+      // Marketplace products for sale
+      const { rows: productRows } = await db.query(`
+        SELECT COUNT(*) AS products_for_sale
+        FROM marketplace_products
+        WHERE is_active = true
+          AND deleted_at IS NULL
+      `).catch(() => ({ rows: [{ products_for_sale: 0 }] }));
+
+      // Top service categories (based on active helper profiles)
+      const { rows: topCategories } = await db.query(`
+        SELECT hp.category AS category_name, COUNT(*) AS helper_count
+        FROM helper_profiles hp
+        JOIN users u ON u.id = hp.user_id
+        WHERE u.is_active = true
+          AND u.onboarding_completed = true
+          AND hp.category IS NOT NULL
+        GROUP BY hp.category
+        ORDER BY helper_count DESC
+        LIMIT 5
+      `).catch(() => ({ rows: [] }));
+
+      return res.json({
+        view: 'customer',
+        new_helpers_this_week: parseInt(newHelperRows[0]?.new_helpers_this_week || 0),
+        active_helpers: parseInt(helperRows[0]?.active_helpers || 0),
+        tools_for_rent: parseInt(toolRows[0]?.tools_for_rent || 0),
+        products_for_sale: parseInt(productRows[0]?.products_for_sale || 0),
+        top_categories: topCategories.map(r => ({ category_name: r.category_name, job_count: r.helper_count })),
+      });
+    }
+
+    // ── Default (helper/seeker) view ─────────────────────────────────
     const { rows: jobStats } = await db.query(`
       SELECT
         COUNT(*) FILTER (WHERE j.created_at >= CURRENT_DATE - INTERVAL '7 days') AS jobs_this_week,
-        COUNT(*) FILTER (WHERE j.status = 'published') AS open_jobs,
+        COUNT(*) FILTER (WHERE j.status IN ('published', 'matched')) AS open_jobs,
         COUNT(DISTINCT j.client_id) FILTER (WHERE j.created_at >= CURRENT_DATE - INTERVAL '7 days') AS active_seekers
       FROM jobs j
       WHERE j.deleted_at IS NULL
@@ -930,6 +989,7 @@ exports.getCommunityStats = async (req, res) => {
     `);
 
     res.json({
+      view: 'helper',
       jobs_this_week: parseInt(jobStats[0]?.jobs_this_week || 0),
       open_jobs: parseInt(jobStats[0]?.open_jobs || 0),
       active_seekers: parseInt(jobStats[0]?.active_seekers || 0),

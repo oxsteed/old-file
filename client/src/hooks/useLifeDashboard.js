@@ -60,9 +60,12 @@ export default function useLifeDashboard() {
   // ── Community stats ─────────────────────────────────────────────────
   const [community, setCommunity] = useState(null);
 
-  const fetchCommunity = useCallback(async (zip) => {
+  const fetchCommunity = useCallback(async (zip, view) => {
     try {
-      const qs = zip ? `?zip=${zip}` : '';
+      const params = new URLSearchParams();
+      if (zip) params.set('zip', zip);
+      if (view) params.set('view', view);
+      const qs = params.toString() ? `?${params.toString()}` : '';
       const { data } = await api.get(`/life/community${qs}`);
       setCommunity(data);
       return data;

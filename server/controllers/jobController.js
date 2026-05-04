@@ -233,11 +233,14 @@ exports.getJobs = async (req, res) => {
       conditions.push(`j.location_state = $${paramIdx++}`);
       params.push(state);
     }
-    if (status && ['published','cancelled','completed','in_progress','draft','pending'].includes(status)) {
+    if (status && ['published','matched','cancelled','completed','in_progress','draft','pending'].includes(status)) {
       conditions.push(`j.status = $${paramIdx++}`);
       params.push(status);
     } else {
-      conditions.push(`j.status = 'published'`);
+      // Show both 'published' and 'matched' jobs on the public board.
+      // 'matched' jobs have at least one bid but are still open for competing bids
+      // until the customer explicitly accepts one via assignHelper().
+      conditions.push(`j.status IN ('published', 'matched')`);
     }
     if (min_budget) {
       conditions.push(`j.budget_max >= $${paramIdx++}`);

@@ -77,6 +77,7 @@ import ShoppingCartPage from './pages/ShoppingCartPage';
 import SharedCartPage from './pages/SharedCartPage';
 import SupportEscalationPage from './pages/SupportEscalationPage';
 import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
+import MyJobsPage from './pages/MyJobsPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -191,6 +192,7 @@ export default function App() {
 
                     {/* Critical: Job posting form with media upload */}
                     <Route path="/post-job"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><PostJobPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/my-jobs"        element={<Guarded><ProtectedRoute><MyJobsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />

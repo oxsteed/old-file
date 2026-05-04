@@ -1744,10 +1744,15 @@
     "community": {
       "title": "Pulso de la Comunidad",
       "browseJobs": "Ver trabajos →",
+      "findHelpers": "Buscar ayudantes →",
       "jobsThisWeek": "Trabajos esta semana",
       "openNow": "Abiertos ahora",
       "activeHelpers": "Ayudantes activos",
       "seekersThisWeek": "Buscadores esta semana",
+      "newHelpersThisWeek": "Nuevos ayudantes esta semana",
+      "toolsForRent": "Herramientas en alquiler",
+      "productsForSale": "Productos en venta",
+      "topServices": "Servicios principales:",
       "trending": "Tendencias:"
     },
     "upgrade": {
@@ -5681,7 +5686,8 @@
     "notAdviceTag": "⚠️ No es asesoramiento financiero profesional",
     "authRequired": "Por favor inicia sesión para usar el asesor financiero.",
     "error": "El servicio de IA no está disponible temporalmente. Por favor, intenta de nuevo.",
-    "windowLabel": "Ventana de análisis"
+    "windowLabel": "Ventana de análisis",
+    "buttonLabel": "Calculadora IA"
   },
   "qrGenerator": {
     "pageTitle": "Generador de Código QR | OxSteed",

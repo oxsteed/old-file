@@ -625,7 +625,7 @@ export default function Dashboard() {
     retryLoad();
     life.fetchSummary();
     life.fetchFinancialPulse('1m'); // dashboard default: 30-day horizon
-    life.fetchCommunity();
+    life.fetchCommunity(undefined, user?.role === 'customer' ? 'customer' : undefined);
     life.fetchExpenses();
     life.fetchBudgets();
     life.fetchGoals();
@@ -1034,14 +1034,16 @@ export default function Dashboard() {
           </div>
 
           {/* Quick actions */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
             {[
-              {to:'/post-job',       Ic:IcoPlus,   l:t('dashboard.postJob'),          c:'text-orange-400'},
-              {to:'/helpers',        Ic:IcoSearch,  l:t('dashboard.browseHelpers'),    c:'text-blue-400'},
-              {to:'/messages',       Ic:IcoChat,    l:t('messages.title'),             c:'text-emerald-400', badge:unreadMsgs},
-              {to:'/planned-needs',  Ic:IcoClock,   l:t('dashboard.plannedNeeds.title'), c:'text-purple-400',
+              {to:'/post-job',       Ic:IcoPlus,        l:t('dashboard.postJob'),               c:'text-orange-400'},
+              {to:'/my-jobs',        Ic:IcoBriefcase,   l:t('dashboard.myJobs'),                c:'text-yellow-400',
+                badge: myJobs.length > 0 ? myJobs.length : 0},
+              {to:'/helpers',        Ic:IcoSearch,      l:t('dashboard.browseHelpers'),          c:'text-blue-400'},
+              {to:'/messages',       Ic:IcoChat,        l:t('messages.title'),                   c:'text-emerald-400', badge:unreadMsgs},
+              {to:'/planned-needs',  Ic:IcoClock,       l:t('dashboard.plannedNeeds.title'),     c:'text-purple-400',
                 badge: s?.planned_needs?.activating_soon_count || 0},
-              {to:'/tool-rentals',   Ic:IcoSearch,  l:t('toolRentals.browsePage'),     c:'text-indigo-400'},
+              {to:'/tool-rentals',   Ic:IcoSearch,      l:t('toolRentals.browsePage'),           c:'text-indigo-400'},
             ].map((a,i)=>(
               <Link key={i} to={a.to} className="relative bg-gray-900/50 border border-gray-700/40 rounded-2xl p-4 hover:border-gray-600 hover:-translate-y-0.5 transition-all group flex items-center gap-3">
                 <a.Ic size={18} cls={a.c}/><span className="text-sm font-medium text-gray-300 group-hover:text-white transition">{a.l}</span>
@@ -1120,32 +1122,66 @@ export default function Dashboard() {
           {/* Community Pulse */}
           {life.community && (
             <Card className="mb-6">
-              <CardHeader icon={IcoUsers} title={t('dashboard.community.title')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('dashboard.community.browseJobs')}</Link>}/>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-                  <p className="text-xl font-bold text-orange-400">{life.community.jobs_this_week}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.jobsThisWeek')}</p>
-                </div>
-                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-                  <p className="text-xl font-bold text-emerald-400">{life.community.open_jobs}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.openNow')}</p>
-                </div>
-                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-                  <p className="text-xl font-bold text-blue-400">{life.community.active_helpers}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.activeHelpers')}</p>
-                </div>
-                <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-                  <p className="text-xl font-bold text-purple-400">{life.community.active_seekers}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.seekersThisWeek')}</p>
-                </div>
-              </div>
-              {life.community.top_categories?.length > 0 && (
-                <div className="mt-4 flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-gray-500">{t('dashboard.community.trending')}</span>
-                  {life.community.top_categories.slice(0,3).map((c,i) => (
-                    <Tag key={i} text={`${c.category_name} (${c.job_count})`} color={['orange','green','blue'][i]}/>
-                  ))}
-                </div>
+              {life.community.view === 'customer' ? (
+                <>
+                  <CardHeader icon={IcoUsers} title={t('dashboard.community.title')} right={<Link to="/helpers" className="text-xs text-orange-400 font-medium">{t('dashboard.community.findHelpers', { defaultValue: 'Find Helpers' })}</Link>}/>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-emerald-400">{life.community.new_helpers_this_week}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.newHelpersThisWeek', { defaultValue: 'New Helpers This Week' })}</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-orange-400">{life.community.active_helpers}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.activeHelpers')}</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-blue-400">{life.community.tools_for_rent}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.toolsForRent', { defaultValue: 'Tools for Rent' })}</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-purple-400">{life.community.products_for_sale}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.productsForSale', { defaultValue: 'Products for Sale' })}</p>
+                    </div>
+                  </div>
+                  {life.community.top_categories?.length > 0 && (
+                    <div className="mt-4 flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-500">{t('dashboard.community.topServices', { defaultValue: 'Top services:' })}</span>
+                      {life.community.top_categories.slice(0,3).map((c,i) => (
+                        <Tag key={i} text={c.category_name} color={['orange','green','blue'][i]}/>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <CardHeader icon={IcoUsers} title={t('dashboard.community.title')} right={<Link to="/jobs" className="text-xs text-orange-400 font-medium">{t('dashboard.community.browseJobs')}</Link>}/>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-orange-400">{life.community.jobs_this_week}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.jobsThisWeek')}</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-emerald-400">{life.community.open_jobs}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.openNow')}</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-blue-400">{life.community.active_helpers}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.activeHelpers')}</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800/30 rounded-xl">
+                      <p className="text-xl font-bold text-purple-400">{life.community.active_seekers}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">{t('dashboard.community.seekersThisWeek')}</p>
+                    </div>
+                  </div>
+                  {life.community.top_categories?.length > 0 && (
+                    <div className="mt-4 flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-500">{t('dashboard.community.trending')}</span>
+                      {life.community.top_categories.slice(0,3).map((c,i) => (
+                        <Tag key={i} text={`${c.category_name} (${c.job_count})`} color={['orange','green','blue'][i]}/>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           )}
