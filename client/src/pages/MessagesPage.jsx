@@ -71,7 +71,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ox-900 dark:bg-gray-950">
+    <div className="min-h-screen flex flex-col bg-gray-950 dark:bg-gray-950">
       <PageMeta title={t('messages.title')} description={t('messages.metaDesc')} noIndex={true} />
       <Navbar />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
