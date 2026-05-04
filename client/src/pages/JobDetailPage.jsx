@@ -80,6 +80,18 @@ function initials(name) {
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
 }
 
+// Format name for privacy: "FirstName L." (first name + last initial only)
+function formatNameForPrivacy(fullName) {
+  if (!fullName) return 'Unknown';
+  const parts = fullName.trim().split(' ');
+  if (parts.length === 0) return 'Unknown';
+  if (parts.length === 1) return parts[0];
+  // Return first name + last initial of last part
+  const lastName = parts[parts.length - 1];
+  const lastInitial = lastName[0]?.toUpperCase() || '';
+  return `${parts[0]} ${lastInitial}.`;
+}
+
 function daysUntil(dateStr) {
   if (!dateStr) return null;
   const diff = new Date(dateStr).getTime() - Date.now();
@@ -593,7 +605,7 @@ export default function JobDetailPage() {
                           : <div className="jdp-bid-avatar jdp-bid-avatar-initials">{initials(bid.helper_name)}</div>
                         }
                         <div className="jdp-bid-helper-info">
-                          <span className="jdp-bid-helper-name">{bid.helper_name}</span>
+                          <span className="jdp-bid-helper-name">{formatNameForPrivacy(bid.helper_name)}</span>
                           <div className="jdp-bid-helper-stats">
                             {bid.helper_rating && (
                               <span>⭐ {Number(bid.helper_rating).toFixed(1)}</span>
@@ -718,7 +730,7 @@ export default function JobDetailPage() {
               <div className="jdp-client-row">
                 <div className="jdp-client-avatar">{initials(job.client_name)}</div>
                 <div>
-                  <div className="jdp-client-name">{job.client_name}</div>
+                  <div className="jdp-client-name">{formatNameForPrivacy(job.client_name)}</div>
                   <div className="jdp-client-label">OxSteed Client</div>
                 </div>
               </div>
@@ -732,7 +744,7 @@ export default function JobDetailPage() {
               <div className="jdp-client-row">
                 <div className="jdp-client-avatar" style={{ background: 'rgba(74,222,128,.2)', color: '#4ade80' }}>{initials(job.helper_name)}</div>
                 <div>
-                  <div className="jdp-client-name">{job.helper_name}</div>
+                  <div className="jdp-client-name">{formatNameForPrivacy(job.helper_name)}</div>
                   <div className="jdp-client-label">Accepted Helper</div>
                 </div>
               </div>
@@ -764,7 +776,7 @@ export default function JobDetailPage() {
                   {reviewEligible && (
                     <ReviewModal
                       jobId={id}
-                      revieweeName={job.helper_name || 'your helper'}
+                      revieweeName={job.helper_name ? formatNameForPrivacy(job.helper_name) : 'your helper'}
                       onComplete={() => setReviewEligible(false)}
                     />
                   )}
@@ -778,7 +790,7 @@ export default function JobDetailPage() {
               <h3 className="jdp-sidebar-title">Review</h3>
               <ReviewModal
                 jobId={id}
-                revieweeName={job.client_name || 'your customer'}
+                revieweeName={job.client_name ? formatNameForPrivacy(job.client_name) : 'your customer'}
                 onComplete={() => setReviewEligible(false)}
               />
             </div>
@@ -828,7 +840,7 @@ export default function JobDetailPage() {
       {acceptingBid && (
         <BidAcceptanceModal
           bid={acceptingBid}
-          helperName={acceptingBid.helper_name || t('jobDetail.theHelper', { defaultValue: 'the helper' })}
+          helperName={acceptingBid.helper_name ? formatNameForPrivacy(acceptingBid.helper_name) : t('jobDetail.theHelper', { defaultValue: 'the helper' })}
           jobTitle={job?.title || ''}
           onClose={() => setAcceptingBid(null)}
           onAccept={handleAssign}
