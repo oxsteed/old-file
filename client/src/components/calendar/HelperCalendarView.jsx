@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { toast } from 'sonner';
@@ -284,6 +284,29 @@ export default function HelperCalendarView({ viewMode, selectedDate, onDateChang
 function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment }) {
   const { t } = useTranslation();
   const today = new Date();
+  const scrollRef = useRef(null);
+
+  // Live "minutes since midnight" for the now indicator
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const n = new Date();
+      setNowMinutes(n.getHours() * 60 + n.getMinutes());
+    };
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Auto-scroll to current time on mount (show 1 hour before now)
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = Math.max(0, nowMinutes - 60);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dayOfWeek = selectedDate.getDay();
   const weekStart = new Date(selectedDate);
@@ -315,78 +338,105 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
         ))}
       </div>
 
-      <div className="hcv-week-grid">
-        <div className="hcv-times">
-          {HOURS.map((hour) => (
-            <div key={hour} className="hcv-time-slot">
-              {String(hour).padStart(2, '0')}:00
-            </div>
-          ))}
-        </div>
-
-        {days.map((day) => (
-          <div key={day.toISOString()} className="hcv-day-column">
-            {HOURS.map((hour) => {
-              const slotStart = new Date(day);
-              slotStart.setHours(hour, 0, 0, 0);
-              const slotEnd = new Date(slotStart);
-              slotEnd.setHours(hour + 1, 0, 0, 0);
-
-              const dayAppointments = appointments.filter((apt) => {
-                if (!apt?.scheduled_start_time || !apt?.scheduled_end_time) return false;
-                try {
-                  const aptStart = new Date(apt.scheduled_start_time);
-                  const aptEnd = new Date(apt.scheduled_end_time);
-                  return !isNaN(aptStart) && !isNaN(aptEnd) && aptStart < slotEnd && aptEnd > slotStart;
-                } catch {
-                  return false;
-                }
-              });
-
-              const dayBlocks = availabilityBlocks.filter((block) => {
-                if (!block?.start_time || !block?.end_time) return false;
-                try {
-                  const blockStart = new Date(block.start_time);
-                  const blockEnd = new Date(block.end_time);
-                  return !isNaN(blockStart) && !isNaN(blockEnd) && blockStart < slotEnd && blockEnd > slotStart;
-                } catch {
-                  return false;
-                }
-              });
-
-              return (
-                <div
-                  key={`${day.toISOString()}-${hour}`}
-                  className="hcv-slot"
-                  onClick={() => onBlockTime(day, hour)}
-                >
-                  {dayBlocks.map((block) => (
-                    <div
-                      key={block.id}
-                      className={`hcv-block hcv-block-${block.type}`}
-                      title={block.title || block.type}
-                    >
-                      {block.type}
-                    </div>
-                  ))}
-                  {dayAppointments.map((apt) => (
-                    <div
-                      key={apt.id}
-                      className={`hcv-appointment hcv-apt-${apt.status}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectAppointment(apt);
-                      }}
-                      title={apt.service_description}
-                    >
-                      {apt.customer_name}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+      {/* Scrollable body — header stays fixed above */}
+      <div className="hcv-week-body" ref={scrollRef}>
+        <div className="hcv-week-grid">
+          <div className="hcv-times">
+            {HOURS.map((hour) => (
+              <div key={hour} className="hcv-time-slot">
+                {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
+              </div>
+            ))}
           </div>
-        ))}
+
+          {days.map((day) => {
+            const isToday = isSameDay(day, today);
+            return (
+              <div
+                key={day.toISOString()}
+                className={`hcv-day-column${isToday ? ' hcv-day-today' : ''}`}
+              >
+                {/* Current-time indicator — only in today's column */}
+                {isToday && (
+                  <div
+                    className="hcv-now-indicator"
+                    style={{ top: `${nowMinutes}px` }}
+                    aria-hidden="true"
+                  >
+                    <div className="hcv-now-dot" />
+                  </div>
+                )}
+
+                {HOURS.map((hour) => {
+                  const slotStart = new Date(day);
+                  slotStart.setHours(hour, 0, 0, 0);
+                  const slotEnd = new Date(slotStart);
+                  slotEnd.setHours(hour + 1, 0, 0, 0);
+
+                  const dayAppointments = appointments.filter((apt) => {
+                    if (!apt?.scheduled_start_time || !apt?.scheduled_end_time) return false;
+                    try {
+                      const aptStart = new Date(apt.scheduled_start_time);
+                      const aptEnd = new Date(apt.scheduled_end_time);
+                      return !isNaN(aptStart) && !isNaN(aptEnd) && aptStart < slotEnd && aptEnd > slotStart;
+                    } catch {
+                      return false;
+                    }
+                  });
+
+                  const dayBlocks = availabilityBlocks.filter((block) => {
+                    if (!block?.start_time || !block?.end_time) return false;
+                    try {
+                      const blockStart = new Date(block.start_time);
+                      const blockEnd = new Date(block.end_time);
+                      return !isNaN(blockStart) && !isNaN(blockEnd) && blockStart < slotEnd && blockEnd > slotStart;
+                    } catch {
+                      return false;
+                    }
+                  });
+
+                  return (
+                    <div
+                      key={`${day.toISOString()}-${hour}`}
+                      className="hcv-slot"
+                      onClick={() => onBlockTime(day, hour)}
+                    >
+                      {dayBlocks.map((block) => (
+                        <div
+                          key={block.id}
+                          className={`hcv-block hcv-block-${block.type}`}
+                          title={block.title || block.type}
+                        >
+                          {block.type}
+                        </div>
+                      ))}
+                      {dayAppointments.map((apt) => {
+                        const aptStart = new Date(apt.scheduled_start_time);
+                        const timeStr = isNaN(aptStart)
+                          ? ''
+                          : aptStart.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <div
+                            key={apt.id}
+                            className={`hcv-appointment hcv-apt-${apt.status}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectAppointment(apt);
+                            }}
+                            title={apt.service_description}
+                          >
+                            <span className="hcv-apt-time">{timeStr}</span>
+                            <span className="hcv-apt-name">{apt.customer_name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -395,6 +445,30 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
 // ─── Day View ─────────────────────────────────────────────────────────────────
 
 function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment }) {
+  const scrollRef = useRef(null);
+  const today = new Date();
+  const isToday = isSameDay(selectedDate, today);
+
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const n = new Date();
+      setNowMinutes(n.getHours() * 60 + n.getMinutes());
+    };
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current && isToday) {
+      scrollRef.current.scrollTop = Math.max(0, nowMinutes - 60);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="hcv-day-view">
       <div className="hcv-day-title">
@@ -404,61 +478,83 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
           day: 'numeric',
         })}
       </div>
-      <div className="hcv-day-grid">
-        <div className="hcv-times">
-          {HOURS.map((hour) => (
-            <div key={hour} className="hcv-time-slot">
-              {String(hour).padStart(2, '0')}:00
-            </div>
-          ))}
-        </div>
-        <div className="hcv-day-events">
-          {HOURS.map((hour) => {
-            const slotStart = new Date(selectedDate);
-            slotStart.setHours(hour, 0, 0, 0);
-            const slotEnd = new Date(slotStart);
-            slotEnd.setHours(hour + 1, 0, 0, 0);
-
-            const hourAppointments = appointments.filter((apt) => {
-              if (!apt?.scheduled_start_time || !apt?.scheduled_end_time) return false;
-              const aptStart = new Date(apt.scheduled_start_time);
-              const aptEnd = new Date(apt.scheduled_end_time);
-              return aptStart < slotEnd && aptEnd > slotStart;
-            });
-
-            const hourBlocks = availabilityBlocks.filter((block) => {
-              if (!block?.start_time || !block?.end_time) return false;
-              const blockStart = new Date(block.start_time);
-              const blockEnd = new Date(block.end_time);
-              return blockStart < slotEnd && blockEnd > slotStart;
-            });
-
-            return (
-              <div
-                key={`slot-${hour}`}
-                className="hcv-slot"
-                onClick={() => onBlockTime(selectedDate, hour)}
-              >
-                {hourBlocks.map((block) => (
-                  <div key={block.id} className={`hcv-block hcv-block-${block.type}`}>
-                    {block.type}
-                  </div>
-                ))}
-                {hourAppointments.map((apt) => (
-                  <div
-                    key={apt.id}
-                    className={`hcv-appointment hcv-apt-${apt.status}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectAppointment(apt);
-                    }}
-                  >
-                    {apt.customer_name} – {apt.service_description}
-                  </div>
-                ))}
+      <div className="hcv-day-body" ref={scrollRef}>
+        <div className="hcv-day-grid">
+          <div className="hcv-times">
+            {HOURS.map((hour) => (
+              <div key={hour} className="hcv-time-slot">
+                {hour === 0 ? '' : `${String(hour).padStart(2, '0')}:00`}
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div className={`hcv-day-events${isToday ? ' hcv-day-today' : ''}`}>
+            {/* Now indicator for today */}
+            {isToday && (
+              <div
+                className="hcv-now-indicator"
+                style={{ top: `${nowMinutes}px` }}
+                aria-hidden="true"
+              >
+                <div className="hcv-now-dot" />
+              </div>
+            )}
+            {HOURS.map((hour) => {
+              const slotStart = new Date(selectedDate);
+              slotStart.setHours(hour, 0, 0, 0);
+              const slotEnd = new Date(slotStart);
+              slotEnd.setHours(hour + 1, 0, 0, 0);
+
+              const hourAppointments = appointments.filter((apt) => {
+                if (!apt?.scheduled_start_time || !apt?.scheduled_end_time) return false;
+                const aptStart = new Date(apt.scheduled_start_time);
+                const aptEnd = new Date(apt.scheduled_end_time);
+                return aptStart < slotEnd && aptEnd > slotStart;
+              });
+
+              const hourBlocks = availabilityBlocks.filter((block) => {
+                if (!block?.start_time || !block?.end_time) return false;
+                const blockStart = new Date(block.start_time);
+                const blockEnd = new Date(block.end_time);
+                return blockStart < slotEnd && blockEnd > slotStart;
+              });
+
+              return (
+                <div
+                  key={`slot-${hour}`}
+                  className="hcv-slot"
+                  onClick={() => onBlockTime(selectedDate, hour)}
+                >
+                  {hourBlocks.map((block) => (
+                    <div key={block.id} className={`hcv-block hcv-block-${block.type}`}>
+                      {block.type}
+                    </div>
+                  ))}
+                  {hourAppointments.map((apt) => {
+                    const aptStart = new Date(apt.scheduled_start_time);
+                    const timeStr = isNaN(aptStart)
+                      ? ''
+                      : aptStart.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                    return (
+                      <div
+                        key={apt.id}
+                        className={`hcv-appointment hcv-apt-${apt.status}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectAppointment(apt);
+                        }}
+                      >
+                        <span className="hcv-apt-time">{timeStr}</span>
+                        <span className="hcv-apt-name">
+                          {apt.customer_name}
+                          {apt.service_description ? ` – ${apt.service_description}` : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -582,7 +678,7 @@ function AgendaView({ appointments, onSelectAppointment, t }) {
 
   const STATUS_COLORS = {
     requested: '#3b82f6',
-    confirmed: '#10b981',
+    confirmed: '#f97316',
     in_progress: '#f59e0b',
     completed: '#6b7280',
     cancelled: '#9ca3af',

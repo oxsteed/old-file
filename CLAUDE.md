@@ -60,6 +60,11 @@
 - **i18n**: `templatePicker.*` keys (42 each) added to en/es/fr/ht locale files.
 - **TypeScript**: `HelperProfileData` interface extended with `activeTemplate?: string`.
 
+**Latest work completed (2026-05-03, session 3):**
+- **Calendar HelperCalendarView upgrade** ✅ COMPLETE
+  - **`client/src/components/calendar/HelperCalendarView.jsx`**: Added `useRef` import. **WeekView**: `nowMinutes` state (hours×60+mins) updated every 60 s via `setInterval`; `scrollRef` on `.hcv-week-body`; auto-scrolls to `nowMinutes - 60` on mount; red now-indicator line + dot rendered inside today's column at `top: nowMinutes px`. **DayView**: same now-indicator + auto-scroll pattern when `isToday`. Both views show improved event chips with `hcv-apt-time` (start time, 0.6rem) above `hcv-apt-name`. Agenda `STATUS_COLORS.confirmed` changed to `#f97316` (OxSteed orange).
+  - **`client/src/styles/HelperCalendarView.css`**: `.hcv-week-body` + `.hcv-day-body` scrollable containers (`max-height: 660px; overflow-y: auto`). `.hcv-week-header` + `.hcv-day-title` `position: sticky; top: 0; z-index: 3` so they stay visible while scrolling. `.hcv-day-column { position: relative }` + `.hcv-day-column.hcv-day-today` subtle orange tint. `.hcv-now-indicator` (red line, `z-index: 4`, `pointer-events: none`) + `.hcv-now-dot` (10px red circle on left). `.hcv-apt-confirmed` changed to `#f97316` (OxSteed orange) across all views. `.hcv-apt-time` / `.hcv-apt-name` sub-elements for two-line chips. Mobile: scroll containers shrink to `max-height: 480px`.
+
 **Latest work completed (2026-05-03, session 2):**
 - **1-Year Free Trial on All Templates** ✅ COMPLETE
   - **Migration 167** (`server/migrations/167_template_free_trial.sql`): Drops and recreates `template_access_type_check` constraint to add `'free_trial'` as a valid `access_type`. Bulk-inserts 1-year `free_trial` / `timed` access rows for every existing non-deleted user x every paid active template. Idempotent: skips users who already have a `free_trial` row for a given slug.
