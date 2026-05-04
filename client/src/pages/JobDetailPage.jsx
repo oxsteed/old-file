@@ -11,6 +11,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
 import ReviewModal from '../components/reviews/ReviewModal';
+import BidAcceptanceModal from '../components/calendar/BidAcceptanceModal';
 import { useTranslation } from 'react-i18next';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -110,6 +111,8 @@ export default function JobDetailPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
+  // Bid acceptance scheduling modal
+  const [acceptingBid, setAcceptingBid] = useState(null); // bid object being accepted
 
   const loadBids = useCallback(async () => {
     try {
@@ -152,17 +155,23 @@ export default function JobDetailPage() {
     }
   }
 
-  async function handleAssign(bidId) {
+  // Opens the BidAcceptanceModal (scheduling step) before calling assignHelper.
+  function handleAcceptClick(bid) {
+    setAcceptingBid(bid);
+  }
+
+  // Called by BidAcceptanceModal once the customer chooses (or skips) a time.
+  async function handleAssign(bidId, scheduledStart = null, scheduledEnd = null) {
+    setAcceptingBid(null);
     setActionLoading(true);
     try {
-      await assignHelper(bidId);
+      await assignHelper(bidId, scheduledStart, scheduledEnd);
       fetchJob(id);
       loadBids();
-      toast.success('Helper assigned successfully');
+      toast.success(t('jobDetail.helperAssigned', { defaultValue: 'Helper assigned successfully' }));
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       toast.error(errorMsg);
-      // Handle auth errors - redirect to login
       if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {
         setTimeout(() => navigate('/login'), 2000);
       }
@@ -601,11 +610,33 @@ export default function JobDetailPage() {
                         </div>
                       </div>
                       {bid.message && <p className="jdp-bid-message">"{bid.message}"</p>}
+                      {/* Helper's proposed available times (from BidAvailability) */}
+                      {Array.isArray(bid.available_times) && bid.available_times.length > 0 && (
+                        <div className="jdp-bid-availability">
+                          <span className="jdp-bid-avail-label">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            {t('jobDetail.helperAvailability', { defaultValue: 'Available:' })}
+                          </span>
+                          {bid.available_times.slice(0, 3).map((slot, i) => (
+                            <span key={i} className="jdp-bid-avail-pill">
+                              {new Date(slot.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                              {slot.start ? ` · ${slot.start}` : ''}
+                            </span>
+                          ))}
+                          {bid.availability_note && (
+                            <span className="jdp-bid-avail-note">{bid.availability_note}</span>
+                          )}
+                        </div>
+                      )}
                       <div className="jdp-bid-footer">
                         <span className="jdp-bid-date">{timeAgo(bid.created_at)}</span>
                         {isOwner && job.status === 'published' && bid.status === 'pending' && (
-                          <button className="jdp-btn-accept" onClick={() => handleAssign(bid.id)} disabled={actionLoading}>
-                            Accept Bid
+                          <button
+                            className="jdp-btn-accept"
+                            onClick={() => handleAcceptClick(bid)}
+                            disabled={actionLoading}
+                          >
+                            {t('jobDetail.acceptBid', { defaultValue: 'Accept & Schedule' })}
                           </button>
                         )}
                       </div>
@@ -791,6 +822,17 @@ export default function JobDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Bid Acceptance + Scheduling Modal ─────────────────────── */}
+      {acceptingBid && (
+        <BidAcceptanceModal
+          bid={acceptingBid}
+          helperName={acceptingBid.helper_name || t('jobDetail.theHelper', { defaultValue: 'the helper' })}
+          jobTitle={job?.title || ''}
+          onClose={() => setAcceptingBid(null)}
+          onAccept={handleAssign}
+        />
       )}
     </div>
     <Footer />

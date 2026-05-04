@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axios';
 import { toast } from 'sonner';
@@ -9,44 +9,97 @@ import '../../styles/HelperCalendarView.css';
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+function isSameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function getDateRange(date, mode) {
+  const d = new Date(date);
+  let start, end;
+
+  if (mode === 'day') {
+    start = new Date(d);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(d);
+    end.setHours(23, 59, 59, 999);
+  } else if (mode === 'week') {
+    const dayOfWeek = d.getDay();
+    start = new Date(d);
+    start.setDate(d.getDate() - dayOfWeek);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+  } else if (mode === 'agenda') {
+    // Show next 30 days from today
+    start = new Date();
+    start.setHours(0, 0, 0, 0);
+    end = new Date(start);
+    end.setDate(end.getDate() + 30);
+    end.setHours(23, 59, 59, 999);
+  } else {
+    // month
+    start = new Date(d.getFullYear(), d.getMonth(), 1);
+    end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
+
+  return { start, end };
+}
+
 export default function HelperCalendarView({ viewMode, selectedDate, onDateChange }) {
   const { t } = useTranslation();
   const [appointments, setAppointments] = useState([]);
   const [availabilityBlocks, setAvailabilityBlocks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Start with false so the calendar is immediately visible; data loads async
+  const [loading, setLoading] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
 
-  useEffect(() => {
-    loadCalendarData();
-  }, [selectedDate, viewMode]);
-
-  const loadCalendarData = async () => {
+  const loadCalendarData = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const dateRange = getDateRange(selectedDate, viewMode);
 
-      const [apptsRes, availRes] = await Promise.all([
+      // Use allSettled so one failing endpoint doesn't blank the whole view
+      const [apptsResult, availResult] = await Promise.allSettled([
         api.get('/calendar/appointments', {
           params: {
             role: 'helper',
             from_date: dateRange.start.toISOString(),
             to_date: dateRange.end.toISOString(),
-            limit: 100
-          }
+            limit: 100,
+          },
         }),
         api.get('/calendar/availability/mine', {
           params: {
             from_date: dateRange.start.toISOString(),
             to_date: dateRange.end.toISOString(),
-            limit: 100
-          }
-        })
+            limit: 100,
+          },
+        }),
       ]);
 
-      setAppointments(Array.isArray(apptsRes.data.appointments) ? apptsRes.data.appointments : []);
-      setAvailabilityBlocks(Array.isArray(availRes.data.blocks) ? availRes.data.blocks : []);
+      setAppointments(
+        apptsResult.status === 'fulfilled' && Array.isArray(apptsResult.value.data?.appointments)
+          ? apptsResult.value.data.appointments
+          : []
+      );
+
+      setAvailabilityBlocks(
+        availResult.status === 'fulfilled' && Array.isArray(availResult.value.data?.blocks)
+          ? availResult.value.data.blocks
+          : []
+      );
+
+      // Only toast if both calls failed
+      if (apptsResult.status === 'rejected' && availResult.status === 'rejected') {
+        toast.error(t('calendar.errorLoading'));
+      }
     } catch (err) {
       toast.error(t('calendar.errorLoading'));
       setAppointments([]);
@@ -54,32 +107,11 @@ export default function HelperCalendarView({ viewMode, selectedDate, onDateChang
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, viewMode, t]);
 
-  const getDateRange = (date, mode) => {
-    const d = new Date(date);
-    let start, end;
-
-    if (mode === 'day') {
-      start = new Date(d);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(d);
-      end.setHours(23, 59, 59, 999);
-    } else if (mode === 'week') {
-      const dayOfWeek = d.getDay();
-      start = new Date(d);
-      start.setDate(d.getDate() - dayOfWeek);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(start);
-      end.setDate(start.getDate() + 7);
-      end.setHours(23, 59, 59, 999);
-    } else {
-      start = new Date(d.getFullYear(), d.getMonth(), 1);
-      end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
-    }
-
-    return { start, end };
-  };
+  useEffect(() => {
+    loadCalendarData();
+  }, [loadCalendarData]);
 
   const handleBlockTimeClick = (date, hour) => {
     setSelectedTimeSlot({ date, hour });
@@ -93,48 +125,122 @@ export default function HelperCalendarView({ viewMode, selectedDate, onDateChang
     toast.success(t('calendar.availabilityCreated'));
   };
 
-  if (loading) {
-    return <div className="hcv-loading">{t('common.loading')}</div>;
-  }
+  // Navigate by the right unit for each view
+  const navigate = (direction) => {
+    const d = new Date(selectedDate);
+    if (viewMode === 'day') {
+      d.setDate(d.getDate() + direction);
+    } else if (viewMode === 'week') {
+      d.setDate(d.getDate() + direction * 7);
+    } else if (viewMode === 'month') {
+      d.setMonth(d.getMonth() + direction);
+      // Keep day in range (e.g. Jan 31 → Feb 28)
+      const intended = d.getMonth();
+      if (d.getMonth() !== ((new Date(selectedDate).getMonth() + direction + 12) % 12)) {
+        d.setDate(0);
+      }
+    } else {
+      // agenda: 30-day pages
+      d.setDate(d.getDate() + direction * 30);
+    }
+    onDateChange(d);
+  };
+
+  // Header label varies by view
+  const getHeaderLabel = () => {
+    const d = selectedDate;
+    if (viewMode === 'day') {
+      return d.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+    if (viewMode === 'week') {
+      const dow = d.getDay();
+      const ws = new Date(d);
+      ws.setDate(d.getDate() - dow);
+      ws.setHours(0, 0, 0, 0);
+      const we = new Date(ws);
+      we.setDate(ws.getDate() + 6);
+      const opts = { month: 'short', day: 'numeric' };
+      return `${ws.toLocaleDateString(undefined, opts)} – ${we.toLocaleDateString(undefined, { ...opts, year: 'numeric' })}`;
+    }
+    if (viewMode === 'agenda') {
+      return t('calendar.agenda', { defaultValue: 'Agenda' });
+    }
+    // month
+    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  };
+
+  // Hide prev/next nav for agenda (it's always "next 30 days")
+  const showNav = viewMode !== 'agenda';
 
   return (
     <div className="hcv-container">
       <div className="hcv-header">
-        <button
-          className="hcv-nav-btn"
-          onClick={() => onDateChange(new Date(selectedDate.getTime() - 7 * 24 * 60 * 60 * 1000))}
-        >
-          ← {t('calendar.previous')}
-        </button>
-        <h2 className="hcv-date">
-          {selectedDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-        </h2>
-        <button
-          className="hcv-nav-btn"
-          onClick={() => onDateChange(new Date(selectedDate.getTime() + 7 * 24 * 60 * 60 * 1000))}
-        >
-          {t('calendar.next')} →
-        </button>
+        {showNav ? (
+          <button className="hcv-nav-btn" onClick={() => navigate(-1)}>
+            ← {t('calendar.previous')}
+          </button>
+        ) : (
+          <div className="hcv-nav-placeholder" />
+        )}
+
+        <div className="hcv-header-center">
+          <h2 className="hcv-date">{getHeaderLabel()}</h2>
+          <button
+            className="hcv-today-btn"
+            onClick={() => onDateChange(new Date())}
+          >
+            {t('calendar.today', { defaultValue: 'Today' })}
+          </button>
+        </div>
+
+        {showNav ? (
+          <button className="hcv-nav-btn" onClick={() => navigate(1)}>
+            {t('calendar.next')} →
+          </button>
+        ) : (
+          <div className="hcv-nav-placeholder" />
+        )}
       </div>
 
+      {loading && (
+        <div className="hcv-loading-bar" role="status" aria-live="polite">
+          {t('common.loading')}
+        </div>
+      )}
+
       {viewMode === 'week' && (
-        <WeekView
-          appointments={appointments}
-          availabilityBlocks={availabilityBlocks}
-          selectedDate={selectedDate}
-          onBlockTime={handleBlockTimeClick}
-          onSelectAppointment={setSelectedAppointment}
-        />
+        <>
+          <WeekView
+            appointments={appointments}
+            availabilityBlocks={availabilityBlocks}
+            selectedDate={selectedDate}
+            onBlockTime={handleBlockTimeClick}
+            onSelectAppointment={setSelectedAppointment}
+          />
+          <p className="hcv-slot-hint">
+            {t('calendar.slotHint', { defaultValue: 'Click any time slot to set your availability or block time.' })}
+          </p>
+        </>
       )}
 
       {viewMode === 'day' && (
-        <DayView
-          appointments={appointments}
-          availabilityBlocks={availabilityBlocks}
-          selectedDate={selectedDate}
-          onBlockTime={handleBlockTimeClick}
-          onSelectAppointment={setSelectedAppointment}
-        />
+        <>
+          <DayView
+            appointments={appointments}
+            availabilityBlocks={availabilityBlocks}
+            selectedDate={selectedDate}
+            onBlockTime={handleBlockTimeClick}
+            onSelectAppointment={setSelectedAppointment}
+          />
+          <p className="hcv-slot-hint">
+            {t('calendar.slotHint', { defaultValue: 'Click any time slot to set your availability or block time.' })}
+          </p>
+        </>
       )}
 
       {viewMode === 'month' && (
@@ -142,6 +248,14 @@ export default function HelperCalendarView({ viewMode, selectedDate, onDateChang
           selectedDate={selectedDate}
           appointments={appointments}
           onDateChange={onDateChange}
+        />
+      )}
+
+      {viewMode === 'agenda' && (
+        <AgendaView
+          appointments={appointments}
+          onSelectAppointment={setSelectedAppointment}
+          t={t}
         />
       )}
 
@@ -165,21 +279,16 @@ export default function HelperCalendarView({ viewMode, selectedDate, onDateChang
   );
 }
 
+// ─── Week View ────────────────────────────────────────────────────────────────
+
 function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment }) {
   const { t } = useTranslation();
-  const [weekStart, setWeekStart] = useState(getWeekStart(selectedDate));
+  const today = new Date();
 
-  useEffect(() => {
-    setWeekStart(getWeekStart(selectedDate));
-  }, [selectedDate]);
-
-  function getWeekStart(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    d.setDate(d.getDate() - day);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
+  const dayOfWeek = selectedDate.getDay();
+  const weekStart = new Date(selectedDate);
+  weekStart.setDate(selectedDate.getDate() - dayOfWeek);
+  weekStart.setHours(0, 0, 0, 0);
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
@@ -190,13 +299,18 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
   return (
     <div className="hcv-week-view">
       <div className="hcv-week-header">
-        <div className="hcv-time-label"></div>
+        <div className="hcv-time-label" />
         {days.map((day) => (
-          <div key={day.toISOString()} className="hcv-day-header">
+          <div
+            key={day.toISOString()}
+            className={`hcv-day-header ${isSameDay(day, today) ? 'hcv-today' : ''}`}
+          >
             <div className="hcv-day-name">
               {t(`calendar.dayShort.${DAYS_OF_WEEK[day.getDay()]}`)}
             </div>
-            <div className="hcv-day-date">{day.getDate()}</div>
+            <div className={`hcv-day-date ${isSameDay(day, today) ? 'hcv-today-circle' : ''}`}>
+              {day.getDate()}
+            </div>
           </div>
         ))}
       </div>
@@ -278,13 +392,17 @@ function WeekView({ appointments, availabilityBlocks, selectedDate, onBlockTime,
   );
 }
 
-function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment }) {
-  const { t } = useTranslation();
+// ─── Day View ─────────────────────────────────────────────────────────────────
 
+function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, onSelectAppointment }) {
   return (
     <div className="hcv-day-view">
       <div className="hcv-day-title">
-        {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+        {selectedDate.toLocaleDateString(undefined, {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+        })}
       </div>
       <div className="hcv-day-grid">
         <div className="hcv-times">
@@ -302,12 +420,14 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
             slotEnd.setHours(hour + 1, 0, 0, 0);
 
             const hourAppointments = appointments.filter((apt) => {
+              if (!apt?.scheduled_start_time || !apt?.scheduled_end_time) return false;
               const aptStart = new Date(apt.scheduled_start_time);
               const aptEnd = new Date(apt.scheduled_end_time);
               return aptStart < slotEnd && aptEnd > slotStart;
             });
 
             const hourBlocks = availabilityBlocks.filter((block) => {
+              if (!block?.start_time || !block?.end_time) return false;
               const blockStart = new Date(block.start_time);
               const blockEnd = new Date(block.end_time);
               return blockStart < slotEnd && blockEnd > slotStart;
@@ -333,7 +453,7 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
                       onSelectAppointment(apt);
                     }}
                   >
-                    {apt.customer_name} - {apt.service_description}
+                    {apt.customer_name} – {apt.service_description}
                   </div>
                 ))}
               </div>
@@ -345,15 +465,19 @@ function DayView({ appointments, availabilityBlocks, selectedDate, onBlockTime, 
   );
 }
 
+// ─── Month View ───────────────────────────────────────────────────────────────
+// No internal state or nav — driven entirely by selectedDate from parent.
+
 function MonthView({ selectedDate, appointments, onDateChange }) {
   const { t } = useTranslation();
-  const [month, setMonth] = useState(selectedDate.getMonth());
-  const [year, setYear] = useState(selectedDate.getFullYear());
+  const today = new Date();
 
+  const month = selectedDate.getMonth();
+  const year = selectedDate.getFullYear();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
-  const days = [];
 
+  const days = [];
   for (let i = 0; i < firstDay; i++) {
     days.push(null);
   }
@@ -363,63 +487,164 @@ function MonthView({ selectedDate, appointments, onDateChange }) {
 
   return (
     <div className="hcv-month-view">
-      <div className="hcv-month-header">
-        <button onClick={() => {
-          if (month === 0) {
-            setMonth(11);
-            setYear(year - 1);
-          } else {
-            setMonth(month - 1);
-          }
-        }}>
-          ← {t('calendar.previous')}
-        </button>
-        <h3>{new Date(year, month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h3>
-        <button onClick={() => {
-          if (month === 11) {
-            setMonth(0);
-            setYear(year + 1);
-          } else {
-            setMonth(month + 1);
-          }
-        }}>
-          {t('calendar.next')} →
-        </button>
-      </div>
-
       <div className="hcv-month-grid">
         {DAYS_OF_WEEK.map((day) => (
           <div key={day} className="hcv-month-day-name">
             {t(`calendar.dayShort.${day}`)}
           </div>
         ))}
-        {days.map((day, idx) => (
-          <div
-            key={idx}
-            className={`hcv-month-day ${day ? 'active' : 'empty'}`}
-            onClick={() => day && onDateChange(day)}
-          >
-            {day && (
-              <>
-                <div className="hcv-month-day-number">{day.getDate()}</div>
-                <div className="hcv-month-day-events">
-                  {appointments
-                    .filter((apt) => {
-                      const aptDate = new Date(apt.scheduled_start_time);
-                      return aptDate.toDateString() === day.toDateString();
-                    })
-                    .slice(0, 2)
-                    .map((apt) => (
-                      <div key={apt.id} className={`hcv-month-event hcv-apt-${apt.status || 'pending'}`}>
-                        {(apt.customer_name || 'Unknown').split(' ')[0]}
-                      </div>
-                    ))}
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+        {days.map((day, idx) => {
+          const isToday = day && isSameDay(day, today);
+          const isSelected = day && isSameDay(day, selectedDate);
+          return (
+            <div
+              key={idx}
+              className={[
+                'hcv-month-day',
+                day ? 'active' : 'empty',
+                isToday ? 'hcv-month-today' : '',
+                isSelected && !isToday ? 'hcv-month-selected' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => day && onDateChange(day)}
+            >
+              {day && (
+                <>
+                  <div className={`hcv-month-day-number ${isToday ? 'hcv-today-circle' : ''}`}>
+                    {day.getDate()}
+                  </div>
+                  <div className="hcv-month-day-events">
+                    {appointments
+                      .filter((apt) => {
+                        if (!apt?.scheduled_start_time) return false;
+                        const aptDate = new Date(apt.scheduled_start_time);
+                        return !isNaN(aptDate) && isSameDay(aptDate, day);
+                      })
+                      .slice(0, 2)
+                      .map((apt) => (
+                        <div key={apt.id} className={`hcv-month-event hcv-apt-${apt.status || 'pending'}`}>
+                          {(apt.customer_name || 'Unknown').split(' ')[0]}
+                        </div>
+                      ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+// ─── Agenda View ──────────────────────────────────────────────────────────────
+
+function AgendaView({ appointments, onSelectAppointment, t }) {
+  // Sort all appointments by start time, filter to future/today only
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const sorted = [...appointments]
+    .filter((apt) => {
+      if (!apt?.scheduled_start_time) return false;
+      const d = new Date(apt.scheduled_start_time);
+      return !isNaN(d) && d >= today;
+    })
+    .sort((a, b) => new Date(a.scheduled_start_time) - new Date(b.scheduled_start_time));
+
+  if (sorted.length === 0) {
+    return (
+      <div className="hcv-agenda-empty">
+        <div className="hcv-agenda-empty-icon" aria-hidden="true">📅</div>
+        <p className="hcv-agenda-empty-title">
+          {t('calendar.noUpcomingAppointments', { defaultValue: 'No upcoming appointments' })}
+        </p>
+        <p className="hcv-agenda-empty-sub">
+          {t('calendar.agendaEmptySub', { defaultValue: 'Your confirmed appointments will appear here.' })}
+        </p>
+      </div>
+    );
+  }
+
+  // Group by date
+  const groups = [];
+  let currentKey = null;
+  for (const apt of sorted) {
+    const d = new Date(apt.scheduled_start_time);
+    const key = d.toDateString();
+    if (key !== currentKey) {
+      groups.push({ key, date: d, items: [] });
+      currentKey = key;
+    }
+    groups[groups.length - 1].items.push(apt);
+  }
+
+  const STATUS_COLORS = {
+    requested: '#3b82f6',
+    confirmed: '#10b981',
+    in_progress: '#f59e0b',
+    completed: '#6b7280',
+    cancelled: '#9ca3af',
+  };
+
+  return (
+    <div className="hcv-agenda-view">
+      {groups.map(({ key, date, items }) => {
+        const isToday = isSameDay(date, new Date());
+        return (
+          <div key={key} className="hcv-agenda-group">
+            <div className={`hcv-agenda-date-header ${isToday ? 'hcv-agenda-today' : ''}`}>
+              {isToday
+                ? t('calendar.today', { defaultValue: 'Today' })
+                : date.toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+            </div>
+            {items.map((apt) => {
+              const start = new Date(apt.scheduled_start_time);
+              const end = apt.scheduled_end_time ? new Date(apt.scheduled_end_time) : null;
+              const color = STATUS_COLORS[apt.status] || '#6b7280';
+              return (
+                <button
+                  key={apt.id}
+                  className="hcv-agenda-event"
+                  onClick={() => onSelectAppointment(apt)}
+                  style={{ borderLeftColor: color }}
+                >
+                  <div className="hcv-agenda-event-time">
+                    {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    {end && (
+                      <>
+                        {' – '}
+                        {end.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                      </>
+                    )}
+                  </div>
+                  <div className="hcv-agenda-event-body">
+                    <div className="hcv-agenda-event-title">
+                      {apt.service_description || t('calendar.service', { defaultValue: 'Appointment' })}
+                    </div>
+                    {apt.customer_name && (
+                      <div className="hcv-agenda-event-sub">{apt.customer_name}</div>
+                    )}
+                  </div>
+                  <div
+                    className="hcv-agenda-event-status"
+                    style={{ color }}
+                  >
+                    {t(`calendar.status${apt.status ? apt.status.charAt(0).toUpperCase() + apt.status.slice(1) : ''}`, {
+                      defaultValue: apt.status || '',
+                    })}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -42,4 +42,8 @@ router.get('/:id/availability', generalLimiter, getHelperAvailability);
 router.get('/:id/pricing',      generalLimiter, getHelperPricing);
 router.get('/:id/slots',        generalLimiter, getHelperSlots);
 
+// Weekly availability template — used by BidAcceptanceModal to show free slots
+const helperAvailabilityCtrl = require('../controllers/helperAvailabilityController');
+router.get('/:helperId/available-slots', generalLimiter, helperAvailabilityCtrl.getAvailableSlots);
+
 module.exports = router;

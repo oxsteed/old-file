@@ -1,0 +1,371 @@
+/* ── HelperAvailabilityEditor ─────────────────────────────────── */
+
+.hae-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: var(--muted-text);
+}
+
+.hae-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: hae-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes hae-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Root ── */
+.hae-root {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ── Header ── */
+.hae-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hae-title {
+  margin: 0 0 0.375rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.hae-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted-text);
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+/* ── Save button ── */
+.hae-save-btn {
+  padding: 0.625rem 1.375rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hae-save-btn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.hae-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Week grid ── */
+.hae-week-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ── Day row ── */
+.hae-day-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.625rem;
+  border: 1.5px solid var(--border-color);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  flex-wrap: wrap;
+}
+
+.hae-day-active {
+  background: color-mix(in srgb, var(--primary-color) 5%, var(--card-bg));
+  border-color: color-mix(in srgb, var(--primary-color) 35%, transparent);
+}
+
+.hae-day-off {
+  background: var(--app-bg);
+  opacity: 0.75;
+}
+
+.hae-day-error {
+  border-color: #ef4444 !important;
+  background: color-mix(in srgb, #ef4444 6%, var(--card-bg)) !important;
+}
+
+/* ── Day toggle label ── */
+.hae-day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  min-width: 120px;
+  user-select: none;
+}
+
+.hae-day-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.hae-day-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+/* ── Unavailable label ── */
+.hae-unavailable-label {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  font-style: italic;
+}
+
+/* ── Time pickers ── */
+.hae-time-pickers {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.hae-time-select {
+  padding: 0.375rem 0.625rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--card-bg);
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.hae-time-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+.hae-time-dash {
+  color: var(--muted-text);
+  font-size: 1rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* ── Error badge ── */
+.hae-error-badge {
+  font-size: 0.78rem;
+  color: #ef4444;
+  font-weight: 500;
+  margin-left: 0.25rem;
+}
+
+/* ── Overrides section ── */
+.hae-overrides-section {
+  border-top: 1.5px solid var(--border-color);
+  padding-top: 1.5rem;
+}
+
+.hae-overrides-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  gap: 1rem;
+}
+
+.hae-overrides-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.hae-add-override-btn {
+  background: none;
+  border: 1.5px solid var(--primary-color);
+  color: var(--primary-color);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.hae-add-override-btn:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.hae-overrides-hint {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  line-height: 1.5;
+}
+
+/* ── Override form ── */
+.hae-override-form {
+  background: var(--app-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 0.625rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.hae-override-fields {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hae-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 160px;
+}
+
+.hae-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hae-field input[type="date"],
+.hae-field input[type="text"] {
+  padding: 0.5rem 0.625rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--card-bg);
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease;
+}
+
+.hae-field input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+/* ── Overrides list ── */
+.hae-overrides-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.hae-override-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  background: color-mix(in srgb, #ef4444 8%, var(--card-bg));
+  border: 1px solid color-mix(in srgb, #ef4444 25%, transparent);
+  border-radius: 0.5rem;
+}
+
+.hae-override-date {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--app-text);
+  flex-shrink: 0;
+}
+
+.hae-override-reason {
+  font-size: 0.82rem;
+  color: var(--muted-text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hae-remove-override {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.hae-remove-override:hover {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+}
+
+/* ── Empty state ── */
+.hae-no-overrides {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted-text);
+  font-style: italic;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .hae-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hae-save-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .hae-day-row {
+    flex-wrap: wrap;
+    gap: 0.625rem;
+  }
+
+  .hae-day-toggle {
+    min-width: 0;
+  }
+
+  .hae-override-fields {
+    flex-direction: column;
+  }
+}

@@ -15,6 +15,14 @@ router.get('/appointments/:id', authenticate, appointmentController.getAppointme
 router.post('/appointments/:id/confirm', authenticate, rateLimiter, appointmentController.confirmAppointment);
 router.post('/appointments/:id/cancel', authenticate, rateLimiter, appointmentController.cancelAppointment);
 
+// Reschedule flow (migration 169)
+router.get('/appointments/:id/reschedule-requests', authenticate, appointmentController.getRescheduleRequests);
+router.post('/appointments/:id/reschedule-request', authenticate, rateLimiter, appointmentController.requestReschedule);
+router.put('/appointments/:id/reschedule-request/:reqId', authenticate, rateLimiter, appointmentController.respondToReschedule);
+
+// iCal / Google Calendar export
+router.get('/appointments/:id/ical', authenticate, appointmentController.getIcal);
+
 // Availability blocks
 router.post('/availability', authenticate, rateLimiter, availabilityController.createAvailabilityBlock);
 router.get('/availability/helpers/:helper_id', availabilityController.getAvailabilityBlocks);

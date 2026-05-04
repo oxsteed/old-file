@@ -285,13 +285,16 @@ exports.getAppointments = async (req, res) => {
     const dataParams = params.slice();
     dataParams.push(limit);
     dataParams.push(offset);
+    // JOIN jobs so frontend can display job title in badge / "View Job" link
     const rowsResult = await pool.query(
       `SELECT a.*,
               c.first_name AS customer_name,  c.profile_photo_url AS customer_avatar,
-              h.first_name AS helper_name,    h.profile_photo_url AS helper_avatar
+              h.first_name AS helper_name,    h.profile_photo_url AS helper_avatar,
+              j.title AS job_title
          FROM appointments a
          LEFT JOIN users c ON c.id = a.customer_id
          LEFT JOIN users h ON h.id = a.helper_id
+         LEFT JOIN jobs  j ON j.id = a.job_id
          ${whereClause}
          ORDER BY a.scheduled_start_time DESC
          LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
@@ -536,5 +539,271 @@ exports.cancelAppointment = async (req, res) => {
     }
     logger.error('Failed to cancel appointment', { appointmentId: id, userId, error: err.message });
     return sendError(res, 500, 'Failed to cancel appointment', 'INTERNAL_ERROR');
+  }
+};
+
+// ─── requestReschedule ────────────────────────────────────────
+// POST /api/calendar/appointments/:id/reschedule-request
+exports.requestReschedule = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const { proposed_start, proposed_end, message = null } = req.body || {};
+
+  const pStart = parseDate(proposed_start);
+  const pEnd   = parseDate(proposed_end);
+  if (!pStart || !pEnd) {
+    return sendError(res, 400, 'proposed_start and proposed_end are required ISO timestamps', 'VALIDATION_FAILED');
+  }
+  if (pEnd <= pStart) {
+    return sendError(res, 400, 'proposed_end must be after proposed_start', 'VALIDATION_FAILED');
+  }
+
+  try {
+    // Verify the appointment exists and the caller is involved
+    const apptRes = await pool.query(
+      'SELECT * FROM appointments WHERE id = $1',
+      [id]
+    );
+    if (!apptRes.rows.length) return sendError(res, 404, 'Appointment not found', 'NOT_FOUND');
+    const appt = apptRes.rows[0];
+
+    if (appt.customer_id !== userId && appt.helper_id !== userId) {
+      return sendError(res, 403, 'Not authorized', 'FORBIDDEN');
+    }
+    if (!['confirmed', 'requested'].includes(appt.status)) {
+      return sendError(res, 409, 'Can only reschedule confirmed or requested appointments', 'INVALID_STATE');
+    }
+
+    const role = appt.customer_id === userId ? 'customer' : 'helper';
+    const otherUserId = role === 'customer' ? appt.helper_id : appt.customer_id;
+
+    // Expire any existing pending reschedule requests
+    await pool.query(
+      `UPDATE appointment_reschedule_requests
+          SET status = 'expired'
+        WHERE appointment_id = $1 AND status = 'pending'`,
+      [id]
+    );
+
+    const { rows: [req_row] } = await pool.query(
+      `INSERT INTO appointment_reschedule_requests
+         (appointment_id, requested_by, requested_by_role, proposed_start, proposed_end, message)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [id, userId, role, pStart, pEnd, message]
+    );
+
+    // Notify the other party
+    await pool.query(
+      `INSERT INTO calendar_notifications
+         (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+       VALUES ($1, $2, 'appointment_rescheduled', 'in_app', now(), 'pending')`,
+      [otherUserId, id]
+    );
+
+    try {
+      broadcastToUser(otherUserId, 'appointment:reschedule_requested', {
+        appointmentId: id,
+        requestId: req_row.id,
+        proposedStart: pStart,
+        proposedEnd: pEnd,
+        requestedByRole: role,
+        message,
+      });
+    } catch { /* ignore socket errors */ }
+
+    logger.info('Reschedule request created', { appointmentId: id, requestId: req_row.id, role });
+    return sendSuccess(res, req_row, 201);
+  } catch (err) {
+    logger.error('Failed to create reschedule request', { appointmentId: id, error: err.message });
+    return sendError(res, 500, 'Failed to request reschedule', 'INTERNAL_ERROR');
+  }
+};
+
+// ─── respondToReschedule ─────────────────────────────────────
+// PUT /api/calendar/appointments/:id/reschedule-request/:reqId
+// Body: { action: 'accept' | 'decline' }
+exports.respondToReschedule = async (req, res) => {
+  const { id, reqId } = req.params;
+  const userId = req.user.id;
+  const { action } = req.body || {};
+
+  if (!['accept', 'decline'].includes(action)) {
+    return sendError(res, 400, 'action must be "accept" or "decline"', 'VALIDATION_FAILED');
+  }
+
+  try {
+    const result = await withTransaction(pool, async (client) => {
+      // Load appointment + reschedule request together
+      const apptRes = await client.query(
+        'SELECT * FROM appointments WHERE id = $1 FOR UPDATE',
+        [id]
+      );
+      if (!apptRes.rows.length) throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
+      const appt = apptRes.rows[0];
+
+      if (appt.customer_id !== userId && appt.helper_id !== userId) {
+        throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
+      }
+
+      const reqRes = await client.query(
+        `SELECT * FROM appointment_reschedule_requests
+          WHERE id = $1 AND appointment_id = $2 AND status = 'pending'
+          FOR UPDATE`,
+        [reqId, id]
+      );
+      if (!reqRes.rows.length) throw Object.assign(new Error('Request not found or expired'), { code: 'REQUEST_NOT_FOUND' });
+      const reschedReq = reqRes.rows[0];
+
+      // Responder must be the *other* party (not the one who requested it)
+      if (reschedReq.requested_by === userId) {
+        throw Object.assign(new Error('Cannot respond to your own request'), { code: 'OWN_REQUEST' });
+      }
+
+      await client.query(
+        `UPDATE appointment_reschedule_requests
+            SET status = $1, responded_at = now()
+          WHERE id = $2`,
+        [action === 'accept' ? 'accepted' : 'declined', reqId]
+      );
+
+      let updatedAppt = appt;
+      if (action === 'accept') {
+        const upd = await client.query(
+          `UPDATE appointments
+              SET scheduled_start_time = $1,
+                  scheduled_end_time   = $2,
+                  status               = 'confirmed',
+                  updated_at           = now()
+            WHERE id = $3
+            RETURNING *`,
+          [reschedReq.proposed_start, reschedReq.proposed_end, id]
+        );
+        updatedAppt = upd.rows[0];
+      }
+
+      // Notify the requester of the response
+      const notifyUserId = reschedReq.requested_by;
+      await client.query(
+        `INSERT INTO calendar_notifications
+           (user_id, appointment_id, notification_type, channel, scheduled_send_at, status)
+         VALUES ($1, $2, $3, 'in_app', now(), 'pending')`,
+        [notifyUserId, id, action === 'accept' ? 'appointment_confirmed' : 'appointment_cancelled']
+      );
+
+      return { appointment: updatedAppt, reschedReq, notifyUserId };
+    });
+
+    try {
+      broadcastToUser(result.notifyUserId, 'appointment:reschedule_responded', {
+        action,
+        appointmentId: id,
+        requestId: reqId,
+        appointment: result.appointment,
+      });
+    } catch { /* ignore */ }
+
+    logger.info('Reschedule request responded', { appointmentId: id, requestId: reqId, action });
+    return sendSuccess(res, { action, appointment: result.appointment });
+  } catch (err) {
+    if (err.code === 'NOT_FOUND')         return sendError(res, 404, 'Appointment not found', 'NOT_FOUND');
+    if (err.code === 'FORBIDDEN')         return sendError(res, 403, 'Not authorized', 'FORBIDDEN');
+    if (err.code === 'REQUEST_NOT_FOUND') return sendError(res, 404, 'Reschedule request not found or already handled', 'NOT_FOUND');
+    if (err.code === 'OWN_REQUEST')       return sendError(res, 409, 'Cannot respond to your own reschedule request', 'OWN_REQUEST');
+    logger.error('Failed to respond to reschedule', { appointmentId: id, error: err.message });
+    return sendError(res, 500, 'Failed to respond to reschedule request', 'INTERNAL_ERROR');
+  }
+};
+
+// ─── getRescheduleRequests ───────────────────────────────────
+// GET /api/calendar/appointments/:id/reschedule-requests
+exports.getRescheduleRequests = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const apptRes = await pool.query('SELECT customer_id, helper_id FROM appointments WHERE id = $1', [id]);
+    if (!apptRes.rows.length) return sendError(res, 404, 'Appointment not found', 'NOT_FOUND');
+    const { customer_id, helper_id } = apptRes.rows[0];
+    if (customer_id !== userId && helper_id !== userId) {
+      return sendError(res, 403, 'Not authorized', 'FORBIDDEN');
+    }
+
+    const { rows } = await pool.query(
+      `SELECT * FROM appointment_reschedule_requests
+        WHERE appointment_id = $1
+        ORDER BY created_at DESC
+        LIMIT 10`,
+      [id]
+    );
+    return sendSuccess(res, rows);
+  } catch (err) {
+    logger.error('Failed to get reschedule requests', { appointmentId: id, error: err.message });
+    return sendError(res, 500, 'Failed to load reschedule requests', 'INTERNAL_ERROR');
+  }
+};
+
+// ─── getIcal ─────────────────────────────────────────────────
+// GET /api/calendar/appointments/:id/ical
+// Returns a valid RFC 5545 .ics file for the appointment.
+exports.getIcal = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.*,
+              c.first_name AS customer_name, c.email AS customer_email,
+              h.first_name AS helper_name,   h.email AS helper_email,
+              j.title AS job_title
+         FROM appointments a
+         LEFT JOIN users c ON c.id = a.customer_id
+         LEFT JOIN users h ON h.id = a.helper_id
+         LEFT JOIN jobs  j ON j.id = a.job_id
+        WHERE a.id = $1`,
+      [id]
+    );
+    if (!rows.length) return sendError(res, 404, 'Appointment not found', 'NOT_FOUND');
+    const appt = rows[0];
+
+    if (appt.customer_id !== userId && appt.helper_id !== userId) {
+      return sendError(res, 403, 'Not authorized', 'FORBIDDEN');
+    }
+
+    const start  = new Date(appt.scheduled_start_time);
+    const end    = new Date(appt.scheduled_end_time);
+    const title  = appt.job_title || appt.service_description || 'OxSteed Appointment';
+    const loc    = appt.location_address || '';
+    const uid    = `oxsteed-appt-${appt.id}@oxsteed.com`;
+
+    function icsDate(d) {
+      return d.toISOString().replace(/[-:]/g, '').replace('.000', '');
+    }
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//OxSteed//Calendar//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTART:${icsDate(start)}`,
+      `DTEND:${icsDate(end)}`,
+      `SUMMARY:${title.replace(/[,;\\]/g, '\\$&')}`,
+      loc ? `LOCATION:${loc.replace(/[,;\\]/g, '\\$&')}` : '',
+      `DESCRIPTION:OxSteed appointment. Customer: ${appt.customer_name || ''}. Helper: ${appt.helper_name || ''}.`,
+      `STATUS:${appt.status === 'confirmed' ? 'CONFIRMED' : 'TENTATIVE'}`,
+      `DTSTAMP:${icsDate(new Date())}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="oxsteed-appointment-${id}.ics"`);
+    res.send(ics);
+  } catch (err) {
+    logger.error('Failed to generate iCal', { appointmentId: id, error: err.message });
+    return sendError(res, 500, 'Failed to generate calendar file', 'INTERNAL_ERROR');
   }
 };

@@ -436,6 +436,18 @@ exports.cancelJob = async (req, res, next) => {
         RETURNING id, helper_id
       `, [id]);
 
+      // Keep the calendar appointment in sync: → cancelled
+      await client.query(
+        `UPDATE appointments
+            SET status      = 'cancelled',
+                cancelled_by = 'customer',
+                cancelled_at = now(),
+                updated_at  = now()
+          WHERE job_id = $1
+            AND status NOT IN ('completed', 'cancelled')`,
+        [id]
+      );
+
       return { job: updateRows[0], rejectedBids: bidRows };
     }, 'cancel_job');
 
@@ -464,7 +476,10 @@ exports.cancelJob = async (req, res, next) => {
 // Assign a helper to a job by accepting a specific bid
 exports.assignHelper = async (req, res, next) => {
   try {
-    const { bid_id } = req.body;
+    // bid_id is always required.
+    // scheduled_start / scheduled_end are optional ISO strings provided by the
+    // BidAcceptanceModal when the customer picks an exact time slot.
+    const { bid_id, scheduled_start, scheduled_end } = req.body;
 
     if (!bid_id) {
       throw new AppError('bid_id is required', 400, 'missing_field', {
@@ -472,10 +487,31 @@ exports.assignHelper = async (req, res, next) => {
       });
     }
 
+    // Validate customer-chosen times if provided
+    const customerStart = scheduled_start ? new Date(scheduled_start) : null;
+    const customerEnd   = scheduled_end   ? new Date(scheduled_end)   : null;
+    if ((customerStart && isNaN(customerStart.getTime())) ||
+        (customerEnd   && isNaN(customerEnd.getTime()))) {
+      throw new AppError('Invalid scheduled_start or scheduled_end', 400, 'validation_failed', {
+        scheduled_start: 'Must be a valid ISO timestamp',
+      });
+    }
+    if (customerStart && customerEnd && customerEnd <= customerStart) {
+      throw new AppError('scheduled_end must be after scheduled_start', 400, 'validation_failed', {
+        scheduled_end: 'Must be after scheduled_start',
+      });
+    }
+
     const result = await withTransaction(pool, async (client) => {
-      // 1. Look up the bid and verify it belongs to a job owned by the requester
+      // 1. Look up the bid and verify it belongs to a job owned by the requester.
+      //    Fetch scheduling / location fields now so we can create the calendar
+      //    appointment in the same transaction (no second round-trip needed).
       const bidLookup = await client.query(
-        `SELECT b.id, b.job_id, b.helper_id, b.status, j.client_id, j.status AS job_status
+        `SELECT b.id, b.job_id, b.helper_id, b.status, b.eta_hours,
+                j.client_id, j.status AS job_status,
+                j.title,
+                j.scheduled_date, j.scheduled_time,
+                j.location_address, j.location_city, j.location_state
          FROM bids b
          JOIN jobs j ON j.id = b.job_id
          WHERE b.id = $1`,
@@ -531,6 +567,83 @@ exports.assignHelper = async (req, res, next) => {
 
       if (jobResult.rows.length === 0) {
         throw new AppError('Job not found or cannot be assigned', 409, 'state_conflict');
+      }
+
+      // 5. Auto-create a calendar appointment for the accepted job.
+      //    Uses ON CONFLICT DO NOTHING (via idx_appointments_job_unique) so
+      //    retrying assignHelper never produces duplicate calendar events.
+      //
+      //    Scheduled time logic:
+      //      • If the job has a scheduled_date, combine it with scheduled_time
+      //        (or default 09:00) to get the appointment start.
+      //      • Otherwise use NOW() + 7 days at 09:00 as a placeholder; the
+      //        helper can reschedule from the calendar once they discuss timing.
+      //
+      //    Duration: bid.eta_hours → minutes (clamped to 15–480).
+      try {
+        const jobRow = { ...bid, ...bidLookup.rows[0] };
+
+        let apptStart, apptEnd;
+
+        if (customerStart) {
+          // Customer picked an exact slot via BidAcceptanceModal — use it directly.
+          apptStart = customerStart;
+          apptEnd   = customerEnd || new Date(customerStart.getTime() + 60 * 60_000);
+        } else if (jobRow.scheduled_date) {
+          const datePart =
+            jobRow.scheduled_date instanceof Date
+              ? jobRow.scheduled_date.toISOString().split('T')[0]
+              : String(jobRow.scheduled_date).split('T')[0];
+          const timePart = jobRow.scheduled_time
+            ? String(jobRow.scheduled_time).substring(0, 5)  // HH:mm
+            : '09:00';
+          apptStart = new Date(`${datePart}T${timePart}:00`);
+          const etaHours0 = parseFloat(acceptedBid.eta_hours) || 1;
+          apptEnd = new Date(apptStart.getTime() + Math.min(480, Math.max(15, Math.round(etaHours0 * 60))) * 60_000);
+        } else {
+          apptStart = new Date();
+          apptStart.setDate(apptStart.getDate() + 7);
+          apptStart.setHours(9, 0, 0, 0);
+          const etaHours0 = parseFloat(acceptedBid.eta_hours) || 1;
+          apptEnd = new Date(apptStart.getTime() + Math.min(480, Math.max(15, Math.round(etaHours0 * 60))) * 60_000);
+        }
+
+        const etaHours = parseFloat(acceptedBid.eta_hours) || 1;
+        const durationMinutes = Math.round((apptEnd - apptStart) / 60_000);
+
+        const locationAddress =
+          jobRow.location_address ||
+          [jobRow.location_city, jobRow.location_state].filter(Boolean).join(', ') ||
+          null;
+
+        await client.query(
+          `INSERT INTO appointments (
+              customer_id, helper_id, job_id,
+              service_description,
+              scheduled_start_time, scheduled_end_time,
+              estimated_duration_minutes,
+              location_address,
+              status, source, created_by_user_id
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'confirmed', 'job', $1)
+           ON CONFLICT (job_id) WHERE job_id IS NOT NULL DO NOTHING`,
+          [
+            bid.client_id,       // customer_id / created_by
+            bid.helper_id,
+            bid.job_id,
+            jobRow.title,
+            apptStart,
+            apptEnd,
+            durationMinutes,
+            locationAddress,
+          ]
+        );
+      } catch (apptErr) {
+        // Non-fatal: log but never let appointment creation break bid acceptance
+        logger.warn('Failed to auto-create calendar appointment for accepted job', {
+          jobId: bid.job_id,
+          helperId: bid.helper_id,
+          error: apptErr?.message,
+        });
       }
 
       return { job: jobResult.rows[0], bid: acceptedBid };
@@ -592,6 +705,16 @@ exports.startJob = async (req, res, next) => {
       if (!rows.length) {
         throw new AppError('Job start failed - state changed during processing', 400, 'state_conflict');
       }
+
+      // Keep the calendar appointment in sync: confirmed → in_progress
+      await client.query(
+        `UPDATE appointments
+            SET status = 'in_progress', updated_at = now()
+          WHERE job_id = $1
+            AND status IN ('confirmed', 'requested')`,
+        [id]
+      );
+
       return rows[0];
     }, 'start_job');
 
@@ -659,6 +782,15 @@ exports.completeJob = async (req, res, next) => {
       if (!rows.length) {
         throw new AppError('Job state changed during completion', 409, 'state_conflict');
       }
+
+      // Keep the calendar appointment in sync: → completed
+      await client.query(
+        `UPDATE appointments
+            SET status = 'completed', updated_at = now()
+          WHERE job_id = $1
+            AND status NOT IN ('completed', 'cancelled')`,
+        [id]
+      );
 
       return rows[0];
     }, 'complete_job');

@@ -13,6 +13,7 @@ import TrialBanner from '../components/TrialBanner';
 import HelperOffersCard from '../components/HelperOffersCard';
 import EditProfileTab from '../components/EditProfileTab';
 import AIKnowledgeTab from '../components/AIKnowledgeTab';
+import HelperAvailabilityEditor from '../components/HelperAvailabilityEditor';
 import { useSocket } from '../hooks/useSocket';
 import { ProgressBar, Card, CardHeader, Btn, Input, Select } from '../components/dashboardUI';
 import ReviewsList from '../components/reviews/ReviewsList';
@@ -1002,21 +1003,22 @@ export default function HelperDashboard() {
   const fp = life.financialPulse;
 
   const tabs = [
-    { id: 'pulse',       label: t('helperDashboard.tabs.overview', { defaultValue: 'Overview' }) },
-    { id: 'editprofile', label: t('helperDashboard.tabs.editProfile') },
-    { id: 'aiKnowledge', label: t('helperDashboard.tabs.aiKnowledge') },
-    { id: 'earnings', label: t('helperDashboard.tabs.earnings') },
-    { id: 'jobs', label: t('helperDashboard.tabs.findJobs') },
-    { id: 'money', label: t('dashboard.tabs.money') },
-    { id: 'home', label: t('dashboard.tabs.home') },
-    { id: 'goals', label: t('dashboard.tabs.goals') },
+    { id: 'pulse',        label: t('helperDashboard.tabs.overview', { defaultValue: 'Overview' }) },
+    { id: 'editprofile',  label: t('helperDashboard.tabs.editProfile') },
+    { id: 'availability', label: t('helperDashboard.tabs.availability', { defaultValue: 'Availability' }) },
+    { id: 'aiKnowledge',  label: t('helperDashboard.tabs.aiKnowledge') },
+    { id: 'earnings',     label: t('helperDashboard.tabs.earnings') },
+    { id: 'jobs',         label: t('helperDashboard.tabs.findJobs') },
+    { id: 'money',        label: t('dashboard.tabs.money') },
+    { id: 'home',         label: t('dashboard.tabs.home') },
+    { id: 'goals',        label: t('dashboard.tabs.goals') },
     { id: 'personalcare', label: t('dashboard.tabs.personalCare') },
-    { id: 'carcare', label: t('dashboard.tabs.carCare') },
-    { id: 'skills', label: t('dashboard.tabs.skillsTools') },
-    { id: 'products', label: t('dashboard.tabs.products') },
-    { id: 'invoices', label: t('helperDashboard.tabs.invoices') },
-    { id: 'bids', label: t('helperDashboard.tabs.myBids') },
-    { id: 'reviews', label: t('helperDashboard.tabs.reviews') },
+    { id: 'carcare',      label: t('dashboard.tabs.carCare') },
+    { id: 'skills',       label: t('dashboard.tabs.skillsTools') },
+    { id: 'products',     label: t('dashboard.tabs.products') },
+    { id: 'invoices',     label: t('helperDashboard.tabs.invoices') },
+    { id: 'bids',         label: t('helperDashboard.tabs.myBids') },
+    { id: 'reviews',      label: t('helperDashboard.tabs.reviews') },
   ];
 
   if (loading) return (
@@ -1259,6 +1261,12 @@ export default function HelperDashboard() {
 
         {/* ═══════ EDIT PROFILE ═══════ */}
         {tab==='editprofile'&&<EditProfileTab />}
+
+        {tab==='availability' && (
+          <div className="max-w-2xl">
+            <HelperAvailabilityEditor />
+          </div>
+        )}
 
         {tab==='aiKnowledge'&& user?.id && (
           <div className="max-w-4xl">

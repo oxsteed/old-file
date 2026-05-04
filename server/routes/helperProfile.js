@@ -554,4 +554,24 @@ router.delete('/gallery/:id', helperOnly, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// WEEKLY AVAILABILITY TEMPLATE (migration 168)
+// ─────────────────────────────────────────────────────────────────────────────
+const helperAvailabilityCtrl = require('../controllers/helperAvailabilityController');
+
+router.get('/availability/template',
+  helperOnly, helperAvailabilityCtrl.getTemplate);
+
+router.put('/availability/template',
+  helperOnly, generalLimiter, helperAvailabilityCtrl.setTemplate);
+
+router.get('/availability/overrides',
+  helperOnly, helperAvailabilityCtrl.getOverrides);
+
+router.post('/availability/overrides',
+  helperOnly, generalLimiter, helperAvailabilityCtrl.createOverride);
+
+router.delete('/availability/overrides/:id',
+  helperOnly, generalLimiter, helperAvailabilityCtrl.deleteOverride);
+
 module.exports = router;

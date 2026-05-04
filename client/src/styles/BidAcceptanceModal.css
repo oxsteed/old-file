@@ -1,0 +1,441 @@
+/* ── BidAcceptanceModal ───────────────────────────────────────── */
+
+.bam-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 1rem;
+}
+
+.bam-modal {
+  background: var(--card-bg);
+  border-radius: 1rem;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.bam-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.bam-header-text h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.bam-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted-text);
+}
+
+.bam-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--muted-text);
+  padding: 0.25rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  flex-shrink: 0;
+  margin-left: 1rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bam-close:hover {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+/* Loading */
+.bam-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 2rem;
+  color: var(--muted-text);
+  font-size: 0.9rem;
+}
+
+.bam-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: bam-spin 0.7s linear infinite;
+}
+
+@keyframes bam-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* No template / no slots */
+.bam-no-template {
+  padding: 2.5rem 2rem;
+  text-align: center;
+  color: var(--muted-text);
+}
+
+.bam-no-template-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.bam-no-template h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.bam-no-template p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 400px;
+  margin-inline: auto;
+}
+
+.bam-error {
+  margin-top: 1rem;
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+/* Body: calendar + slots side by side */
+.bam-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Calendar pane */
+.bam-calendar-pane {
+  width: 300px;
+  flex-shrink: 0;
+  padding: 1.25rem 1rem 1rem;
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+}
+
+.bam-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.875rem;
+}
+
+.bam-cal-month-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--app-text);
+}
+
+.bam-cal-nav-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--app-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.bam-cal-nav-btn:hover {
+  background: var(--app-bg);
+}
+
+.bam-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.bam-cal-dow {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-text);
+  padding-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bam-cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: none;
+  color: var(--app-text);
+  transition: background 0.12s ease, color 0.12s ease;
+  position: relative;
+}
+
+.bam-cal-day.bam-cal-today {
+  font-weight: 700;
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.bam-cal-day.bam-cal-avail:not(.bam-cal-disabled) {
+  background: color-mix(in srgb, var(--primary-color) 12%, var(--card-bg));
+  color: var(--primary-color);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bam-cal-day.bam-cal-avail:not(.bam-cal-disabled):hover {
+  background: color-mix(in srgb, var(--primary-color) 20%, var(--card-bg));
+}
+
+.bam-cal-day.bam-cal-selected {
+  background: var(--primary-color) !important;
+  color: white !important;
+  font-weight: 700;
+}
+
+.bam-cal-day.bam-cal-disabled {
+  color: var(--muted-text);
+  opacity: 0.35;
+  cursor: default;
+  background: none;
+}
+
+.bam-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--muted-text);
+  flex-wrap: wrap;
+}
+
+.bam-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.bam-legend-avail {
+  background: color-mix(in srgb, var(--primary-color) 12%, var(--card-bg));
+  border: 1px solid var(--primary-color);
+}
+
+.bam-legend-selected {
+  background: var(--primary-color);
+}
+
+/* Slots pane */
+.bam-slots-pane {
+  flex: 1;
+  padding: 1.25rem 1.25rem 1rem;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.bam-slots-date-heading {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.bam-slots-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.625rem;
+}
+
+.bam-slot-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: none;
+  cursor: pointer;
+  color: var(--app-text);
+  font-size: 0.9rem;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+  text-align: left;
+}
+
+.bam-slot-btn:hover {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 6%, var(--card-bg));
+}
+
+.bam-slot-btn.bam-slot-active {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 12%, var(--card-bg));
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.bam-slot-check {
+  flex-shrink: 0;
+  color: var(--primary-color);
+}
+
+.bam-slots-none,
+.bam-slots-prompt {
+  color: var(--muted-text);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bam-slots-prompt svg {
+  color: var(--muted-text);
+  opacity: 0.5;
+}
+
+/* Footer */
+.bam-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.bam-footer-summary {
+  flex: 1;
+  min-width: 0;
+}
+
+.bam-selected-summary {
+  font-size: 0.875rem;
+  color: var(--app-text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.bam-selected-summary.bam-muted {
+  color: var(--muted-text);
+  font-weight: 400;
+}
+
+.bam-footer-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.bam-btn-primary,
+.bam-btn-secondary {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.bam-btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.bam-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.bam-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bam-btn-secondary {
+  background: var(--app-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.bam-btn-secondary:hover:not(:disabled) {
+  border-color: var(--primary-color);
+}
+
+.bam-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .bam-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .bam-calendar-pane {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .bam-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bam-footer-actions {
+    flex-direction: column;
+  }
+
+  .bam-btn-primary,
+  .bam-btn-secondary {
+    width: 100%;
+    text-align: center;
+  }
+}

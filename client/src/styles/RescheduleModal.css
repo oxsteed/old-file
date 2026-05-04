@@ -1,0 +1,210 @@
+/* ── RescheduleModal ──────────────────────────────────────────── */
+
+.rsm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 1rem;
+}
+
+.rsm-modal {
+  background: var(--card-bg);
+  border-radius: 0.875rem;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.rsm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.rsm-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.rsm-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--muted-text);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  transition: background 0.15s ease;
+}
+
+.rsm-close:hover { background: var(--app-bg); }
+
+/* Pending request banner */
+.rsm-pending-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--card-bg));
+  border: 1px solid color-mix(in srgb, var(--primary-color) 25%, transparent);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 1.5rem 0;
+}
+
+.rsm-pending-icon { font-size: 1.4rem; }
+
+.rsm-pending-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rsm-pending-body strong {
+  font-size: 0.9rem;
+  color: var(--app-text);
+}
+
+.rsm-pending-time {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.rsm-pending-msg {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+}
+
+.rsm-pending-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.rsm-btn-accept,
+.rsm-btn-decline {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease;
+}
+
+.rsm-btn-accept {
+  background: #22c55e;
+  color: white;
+}
+
+.rsm-btn-decline {
+  background: var(--app-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.rsm-btn-accept:disabled,
+.rsm-btn-decline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Form */
+.rsm-form {
+  padding: 1.25rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rsm-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted-text);
+}
+
+.rsm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.rsm-field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.rsm-field input,
+.rsm-field textarea {
+  padding: 0.625rem 0.75rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease;
+}
+
+.rsm-field input:focus,
+.rsm-field textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+.rsm-field textarea { resize: vertical; }
+
+.rsm-footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+.rsm-btn-primary,
+.rsm-btn-secondary {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.rsm-btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.rsm-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.rsm-btn-primary:hover:not(:disabled) { opacity: 0.9; }
+
+.rsm-btn-secondary {
+  background: var(--app-bg);
+  color: var(--app-text);
+  border: 1px solid var(--border-color);
+}
+
+.rsm-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+.rsm-btn-secondary:hover:not(:disabled) { border-color: var(--primary-color); }
