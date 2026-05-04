@@ -6787,7 +6787,9 @@
     "previewSampleNotice": "Apercu avec des données exemples — votre vrai contenu apparaitra une fois activé",
     "previewAriaLabel": "Apercu du modele {{name}}",
     "activateAriaLabel": "Activer le modele {{name}}",
-    "unlockAriaLabel": "Debloquer le modele {{name}}"
+    "unlockAriaLabel": "Debloquer le modele {{name}}",
+    "trial": "Essai",
+    "trialExpires": "Essai gratuit se termine le {{date}}"
   },
   "aiKnowledge": {
     "heading": "AI assistant knowledge",

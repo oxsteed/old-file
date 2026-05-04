@@ -404,6 +404,33 @@ exports.adminGetPricing = async (req, res, next) => {
   }
 };
 
+// ── Utility: grant 1-year free trial on all paid templates to a user ──────
+// Called after registration and by migration 167 backfill.
+async function grantFreeTrialToUser(userId) {
+  try {
+    const trialExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    await pool.query(
+      `INSERT INTO template_access
+         (user_id, template_slug, access_type, grant_type,
+          start_date, expiry_date, status, internal_note)
+       SELECT $1, slug, 'free_trial', 'timed',
+              NOW(), $2, 'active', '1-year free trial'
+       FROM template_pricing
+       WHERE is_free = FALSE AND is_active = TRUE
+         AND NOT EXISTS (
+           SELECT 1 FROM template_access ta
+           WHERE ta.user_id = $1 AND ta.template_slug = template_pricing.slug
+             AND ta.access_type = 'free_trial'
+         )`,
+      [userId, trialExpiry]
+    );
+    logger.info('Free trial templates granted', { userId });
+  } catch (err) {
+    logger.error('Failed to grant free trial templates', { userId, error: err.message });
+  }
+}
+exports.grantFreeTrialToUser = grantFreeTrialToUser;
+
 // ── Admin: get stats per template ─────────────────────────────────────────
 exports.adminTemplateStats = async (req, res, next) => {
   try {

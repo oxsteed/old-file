@@ -6787,7 +6787,9 @@
     "previewSampleNotice": "Apèsi ak done echantiyon — kontni reyèl ou a ap parèt yon fwa aktive",
     "previewAriaLabel": "Apèsi modèl {{name}}",
     "activateAriaLabel": "Aktive modèl {{name}}",
-    "unlockAriaLabel": "Debloke modèl {{name}}"
+    "unlockAriaLabel": "Debloke modèl {{name}}",
+    "trial": "Eseye",
+    "trialExpires": "Eseye gratis fini {{date}}"
   },
   "aiKnowledge": {
     "heading": "AI assistant knowledge",

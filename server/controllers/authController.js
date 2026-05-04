@@ -19,6 +19,7 @@ const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { AppError } = require('../middleware/errorHandler');
+const { grantFreeTrialToUser } = require('./templateController');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 
@@ -149,6 +150,12 @@ async function register(req, res, next) {
         [referrerId]
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
     }
+
+    // Grant 1-year free trial on all paid templates (fire-and-forget)
+    grantFreeTrialToUser(user.id).catch(err =>
+      logger.error('Template free trial grant failed on registration', { userId: user.id, err: err.message })
+    );
+
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
@@ -877,6 +884,12 @@ async function verifyRegistrationOTP(req, res) {
         `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`, [referrerId]
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
     }
+
+    // Grant 1-year free trial on all paid templates (fire-and-forget)
+    grantFreeTrialToUser(user.id).catch(err =>
+      logger.error('Template free trial grant failed on registration', { userId: user.id, err: err.message })
+    );
+
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(

@@ -121,7 +121,7 @@ const PREVIEW_SAMPLE_DATA = {
 };
 
 // ── Modal: Preview ──────────────────────────────────────────────────────────
-const PreviewModal = ({ template, slug, pricing, hasAccess, isActive, onClose, onActivate, onPurchase, activating, purchasing }) => {
+const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActive, onClose, onActivate, onPurchase, activating, purchasing }) => {
   const { t } = useTranslation();
   if (!template) return null;
 
@@ -183,6 +183,13 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, isActive, onClose, o
           {/* Pricing */}
           {template.is_free ? (
             <p className="text-emerald-400 font-semibold text-sm mb-4">{t('templatePicker.freeForever')}</p>
+          ) : hasAccess && trialExpiry ? (
+            <p className="text-sky-400 text-sm font-semibold mb-4 flex items-center gap-1.5">
+              <IcoCheck size={14} cls="text-sky-400" />
+              {t('templatePicker.trialExpires', {
+                date: new Date(trialExpiry).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+              })}
+            </p>
           ) : hasAccess ? (
             <p className="text-blue-400 text-sm font-semibold mb-4 flex items-center gap-1.5">
               <IcoCheck size={14} cls="text-blue-400" />
@@ -246,7 +253,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, isActive, onClose, o
 };
 
 // ── Template Card ───────────────────────────────────────────────────────────
-const TemplateCard = ({ slug, template, isActive, hasAccess, onPreview, onActivate, activating }) => {
+const TemplateCard = ({ slug, template, isActive, hasAccess, trialExpiry, onPreview, onActivate, activating }) => {
   const { t } = useTranslation();
   const accent = TEMPLATE_ACCENT[slug] || 'from-gray-700 to-gray-900';
 
@@ -273,6 +280,11 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, onPreview, onActiva
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/90 text-white flex items-center gap-1">
               <IcoStar size={9} cls="text-white" />
               {t('templatePicker.premium')}
+            </span>
+          )}
+          {!template.is_free && hasAccess && trialExpiry && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/90 text-white">
+              {t('templatePicker.trial')}
             </span>
           )}
           {isActive && (
@@ -302,10 +314,19 @@ const TemplateCard = ({ slug, template, isActive, hasAccess, onPreview, onActiva
         {/* Access status */}
         <div className="text-xs">
           {hasAccess || template.is_free ? (
-            <span className="text-emerald-400 flex items-center gap-1">
-              <IcoCheck size={11} cls="text-emerald-400" />
-              {t('templatePicker.unlocked')}
-            </span>
+            trialExpiry && !template.is_free ? (
+              <span className="text-sky-400 flex items-center gap-1">
+                <IcoCheck size={11} cls="text-sky-400" />
+                {t('templatePicker.trialExpires', {
+                  date: new Date(trialExpiry).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                })}
+              </span>
+            ) : (
+              <span className="text-emerald-400 flex items-center gap-1">
+                <IcoCheck size={11} cls="text-emerald-400" />
+                {t('templatePicker.unlocked')}
+              </span>
+            )
           ) : (
             <span className="text-amber-400 flex items-center gap-1">
               <IcoLock size={11} cls="text-amber-400" />
@@ -372,6 +393,7 @@ export default function TemplatePicker() {
   const [templates, setTemplates]         = useState([]);
   const [pricing, setPricing]             = useState({});   // slug → pricing row
   const [myAccess, setMyAccess]           = useState([]);   // array of slug strings I own
+  const [trialExpiries, setTrialExpiries] = useState({});  // slug → expiry ISO string
   const [activeSlug, setActiveSlug]       = useState('default');
   const [loading, setLoading]             = useState(true);
   const [activating, setActivating]       = useState(null); // slug being activated
@@ -405,7 +427,15 @@ export default function TemplatePicker() {
       }));
       setTemplates(all);
 
-      setMyAccess((aRes.data?.data || []).map(r => r.template_slug));
+      const accessRows = aRes.data?.data || [];
+      setMyAccess(accessRows.map(r => r.template_slug));
+      const trialMap = {};
+      accessRows.forEach(r => {
+        if (r.access_type === 'free_trial' && r.expiry_date) {
+          trialMap[r.template_slug] = r.expiry_date;
+        }
+      });
+      setTrialExpiries(trialMap);
       setActiveSlug(activeRes.data?.data?.active_template || 'default');
     } catch (err) {
       toast.error(t('templatePicker.loadError'));
@@ -579,6 +609,7 @@ export default function TemplatePicker() {
                 <TemplateCard
                   key={tpl.slug}
                   slug={tpl.slug}
+                  trialExpiry={trialExpiries[tpl.slug] || null}
                   template={tpl}
                   isActive={activeSlug === tpl.slug}
                   hasAccess={myAccess.includes(tpl.slug)}
@@ -617,6 +648,7 @@ export default function TemplatePicker() {
           slug={previewSlug}
           pricing={pricing}
           hasAccess={myAccess.includes(previewSlug)}
+          trialExpiry={trialExpiries[previewSlug] || null}
           isActive={activeSlug === previewSlug}
           onClose={() => setPreviewSlug(null)}
           onActivate={handleActivate}
