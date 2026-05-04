@@ -106,7 +106,7 @@ router.put('/core', helperOnly, generalLimiter, async (req, res) => {
          service_radius_miles= COALESCE($13, helper_profiles.service_radius_miles),
          availability_json   = COALESCE($14, helper_profiles.availability_json),
          is_available_now    = COALESCE($15, helper_profiles.is_available_now),
-         ai_knowledge        = CASE WHEN $18::boolean THEN $16 ELSE helper_profiles.ai_knowledge END,
+         ai_knowledge        = CASE WHEN $17::boolean THEN $16 ELSE helper_profiles.ai_knowledge END,
          updated_at          = NOW()`,
       [
         uid,
