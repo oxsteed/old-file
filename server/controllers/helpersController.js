@@ -68,6 +68,7 @@ async function listHelpers(req, res, next) {
 
     const conditions = [
       'u.deleted_at IS NULL',
+      'u.is_active = TRUE',
       'u.role = $1',
       'u.email_verified = TRUE',
       'u.onboarding_completed = TRUE',
@@ -338,6 +339,12 @@ async function listHelpers(req, res, next) {
         'b.is_active = TRUE',
         "b.business_name IS NOT NULL",
         "b.business_name != ''",
+        'u.deleted_at IS NULL',
+        'u.is_active = TRUE',
+        'u.email_verified = TRUE',
+        'u.onboarding_completed = TRUE',
+        "u.role IN ('helper', 'helper_pro', 'broker')",
+        '(hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)',
       ];
       const bizParams = [];
       let bIdx = 1;
@@ -508,6 +515,7 @@ async function getHelperProfile(req, res, next) {
          JOIN helper_profiles hp ON hp.user_id = u.id
          WHERE u.id = $1
            AND u.deleted_at IS NULL
+           AND u.is_active = TRUE
            AND u.role IN ('helper', 'helper_pro', 'broker')
            AND u.email_verified = TRUE
            AND u.onboarding_completed = TRUE
