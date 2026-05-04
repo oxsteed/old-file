@@ -121,6 +121,11 @@
   --nav-link:         var(--color-nav-link);
   --nav-link-hover:   var(--color-nav-link-hover);
   --card-bg:          var(--color-card-bg);
+
+  /* ── Additional legacy aliases used by calendar + other page CSS ── */
+  --primary-color:    var(--color-primary);
+  --border-color:     var(--color-border);
+  --muted-text:       var(--color-text-muted);
 }
 
 /* ── Light Mode ── */
