@@ -7147,9 +7147,5 @@
     "title": "Job Auto-Expiry Warning",
     "message": "This job will automatically cancel in {{days}} day(s) if it hasn't started. Please begin work soon.",
     "note": "This ensures customers aren't left with jobs stuck indefinitely."
-  },
-  "common": {
-    "close": "Close",
-    "cancel": "Cancel"
   }
 }

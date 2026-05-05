@@ -7232,9 +7232,5 @@
     "title": "Avètisman Ekspiraysyon Travay",
     "message": "Travay sa a pral otomatikman anile nan {{days}} jou si li pa kòmanse. Tanpri kòmanse byento.",
     "note": "Sa asire ke kliyan yo pa gade travay bloke."
-  },
-  "common": {
-    "close": "Fèmen",
-    "cancel": "Anile"
   }
 }

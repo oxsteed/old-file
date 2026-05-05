@@ -7232,9 +7232,5 @@
     "title": "Advertencia de Expiración de Trabajo",
     "message": "Este trabajo se cancelará automáticamente en {{days}} día(s) si no comienza. Por favor comienza pronto.",
     "note": "Esto asegura que los clientes no queden con trabajos estancados."
-  },
-  "common": {
-    "close": "Cerrar",
-    "cancel": "Cancelar"
   }
 }
