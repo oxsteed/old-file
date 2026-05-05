@@ -431,12 +431,3 @@ exports.getModerationStats = async (req, res, next) => {
     next(err);
   }
 };
-
-module.exports = {
-  reportReview,
-  getMyReports,
-  listReports,
-  getReportDetail,
-  resolveReport,
-  getModerationStats
-};
