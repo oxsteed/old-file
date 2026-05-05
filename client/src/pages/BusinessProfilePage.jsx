@@ -525,7 +525,7 @@ export default function BusinessProfilePage() {
             className="hidden lg:flex lg:col-span-5 flex-col gap-5"
             aria-label={t('businessProfile.bookAndChatAria')}
           >
-            <div className="sticky top-16 space-y-5 max-h-[calc(100vh-5rem)] flex flex-col">
+            <div className="sticky top-[7.25rem] space-y-5 max-h-[calc(100vh-7.25rem)] flex flex-col overflow-y-auto overscroll-contain">
               <UserReputationCard userId={helper.id} />
               <CTASection
                 helper={helper}
