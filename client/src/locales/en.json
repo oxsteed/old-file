@@ -6911,6 +6911,7 @@
     "feeUnknownJob": "Job"
   },
   "reportModal": {
+    "report": "Report",
     "reportUser": "Report User",
     "reportingUser": "You're reporting {{name}}",
     "reason": "Reason for Report",

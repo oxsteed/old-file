@@ -6996,6 +6996,7 @@
     "feeUnknownJob": "Trabajo"
   },
   "reportModal": {
+    "report": "Reportar",
     "reportUser": "Reportar Usuario",
     "reportingUser": "Estás reportando a {{name}}",
     "reason": "Razón del Reporte",

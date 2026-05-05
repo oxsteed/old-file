@@ -6996,6 +6996,7 @@
     "feeUnknownJob": "Travay"
   },
   "reportModal": {
+    "report": "Rapòte",
     "reportUser": "Rapòte Itilizatè",
     "reportingUser": "Ou rapòte {{name}}",
     "reason": "Rezon Rapò",

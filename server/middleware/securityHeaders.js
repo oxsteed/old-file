@@ -29,6 +29,8 @@ const securityHeaders = helmet({
         'https://verify.didit.me',
         'https://api.didit.me',
         'https://www.google-analytics.com',
+        // Public helper profile: geocode city/state when lat/lng missing (LocationSection)
+        'https://nominatim.openstreetmap.org',
         process.env.CLIENT_URL || 'https://oxsteed.com',
         'https://o4511157112471552.ingest.us.sentry.io',
       ],

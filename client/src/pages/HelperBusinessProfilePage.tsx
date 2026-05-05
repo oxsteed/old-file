@@ -363,8 +363,8 @@ const HelperBusinessProfilePage: React.FC = () => {
             aria-label={t('businessProfile.bookAndChatAria')}
             ref={chatPanelRef}
           >
-            {/* Sticky wrapper */}
-            <div className="sticky top-16 max-h-[calc(100vh-5rem)] flex flex-col overflow-hidden gap-5">
+            {/* Sticky wrapper: scroll internally so tall reputation card + chat fit below navbar */}
+            <div className="sticky top-[7.25rem] max-h-[calc(100vh-7.25rem)] flex flex-col gap-5 overflow-y-auto overscroll-contain">
               <UserReputationCard userId={helper.id} />
               {user && (
                 <button

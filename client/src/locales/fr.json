@@ -6996,6 +6996,7 @@
     "feeUnknownJob": "Travail"
   },
   "reportModal": {
+    "report": "Signaler",
     "reportUser": "Signaler un Utilisateur",
     "reportingUser": "Vous signalez {{name}}",
     "reason": "Raison du Signalement",
