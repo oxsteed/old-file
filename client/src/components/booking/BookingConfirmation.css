@@ -1,0 +1,207 @@
+.booking-confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.booking-confirmation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.booking-confirmation h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+/* Booking Summary */
+.booking-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background-color: var(--border-color);
+  border-radius: 8px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--app-text);
+}
+
+.summary-item svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--orange-color, #f97316);
+}
+
+.summary-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.summary-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+/* Description Section */
+.booking-description {
+  padding: 16px;
+  background-color: var(--border-color);
+  border-radius: 8px;
+}
+
+.booking-description h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.booking-description p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted-text);
+  line-height: 1.5;
+}
+
+/* Info Box */
+.booking-info-box {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  color: #2563eb;
+}
+
+.booking-info-box svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.booking-info-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.booking-info-box ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.booking-info-box li {
+  margin-bottom: 4px;
+}
+
+.booking-info-box li:last-child {
+  margin-bottom: 0;
+}
+
+/* Agreement Checkbox */
+.booking-agreement {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background-color: var(--border-color);
+  border-radius: 6px;
+}
+
+.booking-agreement label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--app-text);
+  flex: 1;
+}
+
+.booking-agreement input[type="checkbox"] {
+  margin-top: 2px;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+/* Actions */
+.booking-confirmation-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.booking-btn-primary,
+.booking-btn-secondary {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.booking-btn-primary {
+  background-color: var(--orange-color, #f97316);
+  color: white;
+}
+
+.booking-btn-primary:hover:not(:disabled) {
+  background-color: #ea580c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.booking-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.booking-btn-secondary {
+  background-color: var(--border-color);
+  color: var(--app-text);
+  border: 1px solid transparent;
+}
+
+.booking-btn-secondary:hover:not(:disabled) {
+  background-color: var(--app-bg);
+  border-color: var(--border-color);
+}
+
+.booking-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .booking-confirmation-actions {
+    flex-direction: column;
+  }
+}
