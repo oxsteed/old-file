@@ -2374,6 +2374,8 @@
     "viewPublicProfile": "View Public Profile →",
     "editProfile": "Edit Profile",
     "editProfileDesc": "Update the information customers see when they visit your profile.",
+    "profileCoverTitle": "Profile cover photo",
+    "profileCoverHint": "This wide image appears at the top of your public profile. Use JPEG, PNG, or WebP (max 5 MB).",
     "sectionVisibility": "Section Visibility",
     "visibilityHint": "Toggle sections on or off to control what appears on your public profile. Turn off sections you haven't completed yet.",
     "visibilitySaved": "Visibility settings saved",

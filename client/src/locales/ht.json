@@ -2362,6 +2362,8 @@
     "viewPublicProfile": "Wè pwofil piblik",
     "editProfile": "Edite pwofil",
     "editProfileDesc": "Aktyalize enfòmasyon ki kliyè yo wè lè yo vizite pwofil ou.",
+    "profileCoverTitle": "Foto kouvèti pwofil",
+    "profileCoverHint": "Imaj laj sa a parèt an tèt pwofil piblik ou. Sèvi ak JPEG, PNG oswa WebP (maksimòm 5 MB).",
     "sectionVisibility": "Vizibilite Seksyon",
     "visibilityHint": "Lonje oswa fèmen seksyon pou kontwole sa ki parèt sou pwofil piblik ou. Fèmen seksyon ou poko fini.",
     "visibilitySaved": "Anviwònman vizibilite te sove",
