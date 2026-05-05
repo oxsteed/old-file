@@ -163,7 +163,7 @@ async function issueEnforcementAction(req, res) {
           'suspension':  'suspended'
         };
         await client.query(
-          `UPDATE user_reports
+          `UPDATE job_user_reports
              SET status = 'resolved', resolution = $1, reviewed_by = $2, resolved_at = CURRENT_TIMESTAMP
            WHERE id = $3`,
           [resolutionMap[actionType], adminId, reportId]

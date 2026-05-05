@@ -4,7 +4,8 @@
  */
 
 const express = require('express');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
 const reportingController = require('../controllers/reportingController');
 
 const router = express.Router();
@@ -14,8 +15,8 @@ router.post('/', requireAuth, reportingController.submitReport);
 router.get('/my-reports', requireAuth, reportingController.getMyReports);
 
 // Admin routes
-router.get('/admin/all', requireAdmin, reportingController.listReports);
-router.get('/admin/:reportId', requireAdmin, reportingController.getReportDetail);
-router.patch('/admin/:reportId/status', requireAdmin, reportingController.updateReportStatus);
+router.get('/admin/all', requireAuth, requireAdmin, reportingController.listReports);
+router.get('/admin/:reportId', requireAuth, requireAdmin, reportingController.getReportDetail);
+router.patch('/admin/:reportId/status', requireAuth, requireAdmin, reportingController.updateReportStatus);
 
 module.exports = router;

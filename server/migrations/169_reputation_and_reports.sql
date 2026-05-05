@@ -1,5 +1,6 @@
 -- Migration 169: Reputation visibility and user report system
 -- Adds cancellation stats tracking, user reputation scoring, and abuse reporting
+-- Note: legacy `user_reports` (tool-rental) from 079b is unchanged; job/app reports use `job_user_reports`.
 
 -- User reputation scores (cached from cancellation history)
 CREATE TABLE IF NOT EXISTS user_reputation_scores (
@@ -27,29 +28,29 @@ CREATE TABLE IF NOT EXISTS user_reputation_scores (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_user_reputation_scores_user_id ON user_reputation_scores(user_id);
-CREATE INDEX idx_user_reputation_scores_caution_level ON user_reputation_scores(caution_level);
+CREATE INDEX IF NOT EXISTS idx_user_reputation_scores_user_id ON user_reputation_scores(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_reputation_scores_caution_level ON user_reputation_scores(caution_level);
 
--- User reports (for abuse, harassment, safety violations)
-CREATE TABLE IF NOT EXISTS user_reports (
+-- Job marketplace user reports (distinct from tool-rental user_reports)
+CREATE TABLE IF NOT EXISTS job_user_reports (
   id BIGSERIAL PRIMARY KEY,
   reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reported_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
   -- Report details
-  reason VARCHAR(50) NOT NULL,  -- 'harassment', 'no_show', 'damaged_property', 'abusive_language', 'safety_violation', 'scam', 'other'
+  reason VARCHAR(50) NOT NULL,
   description TEXT NOT NULL,
-  evidence_urls TEXT[],         -- optional URLs to evidence (uploaded files, screenshots)
+  evidence_urls TEXT[],
 
-  -- Context
-  job_id BIGINT REFERENCES jobs(id) ON DELETE SET NULL,
-  conversation_id BIGINT REFERENCES conversations(id) ON DELETE SET NULL,
+  -- Context (jobs.id and conversations.id are UUID)
+  job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
 
   -- Status
-  status VARCHAR(20) DEFAULT 'submitted',  -- 'submitted', 'reviewing', 'resolved', 'dismissed', 'escalated'
+  status VARCHAR(20) DEFAULT 'submitted',
   admin_notes TEXT,
   reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  resolution VARCHAR(50),                   -- 'warning', 'restricted', 'suspended', 'dismissed'
+  resolution VARCHAR(50),
 
   -- Timestamps
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -57,26 +58,24 @@ CREATE TABLE IF NOT EXISTS user_reports (
   resolved_at TIMESTAMP
 );
 
-CREATE INDEX idx_user_reports_reported_user ON user_reports(reported_user_id);
-CREATE INDEX idx_user_reports_status ON user_reports(status);
-CREATE INDEX idx_user_reports_reason ON user_reports(reason);
-CREATE INDEX idx_user_reports_created_at ON user_reports(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_job_user_reports_reported_user ON job_user_reports(reported_user_id);
+CREATE INDEX IF NOT EXISTS idx_job_user_reports_status ON job_user_reports(status);
+CREATE INDEX IF NOT EXISTS idx_job_user_reports_reason ON job_user_reports(reason);
+CREATE INDEX IF NOT EXISTS idx_job_user_reports_created_at ON job_user_reports(created_at DESC);
 
 -- Enforcement actions (warn, restrict, suspend)
 CREATE TABLE IF NOT EXISTS enforcement_actions (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  action_type VARCHAR(20) NOT NULL,  -- 'warning', 'restriction', 'suspension'
+  action_type VARCHAR(20) NOT NULL,
   reason VARCHAR(50) NOT NULL,
-  report_id BIGINT REFERENCES user_reports(id) ON DELETE SET NULL,
+  report_id BIGINT REFERENCES job_user_reports(id) ON DELETE SET NULL,
 
-  -- Details
   description TEXT,
-  restrictions JSON,  -- e.g., {"cannot_bid": true, "cannot_post": false, "expiry": "2026-06-04"}
+  restrictions JSON,
 
-  -- Timeline
   effective_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  expires_at TIMESTAMP,  -- NULL = permanent
+  expires_at TIMESTAMP,
   is_active BOOLEAN DEFAULT TRUE,
 
   issued_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -84,30 +83,29 @@ CREATE TABLE IF NOT EXISTS enforcement_actions (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_enforcement_actions_user_id ON enforcement_actions(user_id);
-CREATE INDEX idx_enforcement_actions_is_active ON enforcement_actions(is_active);
-CREATE INDEX idx_enforcement_actions_user_active ON enforcement_actions(user_id, is_active);
-CREATE INDEX idx_enforcement_actions_expires_at ON enforcement_actions(expires_at) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_enforcement_actions_user_id ON enforcement_actions(user_id);
+CREATE INDEX IF NOT EXISTS idx_enforcement_actions_is_active ON enforcement_actions(is_active);
+CREATE INDEX IF NOT EXISTS idx_enforcement_actions_user_active ON enforcement_actions(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_enforcement_actions_expires_at ON enforcement_actions(expires_at) WHERE is_active = true;
 
 -- Admin audit log for enforcement decisions
 CREATE TABLE IF NOT EXISTS enforcement_audit_log (
   id BIGSERIAL PRIMARY KEY,
   admin_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  action VARCHAR(50) NOT NULL,  -- 'reviewed_report', 'issued_warning', 'restricted', 'suspended', 'dismissed'
+  action VARCHAR(50) NOT NULL,
   target_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  report_id BIGINT REFERENCES user_reports(id) ON DELETE SET NULL,
+  report_id BIGINT REFERENCES job_user_reports(id) ON DELETE SET NULL,
   enforcement_id BIGINT REFERENCES enforcement_actions(id) ON DELETE SET NULL,
 
-  -- What changed
-  changes JSON,  -- {'status': ['submitted', 'resolved'], 'action_type': [null, 'warning']}
+  changes JSON,
   reason_for_action TEXT,
 
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_enforcement_audit_admin ON enforcement_audit_log(admin_id);
-CREATE INDEX idx_enforcement_audit_target ON enforcement_audit_log(target_user_id);
-CREATE INDEX idx_enforcement_audit_created ON enforcement_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_enforcement_audit_admin ON enforcement_audit_log(admin_id);
+CREATE INDEX IF NOT EXISTS idx_enforcement_audit_target ON enforcement_audit_log(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_enforcement_audit_created ON enforcement_audit_log(created_at DESC);
 
 -- Function to recalculate reputation scores based on job history
 CREATE OR REPLACE FUNCTION update_user_reputation_scores(p_user_id UUID)
@@ -122,41 +120,35 @@ DECLARE
   v_reliability_score INTEGER;
   v_caution_level VARCHAR(20);
 BEGIN
-  -- Count jobs
   SELECT COUNT(*)
   INTO v_total_jobs
   FROM jobs
-  WHERE user_id = p_user_id AND status != 'draft';
+  WHERE client_id = p_user_id AND status != 'draft';
 
-  -- Count completed
   SELECT COUNT(*)
   INTO v_completed_jobs
   FROM jobs
-  WHERE user_id = p_user_id AND status = 'completed';
+  WHERE client_id = p_user_id AND status = 'completed';
 
-  -- Count cancelled
   SELECT COUNT(*)
   INTO v_cancelled_jobs
   FROM jobs
-  WHERE user_id = p_user_id AND status = 'cancelled';
+  WHERE client_id = p_user_id AND status = 'cancelled';
 
-  -- Analyse cancellation timing
   SELECT
-    COUNT(CASE WHEN EXTRACT(EPOCH FROM (j.scheduled_start - j.cancelled_at)) / 3600 < 24 THEN 1 END),
-    COUNT(CASE WHEN EXTRACT(EPOCH FROM (j.scheduled_start - j.cancelled_at)) / 3600 >= 24 AND EXTRACT(EPOCH FROM (j.scheduled_start - j.cancelled_at)) / 3600 < 72 THEN 1 END),
-    COUNT(CASE WHEN EXTRACT(EPOCH FROM (j.scheduled_start - j.cancelled_at)) / 3600 >= 72 THEN 1 END)
+    COUNT(CASE WHEN EXTRACT(EPOCH FROM (j.scheduled_start_at - j.updated_at)) / 3600 < 24 THEN 1 END),
+    COUNT(CASE WHEN EXTRACT(EPOCH FROM (j.scheduled_start_at - j.updated_at)) / 3600 >= 24 AND EXTRACT(EPOCH FROM (j.scheduled_start_at - j.updated_at)) / 3600 < 72 THEN 1 END),
+    COUNT(CASE WHEN EXTRACT(EPOCH FROM (j.scheduled_start_at - j.updated_at)) / 3600 >= 72 THEN 1 END)
   INTO v_cancelled_24h, v_cancelled_24h_3d, v_cancelled_3d_plus
   FROM jobs j
-  WHERE j.user_id = p_user_id AND j.status = 'cancelled' AND j.cancelled_at IS NOT NULL;
+  WHERE j.client_id = p_user_id AND j.status = 'cancelled'
+    AND j.scheduled_start_at IS NOT NULL;
 
-  -- Calculate reliability score (0-100)
-  -- Starts at 100, deducted for cancellations
   v_reliability_score := 100;
   IF v_total_jobs > 0 THEN
-    v_reliability_score := GREATEST(0, 100 - (v_cancelled_jobs * 15));  -- 15 points per cancellation
+    v_reliability_score := GREATEST(0, 100 - (v_cancelled_jobs * 15));
   END IF;
 
-  -- Assign caution level
   IF v_total_jobs >= 5 AND (v_cancelled_jobs::DECIMAL / v_total_jobs) >= 0.3 THEN
     v_caution_level := 'caution';
   ELSIF v_total_jobs >= 10 AND (v_cancelled_jobs::DECIMAL / v_total_jobs) >= 0.4 THEN
@@ -165,7 +157,6 @@ BEGIN
     v_caution_level := 'none';
   END IF;
 
-  -- Upsert reputation score
   INSERT INTO user_reputation_scores (
     user_id, total_jobs, completed_jobs, cancelled_jobs,
     cancellation_rate, cancelled_24h_or_less, cancelled_24h_to_3d, cancelled_3d_plus,
@@ -191,12 +182,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Initialize reputation scores for all existing users
 INSERT INTO user_reputation_scores (user_id)
 SELECT DISTINCT id FROM users
 ON CONFLICT (user_id) DO NOTHING;
 
--- Recalculate for all users
 DO $$
 DECLARE
   r RECORD;

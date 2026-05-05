@@ -5,7 +5,8 @@
 
 const express = require('express');
 const router  = express.Router();
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
 const {
   getUserReputation,
   recalculateReputation,
@@ -25,8 +26,8 @@ router.get('/customers/:userId/reliability',  getCustomerReliability);
 router.get('/:userId/fee-history',      requireAuth, getFeeHistory);
 
 // ── Admin: recalculate + enforcement ─────────────────────────────────────────
-router.post('/:userId/recalculate',     requireAdmin, recalculateReputation);
-router.get('/:userId/enforcement',      requireAdmin, getEnforcementActions);
+router.post('/:userId/recalculate',     requireAuth, requireAdmin, recalculateReputation);
+router.get('/:userId/enforcement',      requireAuth, requireAdmin, getEnforcementActions);
 router.get('/:userId/restrictions',     requireAuth,  checkRestrictions);
 
 module.exports = router;
