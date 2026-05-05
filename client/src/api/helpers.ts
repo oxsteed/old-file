@@ -118,3 +118,12 @@ export async function fetchHelperSlots(id: string): Promise<HelperSlotData> {
   const { data } = await api.get<HelperSlotData>(`/helpers/${id}/slots`);
   return data;
 }
+
+/** Cached public PNG QR for this helper's profile URL (`<img src={...}>`). */
+export function getHelperProfileQrPngUrl(helperId: string, width = 180): string {
+  const base = ((import.meta as ImportMeta & { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL || '/api').replace(
+    /\/$/,
+    '',
+  );
+  return `${base}/helpers/${encodeURIComponent(helperId)}/profile-qr.png?w=${width}`;
+}

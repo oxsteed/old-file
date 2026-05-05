@@ -301,6 +301,7 @@ async function handleHelperProfile(helperId, template, res, next) {
             pb.business_name AS primary_business_name,
             hp.profile_headline, hp.bio_short, hp.bio_long,
             hp.profile_photo_url,
+            COALESCE(hp.cover_image_url, hp.cover_photo_url) AS cover_photo_url,
             hp.service_city, hp.service_state, hp.service_zip,
             hp.service_radius_miles, hp.hourly_rate_min,
             hp.avg_rating, hp.total_reviews,
@@ -338,6 +339,7 @@ async function handleHelperProfile(helperId, template, res, next) {
     tagline,
     bio,
     avatar: h.profile_photo_url || '',
+    coverImage: h.cover_photo_url || '',
     rating: parseFloat(h.avg_rating) || 0,
     reviewCount: h.total_reviews || 0,
     hourlyRateMin: h.hourly_rate_min ? parseFloat(h.hourly_rate_min) : null,
@@ -353,7 +355,9 @@ async function handleHelperProfile(helperId, template, res, next) {
 
   const origin = base();
   const url = `${origin}/helpers/${helper.id}`;
-  const image = helper.avatar ? absoluteUrl(helper.avatar) : `${origin}/icons/icon-192.png`;
+  const image = (helper.coverImage || helper.avatar)
+    ? absoluteUrl(helper.coverImage || helper.avatar)
+    : `${origin}/icons/icon-192.png`;
   const title = `${helper.businessName} | OxSteed`;
   const description = buildPublicProfileDescription({
     displayName: helper.businessName,

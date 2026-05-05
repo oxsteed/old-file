@@ -4258,7 +4258,9 @@
       "areaFallback": "Votre région",
       "verifiedAria": "Vérifié",
       "verifiedTitle": "Identité vérifiée par OxSteed",
-      "trustBadgesAria": "Badges de confiance et de vérification"
+      "trustBadgesAria": "Badges de confiance et de vérification",
+      "qrProfileTitle": "Scannez pour ouvrir ce profil sur OxSteed",
+      "qrProfileCaption": "Code QR vers le profil de cet assistant sur OxSteed"
     },
     "share": {
       "copyLink": "Copier le lien",

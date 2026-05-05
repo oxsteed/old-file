@@ -1,10 +1,9 @@
 const pool = require('../db');
-const { AppError, sendValidationError, sendError } = require('../utils/apiError');
+const { sendValidationError, sendError } = require('../utils/apiError');
 const { logger } = require('../utils/logger');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile } = require('../utils/storage');
 const {
   generateHelperProfileQRCode,
-  generateQRCodeSizes,
   buildHelperProfileURL
 } = require('../utils/qrCodeGenerator');
 
@@ -56,7 +55,7 @@ exports.uploadCoverImage = async (req, res) => {
 
     // Delete old cover image if it exists
     const existingResult = await pool.query(
-      'SELECT cover_image_url FROM helper_profiles WHERE id = $1',
+      'SELECT cover_image_url FROM helper_profiles WHERE user_id = $1',
       [helperId]
     );
 
@@ -67,12 +66,14 @@ exports.uploadCoverImage = async (req, res) => {
       });
     }
 
-    // Update helper profile with new cover image URL
+    // Update helper profile with new cover image URL (sync legacy column for directory / prerender)
     const result = await pool.query(
       `UPDATE helper_profiles
-       SET cover_image_url = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
-       RETURNING id, cover_image_url`,
+       SET cover_image_url = $1,
+           cover_photo_url = $1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $2
+       RETURNING user_id, cover_image_url`,
       [imageUrl, helperId]
     );
 
@@ -108,7 +109,7 @@ exports.deleteCoverImage = async (req, res) => {
 
     // Get current cover image URL
     const result = await pool.query(
-      'SELECT cover_image_url FROM helper_profiles WHERE id = $1',
+      'SELECT cover_image_url FROM helper_profiles WHERE user_id = $1',
       [helperId]
     );
 
@@ -120,7 +121,11 @@ exports.deleteCoverImage = async (req, res) => {
 
     // Remove from database
     await pool.query(
-      'UPDATE helper_profiles SET cover_image_url = NULL WHERE id = $1',
+      `UPDATE helper_profiles
+       SET cover_image_url = NULL,
+           cover_photo_url = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1`,
       [helperId]
     );
 
@@ -189,13 +194,7 @@ exports.generateQRCode = async (req, res) => {
 
     logger.info('Generating QR code', { helperId, size, width, format });
 
-    // Generate QR code
-    const qrCode = await generateHelperProfileQRCode(
-      helperId,
-      helper.first_name,
-      format,
-      { width }
-    );
+    const qrCode = await generateHelperProfileQRCode(helperId, helper.first_name, format, { width });
 
     // For buffer format, send as image
     if (format === 'buffer') {
@@ -255,12 +254,7 @@ exports.generateMultiSizeQRCode = async (req, res) => {
 
     const qrCodes = {};
     for (const [sizeKey, width] of Object.entries(sizes)) {
-      qrCodes[sizeKey] = await generateHelperProfileQRCode(
-        helperId,
-        helper.first_name,
-        'dataurl',
-        { width }
-      );
+      qrCodes[sizeKey] = await generateHelperProfileQRCode(helperId, helper.first_name, 'dataurl', { width });
     }
 
     res.json({
@@ -288,15 +282,18 @@ exports.getHelperProfileWithCover = async (req, res) => {
 
     const result = await pool.query(
       `SELECT
-        h.id,
-        h.cover_image_url,
-        h.bio,
+        u.id AS user_id,
+        COALESCE(hp.cover_image_url, hp.cover_photo_url) AS cover_image_url,
+        hp.bio_long AS bio,
         u.first_name,
         u.last_name,
         u.profile_photo_url
-      FROM helper_profiles h
-      LEFT JOIN users u ON h.id = u.id
-      WHERE h.id = $1`,
+      FROM users u
+      JOIN helper_profiles hp ON hp.user_id = u.id
+      WHERE u.id = $1
+        AND u.deleted_at IS NULL
+        AND u.is_active = TRUE
+        AND u.role IN ('helper', 'helper_pro', 'broker')`,
       [helperId]
     );
 
@@ -309,16 +306,54 @@ exports.getHelperProfileWithCover = async (req, res) => {
     res.json({
       success: true,
       data: {
-        id: helper.id,
-        name: `${helper.first_name} ${helper.last_name}`,
+        id: helper.user_id,
+        name: `${helper.first_name || ''} ${helper.last_name || ''}`.trim(),
         bio: helper.bio,
         profilePhotoUrl: helper.profile_photo_url,
         coverImageUrl: helper.cover_image_url,
-        profileUrl: buildHelperProfileURL(helper.id)
+        profileUrl: buildHelperProfileURL(helper.user_id)
       }
     });
   } catch (err) {
     logger.error('Error fetching helper profile with cover', { error: err.message });
     sendError(res, 500, 'Failed to fetch helper profile');
+  }
+};
+
+/**
+ * Public PNG QR for helper profile (for <img src> without JSON parsing).
+ * GET /api/helpers/:id/profile-qr.png
+ */
+exports.getHelperProfileQRCodePng = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const wRaw = req.query.w;
+    let width = 180;
+    if (wRaw != null && wRaw !== '') {
+      const n = parseInt(String(wRaw), 10);
+      if (!Number.isNaN(n) && n >= 64 && n <= 512) width = n;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT u.id FROM users u
+       WHERE u.id = $1
+         AND u.deleted_at IS NULL
+         AND u.is_active = TRUE
+         AND u.role IN ('helper', 'helper_pro', 'broker')
+         AND u.email_verified = TRUE
+         AND u.onboarding_completed = TRUE`,
+      [id]
+    );
+    if (!rows.length) {
+      return sendError(res, 404, 'Helper not found');
+    }
+
+    const buf = await generateHelperProfileQRCode(id, null, 'buffer', { width });
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=86400, immutable');
+    return res.send(buf);
+  } catch (err) {
+    logger.error('Error generating helper profile QR PNG', { error: err.message });
+    sendError(res, 500, 'Failed to generate QR code');
   }
 };

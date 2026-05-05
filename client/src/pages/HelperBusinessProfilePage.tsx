@@ -271,6 +271,7 @@ const HelperBusinessProfilePage: React.FC = () => {
 
       {/* Business hero header */}
       <BusinessHeader
+        helperId={id}
         helper={helper}
         onBookNow={handleBookNow}
         onOpenChat={handleMessageHelper}

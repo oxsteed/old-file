@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import CoverImageUpload from '../components/profile/CoverImageUpload';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import api from '../api/axios';
 import './HelperProfileEditPage.css';
 
 /**
@@ -22,15 +23,11 @@ export default function HelperProfileEditPage() {
 
   const loadHelperProfile = async () => {
     try {
-      const response = await fetch('/api/helper-profile');
-      if (response.ok) {
-        const data = await response.json();
-        setHelperProfile(data.data);
-      } else {
-        setError('Failed to load profile');
-      }
-    } catch (err) {
-      setError(err.message);
+      const { data } = await api.get('/helper-profile/me');
+      const coverUrl = data.cover_image_url || data.cover_photo_url || null;
+      setHelperProfile({ ...data, coverImageUrl: coverUrl });
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || 'Failed to load profile');
     } finally {
       setLoading(false);
     }

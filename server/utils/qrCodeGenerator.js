@@ -119,17 +119,23 @@ exports.buildHelperProfileURL = (helperId, helperName = null) => {
  * @param {string} format - 'dataurl' | 'buffer' | 'svg' (default: 'dataurl')
  * @returns {Promise} - QR code in requested format
  */
-exports.generateHelperProfileQRCode = async (helperId, helperName = null, format = 'dataurl') => {
+exports.generateHelperProfileQRCode = async (
+  helperId,
+  helperName = null,
+  format = 'dataurl',
+  options = {},
+) => {
   const profileUrl = exports.buildHelperProfileURL(helperId, helperName);
+  const qrOpts = typeof options === 'object' && options ? options : {};
 
   switch (format) {
     case 'buffer':
-      return await exports.generateQRCodeBuffer(profileUrl);
+      return await exports.generateQRCodeBuffer(profileUrl, qrOpts);
     case 'svg':
-      return await exports.generateQRCodeSVG(profileUrl);
+      return await exports.generateQRCodeSVG(profileUrl, qrOpts);
     case 'dataurl':
     default:
-      return await exports.generateQRCodeDataURL(profileUrl);
+      return await exports.generateQRCodeDataURL(profileUrl, qrOpts);
   }
 };
 

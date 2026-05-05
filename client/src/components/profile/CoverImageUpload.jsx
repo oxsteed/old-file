@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
+import api from '../../api/axios';
 import './CoverImageUpload.css';
 
 /**
@@ -58,17 +59,7 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/api/helper-profile/cover-image', {
-        method: 'PUT',
-        body: formData
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to upload cover image');
-      }
-
-      const data = await response.json();
+      const { data } = await api.put('/helper-profile/cover-image', formData);
 
       setSuccess(true);
       setFileName(null);
@@ -126,13 +117,7 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
     setLoading(true);
 
     try {
-      const response = await fetch('/api/helper-profile/cover-image', {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete cover image');
-      }
+      await api.delete('/helper-profile/cover-image');
 
       setPreview(null);
       setError(null);

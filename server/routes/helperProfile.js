@@ -3,14 +3,26 @@
 // All routes require the caller to be the owner of the profile.
 
 const router     = require('express').Router();
+const multer     = require('multer');
 const pool       = require('../db');
 const { authenticate } = require('../middleware/auth');
 const requireRole      = require('../middleware/requireRole');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const logger     = require('../utils/logger');
 const { invalidateHelperContext } = require('../services/helperContext');
+const helperProfileImageController = require('../controllers/helperProfileImageController');
 
 const helperOnly = [authenticate, requireRole('helper', 'helper_pro', 'broker')];
+
+const coverUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'));
+  },
+});
 
 // ── GET /api/helper-profile/me ────────────────────────────────────────────────
 // Returns the helper's own full profile (for the dashboard editor).
@@ -18,7 +30,9 @@ router.get('/me', helperOnly, async (req, res) => {
   try {
     const uid = req.user.id;
     const { rows: [hp] } = await pool.query(
-      `SELECT profile_headline, bio_short, bio_long, profile_photo_url, cover_photo_url,
+      `SELECT profile_headline, bio_short, bio_long, profile_photo_url,
+              COALESCE(cover_image_url, cover_photo_url) AS cover_photo_url,
+              cover_image_url,
               service_city, service_state, service_zip, service_radius_miles,
               hourly_rate_min, hourly_rate_max, rate_preference,
               flat_rate_available, contact_for_pricing,
@@ -197,11 +211,12 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO helper_profiles (user_id, profile_photo_url, cover_photo_url)
-       VALUES ($1, $2, $3)
+      `INSERT INTO helper_profiles (user_id, profile_photo_url, cover_photo_url, cover_image_url)
+       VALUES ($1, $2, $3, $3)
        ON CONFLICT (user_id) DO UPDATE SET
          profile_photo_url = COALESCE($2, helper_profiles.profile_photo_url),
          cover_photo_url   = COALESCE($3, helper_profiles.cover_photo_url),
+         cover_image_url   = COALESCE($3, helper_profiles.cover_image_url),
          updated_at        = NOW()`,
       [uid, profile_photo_url ?? null, cover_photo_url ?? null],
     );
@@ -553,6 +568,10 @@ router.delete('/gallery/:id', helperOnly, async (req, res) => {
     res.status(500).json({ error: 'Failed to delete image' });
   }
 });
+
+// ── Cover image (multipart upload to storage; keeps cover_image_url + cover_photo_url in sync)
+router.put('/cover-image', helperOnly, coverUpload.single('image'), helperProfileImageController.uploadCoverImage);
+router.delete('/cover-image', helperOnly, helperProfileImageController.deleteCoverImage);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WEEKLY AVAILABILITY TEMPLATE (migration 168)

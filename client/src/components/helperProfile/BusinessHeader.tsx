@@ -13,8 +13,11 @@ import {
 import type { HelperProfile, Badge } from '../../types/helperProfile';
 import StarRating from './ui/StarRating';
 import ProfileShareControls from './ProfileShareControls';
+import { getHelperProfileQrPngUrl } from '../../api/helpers';
 
 interface BusinessHeaderProps {
+  /** Helper user UUID - used for public profile QR image */
+  helperId?: string;
   helper: HelperProfile;
   onBookNow: () => void;
   onOpenChat: () => void;
@@ -53,6 +56,7 @@ function getInitials(name: string): string {
 }
 
 const BusinessHeader: React.FC<BusinessHeaderProps> = ({
+  helperId,
   helper,
   onBookNow,
   onOpenChat,
@@ -65,6 +69,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   const memberYear = new Date(helper.memberSince).getFullYear();
   const [coverError, setCoverError] = React.useState(false);
   const [avatarError, setAvatarError] = React.useState(false);
+  const qrSrc = helperId ? getHelperProfileQrPngUrl(helperId, 160) : '';
 
   return (
     <header className="relative bg-gray-900 border-b border-gray-800">
@@ -82,6 +87,26 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-850 to-gray-900" aria-hidden="true" />
         )}
+        <div className="absolute top-3 right-3 z-10 sm:top-4 sm:right-4">
+          {qrSrc ? (
+            <figure
+              className="rounded-lg bg-white p-1.5 shadow-lg border border-gray-200/90"
+              title={t('helperProfile.header.qrProfileTitle')}
+            >
+              <img
+                src={qrSrc}
+                alt=""
+                width={80}
+                height={80}
+                className="w-16 h-16 sm:w-20 sm:h-20 block"
+                loading="lazy"
+                decoding="async"
+                aria-hidden="true"
+              />
+              <figcaption className="sr-only">{t('helperProfile.header.qrProfileCaption')}</figcaption>
+            </figure>
+          ) : null}
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-900/30 to-gray-900/90" />
       </div>
 

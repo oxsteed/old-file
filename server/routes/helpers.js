@@ -5,6 +5,7 @@
 const express = require('express');
 const router  = express.Router();
 const { listHelpers, getHelperProfile, getHelperStatus, searchSkills, searchLicenses, getHelperAvailability, getHelperPricing, getHelperSlots, toggleListing, getMyListingStatus, getMyAvailability, toggleAvailability, removeCredential } = require('../controllers/helpersController');
+const { getHelperProfileQRCodePng } = require('../controllers/helperProfileImageController');
 const {
   listHelperInvoices, createHelperInvoice, updateHelperInvoice,
   markHelperInvoicePaid, deleteHelperInvoice, sendHelperInvoice,
@@ -35,6 +36,7 @@ router.get('/',              generalLimiter, listHelpers);
 router.get('/skills',        generalLimiter, searchSkills);
 router.get('/licenses',      generalLimiter, searchLicenses);
 router.get('/:id/status',    generalLimiter, getHelperStatus);
+router.get('/:id/profile-qr.png', generalLimiter, getHelperProfileQRCodePng);
 router.get('/:id/profile',   generalLimiter, getHelperProfile);
 
 // Dynamic endpoints (client-side fetched after page load) - Issue #35
