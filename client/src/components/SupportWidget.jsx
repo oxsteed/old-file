@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import SpeechToTextInput from './SpeechToTextInput';
@@ -19,6 +19,11 @@ const SUGGESTIONS = [
 // Pages that get the proactive auto-open trigger after 45s
 const PROACTIVE_PATHS = ['/post-job', '/helpers'];
 const PROACTIVE_DELAY_MS = 45_000;
+
+/** Public helper profile `/helpers/:uuid` — page has built-in chat; hide floating widget */
+function isHelperPublicProfilePath(pathname) {
+  return /^\/helpers\/[^/]+\/?$/.test(pathname || '');
+}
 
 function formatTime(iso) {
   const d = new Date(iso);
@@ -143,6 +148,9 @@ function exportTranscript(messages) {
 
 // ── Main widget ───────────────────────────────────────────────────────────────
 export default function SupportWidget() {
+  const location = useLocation();
+  const hideOnHelperProfile = isHelperPublicProfilePath(location.pathname);
+
   // 8. Welcome-back: show different greeting if prior history exists
   const existingHistory = loadHistory();
   const initialMsg = existingHistory
@@ -160,6 +168,14 @@ export default function SupportWidget() {
 
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  // Close floating widget when navigating to a helper profile (in-page chat replaces it)
+  useEffect(() => {
+    if (!hideOnHelperProfile) return;
+    setOpen(false);
+    setMinimized(false);
+    setUnread(0);
+  }, [hideOnHelperProfile]);
 
   const endRef      = useRef(null);
   const inputRef    = useRef(null);
@@ -187,7 +203,8 @@ export default function SupportWidget() {
 
   // 7. Proactive trigger on /post-job and /helpers after 45 seconds
   useEffect(() => {
-    const path = window.location.pathname;
+    const path = location.pathname;
+    if (isHelperPublicProfilePath(path)) return;
     const isMatch = PROACTIVE_PATHS.some(p => path.startsWith(p));
     if (!isMatch || proactiveTriggered.current || open) return;
 
@@ -204,14 +221,17 @@ export default function SupportWidget() {
     }, PROACTIVE_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [open]);
+  }, [open, location.pathname]);
 
   // Persist history
   useEffect(() => { saveHistory(messages); }, [messages]);
 
   // Custom open event from other components
   useEffect(() => {
-    const handler = () => { setOpen(true); setMinimized(false); setUnread(0); };
+    const handler = () => {
+      if (isHelperPublicProfilePath(window.location.pathname)) return;
+      setOpen(true); setMinimized(false); setUnread(0);
+    };
     window.addEventListener('oxsteed:open-support', handler);
     return () => window.removeEventListener('oxsteed:open-support', handler);
   }, []);
@@ -331,6 +351,8 @@ export default function SupportWidget() {
 
   // 6. Mobile full-screen vs desktop popup layout
   const isFullScreen = isMobile && open;
+
+  if (hideOnHelperProfile) return null;
 
   return (
     <>
