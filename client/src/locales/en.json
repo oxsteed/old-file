@@ -4942,6 +4942,8 @@
       "dragOrClick": "Drag and drop your image here, or click to select",
       "formats": "Supported formats: JPEG, PNG, WebP",
       "maxSize": "Maximum file size: 5 MB",
+      "invalidFormat": "Please choose a JPEG, PNG, or WebP image.",
+      "fileTooLarge": "That file is too large. Maximum size is 5 MB.",
       "selected": "Selected file",
       "uploading": "Uploading your image…",
       "uploadSuccess": "Cover image uploaded successfully.",
