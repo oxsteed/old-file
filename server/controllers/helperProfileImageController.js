@@ -2,6 +2,7 @@ const pool = require('../db');
 const { sendValidationError, sendError } = require('../utils/apiError');
 const { logger } = require('../utils/logger');
 const { uploadFile } = require('../utils/storage');
+const { invalidateHelperContext } = require('../services/helperContext');
 const {
   generateHelperProfileQRCode,
   buildHelperProfileURL
@@ -81,6 +82,23 @@ exports.uploadCoverImage = async (req, res) => {
       return sendError(res, 404, 'Helper profile not found');
     }
 
+    // Keep primary business profile cover in sync (public /business/:id uses businesses first)
+    pool.query(
+      `UPDATE businesses
+       SET cover_photo_url = $1,
+           cover_image_url = $1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $2 AND is_primary = TRUE AND is_active = TRUE`,
+      [imageUrl, helperId],
+    ).catch((e) => logger.warn('Cover sync to primary business failed', { err: e.message, helperId }));
+
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [helperId],
+    )
+      .then((r) => invalidateHelperContext(helperId, r.rows[0]?.id))
+      .catch(() => invalidateHelperContext(helperId));
+
     logger.info('Cover image uploaded successfully', {
       helperId,
       imageUrl
@@ -128,6 +146,22 @@ exports.deleteCoverImage = async (req, res) => {
        WHERE user_id = $1`,
       [helperId]
     );
+
+    pool.query(
+      `UPDATE businesses
+       SET cover_photo_url = NULL,
+           cover_image_url = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE`,
+      [helperId],
+    ).catch((e) => logger.warn('Cover clear on primary business failed', { err: e.message, helperId }));
+
+    pool.query(
+      `SELECT id FROM businesses WHERE user_id = $1 AND is_primary = TRUE AND is_active = TRUE LIMIT 1`,
+      [helperId],
+    )
+      .then((r) => invalidateHelperContext(helperId, r.rows[0]?.id))
+      .catch(() => invalidateHelperContext(helperId));
 
     // TODO: Delete from S3
     if (coverUrl) {
