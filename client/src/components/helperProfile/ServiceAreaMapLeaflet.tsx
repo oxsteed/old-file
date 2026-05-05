@@ -12,10 +12,37 @@ function FitBounds({
   radiusMeters: number;
 }) {
   const map = useMap();
+
   React.useEffect(() => {
-    const bounds = L.circle(center, { radius: radiusMeters }).getBounds();
-    map.fitBounds(bounds, { padding: [16, 16], maxZoom: 11 });
+    let cancelled = false;
+
+    const applyFit = () => {
+      if (cancelled) return;
+      try {
+        map.invalidateSize();
+        const bounds = L.circle(center, { radius: radiusMeters }).getBounds();
+        map.fitBounds(bounds, { padding: [16, 16], maxZoom: 11 });
+      } catch {
+        // Map container can have no layout on first commit (layerPointToLatLng / NaN).
+      }
+    };
+
+    const run = () => {
+      map.whenReady(() => {
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          requestAnimationFrame(applyFit);
+        });
+      });
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [map, center, radiusMeters]);
+
   return null;
 }
 

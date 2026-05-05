@@ -1,5 +1,15 @@
 const helmet = require('helmet');
 
+/** Allowed external script origins — mirrored on script-src and script-src-elem for consistent browser behavior */
+const SCRIPT_SOURCES = [
+  "'self'",
+  'https://js.stripe.com',
+  'https://www.googletagmanager.com',
+  'https://www.google-analytics.com',
+  // Cloudflare Web Analytics beacon when proxied via CF
+  'https://static.cloudflareinsights.com',
+];
+
 /**
  * Security headers middleware using Helmet.js.
  * Configures CSP, HSTS, X-Frame-Options, and other security headers
@@ -14,12 +24,9 @@ const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'",
-        'https://js.stripe.com',
-        'https://www.googletagmanager.com',
-        'https://www.google-analytics.com',
-      ],
+      scriptSrc: SCRIPT_SOURCES,
+      scriptSrcElem: SCRIPT_SOURCES,
+      workerSrc: ["'self'", 'blob:'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
@@ -31,6 +38,7 @@ const securityHeaders = helmet({
         'https://www.google-analytics.com',
         // Public helper profile: geocode city/state when lat/lng missing (LocationSection)
         'https://nominatim.openstreetmap.org',
+        'https://static.cloudflareinsights.com',
         process.env.CLIENT_URL || 'https://oxsteed.com',
         'https://o4511157112471552.ingest.us.sentry.io',
       ],
