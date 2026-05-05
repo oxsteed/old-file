@@ -5,7 +5,7 @@
 -- Every cancellation (customer or helper) writes a row here for dispute/audit
 CREATE TABLE IF NOT EXISTS cancellation_audit_log (
   id              BIGSERIAL PRIMARY KEY,
-  job_id          BIGINT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  job_id          UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
   cancelled_by_id UUID   NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   cancelled_by_role VARCHAR(10) NOT NULL CHECK (cancelled_by_role IN ('customer','helper')),
   counterparty_id UUID   REFERENCES users(id) ON DELETE SET NULL,
@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_cancel_audit_created_at ON cancellation_audit_log
 -- Tracks actual fee transfers from customer → helper
 CREATE TABLE IF NOT EXISTS cancellation_fees (
   id              BIGSERIAL PRIMARY KEY,
-  job_id          BIGINT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  job_id          UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
   audit_log_id    BIGINT REFERENCES cancellation_audit_log(id) ON DELETE SET NULL,
 
   -- Parties

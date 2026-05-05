@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Building2, Search, ToggleLeft, ToggleRight, X, Eye, Edit2, Users,
-  MessageSquare, Trash2, Flag, AlertCircle, TrendingUp, Eye2
+  MessageSquare, Trash2, Flag, AlertCircle, TrendingUp
 } from 'lucide-react';
 import adminApi from '../../lib/adminApi';
 import { useNavigate } from 'react-router-dom';

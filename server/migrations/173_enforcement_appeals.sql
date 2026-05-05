@@ -28,5 +28,3 @@ CREATE INDEX IF NOT EXISTS idx_appeals_enforcement ON enforcement_appeals(enforc
 CREATE INDEX IF NOT EXISTS idx_appeals_user ON enforcement_appeals(user_id);
 CREATE INDEX IF NOT EXISTS idx_appeals_status ON enforcement_appeals(status) WHERE status IN ('pending', 'under_review');
 CREATE INDEX IF NOT EXISTS idx_appeals_submitted ON enforcement_appeals(submitted_at DESC);
-
-COMMIT;

@@ -5,7 +5,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/adminAuth');
 const ctrl = require('../controllers/reviewModerationController');
 
 // ── Public/Authenticated: Report a review ──────────────────────

@@ -50,7 +50,7 @@ async function submitReport(req, res) {
 
     // Create report
     const result = await pool.query(
-      `INSERT INTO user_reports (
+      `INSERT INTO job_user_reports (
         reporter_id, reported_user_id, reason, description, evidence_urls,
         job_id, conversation_id, status, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted', CURRENT_TIMESTAMP)
@@ -98,7 +98,7 @@ async function getMyReports(req, res) {
         id, reported_user_id, reason, description, evidence_urls,
         job_id, conversation_id, status, admin_notes, reviewed_by,
         resolution, created_at, updated_at, resolved_at
-      FROM user_reports
+      FROM job_user_reports
       WHERE reporter_id = $1
       ORDER BY created_at DESC
       LIMIT 50`,
@@ -140,7 +140,7 @@ async function listReports(req, res) {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = Math.max(0, parseInt(req.query.offset) || 0);
 
-    let query = 'SELECT id, reporter_id, reported_user_id, reason, status, resolution, created_at FROM user_reports WHERE 1=1';
+    let query = 'SELECT id, reporter_id, reported_user_id, reason, status, resolution, created_at FROM job_user_reports WHERE 1=1';
     const params = [];
     let paramCount = 0;
 
@@ -171,7 +171,7 @@ async function listReports(req, res) {
     const result = await pool.query(query, params);
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) as count FROM user_reports WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as count FROM job_user_reports WHERE 1=1';
     const countParams = [];
     let countParamCount = 0;
 
@@ -231,7 +231,7 @@ async function getReportDetail(req, res) {
         id, reporter_id, reported_user_id, reason, description, evidence_urls,
         job_id, conversation_id, status, admin_notes, reviewed_by,
         resolution, created_at, updated_at, resolved_at
-      FROM user_reports
+      FROM job_user_reports
       WHERE id = $1`,
       [reportId]
     );
@@ -286,7 +286,7 @@ async function updateReportStatus(req, res) {
     }
 
     // Get report first
-    const reportResult = await pool.query('SELECT reported_user_id FROM user_reports WHERE id = $1', [reportId]);
+    const reportResult = await pool.query('SELECT reported_user_id FROM job_user_reports WHERE id = $1', [reportId]);
     if (!reportResult.rows.length) {
       throw new AppError('Report not found', 404, 'REPORT_NOT_FOUND');
     }
@@ -295,7 +295,7 @@ async function updateReportStatus(req, res) {
 
     // Update report
     await pool.query(
-      `UPDATE user_reports
+      `UPDATE job_user_reports
       SET status = $1, admin_notes = $2, reviewed_by = $3, updated_at = CURRENT_TIMESTAMP,
           resolved_at = CASE WHEN $1 IN ('resolved', 'dismissed') THEN CURRENT_TIMESTAMP ELSE resolved_at END
       WHERE id = $4`,

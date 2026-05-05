@@ -1,6 +1,6 @@
 # OxSteed - AI Contributor Guide
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-05
 
 ## Instructions for Every Session
 
@@ -76,6 +76,8 @@
 - **`server/routes/jobs.js`**: `POST /api/jobs` now includes `checkRestrictions('job_posting')` before `createJob`.
 - **`client/src/pages/JobDetailPage.jsx`**: Replaced single `JobCancellationModal` with role-aware: customers see `JobCancellationConfirmation`, helpers see `HelperCancellationConfirmation`. Old modal kept as fallback for non-accepted jobs.
 - **i18n**: Added `cancellationConfirm.*` (18 keys) + `helperCancelConfirm.*` (21 keys) + `reputation.fee*` (8 keys) to all 4 locales (EN/ES/FR/HT).
+
+**Deploy fixes (2026-05-05):** Server boot failed on `Route.post() ... undefined` because `reputation.js` (and `reporting.js`, `enforcement.js`, `reviewModeration.js`, `enforcementPolicy.js`) imported `requireAdmin` from `middleware/auth` (it is not exported there). Use `requireAuth` + `requireAdmin` from `middleware/adminAuth` for admin routes. **Migrations:** `169_reputation_and_reports.sql` now creates `job_user_reports` (separate from legacy tool-rental `user_reports` in 079b), uses UUID FKs to `jobs` / `conversations`, and `update_user_reputation_scores` uses `client_id` and `scheduled_start_at`. `172_cancellation_fee_audit.sql` uses UUID `job_id`. `174_review_moderation_system.sql` uses UUID `review_id` to match `product_reviews.id`; stray `COMMIT` removed from `173_enforcement_appeals.sql` and `174`. **Controllers:** `reportingController.js` and `enforcementController.js` read/write `job_user_reports`. **Client:** removed invalid lucide `Eye2` import from `BusinessModeration.jsx`. If production `_migrations` already lists failed migrations as applied incorrectly, manual DB repair or deleting erroneous `_migrations` rows may be needed before re-apply.
 
 **Latest work completed (2026-05-03, session 4):**
 - **Calendar sidebar + Block Time discoverability** ✅ COMPLETE

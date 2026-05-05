@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS review_reports (
   id BIGSERIAL PRIMARY KEY,
-  review_id BIGINT NOT NULL REFERENCES product_reviews(id) ON DELETE CASCADE,
+  review_id UUID NOT NULL REFERENCES product_reviews(id) ON DELETE CASCADE,
   reported_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
   -- Report details
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS review_reports (
 -- Track review moderation history
 CREATE TABLE IF NOT EXISTS review_moderation_log (
   id BIGSERIAL PRIMARY KEY,
-  review_id BIGINT NOT NULL REFERENCES product_reviews(id) ON DELETE CASCADE,
+  review_id UUID NOT NULL REFERENCES product_reviews(id) ON DELETE CASCADE,
   action VARCHAR(50) NOT NULL, -- hidden, removed, warning_issued, flagged
   reason TEXT,
   performed_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -54,5 +54,3 @@ CREATE INDEX IF NOT EXISTS idx_review_moderation_log_review ON review_moderation
 CREATE INDEX IF NOT EXISTS idx_review_moderation_log_created ON review_moderation_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_product_reviews_hidden ON product_reviews(is_hidden) WHERE is_hidden = true;
 CREATE INDEX IF NOT EXISTS idx_product_reviews_removed ON product_reviews(is_removed) WHERE is_removed = true;
-
-COMMIT;
