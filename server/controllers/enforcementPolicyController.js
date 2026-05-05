@@ -405,11 +405,3 @@ exports.reviewAppeal = async (req, res, next) => {
     next(err);
   }
 };
-
-module.exports = {
-  getEnforcementPolicy,
-  getMyEnforcementStatus,
-  submitAppeal,
-  getMyAppeals,
-  reviewAppeal
-};
