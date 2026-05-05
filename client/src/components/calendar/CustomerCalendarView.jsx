@@ -4,6 +4,7 @@ import api from '../../api/axios';
 import { toast } from 'sonner';
 import AppointmentDetailModal from './AppointmentDetailModal';
 import CreateAppointmentModal from './CreateAppointmentModal';
+import { calendarAppointmentStatusKey } from '../../utils/calendarI18n';
 import '../../styles/CustomerCalendarView.css';
 
 const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -199,7 +200,7 @@ export default function CustomerCalendarView({ viewMode, selectedDate, onDateCha
             >
               {status === 'all'
                 ? t('calendar.filterAll')
-                : t(`calendar.status${status.charAt(0).toUpperCase() + status.slice(1)}`)}
+                : t(calendarAppointmentStatusKey(status))}
             </button>
           ))}
         </div>
@@ -523,11 +524,7 @@ function AppointmentCard({ appointment, onSelect, isPast }) {
           {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
         <div className={`ccv-appt-status ccv-status-${appointment.status}`}>
-          {t(
-            `calendar.status${
-              appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)
-            }`
-          )}
+          {t(calendarAppointmentStatusKey(appointment.status))}
         </div>
       </div>
       <div className="ccv-appt-details">

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import AppointmentDetailModal from './AppointmentDetailModal';
 import AvailabilityBlockModal from './AvailabilityBlockModal';
 import { useSocket } from '../../hooks/useSocket';
+import { calendarAppointmentStatusKey } from '../../utils/calendarI18n';
 import '../../styles/HelperCalendarView.css';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -802,7 +803,7 @@ function AgendaView({ appointments, onSelectAppointment, t }) {
                     className="hcv-agenda-event-status"
                     style={{ color }}
                   >
-                    {t(`calendar.status${apt.status ? apt.status.charAt(0).toUpperCase() + apt.status.slice(1) : ''}`, {
+                    {t(calendarAppointmentStatusKey(apt.status), {
                       defaultValue: apt.status || '',
                     })}
                   </div>
