@@ -7232,9 +7232,5 @@
     "title": "Avertissement d'Expiration du Travail",
     "message": "Ce travail s'annulera automatiquement dans {{days}} jour(s) s'il ne commence pas. Veuillez commencer bientôt.",
     "note": "Cela garantit que les clients ne restent pas avec des travaux bloqués."
-  },
-  "common": {
-    "close": "Fermer",
-    "cancel": "Annuler"
   }
 }
