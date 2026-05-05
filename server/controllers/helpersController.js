@@ -6,6 +6,7 @@ const pool          = require('../db');
 const socketService = require('../services/socketService');
 const logger        = require('../utils/logger');
 const { AppError }  = require('../middleware/errorHandler');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 function formatResponseTime(hours) {
   if (!hours) return 'Varies';
@@ -216,6 +217,8 @@ async function listHelpers(req, res, next) {
     const { rows: helpers } = await pool.query(
       `SELECT
          u.id, u.first_name, u.last_name, u.created_at AS member_since,
+         u.display_name_preference,
+         pb.business_name AS primary_business_name,
          hp.profile_headline, hp.bio_short,
          hp.profile_photo_url,
          hp.service_city, hp.service_state, hp.service_radius_miles,
@@ -228,6 +231,7 @@ async function listHelpers(req, res, next) {
          hp.search_rank_boost
        FROM users u
        LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
        ${categoryJoinClause}
        ${skillJoinClause}
        WHERE ${whereClause}
@@ -300,11 +304,12 @@ async function listHelpers(req, res, next) {
     const mapped = helpers.map((h) => {
       const responseHours   = h.response_time_hours;
       const responseMinutes = responseHours ? Math.round(responseHours * 60) : 480;
+      const displayName = resolvePublicDisplayName(h);
       return {
         id:               h.id,
         profileUrl:       `/helpers/${h.id}`,
-        businessName:     `${h.first_name} ${h.last_name}`,
-        ownerName:        `${h.first_name} ${h.last_name}`,
+        businessName:     displayName,
+        ownerName:        displayName,
         avatar:           h.profile_photo_url || '',
         rating:           parseFloat(h.avg_rating)       || 0,
         reviewCount:      h.total_reviews                || 0,
@@ -490,6 +495,8 @@ async function getHelperProfile(req, res, next) {
       pool.query(
         `SELECT
            u.id, u.first_name, u.last_name, u.created_at AS member_since,
+           u.display_name_preference,
+           pb.business_name AS primary_business_name,
            hp.profile_headline, hp.bio_short, hp.bio_long,
            hp.profile_photo_url, hp.cover_photo_url,
            hp.service_city, hp.service_state, hp.service_zip, hp.service_radius_miles,
@@ -514,6 +521,7 @@ async function getHelperProfile(req, res, next) {
            COALESCE(hp.active_template, 'default') AS active_template
          FROM users u
          JOIN helper_profiles hp ON hp.user_id = u.id
+         LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
          WHERE u.id = $1
            AND u.deleted_at IS NULL
            AND u.is_active = TRUE
@@ -668,11 +676,13 @@ async function getHelperProfile(req, res, next) {
     const isOnlineNow = h.is_available_now || socketService.isOnline(h.id);
     const availabilityStatus = isOnlineNow ? 'online' : 'offline';
 
+    const publicDisplayName = resolvePublicDisplayName(h);
+
     return res.json({
       helper: {
         id:           h.id,
-        businessName: `${h.first_name} ${h.last_name}`.trim(),
-        ownerName:    `${h.first_name} ${h.last_name}`.trim(),
+        businessName: publicDisplayName,
+        ownerName:    publicDisplayName,
         tagline:      h.profile_headline || '',
         bio:          h.bio_long || h.bio_short || '',
         avatar:       h.profile_photo_url || '',
