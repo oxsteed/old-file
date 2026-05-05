@@ -9,6 +9,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 const { hashIP } = require('../utils/encryption');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 const DEFAULT_RADIUS = 60;
 const MAX_RADIUS = 150;
@@ -180,7 +181,8 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
     const helperLimitIdx = helperParams.length;
     const { rows: helpers } = await pool.query(
       `SELECT u.id,
-              TRIM(u.first_name || ' ' || u.last_name) AS title,
+              u.first_name, u.last_name, u.display_name_preference,
+              pb.business_name AS primary_business_name,
               COALESCE(hp.profile_headline, hp.bio_short, '') AS subtitle,
               hp.profile_photo_url AS image_url,
               hp.service_city, hp.service_state,
@@ -192,18 +194,29 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
                 SELECT 1 FROM helper_skills hs
                 WHERE hs.user_id = u.id AND LOWER(hs.skill_name) LIKE ANY($1::text[])
               ) AS matched_skill,
-              (LOWER(TRIM(u.first_name || ' ' || u.last_name)) LIKE ANY($1::text[])) AS matched_name,
+              (
+                LOWER(TRIM(u.first_name || ' ' || u.last_name)) LIKE ANY($1::text[])
+                OR (
+                  LOWER(TRIM(COALESCE(pb.business_name, ''))) LIKE ANY($1::text[])
+                  AND pb.business_name IS NOT NULL AND TRIM(pb.business_name) <> ''
+                )
+              ) AS matched_name,
               (
                 LOWER(COALESCE(hp.bio_short, '')) LIKE ANY($1::text[]) OR
                 LOWER(COALESCE(hp.profile_headline, '')) LIKE ANY($1::text[])
               ) AS matched_profile
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
+       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
        WHERE u.deleted_at IS NULL AND u.role IN ('helper', 'helper_pro', 'broker')
          AND u.email_verified = TRUE AND u.onboarding_completed = TRUE
          AND COALESCE(hp.is_listed, TRUE) = TRUE
          AND (
            LOWER(TRIM(u.first_name || ' ' || u.last_name)) LIKE ANY($1::text[])
+           OR (
+             LOWER(TRIM(COALESCE(pb.business_name, ''))) LIKE ANY($1::text[])
+             AND pb.business_name IS NOT NULL AND TRIM(pb.business_name) <> ''
+           )
            OR LOWER(COALESCE(hp.bio_short, '')) LIKE ANY($1::text[])
            OR LOWER(COALESCE(hp.profile_headline, '')) LIKE ANY($1::text[])
            OR EXISTS (
@@ -219,10 +232,11 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
     for (const h of helpers) {
       const d = hasGeo && h.lat != null && h.lng != null ? haversineMiles(latN, lngN, h.lat, h.lng) : null;
       const fd = daysSinceDate(h.freshness_ts);
+      const displayTitle = resolvePublicDisplayName(h);
       results.push({
         type: 'helper',
         id: String(h.id),
-        title: h.title,
+        title: displayTitle,
         subtitle: (h.subtitle || '').slice(0, 160),
         url: `/helpers/${h.id}`,
         imageUrl: h.image_url || null,

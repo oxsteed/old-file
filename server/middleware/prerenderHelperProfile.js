@@ -14,6 +14,7 @@ const logger = require('../utils/logger');
 const escapeHtml = require('../utils/escapeHtml');
 const { getPublicSiteUrl, absoluteUrl } = require('../utils/publicSiteUrl');
 const { buildPublicProfileDescription } = require('../utils/seoProfileDescription');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 let cachedTemplate = null;
 
@@ -296,7 +297,8 @@ function buildBusinessStaticShell(biz, services) {
 
 async function handleHelperProfile(helperId, template, res, next) {
   const { rows } = await pool.query(
-    `SELECT u.id, u.first_name, u.last_name,
+    `SELECT u.id, u.first_name, u.last_name, u.display_name_preference,
+            pb.business_name AS primary_business_name,
             hp.profile_headline, hp.bio_short, hp.bio_long,
             hp.profile_photo_url,
             hp.service_city, hp.service_state, hp.service_zip,
@@ -305,6 +307,7 @@ async function handleHelperProfile(helperId, template, res, next) {
             hp.is_identity_verified, hp.is_background_checked
      FROM users u
      JOIN helper_profiles hp ON hp.user_id = u.id
+     LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
      WHERE u.id = $1
        AND u.deleted_at IS NULL
        AND u.role IN ('helper', 'helper_pro', 'broker')
@@ -326,7 +329,7 @@ async function handleHelperProfile(helperId, template, res, next) {
   );
 
   const categories = [...new Set(skillRows.map((r) => r.category_name))];
-  const businessName = `${h.first_name} ${h.last_name}`.trim();
+  const businessName = resolvePublicDisplayName(h);
   const tagline = h.profile_headline || '';
   const bio = h.bio_long || h.bio_short || '';
   const helper = {
