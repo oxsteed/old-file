@@ -4327,6 +4327,12 @@
       "serviceAreaMapAria": "Mapa del área de servicio centrado en {{city}}, {{state}}",
       "basedIn": "Ubicado en",
       "servesUpTo": "Sirve hasta {{radius}} {{unit}}",
+      "miles": "millas",
+      "km": "km",
+      "serviceRadiusNote": "Área de cobertura aproximada en el mapa.",
+      "mapLoading": "Cargando mapa…",
+      "mapUnavailable": "No se pudo cargar el mapa para esta ubicación.",
+      "mapDisclaimer": "Área de servicio aproximada. Acerca y mueve el mapa para explorar.",
       "remoteAvailable": "Servicios remotos disponibles",
       "outsideArea": "¿Fuera del área de servicio? Envía un mensaje para consultar excepciones."
     },

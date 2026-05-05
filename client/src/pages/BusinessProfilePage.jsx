@@ -144,6 +144,8 @@ function mapToHelperProfileData(profile, t) {
     serviceRadius: business.service_radius_miles || 10,
     radiusUnit:    'miles',
     servesRemotely:false,
+    serviceLat:    business.service_lat ?? null,
+    serviceLng:    business.service_lng ?? null,
   };
 
   // Hours: mapped from business_hours table (Phase 3 business content)

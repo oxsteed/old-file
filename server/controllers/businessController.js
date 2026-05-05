@@ -712,6 +712,7 @@ async function getBusinessPublicProfile(req, res) {
          hp.profile_photo_url,
          hp.bio_short,
          hp.service_city, hp.service_state, hp.service_radius_miles,
+         hp.service_lat, hp.service_lng,
          hp.avg_rating, hp.total_reviews, hp.completed_jobs_count,
          hp.is_identity_verified, hp.is_background_checked,
          hp.is_insured, hp.is_licensed,
@@ -798,6 +799,8 @@ async function getBusinessPublicProfile(req, res) {
         address_state:   biz.address_state   || biz.service_state,
         address_country: biz.address_country || 'US',
         service_radius_miles: biz.service_radius_miles,
+        service_lat: biz.service_lat != null ? parseFloat(biz.service_lat) : null,
+        service_lng: biz.service_lng != null ? parseFloat(biz.service_lng) : null,
         is_primary:     biz.is_primary,
         member_since:   biz.created_at,
         // Badge flags from owner's helper profile
