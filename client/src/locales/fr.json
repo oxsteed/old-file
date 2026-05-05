@@ -4327,6 +4327,12 @@
       "serviceAreaMapAria": "Carte de la zone de service centrée sur {{city}}, {{state}}",
       "basedIn": "Basé à",
       "servesUpTo": "Intervient jusqu'à {{radius}} {{unit}}",
+      "miles": "miles",
+      "km": "km",
+      "serviceRadiusNote": "Zone couverte approximative sur la carte.",
+      "mapLoading": "Chargement de la carte…",
+      "mapUnavailable": "Impossible de charger la carte pour ce lieu.",
+      "mapDisclaimer": "Zone de service approximative. Zoomez et déplacez la carte pour explorer.",
       "remoteAvailable": "Services à distance disponibles",
       "outsideArea": "En dehors de la zone de service ? Envoyez un message pour discuter des exceptions."
     },

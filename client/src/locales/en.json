@@ -4327,6 +4327,12 @@
       "serviceAreaMapAria": "Service area map centered on {{city}}, {{state}}",
       "basedIn": "Based in",
       "servesUpTo": "Serves up to {{radius}} {{unit}}",
+      "miles": "miles",
+      "km": "km",
+      "serviceRadiusNote": "Approximate coverage area shown on the map.",
+      "mapLoading": "Loading map…",
+      "mapUnavailable": "Map could not be loaded for this location.",
+      "mapDisclaimer": "Approximate service area. Zoom and pan the map to explore.",
       "remoteAvailable": "Remote services available",
       "outsideArea": "Outside the service area? Message the helper to ask about exceptions."
     },

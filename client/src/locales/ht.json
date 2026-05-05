@@ -4327,6 +4327,12 @@
       "serviceAreaMapAria": "Kat zòn sèvis ki santre sou {{city}}, {{state}}",
       "basedIn": "Baze nan",
       "servesUpTo": "Sèvi jiska {{radius}} {{unit}}",
+      "miles": "mil",
+      "km": "km",
+      "serviceRadiusNote": "Zòn kouvèti ki apepre sou kat la.",
+      "mapLoading": "Ap chaje kat la…",
+      "mapUnavailable": "Kat la pa ka chaje pou kote sa a.",
+      "mapDisclaimer": "Zòn sèvis ki apepre. Zoom epi deplase kat la pou eksplore.",
       "remoteAvailable": "Sèvis aleka disponib",
       "outsideArea": "Deyò zòn sèvis? Voye yon mesaj pou mande eksepsyon."
     },

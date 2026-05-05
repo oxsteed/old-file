@@ -107,6 +107,9 @@ export interface LocationInfo {
   radiusUnit: 'miles' | 'km';
   servesRemotely: boolean;
   remoteNote?: string;
+  /** When set, map centers on helper/business service coordinates */
+  serviceLat?: number | null;
+  serviceLng?: number | null;
 }
 
 // ─── Policies ───────────────────────────────────────────────────────────────
