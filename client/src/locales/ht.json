@@ -4258,7 +4258,9 @@
       "areaFallback": "Zòn ou",
       "verifiedAria": "Verifye",
       "verifiedTitle": "Idantite verifye pa OxSteed",
-      "trustBadgesAria": "Badj konfyans ak verifikasyon"
+      "trustBadgesAria": "Badj konfyans ak verifikasyon",
+      "qrProfileTitle": "Skanye pou louvri pwofil sa a sou OxSteed",
+      "qrProfileCaption": "Kòd QR ki mennen nan pwofil asistan sa a sou OxSteed"
     },
     "share": {
       "copyLink": "Kopi lyen",
