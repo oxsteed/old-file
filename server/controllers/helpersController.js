@@ -892,10 +892,9 @@ async function getHelperPricing(req, res, next) {
     );
     if (!hp) throw new AppError('Helper not found', 404, 'not_found');
 
-    // Fetch service-level pricing from helper_skills if available
+    // Skill rows list categories (per-skill rates live on helper_services / profile tiers, not helper_skills)
     const { rows: serviceRows } = await pool.query(
-      `SELECT hs.skill_name, hs.hourly_rate, hs.flat_rate,
-             c.name AS category_name
+      `SELECT hs.skill_name, c.name AS category_name
        FROM helper_skills hs
        JOIN categories c ON c.id = hs.category_id
        WHERE hs.user_id = $1
@@ -906,8 +905,8 @@ async function getHelperPricing(req, res, next) {
     const servicePricing = serviceRows.map((s) => ({
       name: s.skill_name,
       category: s.category_name,
-      hourlyRate: s.hourly_rate ? parseFloat(s.hourly_rate) : null,
-      flatRate: s.flat_rate ? parseFloat(s.flat_rate) : null,
+      hourlyRate: null,
+      flatRate: null,
     }));
 
     return res.json({
@@ -947,13 +946,13 @@ async function getHelperSlots(req, res, next) {
     weekEnd.setDate(weekEnd.getDate() + 7);
 
     const { rows: bookedSlots } = await pool.query(
-      `SELECT j.scheduled_date, j.scheduled_time, j.estimated_hours
+      `SELECT COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date) AS slot_day
        FROM jobs j
-       WHERE j.helper_id = $1
+       WHERE j.assigned_helper_id = $1
          AND j.status IN ('accepted', 'in_progress')
-         AND j.scheduled_date >= $2
-         AND j.scheduled_date <= $3
-       ORDER BY j.scheduled_date, j.scheduled_time`,
+         AND COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date) IS NOT NULL
+         AND COALESCE(j.scheduled_date::date, j.scheduled_start_at::date, j.scheduled_time::date)
+             BETWEEN $2::date AND $3::date`,
       [id, now.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]]
     );
 
@@ -972,9 +971,15 @@ async function getHelperSlots(req, res, next) {
       if (!dayData || dayData.closed) continue;
 
       const dateStr = date.toISOString().split('T')[0];
-      const dayBookings = bookedSlots.filter(
-        (b) => b.scheduled_date && b.scheduled_date.toISOString().split('T')[0] === dateStr
-      );
+      const dayBookings = bookedSlots.filter((b) => {
+        const d = b.slot_day;
+        if (d == null) return false;
+        const ds =
+          d instanceof Date
+            ? d.toISOString().split('T')[0]
+            : String(d).slice(0, 10);
+        return ds === dateStr;
+      });
 
       slots.push({
         date: dateStr,
