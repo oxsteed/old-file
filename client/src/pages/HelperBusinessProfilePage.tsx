@@ -116,16 +116,26 @@ const HelperBusinessProfilePage: React.FC = () => {
   }, [loadProfile]);
 
   // Service selection - placeholder for routing to booking flow
-  const handleSelectService = useCallback((service: Service) => {
-    /**
-     * API INTEGRATION POINT:
-     *   navigate(`/book/${data?.helper.id}?service=${service.id}`)
-     */
-    console.info('[OxSteed] Service selected for booking:', service.id, service.name);
-  }, []);
+  const handleSelectService = useCallback(
+    (service: Service) => {
+      const hint = encodeURIComponent(service.name || '');
+      navigate(`/book/${id}?serviceHint=${hint}`);
+    },
+    [id, navigate]
+  );
 
   const handleBookNow = useCallback(() => {
-    const params = new URLSearchParams({ helperId: id!, helperName: data?.helper.businessName || '' });
+    const params = new URLSearchParams({
+      helperName: data?.helper.businessName || '',
+    });
+    navigate(`/book/${id}?${params.toString()}`);
+  }, [id, data, navigate]);
+
+  const handlePostJobPublic = useCallback(() => {
+    const params = new URLSearchParams({
+      helperId: id!,
+      helperName: data?.helper.businessName || '',
+    });
     navigate(`/post-job?${params.toString()}`);
   }, [id, data, navigate]);
 
@@ -274,6 +284,7 @@ const HelperBusinessProfilePage: React.FC = () => {
         helperId={id}
         helper={helper}
         onBookNow={handleBookNow}
+        onPostJobPublic={handlePostJobPublic}
         onOpenChat={handleMessageHelper}
         shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
         shareTitle={helper.businessName || helper.ownerName}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
+import { getAvailableSlots } from '../../api/bookings';
 import './BookingCalendar.css';
 
 /**
@@ -9,19 +10,25 @@ import './BookingCalendar.css';
  * Shows a calendar for the next 30 days with available time slots
  * Fetches available slots from the helper's business hours and existing appointments
  */
-export default function BookingCalendar({ helperId, helperName, onSelectSlot }) {
+export default function BookingCalendar({ helperId, helperName, onSelectSlot, initialServiceName = '' }) {
   const { t } = useTranslation();
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [serviceData, setServiceData] = useState({
-    serviceName: '',
+    serviceName: initialServiceName || '',
     serviceLocation: '',
     description: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  useEffect(() => {
+    if (initialServiceName) {
+      setServiceData((d) => ({ ...d, serviceName: initialServiceName }));
+    }
+  }, [initialServiceName]);
 
   // Get next 30 days for calendar
   const getDaysInMonth = (date) => {
@@ -48,16 +55,15 @@ export default function BookingCalendar({ helperId, helperName, onSelectSlot }) 
 
     const dateStr = selectedDate.toISOString().split('T')[0];
 
-    fetch(`/api/bookings/helper/${helperId}/available-slots?date=${dateStr}`)
-      .then(res => res.json())
-      .then(data => {
+    getAvailableSlots(helperId, dateStr)
+      .then((data) => {
         if (data.success) {
           setAvailableSlots(data.data.slots || []);
         } else {
           setError('Failed to fetch available slots');
         }
       })
-      .catch(err => {
+      .catch((err) => {
         setError(err.message || 'Failed to fetch available slots');
       })
       .finally(() => setLoading(false));

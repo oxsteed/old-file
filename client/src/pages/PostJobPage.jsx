@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
-import api from '../api/axios';
+import { fetchBookingPrefillForJob } from '../api/bookings';
 import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
 import { useTranslation } from 'react-i18next';
@@ -729,6 +729,7 @@ export default function PostJobPage() {
   ];
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { user }  = useAuth();
   const currency = user?.preferred_currency
     || (user?.country ? getDefaultCurrency(user.country) : null)
@@ -738,7 +739,9 @@ export default function PostJobPage() {
   // Pre-selected helper from "Book Now" on a helper profile page
   const directHelperId   = searchParams.get('helperId')   || '';
   const directHelperName = searchParams.get('helperName') || '';
+  const fromBookingId    = searchParams.get('fromBooking') || '';
 
+  const bookingPrefillApplied = useRef(false);
   const [form, setForm]     = useState(INIT);
   const [errors, setErrors] = useState({});
     const [helperHints, setHelperHints] = useState([]);
@@ -756,8 +759,54 @@ export default function PostJobPage() {
     setForm(f => ({ ...f, requirements: { ...f.requirements, [key]: { ...f.requirements[key], ...patch } } })),
   []);
 
+  // Prefill from direct booking (failed / expired) — normal post-job flow still required
+  useEffect(() => {
+    if (bookingPrefillApplied.current) return;
+    const statePrefill = location.state?.bookingPrefill;
+    if (statePrefill && typeof statePrefill === 'object') {
+      bookingPrefillApplied.current = true;
+      setForm((f) => ({
+        ...f,
+        title: statePrefill.title || f.title,
+        description: statePrefill.description || f.description,
+        locationInput: statePrefill.locationInput || f.locationInput,
+        notes: statePrefill.notes ?? f.notes,
+        preferredHelperId: statePrefill.preferredHelperId || f.preferredHelperId,
+        preferredHelperName: statePrefill.preferredHelperName || f.preferredHelperName,
+        step: 1,
+      }));
+      navigate('/post-job', { replace: true, state: {} });
+      return;
+    }
+    if (!fromBookingId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchBookingPrefillForJob(fromBookingId);
+        const prefill = res?.prefill;
+        if (!prefill || cancelled) return;
+        bookingPrefillApplied.current = true;
+        setForm((f) => ({
+          ...f,
+          title: prefill.title || f.title,
+          description: prefill.description || f.description,
+          locationInput: prefill.locationInput || f.locationInput,
+          notes: prefill.notes ?? f.notes,
+          preferredHelperId: prefill.preferredHelperId || f.preferredHelperId,
+          preferredHelperName: prefill.preferredHelperName || f.preferredHelperName,
+          step: 1,
+        }));
+        navigate('/post-job', { replace: true });
+      } catch {
+        /* user can still post manually */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [fromBookingId, location.state, navigate]);
+
   // ── Load draft on mount ───────────────────────────────────────────────────
   useEffect(() => {
+    if (fromBookingId || location.state?.bookingPrefill) return;
     api.get('/jobs/draft').then(({ data }) => {
       if (!data) return;
       const p = data.payload || {};
@@ -949,7 +998,10 @@ export default function PostJobPage() {
         fd.append('media', f);
       });
 
-      if (directHelperId) fd.append('preferred_helper_id', directHelperId);
+      const prefId = form.preferredHelperId || directHelperId;
+      if (prefId) fd.append('preferred_helper_id', prefId);
+      const prefName = form.preferredHelperName || directHelperName;
+      if (prefName) fd.append('preferred_helper_name', prefName);
 
       const job = await createJob(fd);
 
@@ -1018,6 +1070,11 @@ export default function PostJobPage() {
               <span>⚡</span>
               <span>Direct request to <strong style={{ color:'#fff' }}>{directHelperName || 'this helper'}</strong> - they'll be notified when your job is posted.</span>
               <a href={`/helpers/${directHelperId}`} style={{ marginLeft:'auto', color:'#fb923c', textDecoration:'underline', whiteSpace:'nowrap' }}>View profile</a>
+            </div>
+          )}
+          {fromBookingId && (
+            <div style={{ marginTop:'12px', padding:'12px 16px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.25)', borderRadius:'12px', fontSize:'13px', color:'#93c5fd' }}>
+              {t('postJob.prefillFromBooking', 'We pulled details from your booking request. Review everything below before posting publicly.')}
             </div>
           )}
         </header>

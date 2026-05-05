@@ -17,6 +17,7 @@ export default function BookingConfirmation({
 }) {
   const { t } = useTranslation();
   const [agreed, setAgreed] = useState(false);
+  const [confirmationHours, setConfirmationHours] = useState(24);
 
   const handleConfirm = () => {
     if (!agreed) {
@@ -24,7 +25,10 @@ export default function BookingConfirmation({
       return;
     }
 
-    onConfirm(bookingData);
+    onConfirm({
+      ...bookingData,
+      confirmationHours: Math.min(168, Math.max(1, Number(confirmationHours) || 24)),
+    });
   };
 
   const formatDate = (dateStr) => {
@@ -97,11 +101,30 @@ export default function BookingConfirmation({
           <div>
             <h4>{t('booking.importantToKnow')}</h4>
             <ul>
-              <li>{t('booking.infoWaitingForResponse', { days: 1 })}</li>
+              <li>{t('booking.infoWaitingForResponse', { hours: confirmationHours })}</li>
               <li>{t('booking.infoHelperCanDecline')}</li>
               <li>{t('booking.infoCanConvertToJob')}</li>
             </ul>
           </div>
+        </div>
+
+        <div className="booking-form-group" style={{ marginTop: '1rem' }}>
+          <label htmlFor="booking-confirm-hours">{t('booking.confirmationWindowLabel')}</label>
+          <select
+            id="booking-confirm-hours"
+            className="booking-input"
+            value={confirmationHours}
+            onChange={(e) => setConfirmationHours(Number(e.target.value))}
+          >
+            {[6, 12, 24, 48, 72, 96, 120, 168].map((h) => (
+              <option key={h} value={h}>
+                {t('booking.hoursCount', { count: h })}
+              </option>
+            ))}
+          </select>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-text)', marginTop: '0.35rem' }}>
+            {t('booking.confirmationWindowHint')}
+          </p>
         </div>
 
         {/* Agreement Checkbox */}

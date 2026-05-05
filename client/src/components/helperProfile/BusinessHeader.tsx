@@ -20,6 +20,8 @@ interface BusinessHeaderProps {
   helperId?: string;
   helper: HelperProfile;
   onBookNow: () => void;
+  /** Broad job post (optional second CTA) */
+  onPostJobPublic?: () => void;
   onOpenChat: () => void;
   /** Public canonical URL for Copy link / Share (omit to hide share row) */
   shareUrl?: string;
@@ -59,6 +61,7 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   helperId,
   helper,
   onBookNow,
+  onPostJobPublic,
   onOpenChat,
   shareUrl,
   shareTitle,
@@ -197,6 +200,15 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
               >
                 {t('helperProfile.header.bookNow')}
               </button>
+              {onPostJobPublic && (
+                <button
+                  type="button"
+                  onClick={onPostJobPublic}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-600 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors"
+                >
+                  {t('helperProfile.header.postJobPublic')}
+                </button>
+              )}
             </div>
           </div>
 
@@ -260,7 +272,8 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
           </div>
 
           {/* Mobile CTA strip - visible below lg where header buttons are hidden */}
-          <div className="flex gap-3 mt-4 lg:hidden">
+          <div className="flex flex-col gap-3 mt-4 lg:hidden">
+            <div className="flex gap-3">
             <button
               onClick={onOpenChat}
               aria-label={t('helperProfile.header.openChatAria')}
@@ -275,6 +288,16 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
             >
               {t('helperProfile.header.bookNow')}
             </button>
+            </div>
+            {onPostJobPublic && (
+              <button
+                type="button"
+                onClick={onPostJobPublic}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-600 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors"
+              >
+                {t('helperProfile.header.postJobPublic')}
+              </button>
+            )}
           </div>
 
           {shareUrl && shareTitle && (

@@ -329,7 +329,15 @@ export default function BusinessProfilePage() {
   const handleBookNow = useCallback(() => {
     if (!profileData) return;
     const params = new URLSearchParams({
-      helperId:   profileData.helper.id,
+      helperName: profileData.helper.businessName,
+    });
+    navigate(`/book/${profileData.helper.id}?${params.toString()}`);
+  }, [profileData, navigate]);
+
+  const handlePostJobPublic = useCallback(() => {
+    if (!profileData) return;
+    const params = new URLSearchParams({
+      helperId: profileData.helper.id,
       helperName: profileData.helper.businessName,
     });
     navigate(`/post-job?${params.toString()}`);
@@ -453,8 +461,10 @@ export default function BusinessProfilePage() {
 
       {/* Business hero header - identical component to helper profile */}
       <BusinessHeader
+        helperId={helper.id}
         helper={helper}
         onBookNow={handleBookNow}
+        onPostJobPublic={handlePostJobPublic}
         onOpenChat={handleOpenChat}
         shareUrl={`${getPublicSiteUrl()}/business/${id}`}
         shareTitle={helper.businessName}

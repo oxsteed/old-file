@@ -1,7 +1,65 @@
 const pool = require('../db');
-const { AppError, sendValidationError, sendError } = require('../utils/apiError');
-const { logger } = require('../utils/logger');
+const { sendValidationError, sendError } = require('../utils/apiError');
+const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+
+const DEFAULT_CONFIRMATION_HOURS = 24;
+const MIN_CONFIRMATION_HOURS = 1;
+const MAX_CONFIRMATION_HOURS = 168;
+
+/**
+ * If pending and past expires_at, mark expired (single-row).
+ */
+async function expireIfStale(bookingRow) {
+  if (!bookingRow || bookingRow.status !== 'pending') return bookingRow;
+  const exp = new Date(bookingRow.expires_at);
+  if (exp > new Date()) return bookingRow;
+
+  const r = await pool.query(
+    `UPDATE booking_requests
+     SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1 AND status = 'pending'
+     RETURNING *`,
+    [bookingRow.id]
+  );
+  if (r.rows.length) {
+    await logBookingAudit(bookingRow.id, 'expired', null, 'system', 'pending', 'expired');
+    return r.rows[0];
+  }
+  return bookingRow;
+}
+
+/**
+ * Build job wizard prefill from a booking row (client posts via normal POST /api/jobs).
+ */
+function buildJobPrefillPayload(booking) {
+  const lines = [];
+  if (booking.service_name) lines.push(booking.service_name);
+  const when = `${booking.requested_date} ${booking.requested_start_time}–${booking.requested_end_time}`;
+  lines.push(`Preferred time: ${when}`);
+  if (booking.service_location) lines.push(`Location: ${booking.service_location}`);
+  const descParts = [lines.join('\n')];
+  if (booking.description) {
+    descParts.push('');
+    descParts.push(String(booking.description));
+  }
+  let description = descParts.join('\n');
+  if (description.trim().length < 50) {
+    description = `${description}\n\nAdd any extra details below so helpers understand the full scope of the work.`;
+  }
+  const titleBase = String(booking.service_name || 'Service request').slice(0, 80);
+  const title = titleBase.length >= 10 ? titleBase : `${titleBase} — follow-up job`;
+
+  return {
+    title,
+    description,
+    locationInput: booking.service_location || '',
+    notes: '',
+    preferredHelperId: booking.helper_id,
+    preferredHelperName: null,
+    sourceBookingId: booking.id,
+  };
+}
 
 /**
  * Create a new booking request
@@ -17,16 +75,26 @@ exports.createBookingRequest = async (req, res) => {
       requestedStartTime,
       requestedEndTime,
       serviceLocation,
-      description
+      description,
+      confirmationHours,
     } = req.body;
 
-    // Validation
     const errors = {};
     if (!helperId) errors.helperId = 'Helper ID is required';
-    if (!serviceName) errors.serviceName = 'Service name is required';
+    if (!serviceName || !String(serviceName).trim()) errors.serviceName = 'Service name is required';
     if (!requestedDate) errors.requestedDate = 'Date is required';
     if (!requestedStartTime) errors.requestedStartTime = 'Start time is required';
     if (!requestedEndTime) errors.requestedEndTime = 'End time is required';
+
+    let hours = DEFAULT_CONFIRMATION_HOURS;
+    if (confirmationHours !== undefined && confirmationHours !== null && confirmationHours !== '') {
+      const n = parseInt(String(confirmationHours), 10);
+      if (!Number.isFinite(n) || n < MIN_CONFIRMATION_HOURS || n > MAX_CONFIRMATION_HOURS) {
+        errors.confirmationHours = `Must be between ${MIN_CONFIRMATION_HOURS} and ${MAX_CONFIRMATION_HOURS}`;
+      } else {
+        hours = n;
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       return sendValidationError(res, errors);
@@ -36,20 +104,17 @@ exports.createBookingRequest = async (req, res) => {
       return sendValidationError(res, { helperId: 'Cannot book with yourself' });
     }
 
-    // Validate time range
     if (requestedStartTime >= requestedEndTime) {
       return sendValidationError(res, { requestedEndTime: 'End time must be after start time' });
     }
 
-    // Validate date is in the future
-    const reqDate = new Date(requestedDate);
+    const reqDate = new Date(`${requestedDate}T12:00:00`);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (reqDate < today) {
       return sendValidationError(res, { requestedDate: 'Cannot book in the past' });
     }
 
-    // Check that helper exists and is active
     const helperResult = await pool.query(
       'SELECT id, is_active FROM users WHERE id = $1',
       [helperId]
@@ -61,44 +126,46 @@ exports.createBookingRequest = async (req, res) => {
       return sendError(res, 400, 'Helper account is inactive', 'HELPER_INACTIVE');
     }
 
-    // Create booking request
     const bookingId = uuidv4();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+    const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
 
     const result = await pool.query(
       `INSERT INTO booking_requests (
         id, customer_id, helper_id, service_name, requested_date,
         requested_start_time, requested_end_time, service_location,
-        description, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        description, expires_at, confirmation_hours
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
-        bookingId, customerId, helperId, serviceName, requestedDate,
-        requestedStartTime, requestedEndTime, serviceLocation,
-        description, expiresAt
+        bookingId,
+        customerId,
+        helperId,
+        String(serviceName).trim(),
+        requestedDate,
+        requestedStartTime,
+        requestedEndTime,
+        serviceLocation || null,
+        description || null,
+        expiresAt,
+        hours,
       ]
     );
 
     const booking = result.rows[0];
 
-    // Log audit
     await logBookingAudit(bookingId, 'created', customerId, 'customer', 'pending', 'pending');
-
-    // Send notification to helper
     await notifyHelperOfBooking(helperId, booking);
 
     logger.info('Booking request created', {
       bookingId,
       customerId,
       helperId,
-      requestedDate,
-      requestedStartTime,
-      requestedEndTime
+      confirmationHours: hours,
     });
 
     res.status(201).json({
       success: true,
-      data: transformBooking(booking)
+      data: transformBooking(booking),
     });
   } catch (err) {
     logger.error('Error creating booking request', { error: err.message, stack: err.stack });
@@ -106,10 +173,6 @@ exports.createBookingRequest = async (req, res) => {
   }
 };
 
-/**
- * Get booking request by ID
- * GET /api/bookings/:bookingId
- */
 exports.getBookingRequest = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -124,16 +187,19 @@ exports.getBookingRequest = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    const booking = result.rows[0];
+    let booking = await expireIfStale(result.rows[0]);
 
-    // Check access: customer, helper, or admin can view
-    if (userId && userId !== booking.customer_id && userId !== booking.helper_id) {
+    if (
+      userId &&
+      userId !== booking.customer_id &&
+      userId !== booking.helper_id
+    ) {
       return sendError(res, 403, 'Not authorized to view this booking');
     }
 
     res.json({
       success: true,
-      data: transformBooking(booking)
+      data: transformBooking(booking),
     });
   } catch (err) {
     logger.error('Error fetching booking request', { error: err.message });
@@ -141,10 +207,6 @@ exports.getBookingRequest = async (req, res) => {
   }
 };
 
-/**
- * Get customer's booking requests
- * GET /api/bookings (with customer_id context from auth)
- */
 exports.getMyBookingRequests = async (req, res) => {
   try {
     const customerId = req.user.id;
@@ -166,10 +228,14 @@ exports.getMyBookingRequests = async (req, res) => {
     query += ' ORDER BY created_at DESC';
 
     const result = await pool.query(query, params);
+    const rows = [];
+    for (const row of result.rows) {
+      rows.push(transformBooking(await expireIfStale(row)));
+    }
 
     res.json({
       success: true,
-      data: result.rows.map(transformBooking)
+      data: rows,
     });
   } catch (err) {
     logger.error('Error fetching my bookings', { error: err.message });
@@ -177,10 +243,6 @@ exports.getMyBookingRequests = async (req, res) => {
   }
 };
 
-/**
- * Get helper's incoming booking requests
- * GET /api/bookings/incoming (with helper_id context from auth)
- */
 exports.getIncomingBookingRequests = async (req, res) => {
   try {
     const helperId = req.user.id;
@@ -197,10 +259,14 @@ exports.getIncomingBookingRequests = async (req, res) => {
     query += ' ORDER BY created_at DESC';
 
     const result = await pool.query(query, params);
+    const rows = [];
+    for (const row of result.rows) {
+      rows.push(transformBooking(await expireIfStale(row)));
+    }
 
     res.json({
       success: true,
-      data: result.rows.map(transformBooking)
+      data: rows,
     });
   } catch (err) {
     logger.error('Error fetching incoming bookings', { error: err.message });
@@ -208,10 +274,6 @@ exports.getIncomingBookingRequests = async (req, res) => {
   }
 };
 
-/**
- * Helper accepts a booking request
- * POST /api/bookings/:bookingId/accept
- */
 exports.acceptBookingRequest = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -226,7 +288,7 @@ exports.acceptBookingRequest = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    const booking = result.rows[0];
+    let booking = await expireIfStale(result.rows[0]);
 
     if (booking.helper_id !== helperId) {
       return sendError(res, 403, 'Only the assigned helper can respond to this booking');
@@ -236,28 +298,28 @@ exports.acceptBookingRequest = async (req, res) => {
       return sendError(res, 400, `Cannot accept a ${booking.status} booking request`);
     }
 
-    // Update status
     const updatedResult = await pool.query(
       `UPDATE booking_requests
        SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1
+       WHERE id = $1 AND status = 'pending'
        RETURNING *`,
       [bookingId]
     );
 
+    if (!updatedResult.rows.length) {
+      return sendError(res, 400, 'Booking is no longer pending');
+    }
+
     const updated = updatedResult.rows[0];
 
-    // Log audit
     await logBookingAudit(bookingId, 'accepted', helperId, 'helper', 'pending', 'accepted');
-
-    // Notify customer
     await notifyCustomerOfBookingResponse(booking.customer_id, updated, 'accepted');
 
     logger.info('Booking request accepted', { bookingId, helperId });
 
     res.json({
       success: true,
-      data: transformBooking(updated)
+      data: transformBooking(updated),
     });
   } catch (err) {
     logger.error('Error accepting booking request', { error: err.message });
@@ -265,11 +327,134 @@ exports.acceptBookingRequest = async (req, res) => {
   }
 };
 
-/**
- * Helper declines a booking request
- * POST /api/bookings/:bookingId/decline
- */
 exports.declineBookingRequest = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const helperId = req.user.id;
+    const { reason } = req.body;
+
+    const result = await pool.query(
+      'SELECT * FROM booking_requests WHERE id = $1',
+      [bookingId]
+    );
+
+    if (result.rows.length === 0) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+
+    let booking = await expireIfStale(result.rows[0]);
+
+    if (booking.helper_id !== helperId) {
+      return sendError(res, 403, 'Only the assigned helper can respond to this booking');
+    }
+
+    if (booking.status !== 'pending') {
+      return sendError(res, 400, `Cannot decline a ${booking.status} booking request`);
+    }
+
+    const updatedResult = await pool.query(
+      `UPDATE booking_requests
+       SET status = 'declined', declined_at = CURRENT_TIMESTAMP,
+           helper_response_reason = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status = 'pending'
+       RETURNING *`,
+      [bookingId, reason || null]
+    );
+
+    if (!updatedResult.rows.length) {
+      return sendError(res, 400, 'Booking is no longer pending');
+    }
+
+    const updated = updatedResult.rows[0];
+
+    await logBookingAudit(bookingId, 'declined', helperId, 'helper', 'pending', 'declined');
+    await notifyCustomerOfBookingResponse(booking.customer_id, updated, 'declined');
+
+    logger.info('Booking request declined', { bookingId, helperId });
+
+    res.json({
+      success: true,
+      data: transformBooking(updated),
+    });
+  } catch (err) {
+    logger.error('Error declining booking request', { error: err.message });
+    sendError(res, 500, 'Failed to decline booking request');
+  }
+};
+
+/**
+ * Customer cancels pending or accepted booking (pending → cancelled, accepted → accepted_cancelled)
+ */
+exports.cancelBookingRequest = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const customerId = req.user.id;
+
+    const result = await pool.query(
+      'SELECT * FROM booking_requests WHERE id = $1',
+      [bookingId]
+    );
+
+    if (result.rows.length === 0) {
+      return sendError(res, 404, 'Booking request not found');
+    }
+
+    let booking = await expireIfStale(result.rows[0]);
+
+    if (booking.customer_id !== customerId) {
+      return sendError(res, 403, 'Only the customer can cancel this booking request');
+    }
+
+    if (booking.status === 'pending') {
+      const updatedResult = await pool.query(
+        `UPDATE booking_requests
+         SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND status = 'pending'
+         RETURNING *`,
+        [bookingId]
+      );
+      if (!updatedResult.rows.length) {
+        return sendError(res, 400, 'Booking is no longer pending');
+      }
+      await logBookingAudit(bookingId, 'cancelled', customerId, 'customer', 'pending', 'cancelled');
+      await notifyHelperOfBookingCancellation(booking.helper_id, updatedResult.rows[0]);
+      return res.json({ success: true, data: transformBooking(updatedResult.rows[0]) });
+    }
+
+    if (booking.status === 'accepted') {
+      const updatedResult = await pool.query(
+        `UPDATE booking_requests
+         SET status = 'accepted_cancelled', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND status = 'accepted'
+         RETURNING *`,
+        [bookingId]
+      );
+      if (!updatedResult.rows.length) {
+        return sendError(res, 400, 'Booking cannot be cancelled');
+      }
+      await logBookingAudit(
+        bookingId,
+        'accepted_cancelled',
+        customerId,
+        'customer',
+        'accepted',
+        'accepted_cancelled'
+      );
+      await notifyHelperOfBookingCancellation(booking.helper_id, updatedResult.rows[0]);
+      return res.json({ success: true, data: transformBooking(updatedResult.rows[0]) });
+    }
+
+    return sendError(res, 400, `Cannot cancel a ${booking.status} booking request`);
+  } catch (err) {
+    logger.error('Error cancelling booking request', { error: err.message });
+    sendError(res, 500, 'Failed to cancel booking request');
+  }
+};
+
+/**
+ * Helper cancels after accepting (e.g. conflict) → accepted_cancelled
+ */
+exports.helperCancelAcceptedBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const helperId = req.user.id;
@@ -287,105 +472,47 @@ exports.declineBookingRequest = async (req, res) => {
     const booking = result.rows[0];
 
     if (booking.helper_id !== helperId) {
-      return sendError(res, 403, 'Only the assigned helper can respond to this booking');
+      return sendError(res, 403, 'Only the assigned helper can cancel this booking');
     }
 
-    if (booking.status !== 'pending') {
-      return sendError(res, 400, `Cannot decline a ${booking.status} booking request`);
+    if (booking.status !== 'accepted') {
+      return sendError(res, 400, 'Only accepted bookings can be cancelled by the helper here');
     }
 
-    // Update status
     const updatedResult = await pool.query(
       `UPDATE booking_requests
-       SET status = 'declined', declined_at = CURRENT_TIMESTAMP,
-           helper_response_reason = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1
+       SET status = 'accepted_cancelled',
+           helper_response_reason = COALESCE($2, helper_response_reason),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND status = 'accepted'
        RETURNING *`,
       [bookingId, reason || null]
     );
 
     const updated = updatedResult.rows[0];
 
-    // Log audit
-    await logBookingAudit(bookingId, 'declined', helperId, 'helper', 'pending', 'declined');
-
-    // Notify customer
-    await notifyCustomerOfBookingResponse(booking.customer_id, updated, 'declined');
-
-    logger.info('Booking request declined', { bookingId, helperId });
+    await logBookingAudit(
+      bookingId,
+      'helper_accepted_cancel',
+      helperId,
+      'helper',
+      'accepted',
+      'accepted_cancelled'
+    );
+    await notifyCustomerOfBookingResponse(booking.customer_id, updated, 'accepted_cancelled');
 
     res.json({
       success: true,
-      data: transformBooking(updated)
+      data: transformBooking(updated),
     });
   } catch (err) {
-    logger.error('Error declining booking request', { error: err.message });
-    sendError(res, 500, 'Failed to decline booking request');
+    logger.error('Error helper-cancelling booking', { error: err.message });
+    sendError(res, 500, 'Failed to cancel booking');
   }
 };
 
 /**
- * Customer cancels a pending booking request
- * POST /api/bookings/:bookingId/cancel
- */
-exports.cancelBookingRequest = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const customerId = req.user.id;
-
-    const result = await pool.query(
-      'SELECT * FROM booking_requests WHERE id = $1',
-      [bookingId]
-    );
-
-    if (result.rows.length === 0) {
-      return sendError(res, 404, 'Booking request not found');
-    }
-
-    const booking = result.rows[0];
-
-    if (booking.customer_id !== customerId) {
-      return sendError(res, 403, 'Only the customer can cancel this booking request');
-    }
-
-    if (booking.status !== 'pending') {
-      return sendError(res, 400, `Cannot cancel a ${booking.status} booking request`);
-    }
-
-    // Update status
-    const updatedResult = await pool.query(
-      `UPDATE booking_requests
-       SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1
-       RETURNING *`,
-      [bookingId]
-    );
-
-    const updated = updatedResult.rows[0];
-
-    // Log audit
-    await logBookingAudit(bookingId, 'cancelled', customerId, 'customer', 'pending', 'cancelled');
-
-    // Notify helper
-    await notifyHelperOfBookingCancellation(booking.helper_id, updated);
-
-    logger.info('Booking request cancelled', { bookingId, customerId });
-
-    res.json({
-      success: true,
-      data: transformBooking(updated)
-    });
-  } catch (err) {
-    logger.error('Error cancelling booking request', { error: err.message });
-    sendError(res, 500, 'Failed to cancel booking request');
-  }
-};
-
-/**
- * Convert booking request to a job posting
- * POST /api/bookings/:bookingId/convert-to-job
- *
- * This creates a new job with pre-filled fields from the booking
+ * Returns prefill payload for Post Job wizard (does not create a job row).
  */
 exports.convertBookingToJob = async (req, res) => {
   try {
@@ -401,66 +528,46 @@ exports.convertBookingToJob = async (req, res) => {
       return sendError(res, 404, 'Booking request not found');
     }
 
-    const booking = result.rows[0];
+    let booking = await expireIfStale(result.rows[0]);
 
     if (booking.customer_id !== customerId) {
-      return sendError(res, 403, 'Only the customer can convert this booking');
+      return sendError(res, 403, 'Only the customer can use this booking for a job post');
     }
 
-    if (booking.status !== 'declined' && booking.status !== 'expired' && booking.status !== 'cancelled') {
-      return sendError(res, 400, 'Can only convert failed or expired bookings to jobs');
+    const ok =
+      booking.status === 'declined' ||
+      booking.status === 'expired' ||
+      booking.status === 'cancelled' ||
+      booking.status === 'accepted_cancelled';
+
+    if (!ok) {
+      return sendError(
+        res,
+        400,
+        'You can open Post Job from this booking after it expires, is declined, or is cancelled.'
+      );
     }
 
-    // Create the job with pre-filled data
-    const jobId = uuidv4();
+    const prefill = buildJobPrefillPayload(booking);
 
-    // Determine budget style from the booking
-    // For now, we'll leave budget fields for the customer to fill, but pre-fill service/location/description
-    const jobResult = await pool.query(
-      `INSERT INTO jobs (
-        id, client_id, title, description, category, location_lat, location_lng,
-        service_area_name, budget_type, min_budget_cents, max_budget_cents,
-        estimated_hours, status, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, NULL, NULL, $6, 'not_specified', NULL, NULL, NULL, 'draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       RETURNING *`,
-      [
-        jobId, customerId, booking.service_name,
-        booking.description, 'local_services',
-        booking.service_location
-      ]
-    );
-
-    const job = jobResult.rows[0];
-
-    // Update booking to track conversion
-    await pool.query(
-      'UPDATE booking_requests SET converted_to_job_id = $1 WHERE id = $2',
-      [jobId, bookingId]
-    );
-
-    // Log audit
-    await logBookingAudit(bookingId, 'converted_to_job', customerId, 'customer', booking.status, 'converted');
-
-    logger.info('Booking converted to job', { bookingId, jobId, customerId });
+    logger.info('Booking prefill for job wizard', { bookingId, customerId });
 
     res.json({
       success: true,
       data: {
         bookingId,
-        jobId,
-        job: job,
-        message: 'Booking converted to job posting. Complete the form and post to receive bids.'
-      }
+        prefill,
+        message: 'Complete the job post to reach all helpers.',
+      },
     });
   } catch (err) {
-    logger.error('Error converting booking to job', { error: err.message });
-    sendError(res, 500, 'Failed to convert booking to job');
+    logger.error('Error building booking prefill', { error: err.message });
+    sendError(res, 500, 'Failed to prepare job posting');
   }
 };
 
 /**
- * Get helper's available slots for a given date
- * GET /api/bookings/helper/:helperId/available-slots?date=YYYY-MM-DD
+ * Available slots from helper_availability + appointments for one day.
  */
 exports.getHelperAvailableSlots = async (req, res) => {
   try {
@@ -471,65 +578,139 @@ exports.getHelperAvailableSlots = async (req, res) => {
       return sendValidationError(res, { date: 'Date is required' });
     }
 
-    // Fetch helper's business hours
-    const helperResult = await pool.query(
-      `SELECT h.id, h.business_hours
-       FROM helper_profiles h
-       WHERE h.id = $1`,
+    const helperCheck = await pool.query(
+      'SELECT 1 FROM users u JOIN helper_profiles hp ON hp.user_id = u.id WHERE u.id = $1 AND u.deleted_at IS NULL',
       [helperId]
     );
-
-    if (helperResult.rows.length === 0) {
+    if (!helperCheck.rows.length) {
       return sendError(res, 404, 'Helper not found');
     }
 
-    const helper = helperResult.rows[0];
-    const businessHours = helper.business_hours || {};
+    const dateObj = new Date(`${date}T12:00:00`);
+    if (Number.isNaN(dateObj.getTime())) {
+      return sendValidationError(res, { date: 'Invalid date' });
+    }
 
-    // Get day of week for the requested date
-    const dateObj = new Date(date);
-    const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'lowercase' });
+    const dow = dateObj.getDay();
 
-    const dayHours = businessHours[dayOfWeek];
-    if (!dayHours || dayHours.closed) {
-      return res.json({
-        success: true,
-        data: {
-          date,
-          dayOfWeek,
-          slots: []
-        }
+    const weekly = await pool.query(
+      `SELECT start_time, end_time FROM helper_availability
+       WHERE helper_id = $1 AND day_of_week = $2 AND is_active = TRUE
+       ORDER BY start_time`,
+      [helperId, dow]
+    );
+
+    let dayBlocks = [];
+    for (const row of weekly.rows) {
+      dayBlocks.push({
+        start: row.start_time,
+        end: row.end_time,
       });
     }
 
-    // Fetch existing appointments for this helper on this date
-    const appointmentsResult = await pool.query(
-      `SELECT scheduled_start_at, scheduled_end_at
-       FROM appointments
-       WHERE assigned_helper_id = $1 AND DATE(scheduled_start_at) = $2 AND status IN ('confirmed', 'in_progress')
-       ORDER BY scheduled_start_at`,
+    if (dayBlocks.length === 0) {
+      dayBlocks.push({ start: '09:00:00', end: '17:00:00' });
+    }
+
+    // Whole-day block overrides
+    const overrides = await pool.query(
+      `SELECT is_blocked, start_time, end_time FROM helper_availability_overrides
+       WHERE helper_id = $1 AND override_date = $2::date`,
       [helperId, date]
     );
 
-    // Calculate available slots (1-hour slots)
-    const slots = calculateAvailableSlots(dayHours, appointmentsResult.rows);
+    let effectiveBlocks = dayBlocks;
+    for (const ov of overrides.rows) {
+      if (ov.is_blocked && ov.start_time == null && ov.end_time == null) {
+        effectiveBlocks = [];
+        break;
+      }
+    }
+
+    const appointmentsResult = await pool.query(
+      `SELECT scheduled_start_time, scheduled_end_time
+       FROM appointments
+       WHERE helper_id = $1
+         AND scheduled_start_time::date = $2::date
+         AND status IN ('requested','confirmed','in_progress')
+       ORDER BY scheduled_start_time`,
+      [helperId, date]
+    );
+
+    const appointments = appointmentsResult.rows.map((apt) => ({
+      start: timeFromTimestamptz(apt.scheduled_start_time),
+      end: timeFromTimestamptz(apt.scheduled_end_time),
+    }));
+
+    const slots = [];
+    for (const block of effectiveBlocks) {
+      slots.push(...sliceWindowToHourSlots(block.start, block.end, appointments));
+    }
+
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
     res.json({
       success: true,
       data: {
         date,
-        dayOfWeek,
-        businessHours: dayHours,
-        slots
-      }
+        dayOfWeek: dayNames[dow],
+        slots,
+      },
     });
   } catch (err) {
-    logger.error('Error fetching available slots', { error: err.message });
+    logger.error('Error fetching available slots', { error: err.message, stack: err.stack });
     sendError(res, 500, 'Failed to fetch available slots');
   }
 };
 
-// ============== Helper Functions ==============
+function timeFromTimestamptz(ts) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}:00`;
+}
+
+function timeToMinutes(t) {
+  if (!t) return 0;
+  if (t instanceof Date) {
+    return t.getHours() * 60 + t.getMinutes();
+  }
+  const s = String(t);
+  const parts = s.match(/(\d{1,2}):(\d{2})/);
+  if (!parts) return 0;
+  return parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
+}
+
+function minutesToTime(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+}
+
+function sliceWindowToHourSlots(windowStart, windowEnd, busyRanges) {
+  const slots = [];
+  let cur = timeToMinutes(windowStart);
+  const endMin = timeToMinutes(windowEnd);
+  const busy = busyRanges
+    .map((r) => ({
+      a: timeToMinutes(r.start),
+      b: timeToMinutes(r.end),
+    }))
+    .filter((r) => r.b > r.a);
+
+  while (cur + 60 <= endMin) {
+    const slotStart = cur;
+    const slotEnd = cur + 60;
+    const overlaps = busy.some((b) => slotStart < b.b && slotEnd > b.a);
+    slots.push({
+      startTime: minutesToTime(slotStart),
+      endTime: minutesToTime(slotEnd),
+      available: !overlaps,
+    });
+    cur += 60;
+  }
+  return slots;
+}
 
 function transformBooking(booking) {
   return {
@@ -544,12 +725,13 @@ function transformBooking(booking) {
     description: booking.description,
     status: booking.status,
     expiresAt: booking.expires_at,
+    confirmationHours: booking.confirmation_hours,
     acceptedAt: booking.accepted_at,
     declinedAt: booking.declined_at,
     helperResponseReason: booking.helper_response_reason,
     convertedToJobId: booking.converted_to_job_id,
     createdAt: booking.created_at,
-    updatedAt: booking.updated_at
+    updatedAt: booking.updated_at,
   };
 }
 
@@ -567,7 +749,6 @@ async function logBookingAudit(bookingId, action, actorId, actorType, oldStatus,
 
 async function notifyHelperOfBooking(helperId, booking) {
   try {
-    // TODO: Implement actual notification (email, socket, push)
     logger.info('Booking notification sent to helper', { helperId, bookingId: booking.id });
   } catch (err) {
     logger.warn('Failed to notify helper', { error: err.message });
@@ -576,8 +757,11 @@ async function notifyHelperOfBooking(helperId, booking) {
 
 async function notifyCustomerOfBookingResponse(customerId, booking, response) {
   try {
-    // TODO: Implement actual notification (email, socket, push)
-    logger.info('Booking response notification sent to customer', { customerId, bookingId: booking.id, response });
+    logger.info('Booking response notification sent to customer', {
+      customerId,
+      bookingId: booking.id,
+      response,
+    });
   } catch (err) {
     logger.warn('Failed to notify customer', { error: err.message });
   }
@@ -585,45 +769,54 @@ async function notifyCustomerOfBookingResponse(customerId, booking, response) {
 
 async function notifyHelperOfBookingCancellation(helperId, booking) {
   try {
-    // TODO: Implement actual notification
     logger.info('Booking cancellation notification sent to helper', { helperId, bookingId: booking.id });
   } catch (err) {
     logger.warn('Failed to notify helper of cancellation', { error: err.message });
   }
 }
 
-function calculateAvailableSlots(dayHours, appointments) {
-  // Parse business hours
-  const [startHour, startMin] = dayHours.start.split(':').map(Number);
-  const [endHour, endMin] = dayHours.end.split(':').map(Number);
-
-  const slots = [];
-  let currentHour = startHour;
-  let currentMin = startMin;
-
-  while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
-    const nextHour = currentMin + 60 >= 60 ? currentHour + 1 : currentHour;
-    const nextMin = (currentMin + 60) % 60;
-
-    // Format times
-    const startTime = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
-    const endTime = `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`;
-
-    // Check if slot overlaps with any appointment
-    const isBooked = appointments.some(apt => {
-      const aptStart = apt.scheduled_start_at;
-      const aptEnd = apt.scheduled_end_at;
-      // Simple overlap check
-      return aptStart < endTime && aptEnd > startTime;
-    });
-
-    if (!isBooked) {
-      slots.push({ startTime, endTime, available: true });
+/** Pending bookings past expires_at → expired */
+exports.expirePendingBookingRequests = async () => {
+  try {
+    const r = await pool.query(
+      `UPDATE booking_requests
+       SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'pending' AND expires_at < NOW()
+       RETURNING id`
+    );
+    if (r.rowCount > 0) {
+      logger.info('Expired pending booking requests', { count: r.rowCount });
     }
-
-    currentHour = nextHour;
-    currentMin = nextMin;
+    return r.rowCount || 0;
+  } catch (err) {
+    logger.warn('expirePendingBookingRequests failed', { error: err.message });
+    return 0;
   }
+};
 
-  return slots;
-}
+/**
+ * After scheduled end (date + end time in server TZ), release accepted bookings so customer can post publicly.
+ */
+exports.releaseStaleAcceptedBookings = async () => {
+  try {
+    const r = await pool.query(
+      `UPDATE booking_requests
+       SET status = 'accepted_cancelled',
+           helper_response_reason = COALESCE(
+             helper_response_reason,
+             'Automatically released after scheduled time passed'
+           ),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'accepted'
+         AND (requested_date::timestamp + requested_end_time::interval) < NOW()
+       RETURNING id`
+    );
+    if (r.rowCount > 0) {
+      logger.info('Released accepted bookings past scheduled end', { count: r.rowCount });
+    }
+    return r.rowCount || 0;
+  } catch (err) {
+    logger.warn('releaseStaleAcceptedBookings failed', { error: err.message });
+    return 0;
+  }
+};
