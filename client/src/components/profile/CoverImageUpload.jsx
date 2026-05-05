@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../../api/axios';
@@ -10,7 +10,7 @@ import './CoverImageUpload.css';
  * Allows helpers to upload or update their profile cover image.
  * Shows preview, upload progress, and error handling.
  */
-export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onError }) {
+export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onError, embedded }) {
   const { t } = useTranslation();
   const fileInputRef = useRef(null);
 
@@ -20,6 +20,10 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
   const [success, setSuccess] = useState(false);
   const [fileName, setFileName] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+
+  useEffect(() => {
+    setPreview(currentCoverUrl || null);
+  }, [currentCoverUrl]);
 
   const handleFileSelect = async (file) => {
     // Reset states
@@ -72,7 +76,11 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      const errorMsg = err.message || t('profile.coverImage.uploadFailed');
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        t('profile.coverImage.uploadFailed');
       setError(errorMsg);
 
       if (onError) {
@@ -129,7 +137,12 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
 
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err.message || t('profile.coverImage.deleteFailed'));
+      setError(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message ||
+          t('profile.coverImage.deleteFailed'),
+      );
     } finally {
       setLoading(false);
     }
@@ -137,10 +150,12 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
 
   return (
     <div className="cover-image-upload">
+      {!embedded && (
       <div className="cover-upload-header">
         <h3>{t('profile.coverImage.title')}</h3>
         <p className="cover-upload-subtitle">{t('profile.coverImage.subtitle')}</p>
       </div>
+      )}
 
       {/* Preview */}
       <div className="cover-preview-container">

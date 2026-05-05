@@ -2374,6 +2374,8 @@
     "viewPublicProfile": "Ver perfil público",
     "editProfile": "Editar perfil",
     "editProfileDesc": "Actualiza la información que ven los clientes cuando visitan tu perfil.",
+    "profileCoverTitle": "Foto de portada del perfil",
+    "profileCoverHint": "Esta imagen ancha aparece en la parte superior de tu perfil público. Usa JPEG, PNG o WebP (máx. 5 MB).",
     "sectionVisibility": "Visibilidad de Secciones",
     "visibilityHint": "Activa o desactiva secciones para controlar qué aparece en tu perfil público. Desactiva secciones que aún no has completado.",
     "visibilitySaved": "Configuración de visibilidad guardada",

@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { ProgressBar, Card, CardHeader, Btn, Input, Textarea, Select } from './dashboardUI';
+import CoverImageUpload from './profile/CoverImageUpload';
 
 const DAY_LABELS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const buildDefaultAvail = () => Object.fromEntries(DAY_LABELS.map(d => [d, { closed: true, start: '09:00', end: '17:00' }]));
@@ -46,6 +47,7 @@ export default function EditProfileTab() {
   const [editingPolicyId, setEditingPolicyId] = useState(null);
   const [editPol, setEditPol] = useState({ title:'', content:'', icon:'calendar-x' });
   const [newImg, setNewImg] = useState({ url:'', caption:'' });
+  const [coverImageUrl, setCoverImageUrl] = useState(null);
 
   useEffect(() => {
     api.get('/helper-profile/me')
@@ -73,6 +75,7 @@ export default function EditProfileTab() {
         setFaqs(d.faqs          || []);
         setPolicies(d.policies  || []);
         setGallery(d.gallery    || []);
+        setCoverImageUrl(d.cover_image_url || d.cover_photo_url || null);
       })
       .catch(() => toast.error(t('helperDashboard.failedLoadProfile')))
       .finally(() => setLoading(false));
@@ -328,6 +331,17 @@ export default function EditProfileTab() {
           {t('helperDashboard.viewPublicProfile')}
         </a>
       </div>
+
+      <Card>
+        <CardHeader title={t('helperDashboard.profileCoverTitle')} />
+        <p className="text-xs text-gray-500 mb-4">{t('helperDashboard.profileCoverHint')}</p>
+        <CoverImageUpload
+          embedded
+          currentCoverUrl={coverImageUrl}
+          onUploadSuccess={(url) => setCoverImageUrl(url || null)}
+          onError={(msg) => toast.error(msg)}
+        />
+      </Card>
 
       {/* Section Visibility Controls */}
       <Card>
