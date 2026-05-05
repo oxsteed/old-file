@@ -1,0 +1,225 @@
+.profile-header {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  background-color: var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* Cover Image */
+.profile-header-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-header-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--border-color) 0%, var(--app-bg) 100%);
+  color: var(--muted-text);
+}
+
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.placeholder-content span {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* QR Code Badge (Always Visible) */
+.profile-qr-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.profile-header:hover .profile-qr-badge {
+  opacity: 1;
+}
+
+/* QR Code Overlay */
+.profile-qr-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 120px;
+  height: 120px;
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+.profile-qr-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* QR Code Loading */
+.profile-qr-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-qr-loading .spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--orange-color, #f97316);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* QR Code Content */
+.profile-qr-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.profile-qr-image {
+  width: 90px;
+  height: 90px;
+  image-rendering: pixelated;
+}
+
+/* QR Code Actions */
+.profile-qr-actions {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  justify-content: center;
+}
+
+.profile-qr-action-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--orange-color, #f97316);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+
+.profile-qr-action-btn:hover {
+  background-color: #ea580c;
+  transform: scale(1.1);
+}
+
+.profile-qr-action-btn:active {
+  transform: scale(0.95);
+}
+
+/* QR Code Placeholder */
+.profile-qr-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-text);
+}
+
+.profile-qr-placeholder svg {
+  opacity: 0.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .profile-header {
+    aspect-ratio: 2 / 1;
+  }
+
+  .profile-qr-overlay {
+    width: 110px;
+    height: 110px;
+  }
+
+  .profile-qr-image {
+    width: 80px;
+    height: 80px;
+  }
+
+  /* On mobile, show QR overlay on click instead of hover */
+  .profile-qr-overlay {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .profile-header:hover .profile-qr-badge {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-header {
+    aspect-ratio: 16 / 9;
+  }
+
+  .profile-qr-overlay {
+    width: 100px;
+    height: 100px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .profile-qr-image {
+    width: 70px;
+    height: 70px;
+  }
+
+  .profile-qr-action-btn {
+    width: 24px;
+    height: 24px;
+  }
+}

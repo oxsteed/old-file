@@ -1,0 +1,256 @@
+.qr-code-display {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  background-color: var(--card-bg);
+  border-radius: 8px;
+}
+
+/* Header */
+.qr-code-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qr-code-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.qr-code-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted-text);
+}
+
+/* QR Code Container */
+.qr-code-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background-color: var(--border-color);
+  border-radius: 8px;
+  min-height: 350px;
+}
+
+.qr-code-image-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.qr-code-image {
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* Loading State */
+.qr-code-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted-text);
+}
+
+.qr-code-loading .spinner {
+  animation: spin 1s linear infinite;
+  color: var(--orange-color, #f97316);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error State */
+.qr-code-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #dc2626;
+  text-align: center;
+}
+
+.qr-code-error svg {
+  flex-shrink: 0;
+}
+
+.qr-code-error p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.qr-code-retry {
+  padding: 8px 16px;
+  background-color: var(--orange-color, #f97316);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.qr-code-retry:hover {
+  background-color: #ea580c;
+}
+
+/* Size Selector */
+.qr-code-size-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qr-code-size-selector label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.qr-code-size-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.qr-code-size-btn {
+  padding: 10px;
+  background-color: var(--border-color);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.qr-code-size-btn:hover {
+  border-color: var(--orange-color, #f97316);
+  background-color: var(--app-bg);
+}
+
+.qr-code-size-btn.active {
+  background-color: var(--orange-color, #f97316);
+  border-color: var(--orange-color, #f97316);
+  color: white;
+}
+
+.qr-code-size-px {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.qr-code-size-btn.active .qr-code-size-px {
+  opacity: 0.9;
+}
+
+/* Action Buttons */
+.qr-code-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.qr-code-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  background-color: var(--border-color);
+  border: none;
+  border-radius: 6px;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.qr-code-btn:hover {
+  background-color: var(--app-bg);
+  color: var(--app-text);
+}
+
+.qr-code-btn.qr-code-btn-primary {
+  background-color: var(--orange-color, #f97316);
+  color: white;
+}
+
+.qr-code-btn.qr-code-btn-primary:hover {
+  background-color: #ea580c;
+}
+
+.qr-code-btn.success {
+  background-color: #10b981;
+  color: white;
+}
+
+.qr-code-btn.success:hover {
+  background-color: #059669;
+}
+
+/* Info Box */
+.qr-code-info {
+  padding: 12px;
+  background-color: var(--border-color);
+  border-left: 3px solid var(--orange-color, #f97316);
+  border-radius: 4px;
+}
+
+.qr-code-info p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted-text);
+  line-height: 1.5;
+}
+
+.qr-code-info p:last-child {
+  margin-top: 6px;
+}
+
+.qr-code-tip {
+  font-size: 12px !important;
+  opacity: 0.8;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .qr-code-display {
+    padding: 16px;
+  }
+
+  .qr-code-container {
+    min-height: 250px;
+  }
+
+  .qr-code-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-code-size-options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

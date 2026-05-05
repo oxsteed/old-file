@@ -1,0 +1,45 @@
+{
+  "profile": {
+    "coverImage": {
+      "title": "Profile Cover Image",
+      "subtitle": "Upload a background image for your profile header",
+      "dragOrClick": "Drag and drop your image here, or click to select",
+      "formats": "Supported formats: JPEG, PNG, WebP",
+      "maxSize": "Maximum file size: 5MB",
+      "selected": "Selected file",
+      "uploading": "Uploading your image...",
+      "uploadSuccess": "Cover image uploaded successfully!",
+      "uploadFailed": "Failed to upload cover image",
+      "deleteSuccess": "Cover image deleted",
+      "deleteFailed": "Failed to delete cover image",
+      "confirmDelete": "Are you sure you want to delete your cover image?",
+      "noImageYet": "No cover image yet. Add one to make your profile stand out!",
+      "recommended": "Recommended size",
+      "dimensions": "1200 × 400 pixels (3:1 ratio)",
+      "tip": "Use a clear, professional image that represents your business or services."
+    },
+    "qrCode": {
+      "title": "Profile QR Code",
+      "subtitle": "Share your profile with a QR code",
+      "selectSize": "Select QR code size",
+      "sizeSmall": "Small (150px)",
+      "sizeMedium": "Medium (300px)",
+      "sizeLarge": "Large (500px)",
+      "download": "Download",
+      "downloadTooltip": "Download QR code as PNG",
+      "copyLink": "Copy Link",
+      "copied": "Copied!",
+      "copyLinkTooltip": "Copy your profile URL",
+      "share": "Share",
+      "shareTooltip": "Share your profile",
+      "shareTitle": "{{name}}'s Profile",
+      "shareText": "Check out my profile on OxSteed",
+      "generating": "Generating QR code...",
+      "generationFailed": "Failed to generate QR code",
+      "downloadFailed": "Failed to download QR code",
+      "howToUse": "How to Use",
+      "howToUseDesc": "Share this QR code on business cards, flyers, social media, or anywhere you want to direct people to your profile.",
+      "tip": "The QR code is generated dynamically, so it always points to your current profile."
+    }
+  }
+}
