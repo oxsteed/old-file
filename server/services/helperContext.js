@@ -4,7 +4,7 @@
  * Builds per-helper / per-business AI system prompts + structured rawContext
  * for transparency (GET /api/chat/profile-context).
  *
- * Cache keys (v3): helper-context:v3:{id}, business-context:v3:{id}
+ * Cache keys (v4): helper-context:v4:{id}, business-context:v4:{id}
  * TTL: 5 minutes. Busted via invalidateHelperContext on profile updates.
  */
 
@@ -12,9 +12,10 @@ const pool   = require('../db');
 const redis  = require('../utils/redis');
 const logger = require('../utils/logger');
 const { ROLES } = require('../constants/roles');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 const CONTEXT_TTL = 5 * 60;
-const CACHE_VER = 'v3';
+const CACHE_VER = 'v4';
 
 function cacheKeyHelper(id) {
   return `helper-context:${CACHE_VER}:${id}`;
@@ -122,6 +123,7 @@ Only include this block when the user clearly wants a time-based booking request
 }
 
 function buildHelperSystemPrompt(helper, skills, faqs, products, availabilitySummary, aiKnowledge) {
+  const publicName = resolvePublicDisplayName(helper);
   const skillList = skills.length
     ? skills.map(s => `${s.skill_name}${s.hourly_rate ? ` ($${parseFloat(s.hourly_rate).toFixed(0)}/hr)` : ''}`).join(', ')
     : 'Not listed yet';
@@ -132,10 +134,10 @@ function buildHelperSystemPrompt(helper, skills, faqs, products, availabilitySum
     ? `\n## Owner-provided knowledge (trusted for Q&A)\n<<<OWNER_KNOWLEDGE\n${String(aiKnowledge).trim().slice(0, 8000)}\nOWNER_KNOWLEDGE>>>`
     : '';
 
-  return `You are an AI assistant representing ${helper.first_name} ${helper.last_name}, a helper on the OxSteed local services marketplace.
+  return `You are an AI assistant representing ${publicName}, a helper on the OxSteed local services marketplace.
 
 ## About This Helper
-- Name: ${helper.first_name} ${helper.last_name}
+- Name: ${publicName}
 - Headline: ${helper.profile_headline || 'Skilled local helper'}
 - Bio: ${helper.bio_long || helper.bio_short || 'Experienced local professional available for hire.'}
 - Location: ${[helper.service_city, helper.service_state].filter(Boolean).join(', ') || 'Local area'}
@@ -223,6 +225,8 @@ async function getHelperContext(helperId) {
 
   const helperRes = await pool.query(
     `SELECT u.id, u.first_name, u.last_name,
+            u.display_name_preference,
+            pb.business_name AS primary_business_name,
             hp.profile_headline, hp.bio_long, hp.bio_short,
             hp.service_city, hp.service_state, hp.service_radius_miles,
             hp.is_identity_verified, hp.is_background_checked,
@@ -230,6 +234,7 @@ async function getHelperContext(helperId) {
             hp.availability_json, hp.is_available_now, hp.ai_knowledge
        FROM users u
        JOIN helper_profiles hp ON hp.user_id = u.id
+       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
       WHERE u.id = $1
         AND u.role IN ($2, $3, $4)
         AND u.deleted_at IS NULL`,
@@ -256,7 +261,7 @@ async function getHelperContext(helperId) {
 
   const rawContext = {
     profileType: 'helper',
-    name: `${h.first_name} ${h.last_name}`.trim(),
+    name: resolvePublicDisplayName(h),
     location: [h.service_city, h.service_state].filter(Boolean).join(', ') || null,
     isAvailableNow: !!h.is_available_now,
     availabilitySummary,

@@ -389,10 +389,13 @@ async function listHelpers(req, res, next) {
            NULL AS city, NULL AS state,
            0 AS avg_rating, 0 AS total_reviews,
            FALSE AS is_verified,
-           u.id AS owner_id, u.first_name AS owner_first, u.last_name AS owner_last
+           u.id AS owner_id, u.first_name AS owner_first, u.last_name AS owner_last,
+           u.display_name_preference,
+           pb_owner.business_name AS primary_business_name
          FROM businesses b
          JOIN users u ON u.id = b.user_id
          LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
+         LEFT JOIN businesses pb_owner ON pb_owner.user_id = u.id AND pb_owner.is_primary = TRUE AND pb_owner.is_active = TRUE
          WHERE ${bizWhere}
                  ORDER BY hp.avg_rating DESC NULLS LAST, hp.total_reviews DESC NULLS LAST
          LIMIT 20`,
@@ -456,7 +459,7 @@ async function listHelpers(req, res, next) {
         type:             'business',
         profileUrl:       `/business/${b.id}`,
         businessName:     b.business_name,
-        ownerName:        `${b.owner_first} ${b.owner_last}`,
+        ownerName:        resolvePublicDisplayName(b),
         avatar:           b.profile_photo_url || '',
         rating:           parseFloat(b.avg_rating) || 0,
         reviewCount:      b.total_reviews          || 0,

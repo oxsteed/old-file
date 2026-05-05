@@ -7,6 +7,7 @@ const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../
 const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
 const { invalidateHelperContext } = require('../services/helperContext');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 // ── IRS quarterly tax due dates (fixed schedule) ─────────────────────────────
 const TAX_DUE_DATES = {
@@ -708,6 +709,8 @@ async function getBusinessPublicProfile(req, res) {
          u.id           AS owner_id,
          u.first_name   AS owner_first_name,
          u.last_name    AS owner_last_name,
+         u.display_name_preference,
+         pb_prim.business_name AS primary_business_name,
          hp.profile_headline,
          hp.profile_photo_url,
          hp.bio_short,
@@ -721,6 +724,7 @@ async function getBusinessPublicProfile(req, res) {
        FROM businesses b
        JOIN users u          ON u.id  = b.user_id
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
+       LEFT JOIN businesses pb_prim ON pb_prim.user_id = u.id AND pb_prim.is_primary = TRUE AND pb_prim.is_active = TRUE
        WHERE b.id        = $1
          AND b.is_active = TRUE
          AND u.deleted_at IS NULL
@@ -813,7 +817,12 @@ async function getBusinessPublicProfile(req, res) {
         completed_jobs_count:    biz.completed_jobs_count,
         // Owner context - needed for chat initiation
         owner_id:        ownerId,
-        owner_name:      `${biz.owner_first_name} ${biz.owner_last_name}`.trim(),
+        owner_name:      resolvePublicDisplayName({
+          display_name_preference: biz.display_name_preference,
+          first_name: biz.owner_first_name,
+          last_name: biz.owner_last_name,
+          primary_business_name: biz.primary_business_name,
+        }),
         owner_photo:     biz.profile_photo_url,
         profile_headline: biz.profile_headline,
         bio_short:       biz.bio_short,

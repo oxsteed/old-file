@@ -6,6 +6,7 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 
 /**
  * Get user reputation score (public - for profile display)
@@ -238,11 +239,15 @@ async function getFeeHistory(req, res) {
         j.title              AS job_title,
         j.scheduled_date,
         cal.hours_before_start,
-        CONCAT(u.first_name, ' ', LEFT(u.last_name, 1), '.') AS helper_name,
+        u.first_name,
+        u.last_name,
+        u.display_name_preference,
+        pb.business_name     AS primary_business_name,
         u.profile_photo_url  AS helper_avatar
        FROM cancellation_fees cf
        JOIN jobs j  ON j.id  = cf.job_id
        JOIN users u ON u.id  = cf.payee_id
+       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
        LEFT JOIN cancellation_audit_log cal ON cal.id = cf.audit_log_id
        WHERE cf.payer_id = $1
          AND cf.status IN ('collected','pending','failed')
@@ -267,7 +272,7 @@ async function getFeeHistory(req, res) {
           jobTitle:        row.job_title,
           scheduledDate:   row.scheduled_date,
           hoursBeforeStart: row.hours_before_start ? parseFloat(row.hours_before_start) : null,
-          helperName:      row.helper_name,
+          helperName:      resolvePublicDisplayName(row),
           helperAvatar:    row.helper_avatar
         }))
       }
