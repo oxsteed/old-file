@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { toast } from 'sonner';
 import RescheduleModal from './RescheduleModal';
+import { calendarAppointmentStatusKey } from '../../utils/calendarI18n';
 import '../../styles/AppointmentDetailModal.css';
 
 export default function AppointmentDetailModal({ appointment, onClose, onUpdate, isCustomer }) {
@@ -103,7 +104,7 @@ export default function AppointmentDetailModal({ appointment, onClose, onUpdate,
             <div className="adm-detail">
               <label>{t('calendar.status')}</label>
               <div className={`adm-value adm-status adm-status-${appointment.status}`}>
-                {t(`calendar.status${appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}`)}
+                {t(calendarAppointmentStatusKey(appointment.status))}
               </div>
             </div>
           </div>

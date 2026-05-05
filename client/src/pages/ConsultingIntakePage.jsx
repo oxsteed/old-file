@@ -957,7 +957,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
       ))}
 
       <div style={{ marginBottom: '1.5rem', marginTop: '2rem', borderTop: '1px solid var(--color-border)', paddingTop: '2rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.businessPhaseQuestion')} *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('consulting.intake.formFields.businessPhaseQuestion')}</label>
         <select
           name="current_phase"
           value={form.current_phase}
@@ -967,7 +967,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
           <option value="">{t('consulting.intake.formFields.selectPhase')}</option>
           {businessPhases.map(phase => (
             <option key={phase.id} value={phase.id}>
-              {t('consulting.intake.phaseLabel', { id: phase.id, name: phase.name })}
+              {t('consulting.intake.businessPhases.phaseLabel', { id: phase.id, name: phase.name })}
             </option>
           ))}
         </select>
@@ -985,7 +985,7 @@ function Step3SetupNeeds({ form, handleInputChange, handleCheckbox, handleSelect
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>{t('consulting.intake.formFields.urgencyLabel')} *</label>
+        <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>{t('consulting.intake.formFields.urgencyLabel')}</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {urgencyOptions.map(opt => (
             <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
