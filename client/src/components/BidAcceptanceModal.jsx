@@ -182,7 +182,7 @@ export default function BidAcceptanceModal({
         {/* Info Box */}
         <div className="bg-yellow-50 dark:bg-yellow-900/10 p-3 rounded-lg border border-yellow-200 dark:border-yellow-700 mb-6">
           <p className="text-xs text-yellow-800 dark:text-yellow-200">
-            <strong>{t('bidAcceptanceModal.noteTitle') || 'Note')}:</strong>{' '}
+            <strong>{t('bidAcceptanceModal.noteTitle') || 'Note'}:</strong>{' '}
             {t('bidAcceptanceModal.noteBody') || 'Once you accept the bid, the payment method cannot be changed. Make sure you understand the cancellation terms before confirming.'}
           </p>
         </div>
