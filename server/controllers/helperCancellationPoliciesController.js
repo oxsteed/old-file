@@ -142,11 +142,11 @@ exports.getOxsteadDefaultPolicy = async (req, res, next) => {
         type: 'oxsteed',
         description: 'Standard OxSteed payment protection',
         fee_structure: {
-          3_plus_days_before: {
+          '3_plus_days_before': {
             percentage: 0,
             description: '3 or more days before scheduled start: 0% cancellation fee'
           },
-          24h_to_3_days_before: {
+          '24h_to_3_days_before': {
             percentage: 50,
             description: 'Between 24 hours and 3 days: 50% of fee cap (max $100)'
           },
