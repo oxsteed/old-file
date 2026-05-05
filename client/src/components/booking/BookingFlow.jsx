@@ -1,28 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import BookingCalendar from './BookingCalendar';
 import BookingConfirmation from './BookingConfirmation';
 import BookingRequestCard from './BookingRequestCard';
+import api from '../../api/axios';
+import { createBookingRequest, fetchBookingPrefillForJob } from '../../api/bookings';
 import { X, ChevronLeft, AlertCircle } from 'lucide-react';
 import './BookingFlow.css';
 
 /**
- * BookingFlow Component
- *
- * Manages the complete flow:
- * 1. Calendar selection (date & time)
- * 2. Confirmation of booking request
- * 3. Status display (pending, accepted, declined, expired)
- * 4. Conversion to job post if booking fails
+ * Direct booking: calendar → confirm → track status.
+ * Fallback: Post Job wizard with pre-filled fields from a finished booking.
  */
 export default function BookingFlow({ helperId, helperName, onClose, onBookingCreated }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const serviceHint = searchParams.get('serviceHint') || '';
 
-  const [step, setStep] = useState('calendar'); // calendar -> confirmation -> status
+  const [step, setStep] = useState('calendar');
   const [bookingData, setBookingData] = useState(null);
   const [bookingRequest, setBookingRequest] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -30,18 +29,15 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
 
   const isLoggedIn = !!user;
 
-  // Step 1: Calendar selection
   const handleSelectSlot = (data) => {
     setBookingData(data);
     setStep('confirmation');
     setError(null);
   };
 
-  // Step 2: Confirm and create booking
   const handleConfirmBooking = async (formData) => {
     if (!isLoggedIn) {
-      // Redirect to login with return URL
-      navigate('/login', { state: { from: window.location.pathname } });
+      navigate('/login', { state: { from: `/book/${helperId}${helperName ? `?helperName=${encodeURIComponent(helperName)}` : ''}` } });
       return;
     }
 
@@ -49,37 +45,53 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
     setError(null);
 
     try {
-      const response = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          helperId,
-          serviceName: formData.serviceName,
-          requestedDate: formData.requestedDate,
-          requestedStartTime: formData.requestedStartTime,
-          requestedEndTime: formData.requestedEndTime,
-          serviceLocation: formData.serviceLocation,
-          description: formData.description
-        })
+      const bookingRow = await createBookingRequest({
+        helperId,
+        serviceName: formData.serviceName,
+        requestedDate: formData.requestedDate,
+        requestedStartTime: formData.requestedStartTime,
+        requestedEndTime: formData.requestedEndTime,
+        serviceLocation: formData.serviceLocation,
+        description: formData.description || null,
+        confirmationHours: formData.confirmationHours ?? 24,
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to create booking request');
-      }
-
-      const { data } = await response.json();
-      setBookingRequest(data);
+      setBookingRequest(bookingRow);
       setStep('status');
-
-      if (onBookingCreated) {
-        onBookingCreated(data);
-      }
+      onBookingCreated?.(bookingRow);
     } catch (err) {
-      setError(err.message || 'Failed to create booking request');
+      const msg =
+        err?.response?.data?.fields &&
+        typeof err.response.data.fields === 'object'
+          ? Object.values(err.response.data.fields).join(' ')
+          : err?.response?.data?.error ||
+            err?.message ||
+            'Failed to create booking request';
+      setError(msg);
+    } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (step !== 'status' || !bookingRequest?.id) return;
+    if (bookingRequest.status !== 'pending') return;
+
+    const id = bookingRequest.id;
+    const tick = async () => {
+      try {
+        const { data } = await api.get(`/bookings/${id}`);
+        if (data?.success && data.data && data.data.status !== bookingRequest.status) {
+          setBookingRequest(data.data);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const iv = setInterval(tick, 8000);
+    return () => clearInterval(iv);
+  }, [step, bookingRequest?.id, bookingRequest?.status]);
 
   const handleGoBack = () => {
     if (step === 'confirmation') {
@@ -96,10 +108,27 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
     }
   };
 
+  const handleConvertToJob = useCallback(async () => {
+    if (!bookingRequest?.id) return;
+    try {
+      const prefillPayload = await fetchBookingPrefillForJob(bookingRequest.id);
+      const prefill = prefillPayload?.prefill;
+      if (prefill) {
+        navigate('/post-job', { state: { bookingPrefill: prefill } });
+      } else {
+        navigate(`/post-job?fromBooking=${encodeURIComponent(bookingRequest.id)}`);
+      }
+    } catch {
+      navigate(`/post-job?fromBooking=${encodeURIComponent(bookingRequest.id)}`);
+    }
+    onClose?.();
+  }, [bookingRequest?.id, navigate, onClose]);
+
   return (
     <div className="booking-flow">
       <div className="booking-flow-header">
         <button
+          type="button"
           onClick={handleGoBack}
           className="booking-flow-back-btn"
           aria-label={t('common.back')}
@@ -111,13 +140,16 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
           {step === 'confirmation' && t('booking.confirmBooking')}
           {step === 'status' && t('booking.requestStatus')}
         </h2>
-        <button
-          onClick={onClose}
-          className="booking-flow-close-btn"
-          aria-label={t('common.close')}
-        >
-          <X size={20} />
-        </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="booking-flow-close-btn"
+            aria-label={t('common.close')}
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <div className="booking-flow-body">
@@ -132,6 +164,7 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
           <BookingCalendar
             helperId={helperId}
             helperName={helperName}
+            initialServiceName={serviceHint}
             onSelectSlot={handleSelectSlot}
           />
         )}
@@ -149,14 +182,7 @@ export default function BookingFlow({ helperId, helperName, onClose, onBookingCr
         {step === 'status' && bookingRequest && (
           <BookingRequestCard
             booking={bookingRequest}
-            helperName={helperName}
-            onConvertToJob={() => {
-              // Navigate to convert booking to job flow
-              navigate(`/post-job`, {
-                state: { bookingId: bookingRequest.id }
-              });
-              onClose?.();
-            }}
+            onConvertToJob={handleConvertToJob}
           />
         )}
       </div>

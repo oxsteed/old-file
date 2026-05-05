@@ -44,7 +44,7 @@ import TwoFactorSetup from './pages/Settings/TwoFactorSetup';
 import NotificationSettings from './pages/Settings/Notifications';
 import SettingsPage from './pages/SettingsPage';
 import PublicProfile from './pages/PublicProfile';
-import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
+import BookHelperPage from './pages/BookHelperPage';
 import TemplatePicker from './pages/TemplatePicker';
 import BusinessProfilePage from './pages/BusinessProfilePage';
 import HelpersDirectoryPage from './pages/HelpersDirectoryPage';
@@ -148,6 +148,7 @@ export default function App() {
                     <Route path="/consulting/feedback/:sessionId" element={<Guarded><ConsultingFeedbackPage /></Guarded>} />
                     <Route path="/business-launch-status"  element={<Guarded><BusinessLaunchStatusPage /></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
+                    <Route path="/book/:id"               element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/tool-rentals"            element={<Guarded><ToolRentalsBrowse /></Guarded>} />
                     <Route path="/my-bookings"             element={<Guarded><ProtectedRoute><MyBookingsPage /></ProtectedRoute></Guarded>} />

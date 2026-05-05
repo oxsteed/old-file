@@ -92,6 +92,7 @@ const consultantSchedulingRoutes = require('./routes/consultantScheduling');
 const consultingAnalyticsRoutes = require('./routes/consultingAnalytics');
 const consultingActionItemsRoutes = require('./routes/consultingActionItems');
 const calendarRoutes = require('./routes/calendar');
+const bookingsRoutes = require('./routes/bookings');
 const cancellationStatsRoutes = require('./routes/cancellationStats');
 const reputationRoutes = require('./routes/reputation');
 const enforcementPolicyRoutes = require('./routes/enforcementPolicy');
@@ -464,6 +465,7 @@ const smsNotificationsRoutes = require('./routes/smsNotifications');
 const templateRoutes = require('./routes/templates');
 
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/bookings', bookingsRoutes);
 app.use('/api/cancellation-stats', cancellationStatsRoutes);
 app.use('/api/reputation', reputationRoutes);
 app.use('/api/enforcement-policy', enforcementPolicyRoutes);
@@ -535,6 +537,7 @@ const cleanupOldMessagesJob = require('./jobs/cleanupOldMessages');
 const { startTemplateExpiryJob } = require('./jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('./jobs/acceptedJobExpiryJob');
 const { startScheduledDeletionJob } = require('./jobs/scheduledDeletionJob');
+const bookingController = require('./controllers/bookingController');
 
 startWeeklySummaryJob();
 startPlannedNeedsScheduler();
@@ -552,6 +555,17 @@ startAcceptedJobExpiryJob();
 
 // Start message cleanup job (180-day auto-retention for support conversations)
 const cron = require('node-cron');
+
+cron.schedule('*/15 * * * *', async () => {
+  try {
+    await bookingController.expirePendingBookingRequests();
+    await bookingController.releaseStaleAcceptedBookings();
+  } catch (err) {
+    logger.warn('Booking maintenance job failed', { error: err.message });
+  }
+});
+logger.info('Booking maintenance job scheduled', { cronExpression: '*/15 * * * *' });
+
 const cleanupTask = cron.schedule(cleanupOldMessagesJob.cronExpression, async () => {
   try {
     const result = await cleanupOldMessagesJob.handler();
