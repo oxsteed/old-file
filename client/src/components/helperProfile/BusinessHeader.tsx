@@ -12,11 +12,19 @@ import {
 } from 'lucide-react';
 import type { HelperProfile, Badge } from '../../types/helperProfile';
 import StarRating from './ui/StarRating';
+import ProfileShareControls from './ProfileShareControls';
 
 interface BusinessHeaderProps {
   helper: HelperProfile;
   onBookNow: () => void;
   onOpenChat: () => void;
+  /** Public canonical URL for Copy link / Share (omit to hide share row) */
+  shareUrl?: string;
+  /** Profile title for native share sheet */
+  shareTitle?: string;
+  shareText?: string;
+  /** Which translation namespace for share buttons (default helperProfile) */
+  shareI18nPrefix?: 'helperProfile' | 'businessProfile';
 }
 
 const iconMap: Record<string, React.ElementType> = {
@@ -44,7 +52,15 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOpenChat }) => {
+const BusinessHeader: React.FC<BusinessHeaderProps> = ({
+  helper,
+  onBookNow,
+  onOpenChat,
+  shareUrl,
+  shareTitle,
+  shareText,
+  shareI18nPrefix = 'helperProfile',
+}) => {
   const { t } = useTranslation();
   const memberYear = new Date(helper.memberSince).getFullYear();
   const [coverError, setCoverError] = React.useState(false);
@@ -235,6 +251,17 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({ helper, onBookNow, onOp
               {t('helperProfile.header.bookNow')}
             </button>
           </div>
+
+          {shareUrl && shareTitle && (
+            <div className="mt-4 flex justify-center sm:justify-start border-t border-gray-800/80 pt-4">
+              <ProfileShareControls
+                shareUrl={shareUrl}
+                shareTitle={shareTitle}
+                shareText={shareText}
+                i18nPrefix={shareI18nPrefix}
+              />
+            </div>
+          )}
 
         </div>
       </div>

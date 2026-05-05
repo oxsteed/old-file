@@ -4260,6 +4260,16 @@
       "verifiedTitle": "Identité vérifiée par OxSteed",
       "trustBadgesAria": "Badges de confiance et de vérification"
     },
+    "share": {
+      "copyLink": "Copier le lien",
+      "copied": "Copié",
+      "copyLinkAria": "Copier le lien du profil dans le presse-papiers",
+      "share": "Partager",
+      "shareAria": "Partager ce profil",
+      "linkCopied": "Lien copié",
+      "copyFailed": "Impossible de copier le lien",
+      "defaultMessage": "Découvrez le profil de {{name}} sur OxSteed : {{url}}"
+    },
     "cta": {
       "startingFrom": "À partir de",
       "perHour": "/h",
@@ -4714,7 +4724,17 @@
     "bookAndChatAria": "Réserver et chatter",
     "manager": "Gérant",
     "representative": "Représentant",
-    "galleryAlt": "Photo de l'entreprise"
+    "galleryAlt": "Photo de l'entreprise",
+    "share": {
+      "copyLink": "Copier le lien",
+      "copied": "Copié",
+      "copyLinkAria": "Copier le lien du profil entreprise",
+      "share": "Partager",
+      "shareAria": "Partager ce profil entreprise",
+      "linkCopied": "Lien copié",
+      "copyFailed": "Impossible de copier le lien",
+      "defaultMessage": "Découvrez {{name}} sur OxSteed : {{url}}"
+    }
   },
   "leads": {
     "title": "Demandes de Services",
