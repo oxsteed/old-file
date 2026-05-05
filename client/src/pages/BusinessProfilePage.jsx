@@ -366,8 +366,9 @@ export default function BusinessProfilePage() {
       setGuestSignInModalOpen(true);
     }
   }, [isMobile, user, profileData?.helper?.allowGuestContact]);
+
   const handleSelectService = useCallback(
-    (service: { id: string; name: string }) => {
+    (service) => {
       if (!profileData) return;
       const params = new URLSearchParams({
         helperName: profileData.helper.businessName,
