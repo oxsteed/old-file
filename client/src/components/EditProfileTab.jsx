@@ -37,8 +37,14 @@ export default function EditProfileTab() {
   const [failedImages, setFailedImages] = useState({});
 
   const [newSvc, setNewSvc] = useState({ name:'', description:'', price:'', price_unit:'flat', duration:'', category:'General', popular:false });
+  const [editingServiceId, setEditingServiceId] = useState(null);
+  const [editSvc, setEditSvc] = useState({ name:'', description:'', price:'', price_unit:'flat', duration:'', category:'General', popular:false });
   const [newFaq, setNewFaq] = useState({ question:'', answer:'' });
+  const [editingFaqId, setEditingFaqId] = useState(null);
+  const [editFaq, setEditFaq] = useState({ question:'', answer:'' });
   const [newPol, setNewPol] = useState({ title:'', content:'', icon:'calendar-x' });
+  const [editingPolicyId, setEditingPolicyId] = useState(null);
+  const [editPol, setEditPol] = useState({ title:'', content:'', icon:'calendar-x' });
   const [newImg, setNewImg] = useState({ url:'', caption:'' });
 
   useEffect(() => {
@@ -99,6 +105,42 @@ export default function EditProfileTab() {
     try { await api.delete(`/helper-profile/services/${id}`); setServices(p => p.filter(s => s.id !== id)); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
   };
+  const beginEditService = (s) => {
+    setEditingServiceId(s.id);
+    setEditSvc({
+      name: s.name || '',
+      description: s.description || '',
+      price: s.price != null ? String(s.price) : '',
+      price_unit: s.price_unit || 'flat',
+      duration: s.duration || '',
+      category: s.category || 'General',
+      popular: !!s.popular,
+    });
+  };
+  const cancelEditService = () => {
+    setEditingServiceId(null);
+    setEditSvc({ name:'', description:'', price:'', price_unit:'flat', duration:'', category:'General', popular:false });
+  };
+  const saveEditService = async (e) => {
+    e?.preventDefault();
+    if (!editingServiceId) return;
+    try {
+      const r = await api.put(`/helper-profile/services/${editingServiceId}`, {
+        name: editSvc.name,
+        description: editSvc.description || null,
+        price: editSvc.price === '' ? null : parseFloat(editSvc.price),
+        price_unit: editSvc.price_unit,
+        duration: editSvc.duration || null,
+        category: editSvc.category || 'General',
+        popular: !!editSvc.popular,
+      });
+      setServices(p => p.map(s => (s.id === editingServiceId ? r.data : s)));
+      cancelEditService();
+      toast.success(t('helperDashboard.serviceUpdated'));
+    } catch {
+      toast.error(t('helperDashboard.failedUpdateService'));
+    }
+  };
 
   // ── FAQs ────────────────────────────────────────────────────────────────────
   const addFaq = async (e) => {
@@ -114,6 +156,29 @@ export default function EditProfileTab() {
     try { await api.delete(`/helper-profile/faqs/${id}`); setFaqs(p => p.filter(f => f.id !== id)); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
   };
+  const beginEditFaq = (f) => {
+    setEditingFaqId(f.id);
+    setEditFaq({ question: f.question || '', answer: f.answer || '' });
+  };
+  const cancelEditFaq = () => {
+    setEditingFaqId(null);
+    setEditFaq({ question:'', answer:'' });
+  };
+  const saveEditFaq = async (e) => {
+    e?.preventDefault();
+    if (!editingFaqId) return;
+    try {
+      const r = await api.put(`/helper-profile/faqs/${editingFaqId}`, {
+        question: editFaq.question,
+        answer: editFaq.answer,
+      });
+      setFaqs(p => p.map(f => (f.id === editingFaqId ? r.data : f)));
+      cancelEditFaq();
+      toast.success(t('helperDashboard.faqUpdated'));
+    } catch {
+      toast.error(t('helperDashboard.failedUpdateFaq'));
+    }
+  };
 
   // ── Policies ────────────────────────────────────────────────────────────────
   const addPolicy = async (e) => {
@@ -128,6 +193,34 @@ export default function EditProfileTab() {
   const deletePolicy = async (id) => {
     try { await api.delete(`/helper-profile/policies/${id}`); setPolicies(p => p.filter(pol => pol.id !== id)); }
     catch { toast.error(t('helperDashboard.failedDelete')); }
+  };
+  const beginEditPolicy = (pol) => {
+    setEditingPolicyId(pol.id);
+    setEditPol({
+      title: pol.title || '',
+      content: pol.content || '',
+      icon: pol.icon || 'calendar-x',
+    });
+  };
+  const cancelEditPolicy = () => {
+    setEditingPolicyId(null);
+    setEditPol({ title:'', content:'', icon:'calendar-x' });
+  };
+  const saveEditPolicy = async (e) => {
+    e?.preventDefault();
+    if (!editingPolicyId) return;
+    try {
+      const r = await api.put(`/helper-profile/policies/${editingPolicyId}`, {
+        title: editPol.title,
+        content: editPol.content,
+        icon: editPol.icon,
+      });
+      setPolicies(p => p.map(pol => (pol.id === editingPolicyId ? r.data : pol)));
+      cancelEditPolicy();
+      toast.success(t('helperDashboard.policyUpdated'));
+    } catch {
+      toast.error(t('helperDashboard.failedUpdatePolicy'));
+    }
   };
 
   // ── Gallery ─────────────────────────────────────────────────────────────────
@@ -372,12 +465,58 @@ export default function EditProfileTab() {
           {services.length === 0 && <p className="text-gray-600 text-sm mb-4">{t('helperDashboard.noServices')}</p>}
           <div className="space-y-2 mb-5">
             {services.map(s => (
-              <div key={s.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-xl border border-gray-700">
-                <div>
-                  <p className="text-sm font-semibold text-white">{s.name}</p>
-                  <p className="text-xs text-gray-500">{s.category} · ${s.price} / {s.price_unit}</p>
-                </div>
-                <Btn variant="danger" onClick={() => deleteService(s.id)}>{t('helperDashboard.delete')}</Btn>
+              <div key={s.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
+                {editingServiceId === s.id ? (
+                  <form onSubmit={saveEditService} className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editServiceHeader')}</p>
+                      <div className="flex gap-2">
+                        <Btn type="button" variant="secondary" onClick={cancelEditService}>{t('common.cancel')}</Btn>
+                        <Btn type="submit">{t('common.save')}</Btn>
+                      </div>
+                    </div>
+                    <Input label={t('helperDashboard.serviceName')} value={editSvc.name}
+                      onChange={e => setEditSvc({ ...editSvc, name: e.target.value })}
+                      placeholder={t('helperDashboard.serviceNamePlaceholder')} required />
+                    <Textarea label={t('helperDashboard.serviceDesc')} rows={2} value={editSvc.description}
+                      onChange={e => setEditSvc({ ...editSvc, description: e.target.value })}
+                      placeholder={t('helperDashboard.serviceDescPlaceholder')} />
+                    <div className="grid grid-cols-3 gap-3">
+                      <Input label={t('helperDashboard.priceLabel')} type="number" min="0" value={editSvc.price}
+                        onChange={e => setEditSvc({ ...editSvc, price: e.target.value })} />
+                      <Select label={t('helperDashboard.priceUnit')} value={editSvc.price_unit}
+                        onChange={e => setEditSvc({ ...editSvc, price_unit: e.target.value })}>
+                        <option value="flat">{t('helperDashboard.unitFlat')}</option>
+                        <option value="hour">{t('helperDashboard.unitHour')}</option>
+                        <option value="starting_at">{t('helperDashboard.unitStartingAt')}</option>
+                        <option value="quote">{t('helperDashboard.unitQuote')}</option>
+                      </Select>
+                      <Input label={t('helperDashboard.duration')} value={editSvc.duration}
+                        onChange={e => setEditSvc({ ...editSvc, duration: e.target.value })} placeholder={t('helperDashboard.durationPlaceholder')} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input label={t('helperDashboard.category')} value={editSvc.category}
+                        onChange={e => setEditSvc({ ...editSvc, category: e.target.value })} placeholder={t('helperDashboard.categoryPlaceholder')} />
+                      <div className="flex items-center gap-2 pt-5">
+                        <input type="checkbox" id={`popular-edit-${s.id}`} checked={editSvc.popular}
+                          onChange={e => setEditSvc({ ...editSvc, popular: e.target.checked })} className="accent-orange-500" />
+                        <label htmlFor={`popular-edit-${s.id}`} className="text-sm text-gray-300">{t('helperDashboard.markPopular')}</label>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-white">{s.name}</p>
+                      <p className="text-xs text-gray-500">{s.category} · ${s.price} / {s.price_unit}</p>
+                      {s.description && <p className="text-xs text-gray-400 mt-1">{s.description}</p>}
+                    </div>
+                    <div className="flex flex-shrink-0 gap-2">
+                      <Btn variant="secondary" type="button" onClick={() => beginEditService(s)}>{t('common.edit')}</Btn>
+                      <Btn variant="danger" type="button" onClick={() => deleteService(s.id)}>{t('helperDashboard.delete')}</Btn>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -424,11 +563,33 @@ export default function EditProfileTab() {
           <div className="space-y-2 mb-5">
             {faqs.map(f => (
               <div key={f.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
-                <div className="flex justify-between items-start gap-2">
-                  <p className="text-sm font-semibold text-white">{f.question}</p>
-                  <Btn variant="danger" onClick={() => deleteFaq(f.id)}>{t('helperDashboard.delete')}</Btn>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{f.answer}</p>
+                {editingFaqId === f.id ? (
+                  <form onSubmit={saveEditFaq} className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editFaqHeader')}</p>
+                      <div className="flex gap-2">
+                        <Btn type="button" variant="secondary" onClick={cancelEditFaq}>{t('common.cancel')}</Btn>
+                        <Btn type="submit">{t('common.save')}</Btn>
+                      </div>
+                    </div>
+                    <Input label={t('helperDashboard.questionLabel')} value={editFaq.question}
+                      onChange={e => setEditFaq({ ...editFaq, question: e.target.value })}
+                      placeholder={t('helperDashboard.questionPlaceholder')} required />
+                    <Textarea label={t('helperDashboard.answerLabel')} rows={3} value={editFaq.answer}
+                      onChange={e => setEditFaq({ ...editFaq, answer: e.target.value })} required />
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="text-sm font-semibold text-white">{f.question}</p>
+                      <div className="flex flex-shrink-0 gap-2">
+                        <Btn variant="secondary" type="button" onClick={() => beginEditFaq(f)}>{t('common.edit')}</Btn>
+                        <Btn variant="danger" type="button" onClick={() => deleteFaq(f.id)}>{t('helperDashboard.delete')}</Btn>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{f.answer}</p>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -452,11 +613,40 @@ export default function EditProfileTab() {
           <div className="space-y-2 mb-5">
             {policies.map(p => (
               <div key={p.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
-                <div className="flex justify-between items-start gap-2">
-                  <p className="text-sm font-semibold text-white">{p.title}</p>
-                  <Btn variant="danger" onClick={() => deletePolicy(p.id)}>{t('helperDashboard.delete')}</Btn>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{p.content}</p>
+                {editingPolicyId === p.id ? (
+                  <form onSubmit={saveEditPolicy} className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">{t('helperDashboard.editPolicyHeader')}</p>
+                      <div className="flex gap-2">
+                        <Btn type="button" variant="secondary" onClick={cancelEditPolicy}>{t('common.cancel')}</Btn>
+                        <Btn type="submit">{t('common.save')}</Btn>
+                      </div>
+                    </div>
+                    <Input label={t('helperDashboard.policyTitle')} value={editPol.title}
+                      onChange={e => setEditPol({ ...editPol, title: e.target.value })}
+                      placeholder={t('helperDashboard.policyTitlePlaceholder')} required />
+                    <Textarea label={t('helperDashboard.policyDetails')} rows={3} value={editPol.content}
+                      onChange={e => setEditPol({ ...editPol, content: e.target.value })} required />
+                    <Select label={t('helperDashboard.iconLabel')} value={editPol.icon}
+                      onChange={e => setEditPol({ ...editPol, icon: e.target.value })}>
+                      <option value="calendar-x">{t('helperDashboard.iconCancellation')}</option>
+                      <option value="credit-card">{t('helperDashboard.iconPayment')}</option>
+                      <option value="shield-check">{t('helperDashboard.iconSafetyGuarantee')}</option>
+                      <option value="shield">{t('helperDashboard.iconGeneral')}</option>
+                    </Select>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="text-sm font-semibold text-white">{p.title}</p>
+                      <div className="flex flex-shrink-0 gap-2">
+                        <Btn variant="secondary" type="button" onClick={() => beginEditPolicy(p)}>{t('common.edit')}</Btn>
+                        <Btn variant="danger" type="button" onClick={() => deletePolicy(p.id)}>{t('helperDashboard.delete')}</Btn>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{p.content}</p>
+                  </>
+                )}
               </div>
             ))}
           </div>
