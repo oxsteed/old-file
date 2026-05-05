@@ -22,6 +22,7 @@ import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
+import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
 import {
   ProfileSkeleton,
   ProfileError,
@@ -412,6 +413,13 @@ export default function BusinessProfilePage() {
           type="profile"
         />
         <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+          <ProfileShareControls
+            shareUrl={`${getPublicSiteUrl()}/business/${id}`}
+            shareTitle={helper.businessName}
+            i18nPrefix="businessProfile"
+          />
+        </div>
         <ProfileTemplateRenderer slug={activeTemplate} profileData={profileData} />
         <Footer />
       </div>
@@ -448,6 +456,9 @@ export default function BusinessProfilePage() {
         helper={helper}
         onBookNow={handleBookNow}
         onOpenChat={handleOpenChat}
+        shareUrl={`${getPublicSiteUrl()}/business/${id}`}
+        shareTitle={helper.businessName}
+        shareI18nPrefix="businessProfile"
       />
 
       {/* Sticky section nav */}

@@ -4260,6 +4260,16 @@
       "verifiedTitle": "Idantite verifye pa OxSteed",
       "trustBadgesAria": "Badj konfyans ak verifikasyon"
     },
+    "share": {
+      "copyLink": "Kopi lyen",
+      "copied": "Kopye",
+      "copyLinkAria": "Kopi lyen pwofil nan kle tampon",
+      "share": "Pataje",
+      "shareAria": "Pataje pwofil sa a",
+      "linkCopied": "Lyen kopye",
+      "copyFailed": "Pa t kapab kopye lyen an",
+      "defaultMessage": "Gade {{name}} sou OxSteed: {{url}}"
+    },
     "cta": {
       "startingFrom": "Kòmanse nan",
       "perHour": "/è",
@@ -4714,7 +4724,17 @@
     "bookAndChatAria": "Rezève ak chat",
     "manager": "Manadjè",
     "representative": "Reprezantan",
-    "galleryAlt": "Foto biznis lan"
+    "galleryAlt": "Foto biznis lan",
+    "share": {
+      "copyLink": "Kopi lyen",
+      "copied": "Kopye",
+      "copyLinkAria": "Kopi lyen pwofil biznis la",
+      "share": "Pataje",
+      "shareAria": "Pataje pwofil biznis sa a",
+      "linkCopied": "Lyen kopye",
+      "copyFailed": "Pa t kapab kopye lyen an",
+      "defaultMessage": "Gade {{name}} sou OxSteed: {{url}}"
+    }
   },
   "leads": {
     "title": "Demann Sèvis",

@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import PageMeta from '../components/PageMeta';
 import ProfileJsonLd from '../components/ProfileJsonLd';
 import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDescription';
+import ProfileShareControls from '../components/helperProfile/ProfileShareControls';
 import { MessageCircle, Flag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import UserReputationCard from '../components/UserReputationCard';
@@ -231,6 +232,12 @@ const HelperBusinessProfilePage: React.FC = () => {
           type="profile"
         />
         <Navbar />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+          <ProfileShareControls
+            shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
+            shareTitle={helper.businessName || helper.ownerName}
+          />
+        </div>
         <ProfileTemplateRenderer slug={activeTemplate} profileData={data} />
         <Footer />
       </div>
@@ -267,6 +274,8 @@ const HelperBusinessProfilePage: React.FC = () => {
         helper={helper}
         onBookNow={handleBookNow}
         onOpenChat={handleMessageHelper}
+        shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
+        shareTitle={helper.businessName || helper.ownerName}
       />
 
       {/* Sticky section nav */}
