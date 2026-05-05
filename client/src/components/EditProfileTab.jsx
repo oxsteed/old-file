@@ -339,7 +339,10 @@ export default function EditProfileTab() {
           embedded
           currentCoverUrl={coverImageUrl}
           onUploadSuccess={(url) => setCoverImageUrl(url || null)}
-          onError={(msg) => toast.error(msg)}
+          onError={(msg) => {
+            const s = typeof msg === 'string' ? msg : String(msg ?? '');
+            if (s) toast.error(s);
+          }}
         />
       </Card>
 

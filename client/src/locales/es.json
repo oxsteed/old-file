@@ -4942,6 +4942,8 @@
       "dragOrClick": "Arrastra y suelta tu imagen aquí, o haz clic para seleccionar",
       "formats": "Formatos admitidos: JPEG, PNG, WebP",
       "maxSize": "Tamaño máximo: 5 MB",
+      "invalidFormat": "Elige una imagen JPEG, PNG o WebP.",
+      "fileTooLarge": "El archivo es demasiado grande. El máximo es 5 MB.",
       "selected": "Archivo seleccionado",
       "uploading": "Subiendo tu imagen…",
       "uploadSuccess": "Imagen de portada subida correctamente.",

@@ -4942,6 +4942,8 @@
       "dragOrClick": "Glissez-déposez votre image ici, ou cliquez pour sélectionner",
       "formats": "Formats pris en charge : JPEG, PNG, WebP",
       "maxSize": "Taille maximale : 5 Mo",
+      "invalidFormat": "Veuillez choisir une image JPEG, PNG ou WebP.",
+      "fileTooLarge": "Ce fichier est trop volumineux. Taille maximale : 5 Mo.",
       "selected": "Fichier sélectionné",
       "uploading": "Téléversement de votre image…",
       "uploadSuccess": "Image de couverture téléversée avec succès.",

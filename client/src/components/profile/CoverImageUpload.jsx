@@ -4,6 +4,34 @@ import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../../api/axios';
 import './CoverImageUpload.css';
 
+/** Turn axios/network errors into a safe string for UI + toast (never pass objects to toast). */
+function stringifyUploadError(err, fallback) {
+  if (err == null) return fallback;
+  if (typeof err === 'string') return err;
+  const d = err.response?.data;
+  if (d != null) {
+    if (typeof d === 'string') return d;
+    if (typeof d.message === 'string') return d.message;
+    if (typeof d.error === 'string') return d.error;
+    if (d.error != null && typeof d.error !== 'object') return String(d.error);
+    if (d.fields && typeof d.fields === 'object') {
+      const first = Object.values(d.fields).find((v) => typeof v === 'string');
+      if (first) return first;
+    }
+  }
+  if (typeof err.message === 'string' && err.message) return err.message;
+  return fallback;
+}
+
+function safeOnError(onError, message) {
+  if (typeof onError !== 'function') return;
+  try {
+    onError(typeof message === 'string' ? message : String(message));
+  } catch {
+    /* ignore toast / parent errors */
+  }
+}
+
 /**
  * CoverImageUpload Component
  *
@@ -33,13 +61,17 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
     // Validate file
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError(t('profile.coverImage.invalidFormat'));
+      const msg = t('profile.coverImage.invalidFormat');
+      setError(msg);
+      safeOnError(onError, msg);
       return;
     }
 
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      setError(t('profile.coverImage.fileTooLarge'));
+      const msg = t('profile.coverImage.fileTooLarge');
+      setError(msg);
+      safeOnError(onError, msg);
       return;
     }
 
@@ -51,7 +83,6 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
     };
     reader.readAsDataURL(file);
 
-    // Upload file
     await uploadCoverImage(file);
   };
 
@@ -76,16 +107,9 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        t('profile.coverImage.uploadFailed');
+      const errorMsg = stringifyUploadError(err, t('profile.coverImage.uploadFailed'));
       setError(errorMsg);
-
-      if (onError) {
-        onError(errorMsg);
-      }
+      safeOnError(onError, errorMsg);
     } finally {
       setLoading(false);
     }
@@ -107,13 +131,13 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0]);
+      void handleFileSelect(e.dataTransfer.files[0]);
     }
   };
 
   const handleInputChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      handleFileSelect(e.target.files[0]);
+      void handleFileSelect(e.target.files[0]);
     }
   };
 
@@ -137,12 +161,9 @@ export default function CoverImageUpload({ currentCoverUrl, onUploadSuccess, onE
 
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
-          err.message ||
-          t('profile.coverImage.deleteFailed'),
-      );
+      const msg = stringifyUploadError(err, t('profile.coverImage.deleteFailed'));
+      setError(msg);
+      safeOnError(onError, msg);
     } finally {
       setLoading(false);
     }

@@ -4942,6 +4942,8 @@
       "dragOrClick": "Drag epi lage imaj la isit la, oswa klike pou chwazi",
       "formats": "Fòma aksepte: JPEG, PNG, WebP",
       "maxSize": "Gwosè maksimòm: 5 MB",
+      "invalidFormat": "Tanpri chwazi yon imaj JPEG, PNG oswa WebP.",
+      "fileTooLarge": "Fichye a twò gwo. Maksimòm se 5 MB.",
       "selected": "Fichye chwazi",
       "uploading": "Ap telechaje imaj ou…",
       "uploadSuccess": "Imaj kouvèti a telechaje avèk siksè.",
