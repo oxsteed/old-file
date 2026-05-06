@@ -820,8 +820,12 @@ function AgendaView({ appointments, onSelectAppointment, t }) {
           </div>
         );
       })}
+    </div>
+  );
+}
 
-      // ─── Booking Requests View ────────────────────────────────────────────────────
+// ─── Booking Requests View ────────────────────────────────────────────────────
+
 function BookingRequestsView({ onBookingConfirmed, t }) {
   const [bookingRequests, setBookingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -986,9 +990,6 @@ function BookingRequestsView({ onBookingConfirmed, t }) {
           );
         })}
       </div>
-    </div>
-  );
-}
     </div>
   );
 }
