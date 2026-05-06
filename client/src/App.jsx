@@ -47,6 +47,7 @@ import PublicProfile from './pages/PublicProfile';
 import BookHelperPage from './pages/BookHelperPage';
 import TemplatePicker from './pages/TemplatePicker';
 import BusinessProfilePage from './pages/BusinessProfilePage';
+import HelperBusinessProfilePage from './pages/HelperBusinessProfilePage';
 import HelpersDirectoryPage from './pages/HelpersDirectoryPage';
 import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputeDetail from './pages/disputes/DisputeDetail';
