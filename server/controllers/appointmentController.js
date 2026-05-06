@@ -18,6 +18,7 @@ const { withTransaction } = require('../utils/transaction');
 const emailService = require('../services/emailService');
 const { broadcastToUser } = require('../services/socketService');
 const { renderAppointmentEmail } = require('../utils/calendarEmails');
+const { sendSuccess, sendError } = require('../utils/apiError');
 
 const HELPER_ROLES = ['helper', 'helper_pro', 'broker'];
 const APPOINTMENT_STATUSES = ['requested', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled'];
