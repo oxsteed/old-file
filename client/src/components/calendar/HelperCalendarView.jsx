@@ -301,6 +301,13 @@ export default function HelperCalendarView({
         />
       )}
 
+        {viewMode === 'booking-requests' && (
+        <BookingRequestsView
+          onBookingConfirmed={loadCalendarData}
+          t={t}
+        />
+      )}
+
       {viewMode === 'agenda' && (
         <AgendaView
           appointments={appointments}
@@ -813,6 +820,175 @@ function AgendaView({ appointments, onSelectAppointment, t }) {
           </div>
         );
       })}
+
+      // ─── Booking Requests View ────────────────────────────────────────────────────
+function BookingRequestsView({ onBookingConfirmed, t }) {
+  const [bookingRequests, setBookingRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { socket } = useSocket();
+
+  const loadBookingRequests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/bookings/direct-requests');
+      setBookingRequests(response.data?.bookings || []);
+    } catch (err) {
+      console.error('Error loading booking requests:', err);
+      toast.error(t('calendar.errorLoadingBookings', { defaultValue: 'Failed to load booking requests' }));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    loadBookingRequests();
+  }, [loadBookingRequests]);
+
+  // Listen for real-time booking updates
+  useEffect(() => {
+    if (!socket?.connected) return;
+
+    const handleNewBooking = () => {
+      loadBookingRequests();
+    };
+
+    socket.on('booking:new', handleNewBooking);
+    socket.on('booking:updated', handleNewBooking);
+
+    return () => {
+      socket.off('booking:new', handleNewBooking);
+      socket.off('booking:updated', handleNewBooking);
+    };
+  }, [socket, loadBookingRequests]);
+
+  const handleConfirmBooking = async (bookingId) => {
+    try {
+      await api.post(`/bookings/${bookingId}/confirm`);
+      toast.success(t('calendar.bookingConfirmed', { defaultValue: 'Booking confirmed! It has been added to your calendar.' }));
+      loadBookingRequests();
+      onBookingConfirmed();
+    } catch (err) {
+      console.error('Error confirming booking:', err);
+      toast.error(t('calendar.errorConfirmingBooking', { defaultValue: 'Failed to confirm booking' }));
+    }
+  };
+
+  const handleDeclineBooking = async (bookingId) => {
+    try {
+      await api.post(`/bookings/${bookingId}/decline`);
+      toast.success(t('calendar.bookingDeclined', { defaultValue: 'Booking request declined.' }));
+      loadBookingRequests();
+    } catch (err) {
+      console.error('Error declining booking:', err);
+      toast.error(t('calendar.errorDecliningBooking', { defaultValue: 'Failed to decline booking' }));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="booking-requests-loading">
+        <div className="spinner">⟳</div>
+        <p>{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (bookingRequests.length === 0) {
+    return (
+      <div className="booking-requests-empty">
+        <div className="empty-icon">📅</div>
+        <h3>{t('calendar.noBookingRequests', { defaultValue: 'No booking requests' })}</h3>
+        <p>{t('calendar.noBookingRequestsSub', { defaultValue: 'Direct booking requests from customers will appear here.' })}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="booking-requests-container">
+      <div className="booking-requests-header">
+        <h2>{t('calendar.pendingBookingRequests', { defaultValue: 'Pending Booking Requests' })}</h2>
+        <p className="booking-count">{bookingRequests.length} {t('calendar.requestsWaiting', { defaultValue: 'request(s) waiting' })}</p>
+      </div>
+      <div className="booking-requests-list">
+        {bookingRequests.map((booking) => {
+          const startDate = new Date(booking.start_time);
+          const endDate = new Date(booking.end_time);
+          
+          return (
+            <div key={booking.id} className="booking-request-card">
+              <div className="booking-request-header">
+                <div className="customer-info">
+                  <div className="avatar">{booking.customer_name?.charAt(0) || '?'}</div>
+                  <div>
+                    <h4>{booking.customer_name || 'Unknown Customer'}</h4>
+                    <p className="request-time">
+                      {t('calendar.requestedOn', { defaultValue: 'Requested on' })}{' '}
+                      {new Date(booking.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="booking-status pending">
+                  {t('calendar.statusPending', { defaultValue: 'Pending' })}
+                </div>
+              </div>
+              
+              <div className="booking-details">
+                <div className="detail-row">
+                  <span className="detail-label">📅 {t('calendar.dateTime', { defaultValue: 'Date & Time' })}:</span>
+                  <span className="detail-value">
+                    {startDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    <br />
+                    {startDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    {' – '}
+                    {endDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                
+                {booking.service_description && (
+                  <div className="detail-row">
+                    <span className="detail-label">📋 {t('calendar.service', { defaultValue: 'Service' })}:</span>
+                    <span className="detail-value">{booking.service_description}</span>
+                  </div>
+                )}
+                
+                {booking.notes && (
+                  <div className="detail-row">
+                    <span className="detail-label">💬 {t('calendar.notes', { defaultValue: 'Notes' })}:</span>
+                    <span className="detail-value">{booking.notes}</span>
+                  </div>
+                )}
+                
+                {booking.price && (
+                  <div className="detail-row">
+                    <span className="detail-label">💰 {t('calendar.price', { defaultValue: 'Price' })}:</span>
+                    <span className="detail-value">${booking.price}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="booking-actions">
+                <button
+                  className="btn-confirm"
+                  onClick={() => handleConfirmBooking(booking.id)}
+                  title={t('calendar.confirmBooking', { defaultValue: 'Confirm and add to calendar' })}
+                >
+                  ✓ {t('calendar.confirm', { defaultValue: 'Confirm' })}
+                </button>
+                <button
+                  className="btn-decline"
+                  onClick={() => handleDeclineBooking(booking.id)}
+                  title={t('calendar.declineBooking', { defaultValue: 'Decline booking request' })}
+                >
+                  ✕ {t('calendar.decline', { defaultValue: 'Decline' })}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
     </div>
   );
 }
