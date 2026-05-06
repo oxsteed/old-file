@@ -5,6 +5,7 @@ import useAuth from '../hooks/useAuth';
 import { formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
 import { fetchBookingPrefillForJob } from '../api/bookings';
+import api from '../api/axios';
 import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
 import { useTranslation } from 'react-i18next';
