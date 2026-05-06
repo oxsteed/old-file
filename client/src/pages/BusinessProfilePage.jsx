@@ -366,20 +366,7 @@ export default function BusinessProfilePage() {
       setGuestSignInModalOpen(true);
     }
   }, [isMobile, user, profileData?.helper?.allowGuestContact]);
-
-  const handleSelectService = useCallback(
-    (service) => {
-      if (!profileData) return;
-      const params = new URLSearchParams({
-        helperName: profileData.helper.businessName,
-      });
-      if (service.name?.trim()) {
-        params.set('serviceHint', service.name.trim());
-      }
-      navigate(`/book/${profileData.helper.id}?${params.toString()}`);
-    },
-    [profileData, navigate]
-  );
+  const handleSelectService = useCallback(() => {}, []); // future: /book/:id?service=
 
   // ── Loading / error shells ─────────────────────────────────────────────────
   if (loadState === 'loading' || loadState === 'idle') {
