@@ -67,36 +67,24 @@ function MiniCalendar({ selectedDate, onDateChange }) {
   });
 
   return (
-    <div className="cp-mini-cal">
-      <div className="cp-mini-cal-header">
-        <button className="cp-mini-nav" onClick={prevMonth} aria-label="Previous month">
-          ‹
-        </button>
-        <span className="cp-mini-month">{monthLabel}</span>
-        <button className="cp-mini-nav" onClick={nextMonth} aria-label="Next month">
-          ›
-        </button>
+    <div className="mini-calendar">
+      <div className="mini-calendar-header">
+        <button onClick={prevMonth} aria-label="Previous month">‹</button>
+        <span>{monthLabel}</span>
+        <button onClick={nextMonth} aria-label="Next month">›</button>
       </div>
-      <div className="cp-mini-cal-grid">
+      <div className="mini-calendar-grid">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-          <div key={i} className="cp-mini-dow">
-            {d}
-          </div>
+          <span key={i} className="mini-calendar-dow">{d}</span>
         ))}
         {days.map((day, idx) => {
-          if (!day) return <div key={`empty-${idx}`} className="cp-mini-day cp-mini-empty" />;
+          if (!day) return <span key={`empty-${idx}`} />;
           const isToday = isSameDay(day, today);
           const isSelected = isSameDay(day, selectedDate);
           return (
             <button
-              key={day.toISOString()}
-              className={[
-                'cp-mini-day',
-                isToday ? 'cp-mini-today' : '',
-                isSelected && !isToday ? 'cp-mini-selected' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
+              key={idx}
+              className={`mini-calendar-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
               onClick={() => onDateChange(day)}
               aria-label={day.toLocaleDateString()}
               aria-pressed={isSelected}
@@ -111,7 +99,6 @@ function MiniCalendar({ selectedDate, onDateChange }) {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function CalendarPage() {
   const { t } = useTranslation();
   const { user, isHelper } = useAuth();
@@ -127,43 +114,47 @@ export default function CalendarPage() {
 
   return (
     <PageShell>
-      <PageMeta
-        title={t('calendar.pageTitle')}
-        description={t('calendar.pageDescription')}
-      />
-      <div className="cp-container">
+      <PageMeta title={t('calendar.title')} />
+      <div className="calendar-page">
         {/* ── Top header: title + view toggle ── */}
-        <div className="cp-header">
-          <div className="cp-header-left">
+        <div className="calendar-header">
+          <div className="calendar-title-block">
             <h1>{t('calendar.title')}</h1>
-            <p className="cp-subtitle">
-              {isHelper ? t('calendar.subtitleHelper') : t('calendar.subtitleCustomer')}
-            </p>
+            <p>{isHelper ? t('calendar.subtitleHelper') : t('calendar.subtitleCustomer')}</p>
           </div>
-          <div className="cp-view-modes">
+          <div className="calendar-view-toggle">
             <button
-              className={`cp-view-btn ${viewMode === 'day' ? 'active' : ''}`}
+              className={viewMode === 'day' ? 'active' : ''}
               onClick={() => setViewMode('day')}
               title={t('calendar.dayView')}
             >
               {t('calendar.day')}
             </button>
             <button
-              className={`cp-view-btn ${viewMode === 'week' ? 'active' : ''}`}
+              className={viewMode === 'week' ? 'active' : ''}
               onClick={() => setViewMode('week')}
               title={t('calendar.weekView')}
             >
               {t('calendar.week')}
             </button>
             <button
-              className={`cp-view-btn ${viewMode === 'month' ? 'active' : ''}`}
+              className={viewMode === 'month' ? 'active' : ''}
               onClick={() => setViewMode('month')}
               title={t('calendar.monthView')}
             >
               {t('calendar.month')}
             </button>
+            {isHelper && (
+              <button
+                className={viewMode === 'booking-requests' ? 'active booking-requests-btn' : 'booking-requests-btn'}
+                onClick={() => setViewMode('booking-requests')}
+                title={t('calendar.bookingRequestsView', { defaultValue: 'View direct booking requests' })}
+              >
+                {t('calendar.bookingRequests', { defaultValue: 'Booking Request' })}
+              </button>
+            )}
             <button
-              className={`cp-view-btn ${viewMode === 'agenda' ? 'active' : ''}`}
+              className={viewMode === 'agenda' ? 'active' : ''}
               onClick={() => setViewMode('agenda')}
               title={t('calendar.agendaView')}
             >
@@ -173,63 +164,42 @@ export default function CalendarPage() {
         </div>
 
         {/* ── Body: sidebar + calendar grid ── */}
-        <div className="cp-body">
+        <div className="calendar-body">
           {/* ── Left sidebar ── */}
-          <aside className="cp-sidebar" aria-label={t('calendar.sidebarLabel', { defaultValue: 'Calendar sidebar' })}>
+          <aside className="calendar-sidebar">
             {/* Primary CTA — helpers only */}
             {isHelper && (
               <button
-                className="cp-block-time-btn"
+                className="block-time-btn"
                 onClick={() => setBlockModalRequest(true)}
                 aria-label={t('calendar.blockTime', { defaultValue: 'Block Time' })}
               >
-                <span className="cp-block-time-plus" aria-hidden="true">+</span>
+                <span aria-hidden="true">+</span>
                 {t('calendar.blockTime', { defaultValue: 'Block Time' })}
               </button>
             )}
-
             {/* Mini month navigator */}
             <MiniCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
-
             {/* Legend */}
-            <div className="cp-legend">
-              <div className="cp-legend-title">
-                {t('calendar.legendTitle', { defaultValue: 'Legend' })}
-              </div>
-              <div className="cp-legend-item">
-                <span className="cp-legend-dot" style={{ background: '#f97316' }} />
-                {t('calendar.statusConfirmed', { defaultValue: 'Confirmed' })}
-              </div>
-              <div className="cp-legend-item">
-                <span className="cp-legend-dot" style={{ background: '#3b82f6' }} />
-                {t('calendar.statusRequested', { defaultValue: 'Requested' })}
-              </div>
-              <div className="cp-legend-item">
-                <span className="cp-legend-dot" style={{ background: '#f59e0b' }} />
-                {t('calendar.statusInProgress', { defaultValue: 'In Progress' })}
-              </div>
-              <div className="cp-legend-item">
-                <span className="cp-legend-dot" style={{ background: '#6b7280' }} />
-                {t('calendar.statusCompleted', { defaultValue: 'Completed' })}
-              </div>
-              {isHelper && (
-                <>
-                  <div className="cp-legend-divider" />
-                  <div className="cp-legend-item">
-                    <span className="cp-legend-dot" style={{ background: '#10b981' }} />
-                    {t('calendar.blockAvailable', { defaultValue: 'Available' })}
-                  </div>
-                  <div className="cp-legend-item">
-                    <span className="cp-legend-dot" style={{ background: '#ef4444' }} />
-                    {t('calendar.blockBusy', { defaultValue: 'Busy' })}
-                  </div>
-                </>
-              )}
+            <div className="calendar-legend">
+              <h3>{t('calendar.legendTitle', { defaultValue: 'Legend' })}</h3>
+              <ul>
+                <li><span className="legend-dot confirmed" /> {t('calendar.statusConfirmed', { defaultValue: 'Confirmed' })}</li>
+                <li><span className="legend-dot requested" /> {t('calendar.statusRequested', { defaultValue: 'Requested' })}</li>
+                <li><span className="legend-dot in-progress" /> {t('calendar.statusInProgress', { defaultValue: 'In Progress' })}</li>
+                <li><span className="legend-dot completed" /> {t('calendar.statusCompleted', { defaultValue: 'Completed' })}</li>
+                {isHelper && (
+                  <>
+                    <li><span className="legend-dot available" /> {t('calendar.blockAvailable', { defaultValue: 'Available' })}</li>
+                    <li><span className="legend-dot busy" /> {t('calendar.blockBusy', { defaultValue: 'Busy' })}</li>
+                  </>
+                )}
+              </ul>
             </div>
           </aside>
 
           {/* ── Main calendar ── */}
-          <div className="cp-main">
+          <main className="calendar-main">
             {isHelper ? (
               <HelperCalendarView
                 viewMode={viewMode}
@@ -245,7 +215,7 @@ export default function CalendarPage() {
                 onDateChange={setSelectedDate}
               />
             )}
-          </div>
+          </main>
         </div>
       </div>
     </PageShell>
