@@ -30,7 +30,7 @@ router.get('/:id',  generalLimiter, getJob);
 
 // ── Protected parameterized ───────────────────────────────────────────────────
 router.put('/:id',           authenticate, updateJob);
-router.put('/:id/cancel',    authenticate, cancelJob);
+router.post('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
 router.post('/:id/complete', authenticate, completeJob);
 router.post('/:id/close',    authenticate, closeJob);
