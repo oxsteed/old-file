@@ -686,7 +686,7 @@ export default function JobDetailPage() {
                       )}
                       <div className="jdp-bid-footer">
                         <span className="jdp-bid-date">{timeAgo(bid.created_at)}</span>
-                        {isOwner && job.status === 'published' && bid.status === 'pending' && (
+                        {isOwner && ['published', 'matched'].includes(job.status) && bid.status === 'pending' && (
                           <button
                             className="jdp-btn-accept"
                             onClick={() => handleAcceptClick(bid)}
