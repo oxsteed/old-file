@@ -13,9 +13,12 @@ export default function BidAcceptanceModal({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Helper's policies determine available options
-  const canSelectOxsteed = helperPolicies?.oxsteed_enabled ?? false;
-  const canSelectCustom = helperPolicies?.custom_enabled ?? false;
+  // Helper's policies determine available options.
+  // When policies are null (failed to load or helper has no preferences set),
+  // OxSteed platform payment is always the safe default fallback.
+  const policiesLoaded = helperPolicies != null;
+  const canSelectOxsteed = policiesLoaded ? (helperPolicies?.oxsteed_enabled ?? true) : true;
+  const canSelectCustom  = policiesLoaded ? (helperPolicies?.custom_enabled  ?? false) : false;
 
   // Default to the only available option if only one is enabled
   React.useEffect(() => {

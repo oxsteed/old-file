@@ -181,17 +181,19 @@ export default function JobDetailPage() {
   async function handleAcceptClick(bid) {
     setLoadingPolicies(true);
     try {
-      // Fetch helper's cancellation policies
-      const { data } = await api.get('/api/helper-settings/policies', {
+      // Fetch helper's cancellation policies (path must NOT include /api/ prefix)
+      const { data } = await api.get('/helper-settings/policies', {
         params: { helper_id: bid.helper_id }
       });
       setHelperPolicies(data.data);
-      setAcceptingBid(bid);
     } catch (err) {
-      toast.error(t('jobDetail.failedToLoadPolicies', { defaultValue: 'Failed to load helper\'s payment policies' }));
-      console.error('Failed to fetch helper policies:', err);
+      // Policies are informational — don't block the modal from opening
+      console.error('Failed to fetch helper policies (non-blocking):', err);
+      setHelperPolicies(null);
     } finally {
       setLoadingPolicies(false);
+      // Always open the modal — policies are optional
+      setAcceptingBid(bid);
     }
   }
 
@@ -253,10 +255,9 @@ export default function JobDetailPage() {
   }
 
   async function handleCancel() {
-    if (!cancelReason.trim()) return;
     setActionLoading(true);
     try {
-      await cancelJob(id, cancelReason);
+      await cancelJob(id, cancelReason.trim() || null);
       fetchJob(id);
       setShowCancelModal(false);
       toast.success('Job cancelled successfully');
@@ -936,7 +937,7 @@ export default function JobDetailPage() {
       )}
 
       {/* ── Bid Acceptance Modal (Payment Method Selection) ─────────── */}
-      {acceptingBid && helperPolicies && (
+      {acceptingBid && (
         <BidAcceptanceModal
           bid={acceptingBid}
           helperPolicies={helperPolicies}
