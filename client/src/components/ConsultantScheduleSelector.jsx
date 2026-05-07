@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
+import logger from '../utils/logger';
 
 export default function ConsultantScheduleSelector({ consultantId, sessionId, onScheduleConfirmed, onCancel }) {
   const { t } = useTranslation();
@@ -45,7 +46,7 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
       try {
         setLoading(true);
         const response = await axios.get(
-          `/api/scheduling/consultants/${consultantId}/available-slots`,
+          `/scheduling/consultants/${consultantId}/available-slots`,
           {
             params: { date: selectedDate, durationMinutes }
           }

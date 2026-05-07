@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
 import qrCodesApi from '../api/qrCodes';
 import QRCodeStyling from 'qr-code-styling';
+import logger from '../utils/logger';
 import './QRCodeGeneratorPage.css';
 import { Trash2, Download, Copy, Check, Plus } from 'lucide-react';
 

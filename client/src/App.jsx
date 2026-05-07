@@ -84,6 +84,9 @@ import SupportEscalationPage from './pages/SupportEscalationPage';
 import SupportAgentPortalPage from './pages/SupportAgentPortalPage';
 import MyJobsPage from './pages/MyJobsPage';
 import MyBidsPage from './pages/MyBidsPage';
+import EnforcementPolicyPage from './pages/EnforcementPolicyPage';
+import HelperProfileEditPage from './pages/HelperProfileEditPage';
+import BusinessProfileEditPage from './pages/BusinessProfileEditPage';
 
 import CookieConsent from './components/CookieConsent';
 import TermsGate from './components/TermsGate';
@@ -204,10 +207,15 @@ export default function App() {
                     <Route path="/post-job"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><PostJobPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/my-jobs"        element={<Guarded><ProtectedRoute><MyJobsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/my-bids"        element={<Guarded><ProtectedRoute><MyBidsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/invoices"       element={<Guarded><ProtectedRoute><InvoicesPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/consultant-availability" element={<Guarded><ProtectedRoute><ConsultantAvailabilityPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
+                    <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/business/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/enforcement-policy" element={<Guarded><EnforcementPolicyPage /></Guarded>} />
 
                     {/* Disputes: wrapped in RouteErrorBoundary to isolate crashes */}
                     <Route path="/disputes"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><DisputeCenter /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

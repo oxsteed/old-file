@@ -71,6 +71,7 @@ export default function ShoppingCartPage() {
       const response = await shareCart(null, true);
       setShareUrl(response.shareUrl);
       setSharedCartId(response.sharedCartId);
+      setShowShareModal(true);
     } catch (err) {
       // Error already shown in hook
     }
