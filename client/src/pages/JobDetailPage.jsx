@@ -844,7 +844,7 @@ export default function JobDetailPage() {
           {isOwner && (
             <div className="jdp-card jdp-sidebar-card jdp-owner-actions">
               <h3 className="jdp-sidebar-title">Actions</h3>
-              {job.status === 'published' && (
+              {['published', 'matched', 'negotiating'].includes(job.status) && (
                 <button className="jdp-btn-danger" onClick={() => setShowCancelModal(true)}>
                   Cancel Job
                 </button>
